@@ -1,138 +1,234 @@
 import type { MetaFunction } from "@remix-run/node";
+import { Link } from "@remix-run/react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "~/components/ui/hover-card";
+import { Button } from "~/components/ui/button";
+import { DashboardPreview } from "~/components/DashboardPreview";
+
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "New Remix App" },
-    { name: "description", content: "Welcome to Remix!" },
+    { title: "評分系統" },
+    { name: "description", content: "專業的教育評分管理平台" },
   ];
 };
 
 export default function Index() {
+  const features = [
+    {
+      title: "智慧評分",
+      description: "精準的AI輔助評分系統",
+      icon: (
+        <svg className="w-6 h-6 text-[#2A4858]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      )
+    },
+    {
+      title: "數據分析",
+      description: "全方位的學習成效追蹤",
+      icon: (
+        <svg className="w-6 h-6 text-[#2A4858]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      )
+    },
+    {
+      title: "即時回饋",
+      description: "快速有效的溝通橋樑",
+      icon: (
+        <svg className="w-6 h-6 text-[#2A4858]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      )
+    }
+  ];
+
   return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="flex flex-col items-center gap-16">
-        <header className="flex flex-col items-center gap-9">
-          <h1 className="leading text-2xl font-bold text-gray-800 dark:text-gray-100">
-            Welcome to <span className="sr-only">Remix</span>
-          </h1>
-          <div className="h-[144px] w-[434px]">
-            <img
-              src="/logo-light.png"
-              alt="Remix"
-              className="block w-full dark:hidden"
-            />
-            <img
-              src="/logo-dark.png"
-              alt="Remix"
-              className="hidden w-full dark:block"
-            />
+    <div className="min-h-screen bg-gradient-to-b from-[#F5F7FA] to-white">
+      {/* Hero Section */}
+      <div className="pt-16 pb-12 sm:pt-20 sm:pb-16 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-[#2A4858] sm:text-5xl">
+              智慧教育評分系統
+            </h1>
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <p className="mt-4 text-lg text-[#5C798F] cursor-help">
+                  為現代教育打造的專業評分解決方案
+                </p>
+              </HoverCardTrigger>
+              <HoverCardContent className="w-80">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">智能評分系統特點</h4>
+                  <p className="text-sm">
+                    AI輔助評分、即時數據分析、個人化學習追蹤，全方位提升教學效率。
+                  </p>
+                </div>
+              </HoverCardContent>
+            </HoverCard>
+            <div className="mt-8 flex justify-center gap-4">
+              <Button asChild variant="default" className="bg-[#2A4858] hover:bg-[#1C3D4D]">
+                <Link to="/demo">免費體驗</Link>
+              </Button>
+              <Button asChild variant="outline" className="border-[#2A4858] text-[#2A4858]">
+                <Link to="/about">了解更多</Link>
+              </Button>
+            </div>
           </div>
-        </header>
-        <nav className="flex flex-col items-center justify-center gap-4 rounded-3xl border border-gray-200 p-6 dark:border-gray-700">
-          <p className="leading-6 text-gray-700 dark:text-gray-200">
-            What&apos;s next?
-          </p>
-          <ul>
-            {resources.map(({ href, text, icon }) => (
-              <li key={href}>
-                <a
-                  className="group flex items-center gap-3 self-stretch p-3 leading-normal text-blue-700 hover:underline dark:text-blue-500"
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {icon}
-                  {text}
-                </a>
-              </li>
+        </div>
+      </div>
+
+      {/* Features Section */}
+      <div className="py-12 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            {features.map((feature) => (
+              <Card key={feature.title} className="border-[#F5F7FA]">
+                <CardHeader>
+                  <div className="h-12 w-12 rounded-lg bg-[#F5F7FA] flex items-center justify-center mb-4">
+                    {feature.icon}
+                  </div>
+                  <CardTitle className="text-[#2A4858]">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-[#5C798F]">{feature.description}</p>
+                </CardContent>
+              </Card>
             ))}
-          </ul>
-        </nav>
+          </div>
+        </div>
+      </div>
+
+      <div className="py-16 bg-[#F5F7FA]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-[#2A4858]">
+              智能評分系統預覽
+            </h2>
+            <p className="mt-4 text-lg text-[#5C798F]">
+              體驗實時評分和數據分析功能
+            </p>
+          </div>
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+            <DashboardPreview />
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Section */}
+      <div className="py-16 bg-[#F5F7FA]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Card className="border-0 bg-transparent shadow-none">
+            <CardHeader className="text-center">
+              <CardTitle className="text-3xl font-bold text-[#2A4858]">
+                系統成效
+              </CardTitle>
+              <CardDescription className="text-[#5C798F]">
+                實際數據證明的效能
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-8 text-center">
+                <div>
+                  <div className="text-4xl font-bold text-[#2A4858]">98%</div>
+                  <div className="mt-2 text-[#5C798F]">準確率</div>
+                </div>
+                <div>
+                  <div className="text-4xl font-bold text-[#2A4858]">50%</div>
+                  <div className="mt-2 text-[#5C798F]">時間節省</div>
+                </div>
+                <div>
+                  <div className="text-4xl font-bold text-[#2A4858]">200+</div>
+                  <div className="mt-2 text-[#5C798F]">活躍用戶</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Testimonials Section */}
+      <div className="py-16 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Tabs defaultValue="teachers" className="w-full">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-[#2A4858] mb-4">使用者回饋</h2>
+              <TabsList className="inline-flex">
+                <TabsTrigger value="teachers">教師評價</TabsTrigger>
+                <TabsTrigger value="students">學生回饋</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="teachers">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-[#2A4858] mb-4">
+                      "大幅提升評分效率與準確度"
+                    </p>
+                    <div className="text-[#5C798F] font-medium">王老師</div>
+                    <div className="text-sm text-[#8195A7]">資深教師</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-[#2A4858] mb-4">
+                      "完整的數據分析助於教學調整"
+                    </p>
+                    <div className="text-[#5C798F] font-medium">李老師</div>
+                    <div className="text-sm text-[#8195A7]">教學主任</div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+            <TabsContent value="students">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-[#2A4858] mb-4">
+                      "即時回饋幫助快速改進"
+                    </p>
+                    <div className="text-[#5C798F] font-medium">張同學</div>
+                    <div className="text-sm text-[#8195A7]">高中生</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-[#2A4858] mb-4">
+                      "清晰的進度追蹤很有幫助"
+                    </p>
+                    <div className="text-[#5C798F] font-medium">林同學</div>
+                    <div className="text-sm text-[#8195A7]">高中生</div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+
+      {/* CTA Section */}
+      <div className="py-16 bg-[#F5F7FA]">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <Card className="border-0 bg-transparent shadow-none">
+            <CardHeader>
+              <CardTitle className="text-3xl font-bold text-[#2A4858]">
+                開始使用專業的評分系統
+              </CardTitle>
+              <CardDescription className="text-[#5C798F]">
+                立即體驗智能評分系統
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild size="lg" className="bg-[#2A4858] hover:bg-[#1C3D4D]">
+                <Link to="/register">立即開始</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
 }
-
-const resources = [
-  {
-    href: "https://remix.run/start/quickstart",
-    text: "Quick Start (5 min)",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M8.51851 12.0741L7.92592 18L15.6296 9.7037L11.4815 7.33333L12.0741 2L4.37036 10.2963L8.51851 12.0741Z"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "https://remix.run/start/tutorial",
-    text: "Tutorial (30 min)",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M4.561 12.749L3.15503 14.1549M3.00811 8.99944H1.01978M3.15503 3.84489L4.561 5.2508M8.3107 1.70923L8.3107 3.69749M13.4655 3.84489L12.0595 5.2508M18.1868 17.0974L16.635 18.6491C16.4636 18.8205 16.1858 18.8205 16.0144 18.6491L13.568 16.2028C13.383 16.0178 13.0784 16.0347 12.915 16.239L11.2697 18.2956C11.047 18.5739 10.6029 18.4847 10.505 18.142L7.85215 8.85711C7.75756 8.52603 8.06365 8.21994 8.39472 8.31453L17.6796 10.9673C18.0223 11.0653 18.1115 11.5094 17.8332 11.7321L15.7766 13.3773C15.5723 13.5408 15.5554 13.8454 15.7404 14.0304L18.1868 16.4767C18.3582 16.6481 18.3582 16.926 18.1868 17.0974Z"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "https://remix.run/docs",
-    text: "Remix Docs",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 20 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M9.99981 10.0751V9.99992M17.4688 17.4688C15.889 19.0485 11.2645 16.9853 7.13958 12.8604C3.01467 8.73546 0.951405 4.11091 2.53116 2.53116C4.11091 0.951405 8.73546 3.01467 12.8604 7.13958C16.9853 11.2645 19.0485 15.889 17.4688 17.4688ZM2.53132 17.4688C0.951566 15.8891 3.01483 11.2645 7.13974 7.13963C11.2647 3.01471 15.8892 0.951453 17.469 2.53121C19.0487 4.11096 16.9854 8.73551 12.8605 12.8604C8.73562 16.9853 4.11107 19.0486 2.53132 17.4688Z"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
-  },
-  {
-    href: "https://rmx.as/discord",
-    text: "Join Discord",
-    icon: (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="20"
-        viewBox="0 0 24 20"
-        fill="none"
-        className="stroke-gray-600 group-hover:stroke-current dark:stroke-gray-300"
-      >
-        <path
-          d="M15.0686 1.25995L14.5477 1.17423L14.2913 1.63578C14.1754 1.84439 14.0545 2.08275 13.9422 2.31963C12.6461 2.16488 11.3406 2.16505 10.0445 2.32014C9.92822 2.08178 9.80478 1.84975 9.67412 1.62413L9.41449 1.17584L8.90333 1.25995C7.33547 1.51794 5.80717 1.99419 4.37748 2.66939L4.19 2.75793L4.07461 2.93019C1.23864 7.16437 0.46302 11.3053 0.838165 15.3924L0.868838 15.7266L1.13844 15.9264C2.81818 17.1714 4.68053 18.1233 6.68582 18.719L7.18892 18.8684L7.50166 18.4469C7.96179 17.8268 8.36504 17.1824 8.709 16.4944L8.71099 16.4904C10.8645 17.0471 13.128 17.0485 15.2821 16.4947C15.6261 17.1826 16.0293 17.8269 16.4892 18.4469L16.805 18.8725L17.3116 18.717C19.3056 18.105 21.1876 17.1751 22.8559 15.9238L23.1224 15.724L23.1528 15.3923C23.5873 10.6524 22.3579 6.53306 19.8947 2.90714L19.7759 2.73227L19.5833 2.64518C18.1437 1.99439 16.6386 1.51826 15.0686 1.25995ZM16.6074 10.7755L16.6074 10.7756C16.5934 11.6409 16.0212 12.1444 15.4783 12.1444C14.9297 12.1444 14.3493 11.6173 14.3493 10.7877C14.3493 9.94885 14.9378 9.41192 15.4783 9.41192C16.0471 9.41192 16.6209 9.93851 16.6074 10.7755ZM8.49373 12.1444C7.94513 12.1444 7.36471 11.6173 7.36471 10.7877C7.36471 9.94885 7.95323 9.41192 8.49373 9.41192C9.06038 9.41192 9.63892 9.93712 9.6417 10.7815C9.62517 11.6239 9.05462 12.1444 8.49373 12.1444Z"
-          strokeWidth="1.5"
-        />
-      </svg>
-    ),
-  },
-];
