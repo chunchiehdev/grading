@@ -71,7 +71,7 @@ export default function Index() {
             </HoverCard>
             <div className="mt-8 flex justify-center gap-4">
               <Button asChild variant="default" className="bg-[#2A4858] hover:bg-[#1C3D4D]">
-                <Link to="/demo">免費體驗</Link>
+                <Link to="/assignments/grade">馬上體驗</Link>
               </Button>
               <Button asChild variant="outline" className="border-[#2A4858] text-[#2A4858]">
                 <Link to="/about">了解更多</Link>
