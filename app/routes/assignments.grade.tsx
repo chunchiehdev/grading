@@ -1,17 +1,19 @@
 // app/routes/assignments.grade.tsx
 
 import { type ActionFunctionArgs } from "@remix-run/node";
-import { useActionData, useNavigation } from "@remix-run/react";
-import { useState, useCallback } from "react";
+import { useActionData, useNavigation, useFetcher } from "@remix-run/react";
+import { useState, useCallback, useMemo } from "react";
 import { GradingContainer } from "~/components/grading/GradingContainer";
 import { gradeAssignment } from "~/services/grading.server";
 import { validateAssignment } from "~/utils/validation";
-import type { 
-  FeedbackData, 
-  ValidationResult, 
+import { ValidationError, GradingServiceError } from "~/types/errors";
+
+import type {
+  FeedbackData,
+  ValidationResult,
   GradingStatus,
   AssignmentSubmission,
-  Section 
+  Section,
 } from "~/types/grading";
 
 // Action 回傳資料的類型定義
@@ -39,7 +41,7 @@ const SECTION_CONFIG: Section[] = [
     maxLength: 500,
     required: true,
     order: 1,
-    minLength: 50
+    minLength: 10,
   },
   {
     id: "reflection",
@@ -49,7 +51,7 @@ const SECTION_CONFIG: Section[] = [
     maxLength: 1000,
     required: true,
     order: 2,
-    minLength: 100
+    minLength: 10,
   },
   {
     id: "questions",
@@ -59,79 +61,114 @@ const SECTION_CONFIG: Section[] = [
     maxLength: 300,
     required: true,
     order: 3,
-    minLength: 30
-  }
+    minLength: 10,
+  },
 ];
 
 // Action 處理函數
-export async function action({ request }: ActionFunctionArgs): Promise<ActionData> {
+export async function action({
+  request,
+}: ActionFunctionArgs): Promise<ActionData> {
   try {
     const formData = await request.formData();
 
     console.log("接收到的表單數據:", Object.fromEntries(formData));
 
-    
+    const authorId = formData.get("authorId");
+    const courseId = formData.get("courseId");
+
+    if (!authorId || !courseId) {
+      return {
+        error: "缺少必要欄位",
+        validationErrors: ["authorId 和 courseId 為必填欄位"],
+      };
+    }
+
     // 構建 AssignmentSubmission 物件
-    const sections: Section[] = SECTION_CONFIG.map(config => ({
-      ...config,
-      content: formData.get(config.id) as string || ""
-    }));
+    const sections: Section[] = SECTION_CONFIG.map((config) => {
+      const content = formData.get(config.id);
+      return {
+        ...config,
+        content: typeof content === "string" ? content : "",
+      };
+    });
+
+    for (const config of SECTION_CONFIG) {
+      const content = formData.get(config.id);
+      if (!content && config.required) {
+        return {
+          error: "缺少必要內容",
+          validationErrors: [`${config.title}為必填項目`],
+        };
+      }
+    }
 
     const submission: AssignmentSubmission = {
       sections,
       metadata: {
         submittedAt: new Date(),
-        authorId: formData.get("authorId") as string,
-        courseId: formData.get("courseId") as string
-      }
+        authorId: String(formData.get("authorId")),
+        courseId: String(formData.get("courseId")),
+      },
     };
+
+    console.log("準備驗證的提交內容:", submission);
 
     // 驗證提交內容
     const validationResult = validateAssignment(submission);
+    console.log("驗證結果:", validationResult);
 
     if (!validationResult.isValid) {
-      return {
-        error: "驗證失敗",
-        validationErrors: validationResult.errors
-      };
+      throw new ValidationError(validationResult.errors);
     }
+    console.log("開始調用評分服務");
 
     // 調用評分服務
     const feedback = await gradeAssignment(submission);
-    return { feedback };
 
+    console.log("評分服務返回結果:", feedback);
+
+    return { feedback };
   } catch (error) {
     console.error("Grading error:", error);
+
+    if (error instanceof ValidationError) {
+      return {
+        error: "驗證失敗",
+        validationErrors: error.errors,
+      };
+    }
+
+    if (error instanceof GradingServiceError) {
+      return {
+        error: "評分服務暫時無法使用，請稍後再試",
+      };
+    }
+
     return {
-      error: error instanceof Error 
-        ? error.message 
-        : "評分過程發生未知錯誤"
+      error:
+        error instanceof Error
+          ? error.message
+          : "系統發生未預期的錯誤，請聯繫系統管理員",
     };
   }
 }
 
-// 頁面組件
 export default function AssignmentGradingPage() {
-  const actionData = useActionData<typeof action>();
-  const navigation = useNavigation();
   const [retryCount, setRetryCount] = useState(0);
+  const fetcher = useFetcher<typeof action>();
 
-  // 處理各種狀態
-  const isGrading = navigation.state === "submitting";
-  const feedback = actionData && 'feedback' in actionData ? actionData.feedback : undefined;
-  const error = actionData && 'error' in actionData ? actionData.error : undefined;
-  const validationErrors = actionData && 'validationErrors' in actionData 
-    ? actionData.validationErrors 
-    : undefined;
+  const feedback = fetcher.data?.feedback;
+  const error = fetcher.data?.error;
+  const validationErrors = fetcher.data?.validationErrors;
 
   // 計算當前狀態
-  const status: GradingStatus = isGrading 
-    ? "processing" 
-    : error 
-    ? "error" 
-    : feedback 
-    ? "completed" 
-    : "idle";
+  const status = useMemo((): GradingStatus => {
+    if (fetcher.state === "submitting") return "processing";
+    if (error) return "error";
+    if (feedback) return "completed";
+    return "idle";
+  }, [fetcher.state, error, feedback]);
 
   // 處理驗證完成
   const handleValidationComplete = useCallback((result: ValidationResult) => {
@@ -142,7 +179,7 @@ export default function AssignmentGradingPage() {
 
   // 處理重試
   const handleRetry = useCallback(() => {
-    setRetryCount(prev => prev + 1);
+    setRetryCount((prev) => prev + 1);
   }, []);
 
   return (
@@ -150,13 +187,13 @@ export default function AssignmentGradingPage() {
       <GradingContainer
         key={retryCount}
         sections={SECTION_CONFIG}
-        isGrading={isGrading}
         feedback={feedback}
         error={error}
         validationErrors={validationErrors}
         status={status}
         onValidationComplete={handleValidationComplete}
         onRetry={handleRetry}
+        fetcher={fetcher}  
       />
     </div>
   );

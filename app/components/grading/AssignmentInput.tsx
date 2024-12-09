@@ -1,5 +1,5 @@
-import { useState, useCallback, useMemo } from "react";
-import { Form } from "@remix-run/react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { useFetcher } from "@remix-run/react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
@@ -10,6 +10,7 @@ import {
   Send,
   Info,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 import {
   Tooltip,
@@ -19,6 +20,7 @@ import {
 } from "~/components/ui/tooltip";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import type { Section, ValidationResult, GradingStatus } from "~/types/grading";
+import type { action } from "~/routes/assignments.grade";
 
 interface AssignmentInputProps {
   sections: Section[]; // 改為必需，從外部傳入
@@ -27,6 +29,7 @@ interface AssignmentInputProps {
   status: GradingStatus; // 改為必需
   onValidation?: (result: ValidationResult) => void;
   className?: string;
+  fetcher: ReturnType<typeof useFetcher<typeof action>>; // 新增這行
 }
 
 interface StepIndicatorProps {
@@ -130,78 +133,118 @@ export function AssignmentInput({
   status,
   onValidation,
   className,
+  fetcher,
 }: AssignmentInputProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [sections, setSections] = useState<Section[]>(initialSections);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
-  
-
+  const [validationResult, setValidationResult] =
+    useState<ValidationResult | null>(null);
   const totalSteps = sections.length + 1;
   const currentSection = sections[currentStep - 1];
   const isPreviewStep = currentStep === sections.length + 1;
+  const isSubmitting =
+    fetcher.state === "submitting" && currentStep === totalSteps;
+  const isLastStep = currentStep === totalSteps;
+  const isActuallySubmitting = fetcher.state === "submitting" && isPreviewStep;
+  const showSubmittingState = isActuallySubmitting && isLastStep;
+
+  const allErrors = useMemo(
+    () => [...validationErrors, ...(fetcher.data?.validationErrors || [])],
+    [validationErrors, fetcher.data?.validationErrors]
+  );
 
   const canProceed = useMemo(() => {
     if (!currentSection && !isPreviewStep) return false;
 
-    const content = currentSection?.content.trim() || '';
-    
+    const content = currentSection?.content.trim() || "";
+
     // 只檢查當前區段的必填和長度限制
-    return !currentSection || (
-      (!currentSection.required || content.length > 0) &&
-      (!currentSection.minLength || content.length >= currentSection.minLength) &&
-      (!currentSection.maxLength || content.length <= currentSection.maxLength)
+    return (
+      !currentSection ||
+      ((!currentSection.required || content.length > 0) &&
+        (!currentSection.minLength ||
+          content.length >= currentSection.minLength) &&
+        (!currentSection.maxLength ||
+          content.length <= currentSection.maxLength))
     );
   }, [currentSection, isPreviewStep]);
 
   const validateCurrentSection = useCallback(() => {
     if (!currentSection) return true;
     const errors = validateSection(currentSection);
-    
+
     setLocalErrors((prev) => ({
       ...prev,
       [currentSection.id]: errors[0] || "",
     }));
-    
+
     return errors.length === 0;
   }, [currentSection]);
 
-  const validateAllSections = useCallback(() => {
+  const validateAllSections = useCallback((): ValidationResult => {
     const allErrors = sections.flatMap(validateSection);
-    const validationResult: ValidationResult = {
+    const result: ValidationResult = {
       isValid: allErrors.length === 0,
       errors: allErrors,
       missingFields: sections
         .filter((section) => section.required && !section.content.trim())
         .map((section) => section.title),
+      invalidFields: sections
+        .filter((section) => {
+          const content = section.content.trim();
+          return (
+            (section.minLength && content.length < section.minLength) ||
+            (section.maxLength && content.length > section.maxLength)
+          );
+        })
+        .map((section) => ({
+          field: section.title,
+          reason: getInvalidReason(section),
+        })),
     };
-    
-    return validationResult;
+
+    setValidationResult(result);
+    return result;
   }, [sections]);
 
-  const handleNext = useCallback(() => {
-    console.log('handleNext called', {
-      currentStep,
-      totalSteps,
-      isValid: validateCurrentSection()
-    });
+  const getInvalidReason = (section: Section): string => {
+    const content = section.content.trim();
 
+    if (section.minLength && content.length < section.minLength) {
+      return `至少需要 ${section.minLength} 字`;
+    }
+
+    if (section.maxLength && content.length > section.maxLength) {
+      return `不能超過 ${section.maxLength} 字`;
+    }
+
+    return "";
+  };
+
+  const handleValidateAndProceed = useCallback(() => {
+    const result = validateAllSections();
+    onValidation?.(result);
+    return result.isValid;
+  }, [validateAllSections, onValidation]);
+
+  const handleNext = useCallback(() => {
     if (validateCurrentSection()) {
       if (currentStep === totalSteps - 1) {
-        // 在進入預覽頁面前驗證所有部分
-        const validationResult = validateAllSections();
-        if (validationResult.isValid) {
-          // 使用 setTimeout 確保狀態更新完成
-          setTimeout(() => {
-            setCurrentStep((prev) => prev + 1);
-          }, 0);
-        } else {
-          onValidation?.(validationResult);
+        const isValid = handleValidateAndProceed();
+        if (isValid) {
+          setCurrentStep((prev) => prev + 1);
         }
       } else {
         setCurrentStep((prev) => prev + 1);
       }
     }
-  }, [validateCurrentSection, currentStep, totalSteps, validateAllSections, onValidation]);
+  }, [
+    validateCurrentSection,
+    currentStep,
+    totalSteps,
+    handleValidateAndProceed,
+  ]);
 
   const handleBack = useCallback(() => {
     if (currentStep > 1) {
@@ -212,26 +255,40 @@ export function AssignmentInput({
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      
-      // 最後驗證一次
-      const validationResult = validateAllSections();
-      onValidation?.(validationResult);
 
-      if (validationResult.isValid) {
-        const formData = new FormData(event.currentTarget);
-        
-        // 添加所有部分的內容
-        sections.forEach((section) => {
-          console.log(`Adding ${section.id}:`, section.content);
-          formData.append(section.id, section.content);
-        });
+      if (!isPreviewStep) {
+        return;
+      }
 
-        // 真正提交表單
-        event.currentTarget.submit();
+      const isValid = handleValidateAndProceed();
+      if (!isValid) {
+        return;
+      }
+
+      const formData = new FormData(event.currentTarget);
+
+      // 添加所有部分的內容
+      sections.forEach((section) => {
+        formData.append(section.id, section.content);
+      });
+      // 使用 fetcher 提交表單
+      if (fetcher.state === "idle") {
+        fetcher.submit(formData, { method: "post" });
       }
     },
-    [sections, onValidation, validateAllSections]
+    [sections, validateAllSections, fetcher, isPreviewStep]
   );
+
+  useEffect(() => {
+    if (fetcher.data?.validationErrors) {
+      onValidation?.({
+        isValid: false,
+        errors: fetcher.data.validationErrors,
+        missingFields: [],
+        invalidFields: [],
+      });
+    }
+  }, [fetcher.data, onValidation]);
 
   const updateSection = useCallback(
     (content: string) => {
@@ -271,45 +328,69 @@ export function AssignmentInput({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        <Form method="post" onSubmit={handleSubmit} className="space-y-6">
-          <input type="hidden" name="authorId" value="user123" />{" "}
-          {/* 需要從用戶系統獲取 */}
-          <input type="hidden" name="courseId" value="course456" />{" "}
-          {/* 需要從課程上下文獲取 */}
-          {isPreviewStep ? (
+        {isPreviewStep ? (
+          <fetcher.Form
+            method="post"
+            onSubmit={handleSubmit}
+            className="space-y-6"
+          >
+            <input type="hidden" name="authorId" value="user123" />
+            <input type="hidden" name="courseId" value="course456" />
             <CompletionPreview sections={sections} />
-          ) : (
+            {allErrors.length > 0 && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{allErrors.join(", ")}</AlertDescription>
+              </Alert>
+            )}
+            <div className="flex justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={isSubmitting}
+              >
+                返回
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  !canProceed ||
+                  disabled ||
+                  status === "processing" ||
+                  isActuallySubmitting
+                }
+                className="gap-2"
+              >
+                {showSubmittingState ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    提交中
+                  </>
+                ) : (
+                  <>
+                    送出 <Send className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </fetcher.Form>
+        ) : (
+          <div className="space-y-6">
             <SectionInput
               section={currentSection}
               onChange={updateSection}
               error={localErrors[currentSection.id]}
             />
-          )}
-          {validationErrors.length > 0 && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{validationErrors.join(", ")}</AlertDescription>
-            </Alert>
-          )}
-          <div className="flex justify-between">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleBack}
-              disabled={currentStep === 1}
-            >
-              返回
-            </Button>
-
-            {isPreviewStep ? (
+            <div className="flex justify-between">
               <Button
-                type="submit"
-                disabled={!canProceed || disabled || status === "processing"}
-                className="gap-2"
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={currentStep === 1}
               >
-                送出 <Send className="h-4 w-4" />
+                返回
               </Button>
-            ) : (
               <Button
                 type="button"
                 onClick={handleNext}
@@ -318,9 +399,9 @@ export function AssignmentInput({
               >
                 下一步 <ChevronRight className="h-4 w-4" />
               </Button>
-            )}
+            </div>
           </div>
-        </Form>
+        )}
       </CardContent>
     </Card>
   );

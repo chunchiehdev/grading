@@ -73,8 +73,13 @@ export async function gradeAssignment(submission: AssignmentSubmission): Promise
   const startTime = Date.now();
 
   // 檢查環境變數
-  if (!process.env.OPENAI_API_KEY || process.env.NODE_ENV === 'development') {
-    console.warn('Using mock data:', process.env.NODE_ENV === 'development' ? 'development mode' : 'missing API key');
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn('Missing OpenAI API key, using mock data');
+    return generateMockFeedback();
+  }
+
+  if (process.env.NODE_ENV === 'development' && process.env.USE_MOCK_DATA === 'true') {
+    console.warn('Development mode with mock data enabled');
     return generateMockFeedback();
   }
 
@@ -120,12 +125,15 @@ export async function gradeAssignment(submission: AssignmentSubmission): Promise
 }
 
 function generateMockFeedback(): FeedbackData {
-  return {
+  const mockData = {
     ...mockFeedback,
-    score: Math.floor(Math.random() * 20) + 75, // 75-95 的隨機分數
+    score: Math.floor(Math.random() * 20) + 75,
     createdAt: new Date(),
-    gradingDuration: Math.floor(Math.random() * 3000) + 2000, // 2-5 秒
+    gradingDuration: Math.floor(Math.random() * 3000) + 2000
   };
+
+  validateFeedbackData(mockData);
+  return mockData;
 }
 
 function validateFeedbackData(data: unknown): asserts data is FeedbackData {

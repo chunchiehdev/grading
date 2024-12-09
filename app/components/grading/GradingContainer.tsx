@@ -3,8 +3,9 @@ import type {
   FeedbackData,
   GradingStatus,
   ValidationResult,
-  Section
+  Section,
 } from "~/types/grading";
+import { useActionData, useNavigation, useFetcher } from "@remix-run/react";
 import { GradingStepper } from "./GradingStepper";
 import { AssignmentInput } from "./AssignmentInput";
 import { GradingProgress } from "./GradingProgress";
@@ -14,18 +15,19 @@ import { Card } from "~/components/ui/card";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { cn } from "~/lib/utils";
+import type { action } from "~/routes/assignments.grade";  // 調整路徑以匹配你的實際路由文件位置
 
 type SnackbarSeverity = "success" | "error" | "info";
 
 interface GradingContainerProps {
-  sections: Section[];  // 新增，用於傳遞部分配置
-  isGrading: boolean;
+  sections: Section[]; // 新增，用於傳遞部分配置
   feedback?: FeedbackData;
   error?: string;
   validationErrors?: string[];
-  status: GradingStatus;  // 改為必需
+  status: GradingStatus; // 改為必需
   onValidationComplete?: (result: ValidationResult) => void;
   onRetry?: () => void;
+  fetcher: ReturnType<typeof useFetcher<typeof action>>;  // 新增這行
 }
 
 interface Step {
@@ -42,14 +44,14 @@ interface SnackbarState {
 }
 
 export function GradingContainer({
-  sections,  // 新增
-  isGrading,
+  sections, // 新增
   feedback,
   error,
   validationErrors = [],
   status,
   onValidationComplete,
   onRetry,
+  fetcher,
 }: GradingContainerProps) {
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
@@ -57,9 +59,15 @@ export function GradingContainer({
     severity: "success",
   });
 
+  // console.log("GradingContainer received props:", {
+  //   status,
+  //   feedback,
+  //   error,
+  //   validationErrors
+  // });
+
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
-  const [hasInteracted, setHasInteracted] = useState<boolean>(false);
 
   const steps: Step[] = useMemo(
     () => [
@@ -72,11 +80,12 @@ export function GradingContainer({
       {
         label: "評分中",
         completed: currentStep > 1,
-        status: isGrading
-          ? "processing"
-          : currentStep > 1
-          ? "completed"
-          : "waiting",
+        status:
+          status === "processing"
+            ? "processing"
+            : currentStep > 1
+            ? "completed"
+            : "waiting",
         description: "系統正在評估您的作業",
       },
       {
@@ -86,7 +95,7 @@ export function GradingContainer({
         description: "查看評分結果和建議",
       },
     ],
-    [currentStep, isGrading, feedback]
+    [currentStep, status, feedback]
   );
 
   useEffect(() => {
@@ -97,14 +106,15 @@ export function GradingContainer({
         message: errorMessage,
         severity: "error",
       });
-      if (isGrading) {
+      if (status === "processing") {
         setCurrentStep(0);
       }
     }
-  }, [error, validationErrors, isGrading]);
+  }, [error, validationErrors, status]);
 
   useEffect(() => {
-    if (!hasInteracted) return;
+    // console.log("Current status:", status);
+    // console.log("Current feedback:", feedback);
 
     if (status === "processing") {
       setCurrentStep(1);
@@ -114,6 +124,7 @@ export function GradingContainer({
         severity: "info",
       });
     } else if (status === "completed" && feedback) {
+      // console.log("Setting completed step with feedback");
       setCurrentStep(2);
       setSnackbar({
         open: true,
@@ -128,11 +139,10 @@ export function GradingContainer({
         severity: "error",
       });
     }
-  }, [status, feedback, hasInteracted, error]);
+  }, [status, feedback, error]);
 
   const handleValidation = useCallback(
     (result: ValidationResult) => {
-      setHasInteracted(true);
       if (!result.isValid) {
         setSnackbar({
           open: true,
@@ -146,7 +156,7 @@ export function GradingContainer({
   );
 
   const handleSnackbarClose = useCallback(() => {
-    setSnackbar(prev => ({ ...prev, open: false }));
+    setSnackbar((prev) => ({ ...prev, open: false }));
   }, []);
 
   const handleTransition = useCallback((isStart: boolean) => {
@@ -155,7 +165,6 @@ export function GradingContainer({
 
   const handleRetry = useCallback(() => {
     setCurrentStep(0);
-    setHasInteracted(false);
     onRetry?.();
   }, [onRetry]);
 
@@ -175,7 +184,7 @@ export function GradingContainer({
           <div className="md:col-span-2">
             <Card className="h-full shadow-lg">
               <AssignmentInput
-                sections={sections}  // 新增
+                sections={sections} // 新增
                 disabled={status === "processing" || status === "completed"}
                 validationErrors={validationErrors}
                 status={status}
@@ -184,6 +193,7 @@ export function GradingContainer({
                   "transition-all duration-300",
                   status === "processing" && "opacity-50 pointer-events-none"
                 )}
+                fetcher={fetcher}
               />
             </Card>
           </div>
