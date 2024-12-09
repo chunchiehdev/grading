@@ -1,30 +1,73 @@
-import React, { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Form } from "@remix-run/react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
 import { Progress } from "~/components/ui/progress";
-import { CheckCircle2, ChevronRight, Send, Info } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronRight,
+  Send,
+  Info,
+  AlertCircle,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
+import { Alert, AlertDescription } from "~/components/ui/alert";
+import type { Section, ValidationResult, GradingStatus } from "~/types/grading";
 
-interface AssignmentSection {
-  id: string;
-  title: string;
-  placeholder: string;
-  content: string;
+interface AssignmentInputProps {
+  sections: Section[]; // 改為必需，從外部傳入
+  disabled?: boolean;
+  validationErrors?: string[];
+  status: GradingStatus; // 改為必需
+  onValidation?: (result: ValidationResult) => void;
+  className?: string;
 }
 
-const MAX_LENGTH = 500;
+interface StepIndicatorProps {
+  currentStep: number;
+  totalSteps: number;
+}
 
-// 步驟顯示組件
-const StepIndicator = ({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) => {
+interface SectionInputProps {
+  section: Section;
+  onChange: (content: string) => void;
+  error?: string;
+}
+
+interface CompletionPreviewProps {
+  sections: Section[];
+}
+
+// 輔助函數：驗證單個部分
+function validateSection(section: Section): string[] {
+  const errors: string[] = [];
+  const content = section.content.trim();
+
+  if (section.required && !content) {
+    errors.push(`${section.title}為必填項目`);
+  }
+
+  if (content) {
+    if (section.minLength && content.length < section.minLength) {
+      errors.push(`${section.title}至少需要${section.minLength}字`);
+    }
+    if (section.maxLength && content.length > section.maxLength) {
+      errors.push(`${section.title}不能超過${section.maxLength}字`);
+    }
+  }
+
+  return errors;
+}
+
+const StepIndicator = ({ currentStep, totalSteps }: StepIndicatorProps) => {
   const progress = (currentStep / totalSteps) * 100;
-  
+
   return (
     <div className="space-y-2">
       <Progress value={progress} className="h-2" />
@@ -35,37 +78,36 @@ const StepIndicator = ({ currentStep, totalSteps }: { currentStep: number; total
   );
 };
 
-// 單個部分輸入組件
-const SectionInput = ({
-  section,
-  onChange,
-  maxLength,
-}: {
-  section: AssignmentSection;
-  onChange: (content: string) => void;
-  maxLength: number;
-}) => {
+const SectionInput = ({ section, onChange, error }: SectionInputProps) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">{section.title}</h3>
+        <h3 className="text-lg font-medium">
+          {section.title}
+          {section.required && <span className="text-red-500 ml-1">*</span>}
+        </h3>
         <span className="text-sm text-gray-500">
-          {section.content.length}/{maxLength}
+          {section.content.length}/{section.maxLength}
         </span>
       </div>
       <Textarea
         value={section.content}
         onChange={(e) => onChange(e.target.value)}
         placeholder={section.placeholder}
-        className="h-32 resize-none"
-        maxLength={maxLength}
+        className={`h-32 resize-none ${error ? "border-red-500" : ""}`}
+        maxLength={section.maxLength}
       />
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 };
 
-// 完成預覽組件
-const CompletionPreview = ({ sections }: { sections: AssignmentSection[] }) => {
+const CompletionPreview = ({ sections }: CompletionPreviewProps) => {
   return (
     <div className="space-y-4">
       {sections.map((section) => (
@@ -81,63 +123,134 @@ const CompletionPreview = ({ sections }: { sections: AssignmentSection[] }) => {
   );
 };
 
-// 主組件
-export function AssignmentInput({ disabled = false }: { disabled?: boolean }) {
+export function AssignmentInput({
+  sections: initialSections,
+  disabled = false,
+  validationErrors = [],
+  status,
+  onValidation,
+  className,
+}: AssignmentInputProps) {
   const [currentStep, setCurrentStep] = useState(1);
-  const [sections, setSections] = useState<AssignmentSection[]>([
-    {
-      id: "summary",
-      title: "摘要",
-      placeholder: "請輸入文章摘要...",
-      content: "",
-    },
-    {
-      id: "reflection",
-      title: "反思",
-      placeholder: "請輸入您的反思...",
-      content: "",
-    },
-    {
-      id: "questions",
-      title: "問題",
-      placeholder: "請輸入您的問題...",
-      content: "",
-    },
-  ]);
+  const [sections, setSections] = useState<Section[]>(initialSections);
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
+  
 
-  const totalSteps = sections.length + 1; // 加上最後的預覽步驟
+  const totalSteps = sections.length + 1;
   const currentSection = sections[currentStep - 1];
-  const isLastStep = currentStep === totalSteps;
   const isPreviewStep = currentStep === sections.length + 1;
 
-  const handleNext = () => {
-    if (currentStep < totalSteps) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
+  const canProceed = useMemo(() => {
+    if (!currentSection && !isPreviewStep) return false;
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+    const content = currentSection?.content.trim() || '';
+    
+    // 只檢查當前區段的必填和長度限制
+    return !currentSection || (
+      (!currentSection.required || content.length > 0) &&
+      (!currentSection.minLength || content.length >= currentSection.minLength) &&
+      (!currentSection.maxLength || content.length <= currentSection.maxLength)
+    );
+  }, [currentSection, isPreviewStep]);
 
-  const updateSection = (content: string) => {
-    const updatedSections = sections.map((section, index) => {
-      if (index === currentStep - 1) {
-        return { ...section, content };
-      }
-      return section;
+  const validateCurrentSection = useCallback(() => {
+    if (!currentSection) return true;
+    const errors = validateSection(currentSection);
+    
+    setLocalErrors((prev) => ({
+      ...prev,
+      [currentSection.id]: errors[0] || "",
+    }));
+    
+    return errors.length === 0;
+  }, [currentSection]);
+
+  const validateAllSections = useCallback(() => {
+    const allErrors = sections.flatMap(validateSection);
+    const validationResult: ValidationResult = {
+      isValid: allErrors.length === 0,
+      errors: allErrors,
+      missingFields: sections
+        .filter((section) => section.required && !section.content.trim())
+        .map((section) => section.title),
+    };
+    
+    return validationResult;
+  }, [sections]);
+
+  const handleNext = useCallback(() => {
+    console.log('handleNext called', {
+      currentStep,
+      totalSteps,
+      isValid: validateCurrentSection()
     });
-    setSections(updatedSections);
-  };
 
-  const canProceed = !isPreviewStep 
-    ? currentSection?.content.trim().length > 0 
-    : sections.every(section => section.content.trim().length > 0);
+    if (validateCurrentSection()) {
+      if (currentStep === totalSteps - 1) {
+        // 在進入預覽頁面前驗證所有部分
+        const validationResult = validateAllSections();
+        if (validationResult.isValid) {
+          // 使用 setTimeout 確保狀態更新完成
+          setTimeout(() => {
+            setCurrentStep((prev) => prev + 1);
+          }, 0);
+        } else {
+          onValidation?.(validationResult);
+        }
+      } else {
+        setCurrentStep((prev) => prev + 1);
+      }
+    }
+  }, [validateCurrentSection, currentStep, totalSteps, validateAllSections, onValidation]);
+
+  const handleBack = useCallback(() => {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => prev - 1);
+    }
+  }, [currentStep]);
+
+  const handleSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      
+      // 最後驗證一次
+      const validationResult = validateAllSections();
+      onValidation?.(validationResult);
+
+      if (validationResult.isValid) {
+        const formData = new FormData(event.currentTarget);
+        
+        // 添加所有部分的內容
+        sections.forEach((section) => {
+          console.log(`Adding ${section.id}:`, section.content);
+          formData.append(section.id, section.content);
+        });
+
+        // 真正提交表單
+        event.currentTarget.submit();
+      }
+    },
+    [sections, onValidation, validateAllSections]
+  );
+
+  const updateSection = useCallback(
+    (content: string) => {
+      setSections((prev) =>
+        prev.map((section) =>
+          section.id === currentSection?.id ? { ...section, content } : section
+        )
+      );
+      // 清除該區段的錯誤訊息
+      setLocalErrors((prev) => ({
+        ...prev,
+        [currentSection?.id]: "",
+      }));
+    },
+    [currentSection?.id]
+  );
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className={className}>
       <CardHeader className="space-y-4">
         <div className="flex items-center justify-between">
           <CardTitle>作業內容</CardTitle>
@@ -156,19 +269,28 @@ export function AssignmentInput({ disabled = false }: { disabled?: boolean }) {
         </div>
         <StepIndicator currentStep={currentStep} totalSteps={totalSteps} />
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
-        <Form method="post" className="space-y-6">
+        <Form method="post" onSubmit={handleSubmit} className="space-y-6">
+          <input type="hidden" name="authorId" value="user123" />{" "}
+          {/* 需要從用戶系統獲取 */}
+          <input type="hidden" name="courseId" value="course456" />{" "}
+          {/* 需要從課程上下文獲取 */}
           {isPreviewStep ? (
             <CompletionPreview sections={sections} />
           ) : (
             <SectionInput
               section={currentSection}
               onChange={updateSection}
-              maxLength={MAX_LENGTH}
+              error={localErrors[currentSection.id]}
             />
           )}
-
+          {validationErrors.length > 0 && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{validationErrors.join(", ")}</AlertDescription>
+            </Alert>
+          )}
           <div className="flex justify-between">
             <Button
               type="button"
@@ -178,11 +300,11 @@ export function AssignmentInput({ disabled = false }: { disabled?: boolean }) {
             >
               返回
             </Button>
-            
+
             {isPreviewStep ? (
               <Button
                 type="submit"
-                disabled={!canProceed || disabled}
+                disabled={!canProceed || disabled || status === "processing"}
                 className="gap-2"
               >
                 送出 <Send className="h-4 w-4" />
