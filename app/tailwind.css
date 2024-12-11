@@ -2,12 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-html,
-body {
-  @apply bg-white;
-  @apply min-h-full;
-}
-
 /* 自定義元件樣式 */
 @layer components {
   .btn-primary {

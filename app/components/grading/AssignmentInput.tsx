@@ -29,7 +29,7 @@ interface AssignmentInputProps {
   status: GradingStatus; // 改為必需
   onValidation?: (result: ValidationResult) => void;
   className?: string;
-  fetcher: ReturnType<typeof useFetcher<typeof action>>; // 新增這行
+  fetcher: ReturnType<typeof useFetcher<typeof action>>; 
 }
 
 interface StepIndicatorProps {
@@ -119,7 +119,7 @@ const CompletionPreview = ({ sections }: CompletionPreviewProps) => {
             <CheckCircle2 className="h-5 w-5 text-green-500" />
             <h4 className="font-medium">{section.title}</h4>
           </div>
-          <p className="text-gray-600 text-sm pl-7">{section.content}</p>
+          <p className="text-gray-600 text-sm pl-7 break-words overflow-wrap-anywhere whitespace-pre-wrap">{section.content}</p>
         </div>
       ))}
     </div>
@@ -159,7 +159,7 @@ export function AssignmentInput({
 
     const content = currentSection?.content.trim() || "";
 
-    // 只檢查當前區段的必填和長度限制
+    
     return (
       !currentSection ||
       ((!currentSection.required || content.length > 0) &&
@@ -249,8 +249,11 @@ export function AssignmentInput({
   const handleBack = useCallback(() => {
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
+      if (fetcher.state !== "idle") {
+        fetcher.data = undefined; // 重置 fetcher 數據
+      }
     }
-  }, [currentStep]);
+  }, [currentStep, fetcher]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {

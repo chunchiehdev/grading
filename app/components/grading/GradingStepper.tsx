@@ -6,7 +6,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-import type { GradingStatus } from "~/types/grading";
 
 interface Step {
   label: string;
@@ -29,7 +28,6 @@ type StepStyleConfig = {
   connectorStyle: string;
 };
 
-// 移除 DEFAULT_STEPS，因為現在從 props 接收
 
 export function GradingStepper({ 
   steps,

@@ -223,7 +223,7 @@ export default function Index() {
             </CardHeader>
             <CardContent>
               <Button asChild size="lg" className="bg-[#2A4858] hover:bg-[#1C3D4D]">
-                <Link to="/register">立即開始</Link>
+                <Link to="/assignments/grade">立即開始</Link>
               </Button>
             </CardContent>
           </Card>
