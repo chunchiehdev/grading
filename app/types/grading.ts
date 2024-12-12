@@ -77,3 +77,14 @@ export interface AssignmentSubmission {
     courseId: string;
   };
 }
+
+export interface ApiResponse {
+  score?: number;
+  summaryComments?: string;
+  summaryStrengths?: string[];
+  reflectionComments?: string;
+  reflectionStrengths?: string[];
+  questionComments?: string;
+  questionStrengths?: string[];
+  overallSuggestions?: string;
+}

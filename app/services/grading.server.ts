@@ -1,14 +1,16 @@
-// app/services/grading.server.ts
-
 import OpenAI from "openai";
-import type { 
-  FeedbackData, 
-  AssignmentSubmission 
-} from "~/types/grading";
+import type { FeedbackData, AssignmentSubmission } from "~/types/grading";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+function createOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn("OpenAI API key is missing");
+    return null;
+  }
+  return new OpenAI({ apiKey });
+}
+
+const openai = createOpenAIClient();
 
 const API_CONFIG = {
   model: "gpt-4o-mini",
@@ -18,20 +20,27 @@ const API_CONFIG = {
   presence_penalty: 0.0,
 } as const;
 
-type ProgressCallback = (phase: string, progress: number, message: string) => void;
-
+type ProgressCallback = (
+  phase: string,
+  progress: number,
+  message: string
+) => void;
 
 const mockFeedback: FeedbackData = {
   score: 85,
-  summaryComments: "摘要清晰地概述了學習的多面向性，並善用了柏拉圖和洛克的思維進行對比。論述結構完整，層次分明。",
+  summaryComments:
+    "摘要清晰地概述了學習的多面向性，並善用了柏拉圖和洛克的思維進行對比。論述結構完整，層次分明。",
   summaryStrengths: ["概念闡述清晰", "理論引用恰當", "結構層次分明"],
-  reflectionComments: "反思部分深入探討了不同身分角色的學習需求，展現了多角度的思考方式和深刻的個人見解。",
+  reflectionComments:
+    "反思部分深入探討了不同身分角色的學習需求，展現了多角度的思考方式和深刻的個人見解。",
   reflectionStrengths: ["多角度思考", "個人見解深刻", "例證具體充實"],
-  questionComments: "提出的問題具有時代性和前瞻性，關注到科技與學習的結合，以及知識傳遞的可行性問題。",
+  questionComments:
+    "提出的問題具有時代性和前瞻性，關注到科技與學習的結合，以及知識傳遞的可行性問題。",
   questionStrengths: ["問題具前瞻性", "思考面向完整", "關注實踐可行性"],
-  overallSuggestions: "建議可以在反思部分增加更多個人經驗的連結，並在問題部分提供一些可能的解決方向。同時，摘要部分可以更緊扣核心概念進行論述。",
+  overallSuggestions:
+    "建議可以在反思部分增加更多個人經驗的連結，並在問題部分提供一些可能的解決方向。同時，摘要部分可以更緊扣核心概念進行論述。",
   createdAt: new Date(),
-  gradingDuration: 5000, 
+  gradingDuration: 5000,
 };
 
 function buildSystemPrompt(): string {
@@ -57,14 +66,70 @@ function buildSystemPrompt(): string {
 - 解決方案的可行性
 - 理論應用的適切性
 
-請按照指定的 JSON 格式提供詳細的評分回饋。`;
+請務必按照以下 JSON 格式提供詳細的評分回饋：
+
+{
+  "score": 85,  // 0-100 的數字分數
+  "summaryComments": "對摘要部分的詳細評語",
+  "summaryStrengths": ["優點1", "優點2", "優點3"],
+  "reflectionComments": "對反思部分的詳細評語",
+  "reflectionStrengths": ["優點1", "優點2", "優點3"],
+  "questionComments": "對問題部分的詳細評語",
+  "questionStrengths": ["優點1", "優點2", "優點3"],
+  "overallSuggestions": "整體改進建議"
+}
+
+請確保回應包含所有必要欄位，並提供具體詳細的評語。`;
 }
 
 function formatSubmissionForGrading(submission: AssignmentSubmission): string {
   return submission.sections
     .sort((a, b) => a.order - b.order)
-    .map(section => `${section.title}:\n${section.content}`)
-    .join('\n\n');
+    .map((section) => `${section.title}:\n${section.content}`)
+    .join("\n\n");
+}
+
+function validateSubmissionFormat(content: string) {
+  if (!content.trim()) {
+    throw new Error("提交內容不能為空");
+  }
+}
+
+function preprocessApiResponse(response: any): FeedbackData {
+  const defaultResponse: FeedbackData = {
+    score: 75,
+    summaryComments: "內容需要進一步改進",
+    summaryStrengths: ["基本概念理解正確"],
+    reflectionComments: "反思部分需要加強",
+    reflectionStrengths: ["有嘗試進行個人反思"],
+    questionComments: "問題部分需要深化",
+    questionStrengths: ["提出了基本問題"],
+    overallSuggestions: "建議增加更多細節和深度",
+    createdAt: new Date(),
+    gradingDuration: 5000,
+  };
+
+  if (!response) {
+    console.warn("API response is null or undefined, using default response");
+    return defaultResponse;
+  }
+
+  const result = { ...defaultResponse, ...response };
+
+  const arrayFields = [
+    "summaryStrengths",
+    "reflectionStrengths",
+    "questionStrengths",
+  ] as const;
+  arrayFields.forEach((field) => {
+    if (!Array.isArray(result[field]) || result[field].length === 0) {
+      result[field] = defaultResponse[field];
+    }
+  });
+
+  result.score = Math.max(0, Math.min(100, Number(result.score) || 75));
+
+  return result;
 }
 
 async function mockGradeAssignment(
@@ -74,32 +139,30 @@ async function mockGradeAssignment(
   const startTime = Date.now();
   let lastProgress = 0;
 
-
   try {
     for (let i = 0; i <= 30; i += 5) {
-      const progress = Math.max(lastProgress, i);  
+      const progress = Math.max(lastProgress, i);
       onProgress?.("check", progress, "正在檢查作業格式與內容...");
       lastProgress = progress;
-      await new Promise(resolve => setTimeout(resolve, 300));  
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
-    
+
     for (let i = 35; i <= 70; i += 5) {
       const progress = Math.max(lastProgress, i);
       onProgress?.("grade", progress, "正在進行作業評分...");
       lastProgress = progress;
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
-    
+
     for (let i = 75; i <= 100; i += 5) {
       const progress = Math.max(lastProgress, i);
       onProgress?.("verify", progress, "正在驗證評分結果...");
       lastProgress = progress;
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
-    
+
     onProgress?.("complete", 100, "評分流程完成！");
-    
-    
+
     return {
       ...mockFeedback,
       score: Math.floor(Math.random() * 20) + 75,
@@ -107,104 +170,29 @@ async function mockGradeAssignment(
       gradingDuration: Date.now() - startTime,
     };
   } catch (error) {
-    console.error('Mock grading error:', error);
+    console.error("Mock grading error:", error);
     throw error;
   }
 }
-function validateSubmissionFormat(content: string) {
-  if (!content.trim()) {
-    throw new Error('提交內容不能為空');
-  }
-}
 
-export async function gradeAssignment(
-  submission: AssignmentSubmission,
-  onProgress?: ProgressCallback
-): Promise<FeedbackData> {
-  
-  if (process.env.NODE_ENV === 'development') {
-    return mockGradeAssignment(submission, (phase, progress, message) => {
-      try {
-        onProgress?.(phase, progress, message);
-      } catch (error) {
-        console.error('Progress callback error:', error);
-      }
-    });
-  }
-
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn('Missing OpenAI API key, using mock data');
-    return mockGradeAssignment(submission, onProgress);
-  }
-
-  const startTime = Date.now();
-
-  try {
-    onProgress?.("check", 0, "開始檢查作業格式與內容...");
-    const formattedContent = formatSubmissionForGrading(submission);
-    validateSubmissionFormat(formattedContent);
-    onProgress?.("check", 30, "作業格式檢查完成");
-
-    onProgress?.("grade", 40, "正在進行作業評分...");
-    const response = await openai.chat.completions.create({
-      ...API_CONFIG,
-      messages: [
-        { role: "system", content: buildSystemPrompt() },
-        { role: "user", content: formattedContent }
-      ],
-      response_format: { type: "json_object" }
-    });
-    onProgress?.("grade", 70, "評分完成，正在處理結果...");
-
-    onProgress?.("verify", 80, "正在驗證評分結果...");
-    const messageContent = response.choices[0]?.message?.content;
-    if (!messageContent) {
-      throw new Error('API 回應中沒有內容');
-    }
-
-    const apiResponse = JSON.parse(messageContent);
-    onProgress?.("verify", 90, "正在進行最終確認...");
-
-    const result: FeedbackData = {
-      ...apiResponse,
-      createdAt: new Date(),
-      gradingDuration: Date.now() - startTime,
-    };
-
-    validateFeedbackData(result);
-    onProgress?.("complete", 100, "評分流程完成！");
-
-    return result;
-
-  } catch (error) {
-    console.error('Grading error:', error);
-    if (process.env.NODE_ENV === 'production') {
-      throw error instanceof Error 
-        ? error 
-        : new Error('評分過程發生未知錯誤');
-    }
-    console.warn('API call failed in development, using mock data');
-    return mockGradeAssignment(submission, onProgress);
-  }
-}
 function validateFeedbackData(data: unknown): asserts data is FeedbackData {
   const feedback = data as FeedbackData;
-  
+
   const requiredStringFields: (keyof FeedbackData)[] = [
-    'summaryComments',
-    'reflectionComments',
-    'questionComments',
-    'overallSuggestions'
+    "summaryComments",
+    "reflectionComments",
+    "questionComments",
+    "overallSuggestions",
   ];
 
   const requiredArrayFields: (keyof FeedbackData)[] = [
-    'summaryStrengths',
-    'reflectionStrengths',
-    'questionStrengths'
+    "summaryStrengths",
+    "reflectionStrengths",
+    "questionStrengths",
   ];
 
   for (const field of requiredStringFields) {
-    if (typeof feedback[field] !== 'string' || !feedback[field]) {
+    if (typeof feedback[field] !== "string" || !feedback[field]) {
       throw new Error(`缺少必要欄位或欄位類型錯誤: ${field}`);
     }
   }
@@ -215,15 +203,137 @@ function validateFeedbackData(data: unknown): asserts data is FeedbackData {
     }
   }
 
-  if (typeof feedback.score !== 'number' || feedback.score < 0 || feedback.score > 100) {
-    throw new Error('分數必須是 0-100 之間的數字');
+  if (
+    typeof feedback.score !== "number" ||
+    feedback.score < 0 ||
+    feedback.score > 100
+  ) {
+    throw new Error("分數必須是 0-100 之間的數字");
   }
 
   if (!(feedback.createdAt instanceof Date)) {
-    throw new Error('createdAt 必須是有效的日期');
+    throw new Error("createdAt 必須是有效的日期");
   }
 
-  if (typeof feedback.gradingDuration !== 'number' || feedback.gradingDuration <= 0) {
-    throw new Error('gradingDuration 必須是正數');
+  if (
+    typeof feedback.gradingDuration !== "number" ||
+    feedback.gradingDuration <= 0
+  ) {
+    throw new Error("gradingDuration 必須是正數");
+  }
+}
+
+export async function gradeAssignment(
+  submission: AssignmentSubmission,
+  onProgress?: ProgressCallback
+): Promise<FeedbackData> {
+  // 在開發環境中使用 mock 數據
+  // if (process.env.NODE_ENV === 'development') {
+  //   return mockGradeAssignment(submission, (phase, progress, message) => {
+  //     try {
+  //       onProgress?.(phase, progress, message);
+  //     } catch (error) {
+  //       console.error('Progress callback error:', error);
+  //     }
+  //   });
+  // }
+
+  if (!openai) {
+    console.warn("OpenAI client not available, using mock data");
+    return mockGradeAssignment(submission, onProgress);
+  }
+
+  const startTime = Date.now();
+  console.log("Starting API call to OpenAI...", {
+    model: API_CONFIG.model,
+    submissionLength: formatSubmissionForGrading(submission).length,
+  });
+
+  try {
+    onProgress?.("check", 0, "開始檢查作業格式與內容...");
+    const formattedContent = formatSubmissionForGrading(submission);
+    validateSubmissionFormat(formattedContent);
+    onProgress?.("check", 30, "作業格式檢查完成");
+
+    onProgress?.("grade", 40, "正在進行作業評分...");
+
+    let attempts = 0;
+    const maxAttempts = 3;
+    let lastError: Error | null = null;
+
+    while (attempts < maxAttempts) {
+      try {
+        console.log(`API call attempt ${attempts + 1} of ${maxAttempts}`);
+
+        const response = await openai.chat.completions.create({
+          ...API_CONFIG,
+          messages: [
+            { role: "system", content: buildSystemPrompt() },
+            { role: "user", content: formattedContent },
+          ],
+          response_format: { type: "json_object" },
+        });
+
+        console.log("OpenAI API response received", {
+          status: "success",
+          duration: Date.now() - startTime,
+          responseLength: response.choices[0]?.message?.content?.length || 0,
+        });
+
+        onProgress?.("grade", 70, "評分完成，正在處理結果...");
+
+        onProgress?.("verify", 80, "正在驗證評分結果...");
+        const messageContent = response.choices[0]?.message?.content;
+        if (!messageContent) {
+          throw new Error("API 回應中沒有內容");
+        }
+
+        let apiResponse;
+        try {
+          apiResponse = JSON.parse(messageContent);
+
+          console.log("API response parsed successfully", {
+            hasScore: "score" in apiResponse,
+            hasComments: "summaryComments" in apiResponse,
+          });
+
+          apiResponse = preprocessApiResponse(apiResponse);
+        } catch (error) {
+          console.error("JSON parsing error:", error);
+          throw new Error("無法解析 API 回應的 JSON 格式");
+        }
+
+        onProgress?.("verify", 90, "正在進行最終確認...");
+
+        const result: FeedbackData = {
+          ...apiResponse,
+          createdAt: new Date(),
+          gradingDuration: Date.now() - startTime,
+        };
+
+        validateFeedbackData(result);
+        onProgress?.("complete", 100, "評分流程完成！");
+
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error("未知錯誤");
+        attempts++;
+        if (attempts === maxAttempts) {
+          throw lastError;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
+        onProgress?.("grade", 40, `重試中... (第 ${attempts} 次)`);
+      }
+    }
+
+    throw lastError || new Error("評分失敗");
+  } catch (error) {
+    console.error("Grading error:", error);
+    if (process.env.NODE_ENV === "production") {
+      throw error instanceof Error ? error : new Error("評分過程發生未知錯誤");
+    }
+    console.warn("API call failed in development, using mock data");
+    return mockGradeAssignment(submission, onProgress);
   }
 }

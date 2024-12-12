@@ -1,8 +1,14 @@
 // FeedbackDisplay.tsx
 import React, { useMemo, useState } from "react";
 import type { FeedbackData } from "~/types/grading";
-import { motion, AnimatePresence } from 'framer-motion';
-import { Star, ClipboardCheck, FileText, MessageCircle, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Star,
+  ClipboardCheck,
+  FileText,
+  MessageCircle,
+  ChevronRight,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import {
@@ -14,7 +20,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { cn } from "~/lib/utils";
 
-type FeedbackVariant = 'accordion' | 'tabs' | 'cards';
+type FeedbackVariant = "accordion" | "tabs" | "cards";
 type StrengthVariant = "success" | "info" | "warning";
 
 interface FeedbackDisplayProps {
@@ -72,7 +78,10 @@ const StrengthBadges = ({ strengths, variant }: StrengthBadgesProps) => {
         <Badge
           key={strength}
           variant="secondary"
-          className={cn(variantStyles[variant], "transition-colors duration-200")}
+          className={cn(
+            variantStyles[variant],
+            "transition-colors duration-200"
+          )}
         >
           {strength}
         </Badge>
@@ -88,7 +97,10 @@ const AccordionVariant = ({ sections }: VariantProps) => (
         <AccordionTrigger>{section.title}</AccordionTrigger>
         <AccordionContent>
           <p className="text-gray-700 mb-3">{section.comments}</p>
-          <StrengthBadges strengths={section.strengths} variant={section.variant} />
+          <StrengthBadges
+            strengths={section.strengths}
+            variant={section.variant}
+          />
         </AccordionContent>
       </AccordionItem>
     ))}
@@ -97,20 +109,26 @@ const AccordionVariant = ({ sections }: VariantProps) => (
 
 const TabsVariant = ({ sections }: VariantProps) => (
   <Tabs defaultValue={sections[0]?.id} className="w-full">
-    <TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${sections.length}, 1fr)` }}>
+    <TabsList
+      className="grid w-full"
+      style={{ gridTemplateColumns: `repeat(${sections.length}, 1fr)` }}
+    >
       {sections.map((section) => (
         <TabsTrigger key={section.id} value={section.id}>
           {section.title}
         </TabsTrigger>
       ))}
     </TabsList>
-    
+
     {sections.map((section) => (
       <TabsContent key={section.id} value={section.id}>
         <Card>
           <CardContent className="pt-6">
             <p className="text-gray-700 mb-3">{section.comments}</p>
-            <StrengthBadges strengths={section.strengths} variant={section.variant} />
+            <StrengthBadges
+              strengths={section.strengths}
+              variant={section.variant}
+            />
           </CardContent>
         </Card>
       </TabsContent>
@@ -123,20 +141,22 @@ const CardsVariant = ({ sections }: VariantProps) => (
     {sections.map((section) => (
       <Card key={section.id}>
         <CardHeader>
-          <CardTitle className={cn(
-            "text-lg font-semibold",
-            {
+          <CardTitle
+            className={cn("text-lg font-semibold", {
               "text-green-700": section.variant === "success",
               "text-blue-700": section.variant === "info",
-              "text-yellow-700": section.variant === "warning"
-            }
-          )}>
+              "text-yellow-700": section.variant === "warning",
+            })}
+          >
             {section.title}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-gray-700 mb-3">{section.comments}</p>
-          <StrengthBadges strengths={section.strengths} variant={section.variant} />
+          <StrengthBadges
+            strengths={section.strengths}
+            variant={section.variant}
+          />
         </CardContent>
       </Card>
     ))}
@@ -151,20 +171,20 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
       icon: FileText,
       title: "檢查作業內容",
       description: "確認作業內容是否符合評分標準",
-      color: "group-hover:text-gray-800"
+      color: "group-hover:text-gray-800",
     },
     {
       icon: ClipboardCheck,
       title: "評分進行中",
       description: "根據評分標準給予詳細評價",
-      color: "group-hover:text-gray-800"
+      color: "group-hover:text-gray-800",
     },
     {
       icon: MessageCircle,
       title: "產生回饋建議",
       description: "提供具體的改進建議",
-      color: "group-hover:text-gray-800"
-    }
+      color: "group-hover:text-gray-800",
+    },
   ];
 
   return (
@@ -175,7 +195,6 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
     >
       <Card className="bg-white dark:bg-gray-900 overflow-hidden">
         <CardContent className="p-0">
-          {/* Paper-like header */}
           <div className="bg-gray-50 dark:bg-gray-800 p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
@@ -192,9 +211,7 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
             </div>
           </div>
 
-          {/* Main content */}
           <div className="p-6 space-y-8">
-            {/* Steps */}
             <div className="grid gap-4">
               {steps.map((step, index) => (
                 <motion.div
@@ -204,14 +221,22 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
                   onHoverEnd={() => setHoveredIndex(null)}
                   whileHover={{ x: 10 }}
                 >
-                  <div className={`
+                  <div
+                    className={`
                     relative p-4 rounded-lg border border-gray-200 dark:border-gray-700
                     transition-all duration-300 ease-in-out
-                    ${hoveredIndex === index ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-900'}
-                  `}>
+                    ${
+                      hoveredIndex === index
+                        ? "bg-gray-50 dark:bg-gray-800"
+                        : "bg-white dark:bg-gray-900"
+                    }
+                  `}
+                  >
                     <div className="flex items-start gap-4">
                       <div className="p-3 rounded-md bg-gray-100 dark:bg-gray-800">
-                        <step.icon className={`w-6 h-6 text-gray-500 dark:text-gray-400 transition-colors ${step.color}`} />
+                        <step.icon
+                          className={`w-6 h-6 text-gray-500 dark:text-gray-400 transition-colors ${step.color}`}
+                        />
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-1">
@@ -224,7 +249,6 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
                       <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
 
-                    {/* Progress line */}
                     {index < steps.length - 1 && (
                       <motion.div
                         className="absolute left-7 top-full h-4 w-px bg-gray-200 dark:bg-gray-700"
@@ -235,7 +259,6 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
                     )}
                   </div>
 
-                  {/* Hover effect */}
                   <AnimatePresence>
                     {hoveredIndex === index && (
                       <motion.div
@@ -251,7 +274,6 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
               ))}
             </div>
 
-            {/* Action button */}
             <motion.button
               onClick={onRetry}
               className={`
@@ -277,44 +299,44 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
   );
 };
 
-export function FeedbackDisplay({ 
-  feedback, 
+export function FeedbackDisplay({
+  feedback,
   variant = "accordion",
   className,
-  onRetry
+  onRetry,
 }: FeedbackDisplayProps) {
   const sections = useMemo((): FeedbackSection[] => {
     if (!feedback) return [];
-    
+
     return [
       {
         id: "summary",
         title: "摘要評分",
         comments: feedback.summaryComments,
         strengths: feedback.summaryStrengths,
-        variant: "success"
+        variant: "success",
       },
       {
         id: "reflection",
         title: "反思評分",
         comments: feedback.reflectionComments,
         strengths: feedback.reflectionStrengths,
-        variant: "info"
+        variant: "info",
       },
       {
         id: "questions",
         title: "問題評分",
         comments: feedback.questionComments,
         strengths: feedback.questionStrengths,
-        variant: "warning"
+        variant: "warning",
       },
       {
         id: "overall",
         title: "整體建議",
         comments: feedback.overallSuggestions,
         strengths: [],
-        variant: "info"
-      }
+        variant: "info",
+      },
     ];
   }, [feedback]);
 
@@ -325,7 +347,7 @@ export function FeedbackDisplay({
   return (
     <div className={cn("space-y-6", className)}>
       <ScoreDisplay score={feedback.score} />
-      
+
       {variant === "accordion" && <AccordionVariant sections={sections} />}
       {variant === "tabs" && <TabsVariant sections={sections} />}
       {variant === "cards" && <CardsVariant sections={sections} />}

@@ -1,8 +1,21 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import React, { useState } from "react";
+import { motion } from "framer-motion";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { Progress } from "~/components/ui/progress";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "~/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "~/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { ScrollArea } from "~/components/ui/scroll-area";
@@ -10,14 +23,14 @@ import { Check, Clock, Brain } from "lucide-react";
 
 const DashboardPreview = () => {
   const [progress, setProgress] = useState(0);
-  
+
   const performanceData = [
-    { month: '1月', score: 75 },
-    { month: '2月', score: 82 },
-    { month: '3月', score: 78 },
-    { month: '4月', score: 85 },
-    { month: '5月', score: 90 },
-    { month: '6月', score: 88 }
+    { month: "1月", score: 75 },
+    { month: "2月", score: 82 },
+    { month: "3月", score: 78 },
+    { month: "4月", score: 85 },
+    { month: "5月", score: 90 },
+    { month: "6月", score: 88 },
   ];
 
   React.useEffect(() => {
@@ -27,7 +40,6 @@ const DashboardPreview = () => {
 
   return (
     <div className="w-full p-6 space-y-6">
-      {/* 智慧評分進度展示 */}
       <Card className="border-2 border-[#F5F7FA]">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -54,7 +66,6 @@ const DashboardPreview = () => {
         </CardContent>
       </Card>
 
-      {/* 成績趨勢圖表 */}
       <Card className="border-2 border-[#F5F7FA]">
         <CardHeader>
           <CardTitle className="text-[#2A4858]">學習成效趨勢</CardTitle>
@@ -67,12 +78,12 @@ const DashboardPreview = () => {
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="score" 
-                  stroke="#2A4858" 
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#2A4858"
                   strokeWidth={2}
-                  dot={{ stroke: '#2A4858', strokeWidth: 2, fill: 'white' }}
+                  dot={{ stroke: "#2A4858", strokeWidth: 2, fill: "white" }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -80,7 +91,6 @@ const DashboardPreview = () => {
         </CardContent>
       </Card>
 
-      {/* 評分詳情 */}
       <Card className="border-2 border-[#F5F7FA]">
         <CardHeader>
           <CardTitle className="text-[#2A4858]">評分詳情</CardTitle>
@@ -115,4 +125,4 @@ const DashboardPreview = () => {
   );
 };
 
-export { DashboardPreview } ;
+export { DashboardPreview };
