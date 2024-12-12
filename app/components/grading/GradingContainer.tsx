@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+//GradingContainer.tsx
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type {
   FeedbackData,
   GradingStatus,
@@ -13,21 +14,26 @@ import { FeedbackDisplay } from "./FeedbackDisplay";
 import { StatusSnackbar } from "./StatusSnackbar";
 import { Card } from "~/components/ui/card";
 import { Alert, AlertDescription } from "~/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { Download, AlertCircle, RefreshCcw, CheckCircle } from "lucide-react";
 import { cn } from "~/lib/utils";
-import type { action } from "~/routes/assignments.grade";  // 調整路徑以匹配你的實際路由文件位置
+import type { action } from "~/routes/assignments.grade";
+import { AlertTitle } from "~/components/ui/alert";
+import { Button } from "~/components/ui/button";
 
 type SnackbarSeverity = "success" | "error" | "info";
 
 interface GradingContainerProps {
-  sections: Section[]; // 新增，用於傳遞部分配置
+  sections: Section[];
   feedback?: FeedbackData;
   error?: string;
   validationErrors?: string[];
-  status: GradingStatus; // 改為必需
+  status: GradingStatus;
+  gradingProgress: number;
+  gradingPhase: string;
+  gradingMessage: string;
   onValidationComplete?: (result: ValidationResult) => void;
   onRetry?: () => void;
-  fetcher: ReturnType<typeof useFetcher<typeof action>>;  // 新增這行
+  fetcher: ReturnType<typeof useFetcher<typeof action>>;
 }
 
 interface Step {
@@ -44,11 +50,14 @@ interface SnackbarState {
 }
 
 export function GradingContainer({
-  sections, // 新增
+  sections,
   feedback,
   error,
   validationErrors = [],
   status,
+  gradingProgress,
+  gradingPhase,
+  gradingMessage,
   onValidationComplete,
   onRetry,
   fetcher,
@@ -59,15 +68,27 @@ export function GradingContainer({
     severity: "success",
   });
 
-  // console.log("GradingContainer received props:", {
-  //   status,
-  //   feedback,
-  //   error,
-  //   validationErrors
-  // });
-
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
+  const [mode, setMode] = useState<"editing" | "submitted">("editing");
+  const completionShown = useRef(false);
+  const lastMessage = useRef(""); 
+
+  // need to fix Bug, should let gradingprogress init 
+  const handleReset = useCallback(() => {
+    setMode("editing");
+    setCurrentStep(0);
+    completionShown.current = false; 
+    lastMessage.current = ""; 
+    
+
+    fetcher.data = undefined;
+
+    if (onRetry) {
+      onRetry();
+    }
+    
+  }, [onRetry, fetcher]);
 
   const steps: Step[] = useMemo(
     () => [
@@ -98,48 +119,76 @@ export function GradingContainer({
     [currentStep, status, feedback]
   );
 
+  const handleDownload = useCallback(() => {
+    if (!feedback) return;
+
+    const content = {
+      feedback,
+      timestamp: new Date().toISOString(),
+      sections: sections.map((section) => ({
+        title: section.title,
+        content: section.content,
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(content, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `feedback-${new Date().toISOString()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [feedback, sections]);
+
   useEffect(() => {
-    if (error || validationErrors.length > 0) {
-      const errorMessage = error || validationErrors.join(", ");
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: "error",
-      });
-      if (status === "processing") {
-        setCurrentStep(0);
+    const currentMessage =
+      error ||
+      (validationErrors.length > 0 ? validationErrors.join(", ") : null) ||
+      (status === "processing" ? gradingMessage : null);
+
+    if (currentMessage && currentMessage !== lastMessage.current) {
+      lastMessage.current = currentMessage;
+
+      if (error || validationErrors.length > 0) {
+        setSnackbar({
+          open: true,
+          message: error || validationErrors.join(", "),
+          severity: "error",
+        });
+      } else if (status === "processing" && !feedback) {
+        setSnackbar({
+          open: true,
+          message: gradingMessage || "開始評分...",
+          severity: "info",
+        });
+      }
+
+      if (status === "completed" && feedback && !completionShown.current) {
+        completionShown.current = true;
+        setMode("submitted");
+        setSnackbar({
+          open: true,
+          message: "評分完成！",
+          severity: "success",
+        });
       }
     }
-  }, [error, validationErrors, status]);
+  }, [status, error, validationErrors, feedback, gradingMessage]);
 
   useEffect(() => {
-    // console.log("Current status:", status);
-    // console.log("Current feedback:", feedback);
-
     if (status === "processing") {
       setCurrentStep(1);
-      setSnackbar({
-        open: true,
-        message: "開始評分...",
-        severity: "info",
-      });
     } else if (status === "completed" && feedback) {
-      // console.log("Setting completed step with feedback");
       setCurrentStep(2);
-      setSnackbar({
-        open: true,
-        message: "評分完成！",
-        severity: "success",
-      });
+      setMode("submitted");
     } else if (status === "error") {
       setCurrentStep(0);
-      setSnackbar({
-        open: true,
-        message: error || "評分過程發生錯誤",
-        severity: "error",
-      });
     }
-  }, [status, feedback, error]);
+  }, [status, feedback]);
 
   const handleValidation = useCallback(
     (result: ValidationResult) => {
@@ -182,9 +231,25 @@ export function GradingContainer({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2">
-            <Card className="h-full shadow-lg">
+            <Card
+              className={cn(
+                "h-full shadow-lg",
+                mode === "submitted" && "bg-gray-50"
+              )}
+            >
+              {mode === "submitted" && status === "completed" && (
+                <div className="p-4 border-b border-gray-200">
+                  <Alert variant="default">
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertTitle>評分完成</AlertTitle>
+                    <AlertDescription>
+                      您可以查看右側的評分結果，或點擊下方按鈕開始新的提交。
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              )}
               <AssignmentInput
-                sections={sections} // 新增
+                sections={sections}
                 disabled={status === "processing" || status === "completed"}
                 validationErrors={validationErrors}
                 status={status}
@@ -195,6 +260,31 @@ export function GradingContainer({
                 )}
                 fetcher={fetcher}
               />
+
+              {mode === "submitted" && status === "completed" && (
+                <div className="p-4 border-t border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <Button
+                      variant="outline"
+                      onClick={handleReset}
+                      className="gap-2"
+                    >
+                      <RefreshCcw className="h-4 w-4" />
+                      開始新的提交
+                    </Button>
+                    {feedback && (
+                      <Button
+                        variant="secondary"
+                        onClick={handleDownload}
+                        className="gap-2"
+                      >
+                        <Download className="h-4 w-4" />
+                        下載評分結果
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
             </Card>
           </div>
 
@@ -208,8 +298,14 @@ export function GradingContainer({
               onAnimationStart={() => handleTransition(true)}
               onAnimationEnd={() => handleTransition(false)}
             >
-              {status === "processing" ? (
-                <GradingProgress status={status} className="p-6" />
+              {!feedback && status === "processing" ? (
+                <GradingProgress
+                  status={status}
+                  initialProgress={gradingProgress}
+                  phase={gradingPhase}
+                  message={gradingMessage}
+                  className="p-6"
+                />
               ) : (
                 <FeedbackDisplay
                   feedback={feedback}
@@ -241,13 +337,13 @@ export function GradingContainer({
           </Alert>
         )}
 
-        <StatusSnackbar
+        {/* <StatusSnackbar
           open={snackbar.open}
           message={snackbar.message}
           severity={snackbar.severity}
           onClose={handleSnackbarClose}
           autoHideDuration={6000}
-        />
+        /> */}
       </div>
     </div>
   );

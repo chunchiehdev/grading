@@ -1,6 +1,8 @@
-import React, { useMemo } from "react";
+// FeedbackDisplay.tsx
+import React, { useMemo, useState } from "react";
 import type { FeedbackData } from "~/types/grading";
-import { Star, Search, Pencil, CheckCircle } from "lucide-react";
+import { motion, AnimatePresence } from 'framer-motion';
+import { Star, ClipboardCheck, FileText, MessageCircle, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import {
@@ -141,35 +143,139 @@ const CardsVariant = ({ sections }: VariantProps) => (
   </div>
 );
 
-const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => (
-  <Card className="w-full">
-    <CardContent className="pt-6">
-      <div className="flex flex-col items-center justify-center py-8 gap-8">
-        <div className="grid grid-cols-3 gap-4">
-          {[Search, Pencil, CheckCircle].map((Icon, index) => (
-            <div
-              key={index}
-              className="w-16 h-16 border-2 border-gray-200 rounded-lg flex items-center justify-center bg-gray-50 transition-colors duration-200 hover:bg-gray-100"
-            >
-              <Icon className="w-8 h-8 text-gray-400" />
+const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  const steps = [
+    {
+      icon: FileText,
+      title: "檢查作業內容",
+      description: "確認作業內容是否符合評分標準",
+      color: "group-hover:text-gray-800"
+    },
+    {
+      icon: ClipboardCheck,
+      title: "評分進行中",
+      description: "根據評分標準給予詳細評價",
+      color: "group-hover:text-gray-800"
+    },
+    {
+      icon: MessageCircle,
+      title: "產生回饋建議",
+      description: "提供具體的改進建議",
+      color: "group-hover:text-gray-800"
+    }
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="w-full max-w-4xl mx-auto"
+    >
+      <Card className="bg-white dark:bg-gray-900 overflow-hidden">
+        <CardContent className="p-0">
+          {/* Paper-like header */}
+          <div className="bg-gray-50 dark:bg-gray-800 p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                開始新的評分
+              </h2>
+              <div className="flex items-center gap-2">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"
+                  />
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
-        <div className="text-center space-y-2">
-          <p className="text-gray-600">請輸入作業內容開始評分</p>
-          {onRetry && (
-            <button
+          </div>
+
+          {/* Main content */}
+          <div className="p-6 space-y-8">
+            {/* Steps */}
+            <div className="grid gap-4">
+              {steps.map((step, index) => (
+                <motion.div
+                  key={index}
+                  className="group relative"
+                  onHoverStart={() => setHoveredIndex(index)}
+                  onHoverEnd={() => setHoveredIndex(null)}
+                  whileHover={{ x: 10 }}
+                >
+                  <div className={`
+                    relative p-4 rounded-lg border border-gray-200 dark:border-gray-700
+                    transition-all duration-300 ease-in-out
+                    ${hoveredIndex === index ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-900'}
+                  `}>
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 rounded-md bg-gray-100 dark:bg-gray-800">
+                        <step.icon className={`w-6 h-6 text-gray-500 dark:text-gray-400 transition-colors ${step.color}`} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                          {step.title}
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {step.description}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+
+                    {/* Progress line */}
+                    {index < steps.length - 1 && (
+                      <motion.div
+                        className="absolute left-7 top-full h-4 w-px bg-gray-200 dark:bg-gray-700"
+                        initial={{ height: 0 }}
+                        animate={{ height: 16 }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Hover effect */}
+                  <AnimatePresence>
+                    {hoveredIndex === index && (
+                      <motion.div
+                        className="absolute inset-0 border-2 border-gray-200 dark:border-gray-700 rounded-lg pointer-events-none"
+                        initial={{ opacity: 0, scale: 1.05 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 1.05 }}
+                        transition={{ duration: 0.2 }}
+                      />
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Action button */}
+            <motion.button
               onClick={onRetry}
-              className="text-blue-500 hover:underline focus:outline-none"
+              className={`
+                w-full p-4 rounded-lg
+                bg-gradient-to-r from-gray-100 to-gray-50
+                dark:from-gray-800 dark:to-gray-900
+                border border-gray-200 dark:border-gray-700
+                text-gray-800 dark:text-gray-200
+                font-medium
+                transition-all duration-300
+                hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600
+                focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-700
+              `}
+              whileHover={{ y: -2 }}
+              whileTap={{ y: 0 }}
             >
-              重新開始
-            </button>
-          )}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
+              輸入作業內容開始評分
+            </motion.button>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+};
 
 export function FeedbackDisplay({ 
   feedback, 

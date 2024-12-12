@@ -1,31 +1,26 @@
-// app/utils/validation.ts
-
 import type {
   Section,
   AssignmentSubmission,
   ValidationResult,
-  FeedbackData
-} from '../types/grading';
+  FeedbackData,
+} from "../types/grading";
 
 /**
  * 針對不同部分的驗證規則配置
  */
-const SECTION_VALIDATION_RULES: Record<Section['id'], {
-  minLength: number;
-  maxLength: number;
-}> = {
+export const SECTION_VALIDATION_RULES = {
   summary: {
     minLength: 50,
-    maxLength: 500
+    maxLength: 500,
   },
   reflection: {
     minLength: 100,
-    maxLength: 1000
+    maxLength: 1000,
   },
   questions: {
     minLength: 30,
-    maxLength: 300
-  }
+    maxLength: 300,
+  },
 };
 
 /**
@@ -38,26 +33,25 @@ function validateSection(section: Section): {
   const errors: string[] = [];
   const rules = SECTION_VALIDATION_RULES[section.id];
 
-  // 檢查必填項目
-  if (section.required && (!section.content || section.content.trim().length === 0)) {
+  if (
+    section.required &&
+    (!section.content || section.content.trim().length === 0)
+  ) {
     errors.push(`${section.title}為必填項目`);
     return { isValid: false, errors };
   }
 
   if (section.content) {
     const content = section.content.trim();
-    
-    // 檢查最小長度
+
     if (content.length < rules.minLength) {
       errors.push(`${section.title}至少需要${rules.minLength}字`);
     }
 
-    // 檢查最大長度
     if (content.length > rules.maxLength) {
       errors.push(`${section.title}不得超過${rules.maxLength}字`);
     }
 
-    // 檢查指定的 maxLength 限制
     if (section.maxLength && content.length > section.maxLength) {
       errors.push(`${section.title}超過指定的長度限制${section.maxLength}字`);
     }
@@ -65,53 +59,52 @@ function validateSection(section: Section): {
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
 /**
  * 驗證整個作業提交
  */
-export function validateAssignment(submission: AssignmentSubmission): ValidationResult {
+export function validateAssignment(
+  submission: AssignmentSubmission
+): ValidationResult {
   const errors: string[] = [];
   const missingFields: string[] = [];
-  const invalidFields: { field: string; reason: string; }[] = [];
+  const invalidFields: { field: string; reason: string }[] = [];
 
-  // 驗證基本資料
   if (!submission.metadata?.submittedAt) {
-    errors.push('缺少提交時間');
+    errors.push("缺少提交時間");
   }
   if (!submission.metadata?.authorId) {
-    errors.push('缺少作者ID');
+    errors.push("缺少作者ID");
   }
   if (!submission.metadata?.courseId) {
-    errors.push('缺少課程ID');
+    errors.push("缺少課程ID");
   }
 
-  // 驗證每個部分
   for (const section of submission.sections) {
     const sectionValidation = validateSection(section);
-    
+
     if (!sectionValidation.isValid) {
       if (!section.content && section.required) {
         missingFields.push(section.title);
       } else {
-        sectionValidation.errors.forEach(error => {
+        sectionValidation.errors.forEach((error) => {
           invalidFields.push({
             field: section.title,
-            reason: error
+            reason: error,
           });
+          errors.push(error);
         });
       }
-      errors.push(...sectionValidation.errors);
     }
   }
 
-  // 檢查部分順序
-  const isOrderValid = submission.sections
-    .every((section, index, array) => 
+  const isOrderValid = submission.sections.every(
+    (section, index, array) =>
       index === 0 || section.order > array[index - 1].order
-    );
+  );
 
   if (!isOrderValid) {
     errors.push("作業部分順序錯誤");
@@ -121,7 +114,7 @@ export function validateAssignment(submission: AssignmentSubmission): Validation
     isValid: errors.length === 0,
     errors,
     missingFields: missingFields.length > 0 ? missingFields : undefined,
-    invalidFields: invalidFields.length > 0 ? invalidFields : undefined
+    invalidFields: invalidFields.length > 0 ? invalidFields : undefined,
   };
 }
 
@@ -131,34 +124,30 @@ export function validateAssignment(submission: AssignmentSubmission): Validation
 export function validateFeedback(feedback: FeedbackData): ValidationResult {
   const errors: string[] = [];
 
-  // 驗證分數範圍
   if (feedback.score < 0 || feedback.score > 100) {
-    errors.push('分數必須在0-100之間');
+    errors.push("分數必須在0-100之間");
   }
 
-  // 驗證必要的評論
-  if (!feedback.summaryComments.trim()) errors.push('缺少摘要評論');
-  if (!feedback.reflectionComments.trim()) errors.push('缺少反思評論');
-  if (!feedback.questionComments.trim()) errors.push('缺少問題評論');
-  if (!feedback.overallSuggestions.trim()) errors.push('缺少整體建議');
+  if (!feedback.summaryComments.trim()) errors.push("缺少摘要評論");
+  if (!feedback.reflectionComments.trim()) errors.push("缺少反思評論");
+  if (!feedback.questionComments.trim()) errors.push("缺少問題評論");
+  if (!feedback.overallSuggestions.trim()) errors.push("缺少整體建議");
 
-  // 驗證時間相關欄位
-  if (!feedback.createdAt) errors.push('缺少評分時間');
-  if (feedback.gradingDuration <= 0) errors.push('評分時間無效');
+  if (!feedback.createdAt) errors.push("缺少評分時間");
+  if (feedback.gradingDuration <= 0) errors.push("評分時間無效");
 
   return {
     isValid: errors.length === 0,
     errors,
-    invalidFields: errors.map(error => ({
-      field: 'feedback',
-      reason: error
-    }))
+    invalidFields: errors.map((error) => ({
+      field: "feedback",
+      reason: error,
+    })),
   };
 }
 
-// 輔助函數
 export const ValidationUtils = {
   validateAssignment,
   validateFeedback,
-  validateSection
+  validateSection,
 };

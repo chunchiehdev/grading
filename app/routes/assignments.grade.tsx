@@ -1,12 +1,24 @@
-// app/routes/assignments.grade.tsx
-
+// assignments.grade.tsx
 import { type ActionFunctionArgs } from "@remix-run/node";
+import type { MetaFunction } from "@remix-run/node";
 import { useActionData, useNavigation, useFetcher } from "@remix-run/react";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { GradingContainer } from "~/components/grading/GradingContainer";
 import { gradeAssignment } from "~/services/grading.server";
-import { validateAssignment } from "~/utils/validation";
+import {
+  validateAssignment,
+  SECTION_VALIDATION_RULES,
+} from "~/utils/validation";
 import { ValidationError, GradingServiceError } from "~/types/errors";
+import { useEventSource } from "remix-utils/sse/react";
+import { progressMap } from "~/utils/progressMap.server";
+
+export const meta: MetaFunction = () => {
+  return [
+    { title: "評分系統" },
+    { name: "description", content: "專業的教育評分管理平台" },
+  ];
+};
 
 import type {
   FeedbackData,
@@ -16,66 +28,71 @@ import type {
   Section,
 } from "~/types/grading";
 
-// Action 回傳資料的類型定義
 interface ActionErrorData {
   error: string;
   feedback?: never;
   validationErrors?: string[];
+  taskId?: never;
 }
 
 interface ActionSuccessData {
   feedback: FeedbackData;
   error?: never;
   validationErrors?: never;
+  taskId: string;
 }
 
 type ActionData = ActionErrorData | ActionSuccessData;
 
-// 定義基本的部分順序和配置
+
 const SECTION_CONFIG: Section[] = [
   {
     id: "summary",
     title: "摘要",
     content: "",
     placeholder: "請輸入摘要內容...",
-    maxLength: 500,
+    maxLength: SECTION_VALIDATION_RULES.summary.maxLength,
     required: true,
     order: 1,
-    minLength: 10,
+    minLength: SECTION_VALIDATION_RULES.summary.minLength,
   },
   {
     id: "reflection",
     title: "反思",
     content: "",
     placeholder: "請輸入反思內容...",
-    maxLength: 1000,
+    maxLength: SECTION_VALIDATION_RULES.reflection.maxLength,
     required: true,
     order: 2,
-    minLength: 10,
+    minLength: SECTION_VALIDATION_RULES.reflection.minLength,
   },
   {
     id: "questions",
     title: "問題",
     content: "",
     placeholder: "請輸入問題內容...",
-    maxLength: 300,
+    maxLength: SECTION_VALIDATION_RULES.questions.maxLength,
     required: true,
     order: 3,
-    minLength: 10,
+    minLength: SECTION_VALIDATION_RULES.questions.minLength,
   },
 ];
 
-// Action 處理函數
+
 export async function action({
   request,
 }: ActionFunctionArgs): Promise<ActionData> {
   try {
     const formData = await request.formData();
-
-    console.log("接收到的表單數據:", Object.fromEntries(formData));
+    console.log("Action started with taskId:", formData.get("taskId"));
+    const taskId = (formData.get("taskId") as string) || crypto.randomUUID();
 
     const authorId = formData.get("authorId");
     const courseId = formData.get("courseId");
+
+    if (!taskId) {
+      throw new Error("Missing taskId");
+    }
 
     if (!authorId || !courseId) {
       return {
@@ -84,23 +101,20 @@ export async function action({
       };
     }
 
-    // 構建 AssignmentSubmission 物件
-    const sections: Section[] = SECTION_CONFIG.map((config) => {
-      const content = formData.get(config.id);
-      return {
-        ...config,
-        content: typeof content === "string" ? content : "",
-      };
-    });
+    const sections: Section[] = SECTION_CONFIG.map((config) => ({
+      ...config,
+      content: String(formData.get(config.id) || ""),
+    }));
 
-    for (const config of SECTION_CONFIG) {
-      const content = formData.get(config.id);
-      if (!content && config.required) {
-        return {
-          error: "缺少必要內容",
-          validationErrors: [`${config.title}為必填項目`],
-        };
-      }
+    const missingFields = sections
+      .filter((section) => section.required && !section.content)
+      .map((section) => section.title);
+
+    if (missingFields.length > 0) {
+      return {
+        error: "缺少必要內容",
+        validationErrors: missingFields.map((title) => `${title}為必填項目`),
+      };
     }
 
     const submission: AssignmentSubmission = {
@@ -114,7 +128,6 @@ export async function action({
 
     console.log("準備驗證的提交內容:", submission);
 
-    // 驗證提交內容
     const validationResult = validateAssignment(submission);
     console.log("驗證結果:", validationResult);
 
@@ -123,12 +136,17 @@ export async function action({
     }
     console.log("開始調用評分服務");
 
-    // 調用評分服務
-    const feedback = await gradeAssignment(submission);
+    const feedback = await gradeAssignment(
+      submission,
+      (phase, progress, message) => {
+        console.log("Progress update:", { taskId, phase, progress, message });
+        progressMap.set(taskId, { phase, progress, message });
+      }
+    );
 
-    console.log("評分服務返回結果:", feedback);
+    console.log("Action completed with:", { feedback, taskId });
 
-    return { feedback };
+    return { feedback, taskId };
   } catch (error) {
     console.error("Grading error:", error);
 
@@ -157,33 +175,128 @@ export async function action({
 export default function AssignmentGradingPage() {
   const [retryCount, setRetryCount] = useState(0);
   const fetcher = useFetcher<typeof action>();
+  const [gradingProgress, setGradingProgress] = useState(0);
+  const [gradingPhase, setGradingPhase] = useState("check");
+  const [gradingMessage, setGradingMessage] = useState("");
 
+  const actionData = useActionData<typeof action>();
   const feedback = fetcher.data?.feedback;
   const error = fetcher.data?.error;
   const validationErrors = fetcher.data?.validationErrors;
+  const [localTaskId, setLocalTaskId] = useState<string | null>(null);
 
-  // 計算當前狀態
+
   const status = useMemo((): GradingStatus => {
-    if (fetcher.state === "submitting") return "processing";
+    console.log("Status calculation:", {
+      fetcherState: fetcher.state,
+      hasLocalTaskId: !!localTaskId,
+      hasError: !!error,
+      hasFeedback: !!feedback,
+    });
+
     if (error) return "error";
     if (feedback) return "completed";
+    if (fetcher.state === "submitting" || localTaskId) return "processing";
     return "idle";
-  }, [fetcher.state, error, feedback]);
+  }, [fetcher.state, fetcher.data, error, feedback, localTaskId]);
 
-  // 處理驗證完成
+
+  useEffect(() => {
+    if (fetcher.state === "submitting") {
+      const formData = fetcher.formData;
+      const taskId = formData?.get("taskId") as string;
+      if (taskId) {
+        console.log("Setting taskId from form:", taskId);
+        setLocalTaskId(taskId);
+      }
+    } else if (fetcher.state === "idle" && feedback) {
+
+      setLocalTaskId(null);
+    }
+  }, [fetcher.state, feedback]);
+
+  const progressUrl = useMemo(() => {
+    const shouldConnect = status === "processing" && localTaskId;
+    console.log("Progress URL calculation:", {
+      status,
+      localTaskId,
+      shouldConnect,
+      url: shouldConnect ? `/api/grading-progress?taskId=${localTaskId}` : "",
+    });
+    return shouldConnect ? `/api/grading-progress?taskId=${localTaskId}` : "";
+  }, [status, localTaskId]);
+
+  const progressData = useEventSource(progressUrl, {
+    event: "grading-progress",
+  });
+
+
+  const handleRetry = useCallback(() => {
+    setRetryCount((prev) => prev + 1);
+    setGradingProgress(0);
+    setGradingPhase("check");
+    setGradingMessage("");
+    setLocalTaskId(null);
+
+    fetcher.data = undefined;
+  }, [fetcher]);
+
   const handleValidationComplete = useCallback((result: ValidationResult) => {
     if (!result.isValid) {
       console.log("Validation failed:", result.errors);
     }
   }, []);
 
-  // 處理重試
-  const handleRetry = useCallback(() => {
-    setRetryCount((prev) => prev + 1);
+  useEffect(() => {
+    return () => {
+      setGradingProgress(0);
+      setGradingPhase("check");
+      setGradingMessage("");
+      setLocalTaskId(null);
+    };
   }, []);
 
+  useEffect(() => {
+    if (status === "idle" || status === "completed" || status === "error") {
+      setGradingProgress(0);
+      setGradingPhase("check");
+      setGradingMessage("");
+      setLocalTaskId(null);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    if (!progressData) return;
+
+    console.log("=== Progress Update ===");
+    console.log("Progress URL:", progressUrl);
+    console.log("Received Data:", progressData);
+
+    try {
+      const data = JSON.parse(progressData);
+      console.log("Parsed Data:", data);
+
+      setGradingProgress((prev) => Math.max(prev, data.progress));
+      setGradingPhase(data.phase);
+      setGradingMessage(data.message || "評分進行中...");
+
+
+      if (data.phase === "complete") {
+        setLocalTaskId(null);
+      }
+    } catch (error) {
+      console.error("Error parsing progress data:", error);
+    }
+  }, [progressData, progressUrl]);
+
+  useEffect(() => {
+    console.log("=== Status/TaskId Update ===");
+    console.log("Current status:", status);
+    console.log("Current localTaskId:", localTaskId);
+  }, [status, localTaskId]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-8">
+    <div className="min-h-screen bg-gradient-to-b">
       <GradingContainer
         key={retryCount}
         sections={SECTION_CONFIG}
@@ -191,9 +304,12 @@ export default function AssignmentGradingPage() {
         error={error}
         validationErrors={validationErrors}
         status={status}
+        gradingProgress={gradingProgress}
+        gradingPhase={gradingPhase}
+        gradingMessage={gradingMessage}
         onValidationComplete={handleValidationComplete}
         onRetry={handleRetry}
-        fetcher={fetcher}  
+        fetcher={fetcher}
       />
     </div>
   );

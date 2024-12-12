@@ -1,4 +1,4 @@
-// 可以在 app/types/errors.ts 中定義
+
 export class ValidationError extends Error {
     constructor(public errors: string[]) {
       super('Validation failed');

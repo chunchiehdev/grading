@@ -16,7 +16,7 @@ interface Step {
 }
 
 interface GradingStepperProps {
-  steps: Step[];  // 改為必需
+  steps: Step[];  
   activeStep: number;
   className?: string;
   showDetails?: boolean;
@@ -35,7 +35,7 @@ export function GradingStepper({
   className,
   showDetails = false,
 }: GradingStepperProps) {
-  // 獲取步驟狀態的樣式配置
+  
   const getStepConfig = (step: Step, index: number): StepStyleConfig => {
     const configs: Record<Step['status'], (isActive: boolean) => StepStyleConfig> = {
       error: () => ({

@@ -1,5 +1,4 @@
 // ~/types/grading.ts
-
 /**
  * 作業部分的基本結構
  */
@@ -8,17 +7,17 @@ export interface Section {
   title: string;
   content: string;
   placeholder: string;
-  maxLength: number;  // 改為必需
-  required: boolean;  // 改為必需
+  maxLength: number;
+  required: boolean;
   order: number;
-  minLength?: number; // 新增最小長度限制
+  minLength?: number;
 }
 
 /**
  * 評分回饋數據
  */
 export interface FeedbackData {
-  score: number; // 0-100
+  score: number;
   summaryComments: string;
   summaryStrengths: string[];
   reflectionComments: string;
@@ -26,18 +25,14 @@ export interface FeedbackData {
   questionComments: string;
   questionStrengths: string[];
   overallSuggestions: string;
-  createdAt: Date;  // 改為必需
-  gradingDuration: number;  // 改為必需（毫秒）
+  createdAt: Date;
+  gradingDuration: number;
 }
 
 /**
  * 評分狀態
  */
-export type GradingStatus =
-  | "idle"
-  | "processing"
-  | "completed"
-  | "error";
+export type GradingStatus = "idle" | "processing" | "completed" | "error";
 
 /**
  * 驗證結果
@@ -56,9 +51,9 @@ export interface ValidationResult {
  * 評分進度
  */
 export interface GradingProgress {
-  percentage: number; // 0-100
+  percentage: number;
   currentStep: string;
-  estimatedTimeLeft?: number; // 毫秒
+  estimatedTimeLeft?: number;
 }
 
 /**
@@ -76,7 +71,7 @@ export interface GradingResult {
  */
 export interface AssignmentSubmission {
   sections: Section[];
-  metadata: {  // 改為必需
+  metadata: {
     submittedAt: Date;
     authorId: string;
     courseId: string;

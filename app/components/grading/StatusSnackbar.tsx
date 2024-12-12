@@ -4,7 +4,6 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "~/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
-// 類型定義
 type SnackbarSeverity = "success" | "error" | "info" | "warning";
 
 interface StatusSnackbarProps {
@@ -18,7 +17,6 @@ interface StatusSnackbarProps {
   enableProgress?: boolean;
 }
 
-// 樣式配置
 const snackbarVariants = cva(
   "flex items-center px-4 py-3 rounded-lg shadow-lg border relative overflow-hidden",
   {
@@ -36,7 +34,6 @@ const snackbarVariants = cva(
   }
 );
 
-// 圖標映射
 const ICON_MAP: Record<SnackbarSeverity, React.ElementType> = {
   success: Check,
   error: X,
@@ -44,7 +41,6 @@ const ICON_MAP: Record<SnackbarSeverity, React.ElementType> = {
   warning: AlertCircle,
 };
 
-// 進度條顏色映射
 const PROGRESS_VARIANTS: Record<SnackbarSeverity, string> = {
   success: "bg-green-500",
   error: "bg-red-500",
@@ -52,7 +48,6 @@ const PROGRESS_VARIANTS: Record<SnackbarSeverity, string> = {
   warning: "bg-yellow-500",
 };
 
-// 動畫配置
 const ANIMATION_CONFIG = {
   initial: { opacity: 0, y: -20 },
   animate: { opacity: 1, y: 0 },
@@ -73,7 +68,14 @@ export function StatusSnackbar({
   const Icon = ICON_MAP[severity];
 
   useEffect(() => {
-    if (!open) return;
+    setProgress(100);
+  }, [message]); 
+
+  useEffect(() => {
+    if (!open) {
+      setProgress(100); 
+      return;
+    }
 
     let startTime: number;
     let animationFrameId: number;

@@ -23,13 +23,13 @@ import type { Section, ValidationResult, GradingStatus } from "~/types/grading";
 import type { action } from "~/routes/assignments.grade";
 
 interface AssignmentInputProps {
-  sections: Section[]; // 改為必需，從外部傳入
+  sections: Section[]; 
   disabled?: boolean;
   validationErrors?: string[];
-  status: GradingStatus; // 改為必需
+  status: GradingStatus; 
   onValidation?: (result: ValidationResult) => void;
   className?: string;
-  fetcher: ReturnType<typeof useFetcher<typeof action>>; 
+  fetcher: ReturnType<typeof useFetcher<typeof action>>;
 }
 
 interface StepIndicatorProps {
@@ -47,7 +47,6 @@ interface CompletionPreviewProps {
   sections: Section[];
 }
 
-// 輔助函數：驗證單個部分
 function validateSection(section: Section): string[] {
   const errors: string[] = [];
   const content = section.content.trim();
@@ -119,7 +118,9 @@ const CompletionPreview = ({ sections }: CompletionPreviewProps) => {
             <CheckCircle2 className="h-5 w-5 text-green-500" />
             <h4 className="font-medium">{section.title}</h4>
           </div>
-          <p className="text-gray-600 text-sm pl-7 break-words overflow-wrap-anywhere whitespace-pre-wrap">{section.content}</p>
+          <p className="text-gray-600 text-sm pl-7 break-words overflow-wrap-anywhere whitespace-pre-wrap">
+            {section.content}
+          </p>
         </div>
       ))}
     </div>
@@ -148,6 +149,7 @@ export function AssignmentInput({
   const isLastStep = currentStep === totalSteps;
   const isActuallySubmitting = fetcher.state === "submitting" && isPreviewStep;
   const showSubmittingState = isActuallySubmitting && isLastStep;
+  const [taskId, setTaskId] = useState<string | null>(null);
 
   const allErrors = useMemo(
     () => [...validationErrors, ...(fetcher.data?.validationErrors || [])],
@@ -159,7 +161,6 @@ export function AssignmentInput({
 
     const content = currentSection?.content.trim() || "";
 
-    
     return (
       !currentSection ||
       ((!currentSection.required || content.length > 0) &&
@@ -250,7 +251,7 @@ export function AssignmentInput({
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
       if (fetcher.state !== "idle") {
-        fetcher.data = undefined; // 重置 fetcher 數據
+        fetcher.data = undefined; 
       }
     }
   }, [currentStep, fetcher]);
@@ -268,14 +269,19 @@ export function AssignmentInput({
         return;
       }
 
-      const formData = new FormData(event.currentTarget);
+      const newTaskId = crypto.randomUUID();
+      setTaskId(newTaskId); 
 
-      // 添加所有部分的內容
+      const formData = new FormData(event.currentTarget);
+      formData.append("taskId", newTaskId);
+
+      
       sections.forEach((section) => {
         formData.append(section.id, section.content);
       });
-      // 使用 fetcher 提交表單
+      
       if (fetcher.state === "idle") {
+        console.log("Submitting form with taskId:", taskId);
         fetcher.submit(formData, { method: "post" });
       }
     },
@@ -293,6 +299,21 @@ export function AssignmentInput({
     }
   }, [fetcher.data, onValidation]);
 
+  useEffect(() => {
+    
+    if (status === "completed" || status === "error") {
+      setTaskId(null);
+    }
+  }, [status]);
+
+  useEffect(() => {
+    console.log("=== AssignmentInput TaskId Update ===", {
+      taskId,
+      status,
+      fetcherState: fetcher.state
+    });
+  }, [taskId, status, fetcher.state]);
+
   const updateSection = useCallback(
     (content: string) => {
       setSections((prev) =>
@@ -300,7 +321,7 @@ export function AssignmentInput({
           section.id === currentSection?.id ? { ...section, content } : section
         )
       );
-      // 清除該區段的錯誤訊息
+      
       setLocalErrors((prev) => ({
         ...prev,
         [currentSection?.id]: "",
@@ -337,6 +358,7 @@ export function AssignmentInput({
             onSubmit={handleSubmit}
             className="space-y-6"
           >
+            {taskId && <input type="text" name="taskId" value={taskId} />}
             <input type="hidden" name="authorId" value="user123" />
             <input type="hidden" name="courseId" value="course456" />
             <CompletionPreview sections={sections} />

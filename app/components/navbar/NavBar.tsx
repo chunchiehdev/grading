@@ -11,17 +11,17 @@ const NavBar = () => {
   ];
 
   return (
-    <nav className="bg-white shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className=" bg-white/80 backdrop-blur-md shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ">
         <div className="flex justify-between h-16">
           <div className="flex">
             {/* Logo */}
-            <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-all">
+            <div className="flex-shrink-0 flex items-center py-4">
+              <Link to="/" className="flex items-center gap-4 hover:opacity-75 transition-all duration-200" aria-label="首頁">
                 <img 
-                  src="/logoo.jpg" 
+                  src="/rubber-duck.png" 
                   alt="logo" 
-                  className="h-16 w-auto"  
+                  className="h-10 md:h-12 w-auto"  
                   />
               </Link>
             </div>
@@ -49,9 +49,6 @@ const NavBar = () => {
                 </svg>
               </button>
               
-              <button className="flex items-center gap-2 text-gray-500 hover:text-gray-700">
-                <span className="text-sm font-medium">管理員</span>
-              </button>
             </div>
           </div>
 
