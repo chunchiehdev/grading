@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { FeedbackData, AssignmentSubmission } from "~/types/grading";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 function createOpenAIClient() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -10,9 +11,15 @@ function createOpenAIClient() {
   return new OpenAI({ apiKey });
 }
 
+const OLLAMA_CONFIG = {
+  baseUrl: process.env.OLLAMA_API_URL || "https://ollama.lazyinwork.com/api/chat/completions",
+  apiKey: process.env.OLLAMA_API_KEY,
+  model: process.env.OLLAMA_MODEL || "llama3.1:8b",
+} as const;
+
 const openai = createOpenAIClient();
 
-const API_CONFIG = {
+const OPENAI_CONFIG = {
   model: "gpt-4o-mini",
   temperature: 0.3,
   max_tokens: 2000,
@@ -26,6 +33,10 @@ type ProgressCallback = (
   message: string
 ) => void;
 
+type OllamaMessage = {
+  role: string;
+  content: string;
+};
 const mockFeedback: FeedbackData = {
   score: 85,
   summaryComments:
@@ -44,7 +55,8 @@ const mockFeedback: FeedbackData = {
 };
 
 function buildSystemPrompt(): string {
-  return `你是一位專精於學習理論的教育學教授，特別熟悉包括行為主義、認知主義、建構主義、社會學習理論、人本主義等各種學習理論。
+  return `IMPORTANT: 請務必嚴格按照指定的 JSON 格式回應，不要包含任何額外的文字。
+你是一位專精於學習理論的教育學教授，特別熟悉包括行為主義、認知主義、建構主義、社會學習理論、人本主義等各種學習理論。
 
 請你以教育專家的角度，依據以下評分標準來評估學生的學習理論申論：
 
@@ -223,9 +235,47 @@ function validateFeedbackData(data: unknown): asserts data is FeedbackData {
   }
 }
 
+async function callOllamaAPI(messages: OllamaMessage[]) {
+  try {
+    
+    const response = await fetch("https://ollama.lazyinwork.com/api/chat/completions", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OLLAMA_CONFIG.apiKey}` || '',
+      },
+      body: JSON.stringify({
+        model: OLLAMA_CONFIG.model,
+        messages,
+        format: "json",
+        stream: false
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text(); 
+      throw new Error(`Ollama API error: ${response.statusText} - ${errorText}`);
+    }
+    console.log("response",response )
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Ollama API call failed:', error);
+    throw error;
+  }
+}
+
+function convertToOllamaMessages(messages: ChatCompletionMessageParam[]): OllamaMessage[] {
+  return messages.map(msg => ({
+    role: msg.role,
+    content: String(msg.content || '')  // 使用 String 轉換確保是字串
+  }));
+}
+
 export async function gradeAssignment(
   submission: AssignmentSubmission,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  useOllama: boolean = true
 ): Promise<FeedbackData> {
   // 在開發環境中使用 mock 數據
   // if (process.env.NODE_ENV === 'development') {
@@ -238,21 +288,28 @@ export async function gradeAssignment(
   //   });
   // }
 
-  if (!openai) {
-    console.warn("OpenAI client not available, using mock data");
-    return mockGradeAssignment(submission, onProgress);
-  }
+  // if (!openai) {
+  //   console.warn("OpenAI client not available, using mock data");
+  //   return mockGradeAssignment(submission, onProgress);
+  // }
 
   const startTime = Date.now();
+
+  const messages: ChatCompletionMessageParam[] = [
+    { role: "system", content: buildSystemPrompt() },
+    { role: "user", content: formatSubmissionForGrading(submission) }
+  ];
+
+
   console.log("Starting API call to OpenAI...", {
-    model: API_CONFIG.model,
+    model: OPENAI_CONFIG.model,
     submissionLength: formatSubmissionForGrading(submission).length,
   });
 
   try {
     onProgress?.("check", 0, "開始檢查作業格式與內容...");
-    const formattedContent = formatSubmissionForGrading(submission);
-    validateSubmissionFormat(formattedContent);
+    validateSubmissionFormat(formatSubmissionForGrading(submission));
+
     onProgress?.("check", 30, "作業格式檢查完成");
 
     onProgress?.("grade", 40, "正在進行作業評分...");
@@ -265,16 +322,35 @@ export async function gradeAssignment(
       try {
         console.log(`API call attempt ${attempts + 1} of ${maxAttempts}`);
 
-        const response = await openai.chat.completions.create({
-          ...API_CONFIG,
-          messages: [
-            { role: "system", content: buildSystemPrompt() },
-            { role: "user", content: formattedContent },
-          ],
-          response_format: { type: "json_object" },
-        });
+        let response;
+
+        if (useOllama) {
+          // 使用簡化後的轉換函式
+          const ollamaMessages = convertToOllamaMessages(messages);
+          const ollamaResponse = await callOllamaAPI(ollamaMessages);
+          
+          response = {
+            choices: [{
+              message: {
+                content: ollamaResponse.choices[0].message.content
+              }
+            }]
+          };
+
+          console.log("ollamaresponse", JSON.stringify(response, null, 4));
+          console.log("ollamaresponse", response)
+        } else if (openai) {
+          response = await openai.chat.completions.create({
+            ...OPENAI_CONFIG,
+            messages,
+            response_format: { type: "json_object" },
+          });
+        } else {
+          throw new Error("No API client available");
+        }
 
         console.log("OpenAI API response received", {
+          type: useOllama ? "Ollama" : "OpenAI",
           status: "success",
           duration: Date.now() - startTime,
           responseLength: response.choices[0]?.message?.content?.length || 0,

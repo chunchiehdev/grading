@@ -185,7 +185,6 @@ export default function AssignmentGradingPage() {
   const validationErrors = fetcher.data?.validationErrors;
   const [localTaskId, setLocalTaskId] = useState<string | null>(null);
 
-
   const status = useMemo((): GradingStatus => {
     console.log("Status calculation:", {
       fetcherState: fetcher.state,
