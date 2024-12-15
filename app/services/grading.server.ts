@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import type { FeedbackData, AssignmentSubmission } from "~/types/grading";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import util from "util";
 
 function createOpenAIClient() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -12,7 +13,9 @@ function createOpenAIClient() {
 }
 
 const OLLAMA_CONFIG = {
-  baseUrl: process.env.OLLAMA_API_URL || "https://ollama.lazyinwork.com/api/chat/completions",
+  baseUrl:
+    process.env.OLLAMA_API_URL ||
+    "https://ollama.lazyinwork.com/api/chat/completions",
   apiKey: process.env.OLLAMA_API_KEY,
   model: process.env.OLLAMA_MODEL || "llama3.1:8b",
 } as const;
@@ -55,10 +58,34 @@ const mockFeedback: FeedbackData = {
 };
 
 function buildSystemPrompt(): string {
-  return `IMPORTANT: 請務必嚴格按照指定的 JSON 格式回應，不要包含任何額外的文字。
+  return `IMPORTANT: You must:
+1. Always respond in valid JSON format
 你是一位專精於學習理論的教育學教授，特別熟悉包括行為主義、認知主義、建構主義、社會學習理論、人本主義等各種學習理論。
-
 請你以教育專家的角度，依據以下評分標準來評估學生的學習理論申論：
+
+STEP 1 - CONTENT VALIDATION:
+首先必須嚴格檢查內容是否有意義。如果發現以下任一情況：
+- 內容只有標點符號
+- 內容少於 10 個有意義的字
+- 重複的字符
+- 無法理解的文字
+- 空白內容
+- 亂碼或隨機字符
+
+必須立即回傳以下固定格式，不需要進行任何評估：
+{
+  "score": 0,
+  "summaryComments": "無效的提交內容：內容不符合基本要求。",
+  "summaryStrengths": ["需要提供有意義的摘要"],
+  "reflectionComments": "無法進行評估：未提供有效內容",
+  "reflectionStrengths": ["需要提供有意義的反思"],
+  "questionComments": "無法進行評估：未提供有效內容",
+  "questionStrengths": ["需要提供有意義的問題"],
+  "overallSuggestions": "請重新提交包含實質內容的學習理論論述。不接受空白、無意義符號或重複文字。"
+}
+
+STEP 2 - NORMAL EVALUATION:
+只有在通過上述內容驗證後，才進行以下正常評分...
 
 1. 摘要部分評估要點：
 - 理論理解的準確性
@@ -78,10 +105,10 @@ function buildSystemPrompt(): string {
 - 解決方案的可行性
 - 理論應用的適切性
 
-請務必按照以下 JSON 格式提供詳細的評分回饋：
+Response must strictly follow this JSON format:
 
 {
-  "score": 85,  // 0-100 的數字分數
+  "score": 85,
   "summaryComments": "對摘要部分的詳細評語",
   "summaryStrengths": ["優點1", "優點2", "優點3"],
   "reflectionComments": "對反思部分的詳細評語",
@@ -89,9 +116,7 @@ function buildSystemPrompt(): string {
   "questionComments": "對問題部分的詳細評語",
   "questionStrengths": ["優點1", "優點2", "優點3"],
   "overallSuggestions": "整體改進建議"
-}
-
-請確保回應包含所有必要欄位，並提供具體詳細的評語。`;
+}`;
 }
 
 function formatSubmissionForGrading(submission: AssignmentSubmission): string {
@@ -138,8 +163,9 @@ function preprocessApiResponse(response: any): FeedbackData {
       result[field] = defaultResponse[field];
     }
   });
+  console.log("result", result)
 
-  result.score = Math.max(0, Math.min(100, Number(result.score) || 75));
+  result.score = Math.max(0, Math.min(100, Number(result.score) || 0));
 
   return result;
 }
@@ -237,38 +263,134 @@ function validateFeedbackData(data: unknown): asserts data is FeedbackData {
 
 async function callOllamaAPI(messages: OllamaMessage[]) {
   try {
-    
-    const response = await fetch("https://ollama.lazyinwork.com/api/chat/completions", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OLLAMA_CONFIG.apiKey}` || '',
+    const requestBody = {
+      model: OLLAMA_CONFIG.model,
+      messages,
+      format: {
+        type: "json_object",
+        schema: {
+          additionalProperties: false,  
+          description: "詳細的評分回饋",  
+          type: "object",
+          properties: {
+            score: {
+              type: "number",
+              minimum: 0,
+              maximum: 100,
+            },
+            summaryComments: { 
+              type: "string",
+              minLength: 500,      
+              maxLength: 1000       
+            },
+            summaryStrengths: {
+              type: "array",
+              items: { type: "string" },
+              minItems: 1,
+              maxItems: 1
+            },
+            reflectionComments: { type: "string" },
+            reflectionStrengths: {
+              type: "array",
+              items: { type: "string" },
+              minItems: 1,
+            },
+            questionComments: { type: "string" },
+            questionStrengths: {
+              type: "array",
+              items: { type: "string" },
+              minItems: 1,
+            },
+            overallSuggestions: { type: "string" },
+          },
+          required: [
+            "score",
+            "summaryComments",
+            "summaryStrengths",
+            "reflectionComments",
+            "reflectionStrengths",
+            "questionComments",
+            "questionStrengths",
+            "overallSuggestions",
+          ],
+        },
       },
-      body: JSON.stringify({
-        model: OLLAMA_CONFIG.model,
-        messages,
-        format: "json",
-        stream: false
-      }),
+      options: {
+        temperature: 0.1,
+        top_p: 0.5,
+        top_k: 10,
+        seed: 42,
+        repeat_penalty: 1.5,
+        num_predict: 2000,
+      },
+      stream: false,
+    };
+
+    console.log("Sending request to Ollama API:", {
+      url: OLLAMA_CONFIG.baseUrl,
+      model: OLLAMA_CONFIG.model,
+      messageCount: messages.length,
+    });
+
+    const response = await fetch(OLLAMA_CONFIG.baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OLLAMA_CONFIG.apiKey}` || "",
+      },
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
-      const errorText = await response.text(); 
-      throw new Error(`Ollama API error: ${response.statusText} - ${errorText}`);
+      const errorText = await response.text();
+      console.error("Ollama API error response:", errorText);
+      throw new Error(
+        `Ollama API error: ${response.statusText} - ${errorText}`
+      );
     }
-    console.log("response",response )
+
     const data = await response.json();
-    return data;
+    // console.log("Raw Ollama API response:", data);
+
+    console.log(
+      "Raw Ollama API response:",
+      util.inspect(data, {
+        depth: null, // 完整展示所有層級
+        colors: true, // 啟用顏色
+        maxArrayLength: null, // 顯示完整陣列
+        maxStringLength: null, // 顯示完整字串
+      })
+    );
+
+    if (!data.choices?.[0]?.message?.content) {
+      console.error("Invalid API response structure:", data);
+      throw new Error("API response missing required content");
+    }
+
+    return {
+      choices: [
+        {
+          message: {
+            content:
+              typeof data.choices[0].message.content === "string"
+                ? data.choices[0].message.content
+                : JSON.stringify(data.choices[0].message.content),
+          },
+        },
+      ],
+    };
   } catch (error) {
-    console.error('Ollama API call failed:', error);
+    console.error("Ollama API call failed:", error);
     throw error;
   }
 }
 
-function convertToOllamaMessages(messages: ChatCompletionMessageParam[]): OllamaMessage[] {
-  return messages.map(msg => ({
+function convertToOllamaMessages(
+  messages: ChatCompletionMessageParam[]
+): OllamaMessage[] {
+  return messages.map((msg) => ({
     role: msg.role,
-    content: String(msg.content || '')  // 使用 String 轉換確保是字串
+    content: String(msg.content || ""),
   }));
 }
 
@@ -295,17 +417,6 @@ export async function gradeAssignment(
 
   const startTime = Date.now();
 
-  const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: buildSystemPrompt() },
-    { role: "user", content: formatSubmissionForGrading(submission) }
-  ];
-
-
-  console.log("Starting API call to OpenAI...", {
-    model: OPENAI_CONFIG.model,
-    submissionLength: formatSubmissionForGrading(submission).length,
-  });
-
   try {
     onProgress?.("check", 0, "開始檢查作業格式與內容...");
     validateSubmissionFormat(formatSubmissionForGrading(submission));
@@ -313,6 +424,11 @@ export async function gradeAssignment(
     onProgress?.("check", 30, "作業格式檢查完成");
 
     onProgress?.("grade", 40, "正在進行作業評分...");
+
+    const messages: ChatCompletionMessageParam[] = [
+      { role: "system", content: buildSystemPrompt() },
+      { role: "user", content: formatSubmissionForGrading(submission) },
+    ];
 
     let attempts = 0;
     const maxAttempts = 3;
@@ -328,17 +444,7 @@ export async function gradeAssignment(
           // 使用簡化後的轉換函式
           const ollamaMessages = convertToOllamaMessages(messages);
           const ollamaResponse = await callOllamaAPI(ollamaMessages);
-          
-          response = {
-            choices: [{
-              message: {
-                content: ollamaResponse.choices[0].message.content
-              }
-            }]
-          };
-
-          console.log("ollamaresponse", JSON.stringify(response, null, 4));
-          console.log("ollamaresponse", response)
+          response = ollamaResponse;
         } else if (openai) {
           response = await openai.chat.completions.create({
             ...OPENAI_CONFIG,
@@ -397,8 +503,9 @@ export async function gradeAssignment(
         if (attempts === maxAttempts) {
           throw lastError;
         }
-
-        await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
+        const delay = 1000 * attempts;
+        console.log(`Waiting ${delay}ms before retry...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
         onProgress?.("grade", 40, `重試中... (第 ${attempts} 次)`);
       }
     }
