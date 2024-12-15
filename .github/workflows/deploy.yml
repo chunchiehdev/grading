@@ -1,0 +1,57 @@
+name: Docker CI/CD
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Start Deployment
+      run: |
+        echo "🚀 Starting deployment process at $(date)"
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+
+    - uses: actions/checkout@v4
+      
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        push: true
+        tags: chunchiehdev/gradsystem:latest
+
+    - name: Log Build Status
+      run: |
+        echo "✅ Docker image built and pushed at $(date)"
+        echo "Image tag: chunchiehdev/gradsystem:latest"
+
+    - name: Deploy to K3s
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        script: |
+          echo "Starting K3s deployment..."
+          kubectl rollout restart deployment gradsystem
+          echo "Waiting for rollout to complete..."
+          kubectl rollout status deployment gradsystem
+          echo "Deployment completed at $(date)"
+          echo "Checking pod status..."
+          kubectl get pods | grep gradsystem
+
+    - name: Deployment Summary
+      run: |
+        echo "📝 Deployment Summary"
+        echo "-------------------"
+        echo "✅ Code checkout completed"
+        echo "✅ Docker image built and pushed"
+        echo "✅ K3s deployment updated"
+        echo "🏁 Deployment completed at $(date)"
