@@ -21,6 +21,7 @@ import {
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import type { Section, ValidationResult, GradingStatus } from "~/types/grading";
 import type { action } from "~/routes/assignments.grade";
+import { v4 as uuidv4 } from 'uuid';
 
 interface AssignmentInputProps {
   sections: Section[]; 
@@ -269,7 +270,7 @@ export function AssignmentInput({
         return;
       }
 
-      const newTaskId = crypto.randomUUID();
+      const newTaskId = uuidv4();
       setTaskId(newTaskId); 
 
       const formData = new FormData(event.currentTarget);
