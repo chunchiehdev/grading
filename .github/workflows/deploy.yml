@@ -6,12 +6,13 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: production  
     steps:
     - name: Start Deployment
       run: |
-        echo "🚀 Starting deployment process at $(date)"
+        echo "🚀 Starting deployment process"
         echo "Branch: ${{ github.ref }}"
-        echo "Commit: ${{ github.sha }}"
+        echo "Commit: ${GITHUB_SHA::7}" 
 
     - uses: actions/checkout@v4
       
@@ -29,7 +30,7 @@ jobs:
 
     - name: Log Build Status
       run: |
-        echo "✅ Docker image built and pushed at $(date)"
+        echo "✅ Docker image built and pushed"
         echo "Image tag: chunchiehdev/gradsystem:latest"
 
     - name: Deploy to K3s
@@ -39,19 +40,20 @@ jobs:
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
-          echo "Starting K3s deployment..."
-          kubectl rollout restart deployment gradsystem
-          echo "Waiting for rollout to complete..."
-          kubectl rollout status deployment gradsystem
-          echo "Deployment completed at $(date)"
-          echo "Checking pod status..."
-          kubectl get pods | grep gradsystem
+          set +x  # 關閉命令回顯
+          echo "Starting deployment..."
+          kubectl rollout restart deployment gradsystem > /dev/null  
+          kubectl rollout status deployment gradsystem > /dev/null
+          echo "Deployment completed"
+          kubectl get pods -l app=gradsystem --no-headers | wc -l | xargs -I {} echo "Running pods: {}"
 
     - name: Deployment Summary
       run: |
         echo "📝 Deployment Summary"
         echo "-------------------"
-        echo "✅ Code checkout completed"
-        echo "✅ Docker image built and pushed"
-        echo "✅ K3s deployment updated"
-        echo "🏁 Deployment completed at $(date)"
+        echo "✅ Pipeline completed successfully"
+
+    - name: Handle Failure
+      if: failure()
+      run: |
+        echo "❌ Deployment encountered an issue"
