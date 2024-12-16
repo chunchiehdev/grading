@@ -117,6 +117,7 @@ Response must strictly follow this JSON format:
   "questionStrengths": ["優點1", "優點2", "優點3"],
   "overallSuggestions": "整體改進建議"
 }`;
+
 }
 
 function formatSubmissionForGrading(submission: AssignmentSubmission): string {
@@ -441,7 +442,7 @@ export async function gradeAssignment(
         let response;
 
         if (useOllama) {
-          // 使用簡化後的轉換函式
+          
           const ollamaMessages = convertToOllamaMessages(messages);
           const ollamaResponse = await callOllamaAPI(ollamaMessages);
           response = ollamaResponse;
