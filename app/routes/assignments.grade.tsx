@@ -11,7 +11,8 @@ import {
 } from "~/utils/validation";
 import { ValidationError, GradingServiceError } from "~/types/errors";
 import { useEventSource } from "remix-utils/sse/react";
-import { progressMap } from "~/utils/progressMap.server";
+import { ProgressService } from '~/services/progress.server';
+
 
 export const meta: MetaFunction = () => {
   return [
@@ -138,9 +139,9 @@ export async function action({
 
     const feedback = await gradeAssignment(
       submission,
-      (phase, progress, message) => {
+      async (phase, progress, message) => {
         console.log("Progress update:", { taskId, phase, progress, message });
-        progressMap.set(taskId, { phase, progress, message });
+        await ProgressService.set(taskId, { phase, progress, message });
       }
     );
 

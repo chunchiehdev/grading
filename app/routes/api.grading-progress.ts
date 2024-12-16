@@ -1,7 +1,8 @@
 // api.grading-progress.ts
 import { eventStream } from "remix-utils/sse/server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { progressMap } from "~/utils/progressMap.server";
+import { ProgressService } from '~/services/progress.server';
+
 
 export const shouldRevalidate = () => false;
 
@@ -44,41 +45,46 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   return eventStream(request.signal, function setup(send) {
     console.log('=== SSE Stream Setup ===');
-    const initialProgress = progressMap.get(taskId);
-    if (initialProgress) {
-      console.log('=== Initial Progress ===', initialProgress);
-      send({ 
-        event: "grading-progress",
-        data: JSON.stringify(initialProgress)
-      });
-      lastProgress = JSON.stringify(initialProgress);
-    }
 
-    const interval = setInterval(() => {
-      const progress = progressMap.get(taskId);
-      
-      // 只在進度有變化時發送
-      if (progress && JSON.stringify(progress) !== lastProgress) {
-        console.log('=== Progress Update ===', {
-          phase: progress.phase,
-          progress: progress.progress,
-          message: progress.message
-        });
-        
+    ProgressService.get(taskId).then(initialProgress => {
+      if (initialProgress) {
+        console.log('=== Initial Progress ===', initialProgress);
         send({ 
           event: "grading-progress",
-          data: JSON.stringify(progress)
+          data: JSON.stringify(initialProgress)
         });
-        lastProgress = JSON.stringify(progress);
+        lastProgress = JSON.stringify(initialProgress);
+      }
+    });
+    const interval = setInterval(async () => {
+      try {
+        const progress = await ProgressService.get(taskId);
+        
+        // 只在進度有變化時發送
+        if (progress && JSON.stringify(progress) !== lastProgress) {
+          console.log('=== Progress Update ===', {
+            phase: progress.phase,
+            progress: progress.progress,
+            message: progress.message
+          });
+          
+          send({ 
+            event: "grading-progress",
+            data: JSON.stringify(progress)
+          });
+          lastProgress = JSON.stringify(progress);
 
-        // 處理完成狀態
-        if (progress.phase === 'complete' && !isComplete) {
-          isComplete = true;
-          console.log('=== Grading Complete ===');
-          console.log('=== Cleaning Up Resources ===');
-          clearInterval(interval);
-          progressMap.delete(taskId);
+          // 處理完成狀態
+          if (progress.phase === 'complete' && !isComplete) {
+            isComplete = true;
+            console.log('=== Grading Complete ===');
+            console.log('=== Cleaning Up Resources ===');
+            clearInterval(interval);
+            await ProgressService.delete(taskId);
+          }
         }
+      } catch (error) {
+        console.error('Error fetching progress:', error);
       }
     }, 500); // 增加檢查間隔到 500ms 減少資源消耗
 
@@ -86,10 +92,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       console.log('=== SSE Connection Cleanup Start ===');
       clearInterval(interval);
       
-      if (progressMap.has(taskId)) {
-        console.log('=== Removing Task from Progress Map ===');
-        progressMap.delete(taskId);
-      }
+      // 檢查並清理資源
+      ProgressService.exists(taskId).then(async exists => {
+        if (exists) {
+          console.log('=== Removing Task from Progress Store ===');
+          await ProgressService.delete(taskId);
+        }
+      });
       
       console.log('=== SSE Connection Cleanup Complete ===');
     };
