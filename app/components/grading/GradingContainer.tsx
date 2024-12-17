@@ -72,22 +72,19 @@ export function GradingContainer({
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   const [mode, setMode] = useState<"editing" | "submitted">("editing");
   const completionShown = useRef(false);
-  const lastMessage = useRef(""); 
+  const lastMessage = useRef("");
 
-  // need to fix Bug, should let gradingprogress init 
   const handleReset = useCallback(() => {
     setMode("editing");
     setCurrentStep(0);
-    completionShown.current = false; 
-    lastMessage.current = ""; 
-    
+    completionShown.current = false;
+    lastMessage.current = "";
 
     fetcher.data = undefined;
 
     if (onRetry) {
       onRetry();
     }
-    
   }, [onRetry, fetcher]);
 
   const steps: Step[] = useMemo(
@@ -298,7 +295,7 @@ export function GradingContainer({
               onAnimationStart={() => handleTransition(true)}
               onAnimationEnd={() => handleTransition(false)}
             >
-              {!feedback && status === "processing" ? (
+              {status === "processing" || fetcher.state === "submitting" ? (
                 <GradingProgress
                   status={status}
                   initialProgress={gradingProgress}

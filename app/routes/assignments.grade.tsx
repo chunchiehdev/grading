@@ -11,8 +11,7 @@ import {
 } from "~/utils/validation";
 import { ValidationError, GradingServiceError } from "~/types/errors";
 import { useEventSource } from "remix-utils/sse/react";
-import { ProgressService } from '~/services/progress.server';
-
+import { ProgressService } from "~/services/progress.server";
 
 export const meta: MetaFunction = () => {
   return [
@@ -44,7 +43,6 @@ interface ActionSuccessData {
 }
 
 type ActionData = ActionErrorData | ActionSuccessData;
-
 
 const SECTION_CONFIG: Section[] = [
   {
@@ -79,13 +77,12 @@ const SECTION_CONFIG: Section[] = [
   },
 ];
 
-
 export async function action({
   request,
 }: ActionFunctionArgs): Promise<ActionData> {
   try {
     const formData = await request.formData();
-    console.log("Action started with taskId:", formData.get("taskId"));
+    
     const taskId = (formData.get("taskId") as string) || crypto.randomUUID();
 
     const authorId = formData.get("authorId");
@@ -127,25 +124,25 @@ export async function action({
       },
     };
 
-    console.log("準備驗證的提交內容:", submission);
+    
 
     const validationResult = validateAssignment(submission);
-    console.log("驗證結果:", validationResult);
+    
 
     if (!validationResult.isValid) {
       throw new ValidationError(validationResult.errors);
     }
-    console.log("開始調用評分服務");
+    
 
     const feedback = await gradeAssignment(
       submission,
       async (phase, progress, message) => {
-        console.log("Progress update:", { taskId, phase, progress, message });
+        
         await ProgressService.set(taskId, { phase, progress, message });
       }
     );
 
-    console.log("Action completed with:", { feedback, taskId });
+    
 
     return { feedback, taskId };
   } catch (error) {
@@ -185,44 +182,35 @@ export default function AssignmentGradingPage() {
   const error = fetcher.data?.error;
   const validationErrors = fetcher.data?.validationErrors;
   const [localTaskId, setLocalTaskId] = useState<string | null>(null);
+  const [localFeedback, setLocalFeedback] = useState<FeedbackData | undefined>(undefined);
+  
+  useEffect(() => {
+    setLocalFeedback(fetcher.data?.feedback);
+  }, [fetcher.data?.feedback]);
 
   const status = useMemo((): GradingStatus => {
-    console.log("Status calculation:", {
-      fetcherState: fetcher.state,
-      hasLocalTaskId: !!localTaskId,
-      hasError: !!error,
-      hasFeedback: !!feedback,
-    });
-
     if (error) return "error";
-    if (feedback) return "completed";
-    if (fetcher.state === "submitting" || localTaskId) return "processing";
+    if (fetcher.state === "submitting") return "processing";  
+    if (localTaskId) return "processing";
+    if (localFeedback) return "completed"; 
     return "idle";
-  }, [fetcher.state, fetcher.data, error, feedback, localTaskId]);
-
+  }, [fetcher.state, error, feedback, localTaskId]);
 
   useEffect(() => {
     if (fetcher.state === "submitting") {
       const formData = fetcher.formData;
       const taskId = formData?.get("taskId") as string;
       if (taskId) {
-        console.log("Setting taskId from form:", taskId);
+        
         setLocalTaskId(taskId);
       }
     } else if (fetcher.state === "idle" && feedback) {
-
       setLocalTaskId(null);
     }
   }, [fetcher.state, feedback]);
 
   const progressUrl = useMemo(() => {
     const shouldConnect = status === "processing" && localTaskId;
-    console.log("Progress URL calculation:", {
-      status,
-      localTaskId,
-      shouldConnect,
-      url: shouldConnect ? `/api/grading-progress?taskId=${localTaskId}` : "",
-    });
     return shouldConnect ? `/api/grading-progress?taskId=${localTaskId}` : "";
   }, [status, localTaskId]);
 
@@ -230,20 +218,20 @@ export default function AssignmentGradingPage() {
     event: "grading-progress",
   });
 
-
   const handleRetry = useCallback(() => {
     setRetryCount((prev) => prev + 1);
     setGradingProgress(0);
     setGradingPhase("check");
     setGradingMessage("");
     setLocalTaskId(null);
+    setLocalFeedback(undefined);  
 
     fetcher.data = undefined;
-  }, [fetcher]);
+    }, [fetcher]);
 
   const handleValidationComplete = useCallback((result: ValidationResult) => {
     if (!result.isValid) {
-      console.log("Validation failed:", result.errors);
+      
     }
   }, []);
 
@@ -268,18 +256,13 @@ export default function AssignmentGradingPage() {
   useEffect(() => {
     if (!progressData) return;
 
-    console.log("=== Progress Update ===");
-    console.log("Progress URL:", progressUrl);
-    console.log("Received Data:", progressData);
-
     try {
       const data = JSON.parse(progressData);
-      console.log("Parsed Data:", data);
+      
 
       setGradingProgress((prev) => Math.max(prev, data.progress));
       setGradingPhase(data.phase);
       setGradingMessage(data.message || "評分進行中...");
-
 
       if (data.phase === "complete") {
         setLocalTaskId(null);
@@ -289,18 +272,12 @@ export default function AssignmentGradingPage() {
     }
   }, [progressData, progressUrl]);
 
-  useEffect(() => {
-    console.log("=== Status/TaskId Update ===");
-    console.log("Current status:", status);
-    console.log("Current localTaskId:", localTaskId);
-  }, [status, localTaskId]);
-
   return (
     <div className="min-h-screen bg-gradient-to-b">
       <GradingContainer
         key={retryCount}
         sections={SECTION_CONFIG}
-        feedback={feedback}
+        feedback={localFeedback}
         error={error}
         validationErrors={validationErrors}
         status={status}

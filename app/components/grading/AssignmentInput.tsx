@@ -282,7 +282,6 @@ export function AssignmentInput({
       });
       
       if (fetcher.state === "idle") {
-        console.log("Submitting form with taskId:", taskId);
         fetcher.submit(formData, { method: "post" });
       }
     },
@@ -306,14 +305,6 @@ export function AssignmentInput({
       setTaskId(null);
     }
   }, [status]);
-
-  useEffect(() => {
-    console.log("=== AssignmentInput TaskId Update ===", {
-      taskId,
-      status,
-      fetcherState: fetcher.state
-    });
-  }, [taskId, status, fetcher.state]);
 
   const updateSection = useCallback(
     (content: string) => {
