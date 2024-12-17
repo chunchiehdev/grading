@@ -117,7 +117,6 @@ Response must strictly follow this JSON format:
   "questionStrengths": ["優點1", "優點2", "優點3"],
   "overallSuggestions": "整體改進建議"
 }`;
-
 }
 
 function formatSubmissionForGrading(submission: AssignmentSubmission): string {
@@ -164,7 +163,6 @@ function preprocessApiResponse(response: any): FeedbackData {
       result[field] = defaultResponse[field];
     }
   });
-  console.log("result", result)
 
   result.score = Math.max(0, Math.min(100, Number(result.score) || 0));
 
@@ -270,8 +268,8 @@ async function callOllamaAPI(messages: OllamaMessage[]) {
       format: {
         type: "json_object",
         schema: {
-          additionalProperties: false,  
-          description: "詳細的評分回饋",  
+          additionalProperties: false,
+          description: "詳細的評分回饋",
           type: "object",
           properties: {
             score: {
@@ -279,16 +277,16 @@ async function callOllamaAPI(messages: OllamaMessage[]) {
               minimum: 0,
               maximum: 100,
             },
-            summaryComments: { 
+            summaryComments: {
               type: "string",
-              minLength: 500,      
-              maxLength: 1000       
+              minLength: 500,
+              maxLength: 1000,
             },
             summaryStrengths: {
               type: "array",
               items: { type: "string" },
               minItems: 1,
-              maxItems: 1
+              maxItems: 1,
             },
             reflectionComments: { type: "string" },
             reflectionStrengths: {
@@ -327,12 +325,6 @@ async function callOllamaAPI(messages: OllamaMessage[]) {
       stream: false,
     };
 
-    console.log("Sending request to Ollama API:", {
-      url: OLLAMA_CONFIG.baseUrl,
-      model: OLLAMA_CONFIG.model,
-      messageCount: messages.length,
-    });
-
     const response = await fetch(OLLAMA_CONFIG.baseUrl, {
       method: "POST",
       headers: {
@@ -351,17 +343,6 @@ async function callOllamaAPI(messages: OllamaMessage[]) {
     }
 
     const data = await response.json();
-    // console.log("Raw Ollama API response:", data);
-
-    console.log(
-      "Raw Ollama API response:",
-      util.inspect(data, {
-        depth: null, // 完整展示所有層級
-        colors: true, // 啟用顏色
-        maxArrayLength: null, // 顯示完整陣列
-        maxStringLength: null, // 顯示完整字串
-      })
-    );
 
     if (!data.choices?.[0]?.message?.content) {
       console.error("Invalid API response structure:", data);
@@ -437,12 +418,9 @@ export async function gradeAssignment(
 
     while (attempts < maxAttempts) {
       try {
-        console.log(`API call attempt ${attempts + 1} of ${maxAttempts}`);
-
         let response;
 
         if (useOllama) {
-          
           const ollamaMessages = convertToOllamaMessages(messages);
           const ollamaResponse = await callOllamaAPI(ollamaMessages);
           response = ollamaResponse;
@@ -456,13 +434,6 @@ export async function gradeAssignment(
           throw new Error("No API client available");
         }
 
-        console.log("OpenAI API response received", {
-          type: useOllama ? "Ollama" : "OpenAI",
-          status: "success",
-          duration: Date.now() - startTime,
-          responseLength: response.choices[0]?.message?.content?.length || 0,
-        });
-
         onProgress?.("grade", 70, "評分完成，正在處理結果...");
 
         onProgress?.("verify", 80, "正在驗證評分結果...");
@@ -474,11 +445,6 @@ export async function gradeAssignment(
         let apiResponse;
         try {
           apiResponse = JSON.parse(messageContent);
-
-          console.log("API response parsed successfully", {
-            hasScore: "score" in apiResponse,
-            hasComments: "summaryComments" in apiResponse,
-          });
 
           apiResponse = preprocessApiResponse(apiResponse);
         } catch (error) {
@@ -505,7 +471,6 @@ export async function gradeAssignment(
           throw lastError;
         }
         const delay = 1000 * attempts;
-        console.log(`Waiting ${delay}ms before retry...`);
         await new Promise((resolve) => setTimeout(resolve, delay));
         onProgress?.("grade", 40, `重試中... (第 ${attempts} 次)`);
       }
