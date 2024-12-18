@@ -82,7 +82,7 @@ export async function action({
 }: ActionFunctionArgs): Promise<ActionData> {
   try {
     const formData = await request.formData();
-    
+
     const taskId = (formData.get("taskId") as string) || crypto.randomUUID();
 
     const authorId = formData.get("authorId");
@@ -124,25 +124,18 @@ export async function action({
       },
     };
 
-    
-
     const validationResult = validateAssignment(submission);
-    
 
     if (!validationResult.isValid) {
       throw new ValidationError(validationResult.errors);
     }
-    
 
     const feedback = await gradeAssignment(
       submission,
       async (phase, progress, message) => {
-        
         await ProgressService.set(taskId, { phase, progress, message });
       }
     );
-
-    
 
     return { feedback, taskId };
   } catch (error) {
@@ -182,17 +175,19 @@ export default function AssignmentGradingPage() {
   const error = fetcher.data?.error;
   const validationErrors = fetcher.data?.validationErrors;
   const [localTaskId, setLocalTaskId] = useState<string | null>(null);
-  const [localFeedback, setLocalFeedback] = useState<FeedbackData | undefined>(undefined);
-  
+  const [localFeedback, setLocalFeedback] = useState<FeedbackData | undefined>(
+    undefined
+  );
+
   useEffect(() => {
     setLocalFeedback(fetcher.data?.feedback);
   }, [fetcher.data?.feedback]);
 
   const status = useMemo((): GradingStatus => {
     if (error) return "error";
-    if (fetcher.state === "submitting") return "processing";  
+    if (fetcher.state === "submitting") return "processing";
     if (localTaskId) return "processing";
-    if (localFeedback) return "completed"; 
+    if (localFeedback) return "completed";
     return "idle";
   }, [fetcher.state, error, feedback, localTaskId]);
 
@@ -201,7 +196,6 @@ export default function AssignmentGradingPage() {
       const formData = fetcher.formData;
       const taskId = formData?.get("taskId") as string;
       if (taskId) {
-        
         setLocalTaskId(taskId);
       }
     } else if (fetcher.state === "idle" && feedback) {
@@ -224,14 +218,13 @@ export default function AssignmentGradingPage() {
     setGradingPhase("check");
     setGradingMessage("");
     setLocalTaskId(null);
-    setLocalFeedback(undefined);  
+    setLocalFeedback(undefined);
 
     fetcher.data = undefined;
-    }, [fetcher]);
+  }, [fetcher]);
 
   const handleValidationComplete = useCallback((result: ValidationResult) => {
     if (!result.isValid) {
-      
     }
   }, []);
 
@@ -258,7 +251,6 @@ export default function AssignmentGradingPage() {
 
     try {
       const data = JSON.parse(progressData);
-      
 
       setGradingProgress((prev) => Math.max(prev, data.progress));
       setGradingPhase(data.phase);
