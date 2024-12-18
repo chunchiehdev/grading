@@ -10,7 +10,7 @@ jobs:
     steps:
     - name: Start Deployment
       run: |
-        echo "🚀 Starting deployment process"
+        echo "Starting deployment process"
         echo "Branch: ${{ github.ref }}"
         echo "Commit: ${GITHUB_SHA::7}" 
 
@@ -30,7 +30,7 @@ jobs:
 
     - name: Log Build Status
       run: |
-        echo "✅ Docker image built and pushed"
+        echo "Docker image built and pushed"
         echo "Image tag: chunchiehdev/gradsystem:latest"
 
     - name: Deploy to K3s
@@ -42,17 +42,8 @@ jobs:
         script: |
           set +x  
 
-          echo "Checking Redis status..."
-
-          if ! kubectl get pod -l app=redis | grep -q Running; then
-            echo "Redis is not running. Starting Redis..."
-            kubectl apply -f $HOME/gradsystem/redis.yaml
-            # 等待 Redis 就緒
-            kubectl wait --for=condition=ready pod -l app=redis --timeout=60s
-          fi
-
-
           echo "Starting application deployment..."
+          
           kubectl rollout restart deployment gradsystem > /dev/null  
           kubectl rollout status deployment gradsystem > /dev/null
 
