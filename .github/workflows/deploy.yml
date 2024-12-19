@@ -38,7 +38,7 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
           set +x  
-          export KUBECONFIG=~/.kube/config
+          
           echo "Starting application deployment for ${{ github.ref_name }} "
           
           if [ "${{ github.ref_name }}" = "master" ]; then
