@@ -1,8 +1,9 @@
 name: Docker CI/CD
 on:
   push:
-    branches: [ "master" ]
-    branches: [ "development" ]
+    branches: 
+      - "master" 
+      - "development"
 
 jobs:
   build-and-deploy:
