@@ -39,6 +39,7 @@
     "framer-motion": "^11.13.1",
     "ioredis": "^5.4.1",
     "isbot": "^4.1.0",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.468.0",
     "openai": "^4.76.0",
     "react": "^18.2.0",
@@ -53,6 +54,7 @@
   },
   "devDependencies": {
     "@remix-run/dev": "^2.15.0",
+    "@types/lodash": "^4.17.13",
     "@types/node": "^22.10.1",
     "@types/react": "^18.2.20",
     "@types/react-dom": "^18.2.7",
