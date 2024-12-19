@@ -38,7 +38,11 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
           set +x  
-          
+            echo "Debug: Current KUBECONFIG value is: $KUBECONFIG"
+            echo "Debug: Current user is: $(whoami)"
+            echo "Debug: Content of ~/.kube/config exists: $(ls ~/.kube/config 2>/dev/null && echo 'Yes' || echo 'No')"
+            echo "Debug: Permissions of ~/.kube/config: $(ls -l ~/.kube/config 2>/dev/null || echo 'File not found')"
+  
           echo "Starting application deployment for ${{ github.ref_name }} "
           
           if [ "${{ github.ref_name }}" = "master" ]; then
