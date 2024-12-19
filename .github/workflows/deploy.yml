@@ -2,11 +2,12 @@ name: Docker CI/CD
 on:
   push:
     branches: [ "master" ]
+    branches: [ "development" ]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: production  
+    environment: ${{ github.ref_name == 'master' && 'production' || 'development' }}
     steps:
     - name: Start Deployment
       run: |
@@ -26,12 +27,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         push: true
-        tags: chunchiehdev/gradsystem:latest
-
-    - name: Log Build Status
-      run: |
-        echo "Docker image built and pushed"
-        echo "Image tag: chunchiehdev/gradsystem:latest"
+        tags: chunchiehdev/gradsystem:${{ github.ref_name }}
 
     - name: Deploy to K3s
       uses: appleboy/ssh-action@master
@@ -42,21 +38,23 @@ jobs:
         script: |
           set +x  
 
-          echo "Starting application deployment..."
+          echo "Starting application deployment for ${{ github.ref_name }} "
           
-          kubectl rollout restart deployment gradsystem > /dev/null  
-          kubectl rollout status deployment gradsystem > /dev/null
-
-          echo "Deployment completed"
-          echo "Checking running pods:"
-          echo "Redis pods: $(kubectl get pods -l app=redis --no-headers | wc -l)"
-          echo "Application pods: $(kubectl get pods -l app=gradsystem --no-headers | wc -l)"
-
+          if [ "${{ github.ref_name }}" = "master" ]; then
+            kubectl rollout restart deployment gradsystem
+            kubectl rollout status deployment gradsystem
+          else
+            kubectl rollout restart deployment gradsystem-dev
+            kubectl rollout status deployment gradsystem-dev
+          fi
+          
     - name: Deployment Summary
       run: |
         echo "📝 Deployment Summary"
         echo "-------------------"
         echo "✅ Pipeline completed successfully"
+        echo "Environment: ${{ github.ref_name == 'master' && 'production' || 'development' }}"
+        echo "Branch: ${{ github.ref }}"
 
     - name: Handle Failure
       if: failure()
