@@ -9,7 +9,6 @@ const NavBar: React.FC<NavBarProps> = ({ className = '' }) => {
 
   const navigation = [
     { name: "作業評分", href: "/assignments/grade" },
-    { name: "統計報表", href: "/" },
     { name: "使用說明", href: "/" },
   ];
 
