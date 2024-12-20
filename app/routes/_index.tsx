@@ -52,12 +52,12 @@ export default function Index() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-[#2A4858] sm:text-5xl">
-              智慧教育評分系統
+              評分系統
             </h1>
             <HoverCard>
               <HoverCardTrigger asChild>
                 <p className="mt-4 text-lg text-[#5C798F] cursor-help">
-                  為現代教育打造的專業評分解決方案
+                  專業評分
                 </p>
               </HoverCardTrigger>
               <HoverCardContent className="w-80">
@@ -106,7 +106,7 @@ export default function Index() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-[#2A4858]">
-              智能評分系統預覽
+              評分系統預覽
             </h2>
             <p className="mt-4 text-lg text-[#5C798F]">
               體驗實時評分和數據分析功能
@@ -122,7 +122,7 @@ export default function Index() {
       <div className="py-16 bg-[#F5F7FA]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <Card className="border-0 bg-transparent shadow-none">
-            <CardHeader className="text-center">
+            {/* <CardHeader className="text-center">
               <CardTitle className="text-3xl font-bold text-[#2A4858]">
                 系統成效
               </CardTitle>
@@ -140,12 +140,8 @@ export default function Index() {
                   <div className="text-4xl font-bold text-[#2A4858]">50%</div>
                   <div className="mt-2 text-[#5C798F]">時間節省</div>
                 </div>
-                <div>
-                  <div className="text-4xl font-bold text-[#2A4858]">200+</div>
-                  <div className="mt-2 text-[#5C798F]">活躍用戶</div>
-                </div>
               </div>
-            </CardContent>
+            </CardContent> */}
           </Card>
         </div>
       </div>
