@@ -11,6 +11,9 @@ import {
   Info,
   AlertCircle,
   Loader2,
+  FileText,
+  Clock,
+  XCircle,
 } from "lucide-react";
 import {
   Tooltip,
@@ -18,6 +21,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "~/components/ui/alert-dialog";
+
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import type { Section, ValidationResult, GradingStatus } from "~/types/grading";
 import type { action } from "~/routes/assignments.grade";
@@ -30,7 +44,7 @@ interface AssignmentInputProps {
   validationErrors?: string[];
   status: GradingStatus;
   onValidation?: (result: ValidationResult) => void;
-  onBack?: () => void;  
+  onBack?: () => void;
   className?: string;
   fetcher: ReturnType<typeof useFetcher<typeof action>>;
 }
@@ -109,9 +123,7 @@ const SectionInput = ({
   const debouncedValidate = useMemo(
     () =>
       _.debounce((content: string, sectionData: Section) => {
-
         if (content !== contentRef.current) {
-         
           return;
         }
 
@@ -208,13 +220,17 @@ export function AssignmentInput({
   const isPreviewStep = currentStep === 2;
   const isSubmitting =
     fetcher.state === "submitting" && currentStep === totalSteps;
-  const isLastStep = currentStep === totalSteps;
+  // const isLastStep = currentStep === totalSteps;
   const isActuallySubmitting = fetcher.state === "submitting" && isPreviewStep;
-  const showSubmittingState = isActuallySubmitting && isLastStep;
+  // const showSubmittingState = isActuallySubmitting && isLastStep;
   const [taskId, setTaskId] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<Record<string, string>>({});
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  const allErrors = [...validationErrors, ...(fetcher.data?.validationErrors || [])];
+  const allErrors = [
+    ...validationErrors,
+    ...(fetcher.data?.validationErrors || []),
+  ];
 
   const canProceed = useMemo(() => {
     return sections.every((section) => {
@@ -298,9 +314,8 @@ export function AssignmentInput({
     if (fetcher.state !== "idle") {
       fetcher.data = undefined;
     }
-    onBack?.(); 
-  }, [fetcher, onBack]);  
-
+    onBack?.();
+  }, [fetcher, onBack]);
 
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -311,22 +326,30 @@ export function AssignmentInput({
         return;
       }
 
-      const newTaskId = uuidv4();
-      setTaskId(newTaskId);
-
-      const formData = new FormData(event.currentTarget);
-      formData.append("taskId", newTaskId);
-
-      sections.forEach((section) => {
-        formData.append(section.id, section.content);
-      });
-
-      if (fetcher.state === "idle") {
-        fetcher.submit(formData, { method: "post" });
-      }
+      setShowConfirmDialog(true);
     },
-    [sections, validateAllSections, fetcher, isPreviewStep]
+    [handleValidateAndProceed]
   );
+
+  const handleConfirmedSubmit = useCallback(() => {
+    const newTaskId = uuidv4();
+    setTaskId(newTaskId);
+
+    const formData = new FormData();
+    formData.append("taskId", newTaskId);
+    formData.append("authorId", "user123");  
+    formData.append("courseId", "course456"); 
+
+    sections.forEach((section) => {
+      formData.append(section.id, section.content);
+    });
+
+    if (fetcher.state === "idle") {
+      fetcher.submit(formData, { method: "post" });
+    }
+
+    setShowConfirmDialog(false);
+  }, [sections, fetcher]);
 
   useEffect(() => {
     if (fetcher.data?.validationErrors) {
@@ -354,14 +377,14 @@ export function AssignmentInput({
       );
 
       if (errors) {
-        setLocalErrors(prev => ({
+        setLocalErrors((prev) => ({
           ...prev,
           [sectionId]: errors[0] || "",
         }));
-        
+
         const contentLength = content.trim().length;
         let warning = "";
-        
+
         switch (sectionId) {
           case "summary":
             if (contentLength < 50)
@@ -376,8 +399,8 @@ export function AssignmentInput({
               warning = `建議問題至少 30 字，目前 ${contentLength} 字`;
             break;
         }
-        
-        setWarnings(prev => ({
+
+        setWarnings((prev) => ({
           ...prev,
           [sectionId]: warning,
         }));
@@ -477,6 +500,68 @@ export function AssignmentInput({
           </div>
         )}
       </CardContent>
+
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent className="max-w-md transition-all duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-bottom-[2%] data-[state=open]:slide-in-from-bottom-[2%]">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <AlertCircle className="h-6 w-6 text-yellow-500" />
+              <AlertDialogTitle className="text-xl">
+                確認提交作業
+              </AlertDialogTitle>
+            </div>
+
+            <AlertDialogDescription className="space-y-4">
+              <div className="bg-slate-50 p-4 rounded-lg space-y-3">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <FileText className="h-4 w-4" />
+                  <span>提交以下內容：</span>
+                </div>
+
+                {sections.map((section) => (
+                  <div key={section.id} className="ml-6">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span className="text-sm font-medium">
+                        {section.title}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 ml-6 mt-1">
+                      {section.content} 
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <AlertDialogFooter className="gap-3">
+            <AlertDialogCancel className="flex items-center gap-2">
+              <XCircle className="h-4 w-4" />
+              取消
+            </AlertDialogCancel>
+
+            <AlertDialogAction
+              onClick={handleConfirmedSubmit}
+              disabled={disabled || status === "processing" || isSubmitting}
+              className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 min-w-[100px] justify-center"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  提交中
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  確認提交
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
