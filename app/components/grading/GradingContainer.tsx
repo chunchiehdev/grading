@@ -12,6 +12,7 @@ import { AssignmentInput } from "./AssignmentInput";
 import { GradingProgress } from "./GradingProgress";
 import { FeedbackDisplay } from "./FeedbackDisplay";
 import { StatusSnackbar } from "./StatusSnackbar";
+import { CompactFileUpload } from "./CompactFileUpload";
 import { Card } from "~/components/ui/card";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Download, AlertCircle, RefreshCcw, CheckCircle } from "lucide-react";
@@ -232,6 +233,21 @@ export function GradingContainer({
           )}
         />
 
+        <div className="w-full mb-2">
+          <Card className="shadow-sm bg-white">
+            <div className="p-4">
+              <CompactFileUpload
+                maxFiles={3}
+                maxFileSize={5 * 1024 * 1024} 
+                acceptedFileTypes={[".pdf", ".doc"]}
+                onFilesChange={(files) => console.log("Files changed:", files)}
+                onUploadComplete={() => console.log("Upload complete")}
+                onError={(error) => console.error("Upload error:", error)}
+              />{" "}
+            </div>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2">
             <Card
@@ -253,7 +269,7 @@ export function GradingContainer({
               )}
               <AssignmentInput
                 sections={sections}
-                disabled={status === "processing" && !isEditing}  
+                disabled={status === "processing" && !isEditing}
                 validationErrors={validationErrors}
                 status={status}
                 onValidation={handleValidation}
