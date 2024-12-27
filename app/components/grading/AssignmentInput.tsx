@@ -502,7 +502,7 @@ export function AssignmentInput({
       </CardContent>
 
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent className="max-w-md transition-all duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-bottom-[2%] data-[state=open]:slide-in-from-bottom-[2%]">
+        <AlertDialogContent className="max-w-md transition-all duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-bottom-[2%] data-[state=open]:slide-in-from-bottom-[2%] ">
           <AlertDialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <AlertCircle className="h-6 w-6 text-yellow-500" />
@@ -526,7 +526,7 @@ export function AssignmentInput({
                         {section.title}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 ml-6 mt-1">
+                    <p className="text-xs text-slate-500 ml-6 mt-1 break-all whitespace-break-spaces ">
                       {section.content} 
                     </p>
                   </div>

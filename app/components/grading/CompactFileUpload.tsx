@@ -8,7 +8,7 @@ import {
 } from "~/components/ui/accordion";
 import { Progress } from "~/components/ui/progress";
 import { Button } from "~/components/ui/button";
-import { Upload, X, File, Paperclip, AlertCircle } from "lucide-react";
+import { Upload, X, File, Paperclip, AlertCircle, FileUp } from "lucide-react";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { cn } from "~/lib/utils";
@@ -210,33 +210,35 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
                 className={`
-                  border-2 border-dashed rounded-lg p-4
-                  flex flex-col items-center justify-center
-                  transition-colors duration-200 gap-2
-                  ${
-                    isDragging
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
-                  }
-                `}
+    border-2 border-dashed rounded-lg p-8
+    flex flex-col items-center justify-center gap-3
+    transition-colors duration-200
+    ${
+      isDragging
+        ? "border-blue-500 bg-blue-50"
+        : "border-gray-200 hover:border-blue-500"
+    }
+  `}
               >
-                <Upload className="w-6 h-6 text-gray-400" />
-                <div className="text-center">
-                  <p className="text-sm text-gray-500">
-                    拖放檔案到這裡，或
-                    <label
-                      htmlFor="file-input"
-                      className="text-blue-500 hover:text-blue-600 cursor-pointer mx-1"
-                    >
-                      瀏覽
-                    </label>
-                    檔案
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    支援的格式: {acceptedFileTypes.join(", ")} · 最大{" "}
-                    {formatFileSize(maxFileSize)}
-                  </p>
+                <div className="p-3 bg-gray-50 rounded-full group-hover:bg-blue-50 transition-colors duration-200">
+                  <Upload className="h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors duration-200" />
                 </div>
+
+                <div className="text-center">
+                  <p className="text-sm text-gray-600">拖放檔案到這裡，或</p>
+                  <label
+                    htmlFor="file-input"
+                    className="inline-flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600 cursor-pointer mt-1 bg-blue-50 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-blue-100"
+                  >
+                    <FileUp className="h-4 w-4" />
+                    選擇檔案
+                  </label>
+                </div>
+
+                <p className="text-xs text-gray-400">
+                  支援的檔案格式：PDF、DOC、DOCX
+                </p>
+
                 <input
                   id="file-input"
                   type="file"
