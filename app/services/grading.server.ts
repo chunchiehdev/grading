@@ -191,7 +191,9 @@ const mockGradeAssignment = async (
   }
 };
 
-const validateFeedbackData: (data: unknown) => asserts data is FeedbackData = (data) => {
+const validateFeedbackData: (data: unknown) => asserts data is FeedbackData = (
+  data
+) => {
   const feedback = data as FeedbackData;
 
   const validationRules = {
@@ -384,13 +386,31 @@ const executeWithRetry = async <T>(
   throw new Error(errorMessage);
 };
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const MIN_PHASE_DURATION = {
-  check: 1500,    
-  grade: 3000,    
-  verify: 5000,   
+  check: 1500,
+  grade: 3000,
+  verify: 5000,
 } as const;
+
+
+const getProgressMessage = (phase: string): string => {
+  switch (phase) {
+    case "check":
+      return "正在分析您的作業內容...";
+    case "grade":
+      return "正在評分中...請稍候";
+    case "verify":
+      return "正在整理評分結果...";
+    case "complete":
+      return "評分完成！";
+    case "error":
+      return "評分過程遇到了一些問題";
+    default:
+      return "處理中...";
+  }
+};
 
 const ensureMinDuration = async (
   phase: string,
@@ -400,8 +420,9 @@ const ensureMinDuration = async (
   const startTime = Date.now();
   const result = await fn();
   const elapsed = Date.now() - startTime;
-  const minDuration = MIN_PHASE_DURATION[phase as keyof typeof MIN_PHASE_DURATION] || 0;
-  
+  const minDuration =
+    MIN_PHASE_DURATION[phase as keyof typeof MIN_PHASE_DURATION] || 0;
+
   if (elapsed < minDuration) {
     const remainingTime = minDuration - elapsed;
     const steps = Math.floor(remainingTime / 100);
@@ -409,11 +430,12 @@ const ensureMinDuration = async (
       await sleep(100);
       if (onProgress) {
         const progress = Math.min(100, Math.floor((i / steps) * 100));
-        onProgress(phase, progress, `${phase === 'check' ? '檢查' : phase === 'grade' ? '評分' : '驗證'}進行中...`);
+        onProgress(phase, progress, getProgressMessage(phase));  // 修改這裡
+
       }
     }
   }
-  
+
   return result;
 };
 
@@ -422,6 +444,7 @@ export const gradeAssignment = async (
   onProgress?: ProgressCallback,
   useOllama: boolean = true
 ): Promise<FeedbackData> => {
+
   const CONFIG = {
     MAX_OLLAMA_ATTEMPTS: 3,
     MAX_OPENAI_ATTEMPTS: 2,
@@ -430,18 +453,28 @@ export const gradeAssignment = async (
   const startTime = Date.now();
   let currentProgress = 0;
   let apiResponse = null;
-  
-  const updateApiProgress = (phase: string, progress: number, message: string) => {
-    currentProgress = Math.max(currentProgress, progress);
-    onProgress?.(phase, currentProgress, message);
-    console.log(`Phase: ${phase}, Progress: ${currentProgress}, Message: ${message}`);
 
+  const updateApiProgress = (
+    phase: string,
+    progress: number,
+    message: string
+  ) => {
+    currentProgress = Math.max(currentProgress, progress);
+    const userMessage = message.includes("第")
+      ? getProgressMessage(
+          phase
+        )
+      : getProgressMessage(phase);
+    onProgress?.(phase, currentProgress, userMessage);
+
+    console.log(
+      `Phase: ${phase}, Progress: ${currentProgress}, Message: ${message}`
+    );
   };
 
   try {
-
     await ensureMinDuration(
-      'check',
+      "check",
       async () => {
         updateApiProgress("check", 0, "開始檢查作業格式與內容...");
         validateSubmissionFormat(formatSubmissionForGrading(submission));
@@ -455,20 +488,19 @@ export const gradeAssignment = async (
       { role: "user", content: formatSubmissionForGrading(submission) },
     ];
 
-
     let response = null;
     if (useOllama) {
       try {
-        // Ensure minimum duration for grade phase with Ollama
         response = await ensureMinDuration(
-          'grade',
+          "grade",
           async () => {
             updateApiProgress("grade", 40, "正在使用 Ollama 進行評分...");
             const result = await executeWithRetry(
               async () => callOllamaAPI(convertToOllamaMessages(messages)),
               CONFIG.MAX_OLLAMA_ATTEMPTS,
               "Ollama API 呼叫失敗",
-              (phase, progress, message) => updateApiProgress(phase, progress + 40, message),
+              (phase, progress, message) =>
+                updateApiProgress(phase, progress + 40, message),
               0
             );
             updateApiProgress("grade", 60, "Ollama 評分完成");
@@ -480,25 +512,25 @@ export const gradeAssignment = async (
         console.warn("Ollama API 多次嘗試失敗，切換到 OpenAI", ollamaError);
 
         if (!openai) {
-          
           updateApiProgress("error", currentProgress, "無可用的 API");
           throw new Error("無可用的 API");
         }
 
-        // Ensure minimum duration for grade phase with OpenAI
         response = await ensureMinDuration(
-          'grade',
+          "grade",
           async () => {
             updateApiProgress("grade", 65, "切換到 OpenAI API");
             const result = await executeWithRetry(
-              async () => openai.chat.completions.create({
-                ...OPENAI_CONFIG,
-                messages,
-                response_format: { type: "json_object" },
-              }),
+              async () =>
+                openai.chat.completions.create({
+                  ...OPENAI_CONFIG,
+                  messages,
+                  response_format: { type: "json_object" },
+                }),
               CONFIG.MAX_OPENAI_ATTEMPTS,
               "OpenAI API 呼叫失敗",
-              (phase, progress, message) => updateApiProgress(phase, progress + 65, message),
+              (phase, progress, message) =>
+                updateApiProgress(phase, progress + 65, message),
               0
             );
             updateApiProgress("grade", 75, "OpenAI 評分完成");
@@ -509,17 +541,16 @@ export const gradeAssignment = async (
       }
     }
 
-
     if (!response) {
       throw new Error("未收到 API 回應");
     }
-    
+
     await ensureMinDuration(
-      'verify',
+      "verify",
       async () => {
         updateApiProgress("grade", 80, "評分完成，正在處理結果...");
-        
-        const messageContent = _.get(response, 'choices[0].message.content');
+
+        const messageContent = _.get(response, "choices[0].message.content");
         if (!messageContent) {
           throw new Error("API 回應中沒有內容");
         }
@@ -551,11 +582,13 @@ export const gradeAssignment = async (
     }
 
     return apiResponse;
-
   } catch (error) {
     console.error("評分失敗:", error);
-    updateApiProgress("error", currentProgress, `評分發生錯誤: ${_.get(error, 'message', '未知錯誤')}`);
-
+    updateApiProgress(
+      "error",
+      currentProgress,
+      `評分發生錯誤: ${_.get(error, "message", "未知錯誤")}`
+    );
 
     if (process.env.NODE_ENV !== "production") {
       console.warn("API 呼叫失敗，使用 mock 數據");
@@ -564,7 +597,6 @@ export const gradeAssignment = async (
 
     throw _.isError(error) ? error : new Error("評分過程發生未知錯誤");
   } finally {
-  
     if (currentProgress < 100) {
       updateApiProgress("complete", 100, "評分流程結束");
     }

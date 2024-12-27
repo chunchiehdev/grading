@@ -73,6 +73,12 @@ export function GradingContainer({
   const [mode, setMode] = useState<"editing" | "submitted">("editing");
   const completionShown = useRef(false);
   const lastMessage = useRef("");
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleEditMode = () => {
+    setIsEditing(true);
+    setMode("editing");
+  };
 
   const handleReset = useCallback(() => {
     setMode("editing");
@@ -247,7 +253,7 @@ export function GradingContainer({
               )}
               <AssignmentInput
                 sections={sections}
-                disabled={status === "processing" || status === "completed"}
+                disabled={status === "processing" && !isEditing}  
                 validationErrors={validationErrors}
                 status={status}
                 onValidation={handleValidation}
@@ -256,6 +262,7 @@ export function GradingContainer({
                   status === "processing" && "opacity-50 pointer-events-none"
                 )}
                 fetcher={fetcher}
+                onBack={() => handleEditMode()}
               />
 
               {mode === "submitted" && status === "completed" && (
