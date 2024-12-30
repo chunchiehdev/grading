@@ -11,7 +11,7 @@ import stylesheet from "./tailwind.css?url";
 import NavBar from "./components/navbar/NavBar";
 
 export const links: LinksFunction = () => [
-  { rel: "icon", type: "image/x-icon", href: `${process.env.NODE_ENV === 'development' ? '/dev' : ''}/rubber-duck.ico` },
+  { rel: "icon", type: "image/x-icon", href: "/rubber-duck.ico" },
   { rel: "stylesheet", href: stylesheet },
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {

@@ -239,14 +239,13 @@ export function GradingContainer({
     setIsTransitioning(isStart);
   }, []);
 
-
   const handleRetry = useCallback(() => {
     setCurrentStep(0);
     onRetry?.();
   }, [onRetry]);
 
   return (
-    <div className="container mx-auto px-4 max-w-7xl">
+    <div className="container mx-auto px-4 pb-16 max-w-7xl">
       <div className="flex flex-col space-y-6">
         <GradingStepper
           steps={steps}
@@ -262,12 +261,12 @@ export function GradingContainer({
             <div className="p-4">
               <CompactFileUpload
                 maxFiles={3}
-                maxFileSize={5 * 1024 * 1024}
+                maxFileSize={100 * 1024 * 1024}
                 acceptedFileTypes={[".pdf", ".doc"]}
                 onFilesChange={(files) => {
                   console.log("Files changed:", files);
                   setHasUploadedFiles(files.length > 0);
-                  if (files.length === 0) {  
+                  if (files.length === 0) {
                     setCurrentStep(0);
                   }
                 }}
@@ -307,7 +306,8 @@ export function GradingContainer({
               onValidation={handleValidation}
               className={cn(
                 "transition-all duration-300",
-                (!hasUploadedFiles || status === "processing") && "opacity-50 pointer-events-none"
+                (!hasUploadedFiles || status === "processing") &&
+                  "opacity-50 pointer-events-none"
               )}
               fetcher={fetcher}
               onBack={() => handleEditMode()}
