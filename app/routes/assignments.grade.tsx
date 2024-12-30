@@ -3,15 +3,15 @@ import { type ActionFunctionArgs } from "@remix-run/node";
 import type { MetaFunction } from "@remix-run/node";
 import { useActionData, useNavigation, useFetcher } from "@remix-run/react";
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { GradingContainer } from "~/components/grading/GradingContainer";
-import { gradeAssignment } from "~/services/grading.server";
+import { GradingContainer } from "@/components/grading/GradingContainer";
+import { gradeAssignment } from "@/services/grading.server";
 import {
   validateAssignment,
   SECTION_VALIDATION_RULES,
-} from "~/utils/validation";
-import { ValidationError, GradingServiceError } from "~/types/errors";
+} from "@/utils/validation";
+import { ValidationError, GradingServiceError } from "@/types/errors";
 import { useEventSource } from "remix-utils/sse/react";
-import { ProgressService } from "~/services/progress.server";
+import { ProgressService } from "@/services/progress.server";
 
 export const meta: MetaFunction = () => {
   return [
@@ -26,7 +26,7 @@ import type {
   GradingStatus,
   AssignmentSubmission,
   Section,
-} from "~/types/grading";
+} from "@/types/grading";
 
 interface ActionErrorData {
   error: string;

@@ -1,4 +1,8 @@
 // app/routes/test-sse.tsx
+/**
+ * This file just for testing. It's not used in the app.
+ */
+
 import { useEventSource } from "remix-utils/sse/react";
 
 export default function TestSSE() {

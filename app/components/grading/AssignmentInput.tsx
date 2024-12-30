@@ -1,9 +1,9 @@
 import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 import { useFetcher } from "@remix-run/react";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Button } from "~/components/ui/button";
-import { Textarea } from "~/components/ui/textarea";
-import { Progress } from "~/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import {
   CheckCircle2,
   ChevronRight,
@@ -20,7 +20,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "~/components/ui/tooltip";
+} from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -30,11 +30,11 @@ import {
   AlertDialogTitle,
   AlertDialogCancel,
   AlertDialogAction,
-} from "~/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog";
 
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import type { Section, ValidationResult, GradingStatus } from "~/types/grading";
-import type { action } from "~/routes/assignments.grade";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import type { Section, ValidationResult, GradingStatus } from "@/types/grading";
+import type { action } from "@/routes/assignments.grade";
 import { v4 as uuidv4 } from "uuid";
 import _ from "lodash";
 

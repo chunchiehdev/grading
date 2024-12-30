@@ -1,5 +1,5 @@
-import { redis } from '~/lib/redis';
-import { REDIS_KEYS } from '~/config/redis';
+import { redis } from '@/lib/redis';
+import { REDIS_KEYS } from '@/config/redis';
 
 export interface ProgressData {
   phase: string;

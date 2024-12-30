@@ -1,6 +1,6 @@
 // GradingProgress.tsx
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Progress } from "~/components/ui/progress";
+import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSpring, animated } from "@react-spring/web";
 import {
@@ -13,8 +13,8 @@ import {
 import type {
   GradingStatus,
   GradingProgress as GradingProgressType,
-} from "~/types/grading";
-import { cn } from "~/lib/utils";
+} from "@/types/grading";
+import { cn } from "@/lib/utils";
 
 interface GradingProgressProps {
   status: GradingStatus; 

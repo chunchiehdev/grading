@@ -1,5 +1,5 @@
 import { Redis } from 'ioredis';
-import { REDIS_CONFIG } from '~/config/redis';
+import { REDIS_CONFIG } from '@/config/redis';
 
 const redis = new Redis(REDIS_CONFIG);
 

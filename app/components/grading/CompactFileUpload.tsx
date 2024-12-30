@@ -5,13 +5,13 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "~/components/ui/accordion";
-import { Progress } from "~/components/ui/progress";
-import { Button } from "~/components/ui/button";
+} from "@/components/ui/accordion";
+import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { Upload, X, File, Paperclip, AlertCircle, FileUp } from "lucide-react";
-import { ScrollArea } from "~/components/ui/scroll-area";
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import { cn } from "~/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 interface FileWithStatus {
   file: File;
   status: "uploading" | "success" | "error";

@@ -1,11 +1,11 @@
-import { cn } from "~/lib/utils";
+import { cn } from "@/lib/utils";
 import { Check, Loader2, AlertTriangle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "~/components/ui/tooltip";
+} from "@/components/ui/tooltip";
 
 interface Step {
   label: string;

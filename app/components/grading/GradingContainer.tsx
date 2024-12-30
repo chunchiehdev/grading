@@ -5,7 +5,7 @@ import type {
   GradingStatus,
   ValidationResult,
   Section,
-} from "~/types/grading";
+} from "@/types/grading";
 import { useActionData, useNavigation, useFetcher } from "@remix-run/react";
 import { GradingStepper } from "./GradingStepper";
 import { AssignmentInput } from "./AssignmentInput";
@@ -13,8 +13,8 @@ import { GradingProgress } from "./GradingProgress";
 import { FeedbackDisplay } from "./FeedbackDisplay";
 import { StatusSnackbar } from "./StatusSnackbar";
 import { CompactFileUpload } from "./CompactFileUpload";
-import { Card } from "~/components/ui/card";
-import { Alert, AlertDescription } from "~/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Download,
   AlertCircle,
@@ -23,10 +23,10 @@ import {
   Loader2,
   Info,
 } from "lucide-react";
-import { cn } from "~/lib/utils";
-import type { action } from "~/routes/assignments.grade";
-import { AlertTitle } from "~/components/ui/alert";
-import { Button } from "~/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { action } from "@/routes/assignments.grade";
+import { AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 type SnackbarSeverity = "success" | "error" | "info";
 

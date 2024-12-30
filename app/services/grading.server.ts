@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { FeedbackData, AssignmentSubmission } from "~/types/grading";
+import type { FeedbackData, AssignmentSubmission } from "@/types/grading";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import _ from "lodash";
 

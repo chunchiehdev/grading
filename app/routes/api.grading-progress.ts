@@ -1,7 +1,7 @@
 // api.grading-progress.ts
 import { eventStream } from "remix-utils/sse/server";
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { ProgressService } from "~/services/progress.server";
+import { ProgressService } from "@/services/progress.server";
 
 export const shouldRevalidate = () => false;
 
