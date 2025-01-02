@@ -4,11 +4,14 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useLocation,  
 } from "@remix-run/react";
 import type { LinksFunction } from "@remix-run/node";
+import { useState, useCallback } from "react";
 import stylesheet from "./tailwind.css?url";
-import NavBar from "./components/navbar/NavBar";
+import Sidebar from "./components/sidebar/Sidebar";
+import { cn } from "@/lib/utils";
+
+import { NavHeader } from "@/components/navbar/NavHeader";
 
 export const links: LinksFunction = () => [
   { rel: "icon", type: "image/x-icon", href: "/rubber-duck.ico" },
@@ -30,6 +33,10 @@ export const links: LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const toggleSidebar = useCallback(() => {
+    setIsCollapsed((prev) => !prev);
+  }, []);
   return (
     <html lang="zh-TW" className="h-full">
       <head>
@@ -39,14 +46,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body className="min-h-screen bg-gradient-to-br from-[#F5F7FA] via-white to-[#F5F7FA]">
-        <div className="fixed inset-0 bg-[#2A4858] opacity-[0.02] pointer-events-none" />
-        <div className="relative">
-          <div className="fixed inset-0 bg-gradient-to-b from-transparent via-white/30 to-white/80 pointer-events-none" />
-          <header className="relative z-10 mb-8">
-            <NavBar className="relative z-10 bg-white/80 backdrop-blur-sm shadow-sm" />
-          </header>
+        <div className="relative flex min-h-screen">
+          <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
 
-          <main className="relative z-10 pt-6">{children}</main>
+          <div
+            className={cn(
+              "flex-1 transition-all duration-300 ease-in-out ",
+              "md:ml-[260px]",
+              isCollapsed && "md:ml-[20px]"
+            )}
+          >
+            <NavHeader
+              onSidebarToggle={toggleSidebar}
+              onShare={() => console.log("Share clicked")}
+              userName="User"
+              className="bg-white/80 backdrop-blur-sm"
+            />
+            <main className="p-8">{children}</main>
+          </div>
         </div>
         <ScrollRestoration />
         <Scripts />
