@@ -1,7 +1,7 @@
 // assignments.grade.tsx
 import { type ActionFunctionArgs } from "@remix-run/node";
 import type { MetaFunction } from "@remix-run/node";
-import { useActionData, useNavigation, useFetcher } from "@remix-run/react";
+import { useActionData, useNavigation, useFetcher, useParams } from "@remix-run/react";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { GradingContainer } from "@/components/grading/GradingContainer";
 import { gradeAssignment } from "@/services/grading.server";
@@ -164,6 +164,8 @@ export async function action({
 }
 
 export default function AssignmentGradingPage() {
+  const params = useParams();
+  const currentTaskId = params.taskId; 
   const [retryCount, setRetryCount] = useState(0);
   const fetcher = useFetcher<typeof action>();
   const [gradingProgress, setGradingProgress] = useState(0);
@@ -267,7 +269,7 @@ export default function AssignmentGradingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b">
       <GradingContainer
-        key={retryCount}
+        key={`${retryCount}-${currentTaskId}`} 
         sections={SECTION_CONFIG}
         feedback={localFeedback}
         error={error}

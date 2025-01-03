@@ -1,7 +1,14 @@
-import { Link } from "@remix-run/react";
+import { useNavigate } from "@remix-run/react";
 import { ArrowRight } from "lucide-react";
+import { createNewGrading } from "@/utils/grading";
 
 const HeroSection = () => {
+  const navigate = useNavigate();
+
+  const handleCreateNewGrading = () => {
+    createNewGrading(navigate, { source: "hero-section" });
+  };
+
   return (
     <div className="relative w-full min-h-[700px] overflow-hidden rounded-lg transform-gpu transition-transform duration-300 hover:scale-[1.005]">
       <div className="absolute inset-0 transform-gpu will-change-transform">
@@ -18,8 +25,8 @@ const HeroSection = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
       </div>
 
-      <Link
-        to="/assignments/grade"
+      <button
+        onClick={handleCreateNewGrading}
         className="group absolute bottom-12 right-12 z-10"
         aria-label="開始使用"
       >
@@ -30,7 +37,7 @@ const HeroSection = () => {
 
           <ArrowRight className="relative w-8 h-8 text-black transform transition-transform duration-500 group-hover:translate-x-1" />
         </div>
-      </Link>
+      </button>
     </div>
   );
 };

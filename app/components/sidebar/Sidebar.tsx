@@ -1,8 +1,6 @@
-import { Link } from "@remix-run/react";
+import { Link, useNavigate } from "@remix-run/react";
 import { cn } from "@/lib/utils";
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-
 import { Button } from "@/components/ui/button";
 import { PanelLeftOpen, PanelLeftClose, PlusCircle } from "lucide-react";
 import {
@@ -12,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { v4 as uuidv4 } from "uuid";
+import { createNewGrading } from "@/utils/grading";
 interface SidebarProps {
   className?: string;
   isCollapsed?: boolean;
@@ -26,8 +25,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   const navigate = useNavigate();
 
   const handleCreateNewGrading = useCallback(() => {
-    const newGradingId = uuidv4();
-    navigate(`/assignments/grade/${newGradingId}`);
+    createNewGrading(navigate, {
+      source: 'sidebar',
+      onNavigate: onToggle
+    });
   }, [navigate, onToggle]);
 
   return (
@@ -60,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-xl">
+                    <Button variant="ghost" size="icon-xl" onClick={handleCreateNewGrading}>
                       <PlusCircle />
                     </Button>
                   </TooltipTrigger>

@@ -24,7 +24,7 @@ import {
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { action } from "@/routes/assignments.grade";
+import type { action } from "@/routes/assignments.grade.$taskId";
 import { AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 

@@ -34,7 +34,7 @@ import {
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Section, ValidationResult, GradingStatus } from "@/types/grading";
-import type { action } from "@/routes/assignments.grade";
+import type { action } from "@/routes/assignments.grade.$taskId";
 import { v4 as uuidv4 } from "uuid";
 import _ from "lodash";
 

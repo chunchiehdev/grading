@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { PanelLeft, Plus, ChevronDown, Share2, Menu } from "lucide-react";
-
+import { Link } from "@remix-run/react";
 
 interface NavHeaderProps {
   title?: string;
@@ -44,15 +44,16 @@ const NavHeader = ({
 
       {/* Left Controls */}
       <div className="flex items-center gap-0">
-        
-        <Button
-          variant="ghost"
-          className="flex items-center gap-1 ml-2 text-lg font-semibold"
-        >
-          {/* Just throw it in for now; fix it later.*/}
-          <span>首頁</span>
-          <ChevronDown className="w-4 h-4" />
-        </Button>
+        <Link to="/">
+          <Button
+            variant="ghost"
+            className="flex items-center gap-1 ml-2 text-lg font-semibold"
+          >
+            {/* Just throw it in for now; fix it later.*/}
+            <span>首頁</span>
+            <ChevronDown className="w-4 h-4" />
+          </Button>
+        </Link>
       </div>
 
       {/* Right Controls */}
