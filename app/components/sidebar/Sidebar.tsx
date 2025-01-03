@@ -1,6 +1,8 @@
 import { Link } from "@remix-run/react";
 import { cn } from "@/lib/utils";
 import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
 import { PanelLeftOpen, PanelLeftClose, PlusCircle } from "lucide-react";
 import {
@@ -9,7 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
+import { v4 as uuidv4 } from "uuid";
 interface SidebarProps {
   className?: string;
   isCollapsed?: boolean;
@@ -21,7 +23,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
   onToggle,
 }) => {
-  
+  const navigate = useNavigate();
+
+  const handleCreateNewGrading = useCallback(() => {
+    const newGradingId = uuidv4();
+    navigate(`/assignments/grade/${newGradingId}`);
+  }, [navigate, onToggle]);
+
   return (
     <div
       className={cn(

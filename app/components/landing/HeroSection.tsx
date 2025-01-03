@@ -10,6 +10,7 @@ const HeroSection = () => {
           loop
           muted
           playsInline
+          poster="/someone.jpg"
           className="absolute inset-0 w-full h-full object-cover"
         >
           <source src="/someone.mp4" type="video/mp4" />
