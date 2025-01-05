@@ -1,6 +1,6 @@
 // FeedbackDisplay.tsx
 import React, { useMemo, useState } from "react";
-import type { FeedbackData } from "~/types/grading";
+import type { FeedbackData } from "@/types/grading";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Star,
@@ -9,16 +9,16 @@ import {
   MessageCircle,
   ChevronRight,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Badge } from "~/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "~/components/ui/accordion";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { cn } from "~/lib/utils";
+} from "@/components/ui/accordion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 type FeedbackVariant = "accordion" | "tabs" | "cards";
 type StrengthVariant = "success" | "info" | "warning";

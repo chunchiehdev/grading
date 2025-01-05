@@ -1,390 +1,39 @@
 import OpenAI from "openai";
-import type { FeedbackData, AssignmentSubmission } from "~/types/grading";
-import type {
-  ChatCompletionMessageParam,
-  ChatCompletionUserMessageParam,
-  ChatCompletionSystemMessageParam,
-  ChatCompletionAssistantMessageParam,
-} from "openai/resources/chat/completions";
+import type { FeedbackData, AssignmentSubmission } from "@/types/grading";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import _ from "lodash";
 
-type ChatMessage = ChatCompletionUserMessageParam | ChatCompletionSystemMessageParam | ChatCompletionAssistantMessageParam;
+const createOpenAIClient = () => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  return apiKey ? new OpenAI({ apiKey }) : null;
+};
+
+const OLLAMA_CONFIG = {
+  baseUrl: _.get(
+    process.env,
+    "OLLAMA_API_URL",
+    "https://ollama.lazyinwork.com/api/chat/completions"
+  ),
+  apiKey: process.env.OLLAMA_API_KEY,
+  model: _.get(process.env, "OLLAMA_MODEL", "llama3.1:8b"),
+} as const;
+
+const openai = createOpenAIClient();
+
+const OPENAI_CONFIG = {
+  model: "gpt-4o-mini",
+  temperature: 0.3,
+  max_tokens: 2000,
+  frequency_penalty: 0.0,
+  presence_penalty: 0.0,
+} as const;
+
 type ProgressCallback = (
   phase: string,
   progress: number,
   message: string
 ) => void;
-type OllamaMessage = {
-  role: "user" | "system" | "assistant";
-  content: string;
-};
-
-type ApiClient = "ollama" | "openai";
-
-const CONFIG = {
-  MIN_PHASE_DURATION: {
-    check: 1500,
-    grade: 5000, 
-    verify: 3000,
-  },
-  RETRY_ATTEMPTS: {
-    ollama: 3,
-    openai: 2,
-  },
-  PROGRESS_RANGES: {
-    ollama: { start: 20, end: 40 },
-    openai: { start: 40, end: 70 },
-  },
-} as const;
-
-const API_CONFIG = {
-  ollama: {
-    baseUrl: _.get(
-      process.env,
-      "OLLAMA_API_URL",
-      "https://ollama.lazyinwork.com/api/chat/completions"
-    ),
-    apiKey: process.env.OLLAMA_API_KEY,
-    model: _.get(process.env, "OLLAMA_MODEL", "llama3.1:8b"),
-    schema: {
-      additionalProperties: false,
-      description: "詳細的評分回饋",
-      type: "object",
-      properties: {
-        score: {
-          type: "number",
-          minimum: 0,
-          maximum: 100,
-        },
-        summaryComments: {
-          type: "string",
-          minLength: 500,
-          maxLength: 1000,
-        },
-        summaryStrengths: {
-          type: "array",
-          items: { type: "string" },
-          minItems: 1,
-          maxItems: 1,
-        },
-        reflectionComments: { type: "string" },
-        reflectionStrengths: {
-          type: "array",
-          items: { type: "string" },
-          minItems: 1,
-        },
-        questionComments: { type: "string" },
-        questionStrengths: {
-          type: "array",
-          items: { type: "string" },
-          minItems: 1,
-        },
-        overallSuggestions: { type: "string" },
-      },
-      required: [
-        "score",
-        "summaryComments",
-        "summaryStrengths",
-        "reflectionComments",
-        "reflectionStrengths",
-        "questionComments",
-        "questionStrengths",
-        "overallSuggestions",
-      ],
-    },
-    options: {
-      temperature: 0.1,
-      top_p: 0.5,
-      top_k: 10,
-      seed: 42,
-      repeat_penalty: 1.5,
-      num_predict: 2000,
-    },
-  },
-  openai: {
-    model: "gpt-4o-mini",
-    temperature: 0.3,
-    max_tokens: 2000,
-    frequency_penalty: 0.0,
-    presence_penalty: 0.0,
-  },
-} as const;
-
-class ApiService {
-  constructor(private progressManager: ProgressManager) {}
-
-  private async callOllamaAPI(messages: OllamaMessage[]) {
-    const requestBody = {
-      model: API_CONFIG.ollama.model,
-      messages,
-      format: {
-        type: "json_object",
-        schema: API_CONFIG.ollama.schema,
-      },
-      options: API_CONFIG.ollama.options,
-      stream: false,
-    };
-
-    const response = await fetch(API_CONFIG.ollama.baseUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${API_CONFIG.ollama.apiKey || ""}`,
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Ollama API error: ${response.statusText} - ${errorText}`
-      );
-    }
-
-    const data = await response.json();
-    const content = _.get(data, "choices[0].message.content");
-
-    if (!content) {
-      throw new Error("API response missing required content");
-    }
-
-    return {
-      choices: [
-        {
-          message: {
-            content: _.isString(content) ? content : JSON.stringify(content),
-          },
-        },
-      ],
-    };
-  }
-
-  private async executeWithRetry<T>(
-    client: ApiClient,
-    fn: () => Promise<T>,
-    errorMessage: string
-  ): Promise<T> {
-    const { start: baseProgress } = CONFIG.PROGRESS_RANGES[client];
-    const maxAttempts = CONFIG.RETRY_ATTEMPTS[client];
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        this.progressManager.update(
-          "grade",
-          baseProgress + attempt * 5,
-          `${errorMessage}（第 ${attempt} 次嘗試）`
-        );
-        return await fn();
-      } catch (error) {
-        const delay = 1000 * Math.pow(2, attempt - 1);
-        console.warn(`${errorMessage}，將在 ${delay}ms 後重試`, error);
-
-        if (attempt === maxAttempts) throw error;
-
-        this.progressManager.update(
-          "grade",
-          baseProgress + attempt * 5,
-          `重試中...（第 ${attempt} 次）`
-        );
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-    throw new Error(errorMessage);
-  }
-
-  async processWithAPI(messages: ChatMessage[]): Promise<any> {
-    try {
-
-      this.progressManager.update("grade", 20, "正在使用 Ollama 進行評分...");
-      const ollamaMessages = messages.map(msg => ({
-        role: msg.role,
-        content: String(msg.content || "")
-      }));
-
-      return await this.executeWithRetry(
-        'ollama',
-        () => this.callOllamaAPI(ollamaMessages),
-        "Ollama API 呼叫失敗"
-      );
-      
-    } catch (ollamaError) {
-      console.warn("Ollama API 多次嘗試失敗，切換到 OpenAI", ollamaError);
-      this.progressManager.update("grade", 40, "切換到 OpenAI 進行評分...");
-
-      const openai = ApiClientFactory.createOpenAIClient();
-      if (!openai) {
-        throw new Error("無可用的 API");
-      }
-
-      this.progressManager.update("grade", 60, "OpenAI 評分處理中...");
-
-      return await this.executeWithRetry(
-        "openai",
-        () => openai.chat.completions.create({
-          ...API_CONFIG.openai,
-          messages: messages as ChatCompletionMessageParam[],
-          response_format: { type: "json_object" },
-        }),
-        "OpenAI API 呼叫失敗"
-      );
-      
-    }
-  }
-}
-
-class ProgressManager {
-  private currentProgress = 0;
-
-  constructor(private callback?: ProgressCallback) {}
-
-  update(phase: string, progress: number, message: string) {
-    this.currentProgress = Math.max(this.currentProgress, progress);
-    this.callback?.(phase, this.currentProgress, message);
-    console.log(
-      `Phase: ${phase}, Progress: ${this.currentProgress}, Message: ${message}`
-    );
-  }
-
-  getCurrentProgress() {
-    return this.currentProgress;
-  }
-}
-
-class ApiClientFactory {
-  private static openaiClient: OpenAI | null = null;
-
-  static createOpenAIClient() {
-    if (!this.openaiClient) {
-      const apiKey = process.env.OPENAI_API_KEY;
-      this.openaiClient = apiKey ? new OpenAI({ apiKey }) : null;
-    }
-    return this.openaiClient;
-  }
-}
-
-
-
-class GradingService {
-  private progressManager: ProgressManager;
-  private apiService: ApiService;
-
-  constructor(private callback?: ProgressCallback) {
-    this.progressManager = new ProgressManager(callback);
-    this.apiService = new ApiService(this.progressManager);
-  }
-
-  private async ensureMinDuration<T>(
-    phase: string,
-    fn: () => Promise<T>
-  ): Promise<T> {
-    const startTime = Date.now();
-    const result = await fn();
-    const elapsed = Date.now() - startTime;
-    const minDuration =
-      CONFIG.MIN_PHASE_DURATION[
-        phase as keyof typeof CONFIG.MIN_PHASE_DURATION
-      ] || 0;
-
-      if (elapsed < minDuration) {
-        const remainingTime = minDuration - elapsed;
-        const steps = Math.floor(remainingTime / 100);
-        const startProgress = this.progressManager.getCurrentProgress();
-        
-        for (let i = 0; i < steps; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          
-          const progressIncrement = (100 - startProgress) / steps;
-          const currentProgress = Math.min(
-            100,
-            startProgress + Math.floor(progressIncrement * (i + 1))
-          );
-          
-          if (currentProgress < 100) {
-            this.progressManager.update(
-              phase,
-              currentProgress,
-              `${phase === "check" ? "檢查" : phase === "grade" ? "評分" : "驗證"}進行中...`
-            );
-          }
-        }
-      }
-
-    return result;
-  }
-
-  async grade(submission: AssignmentSubmission): Promise<FeedbackData> {
-    const startTime = Date.now();
-
-    try {
-      
-      await this.ensureMinDuration("check", async () => {
-        this.progressManager.update("check", 0, "開始檢查作業格式與內容...");
-        validateSubmissionFormat(formatSubmissionForGrading(submission));
-        this.progressManager.update("check", 30, "作業格式檢查完成");
-      });
-
-      
-      const messages: ChatMessage[] = [
-        { role: "system", content: buildSystemPrompt() } as const,
-        { role: "user", content: formatSubmissionForGrading(submission) } as const,
-      ];
-
-      const response = await this.ensureMinDuration("grade", async () => {
-        return await this.apiService.processWithAPI(messages);
-      });
-
-      
-      const result = await this.ensureMinDuration("verify", async () => {
-        this.progressManager.update("grade", 70, "評分完成，正在處理結果...");
-
-        const messageContent = _.get(response, "choices[0].message.content");
-        if (!messageContent) {
-          throw new Error("API 回應中沒有內容");
-        }
-
-        const apiResponse = preprocessApiResponse(JSON.parse(messageContent));
-        const feedback: FeedbackData = {
-          ...apiResponse,
-          createdAt: new Date(),
-          gradingDuration: Date.now() - startTime,
-        };
-        this.progressManager.update("verify", 85, "正在進行結果驗證...");
-
-        validateFeedbackData(feedback);
-        this.progressManager.update("complete", 100, "評分流程完成！");
-        return feedback;
-      });
-
-      return result;
-    } catch (error) {
-      console.error("評分失敗:", error);
-      this.progressManager.update(
-        "error",
-        this.progressManager.getCurrentProgress(),
-        `評分發生錯誤: ${_.get(error, "message", "未知錯誤")}`
-      );
-
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("API 呼叫失敗，使用 mock 數據");
-        return mockGradeAssignment(submission, this.callback);
-      }
-
-      throw _.isError(error) ? error : new Error("評分過程發生未知錯誤");
-    } finally {
-      if (this.progressManager.getCurrentProgress() < 100) {
-        this.progressManager.update("complete", 100, "評分流程結束");
-      }
-    }
-  }
-}
-
-export const gradeAssignment = async (
-  submission: AssignmentSubmission,
-  onProgress?: ProgressCallback
-): Promise<FeedbackData> => {
-  const gradingService = new GradingService(onProgress);
-  return gradingService.grade(submission);
-};
+type OllamaMessage = { role: string; content: string };
 
 const DEFAULT_FEEDBACK: FeedbackData = {
   score: 85,
@@ -589,5 +238,367 @@ const validateFeedbackData: (data: unknown) => asserts data is FeedbackData = (
 
   if (!_.isNumber(feedback.gradingDuration) || feedback.gradingDuration <= 0) {
     throw new Error("gradingDuration 必須是正數");
+  }
+};
+
+const callOllamaAPI = async (messages: OllamaMessage[]) => {
+  const requestBody = {
+    model: OLLAMA_CONFIG.model,
+    messages,
+    format: {
+      type: "json_object",
+      schema: {
+        additionalProperties: false,
+        description: "詳細的評分回饋",
+        type: "object",
+        properties: {
+          score: {
+            type: "number",
+            minimum: 0,
+            maximum: 100,
+          },
+          summaryComments: {
+            type: "string",
+            minLength: 500,
+            maxLength: 1000,
+          },
+          summaryStrengths: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 1,
+            maxItems: 1,
+          },
+          reflectionComments: { type: "string" },
+          reflectionStrengths: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 1,
+          },
+          questionComments: { type: "string" },
+          questionStrengths: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 1,
+          },
+          overallSuggestions: { type: "string" },
+        },
+        required: [
+          "score",
+          "summaryComments",
+          "summaryStrengths",
+          "reflectionComments",
+          "reflectionStrengths",
+          "questionComments",
+          "questionStrengths",
+          "overallSuggestions",
+        ],
+      },
+    },
+    options: {
+      temperature: 0.1,
+      top_p: 0.5,
+      top_k: 10,
+      seed: 42,
+      repeat_penalty: 1.5,
+      num_predict: 2000,
+    },
+    stream: false,
+  };
+
+  try {
+    const response = await fetch(OLLAMA_CONFIG.baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OLLAMA_CONFIG.apiKey || ""}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Ollama API error response:", errorText);
+      throw new Error(
+        `Ollama API error: ${response.statusText} - ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    const content = _.get(data, "choices[0].message.content");
+
+    if (!content) {
+      throw new Error("API response missing required content");
+    }
+
+    return {
+      choices: [
+        {
+          message: {
+            content: _.isString(content) ? content : JSON.stringify(content),
+          },
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Ollama API call failed:", error);
+    throw error;
+  }
+};
+
+const convertToOllamaMessages = (
+  messages: ChatCompletionMessageParam[]
+): OllamaMessage[] =>
+  _.map(messages, (msg) => ({
+    role: msg.role,
+    content: String(msg.content || ""),
+  }));
+
+const executeWithRetry = async <T>(
+  fn: () => Promise<T>,
+  maxAttempts: number,
+  errorMessage: string,
+  onProgress?: ProgressCallback,
+  baseProgressStart: number = 40
+): Promise<T> => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const currentProgress = baseProgressStart + attempt * 5;
+      onProgress?.(
+        "grade",
+        currentProgress,
+        `${errorMessage}（第 ${attempt} 次嘗試）`
+      );
+      return await fn();
+    } catch (error) {
+      const delay = 1000 * Math.pow(2, attempt - 1);
+      console.warn(`${errorMessage}，將在 ${delay}ms 後重試`, error);
+
+      if (attempt === maxAttempts) throw error;
+
+      onProgress?.(
+        "grade",
+        baseProgressStart + attempt * 5,
+        `重試中...（第 ${attempt} 次）`
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error(errorMessage);
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const MIN_PHASE_DURATION = {
+  check: 1500,
+  grade: 3000,
+  verify: 5000,
+} as const;
+
+
+const getProgressMessage = (phase: string): string => {
+  switch (phase) {
+    case "check":
+      return "正在分析您的作業內容...";
+    case "grade":
+      return "正在評分中...請稍候";
+    case "verify":
+      return "正在整理評分結果...";
+    case "complete":
+      return "評分完成！";
+    case "error":
+      return "評分過程遇到了一些問題";
+    default:
+      return "處理中...";
+  }
+};
+
+const ensureMinDuration = async (
+  phase: string,
+  fn: () => Promise<any>,
+  onProgress?: ProgressCallback
+): Promise<any> => {
+  const startTime = Date.now();
+  const result = await fn();
+  const elapsed = Date.now() - startTime;
+  const minDuration =
+    MIN_PHASE_DURATION[phase as keyof typeof MIN_PHASE_DURATION] || 0;
+
+  if (elapsed < minDuration) {
+    const remainingTime = minDuration - elapsed;
+    const steps = Math.floor(remainingTime / 100);
+    for (let i = 0; i < steps; i++) {
+      await sleep(100);
+      if (onProgress) {
+        const progress = Math.min(100, Math.floor((i / steps) * 100));
+        onProgress(phase, progress, getProgressMessage(phase));  // 修改這裡
+
+      }
+    }
+  }
+
+  return result;
+};
+
+export const gradeAssignment = async (
+  submission: AssignmentSubmission,
+  onProgress?: ProgressCallback,
+  useOllama: boolean = true
+): Promise<FeedbackData> => {
+
+  const CONFIG = {
+    MAX_OLLAMA_ATTEMPTS: 3,
+    MAX_OPENAI_ATTEMPTS: 2,
+  };
+
+  const startTime = Date.now();
+  let currentProgress = 0;
+  let apiResponse = null;
+
+  const updateApiProgress = (
+    phase: string,
+    progress: number,
+    message: string
+  ) => {
+    currentProgress = Math.max(currentProgress, progress);
+    const userMessage = message.includes("第")
+      ? getProgressMessage(
+          phase
+        )
+      : getProgressMessage(phase);
+    onProgress?.(phase, currentProgress, userMessage);
+
+    console.log(
+      `Phase: ${phase}, Progress: ${currentProgress}, Message: ${message}`
+    );
+  };
+
+  try {
+    await ensureMinDuration(
+      "check",
+      async () => {
+        updateApiProgress("check", 0, "開始檢查作業格式與內容...");
+        validateSubmissionFormat(formatSubmissionForGrading(submission));
+        updateApiProgress("check", 30, "作業格式檢查完成");
+      },
+      onProgress
+    );
+
+    const messages: ChatCompletionMessageParam[] = [
+      { role: "system", content: buildSystemPrompt() },
+      { role: "user", content: formatSubmissionForGrading(submission) },
+    ];
+
+    let response = null;
+    if (useOllama) {
+      try {
+        response = await ensureMinDuration(
+          "grade",
+          async () => {
+            updateApiProgress("grade", 40, "正在使用 Ollama 進行評分...");
+            const result = await executeWithRetry(
+              async () => callOllamaAPI(convertToOllamaMessages(messages)),
+              CONFIG.MAX_OLLAMA_ATTEMPTS,
+              "Ollama API 呼叫失敗",
+              (phase, progress, message) =>
+                updateApiProgress(phase, progress + 40, message),
+              0
+            );
+            updateApiProgress("grade", 60, "Ollama 評分完成");
+            return result;
+          },
+          onProgress
+        );
+      } catch (ollamaError) {
+        console.warn("Ollama API 多次嘗試失敗，切換到 OpenAI", ollamaError);
+
+        if (!openai) {
+          updateApiProgress("error", currentProgress, "無可用的 API");
+          throw new Error("無可用的 API");
+        }
+
+        response = await ensureMinDuration(
+          "grade",
+          async () => {
+            updateApiProgress("grade", 65, "切換到 OpenAI API");
+            const result = await executeWithRetry(
+              async () =>
+                openai.chat.completions.create({
+                  ...OPENAI_CONFIG,
+                  messages,
+                  response_format: { type: "json_object" },
+                }),
+              CONFIG.MAX_OPENAI_ATTEMPTS,
+              "OpenAI API 呼叫失敗",
+              (phase, progress, message) =>
+                updateApiProgress(phase, progress + 65, message),
+              0
+            );
+            updateApiProgress("grade", 75, "OpenAI 評分完成");
+            return result;
+          },
+          onProgress
+        );
+      }
+    }
+
+    if (!response) {
+      throw new Error("未收到 API 回應");
+    }
+
+    await ensureMinDuration(
+      "verify",
+      async () => {
+        updateApiProgress("grade", 80, "評分完成，正在處理結果...");
+
+        const messageContent = _.get(response, "choices[0].message.content");
+        if (!messageContent) {
+          throw new Error("API 回應中沒有內容");
+        }
+
+        try {
+          apiResponse = preprocessApiResponse(JSON.parse(messageContent));
+        } catch (error) {
+          console.error("JSON 解析錯誤:", error);
+          throw new Error("無法解析 API 回應的 JSON 格式");
+        }
+
+        updateApiProgress("verify", 90, "正在驗證評分結果...");
+
+        const result: FeedbackData = {
+          ...apiResponse,
+          createdAt: new Date(),
+          gradingDuration: Date.now() - startTime,
+        };
+
+        validateFeedbackData(result);
+        updateApiProgress("complete", 100, "評分流程完成！");
+        return result;
+      },
+      onProgress
+    );
+
+    if (!apiResponse) {
+      throw new Error("未能成功取得評分結果");
+    }
+
+    return apiResponse;
+  } catch (error) {
+    console.error("評分失敗:", error);
+    updateApiProgress(
+      "error",
+      currentProgress,
+      `評分發生錯誤: ${_.get(error, "message", "未知錯誤")}`
+    );
+
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("API 呼叫失敗，使用 mock 數據");
+      return mockGradeAssignment(submission, onProgress);
+    }
+
+    throw _.isError(error) ? error : new Error("評分過程發生未知錯誤");
+  } finally {
+    if (currentProgress < 100) {
+      updateApiProgress("complete", 100, "評分流程結束");
+    }
   }
 };

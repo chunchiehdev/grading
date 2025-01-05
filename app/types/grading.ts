@@ -1,4 +1,4 @@
-// ~/types/grading.ts
+// @/types/grading.ts
 /**
  * 作業部分的基本結構
  */
