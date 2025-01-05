@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PanelLeft, Plus, ChevronDown, Share2, Menu } from "lucide-react";
 import { Link } from "@remix-run/react";
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface NavHeaderProps {
   title?: string;
@@ -89,7 +90,9 @@ const NavHeader = ({
             <TooltipContent>設定檔</TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        <ThemeToggle />
       </div>
+
     </div>
   );
 };

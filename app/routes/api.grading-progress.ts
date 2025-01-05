@@ -6,6 +6,7 @@ import { ProgressService } from "@/services/progress.server";
 export const shouldRevalidate = () => false;
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  console.log("request",request)
   console.log("SSE request received");
 
   if (!request.headers.get("accept")?.includes("text/event-stream")) {

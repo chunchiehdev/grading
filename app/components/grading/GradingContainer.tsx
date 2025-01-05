@@ -257,7 +257,7 @@ export function GradingContainer({
         />
 
         <div className="w-full mb-2">
-          <Card className="shadow-sm bg-white">
+          <Card className="shadow-sm bg-background">
             <div className="p-4">
               <CompactFileUpload
                 maxFiles={3}
