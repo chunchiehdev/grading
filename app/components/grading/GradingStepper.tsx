@@ -40,10 +40,10 @@ export function GradingStepper({
       (isActive: boolean) => StepStyleConfig
     > = {
       error: () => ({
-        icon: <AlertTriangle className="w-5 h-5 text-red-500" />,
+        icon: <AlertTriangle className="w-5 h-5 text-destructive" />,
         containerStyle:
-          "border-red-500 bg-red-50 text-red-500 shadow-sm shadow-red-100",
-        connectorStyle: "bg-red-500",
+          "border-destructive bg-destructive/10 text-destructive-foreground shadow-sm shadow-red-100",
+        connectorStyle: "bg-destructive",
       }),
       completed: () => ({
         icon: <Check className="w-5 h-5" />,
@@ -58,9 +58,9 @@ export function GradingStepper({
             role="status"
             aria-busy="true"
           >
-            <span className="absolute inset-0 animate-ping rounded-full bg-blue-300 opacity-50" />
-            <span className="absolute inset-0 rounded-full bg-blue-400 opacity-30 animate-pulse" />
-            <Loader2 className="relative h-5 w-5 animate-spin text-blue-500" />
+            <span className="absolute inset-0 animate-ping rounded-full bg-accent opacity-50" />
+            <span className="absolute inset-0 rounded-full bg-accent opacity-30 animate-pulse" />
+            <Loader2 className="relative h-5 w-5 animate-spin text-accent-foreground" />
           </div>
         ),
         containerStyle: isActive
@@ -83,6 +83,8 @@ export function GradingStepper({
 
   return (
     <div className={cn("px-4 font-serif", className)}>
+      
+
       <ol className="flex items-center w-full justify-between">
         {steps.map((step, index) => {
           const config = getStepConfig(step, index);

@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PanelLeft, Plus, ChevronDown, Share2, Menu } from "lucide-react";
 import { Link } from "@remix-run/react";
+import { ModeToggle } from "@/components/mode-toggle";
 
 interface NavHeaderProps {
   title?: string;
@@ -30,14 +31,14 @@ const NavHeader = ({
   return (
     <div
       className={cn(
-        "sticky top-0 p-3 mb-1.5 flex items-center justify-between z-10 h-[60px] font-semibold bg-white",
-        "border-b border-gray-200",
+        "sticky top-0 p-3 mb-1.5 flex items-center justify-between z-10 h-[60px] font-semibold ",
+        "border-b border-border",
         className
       )}
     >
       {/* Center Title */}
       <div className="absolute left-1/2 -translate-x-1/2">
-        <div className="flex items-center gap-1 text-sm font-semibold text-gray-600">
+        <div className="flex items-center gap-1 text-sm font-semibold text-foreground/80">
           {title}
         </div>
       </div>
@@ -66,7 +67,7 @@ const NavHeader = ({
           <Share2 className="w-4 h-4" />
           <span>分享</span>
         </Button>
-
+        <ModeToggle />
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

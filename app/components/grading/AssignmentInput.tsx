@@ -105,7 +105,7 @@ const StepIndicator = ({ currentStep, totalSteps }: StepIndicatorProps) => {
   return (
     <div className="space-y-2">
       <Progress value={progress} className="h-2" />
-      <div className="text-sm text-gray-500">
+      <div className="text-sm dark:text-orange-60 text-gray-500">
         步驟 {currentStep} / {totalSteps}
       </div>
     </div>

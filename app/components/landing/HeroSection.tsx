@@ -22,6 +22,7 @@ const HeroSection = () => {
         >
           <source src="/someone.mp4" type="video/mp4" />
         </video>
+        
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
       </div>
 
@@ -30,12 +31,12 @@ const HeroSection = () => {
         className="group absolute bottom-12 right-12 z-10"
         aria-label="開始使用"
       >
-        <div className="relative flex items-center justify-center w-20 h-20 rounded-full bg-white transform-gpu transition-all duration-500 hover:scale-110 cursor-pointer">
-          <div className="absolute w-full h-full rounded-full bg-white/30 animate-ping" />
+        <div className="relative flex items-center justify-center w-20 h-20 rounded-full bg-background dark:bg-background transform-gpu transition-all duration-500 hover:scale-110 cursor-pointer">
+          <div className="absolute w-full h-full rounded-full bg-background/30 animate-ping" />
 
-          <div className="absolute w-full h-full rounded-full bg-white opacity-75 group-hover:scale-105 transition-transform duration-300" />
+          <div className="absolute w-full h-full rounded-full bg-background opacity-75 group-hover:scale-105 transition-transform duration-300" />
 
-          <ArrowRight className="relative w-8 h-8 text-black transform transition-transform duration-500 group-hover:translate-x-1" />
+          <ArrowRight className="relative w-8 h-8 text-foreground transform transition-transform duration-500 group-hover:translate-x-1" />
         </div>
       </button>
     </div>
