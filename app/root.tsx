@@ -4,14 +4,20 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "@remix-run/react";
-import type { LinksFunction } from "@remix-run/node";
+import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { useState, useCallback } from "react";
 import stylesheet from "./tailwind.css?url";
 import Sidebar from "./components/sidebar/Sidebar";
 import { cn } from "@/lib/utils";
-
 import { NavHeader } from "@/components/navbar/NavHeader";
+import {
+  PreventFlashOnWrongTheme,
+  ThemeProvider,
+  useTheme,
+} from "remix-themes";
+import { themeSessionResolver } from "./sessions.server";
 
 export const links: LinksFunction = () => [
   { rel: "icon", type: "image/x-icon", href: "/rubber-duck.ico" },
@@ -32,39 +38,37 @@ export const links: LinksFunction = () => [
   },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const toggleSidebar = useCallback(() => {
-    setIsCollapsed((prev) => !prev);
-  }, []);
+export async function loader({ request }: LoaderFunctionArgs) {
+  const { getTheme } = await themeSessionResolver(request);
+  return {
+    theme: getTheme(),
+  };
+}
+
+function Document({ children }: { children: React.ReactNode }) {
+  
+  const data = useLoaderData<typeof loader>();
+  const [theme] = useTheme();
+  console.log('Current theme:', theme);
+  console.log('Data theme:', data.theme); 
   return (
-    <html lang="zh-TW" className="h-full">
+    <html
+      lang="zh-TW"
+      className={cn(
+        theme,  
+        "h-full antialiased",
+        "selection:bg-accent selection:text-accent-foreground"
+      )}
+    >
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
+        <PreventFlashOnWrongTheme ssrTheme={Boolean(data.theme)} />
         <Links />
       </head>
-      <body className="min-h-screen bg-gradient-to-br from-[#F5F7FA] via-white to-[#F5F7FA]">
-        <div className="relative flex min-h-screen">
-          <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
-
-          <div
-            className={cn(
-              "flex-1 transition-all duration-300 ease-in-out ",
-              "md:ml-[260px]",
-              isCollapsed && "md:ml-[20px]"
-            )}
-          >
-            <NavHeader
-              onSidebarToggle={toggleSidebar}
-              onShare={() => console.log("Share clicked")}
-              userName="User"
-              className="bg-white/80 backdrop-blur-sm"
-            />
-            <main className="p-8">{children}</main>
-          </div>
-        </div>
+      <body className="min-h-screen bg-background">
+        {children}
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -72,6 +76,43 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function Layout() {
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const toggleSidebar = useCallback(() => {
+    setIsCollapsed((prev) => !prev);
+  }, []);
+
+  return (
+    <div className="relative flex min-h-screen">
+      <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
+      <div
+        className={cn(
+          "flex-1 transition-all duration-300 ease-in-out",
+          "md:ml-[260px]",
+          isCollapsed && "md:ml-[20px]"
+        )}
+      >
+        <NavHeader
+          onSidebarToggle={toggleSidebar}
+          onShare={() => console.log("Share clicked")}
+          userName="User"
+          className="bg-background/80 backdrop-blur-sm border-b border-border"
+        />
+        <main className="p-8">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  return <Outlet />;
+  const data = useLoaderData<typeof loader>();
+  return (
+    <ThemeProvider specifiedTheme={data.theme} themeAction="/set-theme">
+      <Document>
+        <Layout />
+      </Document>
+    </ThemeProvider>
+  );
 }
