@@ -296,21 +296,27 @@ export function GradingContainer({
                   onError={(error) => console.error("Upload error:", error)}
                 />
               </div> */}
-
-            <AssignmentInput
-              sections={sections}
-              disabled={status === "processing" && !isEditing}
-              validationErrors={validationErrors}
-              status={status}
-              onValidation={handleValidation}
+            <div
               className={cn(
-                "transition-all duration-300",
                 (!hasUploadedFiles || status === "processing") &&
-                  "opacity-50 pointer-events-none"
+                  "cursor-not-allowed"
               )}
-              fetcher={fetcher}
-              onBack={() => handleEditMode()}
-            />
+            >
+              <AssignmentInput
+                sections={sections}
+                disabled={status === "processing" && !isEditing}
+                validationErrors={validationErrors}
+                status={status}
+                onValidation={handleValidation}
+                className={cn(
+                  "transition-all duration-300",
+                  (!hasUploadedFiles || status === "processing") &&
+                    "opacity-50 pointer-events-none"
+                )}
+                fetcher={fetcher}
+                onBack={() => handleEditMode()}
+              />
+            </div>
             {mode === "submitted" && status === "completed" && (
               <div className="p-4 bg-accent border-b border-border">
                 <Alert variant="default">
