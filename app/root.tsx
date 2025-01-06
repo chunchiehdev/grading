@@ -55,7 +55,7 @@ function Document({ children }: { children: React.ReactNode }) {
     <html
       lang="zh-TW"
       className={cn(
-        theme,  
+        theme || 'dark',  
         "h-full antialiased",
         "selection:bg-accent selection:text-accent-foreground"
       )}
