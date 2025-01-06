@@ -257,14 +257,13 @@ export function GradingContainer({
         />
 
         <div className="w-full mb-2">
-          <Card className="shadow-sm bg-white">
+          <Card>
             <div className="p-4">
               <CompactFileUpload
                 maxFiles={3}
                 maxFileSize={100 * 1024 * 1024}
                 acceptedFileTypes={[".pdf", ".doc"]}
                 onFilesChange={(files) => {
-                  console.log("Files changed:", files);
                   setHasUploadedFiles(files.length > 0);
                   if (files.length === 0) {
                     setCurrentStep(0);
@@ -313,11 +312,11 @@ export function GradingContainer({
               onBack={() => handleEditMode()}
             />
             {mode === "submitted" && status === "completed" && (
-              <div className="p-4 bg-gray-50 border-b border-gray-200">
+              <div className="p-4 bg-accent border-b border-border">
                 <Alert variant="default">
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4" />
+                      <CheckCircle className="h-4 w-4 text-primary" />
                       <AlertTitle>評分完成</AlertTitle>
                     </div>
                     <Button
@@ -413,7 +412,7 @@ export function GradingContainer({
               )}
 
               {feedback && (
-                <div className="p-4 border-t border-gray-100 bg-gray-50">
+                <div className="p-4 border-t border-border bg-accent">
                   <Button
                     variant="outline"
                     onClick={handleDownload}
