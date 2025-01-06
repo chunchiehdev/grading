@@ -64,16 +64,20 @@ export function GradingStepper({
           </div>
         ),
         containerStyle: isActive
-          ? "border-blue-600 bg-blue-100 text-blue-800 ring-4 ring-blue-50"
-          : "border-gray-300 bg-gray-50 text-gray-500",
-        connectorStyle: isActive ? "bg-blue-600" : "bg-gray-300",
+          ? cn(
+              "border-accent bg-accent/20 text-accent-foreground ring-4 ring-accent/20"
+            )
+          : cn("border-muted bg-muted text-muted-foreground"),
+        connectorStyle: isActive ? "bg-accent" : "bg-muted",
       }),
       waiting: (isActive) => ({
         icon: String(index + 1),
         containerStyle: isActive
-          ? "border-slate-800 bg-slate-800 text-white ring-2 ring-slate-100"
-          : "border-slate-200 bg-white text-slate-400",
-        connectorStyle: isActive ? "bg-slate-800" : "bg-slate-200",
+          ? cn(
+              "border-secondary bg-secondary text-secondary-foreground ring-2 ring-secondary/50"
+            )
+          : cn("border-border bg-background text-muted-foreground"),
+        connectorStyle: isActive ? "bg-secondary" : "bg-border",
       }),
     };
 
@@ -83,8 +87,6 @@ export function GradingStepper({
 
   return (
     <div className={cn("px-4 font-serif", className)}>
-      
-
       <ol className="flex items-center w-full justify-between">
         {steps.map((step, index) => {
           const config = getStepConfig(step, index);
@@ -116,10 +118,10 @@ export function GradingStepper({
                         )}
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent>
+                    <TooltipContent className="bg-popover text-popover-foreground border-border">
                       <p>{step.description}</p>
                       {step.status === "error" && step.errorMessage && (
-                        <p className="text-red-500">{step.errorMessage}</p>
+                        <p className="text-destructive">{step.errorMessage}</p>
                       )}
                     </TooltipContent>
                   </Tooltip>
@@ -129,13 +131,13 @@ export function GradingStepper({
                   <span
                     className={cn(
                       "text-sm font-medium transition-colors duration-300 whitespace-nowrap",
-                      index <= activeStep ? "text-slate-800" : "text-slate-400"
+                      index <= activeStep ? "text-foreground" : "text-muted-foreground"
                     )}
                   >
                     {step.label}
                   </span>
                   {showDetails && (
-                    <p className="text-xs text-slate-500">{step.description}</p>
+                    <p className="text-xs text-muted-foreground">{step.description}</p>
                   )}
                 </div>
               </div>
