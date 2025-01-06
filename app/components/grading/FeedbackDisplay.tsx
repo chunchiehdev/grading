@@ -171,19 +171,19 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
       icon: FileText,
       title: "檢查作業內容",
       description: "確認作業內容是否符合評分標準",
-      color: "group-hover:text-gray-800",
+      color: "group-hover:text-primary",
     },
     {
       icon: ClipboardCheck,
       title: "評分進行中",
       description: "根據評分標準給予詳細評價",
-      color: "group-hover:text-gray-800",
+      color: "group-hover:text-primary",
     },
     {
       icon: MessageCircle,
       title: "產生回饋建議",
       description: "提供具體的改進建議",
-      color: "group-hover:text-gray-800",
+      color: "group-hover:text-primary",
     },
   ];
 
@@ -193,9 +193,9 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
       animate={{ opacity: 1 }}
       className="w-full max-w-4xl mx-auto"
     >
-      <Card className="bg-white dark:bg-gray-900 overflow-hidden">
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
-          <div className="bg-gray-50 dark:bg-gray-800 p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-border">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
                 開始新的評分
@@ -223,26 +223,21 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
                 >
                   <div
                     className={`
-                    relative p-4 rounded-lg border border-gray-200 dark:border-gray-700
+                    relative p-4 rounded-lg border border-border
                     transition-all duration-300 ease-in-out
-                    ${
-                      hoveredIndex === index
-                        ? "bg-gray-50 dark:bg-gray-800"
-                        : "bg-white dark:bg-gray-900"
-                    }
                   `}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-md bg-gray-100 dark:bg-gray-800">
+                      <div className="p-3 rounded-md ">
                         <step.icon
-                          className={`w-6 h-6 text-gray-500 dark:text-gray-400 transition-colors ${step.color}`}
+                          className={`w-6 h-6 transition-colors ${step.color}`}
                         />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                        <h3 className="font-medium mb-1">
                           {step.title}
                         </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-secondary-foreground">
                           {step.description}
                         </p>
                       </div>

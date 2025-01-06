@@ -74,11 +74,11 @@
     --radius: 0.5rem}
   .dark {
 
-    --background: 0 0% 5%;
+    --background: 0 0% 10%;
 
     --foreground: 0 0% 90%;
 
-    --card: 0 0% 10%;
+    --card: 0 0% 15%;
 
     --card-foreground: 0 0% 90%;
 
