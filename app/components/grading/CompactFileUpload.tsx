@@ -183,7 +183,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
   );
 
   return (
-    <div className="border-b">
+    <div className="border-b border-border">
       <Accordion type="single" collapsible className="w-full">
         <AccordionItem value="upload" className="border-0">
           <AccordionTrigger className="hover:no-underline py-2 px-4 text-sm">
@@ -215,27 +215,34 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
     transition-colors duration-200
     ${
       isDragging
-        ? "border-blue-500 bg-blue-50"
-        : "border-gray-200 hover:border-blue-500"
+        ? "border-primary bg-primary/5"
+        : "border-border hover:border-primary"
     }
   `}
               >
-                <div className="p-3 bg-gray-50 rounded-full group-hover:bg-blue-50 transition-colors duration-200">
-                  <Upload className="h-6 w-6 text-gray-400 group-hover:text-blue-500 transition-colors duration-200" />
+                <div
+                  className={cn(
+                    "p-3 rounded-full transition-colors duration-200",
+                    "bg-secondary group-hover:bg-primary/5"
+                  )}
+                >
+                  <Upload className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
                 </div>
 
                 <div className="text-center">
-                  <p className="text-sm text-gray-600">拖放檔案到這裡，或</p>
+                  <p className="text-sm text-muted-foreground">
+                    拖放檔案到這裡，或
+                  </p>
                   <label
                     htmlFor="file-input"
-                    className="inline-flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600 cursor-pointer mt-1 bg-blue-50 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-blue-100"
+                    className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/90 cursor-pointer mt-1 bg-primary/5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-primary/10"
                   >
                     <FileUp className="h-4 w-4" />
                     選擇檔案
                   </label>
                 </div>
 
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   支援的檔案格式：PDF、DOC、DOCX
                 </p>
 
@@ -254,7 +261,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
               </div>
 
               {uploadedFiles.length > 0 && (
-                <ScrollArea className="h-[120px] w-full rounded-md border">
+                <ScrollArea className="h-[120px] w-full rounded-md border border-border">
                   <div className="p-2 space-y-2">
                     {uploadedFiles.map((fileData, index) => (
                       <div
@@ -262,8 +269,8 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                         className={cn(
                           "flex items-center justify-between p-2 rounded-md",
                           fileData.status === "error"
-                            ? "bg-red-50"
-                            : "hover:bg-gray-50"
+                            ? "bg-destructive/10"
+                            : "hover:bg-accent"
                         )}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -271,24 +278,24 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                             className={cn(
                               "w-4 h-4 flex-shrink-0",
                               fileData.status === "success" && "text-green-500",
-                              fileData.status === "error" && "text-red-500",
-                              fileData.status === "uploading" && "text-blue-500"
+                              fileData.status === "error" && "text-destructive",
+                              fileData.status === "uploading" && "text-primary"
                             )}
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="text-sm text-gray-700 truncate">
+                              <p className="text-sm text-foreground truncate">
                                 {fileData.file.name}
                               </p>
                               {fileData.status === "success" && (
-                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                                <span className="text-xs bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">
                                   上傳完成
                                 </span>
                               )}
                               {fileData.status === "error" && (
                                 <div className="flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3 text-red-500" />
-                                  <span className="text-xs text-red-700 font-medium">
+                                  <AlertCircle className="w-3 h-3 text-destructive" />
+                                  <span className="text-xs text-destructive font-medium">
                                     {fileData.error || "上傳失敗"}
                                   </span>
                                 </div>
@@ -300,8 +307,9 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                                 className={cn(
                                   "h-1 flex-1",
                                   fileData.status === "success" &&
-                                    "bg-green-100",
-                                  fileData.status === "error" && "bg-red-100"
+                                    "bg-green-500/20",
+                                  fileData.status === "error" &&
+                                    "bg-destructive/20"
                                 )}
                                 style={{
                                   ["--progress-foreground" as any]:
@@ -312,7 +320,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                                       : "var(--blue-500)",
                                 }}
                               />
-                              <span className="text-xs text-gray-500 flex-shrink-0">
+                              <span className="text-xs text-muted-foreground flex-shrink-0">
                                 {formatFileSize(fileData.file.size)}
                               </span>
                             </div>
