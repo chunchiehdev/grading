@@ -246,7 +246,7 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
 
                     {index < steps.length - 1 && (
                       <motion.div
-                        className="absolute left-7 top-full h-4 w-px bg-gray-200 dark:bg-gray-700"
+                        className="absolute left-7 top-full h-4 w-px bg-custom"
                         initial={{ height: 0 }}
                         animate={{ height: 16 }}
                         transition={{ duration: 0.2 }}
@@ -257,7 +257,7 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
                   <AnimatePresence>
                     {hoveredIndex === index && (
                       <motion.div
-                        className="absolute inset-0 border-2 border-gray-200 dark:border-gray-700 rounded-lg pointer-events-none"
+                        className="absolute inset-0 border-2 border-border rounded-lg pointer-events-none"
                         initial={{ opacity: 0, scale: 1.05 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 1.05 }}
@@ -268,25 +268,6 @@ const EmptyFeedbackState = ({ onRetry }: { onRetry?: () => void }) => {
                 </motion.div>
               ))}
             </div>
-
-            <motion.button
-              onClick={onRetry}
-              className={`
-                w-full p-4 rounded-lg
-                bg-gradient-to-r from-gray-100 to-gray-50
-                dark:from-gray-800 dark:to-gray-900
-                border border-gray-200 dark:border-gray-700
-                text-gray-800 dark:text-gray-200
-                font-medium
-                transition-all duration-300
-                hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600
-                focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-700
-              `}
-              whileHover={{ y: -2 }}
-              whileTap={{ y: 0 }}
-            >
-              輸入作業內容開始評分
-            </motion.button>
           </div>
         </CardContent>
       </Card>
