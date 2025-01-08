@@ -148,8 +148,8 @@ export function GradingProgress({
             exit={{ opacity: 0, scale: 0.9 }}
             className="flex flex-col items-center justify-center space-y-4"
           >
-            <AlertTriangle className="w-12 h-12 text-red-500" />
-            <p className="text-red-500 font-medium">{error}</p>
+            <AlertTriangle className="w-12 h-12 text-destructive-foreground" />
+            <p className="text-destructive-foreground font-medium">{error}</p>
           </motion.div>
         ) : (
           <motion.div

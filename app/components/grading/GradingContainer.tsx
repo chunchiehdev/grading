@@ -284,18 +284,6 @@ export function GradingContainer({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2">
-            {/* <div className="p-4 border-b border-gray-100 bg-gray-50">
-                <CompactFileUpload
-                  maxFiles={3}
-                  maxFileSize={5 * 1024 * 1024}
-                  acceptedFileTypes={[".pdf", ".doc"]}
-                  onFilesChange={(files) =>
-                    console.log("Files changed:", files)
-                  }
-                  onUploadComplete={() => console.log("Upload complete")}
-                  onError={(error) => console.error("Upload error:", error)}
-                />
-              </div> */}
             <div
               className={cn(
                 (!hasUploadedFiles || status === "processing") &&
@@ -338,67 +326,6 @@ export function GradingContainer({
               </div>
             )}
           </div>
-          {/* <div className="md:col-span-1">
-            <Card
-              className={cn(
-                "h-full transition-all duration-300 shadow-lg",
-                status === "processing" && "animate-pulse",
-                isTransitioning && "opacity-50"
-              )}
-            >
-              <div className="p-4 border-b border-gray-100 bg-gray-50">
-                <h3 className="font-medium flex items-center gap-2 text-gray-700">
-                  {status === "processing" ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      評分進行中
-                    </>
-                  ) : feedback ? (
-                    <>
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      評分結果
-                    </>
-                  ) : (
-                    <>
-                      <Info className="h-4 w-4" />
-                      等待提交
-                    </>
-                  )}
-                </h3>
-              </div>
-
-              <div className="p-4">
-                {status === "processing" || fetcher.state === "submitting" ? (
-                  <GradingProgress
-                    status={status}
-                    initialProgress={gradingProgress}
-                    phase={gradingPhase}
-                    message={gradingMessage}
-                    className="space-y-4"
-                  />
-                ) : (
-                  <FeedbackDisplay
-                    feedback={feedback}
-                    variant={feedback ? "accordion" : undefined}
-                    className="space-y-4"
-                  />
-                )}
-              </div>
-
-              {feedback && (
-                <div className="p-4 border-t border-gray-100 bg-gray-50">
-                  <Button
-                    variant="outline"
-                    onClick={handleDownload}
-                    className="w-full gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    下載評分結果
-                  </Button>
-                </div>
-              )}
-            </Card>
-          </div> */}
           <Card className="h-full">
             <div className="p-4">
               {status === "processing" || fetcher.state === "submitting" ? (
