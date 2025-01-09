@@ -35,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div
       className={cn(
         "fixed left-0 top-0 h-screen z-[21]",
-        "bg-gray-200",
+        "bg-secondary",
         "transition-all duration-300 ease-in-out",
         isCollapsed ? "w-[0px]" : "w-[260px]"
       )}

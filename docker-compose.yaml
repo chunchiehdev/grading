@@ -13,22 +13,36 @@ services:
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
     depends_on:
       - redis
+      - db
     networks:
-      - app-network
+      - app_network
+
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin123}
+      POSTGRES_DB: ${POSTGRES_DB:-grading_db}
+    networks:
+      - app_network
 
   redis:
     image: redis:7.4.1-alpine
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - redis_data:/data
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     networks:
-      - app-network
-
+      - app_network
+    
 networks:
-  app-network:
-    driver: bridge
+  app_network:
 
 volumes:
-  redis-data:
+  redis_data:
+  postgres_data:

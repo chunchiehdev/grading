@@ -49,8 +49,7 @@ function Document({ children }: { children: React.ReactNode }) {
   
   const data = useLoaderData<typeof loader>();
   const [theme] = useTheme();
-  console.log('Current theme:', theme);
-  console.log('Data theme:', data.theme); 
+  
   return (
     <html
       lang="zh-TW"
