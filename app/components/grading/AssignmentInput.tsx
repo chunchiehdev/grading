@@ -338,7 +338,6 @@ export function AssignmentInput({
     const formData = new FormData();
     formData.append("taskId", newTaskId);
     formData.append("authorId", "user123");  
-    formData.append("courseId", "course456"); 
 
     sections.forEach((section) => {
       formData.append(section.id, section.content);
@@ -438,7 +437,6 @@ export function AssignmentInput({
             className="space-y-6"
           >
             <input type="hidden" name="authorId" value="user123" />
-            <input type="hidden" name="courseId" value="course456" />
             <CompletionPreview sections={sections} />
             {allErrors.length > 0 && (
               <Alert variant="destructive">

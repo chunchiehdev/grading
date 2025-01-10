@@ -86,16 +86,15 @@ export async function action({
     const taskId = (formData.get("taskId") as string) || crypto.randomUUID();
 
     const authorId = formData.get("authorId");
-    const courseId = formData.get("courseId");
 
     if (!taskId) {
       throw new Error("Missing taskId");
     }
 
-    if (!authorId || !courseId) {
+    if (!authorId) {
       return {
         error: "缺少必要欄位",
-        validationErrors: ["authorId 和 courseId 為必填欄位"],
+        validationErrors: ["authorId 為必填欄位"],
       };
     }
 
@@ -120,7 +119,6 @@ export async function action({
       metadata: {
         submittedAt: new Date(),
         authorId: String(formData.get("authorId")),
-        courseId: String(formData.get("courseId")),
       },
     };
 
