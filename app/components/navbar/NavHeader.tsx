@@ -1,14 +1,16 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+
 import { cn } from "@/lib/utils";
-import { PanelLeft, Plus, ChevronDown, Share2, Menu } from "lucide-react";
-import { Link } from "@remix-run/react";
+import { PanelLeft, Plus, ChevronDown, Share2, Menu, LogOut, User } from "lucide-react";
+import { Link, Form } from "@remix-run/react";
 import { ModeToggle } from "@/components/mode-toggle";
 
 interface NavHeaderProps {
@@ -18,6 +20,7 @@ interface NavHeaderProps {
   userName?: string;
   userImage?: string;
   className?: string;
+  user?: { email: string } | null;
 }
 
 const NavHeader = ({
@@ -27,6 +30,7 @@ const NavHeader = ({
   userName,
   userImage,
   className,
+  user,
 }: NavHeaderProps) => {
   return (
     <div
@@ -68,9 +72,9 @@ const NavHeader = ({
           <span>分享</span>
         </Button>
         <ModeToggle />
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
+        {user && ( 
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
@@ -79,17 +83,33 @@ const NavHeader = ({
                 {userImage ? (
                   <img
                     src={userImage}
-                    alt={userName || "User"}
+                    alt={user.email}
                     className="w-8 h-8 rounded-full"
                   />
                 ) : (
-                  <Menu className="w-5 h-5" />
+                  <User className="w-5 h-5" />
                 )}
               </Button>
-            </TooltipTrigger>
-            <TooltipContent>設定檔</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem disabled>
+                <span className="text-sm truncate">{user.email}</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <Form action="/logout" method="post">
+                <DropdownMenuItem
+                  asChild
+                  className="text-red-600 focus:text-red-600 cursor-pointer"
+                >
+                  <button type="submit" className="w-full flex items-center">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    登出
+                  </button>
+                </DropdownMenuItem>
+              </Form>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );

@@ -74,7 +74,6 @@ export interface AssignmentSubmission {
   metadata: {
     submittedAt: Date;
     authorId: string;
-    courseId: string;
   };
 }
 

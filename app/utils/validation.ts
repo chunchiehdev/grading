@@ -79,9 +79,6 @@ export function validateAssignment(
   if (!submission.metadata?.authorId) {
     errors.push("缺少作者ID");
   }
-  if (!submission.metadata?.courseId) {
-    errors.push("缺少課程ID");
-  }
 
   for (const section of submission.sections) {
     const sectionValidation = validateSection(section);
