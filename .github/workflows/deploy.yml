@@ -51,7 +51,7 @@ jobs:
                 --attach \
                 --restart=Never \
                 --image=chunchiehdev/gradsystem:master \
-                -- npx prisma migrate deploy
+                -- npx prisma migrate deploy --schema=/app/prisma/schema.prisma
 
               if [ $? -eq 0 ]; then
                 echo "Migration successful, deploying application..."
