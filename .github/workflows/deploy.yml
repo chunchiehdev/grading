@@ -44,9 +44,23 @@ jobs:
           if [ "${{ github.ref_name }}" = "master" ]; then
             cd ~/gradsystem
             if [ -f deployment.yaml ]; then
-      
-              kubectl apply -f deployment.yaml
-              kubectl rollout status deployment gradsystem
+              
+              echo "Running database migrations..."
+              kubectl run migrate-$(date +%s) \
+                --rm \
+                --attach \
+                --restart=Never \
+                --image=chunchiehdev/gradsystem:master \
+                -- npx prisma migrate deploy
+
+              if [ $? -eq 0 ]; then
+                echo "Migration successful, deploying application..."
+                kubectl apply -f deployment.yaml
+                kubectl rollout status deployment gradsystem
+              else
+                echo "Migration failed!"
+                exit 1
+              fi
             else
               echo "Error: deployment.yaml file not found"
               exit 1
