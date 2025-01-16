@@ -18,6 +18,8 @@ import {
   useTheme,
 } from "remix-themes";
 import { themeSessionResolver } from "./sessions.server";
+import { redirect } from "@remix-run/node";
+import { getUser } from "@/services/auth.server";
 
 export const links: LinksFunction = () => [
   { rel: "icon", type: "image/x-icon", href: "/rubber-duck.ico" },
@@ -40,21 +42,31 @@ export const links: LinksFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { getTheme } = await themeSessionResolver(request);
+
+  const user = await getUser(request);
+
+  const url = new URL(request.url);
+  const isAuthPath = url.pathname === "/login" || url.pathname === "/register";
+
+  if (!user && !isAuthPath) {
+    return redirect("/login");
+  }
+
   return {
     theme: getTheme(),
+    user,
   };
 }
 
 function Document({ children }: { children: React.ReactNode }) {
-  
   const data = useLoaderData<typeof loader>();
   const [theme] = useTheme();
-  
+
   return (
     <html
       lang="zh-TW"
       className={cn(
-        theme === "dark" ? "dark" : "",  
+        theme === "dark" ? "dark" : "",
         "h-full antialiased",
         "selection:bg-accent selection:text-accent-foreground"
       )}
@@ -76,11 +88,20 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
+  const data = useLoaderData<typeof loader>();
+  const user = data.user;
   const [isCollapsed, setIsCollapsed] = useState(true);
   const toggleSidebar = useCallback(() => {
     setIsCollapsed((prev) => !prev);
   }, []);
 
+  if (!user) {
+    return (
+      <main className="min-h-screen">
+        <Outlet />
+      </main>
+    );
+  }
   return (
     <div className="relative flex min-h-screen">
       <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
@@ -94,7 +115,7 @@ function Layout() {
         <NavHeader
           onSidebarToggle={toggleSidebar}
           onShare={() => console.log("Share clicked")}
-          userName="User"
+          user={user}  
           className="bg-background/80 backdrop-blur-sm border-b border-border"
         />
         <main className="p-8">

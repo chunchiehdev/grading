@@ -1,12 +1,12 @@
 import { useNavigate } from "@remix-run/react";
 import { ArrowRight } from "lucide-react";
-import { createNewGrading } from "@/utils/grading";
+// import { createNewGrading } from "@/utils/grading.server";
 
 const HeroSection = () => {
   const navigate = useNavigate();
 
   const handleCreateNewGrading = () => {
-    createNewGrading(navigate, { source: "hero-section" });
+    // createNewGrading(navigate, { source: "hero-section" });
   };
 
   return (
@@ -20,14 +20,14 @@ const HeroSection = () => {
           poster="/someone.jpg"
           className="absolute inset-0 w-full h-full object-cover"
         >
-          <source src="/someone.mp4" type="video/mp4" />
+          <source src="/desk.mp4" type="video/mp4" />
         </video>
         
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
       </div>
 
       <button
-        onClick={handleCreateNewGrading}
+        // onClick={handleCreateNewGrading}
         className="group absolute bottom-12 right-12 z-10"
         aria-label="開始使用"
       >

@@ -42,8 +42,15 @@ jobs:
           echo "Starting application deployment for ${{ github.ref_name }} "
           
           if [ "${{ github.ref_name }}" = "master" ]; then
-            kubectl rollout restart deployment gradsystem
-            kubectl rollout status deployment gradsystem
+            cd ~/gradsystem
+            if [ -f deployment.yaml ]; then
+      
+              kubectl apply -f deployment.yaml
+              kubectl rollout status deployment gradsystem
+            else
+              echo "Error: deployment.yaml file not found"
+              exit 1
+            fi
           fi
           
     - name: Deployment Summary

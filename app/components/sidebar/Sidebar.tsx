@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { v4 as uuidv4 } from "uuid";
-import { createNewGrading } from "@/utils/grading";
+// import { createNewGrading } from "@/utils/grading.server";
 interface SidebarProps {
   className?: string;
   isCollapsed?: boolean;
@@ -24,12 +24,12 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const handleCreateNewGrading = useCallback(() => {
-    createNewGrading(navigate, {
-      source: 'sidebar',
-      onNavigate: onToggle
-    });
-  }, [navigate, onToggle]);
+  // const handleCreateNewGrading = useCallback(() => {
+  //   createNewGrading(navigate, {
+  //     source: 'sidebar',
+  //     onNavigate: onToggle
+  //   });
+  // }, [navigate, onToggle]);
 
   return (
     <div
@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-xl" onClick={handleCreateNewGrading}>
+                    <Button variant="ghost" size="icon-xl" >
                       <PlusCircle />
                     </Button>
                   </TooltipTrigger>
