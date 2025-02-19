@@ -50,7 +50,7 @@ export default {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
-        custom: "hsl(var(--custom))"
+        custom: "hsl(var(--custom))",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -73,12 +73,26 @@ export default {
           to: {
             height: "0",
           },
-        }
-        
+        },
+        crabWalk: {
+          "0%": {
+            transform: "translateX(100%) rotate(0deg)",
+          },
+          "25%": {
+            transform: "translateX(50%) rotate(10deg)",
+          },
+          "75%": {
+            transform: "translateX(-50%) rotate(-10deg)",
+          },
+          "100%": {
+            transform: "translateX(-100%) rotate(0deg)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "crabWalk": "crabWalk 10s linear infinite",
       },
     },
   },
