@@ -45,10 +45,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const user = await getUser(request);
 
-  const url = new URL(request.url);
-  const isAuthPath = url.pathname === "/login" || url.pathname === "/register";
+  const publicPaths = [
+    "/login",
+    "/register",
+    "/auth/google",       
+    "/auth/callback",     
+  ];
 
-  if (!user && !isAuthPath) {
+  const url = new URL(request.url);
+  console.log("url", url)
+  const isPublicPath = publicPaths.some(path => url.pathname.startsWith(path));
+
+  if (!user && !isPublicPath) {
     return redirect("/login");
   }
 

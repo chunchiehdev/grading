@@ -3,11 +3,22 @@ import { db } from "@/lib/db.server";
 import bcrypt from "bcryptjs";
 import { redirect } from "@remix-run/node";
 import { getSession, authSessionStorage } from "@/sessions.server";
+import { OAuth2Client } from "google-auth-library";
 
 interface LoginCredentials {
   email: string;
   password: string;
 }
+
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  throw new Error("Google OAuth credentials not configured");
+}
+
+const oauth2Client = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/auth/google/callback"
+);
 
 export async function getUserId(request: Request) {
   const session = await getSession(request);
@@ -26,6 +37,60 @@ export async function requireUserId(
     throw redirect(`/login?${searchParams}`);
   }
   return userId;
+}
+
+export async function googleLogin() {
+  const url = oauth2Client.generateAuthUrl({
+    access_type: 'offline', 
+    scope: [
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/userinfo.email'
+    ]
+  })
+  console.log(url)
+  return redirect(url)
+}
+
+export async function handleGoogleCallback(request: Request) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+
+  if (!code) {
+    throw new Error("Missing authorization code");
+  }
+
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    const ticket = await oauth2Client.verifyIdToken({
+      idToken: tokens.id_token!,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) throw new Error("No user payload");
+
+    
+    let user = await db.user.findUnique({
+      where: { email: payload.email }
+    });
+
+    
+    if (!user) {
+      user = await db.user.create({
+        data: {
+          email: payload.email,    
+          password: await bcrypt.hash(Math.random().toString(36), 10),
+        }
+      });
+    }
+
+    return createUserSession(user.id, "/");
+  } catch (error) {
+    console.error("Google authentication error:", error);
+    return redirect("/login?error=google-auth-failed");
+  }
 }
 
 export async function register({ email, password }: LoginCredentials) {
