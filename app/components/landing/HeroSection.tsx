@@ -1,12 +1,34 @@
 import { useNavigate } from "@remix-run/react";
 import { ArrowRight } from "lucide-react";
-// import { createNewGrading } from "@/utils/grading.server";
+import { createNewGrading } from "@/utils/grading.server";
+import { useState, useCallback } from "react";
 
 const HeroSection = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleCreateNewGrading = () => {
-    // createNewGrading(navigate, { source: "hero-section" });
+  const handleCreateNewGrading = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch("/api/create-grading", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ source: "hero-section" }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create grading task");
+      }
+
+      const { taskId } = await response.json();
+      navigate(`/assignments/grade/${taskId}`);
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -22,12 +44,12 @@ const HeroSection = () => {
         >
           <source src="/desk.mp4" type="video/mp4" />
         </video>
-        
+
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
       </div>
 
       <button
-        // onClick={handleCreateNewGrading}
+        onClick={handleCreateNewGrading}
         className="group absolute bottom-12 right-12 z-10"
         aria-label="開始使用"
       >
