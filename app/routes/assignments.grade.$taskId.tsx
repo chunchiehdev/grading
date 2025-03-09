@@ -4,7 +4,7 @@ import type { MetaFunction } from "@remix-run/node";
 import { useActionData, useNavigation, useFetcher, useParams } from "@remix-run/react";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { GradingContainer } from "@/components/grading/GradingContainer";
-import { gradeAssignment } from "@/services/grading.server";
+import { gradeAssignment } from "@/services/aiProcessor.server";
 import {
   validateAssignment,
   SECTION_VALIDATION_RULES,

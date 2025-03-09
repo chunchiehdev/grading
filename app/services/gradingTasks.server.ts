@@ -32,7 +32,7 @@ export const createNewGrading = async ({
       },
     });
 
-    return redirect(`/assignments/grade/${task.id}`);
+    return task
   } catch (error) {
     console.error("Error creating grading task:", error);
     throw new Error("無法創建評分任務");

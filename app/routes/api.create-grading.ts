@@ -1,16 +1,19 @@
-import { json } from "@remix-run/node";
 import type { ActionFunction } from "@remix-run/node";
-import { createNewGrading } from "@/utils/grading.server";
+import { createNewGrading } from "@/services/gradingTasks.server";
 
 export const action: ActionFunction = async ({ request }) => {
   try {
     const body = await request.json();
-    const taskId = await createNewGrading({
+    const result = await createNewGrading({
       request,
       source: body.source || "unknown",
     });
-    return json({ taskId });
+
+    return Response.json({ id: result.id });
   } catch (error) {
-    return json({ error: "Failed to create grading task" }, { status: 500 });
+    return Response.json(
+      { error: "Failed to create grading task" },
+      { status: 500 }
+    );
   }
 };

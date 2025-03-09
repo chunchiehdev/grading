@@ -7,5 +7,6 @@ export const REDIS_CONFIG = {
 
 export const REDIS_KEYS = {
   PROGRESS_PREFIX: "grading:progress:",
+  UPLOAD_PROGRESS_PREFIX: "upload:progress:",
   EXPIRATION_TIME: 3600,
 } as const;

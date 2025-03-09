@@ -1,6 +1,6 @@
 import { useNavigate } from "@remix-run/react";
 import { ArrowRight } from "lucide-react";
-import { createNewGrading } from "@/utils/grading.server";
+import { createNewGrading } from "@/services/gradingTasks.server";
 import { useState, useCallback } from "react";
 
 const HeroSection = () => {
@@ -22,8 +22,8 @@ const HeroSection = () => {
         throw new Error("Failed to create grading task");
       }
 
-      const { taskId } = await response.json();
-      navigate(`/assignments/grade/${taskId}`);
+      const { id } = await response.json();
+      navigate(`/assignments/grade/${id}`);
     } catch (error) {
       console.error("Error:", error);
     } finally {
