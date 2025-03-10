@@ -1,7 +1,7 @@
 // assignments.grade.tsx
 import { type ActionFunctionArgs } from "@remix-run/node";
 import type { MetaFunction } from "@remix-run/node";
-import { useActionData, useNavigation, useFetcher, useParams } from "@remix-run/react";
+import {  useFetcher, useParams } from "@remix-run/react";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { GradingContainer } from "@/components/grading/GradingContainer";
 import { gradeAssignment } from "@/services/aiProcessor.server";
@@ -16,7 +16,7 @@ import { ProgressService } from "@/services/progress.server";
 export const meta: MetaFunction = () => {
   return [
     { title: "評分系統" },
-    { name: "description", content: "專業的教育評分管理平台" },
+    { name: "description", content: "教育評分管理平台" },
   ];
 };
 
@@ -170,7 +170,6 @@ export default function AssignmentGradingPage() {
   const [gradingPhase, setGradingPhase] = useState("check");
   const [gradingMessage, setGradingMessage] = useState("");
 
-  const actionData = useActionData<typeof action>();
   const feedback = fetcher.data?.feedback;
   const error = fetcher.data?.error;
   const validationErrors = fetcher.data?.validationErrors;
@@ -210,6 +209,8 @@ export default function AssignmentGradingPage() {
 
   const progressData = useEventSource(progressUrl, {
     event: "grading-progress",
+    enabled: Boolean(progressUrl) && progressUrl.length > 0
+
   });
 
   const handleRetry = useCallback(() => {

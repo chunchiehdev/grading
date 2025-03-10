@@ -1,5 +1,6 @@
 import React from "react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
+import { useFetcher } from "@remix-run/react";
 import {
   Accordion,
   AccordionContent,
@@ -12,11 +13,13 @@ import { Upload, X, File, Paperclip, AlertCircle, FileUp } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import { useEventSource } from "remix-utils/sse/react";
 interface FileWithStatus {
   file: File;
   status: "uploading" | "success" | "error";
   progress: number;
   error?: string;
+  key?: string;
 }
 
 interface FileUploadProps {
@@ -24,11 +27,9 @@ interface FileUploadProps {
   maxFileSize?: number;
   acceptedFileTypes?: string[];
   onFilesChange?: (files: File[]) => void;
-  onUploadComplete?: () => void;
+  onUploadComplete?: (uploadedFiles: File[]) => void;
   onError?: (error: string) => void;
 }
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return bytes + " B";
@@ -47,6 +48,125 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<FileWithStatus[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadId, setUploadId] = useState<string | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  const idFetcher = useFetcher<{ success: boolean; uploadId: string }>();
+
+  const uploadFetcher = useFetcher<{
+    success: boolean;
+    uploadId: string;
+    files: any[];
+    error?: string;
+  }>();
+  
+
+  const progressData = useEventSource(
+    uploadId ? `/api/upload/progress/${uploadId}` : "",
+    { event: "upload-progress", enabled: !!uploadId }
+  );
+
+  useEffect(() => {
+    if (idFetcher.data?.success && idFetcher.data.uploadId) {
+      const newUploadId = idFetcher.data.uploadId;
+      console.log("get new uploadId:", newUploadId);
+      setUploadId(newUploadId);
+
+      if (pendingFiles.length > 0) {
+        uploadFilesToServer(pendingFiles, newUploadId);
+        setPendingFiles([]);
+      }
+    } else if (idFetcher.data && !idFetcher.data.success) {
+      const errorMsg = "獲取上傳 ID 失敗";
+      setError(errorMsg);
+      onError?.(errorMsg);
+      setIsUploading(false);
+    }
+  }, [idFetcher.data]);
+
+  useEffect(() => {
+    if (uploadFetcher.data?.success && uploadFetcher.data.files) {
+      console.log("上傳完成:", uploadFetcher.data.files);
+
+      setUploadedFiles((prev) =>
+        prev.map((fileItem) => {
+          const fileData = uploadFetcher.data?.files.find(
+            (f) => f.name === fileItem.file.name
+          );
+
+          if (fileData && fileData.key) {
+            return {
+              ...fileItem,
+              status: "success",
+              progress: 100,
+              key: fileData?.key,
+            };
+          }
+          return fileItem;
+        })
+      );
+
+      setIsUploading(false);
+      onUploadComplete?.(uploadFetcher.data.files);
+
+      const timer = setTimeout(() => {
+        setUploadId(null);
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+
+    if (uploadFetcher.data && !uploadFetcher.data.success) {
+      const errorMsg = uploadFetcher.data.error || "上傳失敗";
+      setError(errorMsg);
+      onError?.(errorMsg);
+      setIsUploading(false);
+    }
+  }, [uploadFetcher.data, onUploadComplete, onError]);
+
+  useEffect(() => {
+    if (!progressData) return;
+
+    try {
+      const progress = JSON.parse(progressData);
+
+      setUploadedFiles((prev) => {
+        return prev.map((fileItem) => {
+          const fileProgress = progress[fileItem.file.name];
+          if (fileProgress) {
+            return {
+              ...fileItem,
+              progress: fileProgress.progress,
+              status: fileProgress.status,
+              error: fileProgress.error,
+            };
+          }
+          return fileItem;
+        });
+      });
+
+      const allCompleted = Object.values(progress).every(
+        (item: any) => item.status === "success" || item.status === "error"
+      );
+
+      if (allCompleted && isUploading) {
+        setIsUploading(false);
+      }
+    } catch (error) {
+      console.error("解析進度資料失敗", error);
+    }
+  }, [progressData, isUploading]);
+
+  useEffect(() => {
+    const allCompleted = uploadedFiles.every(
+      file => file.status === "success" || file.status === "error"
+    );
+    
+    if (allCompleted && uploadId) {
+      setUploadId(null);
+    }
+  }, [uploadedFiles, uploadId]);
 
   const validateFile = (
     file: File,
@@ -74,42 +194,23 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
     return null;
   };
 
-  const uploadFile = async (fileWithStatus: FileWithStatus): Promise<void> => {
-    const uploadDuration = 3000;
-    const steps = 30;
-    const stepDuration = uploadDuration / steps;
+  const uploadFilesToServer = (files: File[], id: string) => {
+    if (!files.length || !id) return;
 
-    try {
-      for (let i = 1; i <= steps; i++) {
-        const progress = Math.floor((i / steps) * 100);
+    console.log(`使用 uploadId: ${id} 上傳 ${files.length} 個檔案`);
 
-        setUploadedFiles((prev) =>
-          prev.map((f) =>
-            f.file.name === fileWithStatus.file.name &&
-            f.file.size === fileWithStatus.file.size
-              ? {
-                  ...f,
-                  progress,
-                  status: progress === 100 ? "success" : "uploading",
-                }
-              : f
-          )
-        );
+    const formData = new FormData();
+    formData.append("uploadId", id);
 
-        await delay(stepDuration);
-      }
-    } catch (error) {
-      setUploadedFiles((prev) =>
-        prev.map((f) =>
-          f.file.name === fileWithStatus.file.name &&
-          f.file.size === fileWithStatus.file.size
-            ? { ...f, status: "error", error: "上傳失敗" }
-            : f
-        )
-      );
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
 
-      throw new Error("檔案上傳失敗");
-    }
+    uploadFetcher.submit(formData, {
+      method: "post",
+      action: "/api/upload",
+      encType: "multipart/form-data",
+    });
   };
 
   const handleFiles = useCallback(
@@ -124,8 +225,10 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
       }
 
       const validFiles: FileWithStatus[] = [];
+
       for (const file of newFiles) {
         const validationError = validateFile(file, uploadedFiles);
+
         if (validationError) {
           setError(validationError);
           onError?.(validationError);
@@ -140,18 +243,25 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
       }
 
       setUploadedFiles((prev) => [...prev, ...validFiles]);
+      setIsUploading(true);
       onFilesChange?.(validFiles.map((f) => f.file));
 
-      try {
-        await Promise.all(validFiles.map((file) => uploadFile(file)));
-        onUploadComplete?.();
-      } catch (error) {
-        const errorMsg = "部分檔案上傳失敗";
-        setError(errorMsg);
-        onError?.(errorMsg);
+      const filesToUpload = validFiles.map((f) => f.file);
+
+      if (uploadId) {
+        uploadFilesToServer(filesToUpload, uploadId);
+      } else {
+        setPendingFiles(filesToUpload);
+        idFetcher.submit(
+          {},
+          {
+            method: "post",
+            action: "/api/upload/create-id",
+          }
+        );
       }
     },
-    [uploadedFiles, maxFiles, onFilesChange, onError, onUploadComplete]
+    [uploadedFiles, maxFiles, onFilesChange, onError, uploadId]
   );
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -173,13 +283,38 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
 
   const removeFile = useCallback(
     (index: number) => {
+      const fileToRemove = uploadedFiles[index];
+
+      if (uploadId && fileToRemove) {
+        fetch(
+          `/api/upload/clear-progress/${uploadId}/${encodeURIComponent(
+            fileToRemove.file.name
+          )}`,
+          {
+            method: "DELETE",
+          }
+        ).catch((err) => console.error("Failed to clear file progress:", err));
+      }
+
+      console.log("fileToRemove.key", fileToRemove.key)
+
+      if (fileToRemove.key) {
+        fetch(`/api/upload/delete-file`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: fileToRemove.key }),
+        }).catch((err) =>
+          console.error("Failed to delete file from storage:", err)
+        );
+      }
+
       setUploadedFiles((prev) => {
         const newFiles = prev.filter((_, i) => i !== index);
         onFilesChange?.(newFiles.map((f) => f.file));
         return newFiles;
       });
     },
-    [onFilesChange]
+    [onFilesChange, uploadId, uploadedFiles]
   );
 
   return (
@@ -210,15 +345,15 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
                 className={`
-    border-2 border-dashed rounded-lg p-8
-    flex flex-col items-center justify-center gap-3
-    transition-colors duration-200
-    ${
-      isDragging
-        ? "border-primary bg-primary/5"
-        : "border-border hover:border-primary"
-    }
-  `}
+                  border-2 border-dashed rounded-lg p-8
+                  flex flex-col items-center justify-center gap-3
+                  transition-colors duration-200
+                  ${
+                    isDragging
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary"
+                  }
+                `}
               >
                 <div
                   className={cn(

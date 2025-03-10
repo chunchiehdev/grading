@@ -6,8 +6,11 @@ import { ProgressService } from "@/services/progress.server";
 export const shouldRevalidate = () => false;
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  console.log("SSE request received");
-
+  
+  console.log("=== Loader executed for /api/grading-progress ===");
+  console.log("Request URL:", request.url);
+  console.log("Accept header:", request.headers.get("accept"));
+  
   if (!request.headers.get("accept")?.includes("text/event-stream")) {
     return new Response("SSE not supported", {
       status: 400,
@@ -38,6 +41,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     Connection: "keep-alive",
     "X-Accel-Buffering": "no",
   });
+  
 
   let lastProgress: string | null = null;
   let isComplete = false;

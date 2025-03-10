@@ -1,12 +1,27 @@
-import OpenAI from "openai";
 import type { FeedbackData, AssignmentSubmission } from "@/types/grading";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import _ from "lodash";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
+
 
 const createOpenAIClient = () => {
   const apiKey = process.env.OPENAI_API_KEY;
   return apiKey ? new OpenAI({ apiKey }) : null;
 };
+
+const createGoogleAIClient = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  return apiKey ? new GoogleGenerativeAI(apiKey) : null
+}
+
+const googleAI = createGoogleAIClient();
+
+const GOOGLE_AI_CONFIG = {
+  model: "gemini-1.5-flash",
+  temperature: 0.3,
+  maxOutputTokens: 2000,
+} as const;
 
 const OLLAMA_CONFIG = {
   baseUrl: _.get(
@@ -21,7 +36,7 @@ const OLLAMA_CONFIG = {
 const openai = createOpenAIClient();
 
 const OPENAI_CONFIG = {
-  model: "gpt-4o-mini",
+  model: "gpt-4o",
   temperature: 0.3,
   max_tokens: 2000,
   frequency_penalty: 0.0,
@@ -55,6 +70,9 @@ const DEFAULT_FEEDBACK: FeedbackData = {
 function buildSystemPrompt(): string {
   return `IMPORTANT: You must:
 1. Always respond in valid JSON format
+2. DO NOT wrap your response in any markdown code blocks (like \`\`\`json)
+3. ONLY provide the raw JSON object with no additional text or formatting
+
 你是一位專精於學習理論的教育學教授，特別熟悉包括行為主義、認知主義、建構主義、社會學習理論、人本主義等各種學習理論。
 請你以教育專家的角度，依據以下評分標準來評估學生的學習理論申論：
 
@@ -70,11 +88,11 @@ STEP 1 - CONTENT VALIDATION:
 必須立即回傳以下固定格式，不需要進行任何評估：
 {
   "score": 0,
-  "summaryComments": "無效的提交內容：內容不符合基本要求。",
+  "summaryComments": "用白話文的方式告訴他根據他的內容應該如何改善，並告訴他如何做，甚麼是有意義的摘要",
   "summaryStrengths": ["需要提供有意義的摘要"],
-  "reflectionComments": "無法進行評估：未提供有效內容",
+  "reflectionComments": "用白話文的方式告訴他根據他的內容應該如何改善，並告訴他如何做，甚麼是有意義的反思",
   "reflectionStrengths": ["需要提供有意義的反思"],
-  "questionComments": "無法進行評估：未提供有效內容",
+  "questionComments": "用白話文的方式告訴他根據他的內容應該如何改善，並告訴他如何做，甚麼是有意義的問題",
   "questionStrengths": ["需要提供有意義的問題"],
   "overallSuggestions": "請重新提交包含實質內容的學習理論論述。不接受空白、無意義符號或重複文字。"
 }
@@ -113,6 +131,10 @@ Response must strictly follow this JSON format:
   "overallSuggestions": "整體改進建議"
 }`;
 }
+
+const cleanJsonString = (str: string): string => {
+  return str.replace(/```(json|javascript)?\s*/g, '').replace(/\s*```\s*$/g, '');
+};
 
 const formatSubmissionForGrading = (submission: AssignmentSubmission): string =>
   _(submission.sections)
@@ -345,6 +367,53 @@ const callOllamaAPI = async (messages: OllamaMessage[]) => {
   }
 };
 
+const callGoogleAI = async (messages: ChatCompletionMessageParam[]) => {
+  if (!googleAI) {
+    throw new Error("Google AI client not initialized");
+  }
+
+  try {
+    const model = googleAI.getGenerativeModel({ model: GOOGLE_AI_CONFIG.model });
+    
+    // Extract system prompt and user message
+    const systemPrompt = messages.find(m => m.role === 'system')?.content || '';
+    const userContent = messages.find(m => m.role === 'user')?.content || '';
+    
+    // Format prompt according to Google AI requirements
+    const prompt = `${systemPrompt}\n\nUser input: ${userContent}`;
+    
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: GOOGLE_AI_CONFIG.temperature,
+        maxOutputTokens: GOOGLE_AI_CONFIG.maxOutputTokens,
+        topP: 0.8,
+        topK: 40,
+      },
+    });
+    
+    const response = result.response;
+    const content = response.text();
+    
+    if (!content) {
+      throw new Error("API response missing required content");
+    }
+    
+    return {
+      choices: [
+        {
+          message: {
+            content: content,
+          },
+        },
+      ],
+    };
+  } catch (error) {
+    console.error("Google AI API call failed:", error);
+    throw error;
+  }
+};
+
 const convertToOllamaMessages = (
   messages: ChatCompletionMessageParam[]
 ): OllamaMessage[] =>
@@ -430,7 +499,7 @@ const ensureMinDuration = async (
       await sleep(100);
       if (onProgress) {
         const progress = Math.min(100, Math.floor((i / steps) * 100));
-        onProgress(phase, progress, getProgressMessage(phase));  // 修改這裡
+        onProgress(phase, progress, getProgressMessage(phase));  
 
       }
     }
@@ -447,6 +516,7 @@ export const gradeAssignment = async (
 
   const CONFIG = {
     MAX_OLLAMA_ATTEMPTS: 3,
+    MAX_GOOGLE_ATTEMPTS: 2,
     MAX_OPENAI_ATTEMPTS: 2,
   };
 
@@ -489,33 +559,86 @@ export const gradeAssignment = async (
     ];
 
     let response = null;
-    if (useOllama) {
-      try {
-        response = await ensureMinDuration(
-          "grade",
-          async () => {
-            updateApiProgress("grade", 40, "正在使用 Ollama 進行評分...");
-            const result = await executeWithRetry(
-              async () => callOllamaAPI(convertToOllamaMessages(messages)),
-              CONFIG.MAX_OLLAMA_ATTEMPTS,
-              "Ollama API 呼叫失敗",
-              (phase, progress, message) =>
-                updateApiProgress(phase, progress + 40, message),
-              0
-            );
-            updateApiProgress("grade", 60, "Ollama 評分完成");
-            return result;
-          },
-          onProgress
-        );
-      } catch (ollamaError) {
-        console.warn("Ollama API 多次嘗試失敗，切換到 OpenAI", ollamaError);
-
+    
+    // First attempt with Google AI
+    try {
+      response = await ensureMinDuration(
+        "grade",
+        async () => {
+          updateApiProgress("grade", 40, "正在使用 Google AI 進行評分...");
+          const result = await executeWithRetry(
+            async () => callGoogleAI(messages),
+            CONFIG.MAX_GOOGLE_ATTEMPTS,
+            "Google AI API 呼叫失敗",
+            (phase, progress, message) =>
+              updateApiProgress(phase, progress + 40, message),
+            0
+          );
+          updateApiProgress("grade", 60, "Google AI 評分完成");
+          return result;
+        },
+        onProgress
+      );
+    } catch (googleError) {
+      console.warn("Google AI API 多次嘗試失敗，切換到 Ollama", googleError);
+      
+      if (useOllama) {
+        try {
+          response = await ensureMinDuration(
+            "grade",
+            async () => {
+              updateApiProgress("grade", 50, "切換到 Ollama API");
+              const result = await executeWithRetry(
+                async () => callOllamaAPI(convertToOllamaMessages(messages)),
+                CONFIG.MAX_OLLAMA_ATTEMPTS,
+                "Ollama API 呼叫失敗",
+                (phase, progress, message) =>
+                  updateApiProgress(phase, progress + 50, message),
+                0
+              );
+              updateApiProgress("grade", 65, "Ollama 評分完成");
+              return result;
+            },
+            onProgress
+          );
+        } catch (ollamaError) {
+          console.warn("Ollama API 多次嘗試失敗，切換到 OpenAI", ollamaError);
+              
+          if (!openai) {
+            updateApiProgress("error", currentProgress, "無可用的 API");
+            throw new Error("無可用的 API");
+          }
+              
+          response = await ensureMinDuration(
+            "grade",
+            async () => {
+              updateApiProgress("grade", 65, "切換到 OpenAI API");
+              const result = await executeWithRetry(
+                async () =>
+                  openai.chat.completions.create({
+                    ...OPENAI_CONFIG,
+                    messages,
+                    response_format: { type: "json_object" },
+                  }),
+                CONFIG.MAX_OPENAI_ATTEMPTS,
+                "OpenAI API 呼叫失敗",
+                (phase, progress, message) =>
+                  updateApiProgress(phase, progress + 65, message),
+                0
+              );
+              updateApiProgress("grade", 75, "OpenAI 評分完成");
+              return result;
+            },
+            onProgress
+          );
+        }
+      } else {
+        // If useOllama is false, go directly to OpenAI
         if (!openai) {
           updateApiProgress("error", currentProgress, "無可用的 API");
           throw new Error("無可用的 API");
         }
-
+            
         response = await ensureMinDuration(
           "grade",
           async () => {
@@ -551,11 +674,15 @@ export const gradeAssignment = async (
         updateApiProgress("grade", 80, "評分完成，正在處理結果...");
 
         const messageContent = _.get(response, "choices[0].message.content");
+
+        console.log("messageContent", messageContent)
         if (!messageContent) {
           throw new Error("API 回應中沒有內容");
         }
 
         try {
+          const cleanedContent = cleanJsonString(messageContent);
+          console.log("messageContent", messageContent)
           apiResponse = preprocessApiResponse(JSON.parse(messageContent));
         } catch (error) {
           console.error("JSON 解析錯誤:", error);

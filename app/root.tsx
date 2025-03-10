@@ -53,7 +53,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   ];
 
   const url = new URL(request.url);
-  console.log("url", url)
   const isPublicPath = publicPaths.some(path => url.pathname.startsWith(path));
 
   if (!user && !isPublicPath) {

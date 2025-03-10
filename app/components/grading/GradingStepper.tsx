@@ -141,7 +141,6 @@ export function GradingStepper({
                   )}
                 </div>
               </div>
-
               {index < steps.length - 1 && (
                 <div className="flex-1 mx-4" role="presentation">
                   <div

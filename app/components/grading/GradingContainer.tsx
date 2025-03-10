@@ -1,4 +1,4 @@
-//GradingContainer.tsx
+// GradingContainer.tsx
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type {
   FeedbackData,
@@ -55,6 +55,14 @@ interface SnackbarState {
   open: boolean;
   message: string;
   severity: SnackbarSeverity;
+}
+
+interface StepStatusParams {
+  isActive: boolean;
+  isCompleted: boolean;
+  isProcessing?: boolean;
+  isLocked?: boolean;
+  hasError?: boolean;
 }
 
 export function GradingContainer({
@@ -116,22 +124,22 @@ export function GradingContainer({
       },
       {
         label: "輸入作業",
-        completed: currentStep > 1,
+        completed: status === "processing" || status === "completed",
         status:
-          currentStep === 1
-            ? "processing"
-            : currentStep > 1
+          status === "processing" || status === "completed"
             ? "completed"
+            : currentStep === 1
+            ? "processing"
             : "waiting",
         description: "請輸入作業內容，包含摘要、反思和問題",
       },
       {
         label: "評分中",
-        completed: currentStep > 1,
+        completed: status === "completed",
         status:
           status === "processing"
             ? "processing"
-            : currentStep > 1
+            : status === "completed"
             ? "completed"
             : "waiting",
         description: "系統正在評估您的作業",
@@ -143,7 +151,7 @@ export function GradingContainer({
         description: "查看評分結果和建議",
       },
     ],
-    [currentStep, status, feedback]
+    [currentStep, status, feedback, hasUploadedFiles]
   );
 
   const handleDownload = useCallback(() => {
@@ -231,6 +239,23 @@ export function GradingContainer({
     [onValidationComplete]
   );
 
+  const handleFileChange = useCallback((files: File[]) => {
+    const hasFiles = files.length > 0;
+    setHasUploadedFiles(hasFiles);
+
+    if (!hasFiles) {
+      setCurrentStep(0);
+    } else if (files.length > 0) {
+      setCurrentStep(1);
+    }
+  }, []);
+
+  // const handleUploadComplete = (files?: File[]) => {
+  //   if (files && files.length > 0) {
+  //     setCurrentStep(1);
+  //   }
+  // };
+
   const handleSnackbarClose = useCallback(() => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   }, []);
@@ -263,15 +288,14 @@ export function GradingContainer({
                 maxFiles={3}
                 maxFileSize={100 * 1024 * 1024}
                 acceptedFileTypes={[".pdf", ".doc"]}
-                onFilesChange={(files) => {
-                  setHasUploadedFiles(files.length > 0);
-                  if (files.length === 0) {
-                    setCurrentStep(0);
+                onFilesChange={handleFileChange}
+                onUploadComplete={(files) => {
+                  console.log("Upload complete", files);
+                  
+                  const hasFiles = files.length > 0
+                  if (hasFiles && hasUploadedFiles) {
+                    setCurrentStep(1);
                   }
-                }}
-                onUploadComplete={() => {
-                  console.log("Upload complete");
-                  setCurrentStep(1);
                 }}
                 onError={(error) => {
                   console.error("Upload error:", error);
