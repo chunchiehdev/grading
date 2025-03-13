@@ -97,6 +97,7 @@ export function GradingContainer({
   };
 
   const handleReset = useCallback(() => {
+    window.location.reload()
     setMode("editing");
     setCurrentStep(0);
     completionShown.current = false;
