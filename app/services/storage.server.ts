@@ -8,7 +8,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Readable } from "stream";
 import { storageConfig } from "@/config/storage";
 
-const s3Client = new S3Client(storageConfig.s3Config);
+export const s3Client = new S3Client(storageConfig.s3Config);
 
 export async function uploadToStorage(
   fileData: Buffer | Readable,

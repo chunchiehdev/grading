@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import type { action } from "@/routes/assignments.grade.$taskId";
 import { AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import type { UploadedFileInfo } from "@/types/files";
 
 type SnackbarSeverity = "success" | "error" | "info";
 
@@ -57,13 +58,6 @@ interface SnackbarState {
   severity: SnackbarSeverity;
 }
 
-interface StepStatusParams {
-  isActive: boolean;
-  isCompleted: boolean;
-  isProcessing?: boolean;
-  isLocked?: boolean;
-  hasError?: boolean;
-}
 
 export function GradingContainer({
   sections,
@@ -90,7 +84,9 @@ export function GradingContainer({
   const completionShown = useRef(false);
   const lastMessage = useRef("");
   const [isEditing, setIsEditing] = useState(false);
-
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
+  const processingFetcher = useFetcher();
+  
   const handleEditMode = () => {
     setIsEditing(true);
     setMode("editing");
@@ -251,11 +247,47 @@ export function GradingContainer({
     }
   }, []);
 
-  // const handleUploadComplete = (files?: File[]) => {
-  //   if (files && files.length > 0) {
-  //     setCurrentStep(1);
-  //   }
-  // };
+  const handleUploadComplete = useCallback((files?: UploadedFileInfo[]) => {
+    if (!files || files.length === 0) return;
+
+    console.log("Uploaded Complete", files);
+    setUploadedFiles(files);
+    setHasUploadedFiles(true);
+    setCurrentStep(1);
+    
+    processingFetcher.submit(
+      { files: JSON.stringify(files) },
+      {
+        method: "post",
+        action: "/api/process-documents",
+        encType: "application/json"
+      }
+    );
+    callProcessUploadedFiles(files);
+
+  }, []);
+
+  const callProcessUploadedFiles = async (files: UploadedFileInfo[]) => {
+    try {
+        
+      processingFetcher.submit(
+        { files: JSON.stringify(files) },
+        {
+          method: "post",
+          action: "/api/process-documents",
+          encType: "application/json"
+        }
+      );
+      
+    } catch (error) {
+      console.error("處理文件時發生錯誤:", error);
+      // setSnackbar({
+      //   open: true,
+      //   message: "處理文件時發生錯誤",
+      //   severity: "error"
+      // });
+    }
+  };
 
   const handleSnackbarClose = useCallback(() => {
     setSnackbar((prev) => ({ ...prev, open: false }));
@@ -290,14 +322,7 @@ export function GradingContainer({
                 maxFileSize={100 * 1024 * 1024}
                 acceptedFileTypes={[".pdf", ".doc"]}
                 onFilesChange={handleFileChange}
-                onUploadComplete={(files) => {
-                  console.log("Upload complete", files);
-                  
-                  const hasFiles = files.length > 0
-                  if (hasFiles && hasUploadedFiles) {
-                    setCurrentStep(1);
-                  }
-                }}
+                onUploadComplete={handleUploadComplete}
                 onError={(error) => {
                   console.error("Upload error:", error);
                   setHasUploadedFiles(false);
