@@ -99,7 +99,6 @@ const CriteriaDetails = ({
 
   return (
     <div className="space-y-4 mt-4">
-      <h3 className="text-lg font-medium">評分標準詳情</h3>
       {criteriaScores.map((criteria, index) => (
         <Card key={index} className="overflow-hidden">
           <CardHeader className="bg-slate-50 py-3">
