@@ -281,52 +281,126 @@ export function FeedbackDisplay({
   className,
   onRetry,
 }: FeedbackDisplayProps) {
-  const sections = useMemo((): FeedbackSection[] => {
-    if (!feedback) return [];
-
-    return [
-      {
-        id: "summary",
-        title: "摘要評分",
-        comments: feedback.summaryComments,
-        strengths: feedback.summaryStrengths,
-        variant: "success",
-      },
-      {
-        id: "reflection",
-        title: "反思評分",
-        comments: feedback.reflectionComments,
-        strengths: feedback.reflectionStrengths,
-        variant: "info",
-      },
-      {
-        id: "questions",
-        title: "問題評分",
-        comments: feedback.questionComments,
-        strengths: feedback.questionStrengths,
-        variant: "warning",
-      },
-      {
-        id: "overall",
-        title: "整體建議",
-        comments: feedback.overallSuggestions,
-        strengths: [],
-        variant: "info",
-      },
-    ];
-  }, [feedback]);
-
   if (!feedback) {
     return <EmptyFeedbackState onRetry={onRetry} />;
   }
 
+  // 根據新的結果格式構建部分
+  const sections = useMemo(() => {
+    const result: FeedbackSection[] = [];
+
+    // 如果有新格式的分析內容
+    if (feedback.analysis) {
+      result.push({
+        id: "analysis",
+        title: "完整評分分析",
+        comments: feedback.analysis,
+        strengths: feedback.strengths || [],
+        variant: "info",
+      });
+    }
+
+    // 如果有新格式的改進建議
+    if (feedback.improvements && feedback.improvements.length > 0) {
+      result.push({
+        id: "improvements",
+        title: "需要改進的地方",
+        comments: feedback.overallSuggestions || "以下是需要改進的地方：",
+        strengths: feedback.improvements,
+        variant: "warning",
+      });
+    }
+
+    // 如果有詳細評分標準得分
+    if (feedback.criteriaScores && feedback.criteriaScores.length > 0) {
+      result.push({
+        id: "criteria",
+        title: "評分標準詳情",
+        comments: feedback.criteriaScores.map(c => 
+          `${c.name} (${c.score}分): ${c.comments}`
+        ).join("\n\n"),
+        strengths: [],
+        variant: "success",
+      });
+    }
+
+    // 兼容舊格式 - 如果沒有新格式內容，使用舊格式
+    if (result.length === 0) {
+      // 摘要部分
+      if (feedback.summaryComments) {
+        result.push({
+          id: "summary",
+          title: "摘要評分",
+          comments: feedback.summaryComments,
+          strengths: feedback.summaryStrengths || [],
+          variant: "info",
+        });
+      }
+
+      // 反思部分
+      if (feedback.reflectionComments) {
+        result.push({
+          id: "reflection",
+          title: "反思評價",
+          comments: feedback.reflectionComments,
+          strengths: feedback.reflectionStrengths || [],
+          variant: "success",
+        });
+      }
+
+      // 問題部分
+      if (feedback.questionComments) {
+        result.push({
+          id: "questions",
+          title: "問題回應",
+          comments: feedback.questionComments,
+          strengths: feedback.questionStrengths || [],
+          variant: "warning",
+        });
+      }
+    }
+
+    // 添加總體建議
+    if (feedback.overallSuggestions && !result.find(s => s.id === "improvements")) {
+      result.push({
+        id: "suggestions",
+        title: "總體建議",
+        comments: feedback.overallSuggestions,
+        strengths: [],
+        variant: "warning",
+      });
+    }
+
+    return result;
+  }, [feedback]);
+
+  const renderVariant = () => {
+    switch (variant) {
+      case "accordion":
+        return <AccordionVariant sections={sections} />;
+      case "tabs":
+        return <TabsVariant sections={sections} />;
+      case "cards":
+        return <CardsVariant sections={sections} />;
+      default:
+        return <TabsVariant sections={sections} />;
+    }
+  };
+
   return (
     <div className={cn("space-y-6", className)}>
-      <ScoreDisplay score={feedback.score} />
-
-      {variant === "accordion" && <AccordionVariant sections={sections} />}
-      {variant === "tabs" && <TabsVariant sections={sections} />}
-      {variant === "cards" && <CardsVariant sections={sections} />}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">評分結果</h2>
+          <p className="text-sm text-muted-foreground">
+            評分時間: {feedback.gradingDuration ? 
+              `${(feedback.gradingDuration / 1000).toFixed(1)}秒` : 
+              "未知"}
+          </p>
+        </div>
+        <ScoreDisplay score={feedback.score} />
+      </div>
+      {renderVariant()}
     </div>
   );
 }

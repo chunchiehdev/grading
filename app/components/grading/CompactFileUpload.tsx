@@ -1,5 +1,5 @@
 import React from "react";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useFetcher } from "@remix-run/react";
 import {
   Accordion,
@@ -14,20 +14,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { useEventSource } from "remix-utils/sse/react";
-interface FileWithStatus {
-  file: File;
-  status: "uploading" | "success" | "error";
-  progress: number;
-  error?: string;
-  key?: string;
-}
+import type { UploadedFileInfo, FileWithStatus } from "@/types/files";
+
 
 interface FileUploadProps {
   maxFiles?: number;
   maxFileSize?: number;
   acceptedFileTypes?: string[];
   onFilesChange?: (files: File[]) => void;
-  onUploadComplete?: (uploadedFiles: File[]) => void;
+  onUploadComplete?: (uploadedFiles: UploadedFileInfo[]) => void;
   onError?: (error: string) => void;
 }
 
@@ -51,6 +46,10 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadId, setUploadId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [completionCalled, setCompletionCalled] = useState(false);
+  const completionRef = useRef(false); 
+
+  
 
   const idFetcher = useFetcher<{ success: boolean; uploadId: string }>();
 
@@ -108,8 +107,16 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
       );
 
       setIsUploading(false);
-      onUploadComplete?.(uploadFetcher.data.files);
 
+      
+
+      if (!completionRef.current) {
+        console.log("Calling onUploadComplete from fetcher effect");
+        completionRef.current = true;
+        setCompletionCalled(true);
+        onUploadComplete?.(uploadFetcher.data.files);
+      }
+      
       const timer = setTimeout(() => {
         setUploadId(null);
       }, 3000);
@@ -124,6 +131,12 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
       setIsUploading(false);
     }
   }, [uploadFetcher.data, onUploadComplete, onError]);
+
+  useEffect(() => {
+    if (isUploading) {
+      setCompletionCalled(false);
+    }
+  }, [isUploading]);
 
   useEffect(() => {
     if (!progressData) return;
