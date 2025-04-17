@@ -15,13 +15,12 @@ import type { Rubric, RubricCriteria } from "@/types/grading";
 import type { UploadedFileInfo } from "@/types/files";
 import { listRubrics } from "@/services/rubric.server";
 import { EmptyState } from "@/components/ui/empty-state";
-import { json } from "@remix-run/node";
 
 export const loader: LoaderFunction = async ({ request }) => {
   
   const { rubrics, error } = await listRubrics();
   
-  return json({
+  return Response.json({
     rubrics,
     error
   });
