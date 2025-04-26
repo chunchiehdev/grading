@@ -3,6 +3,7 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import _ from "lodash";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
+import { validateFeedbackWithZod } from "@/schemas/feedback";
 
 
 const createOpenAIClient = () => {
@@ -213,54 +214,14 @@ const mockGradeAssignment = async (
   }
 };
 
-const validateFeedbackData: (data: unknown) => asserts data is FeedbackData = (
-  data
-) => {
-  const feedback = data as FeedbackData;
-
-  const validationRules = {
-    stringFields: [
-      "summaryComments",
-      "reflectionComments",
-      "questionComments",
-      "overallSuggestions",
-    ],
-    arrayFields: [
-      "summaryStrengths",
-      "reflectionStrengths",
-      "questionStrengths",
-    ],
-  };
-
-  _.forEach(validationRules.stringFields, (field) => {
-    if (
-      !_.isString(_.get(feedback, field)) ||
-      _.isEmpty(_.get(feedback, field))
-    ) {
-      throw new Error(`缺少必要欄位或欄位類型錯誤: ${field}`);
-    }
-  });
-
-  _.forEach(validationRules.arrayFields, (field) => {
-    if (
-      !_.isArray(_.get(feedback, field)) ||
-      _.isEmpty(_.get(feedback, field))
-    ) {
-      throw new Error(`缺少必要欄位或欄位類型錯誤: ${field}`);
-    }
-  });
-
-  if (!_.inRange(feedback.score, 0, 101)) {
-    throw new Error("分數必須是 0-100 之間的數字");
+const validateFeedbackData = (data: unknown) => {
+  const validationResult = validateFeedbackWithZod(data);
+  
+  if (!validationResult.isValid) {
+    throw new Error(`AI回應驗證失敗: ${validationResult.errors?.join(", ") || "驗證失敗"}`);
   }
-
-  if (!(feedback.createdAt instanceof Date)) {
-    throw new Error("createdAt 必須是有效的日期");
-  }
-
-  if (!_.isNumber(feedback.gradingDuration) || feedback.gradingDuration <= 0) {
-    throw new Error("gradingDuration 必須是正數");
-  }
+  
+  return validationResult.data as FeedbackData;
 };
 
 const callOllamaAPI = async (messages: OllamaMessage[]) => {

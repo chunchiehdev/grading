@@ -12,6 +12,7 @@ import {
 import { ValidationError, GradingServiceError } from "@/types/errors";
 import { useEventSource } from "remix-utils/sse/react";
 import { ProgressService } from "@/services/progress.server";
+import { validateAssignmentWithZod } from "@/schemas/assignment";
 
 export const meta: MetaFunction = () => {
   return [
@@ -103,17 +104,6 @@ export async function action({
       content: String(formData.get(config.id) || ""),
     }));
 
-    const missingFields = sections
-      .filter((section) => section.required && !section.content)
-      .map((section) => section.title);
-
-    if (missingFields.length > 0) {
-      return {
-        error: "缺少必要內容",
-        validationErrors: missingFields.map((title) => `${title}為必填項目`),
-      };
-    }
-
     const submission: AssignmentSubmission = {
       sections,
       metadata: {
@@ -122,14 +112,27 @@ export async function action({
       },
     };
 
-    const validationResult = validateAssignment(submission);
+    // Validate using Zod
+    const validationResult = validateAssignmentWithZod(submission);
 
     if (!validationResult.isValid) {
-      throw new ValidationError(validationResult.errors);
+      // If we have missing fields, return them specifically
+      if (validationResult.missingFields && validationResult.missingFields.length > 0) {
+        return {
+          error: "缺少必要內容",
+          validationErrors: validationResult.missingFields.map((title) => `${title}為必填項目`),
+        };
+      }
+      
+      // Otherwise throw a validation error with all errors
+      throw new ValidationError(validationResult.errors || ["驗證失敗"]);
     }
 
+    // If validation passes, use the validated data (cast to correct type since we know it's valid)
+    const validatedSubmission = validationResult.data as AssignmentSubmission;
+
     const feedback = await gradeAssignment(
-      submission,
+      validatedSubmission,
       async (phase, progress, message) => {
         await ProgressService.set(taskId, { phase, progress, message });
       }

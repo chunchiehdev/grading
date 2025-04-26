@@ -1,4 +1,3 @@
-// services/auth.server.ts
 import { db } from "@/lib/db.server";
 import bcrypt from "bcryptjs";
 import { redirect } from "@remix-run/node";
@@ -10,15 +9,90 @@ interface LoginCredentials {
   password: string;
 }
 
-if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-  throw new Error("Google OAuth credentials not configured");
+let oauth2Client: OAuth2Client | null = null;
+console.log(
+  "Using Google redirect URI:",
+  process.env.GOOGLE_REDIRECT_URI ||
+    "http://localhost:3000/auth/google/callback"
+);
+
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  oauth2Client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI ||
+      "http://localhost:3000/auth/google/callback"
+  );
 }
 
-const oauth2Client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/auth/google/callback"
-);
+/**
+ * API 金鑰驗證結果
+ */
+export interface ApiAuthResult {
+  isAuthenticated: boolean;
+  apiKey?: string;
+  error?: string;
+  scopes?: string[];
+}
+
+/**
+ * 驗證 API 請求
+ * 支援 API 金鑰驗證 (Authorization: Bearer YOUR_API_KEY)
+ */
+export async function authenticateApiRequest(
+  request: Request
+): Promise<ApiAuthResult> {
+  try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return { isAuthenticated: false, error: "缺少授權標頭" };
+    }
+
+    const [authType, apiKey] = authHeader.split(" ");
+    if (authType.toLowerCase() !== "bearer" || !apiKey) {
+      return { isAuthenticated: false, error: "無效的授權格式" };
+    }
+
+    const isValid = await validateApiKey(apiKey);
+    if (!isValid) {
+      return { isAuthenticated: false, error: "無效的 API 金鑰" };
+    }
+
+    const scopes = await getApiKeyScopes(apiKey);
+
+    return {
+      isAuthenticated: true,
+      apiKey,
+      scopes,
+    };
+  } catch (error) {
+    console.error("API 授權錯誤:", error);
+    return {
+      isAuthenticated: false,
+      error: error instanceof Error ? error.message : "授權處理過程中發生錯誤",
+    };
+  }
+}
+
+/**
+ * 驗證 API 金鑰
+ * 這裡應該根據實際情況實現與資料庫的整合
+ */
+async function validateApiKey(apiKey: string): Promise<boolean> {
+  const validKeys = process.env.API_KEYS?.split(",") || [
+    "test_api_key_1",
+    "test_api_key_2",
+  ];
+  return validKeys.includes(apiKey);
+}
+
+/**
+ * 獲取 API 金鑰的權限範圍
+ * 這裡應該根據實際情況實現與資料庫的整合
+ */
+async function getApiKeyScopes(apiKey: string): Promise<string[]> {
+  return ["grading:read", "grading:write"];
+}
 
 export async function getUserId(request: Request) {
   const session = await getSession(request);
@@ -40,18 +114,28 @@ export async function requireUserId(
 }
 
 export async function googleLogin() {
+  if (!oauth2Client) {
+    console.warn("Google OAuth credentials not configured");
+    return redirect("/login?error=google-auth-unavailable");
+  }
+
   const url = oauth2Client.generateAuthUrl({
-    access_type: 'offline', 
+    access_type: "offline",
     scope: [
-      'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/userinfo.email'
-    ]
-  })
-  console.log(url)
-  return redirect(url)
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "https://www.googleapis.com/auth/userinfo.email",
+    ],
+  });
+  console.log(url);
+  return redirect(url);
 }
 
 export async function handleGoogleCallback(request: Request) {
+  if (!oauth2Client) {
+    console.warn("Google OAuth credentials not configured");
+    return redirect("/login?error=google-auth-unavailable");
+  }
+
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
 
@@ -65,24 +149,22 @@ export async function handleGoogleCallback(request: Request) {
 
     const ticket = await oauth2Client.verifyIdToken({
       idToken: tokens.id_token!,
-      audience: process.env.GOOGLE_CLIENT_ID
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
     if (!payload || !payload.email) throw new Error("No user payload");
 
-    
     let user = await db.user.findUnique({
-      where: { email: payload.email }
+      where: { email: payload.email },
     });
 
-    
     if (!user) {
       user = await db.user.create({
         data: {
-          email: payload.email,    
+          email: payload.email,
           password: await bcrypt.hash(Math.random().toString(36), 10),
-        }
+        },
       });
     }
 
@@ -117,18 +199,12 @@ export async function register({ email, password }: LoginCredentials) {
 export async function login({ email, password }: LoginCredentials) {
   const user = await db.user.findUnique({ where: { email } });
   if (!user) {
-    return Response.json(
-      { errors: { email: "沒這信箱" } },
-      { status: 400 }
-    );
+    return Response.json({ errors: { email: "沒這信箱" } }, { status: 400 });
   }
 
   const isValidPassword = await bcrypt.compare(password, user.password);
   if (!isValidPassword) {
-    return Response.json(
-      { errors: { password: "密碼錯了" } },
-      { status: 400 }
-    );
+    return Response.json({ errors: { password: "密碼錯了" } }, { status: 400 });
   }
 
   return createUserSession(user.id, "/");

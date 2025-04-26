@@ -24,6 +24,42 @@ export const SECTION_VALIDATION_RULES = {
 };
 
 /**
+ * 評分區段的配置
+ */
+export const SECTION_CONFIG: Section[] = [
+  {
+    id: "summary",
+    title: "摘要",
+    content: "",
+    placeholder: "請輸入摘要內容...",
+    maxLength: SECTION_VALIDATION_RULES.summary.maxLength,
+    required: true,
+    order: 1,
+    minLength: SECTION_VALIDATION_RULES.summary.minLength,
+  },
+  {
+    id: "reflection",
+    title: "反思",
+    content: "",
+    placeholder: "請輸入反思內容...",
+    maxLength: SECTION_VALIDATION_RULES.reflection.maxLength,
+    required: true,
+    order: 2,
+    minLength: SECTION_VALIDATION_RULES.reflection.minLength,
+  },
+  {
+    id: "questions",
+    title: "問題",
+    content: "",
+    placeholder: "請輸入問題內容...",
+    maxLength: SECTION_VALIDATION_RULES.questions.maxLength,
+    required: true,
+    order: 3,
+    minLength: SECTION_VALIDATION_RULES.questions.minLength,
+  },
+];
+
+/**
  * 驗證單個部分的內容
  */
 function validateSection(section: Section): {
@@ -115,36 +151,7 @@ export function validateAssignment(
   };
 }
 
-/**
- * 驗證評分數據
- */
-export function validateFeedback(feedback: FeedbackData): ValidationResult {
-  const errors: string[] = [];
-
-  if (feedback.score < 0 || feedback.score > 100) {
-    errors.push("分數必須在0-100之間");
-  }
-
-  if (!feedback.summaryComments.trim()) errors.push("缺少摘要評論");
-  if (!feedback.reflectionComments.trim()) errors.push("缺少反思評論");
-  if (!feedback.questionComments.trim()) errors.push("缺少問題評論");
-  if (!feedback.overallSuggestions.trim()) errors.push("缺少整體建議");
-
-  if (!feedback.createdAt) errors.push("缺少評分時間");
-  if (feedback.gradingDuration <= 0) errors.push("評分時間無效");
-
-  return {
-    isValid: errors.length === 0,
-    errors,
-    invalidFields: errors.map((error) => ({
-      field: "feedback",
-      reason: error,
-    })),
-  };
-}
-
 export const ValidationUtils = {
   validateAssignment,
-  validateFeedback,
   validateSection,
 };

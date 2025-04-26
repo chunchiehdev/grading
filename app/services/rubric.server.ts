@@ -2,7 +2,7 @@ import axios from "axios";
 import type { Rubric, RubricCriteria } from "@/types/grading";
 import FormData from "form-data";
 
-const API_URL = process.env.API_URL || "http://localhost:8000";
+const API_URL = process.env.API_URL || "http://localhost:8001";
 const AUTH_KEY = process.env.AUTH_KEY || "";
 
 export async function createRubric(rubric: Omit<Rubric, "createdAt" | "updatedAt">): Promise<{ success: boolean; rubricId?: string; error?: string }> {
@@ -39,12 +39,13 @@ export async function createRubric(rubric: Omit<Rubric, "createdAt" | "updatedAt
 
 export async function listRubrics(): Promise<{ rubrics: Rubric[]; error?: string }> {
   try {
+    console.log("API_URL", API_URL);
     const response = await axios.get(`${API_URL}/rubrics/`, {
       headers: {
         "auth-key": AUTH_KEY,
       },
     });
-
+    
     return {
       rubrics: response.data.rubrics || [],
     };
@@ -162,10 +163,11 @@ export async function gradeDocument(fileKey: string, rubricId: string): Promise<
     
     console.log(`評分ID: ${gradingId} - 收到API響應，耗時: ${duration.toFixed(2)} 秒`);
     console.log(`評分ID: ${gradingId} - 評分分數: ${response.data.score || '未知'}`);
+    console.log(`評分ID: ${gradingId} - 評分結果:`, response || null);
 
     return {
       success: true,
-      gradingResult: response.data,
+      gradingResult: JSON.parse(response.data)
     };
   } catch (error: any) {
     console.error("評分文件時出錯:", error);

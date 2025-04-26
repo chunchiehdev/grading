@@ -1,6 +1,6 @@
 // routes/_auth.tsx
 import { Outlet, useLocation } from "@remix-run/react";
-
+import { ThreeScene } from "@/components/auth/ThreeScene";
 
 export default function AuthLayout() {
   const location = useLocation();
@@ -22,7 +22,7 @@ export default function AuthLayout() {
           
           <div>
             <h2 className="text-center text-text-100 tracking-tighter font-medium mt-12 leading-[1em] min-[500px]:text-[3.5rem] min-[350px]:text-[3.2rem] text-[1.75rem]">
-              <div>登入您的帳號</div>
+              <div>{isRegister ? '創建新帳號' : '登入您的帳號'}</div>
             </h2>
 
             <div className="mt-8 mx-4 sm:mx-auto p-7 max-w-md border-2 border-gray-300 dark:border-border rounded-[2rem] flex flex-col gap-6 bg-background shadow-[0_2px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_48px_rgba(0,0,0,0.08)]">
@@ -42,10 +42,13 @@ export default function AuthLayout() {
         </div>
       </div>
 
-      {/* 右邊 */}
+      {/* 右邊 - Three.js 場景 */}
       <div className="hidden min-[500px]:flex justify-center">
         <div className="relative md:rounded-xl bg-muted h-[clamp(40rem,97vh,97vh)] w-[clamp(30rem,100%,100%)] flex justify-center items-center overflow-hidden">
-          <p>testing</p>
+          <ThreeScene className="absolute inset-0 w-full h-full" />
+          <div className="absolute bottom-6 left-6 text-sm text-white opacity-70 z-10">
+            <p>AI 輔助評分系統</p>
+          </div>
         </div>
       </div>
     </main>

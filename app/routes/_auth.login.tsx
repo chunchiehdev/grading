@@ -4,10 +4,10 @@ import {
   LoaderFunctionArgs,
   redirect,
 } from "@remix-run/node";
-import { Form, useActionData, useNavigation, Link, Navigate, useNavigate } from "@remix-run/react";
+import { Form, useActionData, useNavigation, Link, Navigate, useNavigate, useSearchParams } from "@remix-run/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Mail, Lock, AlertCircle } from "lucide-react";
+import { Loader2, Mail, Lock, AlertCircle, Info } from "lucide-react";
 import { login, getUser } from "@/services/auth.server";
 import type { AuthError } from "@/types/auth";
 import { useState } from "react";
@@ -39,22 +39,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function LoginPage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const navitgate = useNavigate()
+  const navitgate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const error = searchParams.get("error");
   const isSubmitting = navigation.state === "submitting";
   const errors = actionData?.errors as AuthError;
   const [touched, setTouched] = useState({ email: false, password: false });
-
   
   const handleInputFocus = (field: keyof typeof touched) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
+  // 获取错误信息
+  const getErrorMessage = () => {
+    if (error === "google-auth-unavailable") {
+      return "Google 登入暫時不可用，請使用電子郵件登入";
+    }
+    if (error === "google-auth-failed") {
+      return "Google 登入失敗，請稍後再試或使用電子郵件登入";
+    }
+    return null;
+  };
+
+  const errorMessage = getErrorMessage();
+
   return (
     <div className="flex flex-col gap-5">
+      {errorMessage && (
+        <div className="rounded-md bg-amber-50 dark:bg-amber-900/20 p-3 mb-2">
+          <p className="text-sm text-amber-800 dark:text-amber-200 flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            <span>{errorMessage}</span>
+          </p>
+        </div>
+      )}
+
       <Link
         to="/auth/google"
         className="inline-flex items-center justify-center w-full gap-2 h-11 rounded-xl px-5 font-medium bg-background hover:bg-white dark:bg-secondary dark:hover:bg-secondary/80 border border-border hover:border-gray-300 transition-all"
-        
       >
         <img src="/google.svg" alt="" className="w-4 h-4" />
         使用 Google 登入
