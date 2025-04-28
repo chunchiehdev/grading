@@ -46,8 +46,7 @@ export default function AuthLayout() {
       <div className="hidden min-[500px]:flex justify-center">
         <div className="relative md:rounded-xl bg-muted h-[clamp(40rem,97vh,97vh)] w-[clamp(30rem,100%,100%)] flex justify-center items-center overflow-hidden">
           <ThreeScene className="absolute inset-0 w-full h-full" />
-          <div className="absolute bottom-6 left-6 text-sm text-white opacity-70 z-10">
-            <p>AI 輔助評分系統</p>
+          <div className="absolute bottom-6 left-6 text-sm text-white opacity-70 z-10">            
           </div>
         </div>
       </div>
