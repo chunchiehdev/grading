@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useMemo, useEffect } from "react";
-import { useFetcher } from "@remix-run/react";
+import { useFetcher } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +12,6 @@ import {
   AlertCircle,
   Loader2,
   FileText,
-  Clock,
   XCircle,
 } from "lucide-react";
 import {
@@ -212,7 +211,7 @@ export function AssignmentInput({
   const [currentStep, setCurrentStep] = useState(1);
   const [sections, setSections] = useState<Section[]>(initialSections);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
-  const [validationResult, setValidationResult] =
+  const [_validationResult, setValidationResult] =
     useState<ValidationResult | null>(null);
   // const totalSteps = sections.length + 1;
   const totalSteps = 2;
@@ -221,9 +220,9 @@ export function AssignmentInput({
   const isSubmitting =
     fetcher.state === "submitting" && currentStep === totalSteps;
   // const isLastStep = currentStep === totalSteps;
-  const isActuallySubmitting = fetcher.state === "submitting" && isPreviewStep;
+  const _isActuallySubmitting = fetcher.state === "submitting" && isPreviewStep;
   // const showSubmittingState = isActuallySubmitting && isLastStep;
-  const [taskId, setTaskId] = useState<string | null>(null);
+  const [_taskId, setTaskId] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<Record<string, string>>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
@@ -243,7 +242,7 @@ export function AssignmentInput({
     });
   }, [sections]);
 
-  const validateCurrentSection = useCallback(() => {
+  const _validateCurrentSection = useCallback(() => {
     if (!currentSection) return true;
     const errors = validateSection(currentSection);
 

@@ -2,7 +2,6 @@ import type {
   Section,
   AssignmentSubmission,
   ValidationResult,
-  FeedbackData,
 } from "../types/grading";
 
 /**

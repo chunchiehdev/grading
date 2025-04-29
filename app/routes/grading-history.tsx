@@ -1,13 +1,10 @@
-import React from "react";
-import { type LoaderFunction } from "@remix-run/node";
-import { useLoaderData, Link } from "@remix-run/react";
+import { useLoaderData, Link } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Eye, Download, Clock, FileText, Filter } from "lucide-react";
-import type { FeedbackData } from "@/types/grading";
 
 // 模擬評分歷史資料
 interface GradingHistoryItem {
@@ -19,7 +16,7 @@ interface GradingHistoryItem {
   duration: number;
 }
 
-export const loader: LoaderFunction = async () => {
+export const loader = async () => {
   // 這裡應該從數據庫獲取評分歷史
   const mockHistory: GradingHistoryItem[] = [
     {

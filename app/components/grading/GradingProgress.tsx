@@ -1,8 +1,7 @@
 // GradingProgress.tsx
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
-import { motion, AnimatePresence } from "framer-motion";
-import { useSpring, animated } from "@react-spring/web";
+import { motion, AnimatePresence, useSpring } from "framer-motion";
 import {
   Search,
   PenLine,
@@ -78,34 +77,37 @@ export function GradingProgress({
   const [error, setError] = useState<string | null>(null);
   const [currentProgress, setCurrentProgress] = useState(0);
   
-  const { progress } = useSpring({
-    from: { progress: 0 },
-    to: { progress: status === "processing" ? initialProgress : 0 },
-    config: { tension: 120, friction: 14 }, 
-    onChange: ({ value }) => {
+  const springProgress = useSpring(0, { 
+    stiffness: 120, 
+    damping: 14
+  });
+  
+  useEffect(() => {
+    if (status === "processing") {
+      springProgress.set(initialProgress);
       
-      if (status === "processing") {
-
-        const currentValue = value.progress;
-        setCurrentProgress(currentValue);
+      const unsubscribe = springProgress.onChange(value => {
+        setCurrentProgress(value);
+        
         const totalTime = GRADING_STEPS.reduce(
           (acc, step) => acc + step.estimatedTime,
           0
         );
-        const remaining = Math.ceil(totalTime * (1 - value.progress / 100));
+        const remaining = Math.ceil(totalTime * (1 - value / 100));
 
         if (onProgressUpdate) {
           onProgressUpdate({
-            percentage: value.progress,
+            percentage: value,
             currentStep: GRADING_STEPS[currentStep].label,
             estimatedTimeLeft: remaining,
           });
         }
-      }
-    },
-  });
+      });
+      
+      return unsubscribe;
+    }
+  }, [status, initialProgress, springProgress, currentStep, onProgressUpdate]);
 
-  
   useEffect(() => {
     if (status === "processing") {
       const newStepIndex = GRADING_STEPS.findIndex((step) => step.id === phase);

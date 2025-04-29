@@ -1,7 +1,6 @@
-import type { ActionFunction } from "@remix-run/node";
 import { createNewGrading } from "@/services/gradingTasks.server";
 
-export const action: ActionFunction = async ({ request }) => {
+export const action = async ({ request }: { request: Request }) => {
   try {
     const body = await request.json();
     const result = await createNewGrading({

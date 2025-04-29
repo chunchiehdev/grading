@@ -1,7 +1,6 @@
-import { LoaderFunctionArgs } from "@remix-run/node";
-import { Link, useLoaderData, Outlet } from "@remix-run/react";
+import { Outlet } from "react-router";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }: { request: Request }) => {
   const { listRubrics } = await import("@/services/rubric.server");
   const { rubrics, error } = await listRubrics();
   
@@ -9,7 +8,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("Error loading rubrics:", error);
   }
 
-  return Response.json({ rubrics, error });
+  return { rubrics, error };
 };
 
 export default function RubricsRoute() {

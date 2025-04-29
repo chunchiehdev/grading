@@ -1,7 +1,7 @@
-import { createThemeSessionResolver } from "remix-themes";
-import { createCookieSessionStorage } from "@remix-run/node";
+import { createCookieSessionStorage } from "react-router";
 
-const sessionStorage = createCookieSessionStorage({
+// Theme session storage (replaces ../theme-provider)
+const themeSessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__theme",
     path: "/",
@@ -12,6 +12,20 @@ const sessionStorage = createCookieSessionStorage({
   },
 });
 
+// Helper to get theme session
+export async function getThemeSession(request: Request) {
+  const session = await themeSessionStorage.getSession(request.headers.get("Cookie"));
+  return {
+    getTheme: () => session.get("theme") || "light",
+    setTheme: (theme: string) => session.set("theme", theme),
+    commit: () => themeSessionStorage.commitSession(session),
+  };
+}
+
+// Export the themeSessionResolver function
+export const themeSessionResolver = getThemeSession;
+
+// Auth session storage
 const authSessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__auth",
@@ -23,11 +37,10 @@ const authSessionStorage = createCookieSessionStorage({
   },
 });
 
-const themeSessionResolver = createThemeSessionResolver(sessionStorage);
-
-async function getSession(request: Request) {
+// Helper to get auth session
+export async function getSession(request: Request) {
   const cookie = request.headers.get("Cookie");
   return authSessionStorage.getSession(cookie);
 }
 
-export { authSessionStorage, themeSessionResolver, getSession };
+export { authSessionStorage };

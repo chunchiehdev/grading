@@ -1,10 +1,9 @@
-// routes/_auth.tsx
-import { Outlet, useLocation } from "@remix-run/react";
+import { Outlet, useLocation } from "react-router";
 import { ThreeScene } from "@/components/auth/ThreeScene";
 
 export default function AuthLayout() {
   const location = useLocation();
-  const isRegister = location.pathname === "/register";
+  const isRegister = location.pathname === "/auth/register";
 
   return (
     <main className="grid grid-cols-1 gap-4 min-[1000px]:grid-cols-2">
@@ -17,7 +16,6 @@ export default function AuthLayout() {
               alt="Crab Icon"
               className="h-20 mb-4 "
             />
-            
           </div>
           
           <div>
@@ -52,4 +50,4 @@ export default function AuthLayout() {
       </div>
     </main>
   );
-}
+} 

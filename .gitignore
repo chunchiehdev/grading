@@ -6,3 +6,9 @@ node_modules
 Architecture.md
 
 bundle-report.html
+
+# React Router type generation directory
+.react-router/
+
+# React Router generated types
+.react-router/

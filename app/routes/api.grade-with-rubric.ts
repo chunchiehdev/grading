@@ -1,16 +1,14 @@
-import { ActionFunction, json } from "@remix-run/node";
-import { gradeDocument } from "@/services/rubric.server";
-import { getRubric } from "@/services/rubric.server";
+import { gradeDocument , getRubric } from "@/services/rubric.server";
 
-export const action: ActionFunction = async ({ request }) => {
+export const action = async ({ request }: { request: Request }) => {
   const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   console.log(`[${requestId}] 收到評分請求`);
-  
+
   try {
     const formData = await request.formData();
     const fileKey = formData.get("fileKey")?.toString();
     const rubricId = formData.get("rubricId")?.toString();
-    
+
     console.log(`[${requestId}] 評分參數:`, { fileKey, rubricId });
 
     if (!fileKey || !rubricId) {
@@ -66,9 +64,9 @@ export const action: ActionFunction = async ({ request }) => {
     // 獲取更詳細的錯誤信息
     const errorMessage = error.message || "評分過程中發生未知錯誤";
     const errorStack = error.stack || "";
-    
+
     console.error(`[${requestId}] 詳細錯誤: ${errorMessage}\n${errorStack}`);
-    
+
     return Response.json(
       { success: false, error: errorMessage },
       { status: 500 }

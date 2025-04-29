@@ -6,5 +6,11 @@ export interface LoginForm {
 export interface AuthError {
   email?: string;
   password?: string;
+  confirmPassword?: string;
   general?: string;
 }
+
+export type ActionData = {
+  errors?: AuthError;
+};
+

@@ -1,5 +1,4 @@
-import { json, redirect } from "@remix-run/node";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { redirect } from "react-router";
 import { validateLtiRequest } from "@/services/api.server";
 
 /**
@@ -10,11 +9,11 @@ import { validateLtiRequest } from "@/services/api.server";
  * - 處理來自 LMS (如 Moodle, Canvas 等) 的 LTI 請求
  * - 驗證請求後轉至適當的頁面
  */
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request }: { request: Request }) {
   try {
     // 只接受 POST 請求
     if (request.method !== "POST") {
-      return json({ error: "Method not allowed" }, { status: 405 });
+      return Response.json({ error: "Method not allowed" }, { status: 405 });
     }
 
     // 獲取 LTI 參數
@@ -27,7 +26,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // 獲取 LTI 消費者密鑰 (從環境變數或配置文件)
     const consumerKey = params.oauth_consumer_key;
     if (!consumerKey) {
-      return json({ error: "Missing oauth_consumer_key" }, { status: 400 });
+      return Response.json({ error: "Missing oauth_consumer_key" }, { status: 400 });
     }
 
     // 獲取對應的消費者密鑰 (實際項目中應該從資料庫獲取)
@@ -36,14 +35,14 @@ export async function action({ request }: ActionFunctionArgs) {
     const consumerSecret = consumerSecrets[consumerKey] || process.env.DEFAULT_LTI_SECRET;
 
     if (!consumerSecret) {
-      return json({ error: "Invalid consumer key" }, { status: 401 });
+      return Response.json({ error: "Invalid consumer key" }, { status: 401 });
     }
 
     // 驗證 LTI 請求
     const { isValid, context } = validateLtiRequest(params, consumerSecret);
 
     if (!isValid || !context) {
-      return json({ error: "LTI validation failed" }, { status: 401 });
+      return Response.json({ error: "LTI validation failed" }, { status: 401 });
     }
 
     // 獲取必要的 LTI 參數
@@ -74,7 +73,7 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     // 根據角色和自定義參數確定重定向目標
-    let redirectUrl = "/assignments/lti-grading";
+    const redirectUrl = "/assignments/lti-grading";
     
     // 添加查詢參數
     const urlParams = new URLSearchParams();
@@ -89,7 +88,7 @@ export async function action({ request }: ActionFunctionArgs) {
     return redirect(`${redirectUrl}?${urlParams.toString()}`);
   } catch (error) {
     console.error("LTI launch error:", error);
-    return json({ 
+    return Response.json({ 
       error: error instanceof Error ? error.message : "LTI launch failed"
     }, { status: 500 });
   }
@@ -134,13 +133,13 @@ setInterval(() => {
 /**
  * GET 請求僅用於測試
  */
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request }: { request: Request }) {
   // 在生產環境中應該禁用
   if (process.env.NODE_ENV === "production") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
   
-  return json({ 
+  return Response.json({ 
     message: "LTI launch endpoint is working. Please use POST method for LTI launch requests." 
   });
 } 

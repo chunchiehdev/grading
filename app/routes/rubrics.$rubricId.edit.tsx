@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { Form, useActionData, useNavigate, useLoaderData } from "@remix-run/react";
-import { redirect, ActionFunction, LoaderFunctionArgs, json } from "@remix-run/node";
+import { Form, useActionData, useNavigate, useLoaderData } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,9 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import type { Rubric, RubricCriteria } from "@/types/grading";
+import type { RubricCriteria } from "@/types/grading";
 
-export const loader = async ({ params, request }: LoaderFunctionArgs) => {
+export const loader = async ({ params, request }: { params: Record<string, string | undefined>; request: Request }) => {
   const rubricId = params.rubricId;
   
   if (!rubricId) {
@@ -25,13 +24,13 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     throw new Response(error || "找不到評分標準", { status: 404 });
   }
 
-  return json({ rubric });
+  return { rubric };
 };
 
-export const action: ActionFunction = async ({ request, params }) => {
+export const action = async ({ request, params }: { request: Request; params: Record<string, string | undefined> }) => {
   const rubricId = params.rubricId;
   if (!rubricId) {
-    return Response.json({ error: "評分標準ID不存在" });
+    return { error: "評分標準ID不存在" };
   }
 
   const formData = await request.formData();
@@ -40,16 +39,12 @@ export const action: ActionFunction = async ({ request, params }) => {
   const criteriasJson = formData.get("criterias")?.toString();
 
   if (!name || !description || !criteriasJson) {
-    return Response.json({ error: "請填寫所有必填欄位" });
+    return { error: "請填寫所有必填欄位" };
   }
 
   try {
     const criterias = JSON.parse(criteriasJson);
-    
-    // 導入updateRubric函數 (需要先在 rubric.server.ts 中實現)
     const { updateRubric } = await import("@/services/rubric.server");
-    
-    // 創建更新的評分標準對象
     const totalWeight = criterias.reduce((sum: number, criteria: RubricCriteria) => sum + criteria.weight, 0);
     const rubric = {
       id: rubricId,
@@ -58,18 +53,14 @@ export const action: ActionFunction = async ({ request, params }) => {
       criteria: criterias,
       totalWeight
     };
-    
-    // 調用API更新評分標準
     const result = await updateRubric(rubricId, rubric);
-    
     if (!result.success) {
-      return Response.json({ error: result.error || "更新評分標準失敗" });
+      return { error: result.error || "更新評分標準失敗" };
     }
-    
-    return redirect(`/rubrics/${rubricId}`);
+    return Response.redirect(`/rubrics/${rubricId}`);
   } catch (error) {
     console.error("Error updating rubric:", error);
-    return Response.json({ error: "處理數據時發生錯誤" });
+    return { error: "處理數據時發生錯誤" };
   }
 };
 

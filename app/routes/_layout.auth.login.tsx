@@ -1,52 +1,55 @@
-// routes/_auth.login.tsx
-import {
-  type ActionFunctionArgs,
-  LoaderFunctionArgs,
-  redirect,
-} from "@remix-run/node";
-import { Form, useActionData, useNavigation, Link, Navigate, useNavigate, useSearchParams } from "@remix-run/react";
+import { redirect , Form, Link, useNavigation, useSearchParams, useActionData } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Mail, Lock, AlertCircle, Info } from "lucide-react";
 import { login, getUser } from "@/services/auth.server";
-import type { AuthError } from "@/types/auth";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { loginSchema, formatZodErrors } from "@/schemas/auth";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request }: { request: Request }) {
   const user = await getUser(request);
   if (user) {
-    return redirect("/");
+    return redirect("/dashboard");
   }
   return null;
 }
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+export const action = async ({ request }: { request: Request }) => {
   const formData = await request.formData();
-  const email = formData.get("email");
-  const password = formData.get("password");
-
-  if (typeof email !== "string" || typeof password !== "string") {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+  
+  // 使用Zod驗證
+  const validation = loginSchema.safeParse({ email, password });
+  
+  if (!validation.success) {
     return Response.json(
-      { errors: { general: "無效的表單提交" } },
+      { errors: formatZodErrors(validation.error) },
       { status: 400 }
     );
   }
 
-  return await login({ email, password });
+  return await login(validation.data);
+};
+
+type ActionData = {
+  errors?: {
+    email?: string;
+    password?: string;
+    general?: string;
+  };
 };
 
 export default function LoginPage() {
-  const actionData = useActionData<typeof action>();
+  const actionData = useActionData() as ActionData;
   const navigation = useNavigation();
-  const navitgate = useNavigate();
   const [searchParams] = useSearchParams();
   const error = searchParams.get("error");
   const isSubmitting = navigation.state === "submitting";
-  const errors = actionData?.errors as AuthError;
   const [touched, setTouched] = useState({ email: false, password: false });
   
-  const handleInputFocus = (field: keyof typeof touched) => {
+  const handleInputFocus = (field: "email" | "password") => {
     setTouched((prev) => ({ ...prev, [field]: true }));
   };
 
@@ -97,10 +100,10 @@ export default function LoginPage() {
         {/* Email Field */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            {errors?.email && touched.email && (
+            {actionData?.errors?.email && touched.email && (
               <p className="text-sm text-destructive flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                <span>{errors.email}</span>
+                <span>{actionData.errors.email}</span>
               </p>
             )}
           </div>
@@ -114,7 +117,7 @@ export default function LoginPage() {
               required
               className={cn(
                 "pl-9 h-11 transition-all bg-background/50 hover:bg-background focus:bg-background rounded-xl",
-                errors?.email && touched.email
+                actionData?.errors?.email && touched.email
                   ? "border-destructive/50 hover:border-destructive focus:border-destructive"
                   : "border-input/60 hover:border-input focus:border-input"
               )}
@@ -127,10 +130,10 @@ export default function LoginPage() {
         {/* Password Field */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            {errors?.password && touched.password && (
+            {actionData?.errors?.password && touched.password && (
               <p className="text-sm text-destructive flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                <span>{errors.password}</span>
+                <span>{actionData.errors.password}</span>
               </p>
             )}
           </div>
@@ -144,7 +147,7 @@ export default function LoginPage() {
               required
               className={cn(
                 "pl-9 h-11 transition-all bg-background/50 hover:bg-background focus:bg-background rounded-xl",
-                errors?.password && touched.password
+                actionData?.errors?.password && touched.password
                   ? "border-destructive/50 hover:border-destructive focus:border-destructive"
                   : "border-input/60 hover:border-input focus:border-input"
               )}
@@ -195,4 +198,4 @@ export default function LoginPage() {
       </div>
     </div>
   );
-}
+} 

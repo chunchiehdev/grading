@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, X, AlertCircle, Info } from "lucide-react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 

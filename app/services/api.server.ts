@@ -1,6 +1,5 @@
 import { gradeAssignment } from "@/services/aiProcessor.server";
 import { validateAssignmentWithZod } from "@/schemas/assignment";
-import { validateFeedbackWithZod } from "@/schemas/feedback";
 import type { AssignmentSubmission, FeedbackData } from "@/types/grading";
 import { ProgressService } from "@/services/progress.server";
 import crypto from "crypto";
@@ -190,7 +189,7 @@ async function sendCallbackNotification(
     if (!callback_url) return;
     
     // 準備簽名
-    let headers: Record<string, string> = {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json"
     };
     

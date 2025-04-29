@@ -1,6 +1,5 @@
-import { Link, useNavigate } from "@remix-run/react";
+import { useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
-import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { PanelLeftOpen, PanelLeftClose, PlusCircle } from "lucide-react";
 import {
@@ -9,8 +8,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { v4 as uuidv4 } from "uuid";
+
+import PropTypes from "prop-types";
 // import { createNewGrading } from "@/utils/grading.server";
+
 interface SidebarProps {
   className?: string;
   isCollapsed?: boolean;
@@ -37,10 +38,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         "fixed left-0 top-0 h-screen z-[21]",
         "bg-secondary",
         "transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-[0px]" : "w-[260px]"
+        isCollapsed ? "w-[0px]" : "w-[260px]",
+        className
       )}
     >
-      <div className="h-full w-full flex  flex-col">
+      <div className="h-full w-full flex flex-col">
         {/* Sidebar Header */}
         <div className="flex h-[60px] items-center justify-between px-3 border-b">
           <TooltipProvider>
@@ -61,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="icon-xl" >
+                    <Button variant="ghost" size="icon-xl">
                       <PlusCircle />
                     </Button>
                   </TooltipTrigger>
@@ -74,6 +76,12 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
     </div>
   );
+};
+
+Sidebar.propTypes = {
+  className: PropTypes.string,
+  isCollapsed: PropTypes.bool,
+  onToggle: PropTypes.func,
 };
 
 export default Sidebar;

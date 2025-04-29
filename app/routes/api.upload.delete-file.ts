@@ -1,7 +1,6 @@
-import { ActionFunctionArgs } from "@remix-run/node";
 import { deleteFromStorage } from "@/services/storage.server";
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request }: { request: Request }) {
   if (request.method !== "DELETE") {
     return new Response("Method not allowed", { status: 405 });
   }

@@ -1,20 +1,17 @@
 // assignments.grade.tsx
-import { type ActionFunctionArgs } from "@remix-run/node";
-import type { MetaFunction } from "@remix-run/node";
-import {  useFetcher, useParams } from "@remix-run/react";
+import type { ActionFunctionArgs } from "react-router";
+import { useFetcher, useParams } from "react-router";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { GradingContainer } from "@/components/grading/GradingContainer";
 import { gradeAssignment } from "@/services/aiProcessor.server";
 import {
-  validateAssignment,
   SECTION_VALIDATION_RULES,
 } from "@/utils/validation";
 import { ValidationError, GradingServiceError } from "@/types/errors";
-import { useEventSource } from "remix-utils/sse/react";
 import { ProgressService } from "@/services/progress.server";
 import { validateAssignmentWithZod } from "@/schemas/assignment";
 
-export const meta: MetaFunction = () => {
+export const meta = () => {
   return [
     { title: "評分系統" },
     { name: "description", content: "教育評分管理平台" },
@@ -210,11 +207,29 @@ export default function AssignmentGradingPage() {
     return shouldConnect ? `/api/grading-progress?taskId=${localTaskId}` : "";
   }, [status, localTaskId]);
 
-  const progressData = useEventSource(progressUrl, {
-    event: "grading-progress",
-    enabled: Boolean(progressUrl) && progressUrl.length > 0
-
-  });
+  // Temporarily replace SSE with regular polling
+  const [progressData, setProgressData] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (!progressUrl) return;
+    
+    const fetchProgress = async () => {
+      try {
+        const response = await fetch(progressUrl);
+        if (response.ok) {
+          const data = await response.json();
+          setProgressData(JSON.stringify(data));
+        }
+      } catch (error) {
+        console.error("Error fetching progress:", error);
+      }
+    };
+    
+    fetchProgress();
+    const interval = setInterval(fetchProgress, 500);
+    
+    return () => clearInterval(interval);
+  }, [progressUrl]);
 
   const handleRetry = useCallback(() => {
     setRetryCount((prev) => prev + 1);

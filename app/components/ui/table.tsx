@@ -1,6 +1,6 @@
 import * as React from "react"
-
 import { cn } from "@/lib/utils"
+import PropTypes from "prop-types"
 
 const Table = React.forwardRef<
   HTMLTableElement,
@@ -107,6 +107,38 @@ const TableCaption = React.forwardRef<
   />
 ))
 TableCaption.displayName = "TableCaption"
+
+Table.propTypes = {
+  className: PropTypes.string,
+};
+
+TableHeader.propTypes = {
+  className: PropTypes.string,
+};
+
+TableBody.propTypes = {
+  className: PropTypes.string,
+};
+
+TableFooter.propTypes = {
+  className: PropTypes.string,
+};
+
+TableRow.propTypes = {
+  className: PropTypes.string,
+};
+
+TableHead.propTypes = {
+  className: PropTypes.string,
+};
+
+TableCell.propTypes = {
+  className: PropTypes.string,
+};
+
+TableCaption.propTypes = {
+  className: PropTypes.string,
+};
 
 export {
   Table,

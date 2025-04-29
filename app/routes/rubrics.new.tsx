@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Form, useActionData, useNavigate } from "@remix-run/react";
-import { redirect, ActionFunction } from "@remix-run/node";
+import { Form, useActionData, useNavigate , redirect } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +9,7 @@ import { Plus, Trash2, Save, ArrowLeft } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import type { RubricCriteria } from "@/types/grading";
 
-export const action: ActionFunction = async ({ request }) => {
+export const action = async ({ request }: { request: Request }) => {
   const formData = await request.formData();
   const name = formData.get("name")?.toString();
   const description = formData.get("description")?.toString();

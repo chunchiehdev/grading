@@ -1,9 +1,8 @@
-import { ActionFunction } from "@remix-run/node";
 import { processDocuments } from "@/services/document-processor.server"
 import type { UploadedFileInfo, DocumentSummary } from "@/types/files";
 
 const MAX_CONTENT = 200
-export const action: ActionFunction = async ({ request }) => {
+export const action = async ({ request }: { request: Request }) => {
   try {
     if (request.method !== "POST") {
       return Response.json({ success: false, error: "只支援 POST 請求" }, { status: 405 });

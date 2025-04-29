@@ -20,7 +20,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    command: npx remix vite:dev --host 0.0.0.0
+    command: npx react-router dev --host 0.0.0.0
     depends_on:
       - redis
       - db

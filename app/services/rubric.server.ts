@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { Rubric, RubricCriteria } from "@/types/grading";
+import type { Rubric } from "@/types/grading";
 import FormData from "form-data";
 
 const API_URL = process.env.API_URL || "http://localhost:8001";

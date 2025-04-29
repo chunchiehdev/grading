@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { LoaderFunction } from "@remix-run/node";
-import { useLoaderData, useActionData, useFetcher } from "@remix-run/react";
+import type { LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useFetcher } from "react-router";
 import { CompactFileUpload } from "@/components/grading/CompactFileUpload";
 import { GradingResultDisplay, GradingResultData } from "@/components/grading/GradingResultDisplay";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,18 +16,18 @@ import type { UploadedFileInfo } from "@/types/files";
 import { listRubrics } from "@/services/rubric.server";
 import { EmptyState } from "@/components/ui/empty-state";
 
-export const loader: LoaderFunction = async ({ request }) => {
+export async function loader({ request}: LoaderFunctionArgs  )  {
   
   const { rubrics, error } = await listRubrics();
   
   return Response.json({
-    rubrics,
+    rubrics: rubrics || [],
     error
   });
-};
+}
 
 export default function GradingWithRubricRoute() {
-  const { rubrics, error } = useLoaderData<typeof loader>();
+  const { rubrics = [], error } = useLoaderData<{ rubrics: Rubric[], error?: string }>();
   const [selectedRubricId, setSelectedRubricId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
   const [step, setStep] = useState<'upload' | 'select-rubric' | 'grading' | 'result'>('upload');

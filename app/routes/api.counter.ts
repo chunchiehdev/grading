@@ -1,22 +1,32 @@
-import { eventStream } from "remix-utils/sse/server";
-import type { LoaderFunctionArgs } from "@remix-run/node";
-
-export async function loader({ request }: LoaderFunctionArgs) {
-
-  return eventStream(request.signal, function setup(send) {
-    let count = 0;
-    
-    const interval = setInterval(() => {
-      count++;
-      send({ 
-        event: "counter", 
-        data: count.toString() 
-      });
-    }, 1000);
-    
-    return function cleanup() {
-      clearInterval(interval);
-    };
+export async function loader({ request }: { request: Request }) {
+  // Set up SSE stream
+  const stream = new ReadableStream({
+    start(controller) {
+      let count = 0;
+      
+      // Send initial count
+      controller.enqueue(`event: counter\ndata: ${count}\n\n`);
+      
+      // Increment count every second
+      const interval = setInterval(() => {
+        count++;
+        controller.enqueue(`event: counter\ndata: ${count}\n\n`);
+      }, 1000);
+      
+      // Cleanup after 5 minutes
+      setTimeout(() => {
+        clearInterval(interval);
+        controller.close();
+      }, 5 * 60 * 1000);
+    }
+  });
+  
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive"
+    }
   });
 }
 

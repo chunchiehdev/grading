@@ -1,6 +1,5 @@
-import React from "react";
-import { useCallback, useState, useEffect, useRef } from "react";
-import { useFetcher } from "@remix-run/react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
+import { useFetcher } from "react-router";
 import {
   Accordion,
   AccordionContent,
@@ -13,9 +12,38 @@ import { Upload, X, File, Paperclip, AlertCircle, FileUp } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { useEventSource } from "remix-utils/sse/react";
 import type { UploadedFileInfo, FileWithStatus } from "@/types/files";
 
+// Custom hook for EventSource
+const useEventSource = (url: string, options?: { event?: string, enabled?: boolean }) => {
+  const [data, setData] = useState<string | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    if (!url || options?.enabled === false) {
+      return;
+    }
+
+    const eventSource = new EventSource(url);
+    eventSourceRef.current = eventSource;
+
+    const eventName = options?.event || 'message';
+    
+    const handler = (event: MessageEvent) => {
+      setData(event.data);
+    };
+
+    eventSource.addEventListener(eventName, handler);
+
+    return () => {
+      eventSource.removeEventListener(eventName, handler);
+      eventSource.close();
+      eventSourceRef.current = null;
+    };
+  }, [url, options?.event, options?.enabled]);
+
+  return data;
+};
 
 interface FileUploadProps {
   maxFiles?: number;
@@ -46,20 +74,29 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadId, setUploadId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [completionCalled, setCompletionCalled] = useState(false);
-  const completionRef = useRef(false); 
-
-  
+  const [_completionCalled, setCompletionCalled] = useState(false);
+  const completionRef = useRef(false);
 
   const idFetcher = useFetcher<{ success: boolean; uploadId: string }>();
 
   const uploadFetcher = useFetcher<{
     success: boolean;
     uploadId: string;
-    files: any[];
+    files: UploadedFileInfo[];
     error?: string;
   }>();
-  
+
+  const uploadFilesToServer = useCallback((files: File[], id: string) => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append("files", file);
+    });
+
+    uploadFetcher.submit(formData, {
+      method: "POST",
+      action: `/api/upload/${id}`,
+    });
+  }, [uploadFetcher]);
 
   const progressData = useEventSource(
     uploadId ? `/api/upload/progress/${uploadId}` : "",
@@ -82,7 +119,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
       onError?.(errorMsg);
       setIsUploading(false);
     }
-  }, [idFetcher.data]);
+  }, [idFetcher.data, pendingFiles, uploadFilesToServer, onError]);
 
   useEffect(() => {
     if (uploadFetcher.data?.success && uploadFetcher.data.files) {
@@ -205,25 +242,6 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
     }
 
     return null;
-  };
-
-  const uploadFilesToServer = (files: File[], id: string) => {
-    if (!files.length || !id) return;
-
-    console.log(`使用 uploadId: ${id} 上傳 ${files.length} 個檔案`);
-
-    const formData = new FormData();
-    formData.append("uploadId", id);
-
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
-
-    uploadFetcher.submit(formData, {
-      method: "post",
-      action: "/api/upload",
-      encType: "multipart/form-data",
-    });
   };
 
   const handleFiles = useCallback(

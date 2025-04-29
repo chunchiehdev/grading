@@ -1,16 +1,24 @@
-// routes/_auth.logout.tsx
-import type { ActionFunctionArgs } from "@remix-run/node";
-import { redirect } from "@remix-run/node";
-import { logout } from "@/services/auth.server";
+import { redirect } from "react-router";
 
-export const action = async ({ request }: ActionFunctionArgs) => {
- return logout(request);
-};
+export async function action({ request }: { request: Request }) {
+  const response = await fetch("/api/auth/logout", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 
-export const loader = async () => {
- return redirect("/");
-};
+  if (!response.ok) {
+    throw new Error("Failed to logout");
+  }
+
+  return redirect("/");
+}
+
+export async function loader() {
+  return redirect("/login");
+}
 
 export default function LogoutPage() {
- return null;
-}
+  return null;
+} 

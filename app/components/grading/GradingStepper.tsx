@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Check, Loader2, AlertTriangle } from "lucide-react";
+import React from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +24,7 @@ interface GradingStepperProps {
 }
 
 type StepStyleConfig = {
-  icon: JSX.Element | string;
+  icon: React.ReactNode | string;
   containerStyle: string;
   connectorStyle: string;
 };

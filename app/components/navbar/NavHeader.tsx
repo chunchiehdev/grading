@@ -1,4 +1,3 @@
-import React from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,15 +8,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { cn } from "@/lib/utils";
-import { PanelLeft, Plus, ChevronDown, Share2, Menu, LogOut, User } from "lucide-react";
-import { Link, Form } from "@remix-run/react";
+import { ChevronDown, Share2, LogOut, User, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { Link, Form } from "react-router";
 import { ModeToggle } from "@/components/mode-toggle";
 
 interface NavHeaderProps {
   title?: string;
-  onSidebarToggle?: () => void;
   onShare?: () => void;
-  userName?: string;
+  _userName?: string;
   userImage?: string;
   className?: string;
   user?: { email: string } | null;
@@ -25,9 +23,8 @@ interface NavHeaderProps {
 
 const NavHeader = ({
   title = "作業評分系統",
-  onSidebarToggle,
   onShare,
-  userName,
+  _userName,
   userImage,
   className,
   user,
@@ -54,7 +51,6 @@ const NavHeader = ({
             variant="ghost"
             className="flex items-center gap-1 ml-2 text-lg font-semibold"
           >
-            {/* Just throw it in for now; fix it later.*/}
             <span>首頁</span>
             <ChevronDown className="w-4 h-4" />
           </Button>

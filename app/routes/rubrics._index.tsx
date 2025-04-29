@@ -1,12 +1,11 @@
-import { LoaderFunctionArgs } from "@remix-run/node";
-import { Link, useLoaderData } from "@remix-run/react";
+import { Link, useLoaderData } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
 import type { Rubric } from "@/types/grading";
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
+export const loader = async ({ request }: { request: Request }) => {
   const { listRubrics } = await import("@/services/rubric.server");
   const { rubrics, error } = await listRubrics();
   
@@ -14,7 +13,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("Error loading rubrics:", error);
   }
 
-  return Response.json({ rubrics, error });
+  return { rubrics, error };
 };
 
 export default function RubricsIndexRoute() {

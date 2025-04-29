@@ -1,6 +1,6 @@
 // utils/grading.ts
 import { v4 as uuidv4 } from "uuid";
-import { redirect } from "@remix-run/node";
+import { redirect } from "react-router";
 import { db } from "@/lib/db.server";
 import { getUserId } from "@/services/auth.server";
 

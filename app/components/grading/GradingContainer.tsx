@@ -6,26 +6,22 @@ import type {
   ValidationResult,
   Section,
 } from "@/types/grading";
-import { useActionData, useNavigation, useFetcher } from "@remix-run/react";
+import { useFetcher } from "react-router";
 import { GradingStepper } from "./GradingStepper";
 import { AssignmentInput } from "./AssignmentInput";
 import { GradingProgress } from "./GradingProgress";
-import { FeedbackDisplay } from "./FeedbackDisplay";
-import { StatusSnackbar } from "./StatusSnackbar";
+import FeedbackDisplay from "./FeedbackDisplay";
 import { CompactFileUpload } from "./CompactFileUpload";
 import { Card } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription , AlertTitle } from "@/components/ui/alert";
 import {
   Download,
   AlertCircle,
   RefreshCcw,
   CheckCircle,
-  Loader2,
-  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { action } from "@/routes/assignments.grade.$taskId";
-import { AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { UploadedFileInfo } from "@/types/files";
 
@@ -72,7 +68,7 @@ export function GradingContainer({
   onRetry,
   fetcher,
 }: GradingContainerProps) {
-  const [snackbar, setSnackbar] = useState<SnackbarState>({
+  const [_snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
     message: "",
     severity: "success",
@@ -84,7 +80,7 @@ export function GradingContainer({
   const completionShown = useRef(false);
   const lastMessage = useRef("");
   const [isEditing, setIsEditing] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
+  const [_uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
   const processingFetcher = useFetcher();
   
   const handleEditMode = () => {
@@ -236,16 +232,28 @@ export function GradingContainer({
     [onValidationComplete]
   );
 
-  const handleFileChange = useCallback((files: File[]) => {
+  const handleFileChange = useCallback((files: Array<File>) => {
     const hasFiles = files.length > 0;
     setHasUploadedFiles(hasFiles);
-
-    if (!hasFiles) {
-      setCurrentStep(0);
-    } else if (files.length > 0) {
+    
+    if (hasFiles) {
       setCurrentStep(1);
+    } else {
+      setCurrentStep(0);
     }
   }, []);
+
+  const callProcessUploadedFiles = useCallback(async (files: UploadedFileInfo[]) => {
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append("files", JSON.stringify(file));
+    });
+
+    processingFetcher.submit(formData, {
+      method: "POST",
+      action: "/api/process-documents",
+    });
+  }, [processingFetcher]);
 
   const handleUploadComplete = useCallback((files?: UploadedFileInfo[]) => {
     if (!files || files.length === 0) return;
@@ -265,42 +273,29 @@ export function GradingContainer({
     );
     callProcessUploadedFiles(files);
 
-  }, []);
+  }, [callProcessUploadedFiles, processingFetcher]);
 
-  const callProcessUploadedFiles = async (files: UploadedFileInfo[]) => {
-    try {
-        
-      processingFetcher.submit(
-        { files: JSON.stringify(files) },
-        {
-          method: "post",
-          action: "/api/process-documents",
-          encType: "application/json"
-        }
-      );
-      
-    } catch (error) {
-      console.error("處理文件時發生錯誤:", error);
-      // setSnackbar({
-      //   open: true,
-      //   message: "處理文件時發生錯誤",
-      //   severity: "error"
-      // });
-    }
-  };
-
-  const handleSnackbarClose = useCallback(() => {
+  const _handleSnackbarClose = useCallback(() => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   }, []);
 
-  const handleTransition = useCallback((isStart: boolean) => {
-    setIsTransitioning(isStart);
+  const _handleTransition = useCallback(() => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
   }, []);
 
   const handleRetry = useCallback(() => {
     setCurrentStep(0);
     onRetry?.();
   }, [onRetry]);
+
+  useEffect(() => {
+    if (processingFetcher.data?.success) {
+      setHasUploadedFiles(true);
+    }
+  }, [processingFetcher.data, callProcessUploadedFiles]);
 
   return (
     <div className="container mx-auto px-4 pb-16 max-w-7xl">

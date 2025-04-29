@@ -1,7 +1,6 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
 import { UploadProgressService } from "@/services/progress.server";
 
-export async function action({ params }: ActionFunctionArgs) {
+export async function action({ params }: { params: { uploadId: string, filename: string } }) {
   const { uploadId, filename } = params;
   
   console.log("uploadId filename", uploadId, filename)

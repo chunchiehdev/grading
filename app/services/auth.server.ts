@@ -1,8 +1,9 @@
 import { db } from "@/lib/db.server";
 import bcrypt from "bcryptjs";
-import { redirect } from "@remix-run/node";
+import { redirect } from "react-router";
 import { getSession, authSessionStorage } from "@/sessions.server";
 import { OAuth2Client } from "google-auth-library";
+import type { LoginFormValues } from "@/schemas/auth";
 
 interface LoginCredentials {
   email: string;
@@ -168,7 +169,7 @@ export async function handleGoogleCallback(request: Request) {
       });
     }
 
-    return createUserSession(user.id, "/");
+    return createUserSession(user.id, "/dashboard");
   } catch (error) {
     console.error("Google authentication error:", error);
     return redirect("/login?error=google-auth-failed");
@@ -196,7 +197,7 @@ export async function register({ email, password }: LoginCredentials) {
   return createUserSession(user.id, "/");
 }
 
-export async function login({ email, password }: LoginCredentials) {
+export async function login({ email, password }: LoginFormValues) {
   const user = await db.user.findUnique({ where: { email } });
   if (!user) {
     return Response.json({ errors: { email: "沒這信箱" } }, { status: 400 });
@@ -207,7 +208,7 @@ export async function login({ email, password }: LoginCredentials) {
     return Response.json({ errors: { password: "密碼錯了" } }, { status: 400 });
   }
 
-  return createUserSession(user.id, "/");
+  return createUserSession(user.id, "/dashboard");
 }
 
 export async function createUserSession(userId: string, redirectTo: string) {

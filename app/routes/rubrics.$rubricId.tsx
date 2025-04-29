@@ -1,12 +1,11 @@
-import { LoaderFunctionArgs, json } from "@remix-run/node";
-import { Link, useLoaderData, useNavigate } from "@remix-run/react";
+import { Link, useLoaderData, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Edit } from "lucide-react";
 import { format } from "date-fns";
-import type { Rubric, RubricCriteria } from "@/types/grading";
+import type { RubricCriteria } from "@/types/grading";
 
-export const loader = async ({ params, request }: LoaderFunctionArgs) => {
+export const loader = async ({ params, request }: { params: Record<string, string | undefined>; request: Request }) => {
   const rubricId = params.rubricId;
   
   if (!rubricId) {
@@ -21,7 +20,7 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
     throw new Response(error || "找不到評分標準", { status: 404 });
   }
 
-  return json({ rubric });
+  return { rubric };
 };
 
 export default function RubricDetailRoute() {

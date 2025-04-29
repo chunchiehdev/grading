@@ -1,6 +1,4 @@
-import { json } from "@remix-run/node";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, Form, useActionData } from "@remix-run/react";
+import { useLoaderData, Form, useActionData } from "react-router";
 import { requireUserId } from "@/services/auth.server";
 import { useState } from "react";
 import crypto from "crypto";
@@ -15,7 +13,12 @@ interface ApiKey {
   revoked: boolean;
 }
 
-const AVAILABLE_SCOPES = [
+interface Scope {
+  id: string;
+  label: string;
+}
+
+const AVAILABLE_SCOPES: Scope[] = [
   { id: "grading:read", label: "讀取評分數據" },
   { id: "grading:write", label: "提交評分請求" },
   { id: "batch:read", label: "讀取批量評分數據" },
@@ -23,7 +26,7 @@ const AVAILABLE_SCOPES = [
   { id: "lti:launch", label: "LTI 整合" },
 ];
 
-let API_KEYS: ApiKey[] = [
+const API_KEYS: ApiKey[] = [
   {
     id: "1",
     name: "測試應用",
@@ -34,12 +37,12 @@ let API_KEYS: ApiKey[] = [
   },
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request }: { request: Request }) {
   const userId = await requireUserId(request);
 
   const apiKeys = API_KEYS.filter((key) => !key.revoked);
 
-  return json({ apiKeys, availableScopes: AVAILABLE_SCOPES });
+  return Response.json({ apiKeys, availableScopes: AVAILABLE_SCOPES });
 }
 
 interface ApiKeySuccessResponse {
@@ -56,7 +59,7 @@ type ActionResponse =
   | ApiKeyErrorResponse
   | { success: true };
 
-export async function action({ request }: ActionFunctionArgs) {
+export async function action({ request }: { request: Request }) {
   const userId = await requireUserId(request);
 
   const formData = await request.formData();
@@ -67,14 +70,14 @@ export async function action({ request }: ActionFunctionArgs) {
     const scopesArray = formData.getAll("scopes") as string[];
 
     if (!name || name.trim() === "") {
-      return json<ApiKeyErrorResponse>(
+      return Response.json(
         { error: "API 金鑰名稱不能為空" },
         { status: 400 }
       );
     }
 
     if (scopesArray.length === 0) {
-      return json<ApiKeyErrorResponse>(
+      return Response.json(
         { error: "至少需要選擇一個權限範圍" },
         { status: 400 }
       );
@@ -93,14 +96,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
     API_KEYS.push(apiKey);
 
-    return json<ApiKeySuccessResponse>({ success: true, apiKey });
+    return Response.json({ success: true, apiKey });
   }
 
   if (action === "revoke") {
     const id = formData.get("id") as string;
 
     if (!id) {
-      return json<ApiKeyErrorResponse>(
+      return Response.json(
         { error: "需要提供 API 金鑰 ID" },
         { status: 400 }
       );
@@ -111,10 +114,10 @@ export async function action({ request }: ActionFunctionArgs) {
       API_KEYS[keyIndex].revoked = true;
     }
 
-    return json<{ success: true }>({ success: true });
+    return Response.json({ success: true });
   }
 
-  return json<ApiKeyErrorResponse>({ error: "不支持的操作" }, { status: 400 });
+  return Response.json({ error: "不支持的操作" }, { status: 400 });
 }
 
 function generateApiKey(): string {
@@ -122,8 +125,9 @@ function generateApiKey(): string {
 }
 
 export default function ApiKeysPage() {
-  const { apiKeys, availableScopes } = useLoaderData<typeof loader>();
-  const actionData = useActionData<ActionResponse>();
+  const data = useLoaderData() as { apiKeys: ApiKey[]; availableScopes: Scope[] };
+  const { apiKeys, availableScopes } = data;
+  const actionData = useActionData() as ActionResponse;
   const [showNewKey, setShowNewKey] = useState(false);
 
   const hasSuccessWithApiKey =
