@@ -26,14 +26,13 @@ export async function action({ request }: { request: Request }) {
       );
     }
 
-    const loginResponse = await login(result.data);
-
-    // 如果 login 返回的是 redirect Response，我們保持原樣返回
-    if (loginResponse instanceof Response) {
-      return loginResponse;
+    const response = await login(result.data);
+    
+    // 如果登入成功，設置 session cookie
+    if (response instanceof Response) {
+      return response;
     }
 
-    // 否則，我們包裝成 API 響應
-    return createApiResponse(loginResponse);
+    throw new ApiError("Login failed", 500);
   });
 }

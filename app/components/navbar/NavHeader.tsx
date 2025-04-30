@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, Share2, LogOut, User, PanelLeftOpen, PanelLeftClose } from "lucide-react";
 import { Link, Form } from "react-router";
 import { ModeToggle } from "@/components/mode-toggle";
+import { useLoaderData } from "react-router";
+import { useLogout } from "@/hooks/api/auth";
 
 interface NavHeaderProps {
   title?: string;
@@ -18,7 +20,6 @@ interface NavHeaderProps {
   _userName?: string;
   userImage?: string;
   className?: string;
-  user?: { email: string } | null;
 }
 
 const NavHeader = ({
@@ -27,8 +28,19 @@ const NavHeader = ({
   _userName,
   userImage,
   className,
-  user,
 }: NavHeaderProps) => {
+  const { user } = useLoaderData() as { user: { email: string } | null };
+  const logout = useLogout();
+
+  if (!user) {
+    return null;
+  }
+
+  const handleLogout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await logout.mutateAsync();
+  };
+
   return (
     <div
       className={cn(
@@ -68,44 +80,39 @@ const NavHeader = ({
           <span>分享</span>
         </Button>
         <ModeToggle />
-        {user && ( 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full w-10 h-10 p-0"
-              >
-                {userImage ? (
-                  <img
-                    src={userImage}
-                    alt={user.email}
-                    className="w-8 h-8 rounded-full"
-                  />
-                ) : (
-                  <User className="w-5 h-5" />
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem disabled>
-                <span className="text-sm truncate">{user.email}</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <Form action="/logout" method="post">
-                <DropdownMenuItem
-                  asChild
-                  className="text-red-600 focus:text-red-600 cursor-pointer"
-                >
-                  <button type="submit" className="w-full flex items-center">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    登出
-                  </button>
-                </DropdownMenuItem>
-              </Form>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full w-10 h-10 p-0"
+            >
+              {userImage ? (
+                <img
+                  src={userImage}
+                  alt={user.email}
+                  className="w-8 h-8 rounded-full"
+                />
+              ) : (
+                <User className="w-5 h-5" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem disabled>
+              <span className="text-sm truncate">{user.email}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="text-red-600 focus:text-red-600 cursor-pointer"
+              disabled={logout.isPending}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              {logout.isPending ? "登出中..." : "登出"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

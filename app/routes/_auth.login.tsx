@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, Lock } from "lucide-react";
@@ -11,6 +11,15 @@ export default function LoginPage() {
   const [touched, setTouched] = useState({ email: false, password: false });
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const login = useLogin();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
+  const error = searchParams.get("error");
+  const googleError = error === "google-auth-unavailable" 
+    ? "Google 登入服務暫時無法使用"
+    : error === "google-auth-failed"
+    ? "Google 登入失敗，請稍後再試"
+    : null;
 
   const handleInputFocus = (field: keyof typeof touched) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
@@ -25,7 +34,6 @@ export default function LoginPage() {
     setFieldErrors({});
     try {
       await login.mutateAsync(form);
-      // 登入成功後會自動更新 Zustand
     } catch (err: any) {
       setFieldErrors(err.errors || { general: err.error || "登入失敗" });
     }
@@ -33,6 +41,11 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-col gap-5">
+      {googleError && (
+        <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+          {googleError}
+        </div>
+      )}
       {fieldErrors.general && (
         <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
           {fieldErrors.general}
@@ -41,7 +54,7 @@ export default function LoginPage() {
       <Button
         variant="outline"
         className="inline-flex items-center justify-center w-full gap-2 h-11 rounded-xl px-5 font-medium bg-background hover:bg-white dark:bg-secondary dark:hover:bg-secondary/80 border border-border hover:border-gray-300 transition-all"
-        onClick={() => window.location.href = "/auth/google"}
+        onClick={() => navigate("/auth/google")}
         disabled={login.isPending}
       >
         <img src="/google.svg" alt="" className="w-4 h-4" />

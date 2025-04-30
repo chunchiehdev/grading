@@ -4,6 +4,7 @@ export interface LoginForm {
 }
 
 export interface AuthError {
+  [key: string]: string | undefined;
   email?: string;
   password?: string;
   confirmPassword?: string;

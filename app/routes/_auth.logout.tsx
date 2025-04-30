@@ -1,24 +1,12 @@
-import { redirect } from "react-router";
-
-export async function action({ request }: { request: Request }) {
-  const response = await fetch("/api/auth/logout", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to logout");
-  }
-
-  return redirect("/");
-}
-
-export async function loader() {
-  return redirect("/login");
-}
+import { useLogout } from "@/hooks/api/auth";
+import { useEffect } from "react";
 
 export default function LogoutPage() {
+  const logout = useLogout();
+
+  useEffect(() => {
+    logout.mutateAsync();
+  }, [logout]);
+
   return null;
 } 

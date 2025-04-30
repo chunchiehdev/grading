@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth";
 
-// 取得目前登入的使用者
 export function useUser() {
   const setUser = useAuthStore((s) => s.setUser);
   return useQuery({
@@ -18,7 +17,6 @@ export function useUser() {
   });
 }
 
-// 登入
 export function useLogin() {
   const setUser = useAuthStore((s) => s.setUser);
   const queryClient = useQueryClient();
@@ -36,6 +34,38 @@ export function useLogin() {
       setUser(data.data || null);
       await queryClient.invalidateQueries({ queryKey: ["user"] });
       return data.data;
+    },
+  });
+}
+
+export function useLogout() {
+  const queryClient = useQueryClient();
+  const clearUser = useAuthStore((state) => state.clearUser);
+
+  return useMutation({
+    mutationFn: async () => {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Logout failed");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      // Clear all queries
+      queryClient.clear();
+      // Clear local storage
+      localStorage.clear();
+      // Clear auth store
+      clearUser();
+      // Redirect to login
+      window.location.href = "/auth/login";
     },
   });
 }

@@ -14,6 +14,7 @@ export default [
 
   // Auth API routes
   route("/api/auth/login", "./routes/api.auth.login.ts"),
+  route("/api/auth/logout", "./routes/api.auth.logout.ts"),
   route("/api/auth/check", "./routes/api.auth.check.ts"),
 
   // Dashboard routes
@@ -60,7 +61,6 @@ export default [
   // Other routes
   route("/grading-history", "./routes/grading-history.tsx"),
   route("/health", "./routes/health.tsx"),
-  route("/set-theme", "./routes/set-theme.ts"),
   route("/favicon.ico", "./routes/favicon.ico.ts"),
 
   // 404 route

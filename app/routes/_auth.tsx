@@ -29,14 +29,14 @@ export default function AuthLayout() {
           </div>
 
           {/* Bottom help link */}
-          <div className="flex justify-center mt-12">
+          {/* <div className="flex justify-center mt-12">
             <Button
               variant="ghost"
               className="px-5 py-2 rounded-full text-base text-muted-foreground font-medium hover:text-foreground hover:border-input border border-input shadow-sm"
             >
               需要幫助？
             </Button>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -57,17 +57,8 @@ export default function AuthLayout() {
               </svg>
             </div>
             <div>
-              <h3 className="text-2xl font-bold">智能評分系統</h3>
-              <p className="mt-2 text-muted-foreground">
-                使用現代科技輔助教學評量，提升教學效能
-              </p>
+              <h3 className="text-2xl font-bold">評分系統</h3>
             </div>
-            <blockquote className="text-lg italic">
-              &ldquo;教育評分系統讓我的工作效率提升了許多，現在我可以更專注於教學品質的提升。&rdquo;
-            </blockquote>
-            <footer className="text-sm text-muted-foreground">
-              李老師，高中數學教師
-            </footer>
           </div>
         </div>
       </div>

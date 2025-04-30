@@ -26,16 +26,15 @@ export const registerSchema = z.object({
   path: ["confirmPassword"],
 });
 
-// 從模式中推斷類型
 export type LoginFormValues = z.infer<typeof loginSchema>;
 export type RegisterFormValues = z.infer<typeof registerSchema>;
 
 // 將Zod錯誤轉換為AuthError格式
-export function formatZodErrors(error: z.ZodError): AuthError {
-  const formattedErrors: AuthError = {};
+export function formatZodErrors(error: z.ZodError): Record<string, string> {
+  const formattedErrors: Record<string, string> = {};
   error.errors.forEach(err => {
     const path = err.path[0] as string;
-    formattedErrors[path as keyof AuthError] = err.message;
+    formattedErrors[path] = err.message || "Invalid value";
   });
   return formattedErrors;
 }

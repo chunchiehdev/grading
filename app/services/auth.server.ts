@@ -1,7 +1,7 @@
 import { db } from "@/lib/db.server";
 import bcrypt from "bcryptjs";
 import { redirect } from "react-router";
-import { getSession, authSessionStorage } from "@/sessions.server";
+import { getSession, commitSession, destroySession } from "@/sessions.server";
 import { OAuth2Client } from "google-auth-library";
 import type { LoginFormValues } from "@/schemas/auth";
 import { ApiError } from "@/middleware/api.server";
@@ -110,15 +110,32 @@ export async function requireUserId(
   const userId = await getUserId(request);
   if (!userId) {
     const searchParams = new URLSearchParams([["redirectTo", redirectTo]]);
-    throw redirect(`/login?${searchParams}`);
+    throw redirect(`/auth/login?${searchParams}`);
   }
+
+  // 檢查用戶是否真的存在
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+
+  if (!user) {
+    const searchParams = new URLSearchParams([["redirectTo", redirectTo]]);
+    throw redirect(`/auth/login?${searchParams}`);
+  }
+
   return userId;
 }
 
 export async function googleLogin() {
   if (!oauth2Client) {
     console.warn("Google OAuth credentials not configured");
-    return redirect("/login?error=google-auth-unavailable");
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: "/auth/login?error=google-auth-unavailable"
+      }
+    });
   }
 
   const url = oauth2Client.generateAuthUrl({
@@ -128,8 +145,13 @@ export async function googleLogin() {
       "https://www.googleapis.com/auth/userinfo.email",
     ],
   });
-  console.log(url);
-  return redirect(url);
+
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: url
+    }
+  });
 }
 
 export async function handleGoogleCallback(request: Request) {
@@ -170,7 +192,14 @@ export async function handleGoogleCallback(request: Request) {
       });
     }
 
-    return createUserSession(user.id, "/dashboard");
+    const session = await createUserSession(user.id);
+    return new Response(null, {
+      status: 302,
+      headers: {
+        "Set-Cookie": session,
+        Location: "/dashboard"
+      }
+    });
   } catch (error) {
     console.error("Google authentication error:", error);
     return redirect("/login?error=google-auth-failed");
@@ -195,37 +224,34 @@ export async function register({ email, password }: LoginCredentials) {
     },
   });
 
-  return createUserSession(user.id, "/");
+  return createUserSession(user.id);
 }
 
 export async function login({ email, password }: LoginFormValues) {
   const user = await db.user.findUnique({ where: { email } });
   if (!user) {
-    throw new ApiError("Authentication failed", 401, { email: "沒這信箱" });
+    throw new ApiError("Authentication failed", 401, { email: "Invalid email" });
   }
 
   const isValidPassword = await bcrypt.compare(password, user.password);
   if (!isValidPassword) {
-    throw new ApiError("Authentication failed", 401, { password: "密碼錯了" });
+    throw new ApiError("Authentication failed", 401, { password: "Invalid password" });
   }
 
-  return createUserSession(user.id, "/dashboard");
+  return createUserSession(user.id);
 }
 
-export async function createUserSession(userId: string, redirectTo: string) {
-  const session = await authSessionStorage.getSession();
+export async function createUserSession(userId: string) {
+  const session = await getSession(new Request("http://localhost"));
   session.set("userId", userId);
-
-  return redirect(redirectTo, {
-    headers: {
-      "Set-Cookie": await authSessionStorage.commitSession(session),
-    },
-  });
+  return commitSession(session);
 }
 
 export async function getUser(request: Request) {
-  const userId = await getUserId(request);
-  if (typeof userId !== "string") {
+  const session = await getSession(request);
+  const userId = session.get("userId");
+
+  if (!userId || typeof userId !== "string") {
     return null;
   }
 
@@ -236,20 +262,16 @@ export async function getUser(request: Request) {
     });
 
     if (!user) {
-      throw await logout(request);
+      return null;
     }
 
     return user;
   } catch {
-    throw await logout(request);
+    return null;
   }
 }
 
 export async function logout(request: Request) {
   const session = await getSession(request);
-  return redirect("/login", {
-    headers: {
-      "Set-Cookie": await authSessionStorage.destroySession(session),
-    },
-  });
+  return destroySession(session);
 }

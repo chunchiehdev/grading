@@ -1,46 +1,34 @@
 import { createCookieSessionStorage } from "react-router";
-
-// Theme session storage (replaces ../theme-provider)
-const themeSessionStorage = createCookieSessionStorage({
-  cookie: {
-    name: "__theme",
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    secrets: [process.env.THEME_SECRET || "default"],
-    secure: false,
-  },
-});
-
-// Helper to get theme session
-export async function getThemeSession(request: Request) {
-  const session = await themeSessionStorage.getSession(request.headers.get("Cookie"));
-  return {
-    getTheme: () => session.get("theme") || "light",
-    setTheme: (theme: string) => session.set("theme", theme),
-    commit: () => themeSessionStorage.commitSession(session),
-  };
-}
-
-// Export the themeSessionResolver function
-export const themeSessionResolver = getThemeSession;
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_MAX_AGE } from "@/constants/auth";
 
 // Auth session storage
-const authSessionStorage = createCookieSessionStorage({
+export const sessionStorage = createCookieSessionStorage({
   cookie: {
-    name: "__auth",
+    name: AUTH_COOKIE_NAME,
     httpOnly: true,
     path: "/",
     sameSite: "lax",
     secrets: [process.env.AUTH_SECRET || "default"],
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: AUTH_COOKIE_MAX_AGE,
+    expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000),
+    domain: process.env.NODE_ENV === "production" ? process.env.COOKIE_DOMAIN : undefined,
   },
 });
 
 // Helper to get auth session
 export async function getSession(request: Request) {
   const cookie = request.headers.get("Cookie");
-  return authSessionStorage.getSession(cookie);
+  return sessionStorage.getSession(cookie);
 }
 
-export { authSessionStorage };
+export async function commitSession(session: any) {
+  return sessionStorage.commitSession(session);
+}
+
+export async function destroySession(session: any) {
+  return sessionStorage.destroySession(session, {
+    expires: new Date(0),
+    maxAge: 0,
+  });
+}

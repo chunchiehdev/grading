@@ -1,4 +1,4 @@
-// root.tsx - 主要根佈局文件
+// root.tsx 
 import {
   Links,
   Meta,
@@ -14,20 +14,20 @@ import "./tailwind.css";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { cn } from "@/lib/utils";
 import { NavHeader } from "@/components/navbar/NavHeader";
-import { getUser } from "@/services/auth.server";
-
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useThemeStore } from "@/stores/theme";
+import { requireAuth } from "@/middleware/auth.server";
+import { PUBLIC_PATHS } from "@/constants/auth";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
-const PUBLIC_PATHS = [
-  "/auth/login",
-  "/register",
-  "/auth/google",       
-  "/auth/google/callback",     
-] as const;
-
-type LoaderFunctionArgs = {
-  request: Request;
-};
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 分鐘
+      gcTime: 10 * 60 * 1000, // 10 分鐘
+    },
+  },
+});
 
 type User = {
   id: string;
@@ -64,28 +64,31 @@ export const meta = () => [
   { name: "description", content: "A grading system application" }
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await getUser(request);
+export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
-  const isPublicPath = PUBLIC_PATHS.some((path) => url.pathname.startsWith(path));
+  const path = url.pathname;
 
-  if (url.pathname === "/") {
-    if (user) {
-      return redirect("/dashboard");
+  // 檢查是否為公開路徑
+  if (PUBLIC_PATHS.some(publicPath => path.startsWith(publicPath))) {
+    return { user: null };
+  }
+
+  try {
+    const user = await requireAuth(request);
+    return { user };
+  } catch (error) {
+    if (error instanceof Response) {
+      return error;
     }
-    return Response.json({ user, isPublicPath: true });
+    throw error;
   }
-
-  if (!user && !isPublicPath) {
-    return redirect("/auth/login");
-  }
-
-  return Response.json({ user, isPublicPath });
 }
 
 function Document({ children }: { children: React.ReactNode }) {
+  const { theme } = useThemeStore();
+  
   return (
-    <html lang="zh-TW" suppressHydrationWarning>
+    <html lang="zh-TW" suppressHydrationWarning className={theme}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -128,7 +131,6 @@ function Layout() {
         )}
       >
         <NavHeader
-          user={user}
           className="bg-background/80 backdrop-blur-sm border-b border-border"
         />
         <main className="p-8">
@@ -142,12 +144,12 @@ function Layout() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-
-    <ThemeProvider specifiedTheme={null}>
-      <Document>
-        <Layout />
-      </Document>
-    </ThemeProvider>
+      <ThemeProvider>
+        <Document>
+          <Layout />
+        </Document>
+      </ThemeProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }
@@ -158,7 +160,7 @@ export function ErrorBoundary() {
     <div className="p-5 m-5 rounded-lg bg-destructive/10 text-destructive">
       <h1 className="text-xl font-bold mb-2">發生錯誤</h1>
       <p>應用程序遇到了問題，請稍後再試。</p>
-      <a 
+      <a
         href="/"
         className="inline-block mt-5 px-4 py-2 bg-primary text-primary-foreground rounded-md"
       >

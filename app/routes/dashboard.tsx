@@ -1,11 +1,5 @@
 import { Link } from "react-router";
-import { requireUserId } from "@/services/auth.server";
 import { Button } from "@/components/ui/button";
-
-// 確保用戶必須登入才能訪問此頁面
-export async function loader({ request }: { request: Request }) {
-  return await requireUserId(request);
-}
 
 export default function Dashboard() {
   return (
