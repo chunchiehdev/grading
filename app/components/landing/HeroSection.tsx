@@ -1,88 +1,90 @@
 import { useNavigate } from "react-router";
-import { ArrowRight } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { ArrowRight, BookOpen, GraduationCap, Users, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useState } from "react";
+
+const features = [
+  {
+    title: "智能評分",
+    description: "利用 AI 技術輔助評分，提高評分效率和準確性",
+    icon: FileText,
+  },
+  {
+    title: "多人協作",
+    description: "支持多位教師同時評分，實時同步評分結果",
+    icon: Users,
+  },
+  {
+    title: "學習分析",
+    description: "提供詳細的學習分析報告，幫助教師了解學生學習狀況",
+    icon: BookOpen,
+  },
+  {
+    title: "教學改進",
+    description: "基於評分數據提供教學改進建議，提升教學質量",
+    icon: GraduationCap,
+  },
+];
 
 const HeroSection = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [videoError, setVideoError] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.onerror = () => {
-        console.error("Video failed to load");
-        setVideoError(true);
-      };
-    }
-  }, []);
-
-  const handleCreateNewGrading = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/create-grading", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ source: "hero-section" }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create grading task");
-      }
-
-      const { id } = await response.json();
-      navigate(`/assignments/grade/${id}`);
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleGetStarted = () => {
+    navigate("/auth/login");
   };
 
   return (
-    <div className="relative w-full min-h-[500px] overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-      <div className="absolute inset-0 transform-gpu will-change-transform">
-        {!videoError ? (
-          <video
-            ref={videoRef}
-            autoPlay
-            loop
-            muted
-            playsInline
-            poster="/someone.jpg"
-            className="absolute inset-0 w-full h-full object-cover"
-            onError={() => setVideoError(true)}
-          >
-            <source src="/desk.mp4" type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-            <p className="text-white text-xl">無法載入視頻，使用備用背景</p>
+    <div className="min-h-screen w-full bg-gradient-to-b from-background to-muted">
+      <div className="container mx-auto px-4 py-16">
+        <div className="flex flex-col items-center text-center space-y-8">
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
+            教育評分系統
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-2xl">
+            使用現代科技輔助教學評量，提升教學效能，讓評分更智能、更高效
+          </p>
+          <div className="flex gap-4">
+            <Button
+              size="lg"
+              onClick={handleGetStarted}
+              className="gap-2"
+            >
+              開始使用
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => navigate("/auth/login")}
+            >
+              登入
+            </Button>
           </div>
-        )}
+        </div>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30" />
-      </div>
+        <div className="mt-24 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {features.map((feature) => (
+            <Card key={feature.title} className="p-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="rounded-full bg-primary/10 p-3">
+                  <feature.icon className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold">{feature.title}</h3>
+                <p className="text-muted-foreground">{feature.description}</p>
+              </div>
+            </Card>
+          ))}
+        </div>
 
-      <div className="relative z-10 p-8 flex flex-col h-full justify-end">
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-          教育評分系統
-        </h2>
-        <p className="text-xl text-white/80 mb-8 max-w-2xl">
-          使用現代科技輔助教學評量，提升教學效能
-        </p>
-        
-        <button
-          onClick={handleCreateNewGrading}
-          disabled={isLoading}
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-black font-medium rounded-full hover:bg-gray-100 transition-colors w-fit"
-        >
-          {isLoading ? "處理中..." : "開始使用"}
-          {!isLoading && <ArrowRight className="w-5 h-5" />}
-        </button>
+        <div className="mt-24 text-center">
+          <h2 className="text-3xl font-bold mb-4">為什麼選擇我們？</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            我們的系統結合了最新的 AI 技術和教育理念，為教師提供了一個智能、高效的評分平台。
+            無論是日常作業還是期末考試，都能幫助您節省時間，提高評分質量。
+          </p>
+        </div>
       </div>
     </div>
   );

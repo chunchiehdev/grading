@@ -6,49 +6,81 @@ import {
   Scripts,
   ScrollRestoration,
   useLoaderData,
-  redirect
+  redirect,
 } from "react-router";
 import { ThemeProvider } from "@/theme-provider";
-import { commonLinks, commonMeta } from "@/utils/layout-utils";
 import { useState, useCallback } from "react";
+import "./tailwind.css";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { cn } from "@/lib/utils";
 import { NavHeader } from "@/components/navbar/NavHeader";
 import { getUser } from "@/services/auth.server";
 
-export const links = commonLinks;
-export const meta = commonMeta;
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-export async function loader({ request }: { request: Request }) {
+const PUBLIC_PATHS = [
+  "/auth/login",
+  "/register",
+  "/auth/google",       
+  "/auth/google/callback",     
+] as const;
+
+type LoaderFunctionArgs = {
+  request: Request;
+};
+
+type User = {
+  id: string;
+  email: string;
+  name: string;
+};
+
+type LoaderData = {
+  user: User | null;
+  isPublicPath: boolean;
+};
+
+export const links = () => [
+  { rel: "icon", type: "image/x-icon", href: "/rubber-duck.ico" },
+  { rel: "stylesheet", href: "./tailwind.css" },
+  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  {
+    rel: "preconnect",
+    href: "https://fonts.gstatic.com",
+    crossOrigin: "anonymous",
+  },
+  {
+    rel: "stylesheet",
+    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+  },
+  {
+    rel: "stylesheet",
+    href: "https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&display=swap",
+  },
+];
+
+export const meta = () => [
+  { title: "Grading System" },
+  { name: "description", content: "A grading system application" }
+];
+
+export async function loader({ request }: LoaderFunctionArgs) {
   const user = await getUser(request);
   const url = new URL(request.url);
-  const pathname = url.pathname;
+  const isPublicPath = PUBLIC_PATHS.some((path) => url.pathname.startsWith(path));
 
-  // 定義公共路徑
-  const publicPaths = [
-    "/auth/login",
-    "/register",
-    "/auth/google",       
-    "/auth/google/callback",     
-  ];
-
-  // 檢查是否為公共路徑
-  const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
-
-  // 處理首頁的特殊邏輯
-  if (pathname === "/") {
+  if (url.pathname === "/") {
     if (user) {
       return redirect("/dashboard");
     }
-    return { user, isPublicPath: true };
+    return Response.json({ user, isPublicPath: true });
   }
 
-  // 處理非公共路徑的認證
   if (!user && !isPublicPath) {
     return redirect("/auth/login");
   }
 
-  return { user, isPublicPath };
+  return Response.json({ user, isPublicPath });
 }
 
 function Document({ children }: { children: React.ReactNode }) {
@@ -61,7 +93,7 @@ function Document({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="min-h-screen bg-background">
+      <body className="min-h-screen w-full bg-background font-sans antialiased">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -71,7 +103,7 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const { user } = useLoaderData<typeof loader>();
+  const { user } = useLoaderData() as LoaderData;
   const [isCollapsed, setIsCollapsed] = useState(true);
   const toggleSidebar = useCallback(() => {
     setIsCollapsed((prev) => !prev);
@@ -79,14 +111,14 @@ function Layout() {
 
   if (!user) {
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen w-full bg-background">
         <Outlet />
       </main>
     );
   }
 
   return (
-    <div className="relative flex min-h-screen">
+    <div className="relative flex min-h-screen w-full bg-background">
       <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
       <div
         className={cn(
@@ -96,7 +128,6 @@ function Layout() {
         )}
       >
         <NavHeader
-          onShare={() => console.log("Share clicked")}
           user={user}
           className="bg-background/80 backdrop-blur-sm border-b border-border"
         />
@@ -110,37 +141,26 @@ function Layout() {
 
 export default function App() {
   return (
+    <QueryClientProvider client={queryClient}>
+
     <ThemeProvider specifiedTheme={null}>
       <Document>
         <Layout />
       </Document>
     </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
 // 錯誤邊界
 export function ErrorBoundary() {
   return (
-    <div style={{ 
-      padding: '20px', 
-      backgroundColor: '#ffebee', 
-      color: '#b71c1c', 
-      margin: '20px', 
-      borderRadius: '8px' 
-    }}>
-      <h1>出現錯誤</h1>
+    <div className="p-5 m-5 rounded-lg bg-destructive/10 text-destructive">
+      <h1 className="text-xl font-bold mb-2">發生錯誤</h1>
       <p>應用程序遇到了問題，請稍後再試。</p>
       <a 
         href="/"
-        style={{
-          display: 'inline-block',
-          marginTop: '20px',
-          padding: '10px 20px',
-          backgroundColor: '#007BFF',
-          color: 'white',
-          textDecoration: 'none',
-          borderRadius: '4px'
-        }}
+        className="inline-block mt-5 px-4 py-2 bg-primary text-primary-foreground rounded-md"
       >
         返回首頁
       </a>

@@ -44,6 +44,7 @@
     "@react-router/node": "^7.5.2",
     "@react-router/serve": "^7.5.2",
     "@socket.io/redis-adapter": "^8.3.0",
+    "@tanstack/react-query": "^5.74.8",
     "@types/ioredis": "^4.28.10",
     "@types/three": "^0.175.0",
     "axios": "^1.8.3",
@@ -71,7 +72,8 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.175.0",
     "uuid": "^11.0.3",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@react-router/dev": "^7.5.2",

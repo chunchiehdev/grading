@@ -4,6 +4,7 @@ import { redirect } from "react-router";
 import { getSession, authSessionStorage } from "@/sessions.server";
 import { OAuth2Client } from "google-auth-library";
 import type { LoginFormValues } from "@/schemas/auth";
+import { ApiError } from "@/middleware/api.server";
 
 interface LoginCredentials {
   email: string;
@@ -200,12 +201,12 @@ export async function register({ email, password }: LoginCredentials) {
 export async function login({ email, password }: LoginFormValues) {
   const user = await db.user.findUnique({ where: { email } });
   if (!user) {
-    return Response.json({ errors: { email: "沒這信箱" } }, { status: 400 });
+    throw new ApiError("Authentication failed", 401, { email: "沒這信箱" });
   }
 
   const isValidPassword = await bcrypt.compare(password, user.password);
   if (!isValidPassword) {
-    return Response.json({ errors: { password: "密碼錯了" } }, { status: 400 });
+    throw new ApiError("Authentication failed", 401, { password: "密碼錯了" });
   }
 
   return createUserSession(user.id, "/dashboard");
@@ -213,8 +214,8 @@ export async function login({ email, password }: LoginFormValues) {
 
 export async function createUserSession(userId: string, redirectTo: string) {
   const session = await authSessionStorage.getSession();
-
   session.set("userId", userId);
+
   return redirect(redirectTo, {
     headers: {
       "Set-Cookie": await authSessionStorage.commitSession(session),
@@ -229,12 +230,18 @@ export async function getUser(request: Request) {
   }
 
   try {
-    return await db.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true },
     });
+
+    if (!user) {
+      throw await logout(request);
+    }
+
+    return user;
   } catch {
-    throw logout(request);
+    throw await logout(request);
   }
 }
 
