@@ -1,5 +1,5 @@
-import { useRef, useEffect } from "react";
-import * as THREE from "three";
+import { useRef, useEffect } from 'react';
+import * as THREE from 'three';
 
 interface ThreeSceneProps {
   className?: string;
@@ -13,12 +13,7 @@ export function ThreeScene({ className }: ThreeSceneProps) {
 
     const scene = new THREE.Scene();
 
-    const camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 5;
 
     const renderer = new THREE.WebGLRenderer({
@@ -26,10 +21,7 @@ export function ThreeScene({ className }: ThreeSceneProps) {
       antialias: true,
       alpha: true,
     });
-    renderer.setSize(
-      canvasRef.current.clientWidth,
-      canvasRef.current.clientHeight
-    );
+    renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
     renderer.setClearColor(0x000000, 0);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -59,14 +51,8 @@ export function ThreeScene({ className }: ThreeSceneProps) {
       colorArray[i + 2] = 0.8 + Math.random() * 0.2;
     }
 
-    particlesGeometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(posArray, 3)
-    );
-    particlesGeometry.setAttribute(
-      "color",
-      new THREE.BufferAttribute(colorArray, 3)
-    );
+    particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
 
     const particlesMaterial = new THREE.PointsMaterial({
       size: 0.02,
@@ -75,25 +61,18 @@ export function ThreeScene({ className }: ThreeSceneProps) {
       opacity: 0.8,
     });
 
-    const particlesMesh = new THREE.Points(
-      particlesGeometry,
-      particlesMaterial
-    );
+    const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
     scene.add(particlesMesh);
 
     const handleResize = () => {
       if (!canvasRef.current) return;
 
-      camera.aspect =
-        canvasRef.current.clientWidth / canvasRef.current.clientHeight;
+      camera.aspect = canvasRef.current.clientWidth / canvasRef.current.clientHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(
-        canvasRef.current.clientWidth,
-        canvasRef.current.clientHeight
-      );
+      renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight);
     };
 
-    window.addEventListener("resize", handleResize);
+    window.addEventListener('resize', handleResize);
 
     const animate = () => {
       requestAnimationFrame(animate);
@@ -107,7 +86,7 @@ export function ThreeScene({ className }: ThreeSceneProps) {
     animate();
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener('resize', handleResize);
       scene.remove(particlesMesh);
       particlesGeometry.dispose();
       particlesMaterial.dispose();
@@ -115,7 +94,5 @@ export function ThreeScene({ className }: ThreeSceneProps) {
     };
   }, []);
 
-  return (
-    <canvas ref={canvasRef} className={className} data-engine="three.js" />
-  );
+  return <canvas ref={canvasRef} className={className} data-engine="three.js" />;
 }

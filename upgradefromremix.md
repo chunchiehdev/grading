@@ -11,12 +11,12 @@ If you have enabled all Remix v2 future flags, upgrading from Remix v2 to React 
 The majority of steps 2-8 can be automatically updated using a codemod created by community member James Restall.
 
 1. Adopt future flags
-👉 Adopt future flags
+   👉 Adopt future flags
 
 Adopt all existing future flags in your Remix v2 application.
 
 2. Update dependencies
-Most of the "shared" APIs that used to be re-exported through the runtime-specific packages (@remix-run/node, @remix-run/cloudflare, etc.) have all been collapsed into react-router in v7. So instead of importing from @react-router/node or @react-router/cloudflare, you'll import those directly from react-router.
+   Most of the "shared" APIs that used to be re-exported through the runtime-specific packages (@remix-run/node, @remix-run/cloudflare, etc.) have all been collapsed into react-router in v7. So instead of importing from @react-router/node or @react-router/cloudflare, you'll import those directly from react-router.
 
 -import { redirect } from "@remix-run/node";
 +import { redirect } from "react-router";
@@ -39,18 +39,16 @@ Copy code to clipboard
 
 If you prefer not to use the codemod, you can manually update your dependencies.
 
-Expand to see a table of package name changes in alphabetical order
-3. Change scripts in package.json
+Expand to see a table of package name changes in alphabetical order 3. Change scripts in package.json
 If you used the codemod you can skip this step as it was automatically completed.
 
 👉 Update the scripts in your package.json
 
-Script	Remix v2		React Router v7
-dev	remix vite:dev	➡️	react-router dev
-build	remix vite:build	➡️	react-router build
-start	remix-serve build/server/index.js	➡️	react-router-serve build/server/index.js
-typecheck	tsc	➡️	react-router typegen && tsc
-4. Add a routes.ts file
+Script Remix v2 React Router v7
+dev remix vite:dev ➡️ react-router dev
+build remix vite:build ➡️ react-router build
+start remix-serve build/server/index.js ➡️ react-router-serve build/server/index.js
+typecheck tsc ➡️ react-router typegen && tsc 4. Add a routes.ts file
 If you used the codemod and Remix v2 v3_routeConfig flag, you can skip this step as it was automatically completed.
 
 In React Router v7 you define your routes using the app/routes.ts file. View the routing documentation for more information.
@@ -66,7 +64,7 @@ In React Router v7 you define your routes using the app/routes.ts file. View the
 +import { remixRoutesOptionAdapter } from "@react-router/remix-routes-option-adapter";
 
 export default [
-  // however your routes are defined
+// however your routes are defined
 ] satisfies RouteConfig;
 
 Copy code to clipboard
@@ -87,35 +85,37 @@ import { type RouteConfig } from "@react-router/dev/routes";
 import { remixRoutesOptionAdapter } from "@react-router/remix-routes-option-adapter";
 
 export default remixRoutesOptionAdapter((defineRoutes) => {
-  return defineRoutes((route) => {
-    route("/", "home/route.tsx", { index: true });
-    route("about", "about/route.tsx");
-    route("", "concerts/layout.tsx", () => {
-      route("trending", "concerts/trending.tsx");
-      route(":city", "concerts/city.tsx");
-    });
-  });
+return defineRoutes((route) => {
+route("/", "home/route.tsx", { index: true });
+route("about", "about/route.tsx");
+route("", "concerts/layout.tsx", () => {
+route("trending", "concerts/trending.tsx");
+route(":city", "concerts/city.tsx");
+});
+});
 }) satisfies RouteConfig;
 Copy code to clipboard
 If you were using the routes option in your vite.config.ts, be sure to remove it.
 
 export default defineConfig({
-  plugins: [
-    remix({
-      ssr: true,
+plugins: [
+remix({
+ssr: true,
+
 -     ignoredRouteFiles: ['**/*'],
 -     routes(defineRoutes) {
 -       return defineRoutes((route) => {
 -         route("/somewhere/cool/*", "catchall.tsx");
 -       });
 -     },
-    })
-    tsconfigPaths(),
+      })
+      tsconfigPaths(),
   ],
-});
-Copy code to clipboard
+  });
+  Copy code to clipboard
+
 5. Add a React Router config
-👉 Add react-router.config.ts your project
+   👉 Add react-router.config.ts your project
 
 The config that was previously passed to the remix plugin in vite.config.ts is now exported from react-router.config.ts.
 
@@ -125,24 +125,28 @@ touch react-router.config.ts
 Copy code to clipboard
 // vite.config.ts
 export default defineConfig({
-  plugins: [
--   remix({
+plugins: [
+
+- remix({
 -     ssr: true,
 -     future: {/* all the v3 flags */}
--   }),
-+   reactRouter(),
-    tsconfigPaths(),
+- }),
+
+* reactRouter(),
+  tsconfigPaths(),
   ],
-});
+  });
 
 // react-router.config.ts
 +import type { Config } from "@react-router/dev/config";
 +export default {
-+  ssr: true,
-+} satisfies Config;
-Copy code to clipboard
+
+- ssr: true,
+  +} satisfies Config;
+  Copy code to clipboard
+
 6. Add React Router plugin to vite.config
-If you used the codemod you can skip this step as it was automatically completed.
+   If you used the codemod you can skip this step as it was automatically completed.
 
 👉 Add reactRouter plugin to vite.config
 
@@ -154,15 +158,18 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [
--   remix(),
-+   reactRouter(),
-    tsconfigPaths(),
+plugins: [
+
+- remix(),
+
+* reactRouter(),
+  tsconfigPaths(),
   ],
-});
-Copy code to clipboard
+  });
+  Copy code to clipboard
+
 7. Enable type safety
-If you are not using TypeScript, you can skip this step.
+   If you are not using TypeScript, you can skip this step.
 
 React Router automatically generates types for your route modules into a .react-router/ directory at the root of your app. This directory is fully managed by React Router and should be gitignore'd. Learn more about the new type safety features.
 
@@ -173,46 +180,52 @@ React Router automatically generates types for your route modules into a .react-
 
 Update the types field in your tsconfig.json to include:
 
-.react-router/types/**/* path in the include field
-The appropriate @react-router/* package in the types field
+.react-router/types/\*_/_ path in the include field
+The appropriate @react-router/_ package in the types field
 rootDirs for simplified relative imports
 {
-  "include": [
-    /* ... */
-+   ".react-router/types/**/*"
+"include": [
+/_ ... \*/
+
+- ".react-router/types/\*_/_"
   ],
   "compilerOptions": {
--   "types": ["@remix-run/node", "vite/client"],
-+   "types": ["@react-router/node", "vite/client"],
-    /* ... */
-+   "rootDirs": [".", "./.react-router/types"]
+
+* "types": ["@remix-run/node", "vite/client"],
+
+- "types": ["@react-router/node", "vite/client"],
+  /_ ... _/
+- "rootDirs": [".", "./.react-router/types"]
   }
-}
-Copy code to clipboard
+  }
+  Copy code to clipboard
+
 8. Rename components in entry files
-If you used the codemod you can skip this step as it was automatically completed.
+   If you used the codemod you can skip this step as it was automatically completed.
 
 If you have an entry.server.tsx and/or an entry.client.tsx file in your application, you will need to update the main components in these files:
 
 -import { RemixServer } from "@remix-run/react";
 +import { ServerRouter } from "react-router";
 
--<RemixServer context={remixContext} url={request.url} />,
-+<ServerRouter context={remixContext} url={request.url} />,
+-<RemixServer context={remixContext} url={request.url} />, +<ServerRouter context={remixContext} url={request.url} />,
 Copy code to clipboard
 -import { RemixBrowser } from "@remix-run/react";
 +import { HydratedRouter } from "react-router/dom";
 
 hydrateRoot(
-  document,
-  <StrictMode>
--   <RemixBrowser />
-+   <HydratedRouter />
-  </StrictMode>,
-);
-Copy code to clipboard
+document,
+<StrictMode>
+
+- <RemixBrowser />
+
+* <HydratedRouter />
+    </StrictMode>,
+  );
+  Copy code to clipboard
+
 9. Update types for AppLoadContext
-If you were using remix-serve you can skip this step. This is only applicable if you were using a custom server in Remix v2.
+   If you were using remix-serve you can skip this step. This is only applicable if you were using a custom server in Remix v2.
 
 Since React Router can be used as both a React framework and a stand-alone routing library, the context argument for LoaderFunctionArgs and ActionFunctionArgs is now optional and typed as any by default. You can register types for your load context to get type safety for your loaders and actions.
 
@@ -221,20 +234,20 @@ Since React Router can be used as both a React framework and a stand-alone routi
 Before you migrate to the new Route.LoaderArgs and Route.ActionArgs types, you can temporarily augment LoaderFunctionArgs and ActionFunctionArgs with your load context type to ease migration.
 
 declare module "react-router" {
-  // Your AppLoadContext used in v2
-  interface AppLoadContext {
-    whatever: string;
-  }
+// Your AppLoadContext used in v2
+interface AppLoadContext {
+whatever: string;
+}
 
-  // TODO: remove this once we've migrated to `Route.LoaderArgs` instead for our loaders
-  interface LoaderFunctionArgs {
-    context: AppLoadContext;
-  }
+// TODO: remove this once we've migrated to `Route.LoaderArgs` instead for our loaders
+interface LoaderFunctionArgs {
+context: AppLoadContext;
+}
 
-  // TODO: remove this once we've migrated to `Route.ActionArgs` instead for our actions
-  interface ActionFunctionArgs {
-    context: AppLoadContext;
-  }
+// TODO: remove this once we've migrated to `Route.ActionArgs` instead for our actions
+interface ActionFunctionArgs {
+context: AppLoadContext;
+}
 }
 
 export {}; // necessary for TS to treat this as a module
@@ -246,10 +259,10 @@ Using declare module to register types is a standard TypeScript technique called
 Once you adopt the new type generation, you can remove the LoaderFunctionArgs/ActionFunctionArgs augmentations and use the context argument from Route.LoaderArgs and Route.ActionArgs instead.
 
 declare module "react-router" {
-  // Your AppLoadContext used in v2
-  interface AppLoadContext {
-    whatever: string;
-  }
+// Your AppLoadContext used in v2
+interface AppLoadContext {
+whatever: string;
+}
 }
 
 export {}; // necessary for TS to treat this as a module
@@ -257,9 +270,9 @@ Copy code to clipboard
 import type { Route } from "./+types/my-route";
 
 export function loader({ context }: Route.LoaderArgs) {}
-// { whatever: string }  ^^^^^^^
+// { whatever: string } ^^^^^^^
 
 export function action({ context }: Route.ActionArgs) {}
-// { whatever: string }  ^^^^^^^
+// { whatever: string } ^^^^^^^
 Copy code to clipboard
 Congratulations! You are now on React Router v7. Go ahead and run your application to make sure everything is working as expected.

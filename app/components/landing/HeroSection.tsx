@@ -1,29 +1,29 @@
-import { useNavigate } from "react-router";
-import { ArrowRight, BookOpen, GraduationCap, Users, FileText } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { useUser } from "@/hooks/api/auth";
-import { useEffect } from "react";
+import { useNavigate } from 'react-router';
+import { ArrowRight, BookOpen, GraduationCap, Users, FileText } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { useUser } from '@/hooks/api/auth';
+import { useEffect } from 'react';
 
 const features = [
   {
-    title: "智能評分",
-    description: "利用 AI 技術輔助評分，提高評分效率和準確性",
+    title: '智能評分',
+    description: '利用 AI 技術輔助評分，提高評分效率和準確性',
     icon: FileText,
   },
   {
-    title: "多人協作",
-    description: "支持多位教師同時評分，實時同步評分結果",
+    title: '多人協作',
+    description: '支持多位教師同時評分，實時同步評分結果',
     icon: Users,
   },
   {
-    title: "學習分析",
-    description: "提供詳細的學習分析報告，幫助教師了解學生學習狀況",
+    title: '學習分析',
+    description: '提供詳細的學習分析報告，幫助教師了解學生學習狀況',
     icon: BookOpen,
   },
   {
-    title: "教學改進",
-    description: "基於評分數據提供教學改進建議，提升教學質量",
+    title: '教學改進',
+    description: '基於評分數據提供教學改進建議，提升教學質量',
     icon: GraduationCap,
   },
 ];
@@ -34,21 +34,21 @@ const features = [
  */
 const HeroSection = () => {
   const navigate = useNavigate();
-  
+
   // 使用 React Query 獲取用戶數據
   const { data: user, isLoading } = useUser();
   const isLoggedIn = Boolean(user);
-  
+
   // 調試用戶狀態
   useEffect(() => {
-    console.log("[HeroSection] User authenticated:", isLoggedIn);
+    console.log('[HeroSection] User authenticated:', isLoggedIn);
   }, [isLoggedIn]);
 
   const handleGetStarted = () => {
     if (isLoggedIn) {
-      navigate("/dashboard");
+      navigate('/dashboard');
     } else {
-      navigate("/auth/login");
+      navigate('/auth/login');
     }
   };
 
@@ -56,28 +56,17 @@ const HeroSection = () => {
     <div className="min-h-screen w-full bg-gradient-to-b from-background to-muted">
       <div className="container mx-auto px-4 py-16">
         <div className="flex flex-col items-center text-center space-y-8">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
-            教育評分系統
-          </h1>
+          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">教育評分系統</h1>
           <p className="text-xl text-muted-foreground max-w-2xl">
             使用現代科技輔助教學評量，提升教學效能，讓評分更智能、更高效
           </p>
           <div className="flex gap-4">
-            <Button
-              size="lg"
-              onClick={handleGetStarted}
-              className="gap-2"
-              disabled={isLoading}
-            >
-              {isLoggedIn ? "進入系統" : "開始使用"}
+            <Button size="lg" onClick={handleGetStarted} className="gap-2" disabled={isLoading}>
+              {isLoggedIn ? '進入系統' : '開始使用'}
               <ArrowRight className="h-4 w-4" />
             </Button>
             {!isLoggedIn && !isLoading && (
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => navigate("/auth/login")}
-              >
+              <Button variant="outline" size="lg" onClick={() => navigate('/auth/login')}>
                 登入
               </Button>
             )}
@@ -97,7 +86,6 @@ const HeroSection = () => {
             </Card>
           ))}
         </div>
-
       </div>
     </div>
   );

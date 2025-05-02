@@ -1,7 +1,7 @@
-import { Link } from "react-router";
-import { Button } from "./button";
-import { Card, CardContent } from "./card";
-import { ReactNode } from "react";
+import { Link } from 'react-router';
+import { Button } from './button';
+import { Card, CardContent } from './card';
+import { ReactNode } from 'react';
 
 interface EmptyStateProps {
   title: string;
@@ -12,14 +12,7 @@ interface EmptyStateProps {
   className?: string;
 }
 
-export function EmptyState({
-  title,
-  description,
-  actionText,
-  actionLink,
-  icon,
-  className,
-}: EmptyStateProps) {
+export function EmptyState({ title, description, actionText, actionLink, icon, className }: EmptyStateProps) {
   return (
     <Card className={className}>
       <CardContent className="pt-6 px-6 pb-8 flex flex-col items-center justify-center text-center space-y-4">
@@ -34,4 +27,4 @@ export function EmptyState({
       </CardContent>
     </Card>
   );
-} 
+}

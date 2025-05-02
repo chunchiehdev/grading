@@ -1,31 +1,21 @@
 // GradingContainer.tsx
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type {
-  FeedbackData,
-  GradingStatus,
-  ValidationResult,
-  Section,
-} from "@/types/grading";
-import { useFetcher } from "react-router";
-import { GradingStepper } from "./GradingStepper";
-import { AssignmentInput } from "./AssignmentInput";
-import { GradingProgress } from "./GradingProgress";
-import FeedbackDisplay from "./FeedbackDisplay";
-import { CompactFileUpload } from "./CompactFileUpload";
-import { Card } from "@/components/ui/card";
-import { Alert, AlertDescription , AlertTitle } from "@/components/ui/alert";
-import {
-  Download,
-  AlertCircle,
-  RefreshCcw,
-  CheckCircle,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { action } from "@/routes/assignments.grade.$taskId";
-import { Button } from "@/components/ui/button";
-import type { UploadedFileInfo } from "@/types/files";
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import type { FeedbackData, GradingStatus, ValidationResult, Section } from '@/types/grading';
+import { useFetcher } from 'react-router';
+import { GradingStepper } from './GradingStepper';
+import { AssignmentInput } from './AssignmentInput';
+import { GradingProgress } from './GradingProgress';
+import FeedbackDisplay from './FeedbackDisplay';
+import { CompactFileUpload } from './CompactFileUpload';
+import { Card } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Download, AlertCircle, RefreshCcw, CheckCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import type { action } from '@/routes/assignments.grade.$taskId';
+import { Button } from '@/components/ui/button';
+import type { UploadedFileInfo } from '@/types/files';
 
-type SnackbarSeverity = "success" | "error" | "info";
+type SnackbarSeverity = 'success' | 'error' | 'info';
 
 interface GradingContainerProps {
   sections: Section[];
@@ -44,7 +34,7 @@ interface GradingContainerProps {
 interface Step {
   label: string;
   completed: boolean;
-  status: "waiting" | "processing" | "completed" | "error";
+  status: 'waiting' | 'processing' | 'completed' | 'error';
   description: string;
 }
 
@@ -53,7 +43,6 @@ interface SnackbarState {
   message: string;
   severity: SnackbarSeverity;
 }
-
 
 export function GradingContainer({
   sections,
@@ -70,30 +59,30 @@ export function GradingContainer({
 }: GradingContainerProps) {
   const [_snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
-    message: "",
-    severity: "success",
+    message: '',
+    severity: 'success',
   });
   const [hasUploadedFiles, setHasUploadedFiles] = useState(false);
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
-  const [mode, setMode] = useState<"editing" | "submitted">("editing");
+  const [mode, setMode] = useState<'editing' | 'submitted'>('editing');
   const completionShown = useRef(false);
-  const lastMessage = useRef("");
+  const lastMessage = useRef('');
   const [isEditing, setIsEditing] = useState(false);
   const [_uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
   const processingFetcher = useFetcher();
-  
+
   const handleEditMode = () => {
     setIsEditing(true);
-    setMode("editing");
+    setMode('editing');
   };
 
   const handleReset = useCallback(() => {
-    window.location.reload()
-    setMode("editing");
+    window.location.reload();
+    setMode('editing');
     setCurrentStep(0);
     completionShown.current = false;
-    lastMessage.current = "";
+    lastMessage.current = '';
 
     fetcher.data = undefined;
 
@@ -105,43 +94,33 @@ export function GradingContainer({
   const steps: Step[] = useMemo(
     () => [
       {
-        label: "上傳閱讀文本",
+        label: '上傳閱讀文本',
         completed: hasUploadedFiles,
-        status:
-          currentStep === 0
-            ? "processing"
-            : hasUploadedFiles
-            ? "completed"
-            : "waiting",
-        description: "請上傳閱讀文本",
+        status: currentStep === 0 ? 'processing' : hasUploadedFiles ? 'completed' : 'waiting',
+        description: '請上傳閱讀文本',
       },
       {
-        label: "輸入作業",
-        completed: status === "processing" || status === "completed",
+        label: '輸入作業',
+        completed: status === 'processing' || status === 'completed',
         status:
-          status === "processing" || status === "completed"
-            ? "completed"
+          status === 'processing' || status === 'completed'
+            ? 'completed'
             : currentStep === 1
-            ? "processing"
-            : "waiting",
-        description: "請輸入作業內容，包含摘要、反思和問題",
+              ? 'processing'
+              : 'waiting',
+        description: '請輸入作業內容，包含摘要、反思和問題',
       },
       {
-        label: "評分中",
-        completed: status === "completed",
-        status:
-          status === "processing"
-            ? "processing"
-            : status === "completed"
-            ? "completed"
-            : "waiting",
-        description: "系統正在評估您的作業",
+        label: '評分中',
+        completed: status === 'completed',
+        status: status === 'processing' ? 'processing' : status === 'completed' ? 'completed' : 'waiting',
+        description: '系統正在評估您的作業',
       },
       {
-        label: "查看結果",
+        label: '查看結果',
         completed: Boolean(feedback),
-        status: feedback ? "completed" : "waiting",
-        description: "查看評分結果和建議",
+        status: feedback ? 'completed' : 'waiting',
+        description: '查看評分結果和建議',
       },
     ],
     [currentStep, status, feedback, hasUploadedFiles]
@@ -160,10 +139,10 @@ export function GradingContainer({
     };
 
     const blob = new Blob([JSON.stringify(content, null, 2)], {
-      type: "application/json",
+      type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
     a.download = `feedback-${new Date().toISOString()}.json`;
     document.body.appendChild(a);
@@ -175,8 +154,8 @@ export function GradingContainer({
   useEffect(() => {
     const currentMessage =
       error ||
-      (validationErrors.length > 0 ? validationErrors.join(", ") : null) ||
-      (status === "processing" ? gradingMessage : null);
+      (validationErrors.length > 0 ? validationErrors.join(', ') : null) ||
+      (status === 'processing' ? gradingMessage : null);
 
     if (currentMessage && currentMessage !== lastMessage.current) {
       lastMessage.current = currentMessage;
@@ -184,36 +163,36 @@ export function GradingContainer({
       if (error || validationErrors.length > 0) {
         setSnackbar({
           open: true,
-          message: error || validationErrors.join(", "),
-          severity: "error",
+          message: error || validationErrors.join(', '),
+          severity: 'error',
         });
-      } else if (status === "processing" && !feedback) {
+      } else if (status === 'processing' && !feedback) {
         setSnackbar({
           open: true,
-          message: gradingMessage || "開始評分...",
-          severity: "info",
+          message: gradingMessage || '開始評分...',
+          severity: 'info',
         });
       }
 
-      if (status === "completed" && feedback && !completionShown.current) {
+      if (status === 'completed' && feedback && !completionShown.current) {
         completionShown.current = true;
-        setMode("submitted");
+        setMode('submitted');
         setSnackbar({
           open: true,
-          message: "評分完成！",
-          severity: "success",
+          message: '評分完成！',
+          severity: 'success',
         });
       }
     }
   }, [status, error, validationErrors, feedback, gradingMessage]);
 
   useEffect(() => {
-    if (status === "processing") {
+    if (status === 'processing') {
       setCurrentStep(2);
-    } else if (status === "completed" && feedback) {
+    } else if (status === 'completed' && feedback) {
       setCurrentStep(3);
-      setMode("submitted");
-    } else if (status === "error") {
+      setMode('submitted');
+    } else if (status === 'error') {
       setCurrentStep(0);
     }
   }, [status, feedback]);
@@ -223,8 +202,8 @@ export function GradingContainer({
       if (!result.isValid) {
         setSnackbar({
           open: true,
-          message: result.errors.join(", "),
-          severity: "error",
+          message: result.errors.join(', '),
+          severity: 'error',
         });
       }
       onValidationComplete?.(result);
@@ -235,7 +214,7 @@ export function GradingContainer({
   const handleFileChange = useCallback((files: Array<File>) => {
     const hasFiles = files.length > 0;
     setHasUploadedFiles(hasFiles);
-    
+
     if (hasFiles) {
       setCurrentStep(1);
     } else {
@@ -243,37 +222,42 @@ export function GradingContainer({
     }
   }, []);
 
-  const callProcessUploadedFiles = useCallback(async (files: UploadedFileInfo[]) => {
-    const formData = new FormData();
-    files.forEach((file) => {
-      formData.append("files", JSON.stringify(file));
-    });
+  const callProcessUploadedFiles = useCallback(
+    async (files: UploadedFileInfo[]) => {
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append('files', JSON.stringify(file));
+      });
 
-    processingFetcher.submit(formData, {
-      method: "POST",
-      action: "/api/process-documents",
-    });
-  }, [processingFetcher]);
+      processingFetcher.submit(formData, {
+        method: 'POST',
+        action: '/api/process-documents',
+      });
+    },
+    [processingFetcher]
+  );
 
-  const handleUploadComplete = useCallback((files?: UploadedFileInfo[]) => {
-    if (!files || files.length === 0) return;
+  const handleUploadComplete = useCallback(
+    (files?: UploadedFileInfo[]) => {
+      if (!files || files.length === 0) return;
 
-    console.log("Uploaded Complete", files);
-    setUploadedFiles(files);
-    setHasUploadedFiles(true);
-    setCurrentStep(1);
-    
-    processingFetcher.submit(
-      { files: JSON.stringify(files) },
-      {
-        method: "post",
-        action: "/api/process-documents",
-        encType: "application/json"
-      }
-    );
-    callProcessUploadedFiles(files);
+      console.log('Uploaded Complete', files);
+      setUploadedFiles(files);
+      setHasUploadedFiles(true);
+      setCurrentStep(1);
 
-  }, [callProcessUploadedFiles, processingFetcher]);
+      processingFetcher.submit(
+        { files: JSON.stringify(files) },
+        {
+          method: 'post',
+          action: '/api/process-documents',
+          encType: 'application/json',
+        }
+      );
+      callProcessUploadedFiles(files);
+    },
+    [callProcessUploadedFiles, processingFetcher]
+  );
 
   const _handleSnackbarClose = useCallback(() => {
     setSnackbar((prev) => ({ ...prev, open: false }));
@@ -303,10 +287,7 @@ export function GradingContainer({
         <GradingStepper
           steps={steps}
           activeStep={currentStep}
-          className={cn(
-            "transition-opacity duration-300",
-            isTransitioning && "opacity-50"
-          )}
+          className={cn('transition-opacity duration-300', isTransitioning && 'opacity-50')}
         />
 
         <div className="w-full mb-2">
@@ -315,11 +296,11 @@ export function GradingContainer({
               <CompactFileUpload
                 maxFiles={3}
                 maxFileSize={100 * 1024 * 1024}
-                acceptedFileTypes={[".pdf", ".doc"]}
+                acceptedFileTypes={['.pdf', '.doc']}
                 onFilesChange={handleFileChange}
                 onUploadComplete={handleUploadComplete}
                 onError={(error) => {
-                  console.error("Upload error:", error);
+                  console.error('Upload error:', error);
                   setHasUploadedFiles(false);
                 }}
               />
@@ -329,28 +310,22 @@ export function GradingContainer({
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2">
-            <div
-              className={cn(
-                (!hasUploadedFiles || status === "processing") &&
-                  "cursor-not-allowed"
-              )}
-            >
+            <div className={cn((!hasUploadedFiles || status === 'processing') && 'cursor-not-allowed')}>
               <AssignmentInput
                 sections={sections}
-                disabled={status === "processing" && !isEditing}
+                disabled={status === 'processing' && !isEditing}
                 validationErrors={validationErrors}
                 status={status}
                 onValidation={handleValidation}
                 className={cn(
-                  "transition-all duration-300",
-                  (!hasUploadedFiles || status === "processing") &&
-                    "opacity-50 pointer-events-none"
+                  'transition-all duration-300',
+                  (!hasUploadedFiles || status === 'processing') && 'opacity-50 pointer-events-none'
                 )}
                 fetcher={fetcher}
                 onBack={() => handleEditMode()}
               />
             </div>
-            {mode === "submitted" && status === "completed" && (
+            {mode === 'submitted' && status === 'completed' && (
               <div className="p-4 bg-accent border-b border-border">
                 <Alert variant="default">
                   <div className="flex items-center justify-between w-full">
@@ -358,11 +333,7 @@ export function GradingContainer({
                       <CheckCircle className="h-4 w-4 text-primary" />
                       <AlertTitle>評分完成</AlertTitle>
                     </div>
-                    <Button
-                      variant="outline"
-                      onClick={handleReset}
-                      className="gap-2 ml-4"
-                    >
+                    <Button variant="outline" onClick={handleReset} className="gap-2 ml-4">
                       <RefreshCcw className="h-4 w-4" />
                       開始新的提交
                     </Button>
@@ -373,7 +344,7 @@ export function GradingContainer({
           </div>
           <Card className="h-full">
             <div className="p-4">
-              {status === "processing" || fetcher.state === "submitting" ? (
+              {status === 'processing' || fetcher.state === 'submitting' ? (
                 <GradingProgress
                   status={status}
                   initialProgress={gradingProgress}
@@ -384,18 +355,14 @@ export function GradingContainer({
               ) : (
                 <FeedbackDisplay
                   feedback={feedback}
-                  variant={feedback ? "accordion" : undefined}
+                  variant={feedback ? 'accordion' : undefined}
                   className="space-y-4"
                 />
               )}
 
               {feedback && (
                 <div className="p-4 border-t border-border bg-accent">
-                  <Button
-                    variant="outline"
-                    onClick={handleDownload}
-                    className="w-full gap-2"
-                  >
+                  <Button variant="outline" onClick={handleDownload} className="w-full gap-2">
                     <Download className="h-4 w-4" />
                     下載評分結果
                   </Button>
@@ -406,18 +373,12 @@ export function GradingContainer({
         </div>
 
         {(error || validationErrors.length > 0) && (
-          <Alert
-            variant="destructive"
-            className="animate-in fade-in slide-in-from-top-1"
-          >
+          <Alert variant="destructive" className="animate-in fade-in slide-in-from-top-1">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="flex justify-between items-center">
-              <span>{error || validationErrors.join(", ")}</span>
+              <span>{error || validationErrors.join(', ')}</span>
               {onRetry && (
-                <button
-                  onClick={handleRetry}
-                  className="text-sm underline hover:no-underline"
-                >
+                <button onClick={handleRetry} className="text-sm underline hover:no-underline">
                   重試
                 </button>
               )}

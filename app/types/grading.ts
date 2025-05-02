@@ -3,7 +3,7 @@
  * 作業部分的基本結構
  */
 export interface Section {
-  id: "summary" | "reflection" | "questions";
+  id: 'summary' | 'reflection' | 'questions';
   title: string;
   content: string;
   placeholder: string;
@@ -18,16 +18,16 @@ export interface Section {
  */
 export interface FeedbackData {
   score: number;
-  analysis?: string;  // 完整評分分析
+  analysis?: string; // 完整評分分析
   criteriaScores?: {
     name: string;
     score: number;
     comments: string;
   }[];
-  strengths?: string[];  // 文件的優點
-  improvements?: string[];  // 需要改進的地方
+  strengths?: string[]; // 文件的優點
+  improvements?: string[]; // 需要改進的地方
   overallSuggestions?: string;
-  
+
   // 兼容舊格式
   summaryComments?: string;
   summaryStrengths?: string[];
@@ -35,11 +35,11 @@ export interface FeedbackData {
   reflectionStrengths?: string[];
   questionComments?: string;
   questionStrengths?: string[];
-  
+
   // 元數據
   createdAt: Date;
   gradingDuration: number;
-  
+
   // 完整的LLM輸出，不限制格式
   rawContent?: any;
 }
@@ -47,7 +47,7 @@ export interface FeedbackData {
 /**
  * 評分狀態
  */
-export type GradingStatus = "idle" | "processing" | "completed" | "error";
+export type GradingStatus = 'idle' | 'processing' | 'completed' | 'error';
 
 /**
  * 驗證結果
@@ -112,7 +112,7 @@ export interface RubricCriteria {
   description: string;
   weight: number; // 權重百分比
   levels: {
-    score: number;  // 分數層級 (例如1-5)
+    score: number; // 分數層級 (例如1-5)
     description: string; // 該層級的描述
   }[];
 }

@@ -1,5 +1,5 @@
-import { getUser } from "@/services/auth.server";
-import { withErrorHandler, createApiResponse } from "@/middleware/api.server";
+import { getUser } from '@/services/auth.server';
+import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
 
 export async function loader({ request }: { request: Request }) {
   return withErrorHandler(async () => {

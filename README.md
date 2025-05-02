@@ -5,12 +5,15 @@
 ## 開發環境設置
 
 ### 前置需求
+
 - Docker
 - Docker Compose
 - Node.js 20+ (可選，本地開發使用)
 
 ### 環境變數設置
+
 1. 複製環境變數範本
+
 ```bash
 cp .env.example .env
 ```
@@ -18,6 +21,7 @@ cp .env.example .env
 2. 根據需要修改 `.env` 檔案
 
 ### 啟動開發環境
+
 ```bash
 docker-compose -f docker-compose.dev.yaml up
 ```
@@ -25,17 +29,20 @@ docker-compose -f docker-compose.dev.yaml up
 系統將在 http://localhost:3000 啟動
 
 ### 熱重載開發
+
 開發環境設置了代碼熱重載，修改代碼後將自動重新構建應用。
 
 ## 資料庫操作
 
 ### 執行資料庫遷移
+
 ```bash
 # 在開發容器中執行
 docker-compose -f docker-compose.dev.yaml exec app npx prisma migrate dev
 ```
 
 ### 訪問開發資料庫
+
 ```bash
 docker-compose -f docker-compose.dev.yaml exec db psql -U admin -d grading_db
 ```
@@ -43,17 +50,20 @@ docker-compose -f docker-compose.dev.yaml exec db psql -U admin -d grading_db
 ## 部署到生產環境
 
 ### 生產環境部署
+
 ```bash
 # 確保已正確設置所有生產環境變數
 docker-compose -f docker-compose.prod.yaml up -d
 ```
 
 ### 檢查服務狀態
+
 ```bash
 docker-compose -f docker-compose.prod.yaml ps
 ```
 
 ### 查看日誌
+
 ```bash
 docker-compose -f docker-compose.prod.yaml logs -f app
 ```
@@ -74,17 +84,20 @@ docker-compose -f docker-compose.prod.yaml logs -f app
 本系統需要一些環境變數來正常運行。請按照以下步驟設置：
 
 1. 複製 `.env.example` 文件為 `.env`
+
    ```bash
    cp .env.example .env
    ```
 
 2. 填寫以下必要的環境變數：
+
    - `DATABASE_URL`: 資料庫連線字串
    - `THEME_SECRET`: 主題 cookie 加密密鑰
    - `AUTH_SECRET`: 認證 cookie 加密密鑰
 
 3. **Google OAuth 設置** (可選但建議)：
    如果要啟用 Google 登入功能，需要設置以下環境變數：
+
    - `GOOGLE_CLIENT_ID`: 從 Google Cloud Console 獲取的客戶端 ID
    - `GOOGLE_CLIENT_SECRET`: 從 Google Cloud Console 獲取的客戶端密鑰
    - `GOOGLE_REDIRECT_URI`: Google 登入成功後的重定向 URI (預設: http://localhost:3000/auth/google/callback)
@@ -126,7 +139,7 @@ The main validation schemas are located in:
 1. Import the validation function:
 
 ```ts
-import { validateAssignmentWithZod } from "@/schemas/assignment";
+import { validateAssignmentWithZod } from '@/schemas/assignment';
 ```
 
 2. Use it to validate data:

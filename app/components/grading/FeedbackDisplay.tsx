@@ -1,19 +1,13 @@
 // FeedbackDisplay.tsx
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Star,
-  ClipboardCheck,
-  FileText,
-  MessageCircle,
-  ChevronRight,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Star, ClipboardCheck, FileText, MessageCircle, ChevronRight } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
-type StrengthVariant = "success" | "info" | "warning";
-type _FeedbackVariant = "accordion" | "tabs" | "cards";
+type StrengthVariant = 'success' | 'info' | 'warning';
+type _FeedbackVariant = 'accordion' | 'tabs' | 'cards';
 
 interface FeedbackDisplayProps {
   feedback?: string | any;
@@ -46,9 +40,9 @@ interface _VariantProps {
 
 const _StrengthBadges = ({ strengths, variant }: StrengthBadgesProps) => {
   const variantStyles: Record<StrengthVariant, string> = {
-    success: "bg-green-100 text-green-800 hover:bg-green-200",
-    info: "bg-blue-100 text-blue-800 hover:bg-blue-200",
-    warning: "bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
+    success: 'bg-green-100 text-green-800 hover:bg-green-200',
+    info: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
+    warning: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
   };
 
   if (!strengths.length) return null;
@@ -59,10 +53,7 @@ const _StrengthBadges = ({ strengths, variant }: StrengthBadgesProps) => {
         <Badge
           key={strength}
           variant="secondary"
-          className={cn(
-            variantStyles[variant],
-            "transition-colors duration-200"
-          )}
+          className={cn(variantStyles[variant], 'transition-colors duration-200')}
         >
           {strength}
         </Badge>
@@ -77,18 +68,18 @@ const EmptyFeedbackState = () => {
   const features = [
     {
       icon: ClipboardCheck,
-      title: "Detailed Feedback",
-      description: "Get comprehensive feedback on your work",
+      title: 'Detailed Feedback',
+      description: 'Get comprehensive feedback on your work',
     },
     {
       icon: FileText,
-      title: "Grading Criteria",
-      description: "Understand how your work was evaluated",
+      title: 'Grading Criteria',
+      description: 'Understand how your work was evaluated',
     },
     {
       icon: MessageCircle,
-      title: "Suggestions",
-      description: "Receive actionable improvement suggestions",
+      title: 'Suggestions',
+      description: 'Receive actionable improvement suggestions',
     },
   ];
 
@@ -97,12 +88,8 @@ const EmptyFeedbackState = () => {
       <div className="mb-6">
         <Star className="w-12 h-12 text-gray-400" />
       </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-        No Feedback Available
-      </h3>
-      <p className="text-gray-600 mb-8">
-        Your feedback will be available once the grading is complete.
-      </p>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Feedback Available</h3>
+      <p className="text-gray-600 mb-8">Your feedback will be available once the grading is complete.</p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl">
         {features.map((feature, index) => (
           <motion.div
@@ -147,10 +134,10 @@ export default function FeedbackDisplay({ feedback, onClose, variant, className 
   }
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       <div className="feedback-content">{typeof feedback === 'string' ? feedback : JSON.stringify(feedback)}</div>
       {onClose && (
-        <button 
+        <button
           onClick={onClose}
           className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >

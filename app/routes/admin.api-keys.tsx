@@ -1,7 +1,7 @@
-import { useLoaderData, Form, useActionData } from "react-router";
-import { requireUserId } from "@/services/auth.server";
-import { useState } from "react";
-import crypto from "crypto";
+import { useLoaderData, Form, useActionData } from 'react-router';
+import { requireUserId } from '@/services/auth.server';
+import { useState } from 'react';
+import crypto from 'crypto';
 
 interface ApiKey {
   id: string;
@@ -19,19 +19,19 @@ interface Scope {
 }
 
 const AVAILABLE_SCOPES: Scope[] = [
-  { id: "grading:read", label: "讀取評分數據" },
-  { id: "grading:write", label: "提交評分請求" },
-  { id: "batch:read", label: "讀取批量評分數據" },
-  { id: "batch:write", label: "提交批量評分請求" },
-  { id: "lti:launch", label: "LTI 整合" },
+  { id: 'grading:read', label: '讀取評分數據' },
+  { id: 'grading:write', label: '提交評分請求' },
+  { id: 'batch:read', label: '讀取批量評分數據' },
+  { id: 'batch:write', label: '提交批量評分請求' },
+  { id: 'lti:launch', label: 'LTI 整合' },
 ];
 
 const API_KEYS: ApiKey[] = [
   {
-    id: "1",
-    name: "測試應用",
-    key: "test_api_key_1",
-    scopes: ["grading:read", "grading:write"],
+    id: '1',
+    name: '測試應用',
+    key: 'test_api_key_1',
+    scopes: ['grading:read', 'grading:write'],
     created_at: new Date().toISOString(),
     revoked: false,
   },
@@ -54,33 +54,24 @@ interface ApiKeyErrorResponse {
   error: string;
 }
 
-type ActionResponse =
-  | ApiKeySuccessResponse
-  | ApiKeyErrorResponse
-  | { success: true };
+type ActionResponse = ApiKeySuccessResponse | ApiKeyErrorResponse | { success: true };
 
 export async function action({ request }: { request: Request }) {
   const userId = await requireUserId(request);
 
   const formData = await request.formData();
-  const action = formData.get("_action");
+  const action = formData.get('_action');
 
-  if (action === "create") {
-    const name = formData.get("name") as string;
-    const scopesArray = formData.getAll("scopes") as string[];
+  if (action === 'create') {
+    const name = formData.get('name') as string;
+    const scopesArray = formData.getAll('scopes') as string[];
 
-    if (!name || name.trim() === "") {
-      return Response.json(
-        { error: "API 金鑰名稱不能為空" },
-        { status: 400 }
-      );
+    if (!name || name.trim() === '') {
+      return Response.json({ error: 'API 金鑰名稱不能為空' }, { status: 400 });
     }
 
     if (scopesArray.length === 0) {
-      return Response.json(
-        { error: "至少需要選擇一個權限範圍" },
-        { status: 400 }
-      );
+      return Response.json({ error: '至少需要選擇一個權限範圍' }, { status: 400 });
     }
 
     const newKey = generateApiKey();
@@ -99,14 +90,11 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ success: true, apiKey });
   }
 
-  if (action === "revoke") {
-    const id = formData.get("id") as string;
+  if (action === 'revoke') {
+    const id = formData.get('id') as string;
 
     if (!id) {
-      return Response.json(
-        { error: "需要提供 API 金鑰 ID" },
-        { status: 400 }
-      );
+      return Response.json({ error: '需要提供 API 金鑰 ID' }, { status: 400 });
     }
 
     const keyIndex = API_KEYS.findIndex((key) => key.id === id);
@@ -117,11 +105,11 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ success: true });
   }
 
-  return Response.json({ error: "不支持的操作" }, { status: 400 });
+  return Response.json({ error: '不支持的操作' }, { status: 400 });
 }
 
 function generateApiKey(): string {
-  return `sk_${crypto.randomBytes(24).toString("hex")}`;
+  return `sk_${crypto.randomBytes(24).toString('hex')}`;
 }
 
 export default function ApiKeysPage() {
@@ -130,9 +118,8 @@ export default function ApiKeysPage() {
   const actionData = useActionData() as ActionResponse;
   const [showNewKey, setShowNewKey] = useState(false);
 
-  const hasSuccessWithApiKey =
-    actionData && "success" in actionData && "apiKey" in actionData;
-  const hasError = actionData && "error" in actionData;
+  const hasSuccessWithApiKey = actionData && 'success' in actionData && 'apiKey' in actionData;
+  const hasError = actionData && 'error' in actionData;
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -141,9 +128,7 @@ export default function ApiKeysPage() {
       {hasSuccessWithApiKey && (
         <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6">
           <p className="font-bold">API 金鑰創建成功</p>
-          <p className="mt-2">
-            請複製並安全存儲您的 API 金鑰，這是唯一一次能夠看到它：
-          </p>
+          <p className="mt-2">請複製並安全存儲您的 API 金鑰，這是唯一一次能夠看到它：</p>
           <div className="mt-2 p-3 bg-gray-100 font-mono break-all">
             {(actionData as ApiKeySuccessResponse).apiKey.key}
           </div>
@@ -161,10 +146,7 @@ export default function ApiKeysPage() {
         <Form method="post">
           <div className="space-y-4">
             <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                 API 金鑰名稱
               </label>
               <input
@@ -178,9 +160,7 @@ export default function ApiKeysPage() {
             </div>
 
             <div>
-              <span className="block text-sm font-medium text-gray-700 mb-2">
-                權限範圍
-              </span>
+              <span className="block text-sm font-medium text-gray-700 mb-2">權限範圍</span>
               <div className="space-y-2">
                 {availableScopes.map((scope) => (
                   <div key={scope.id} className="flex items-center">
@@ -191,10 +171,7 @@ export default function ApiKeysPage() {
                       value={scope.id}
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
-                    <label
-                      htmlFor={`scope-${scope.id}`}
-                      className="ml-2 block text-sm text-gray-700"
-                    >
+                    <label htmlFor={`scope-${scope.id}`} className="ml-2 block text-sm text-gray-700">
                       {scope.label} ({scope.id})
                     </label>
                   </div>
@@ -243,12 +220,8 @@ export default function ApiKeysPage() {
                 {apiKeys.map((apiKey) => (
                   <tr key={apiKey.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {apiKey.name}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        ID: {apiKey.id}
-                      </div>
+                      <div className="text-sm font-medium text-gray-900">{apiKey.name}</div>
+                      <div className="text-sm text-gray-500">ID: {apiKey.id}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-wrap gap-1">
@@ -274,11 +247,7 @@ export default function ApiKeysPage() {
                           value="revoke"
                           className="text-red-600 hover:text-red-900"
                           onClick={(e) => {
-                            if (
-                              !confirm(
-                                "確定要撤銷此 API 金鑰嗎？撤銷後將無法恢復。"
-                              )
-                            ) {
+                            if (!confirm('確定要撤銷此 API 金鑰嗎？撤銷後將無法恢復。')) {
                               e.preventDefault();
                             }
                           }}
@@ -307,8 +276,7 @@ export default function ApiKeysPage() {
               <strong>批量評分請求:</strong> POST /api/batch-grading
             </li>
             <li>
-              <strong>批量評分狀態查詢:</strong> GET
-              /api/batch-grading?batch_id=xxx
+              <strong>批量評分狀態查詢:</strong> GET /api/batch-grading?batch_id=xxx
             </li>
             <li>
               <strong>LTI 啟動端點:</strong> POST /api/lti/launch

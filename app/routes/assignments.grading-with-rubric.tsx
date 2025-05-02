@@ -1,33 +1,32 @@
-import { useState, useEffect } from "react";
-import type { LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useFetcher } from "react-router";
-import { CompactFileUpload } from "@/components/grading/CompactFileUpload";
-import { GradingResultDisplay, GradingResultData } from "@/components/grading/GradingResultDisplay";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GradingProgress } from "@/components/grading/GradingProgress";
-import { AlertCircle, FileText, File } from "lucide-react";
-import type { Rubric, RubricCriteria } from "@/types/grading";
-import type { UploadedFileInfo } from "@/types/files";
-import { listRubrics } from "@/services/rubric.server";
-import { EmptyState } from "@/components/ui/empty-state";
+import { useState, useEffect } from 'react';
+import type { LoaderFunctionArgs } from 'react-router';
+import { useLoaderData, useFetcher } from 'react-router';
+import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
+import { GradingResultDisplay, GradingResultData } from '@/components/grading/GradingResultDisplay';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { GradingProgress } from '@/components/grading/GradingProgress';
+import { AlertCircle, FileText, File } from 'lucide-react';
+import type { Rubric, RubricCriteria } from '@/types/grading';
+import type { UploadedFileInfo } from '@/types/files';
+import { listRubrics } from '@/services/rubric.server';
+import { EmptyState } from '@/components/ui/empty-state';
 
-export async function loader({ request}: LoaderFunctionArgs  )  {
-  
+export async function loader({ request }: LoaderFunctionArgs) {
   const { rubrics, error } = await listRubrics();
-  
+
   return Response.json({
     rubrics: rubrics || [],
-    error
+    error,
   });
 }
 
 export default function GradingWithRubricRoute() {
-  const { rubrics = [], error } = useLoaderData<{ rubrics: Rubric[], error?: string }>();
+  const { rubrics = [], error } = useLoaderData<{ rubrics: Rubric[]; error?: string }>();
   const [selectedRubricId, setSelectedRubricId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
   const [step, setStep] = useState<'upload' | 'select-rubric' | 'grading' | 'result'>('upload');
@@ -35,11 +34,11 @@ export default function GradingWithRubricRoute() {
   const [gradingProgress, setGradingProgress] = useState(0);
   const [feedback, setFeedback] = useState<GradingResultData | null>(null);
   const [gradingError, setGradingError] = useState<string | null>(null);
-  
+
   const gradingFetcher = useFetcher();
-  
+
   const handleFilesUploaded = (files: UploadedFileInfo[]) => {
-    console.log("上傳檔案完成:", files);
+    console.log('上傳檔案完成:', files);
     setUploadedFiles(files);
     if (files.length > 0) {
       setTimeout(() => {
@@ -47,28 +46,28 @@ export default function GradingWithRubricRoute() {
       }, 1500);
     }
   };
-  
+
   // 處理評分標準選擇
   const handleRubricSelected = (value: string) => {
     setSelectedRubricId(value);
   };
-  
+
   // 開始評分過程
   const startGrading = () => {
     if (!selectedRubricId || uploadedFiles.length === 0) {
       setGradingError('請先上傳文件並選擇評分標準');
       return;
     }
-    
-    console.log("開始評分流程", { fileKey: uploadedFiles[0].key, rubricId: selectedRubricId });
-    
+
+    console.log('開始評分流程', { fileKey: uploadedFiles[0].key, rubricId: selectedRubricId });
+
     setIsGrading(true);
     setStep('grading');
     setGradingProgress(10); // 初始進度
-    
+
     // 模擬評分進度更新
     const progressInterval = setInterval(() => {
-      setGradingProgress(prev => {
+      setGradingProgress((prev) => {
         if (prev >= 90) {
           clearInterval(progressInterval);
           return prev;
@@ -76,42 +75,45 @@ export default function GradingWithRubricRoute() {
         return prev + 10;
       });
     }, 2000);
-    
+
     // 發送評分請求
     try {
       gradingFetcher.submit(
         {
           fileKey: uploadedFiles[0].key,
-          rubricId: selectedRubricId
+          rubricId: selectedRubricId,
         },
         { method: 'post', action: '/api/grade-with-rubric' }
       );
-      console.log("評分請求已發送");
+      console.log('評分請求已發送');
     } catch (err) {
-      console.error("發送評分請求時出現錯誤:", err);
+      console.error('發送評分請求時出現錯誤:', err);
       setGradingError('發送評分請求失敗');
     }
   };
-  
+
   // 處理評分結果
   useEffect(() => {
-    console.log("GradingFetcher 狀態:", { 
-      state: gradingFetcher.state, 
+    console.log('GradingFetcher 狀態:', {
+      state: gradingFetcher.state,
       data: gradingFetcher.data,
-      formData: gradingFetcher.formData
+      formData: gradingFetcher.formData,
     });
-    
+
     if (gradingFetcher.data && gradingFetcher.state === 'idle') {
       // 評分完成
-      console.log("收到評分結果:", gradingFetcher.data);
+      console.log('收到評分結果:', gradingFetcher.data);
       setGradingProgress(100);
       setIsGrading(false);
-      
-      const data = gradingFetcher.data as { success: boolean; data?: { success: boolean; feedback?: any; error?: string } };
-      
+
+      const data = gradingFetcher.data as {
+        success: boolean;
+        data?: { success: boolean; feedback?: any; error?: string };
+      };
+
       if (data.success && data.data?.success && data.data.feedback) {
-        console.log("評分成功, 設置反饋數據");
-        
+        console.log('評分成功, 設置反饋數據');
+
         // 確保數據符合 GradingResultData 的格式
         const gradingResult: GradingResultData = {
           score: data.data.feedback.score || 0,
@@ -122,35 +124,43 @@ export default function GradingWithRubricRoute() {
           improvements: data.data.feedback.improvements || [],
           overallSuggestions: data.data.feedback.overallSuggestions,
           createdAt: data.data.feedback.createdAt || new Date(),
-          gradingDuration: data.data.feedback.gradingDuration
+          gradingDuration: data.data.feedback.gradingDuration,
         };
-        
+
         setFeedback(gradingResult);
         setStep('result');
       } else {
-        console.error("評分失敗:", data.data?.error || '未知錯誤');
+        console.error('評分失敗:', data.data?.error || '未知錯誤');
         setGradingError(data.data?.error || '評分過程中發生錯誤');
       }
     } else if (gradingFetcher.state === 'submitting') {
-      console.log("正在提交評分請求...");
+      console.log('正在提交評分請求...');
     } else if (gradingFetcher.state === 'loading') {
-      console.log("正在加載評分結果...");
+      console.log('正在加載評分結果...');
     }
   }, [gradingFetcher.data, gradingFetcher.state]);
-  
+
   const selectedRubricData = rubrics.find((r: Rubric) => r.id === selectedRubricId);
-  
+
   return (
     <div className="flex flex-col items-center w-full">
       <div className="container py-8 max-w-5xl w-full">
         <Tabs defaultValue="upload" value={step} onValueChange={(value) => setStep(value as any)}>
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="upload" disabled={isGrading}>上傳文件</TabsTrigger>
-            <TabsTrigger value="select-rubric" disabled={isGrading || uploadedFiles.length === 0}>選擇評分標準</TabsTrigger>
-            <TabsTrigger value="grading" disabled={!isGrading}>評分進行中</TabsTrigger>
-            <TabsTrigger value="result" disabled={!feedback}>評分結果</TabsTrigger>
+            <TabsTrigger value="upload" disabled={isGrading}>
+              上傳文件
+            </TabsTrigger>
+            <TabsTrigger value="select-rubric" disabled={isGrading || uploadedFiles.length === 0}>
+              選擇評分標準
+            </TabsTrigger>
+            <TabsTrigger value="grading" disabled={!isGrading}>
+              評分進行中
+            </TabsTrigger>
+            <TabsTrigger value="result" disabled={!feedback}>
+              評分結果
+            </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="upload" className="pt-6">
             <Card>
               <CardHeader>
@@ -159,10 +169,10 @@ export default function GradingWithRubricRoute() {
               <CardContent>
                 <CompactFileUpload
                   onUploadComplete={handleFilesUploaded}
-                  acceptedFileTypes={[".pdf", ".docx"]}
+                  acceptedFileTypes={['.pdf', '.docx']}
                   maxFiles={1}
                 />
-                
+
                 {uploadedFiles.length > 0 && (
                   <div className="mt-4 space-y-4">
                     <div className="border rounded-lg p-4">
@@ -172,9 +182,7 @@ export default function GradingWithRubricRoute() {
                           <li key={index} className="flex items-center gap-2 text-sm">
                             <File className="h-4 w-4 text-green-500" />
                             <span>{file.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              (上傳成功)
-                            </span>
+                            <span className="text-xs text-muted-foreground">(上傳成功)</span>
                           </li>
                         ))}
                       </ul>
@@ -185,7 +193,7 @@ export default function GradingWithRubricRoute() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="select-rubric" className="pt-6">
             <Card>
               <CardHeader>
@@ -201,7 +209,7 @@ export default function GradingWithRubricRoute() {
                     </div>
                   </div>
                 )}
-                
+
                 {rubrics.length === 0 ? (
                   <EmptyState
                     title="沒有找到評分標準"
@@ -219,7 +227,7 @@ export default function GradingWithRubricRoute() {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="rubric-select">選擇評分標準</Label>
-                      <Select value={selectedRubricId || ""} onValueChange={handleRubricSelected}>
+                      <Select value={selectedRubricId || ''} onValueChange={handleRubricSelected}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="選擇評分標準" />
                         </SelectTrigger>
@@ -232,13 +240,11 @@ export default function GradingWithRubricRoute() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     {selectedRubricData && (
                       <div className="border rounded-lg p-4">
                         <h3 className="font-medium mb-2">{selectedRubricData.name}</h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          {selectedRubricData.description}
-                        </p>
+                        <p className="text-sm text-muted-foreground mb-4">{selectedRubricData.description}</p>
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium">評分條目:</h4>
                           <ul className="list-disc pl-5 space-y-1">
@@ -251,15 +257,12 @@ export default function GradingWithRubricRoute() {
                         </div>
                       </div>
                     )}
-                    
+
                     <div className="flex justify-between">
                       <Button variant="outline" onClick={() => setStep('upload')}>
                         返回
                       </Button>
-                      <Button 
-                        onClick={startGrading} 
-                        disabled={!selectedRubricId}
-                      >
+                      <Button onClick={startGrading} disabled={!selectedRubricId}>
                         開始評分
                       </Button>
                     </div>
@@ -268,7 +271,7 @@ export default function GradingWithRubricRoute() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="grading" className="pt-6">
             <Card>
               <CardHeader>
@@ -285,7 +288,7 @@ export default function GradingWithRubricRoute() {
                           <span className="text-sm">{uploadedFiles[0]?.name}</span>
                         </div>
                       </div>
-                      
+
                       <div className="border rounded-lg p-3 bg-muted/30 flex-1">
                         <p className="text-sm font-medium mb-2">選擇的評分標準：</p>
                         <div className="flex items-center gap-2">
@@ -294,14 +297,14 @@ export default function GradingWithRubricRoute() {
                         </div>
                       </div>
                     </div>
-                    
-                    <GradingProgress 
-                      status={isGrading ? "processing" : "completed"}
-                      initialProgress={gradingProgress} 
-                      phase="grade" 
+
+                    <GradingProgress
+                      status={isGrading ? 'processing' : 'completed'}
+                      initialProgress={gradingProgress}
+                      phase="grade"
                       message="分析文件內容並根據評分標準評分"
                     />
-                    
+
                     <div className="flex justify-center">
                       <Button variant="outline" onClick={() => setStep('select-rubric')}>
                         返回
@@ -312,7 +315,7 @@ export default function GradingWithRubricRoute() {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           <TabsContent value="result" className="pt-6">
             <Card className="w-full">
               <CardHeader>
@@ -329,7 +332,7 @@ export default function GradingWithRubricRoute() {
                           <span className="text-sm">{uploadedFiles[0]?.name}</span>
                         </div>
                       </div>
-                      
+
                       <div className="border rounded-lg p-3 bg-muted/30 flex-1">
                         <p className="text-sm font-medium mb-2">使用的評分標準：</p>
                         <div className="flex items-center gap-2">
@@ -338,9 +341,9 @@ export default function GradingWithRubricRoute() {
                         </div>
                       </div>
                     </div>
-                    
-                    <GradingResultDisplay 
-                      result={feedback} 
+
+                    <GradingResultDisplay
+                      result={feedback}
                       onRetry={() => {
                         setStep('upload');
                         setUploadedFiles([]);
@@ -348,14 +351,17 @@ export default function GradingWithRubricRoute() {
                         setFeedback(null);
                       }}
                     />
-                    
+
                     <div className="mt-6">
-                      <Button variant="outline" onClick={() => {
-                        setStep('upload');
-                        setUploadedFiles([]);
-                        setSelectedRubricId(null);
-                        setFeedback(null);
-                      }}>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setStep('upload');
+                          setUploadedFiles([]);
+                          setSelectedRubricId(null);
+                          setFeedback(null);
+                        }}
+                      >
                         重新開始
                       </Button>
                     </div>

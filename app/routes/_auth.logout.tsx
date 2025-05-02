@@ -1,5 +1,5 @@
-import { useLogout } from "@/hooks/api/auth";
-import { useEffect } from "react";
+import { useLogout } from '@/hooks/api/auth';
+import { useEffect } from 'react';
 
 export default function LogoutPage() {
   const logout = useLogout();
@@ -9,4 +9,4 @@ export default function LogoutPage() {
   }, [logout]);
 
   return null;
-} 
+}

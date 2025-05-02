@@ -1,8 +1,4 @@
-import type {
-  Section,
-  AssignmentSubmission,
-  ValidationResult,
-} from "../types/grading";
+import type { Section, AssignmentSubmission, ValidationResult } from '../types/grading';
 
 /**
  * 針對不同部分的驗證規則配置
@@ -27,30 +23,30 @@ export const SECTION_VALIDATION_RULES = {
  */
 export const SECTION_CONFIG: Section[] = [
   {
-    id: "summary",
-    title: "摘要",
-    content: "",
-    placeholder: "請輸入摘要內容...",
+    id: 'summary',
+    title: '摘要',
+    content: '',
+    placeholder: '請輸入摘要內容...',
     maxLength: SECTION_VALIDATION_RULES.summary.maxLength,
     required: true,
     order: 1,
     minLength: SECTION_VALIDATION_RULES.summary.minLength,
   },
   {
-    id: "reflection",
-    title: "反思",
-    content: "",
-    placeholder: "請輸入反思內容...",
+    id: 'reflection',
+    title: '反思',
+    content: '',
+    placeholder: '請輸入反思內容...',
     maxLength: SECTION_VALIDATION_RULES.reflection.maxLength,
     required: true,
     order: 2,
     minLength: SECTION_VALIDATION_RULES.reflection.minLength,
   },
   {
-    id: "questions",
-    title: "問題",
-    content: "",
-    placeholder: "請輸入問題內容...",
+    id: 'questions',
+    title: '問題',
+    content: '',
+    placeholder: '請輸入問題內容...',
     maxLength: SECTION_VALIDATION_RULES.questions.maxLength,
     required: true,
     order: 3,
@@ -68,10 +64,7 @@ function validateSection(section: Section): {
   const errors: string[] = [];
   const rules = SECTION_VALIDATION_RULES[section.id];
 
-  if (
-    section.required &&
-    (!section.content || section.content.trim().length === 0)
-  ) {
+  if (section.required && (!section.content || section.content.trim().length === 0)) {
     errors.push(`${section.title}為必填項目`);
     return { isValid: false, errors };
   }
@@ -101,18 +94,16 @@ function validateSection(section: Section): {
 /**
  * 驗證整個作業提交
  */
-export function validateAssignment(
-  submission: AssignmentSubmission
-): ValidationResult {
+export function validateAssignment(submission: AssignmentSubmission): ValidationResult {
   const errors: string[] = [];
   const missingFields: string[] = [];
   const invalidFields: { field: string; reason: string }[] = [];
 
   if (!submission.metadata?.submittedAt) {
-    errors.push("缺少提交時間");
+    errors.push('缺少提交時間');
   }
   if (!submission.metadata?.authorId) {
-    errors.push("缺少作者ID");
+    errors.push('缺少作者ID');
   }
 
   for (const section of submission.sections) {
@@ -134,12 +125,11 @@ export function validateAssignment(
   }
 
   const isOrderValid = submission.sections.every(
-    (section, index, array) =>
-      index === 0 || section.order > array[index - 1].order
+    (section, index, array) => index === 0 || section.order > array[index - 1].order
   );
 
   if (!isOrderValid) {
-    errors.push("作業部分順序錯誤");
+    errors.push('作業部分順序錯誤');
   }
 
   return {

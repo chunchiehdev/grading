@@ -1,20 +1,11 @@
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { Readable } from "stream";
-import { storageConfig } from "@/config/storage";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Readable } from 'stream';
+import { storageConfig } from '@/config/storage';
 
 export const s3Client = new S3Client(storageConfig.s3Config);
 
-export async function uploadToStorage(
-  fileData: Buffer | Readable,
-  key: string,
-  contentType: string
-) {
+export async function uploadToStorage(fileData: Buffer | Readable, key: string, contentType: string) {
   const command = new PutObjectCommand({
     Bucket: storageConfig.bucket,
     Key: key,
@@ -47,16 +38,12 @@ export async function getSignedFileUrl(key: string) {
 
 export async function ensureBucketExists() {
   try {
-    const { ListBucketsCommand, CreateBucketCommand } = await import(
-      "@aws-sdk/client-s3"
-    );
+    const { ListBucketsCommand, CreateBucketCommand } = await import('@aws-sdk/client-s3');
 
     const listCommand = new ListBucketsCommand({});
     const { Buckets } = await s3Client.send(listCommand);
 
-    const bucketExists = Buckets?.some(
-      (bucket) => bucket.Name === storageConfig.bucket
-    );
+    const bucketExists = Buckets?.some((bucket) => bucket.Name === storageConfig.bucket);
 
     if (!bucketExists) {
       const createCommand = new CreateBucketCommand({
@@ -66,7 +53,7 @@ export async function ensureBucketExists() {
       console.log(`儲存桶 ${storageConfig.bucket} 已創建`);
     }
   } catch (error) {
-    console.error("檢查/創建儲存桶失敗:", error);
+    console.error('檢查/創建儲存桶失敗:', error);
   }
 }
 

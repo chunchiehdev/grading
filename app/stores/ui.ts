@@ -1,7 +1,7 @@
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
-type Theme = "light" | "dark" | "system";
+type Theme = 'light' | 'dark' | 'system';
 
 /**
  * UI狀態管理Store
@@ -12,12 +12,12 @@ interface UiState {
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
-  
+
   // 主題設置
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
-  
+
   // 上次訪問頁面 (用於返回時導航)
   lastVisitedPage: string | null;
   setLastVisitedPage: (page: string) => void;
@@ -26,11 +26,11 @@ interface UiState {
 // 同步更新 DOM 中的主題類
 function applyTheme(theme: Theme) {
   if (typeof window === 'undefined') return;
-  
+
   const root = document.documentElement;
   const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   const effectiveTheme = theme === 'system' ? systemTheme : theme;
-  
+
   root.classList.remove('light', 'dark');
   root.classList.add(effectiveTheme);
 }
@@ -43,9 +43,9 @@ export const useUiStore = create<UiState>()(
       sidebarCollapsed: true,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
-      
+
       // 主題默認跟隨系統
-      theme: "system",
+      theme: 'system',
       setTheme: (theme) => {
         set({ theme });
         applyTheme(theme);
@@ -53,22 +53,22 @@ export const useUiStore = create<UiState>()(
       toggleTheme: () => {
         const currentTheme = get().theme;
         let newTheme: Theme = 'light';
-        
+
         // 循環切換主題: system -> light -> dark -> system
         if (currentTheme === 'system') newTheme = 'light';
         else if (currentTheme === 'light') newTheme = 'dark';
         else newTheme = 'system';
-        
+
         set({ theme: newTheme });
         applyTheme(newTheme);
       },
-      
+
       // 上次訪問頁面
       lastVisitedPage: null,
       setLastVisitedPage: (page) => set({ lastVisitedPage: page }),
     }),
     {
-      name: "ui-storage", // localStorage key
+      name: 'ui-storage', // localStorage key
       storage: createJSONStorage(() => localStorage),
       // 存儲在恢復時應用主題
       onRehydrateStorage: () => (state) => {
@@ -78,4 +78,4 @@ export const useUiStore = create<UiState>()(
       },
     }
   )
-); 
+);

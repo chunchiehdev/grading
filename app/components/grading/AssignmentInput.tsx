@@ -1,25 +1,11 @@
-import { useRef, useState, useCallback, useMemo, useEffect } from "react";
-import { useFetcher } from "react-router";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
-import {
-  CheckCircle2,
-  ChevronRight,
-  Send,
-  Info,
-  AlertCircle,
-  Loader2,
-  FileText,
-  XCircle,
-} from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useRef, useState, useCallback, useMemo, useEffect } from 'react';
+import { useFetcher } from 'react-router';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
+import { CheckCircle2, ChevronRight, Send, Info, AlertCircle, Loader2, FileText, XCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -29,13 +15,13 @@ import {
   AlertDialogTitle,
   AlertDialogCancel,
   AlertDialogAction,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { Section, ValidationResult, GradingStatus } from "@/types/grading";
-import type { action } from "@/routes/assignments.grade.$taskId";
-import { v4 as uuidv4 } from "uuid";
-import _ from "lodash";
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import type { Section, ValidationResult, GradingStatus } from '@/types/grading';
+import type { action } from '@/routes/assignments.grade.$taskId';
+import { v4 as uuidv4 } from 'uuid';
+import _ from 'lodash';
 
 interface AssignmentInputProps {
   sections: Section[];
@@ -69,19 +55,19 @@ function validateSection(section: Section): string[] {
   const content = section.content.trim();
 
   switch (section.id) {
-    case "summary":
+    case 'summary':
       if (!content && section.required) {
-        errors.push("摘要為必填項目");
+        errors.push('摘要為必填項目');
       }
       break;
-    case "reflection":
+    case 'reflection':
       if (!content && section.required) {
-        errors.push("反思為必填項目");
+        errors.push('反思為必填項目');
       }
       break;
-    case "questions":
+    case 'questions':
       if (!content && section.required) {
-        errors.push("問題為必填項目");
+        errors.push('問題為必填項目');
       }
       break;
   }
@@ -111,13 +97,8 @@ const StepIndicator = ({ currentStep, totalSteps }: StepIndicatorProps) => {
   );
 };
 
-const SectionInput = ({
-  section,
-  onChange,
-  error,
-  warning,
-}: SectionInputProps) => {
-  const contentRef = useRef("");
+const SectionInput = ({ section, onChange, error, warning }: SectionInputProps) => {
+  const contentRef = useRef('');
 
   const debouncedValidate = useMemo(
     () =>
@@ -158,7 +139,7 @@ const SectionInput = ({
         value={section.content}
         onChange={handleChange}
         placeholder={section.placeholder}
-        className={`h-32 resize-none ${error ? "border-red-500" : ""}`}
+        className={`h-32 resize-none ${error ? 'border-red-500' : ''}`}
         maxLength={section.maxLength}
       />
       {error && (
@@ -168,10 +149,7 @@ const SectionInput = ({
         </Alert>
       )}
       {warning && !error && (
-        <Alert
-          variant="default"
-          className="bg-yellow-50 text-yellow-800 border-yellow-200"
-        >
+        <Alert variant="default" className="bg-yellow-50 text-yellow-800 border-yellow-200">
           <Info className="h-4 w-4" />
           <AlertDescription>{warning}</AlertDescription>
         </Alert>
@@ -211,25 +189,20 @@ export function AssignmentInput({
   const [currentStep, setCurrentStep] = useState(1);
   const [sections, setSections] = useState<Section[]>(initialSections);
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
-  const [_validationResult, setValidationResult] =
-    useState<ValidationResult | null>(null);
+  const [_validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   // const totalSteps = sections.length + 1;
   const totalSteps = 2;
   const currentSection = sections[currentStep - 1];
   const isPreviewStep = currentStep === 2;
-  const isSubmitting =
-    fetcher.state === "submitting" && currentStep === totalSteps;
+  const isSubmitting = fetcher.state === 'submitting' && currentStep === totalSteps;
   // const isLastStep = currentStep === totalSteps;
-  const _isActuallySubmitting = fetcher.state === "submitting" && isPreviewStep;
+  const _isActuallySubmitting = fetcher.state === 'submitting' && isPreviewStep;
   // const showSubmittingState = isActuallySubmitting && isLastStep;
   const [_taskId, setTaskId] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<Record<string, string>>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  const allErrors = [
-    ...validationErrors,
-    ...(fetcher.data?.validationErrors || []),
-  ];
+  const allErrors = [...validationErrors, ...(fetcher.data?.validationErrors || [])];
 
   const canProceed = useMemo(() => {
     return sections.every((section) => {
@@ -248,7 +221,7 @@ export function AssignmentInput({
 
     setLocalErrors((prev) => ({
       ...prev,
-      [currentSection.id]: errors[0] || "",
+      [currentSection.id]: errors[0] || '',
     }));
 
     return errors.length === 0;
@@ -291,7 +264,7 @@ export function AssignmentInput({
       return `不能超過 ${section.maxLength} 字`;
     }
 
-    return "";
+    return '';
   };
 
   const handleValidateAndProceed = useCallback(() => {
@@ -310,7 +283,7 @@ export function AssignmentInput({
 
   const handleBack = useCallback(() => {
     setCurrentStep(1);
-    if (fetcher.state !== "idle") {
+    if (fetcher.state !== 'idle') {
       fetcher.data = undefined;
     }
     onBack?.();
@@ -335,15 +308,15 @@ export function AssignmentInput({
     setTaskId(newTaskId);
 
     const formData = new FormData();
-    formData.append("taskId", newTaskId);
-    formData.append("authorId", "user123");  
+    formData.append('taskId', newTaskId);
+    formData.append('authorId', 'user123');
 
     sections.forEach((section) => {
       formData.append(section.id, section.content);
     });
 
-    if (fetcher.state === "idle") {
-      fetcher.submit(formData, { method: "post" });
+    if (fetcher.state === 'idle') {
+      fetcher.submit(formData, { method: 'post' });
     }
 
     setShowConfirmDialog(false);
@@ -361,51 +334,41 @@ export function AssignmentInput({
   }, [fetcher.data, onValidation]);
 
   useEffect(() => {
-    if (status === "completed" || status === "error") {
+    if (status === 'completed' || status === 'error') {
       setTaskId(null);
     }
   }, [status]);
 
-  const updateSection = useCallback(
-    (content: string, sectionId: string, errors?: string[]) => {
-      setSections((prev) =>
-        prev.map((section) =>
-          section.id === sectionId ? { ...section, content } : section
-        )
-      );
+  const updateSection = useCallback((content: string, sectionId: string, errors?: string[]) => {
+    setSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, content } : section)));
 
-      if (errors) {
-        setLocalErrors((prev) => ({
-          ...prev,
-          [sectionId]: errors[0] || "",
-        }));
+    if (errors) {
+      setLocalErrors((prev) => ({
+        ...prev,
+        [sectionId]: errors[0] || '',
+      }));
 
-        const contentLength = content.trim().length;
-        let warning = "";
+      const contentLength = content.trim().length;
+      let warning = '';
 
-        switch (sectionId) {
-          case "summary":
-            if (contentLength < 50)
-              warning = `建議摘要至少 50 字，目前 ${contentLength} 字`;
-            break;
-          case "reflection":
-            if (contentLength < 100)
-              warning = `建議反思至少 100 字，目前 ${contentLength} 字`;
-            break;
-          case "questions":
-            if (contentLength < 30)
-              warning = `建議問題至少 30 字，目前 ${contentLength} 字`;
-            break;
-        }
-
-        setWarnings((prev) => ({
-          ...prev,
-          [sectionId]: warning,
-        }));
+      switch (sectionId) {
+        case 'summary':
+          if (contentLength < 50) warning = `建議摘要至少 50 字，目前 ${contentLength} 字`;
+          break;
+        case 'reflection':
+          if (contentLength < 100) warning = `建議反思至少 100 字，目前 ${contentLength} 字`;
+          break;
+        case 'questions':
+          if (contentLength < 30) warning = `建議問題至少 30 字，目前 ${contentLength} 字`;
+          break;
       }
-    },
-    []
-  );
+
+      setWarnings((prev) => ({
+        ...prev,
+        [sectionId]: warning,
+      }));
+    }
+  }, []);
 
   return (
     <Card className={className}>
@@ -430,33 +393,20 @@ export function AssignmentInput({
 
       <CardContent className="space-y-6">
         {isPreviewStep ? (
-          <fetcher.Form
-            method="post"
-            onSubmit={handleSubmit}
-            className="space-y-6"
-          >
+          <fetcher.Form method="post" onSubmit={handleSubmit} className="space-y-6">
             <input type="hidden" name="authorId" value="user123" />
             <CompletionPreview sections={sections} />
             {allErrors.length > 0 && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{allErrors.join(", ")}</AlertDescription>
+                <AlertDescription>{allErrors.join(', ')}</AlertDescription>
               </Alert>
             )}
             <div className="flex justify-between">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleBack}
-                disabled={isSubmitting}
-              >
+              <Button type="button" variant="outline" onClick={handleBack} disabled={isSubmitting}>
                 返回
               </Button>
-              <Button
-                type="submit"
-                disabled={disabled || status === "processing" || isSubmitting}
-                className="gap-2"
-              >
+              <Button type="submit" disabled={disabled || status === 'processing' || isSubmitting} className="gap-2">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -476,21 +426,14 @@ export function AssignmentInput({
               <SectionInput
                 key={section.id}
                 section={section}
-                onChange={(content, id, errors) =>
-                  updateSection(content, id, errors)
-                }
+                onChange={(content, id, errors) => updateSection(content, id, errors)}
                 error={localErrors[section.id]}
                 warning={warnings[section.id]}
               />
             ))}
 
             <div className="flex justify-end">
-              <Button
-                type="button"
-                onClick={handleNext}
-                disabled={!canProceed}
-                className="gap-2"
-              >
+              <Button type="button" onClick={handleNext} disabled={!canProceed} className="gap-2">
                 下一步 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -503,9 +446,7 @@ export function AssignmentInput({
           <AlertDialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <AlertCircle className="h-6 w-6 text-yellow-500" />
-              <AlertDialogTitle className="text-xl">
-                確認提交作業
-              </AlertDialogTitle>
+              <AlertDialogTitle className="text-xl">確認提交作業</AlertDialogTitle>
             </div>
 
             <AlertDialogDescription className="space-y-4">
@@ -519,17 +460,14 @@ export function AssignmentInput({
                   <div key={section.id} className="ml-6">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      <span className="text-sm font-medium">
-                        {section.title}
-                      </span>
+                      <span className="text-sm font-medium">{section.title}</span>
                     </div>
                     <p className="text-xs text-slate-500 ml-6 mt-1 break-all whitespace-break-spaces ">
-                      {section.content} 
+                      {section.content}
                     </p>
                   </div>
                 ))}
               </div>
-
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -541,7 +479,7 @@ export function AssignmentInput({
 
             <AlertDialogAction
               onClick={handleConfirmedSubmit}
-              disabled={disabled || status === "processing" || isSubmitting}
+              disabled={disabled || status === 'processing' || isSubmitting}
               className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 min-w-[100px] justify-center"
             >
               {isSubmitting ? (

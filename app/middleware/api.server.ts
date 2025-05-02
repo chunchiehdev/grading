@@ -1,4 +1,4 @@
-import { getUser } from "@/services/auth.server";
+import { getUser } from '@/services/auth.server';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -14,17 +14,15 @@ export class ApiError extends Error {
     public errors?: Record<string, string>
   ) {
     super(message);
-    this.name = "ApiError";
+    this.name = 'ApiError';
   }
 }
 
-export async function withErrorHandler(
-  handler: () => Promise<Response>
-): Promise<Response> {
+export async function withErrorHandler(handler: () => Promise<Response>): Promise<Response> {
   try {
     return await handler();
   } catch (error) {
-    console.error("API Error:", error);
+    console.error('API Error:', error);
 
     if (error instanceof ApiError) {
       return Response.json(
@@ -40,7 +38,7 @@ export async function withErrorHandler(
     return Response.json(
       {
         success: false,
-        error: "Internal server error",
+        error: 'Internal server error',
       },
       { status: 500 }
     );
@@ -54,7 +52,7 @@ export async function requireAuth(request: Request): Promise<Response | null> {
     return Response.json(
       {
         success: false,
-        error: "Unauthorized",
+        error: 'Unauthorized',
       },
       { status: 401 }
     );
@@ -73,11 +71,7 @@ export function createApiResponse<T>(data: T, status: number = 200): Response {
   );
 }
 
-export function createErrorResponse(
-  message: string,
-  status: number = 400,
-  errors?: Record<string, string>
-): Response {
+export function createErrorResponse(message: string, status: number = 400, errors?: Record<string, string>): Response {
   return Response.json(
     {
       success: false,

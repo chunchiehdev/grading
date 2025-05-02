@@ -1,23 +1,23 @@
-import { Link, useLoaderData, useNavigate } from "react-router";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Edit } from "lucide-react";
-import { format } from "date-fns";
-import type { RubricCriteria } from "@/types/grading";
+import { Link, useLoaderData, useNavigate } from 'react-router';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, Edit } from 'lucide-react';
+import { format } from 'date-fns';
+import type { RubricCriteria } from '@/types/grading';
 
 export const loader = async ({ params, request }: { params: Record<string, string | undefined>; request: Request }) => {
   const rubricId = params.rubricId;
-  
+
   if (!rubricId) {
-    throw new Response("評分標準ID不存在", { status: 404 });
+    throw new Response('評分標準ID不存在', { status: 404 });
   }
-  
-  const { getRubric } = await import("@/services/rubric.server");
+
+  const { getRubric } = await import('@/services/rubric.server');
   const { rubric, error } = await getRubric(rubricId);
-  
+
   if (error || !rubric) {
-    console.error("Error loading rubric:", error);
-    throw new Response(error || "找不到評分標準", { status: 404 });
+    console.error('Error loading rubric:', error);
+    throw new Response(error || '找不到評分標準', { status: 404 });
   }
 
   return { rubric };
@@ -30,11 +30,7 @@ export default function RubricDetailRoute() {
   return (
     <div className="container py-8">
       <div className="mb-6">
-        <Button
-          variant="outline"
-          onClick={() => navigate("/rubrics")}
-          className="mb-4"
-        >
+        <Button variant="outline" onClick={() => navigate('/rubrics')} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> 返回評分標準列表
         </Button>
       </div>
@@ -89,7 +85,7 @@ export default function RubricDetailRoute() {
                     </span>
                   </div>
                   <p className="text-muted-foreground mb-4">{criteria.description}</p>
-                  
+
                   <h4 className="text-sm font-medium mb-2">評分等級</h4>
                   <div className="space-y-2">
                     {criteria.levels.map((level) => (
@@ -109,4 +105,4 @@ export default function RubricDetailRoute() {
       </div>
     </div>
   );
-} 
+}

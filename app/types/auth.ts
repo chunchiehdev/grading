@@ -14,4 +14,3 @@ export interface AuthError {
 export type ActionData = {
   errors?: AuthError;
 };
-

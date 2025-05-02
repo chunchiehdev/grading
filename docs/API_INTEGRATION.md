@@ -16,12 +16,12 @@
 
 ### 可用端點
 
-| 端點 | 方法 | 說明 |
-|------|------|------|
-| `/api/grading` | POST | 評分單一作業提交 |
-| `/api/batch-grading` | POST | 批量評分多個作業 |
-| `/api/batch-grading?batch_id=xxx` | GET | 查詢批量評分狀態 |
-| `/api/lti/launch` | POST | LTI 啟動端點 |
+| 端點                              | 方法 | 說明             |
+| --------------------------------- | ---- | ---------------- |
+| `/api/grading`                    | POST | 評分單一作業提交 |
+| `/api/batch-grading`              | POST | 批量評分多個作業 |
+| `/api/batch-grading?batch_id=xxx` | GET  | 查詢批量評分狀態 |
+| `/api/lti/launch`                 | POST | LTI 啟動端點     |
 
 ### 單一評分請求
 
@@ -285,4 +285,4 @@ API 使用標準 HTTP 狀態碼和 JSON 錯誤訊息。
 - API 請求頻率限制: 每分鐘最多 60 個請求
 - 批量評分限制: 每批次最多 100 個作業
 - API 金鑰應妥善保管，不應在前端代碼中暴露
-- 所有 API 通信應使用 HTTPS 進行加密 
+- 所有 API 通信應使用 HTTPS 進行加密

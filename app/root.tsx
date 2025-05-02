@@ -1,23 +1,15 @@
-// root.tsx 
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  useLoaderData,
-  redirect,
-} from "react-router";
-import { ThemeProvider } from "@/theme-provider";
-import "./tailwind.css";
-import Sidebar from "@/components/sidebar/Sidebar";
-import { cn } from "@/lib/utils";
-import { NavHeader } from "@/components/navbar/NavHeader";
+// root.tsx
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, redirect } from 'react-router';
+import { ThemeProvider } from '@/theme-provider';
+import './tailwind.css';
+import Sidebar from '@/components/sidebar/Sidebar';
+import { cn } from '@/lib/utils';
+import { NavHeader } from '@/components/navbar/NavHeader';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { requireAuth } from "@/middleware/auth.server";
-import { PUBLIC_PATHS } from "@/constants/auth";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useUiStore } from "@/stores/ui";
+import { requireAuth } from '@/middleware/auth.server';
+import { PUBLIC_PATHS } from '@/constants/auth';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { useUiStore } from '@/stores/ui';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -40,49 +32,49 @@ type LoaderData = {
 };
 
 export const links = () => [
-  { rel: "icon", type: "image/x-icon", href: "/rubber-duck.ico" },
-  { rel: "stylesheet", href: "./tailwind.css" },
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  { rel: 'icon', type: 'image/x-icon', href: '/rubber-duck.ico' },
+  { rel: 'stylesheet', href: './tailwind.css' },
+  { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
   {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
+    rel: 'preconnect',
+    href: 'https://fonts.gstatic.com',
+    crossOrigin: 'anonymous',
   },
   {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+    rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap',
   },
   {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&display=swap",
+    rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&display=swap',
   },
 ];
 
 export const meta = () => [
-  { title: "Grading System" },
-  { name: "description", content: "A grading system application" }
+  { title: 'Grading System' },
+  { name: 'description', content: 'A grading system application' },
 ];
 
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  if (PUBLIC_PATHS.some(publicPath => path.startsWith(publicPath))) {
+  if (PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath))) {
     return { user: null, isPublicPath: true };
   }
 
   try {
     const user = await requireAuth(request);
-    return { user, isPublicPath: false};
+    return { user, isPublicPath: false };
   } catch (error) {
-    return redirect("/auth/login");
+    return redirect('/auth/login');
   }
 }
 
 function Document({ children }: { children: React.ReactNode }) {
   // 使用 UI Store 中的主題設置
   const { theme } = useUiStore();
-  
+
   return (
     <html lang="zh-TW" suppressHydrationWarning className={theme}>
       <head>
@@ -103,7 +95,7 @@ function Document({ children }: { children: React.ReactNode }) {
 
 function Layout() {
   const { user, isPublicPath } = useLoaderData() as LoaderData;
-  
+
   // 使用 UI Store 管理側邊欄狀態
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
 
@@ -120,14 +112,12 @@ function Layout() {
       <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       <div
         className={cn(
-          "flex-1 transition-all duration-300 ease-in-out",
-          "md:ml-[260px]",
-          sidebarCollapsed && "md:ml-[20px]"
+          'flex-1 transition-all duration-300 ease-in-out',
+          'md:ml-[260px]',
+          sidebarCollapsed && 'md:ml-[20px]'
         )}
       >
-        <NavHeader
-          className="bg-background/80 backdrop-blur-sm border-b border-border"
-        />
+        <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
         <main className="p-8">
           <Outlet />
         </main>

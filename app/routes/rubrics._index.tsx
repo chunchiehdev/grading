@@ -1,15 +1,15 @@
-import { Link, useLoaderData } from "react-router";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus } from "lucide-react";
-import { format } from "date-fns";
-import type { Rubric } from "@/types/grading";
+import { Link, useLoaderData } from 'react-router';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus } from 'lucide-react';
+import { format } from 'date-fns';
+import type { Rubric } from '@/types/grading';
 
 export const loader = async () => {
-  console.log("Fetching rubrics in loader...");
-  const { listRubrics } = await import("@/services/rubric.server");
+  console.log('Fetching rubrics in loader...');
+  const { listRubrics } = await import('@/services/rubric.server');
   const { rubrics, error } = await listRubrics();
-  console.log("Rubrics response in loader:", { rubrics, error });
+  console.log('Rubrics response in loader:', { rubrics, error });
 
   if (error) {
     return { rubrics: [], error };
@@ -21,26 +21,22 @@ export const loader = async () => {
 export default function RubricsIndexRoute() {
   const { rubrics, error } = useLoaderData<typeof loader>();
 
-  console.log("Component state:", { data: rubrics, error });
+  console.log('Component state:', { data: rubrics, error });
 
   if (error) {
-    console.error("Error in component:", error);
+    console.error('Error in component:', error);
     return (
       <div className="container py-8">
-        <div className="text-center text-red-500">
-          {typeof error === 'string' ? error : "無法載入評分標準"}
-        </div>
+        <div className="text-center text-red-500">{typeof error === 'string' ? error : '無法載入評分標準'}</div>
       </div>
     );
   }
 
   if (!rubrics || rubrics.length === 0) {
-    console.log("No data or empty data array");
+    console.log('No data or empty data array');
     return (
       <div className="container py-8">
-        <div className="text-center text-muted-foreground">
-          目前沒有評分標準，請點擊「新增評分標準」按鈕創建
-        </div>
+        <div className="text-center text-muted-foreground">目前沒有評分標準，請點擊「新增評分標準」按鈕創建</div>
         <div className="flex justify-center mt-4">
           <Button asChild>
             <Link to="/rubrics/new">
@@ -52,7 +48,7 @@ export default function RubricsIndexRoute() {
     );
   }
 
-  console.log("Rendering rubrics:", rubrics);
+  console.log('Rendering rubrics:', rubrics);
   return (
     <>
       <div className="flex justify-between items-center mb-6">
@@ -100,4 +96,4 @@ export default function RubricsIndexRoute() {
       </div>
     </>
   );
-} 
+}

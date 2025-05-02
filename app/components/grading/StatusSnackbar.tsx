@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { Check, X, AlertCircle, Info } from "lucide-react";
-import { cva } from "class-variance-authority";
-import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from 'react';
+import { Check, X, AlertCircle, Info } from 'lucide-react';
+import { cva } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
-type SnackbarSeverity = "success" | "error" | "info" | "warning";
+type SnackbarSeverity = 'success' | 'error' | 'info' | 'warning';
 
 interface StatusSnackbarProps {
   open: boolean;
@@ -17,22 +17,19 @@ interface StatusSnackbarProps {
   enableProgress?: boolean;
 }
 
-const snackbarVariants = cva(
-  "flex items-center px-4 py-3 rounded-lg shadow-lg border relative overflow-hidden",
-  {
-    variants: {
-      severity: {
-        success: "bg-green-50 text-green-800 border-green-200",
-        error: "bg-red-50 text-red-800 border-red-200",
-        info: "bg-blue-50 text-blue-800 border-blue-200",
-        warning: "bg-yellow-50 text-yellow-800 border-yellow-200",
-      },
+const snackbarVariants = cva('flex items-center px-4 py-3 rounded-lg shadow-lg border relative overflow-hidden', {
+  variants: {
+    severity: {
+      success: 'bg-green-50 text-green-800 border-green-200',
+      error: 'bg-red-50 text-red-800 border-red-200',
+      info: 'bg-blue-50 text-blue-800 border-blue-200',
+      warning: 'bg-yellow-50 text-yellow-800 border-yellow-200',
     },
-    defaultVariants: {
-      severity: "info",
-    },
-  }
-);
+  },
+  defaultVariants: {
+    severity: 'info',
+  },
+});
 
 const ICON_MAP: Record<SnackbarSeverity, React.ElementType> = {
   success: Check,
@@ -42,10 +39,10 @@ const ICON_MAP: Record<SnackbarSeverity, React.ElementType> = {
 };
 
 const PROGRESS_VARIANTS: Record<SnackbarSeverity, string> = {
-  success: "bg-green-500",
-  error: "bg-red-500",
-  info: "bg-blue-500",
-  warning: "bg-yellow-500",
+  success: 'bg-green-500',
+  error: 'bg-red-500',
+  info: 'bg-blue-500',
+  warning: 'bg-yellow-500',
 };
 
 const ANIMATION_CONFIG = {
@@ -57,7 +54,7 @@ const ANIMATION_CONFIG = {
 export function StatusSnackbar({
   open,
   message,
-  severity = "info",
+  severity = 'info',
   onClose,
   autoHideDuration = 6000,
   className,
@@ -69,11 +66,11 @@ export function StatusSnackbar({
 
   useEffect(() => {
     setProgress(100);
-  }, [message]); 
+  }, [message]);
 
   useEffect(() => {
     if (!open) {
-      setProgress(100); 
+      setProgress(100);
       return;
     }
 
@@ -82,10 +79,10 @@ export function StatusSnackbar({
 
     const animate = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
-      
+
       const elapsed = timestamp - startTime;
       const remaining = Math.max(0, 100 - (elapsed / autoHideDuration) * 100);
-      
+
       setProgress(remaining);
 
       if (remaining > 0) {
@@ -111,10 +108,10 @@ export function StatusSnackbar({
 
   const getFocusRingColor = (severity: SnackbarSeverity): string => {
     const colors = {
-      success: "focus:ring-green-500",
-      error: "focus:ring-red-500",
-      info: "focus:ring-blue-500",
-      warning: "focus:ring-yellow-500",
+      success: 'focus:ring-green-500',
+      error: 'focus:ring-red-500',
+      info: 'focus:ring-blue-500',
+      warning: 'focus:ring-yellow-500',
     };
     return colors[severity];
   };
@@ -122,45 +119,26 @@ export function StatusSnackbar({
   return (
     <AnimatePresence>
       {open && (
-        <div
-          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50"
-          role="alert"
-          aria-live="polite"
-        >
-          <motion.div
-            {...ANIMATION_CONFIG}
-            className={cn(snackbarVariants({ severity }), className)}
-          >
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50" role="alert" aria-live="polite">
+          <motion.div {...ANIMATION_CONFIG} className={cn(snackbarVariants({ severity }), className)}>
             {enableProgress && (
               <div
-                className={cn(
-                  "absolute bottom-0 left-0 h-1 transition-all duration-100",
-                  PROGRESS_VARIANTS[severity]
-                )}
+                className={cn('absolute bottom-0 left-0 h-1 transition-all duration-100', PROGRESS_VARIANTS[severity])}
                 style={{ width: `${progress}%` }}
               />
             )}
-            
-            <Icon 
-              className="w-5 h-5 mr-2 flex-shrink-0"
-              aria-hidden="true"
-            />
-            
-            <span className="text-sm font-medium mr-2 flex-grow">
-              {message}
-            </span>
 
-            {action && (
-              <div className="flex-shrink-0 mx-2">
-                {action}
-              </div>
-            )}
-            
+            <Icon className="w-5 h-5 mr-2 flex-shrink-0" aria-hidden="true" />
+
+            <span className="text-sm font-medium mr-2 flex-grow">{message}</span>
+
+            {action && <div className="flex-shrink-0 mx-2">{action}</div>}
+
             <button
               onClick={onClose}
               className={cn(
-                "p-1 rounded-full transition-colors duration-200",
-                "hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-offset-2",
+                'p-1 rounded-full transition-colors duration-200',
+                'hover:bg-black/10 focus:outline-none focus:ring-2 focus:ring-offset-2',
                 getFocusRingColor(severity)
               )}
               aria-label="關閉通知"

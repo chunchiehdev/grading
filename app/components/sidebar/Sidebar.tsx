@@ -1,15 +1,10 @@
-import { useNavigate } from "react-router";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { PanelLeftOpen, PanelLeftClose, PlusCircle } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useNavigate } from 'react-router';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { PanelLeftOpen, PanelLeftClose, PlusCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-import PropTypes from "prop-types";
+import PropTypes from 'prop-types';
 // import { createNewGrading } from "@/utils/grading.server";
 
 interface SidebarProps {
@@ -18,11 +13,7 @@ interface SidebarProps {
   onToggle?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({
-  className,
-  isCollapsed,
-  onToggle,
-}) => {
+const Sidebar: React.FC<SidebarProps> = ({ className, isCollapsed, onToggle }) => {
   const navigate = useNavigate();
 
   // const handleCreateNewGrading = useCallback(() => {
@@ -35,10 +26,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   return (
     <div
       className={cn(
-        "fixed left-0 top-0 h-screen z-[21]",
-        "bg-secondary",
-        "transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-[0px]" : "w-[260px]",
+        'fixed left-0 top-0 h-screen z-[21]',
+        'bg-secondary',
+        'transition-all duration-300 ease-in-out',
+        isCollapsed ? 'w-[0px]' : 'w-[260px]',
         className
       )}
     >
@@ -52,9 +43,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   {!isCollapsed ? <PanelLeftClose /> : <PanelLeftOpen />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                {isCollapsed ? "開啟側邊欄" : "關閉側邊欄"}
-              </TooltipContent>
+              <TooltipContent side="right">{isCollapsed ? '開啟側邊欄' : '關閉側邊欄'}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 

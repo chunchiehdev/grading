@@ -1,88 +1,45 @@
-import { Outlet, useLocation, redirect } from "react-router";
-import { getUser } from "@/services/auth.server";
+import { Outlet, useLocation, redirect } from 'react-router';
+import { getUser } from '@/services/auth.server';
 
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
-  
+
   // If it's the logout path, allow access regardless of login state
-  if (path === "/auth/logout") {
+  if (path === '/auth/logout') {
     return { user: null };
   }
-  
+  ``;
+
   // Check if user is already logged in
   const user = await getUser(request);
-  
+
   // If logged in and trying to access other auth pages, redirect to dashboard
   if (user) {
-    return redirect("/dashboard");
+    return redirect('/dashboard');
   }
-  
+
   // Otherwise return null to allow access to login page
   return { user: null };
 }
 
 export default function AuthLayout() {
-  const location = useLocation();
-  const isRegister = location.pathname === "/auth/register";
-
   return (
     <main className="grid grid-cols-1 gap-4 min-[1000px]:grid-cols-2">
       <div className="flex items-center min-h-[97vh] w-full py-6">
         <div className="flex flex-col h-full w-full items-center justify-between">
           {/* Logo */}
           <div className="pr-2">
-            <img
-              src="/crab.svg"
-              alt="Crab Icon"
-              className="h-20 mb-4"
-            />
+            <img src="/crab.svg" alt="Crab Icon" className="h-20 mb-4" />
           </div>
-          
-          <div>
-            <h2 className="text-center text-foreground tracking-tighter font-medium mt-12 leading-[1em] min-[500px]:text-[3.5rem] min-[350px]:text-[3.2rem] text-[1.75rem]">
-              {isRegister ? "創建新帳號" : "登入您的帳號"}
-            </h2>
 
+          <div>
             <div className="mt-8 mx-4 sm:mx-auto p-7 max-w-md border border-input rounded-[2rem] flex flex-col gap-6 bg-background shadow-[0_2px_32px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_48px_rgba(0,0,0,0.08)] transition-shadow duration-500">
               <Outlet />
-            </div>
-          </div>
-
-          {/* Bottom help link */}
-          {/* <div className="flex justify-center mt-12">
-            <Button
-              variant="ghost"
-              className="px-5 py-2 rounded-full text-base text-muted-foreground font-medium hover:text-foreground hover:border-input border border-input shadow-sm"
-            >
-              需要幫助？
-            </Button>
-          </div> */}
-        </div>
-      </div>
-
-      {/* Right side */}
-      <div className="hidden min-[1000px]:flex justify-center">
-        <div className="relative md:rounded-xl bg-muted h-[clamp(40rem,97vh,97vh)] w-[clamp(30rem,100%,100%)] flex justify-center items-center overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/50 to-background/30" />
-          <div className="relative z-10 p-8 text-center space-y-6">
-            <div className="w-24 h-24 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-              <svg
-                className="w-12 h-12 text-primary"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold">評分系統</h3>
             </div>
           </div>
         </div>
       </div>
     </main>
   );
-} 
+}

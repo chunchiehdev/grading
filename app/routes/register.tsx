@@ -1,3 +1,3 @@
-import { createRedirectLoader } from "@/components/utils/Redirect";
+import { createRedirectLoader } from '@/components/utils/Redirect';
 
-export const loader = createRedirectLoader("/auth/register"); 
+export const loader = createRedirectLoader('/auth/register');

@@ -5,24 +5,29 @@
 ## 已完成的更改
 
 1. **Package.json更新**
+
    - 更新所有React Router包到版本`^7.5.2`
    - 移除所有Remix依赖
    - 更新`@react-spring/web`到兼容React 19的版本`^10.2.0`
 
 2. **入口文件更新**
+
    - 替换`app/entry.client.tsx`中的`HydratedRouter`为`RouterProvider`和`createBrowserRouter`
    - 替换`app/entry.server.tsx`中的`ServerRouter`为`StaticRouterProvider`和`createStaticRouter`
 
 3. **根组件更新**
+
    - 更新`app/root.tsx`以使用React Router 7的API
    - 修改元数据和链接处理
    - 显式包含客户端入口点脚本
 
 4. **路由配置更新**
+
    - 使用`createRoutesFromFolders`替换Remix的路由配置
    - 简化路由配置
 
 5. **Vite配置更新**
+
    - 从`@react-router/dev`导入`reactRouter`插件
    - 更新Vite配置
 
@@ -41,6 +46,7 @@
 ```
 
 此脚本执行以下替换：
+
 - `@remix-run/react` → `react-router-dom`
 - `remix-utils/sse/react` → `react-router-dom/sse/client`
 - `remix-utils/sse/server` → `react-router-dom/sse/server`
@@ -76,7 +82,7 @@ const loader = async ({ request }: LoaderFunctionArgs) => {
 // 在组件中使用
 function App() {
   const { theme } = useLoaderData<typeof loader>();
-  
+
   return (
     <ThemeProvider specifiedTheme={theme}>
       {/* 应用内容 */}
@@ -89,15 +95,18 @@ function App() {
 ## 后续步骤
 
 1. **清理和重新安装依赖**
+
    ```bash
    npm ci
    ```
 
 2. **修复导入问题**
+
    - 处理运行脚本后可能仍存在的导入问题
    - 确保所有导入的API都与React Router 7兼容
 
 3. **测试应用程序**
+
    - 运行应用并确保所有功能正常工作
    - 特别检查路由、表单提交和服务器端渲染
 
@@ -107,19 +116,25 @@ function App() {
 ## 常见问题
 
 ### 模块找不到错误
+
 运行`npm install`后应该会解决大多数模块找不到的错误。
 
 ### React 19兼容性问题
+
 某些依赖项可能与React 19不兼容。如果遇到冲突，您可以：
+
 - 寻找并更新到兼容的版本
 - 使用`--legacy-peer-deps`标志安装（不推荐用于生产）
 
 ### 路由相关问题
-确保所有路由组件都正确使用React Router 7的API和约定。 
+
+确保所有路由组件都正确使用React Router 7的API和约定。
 
 ### 主题系统迁移问题
+
 从`remix-themes`迁移到自定义主题提供者时，注意以下事项：
+
 - 更新所有导入路径
 - 将`useTheme()`调用更改为新的API
 - 更新服务器端处理逻辑，使用`getThemeSession`和`setThemeCookie`
-- 确保CSS中的主题类选择器保持一致 
+- 确保CSS中的主题类选择器保持一致

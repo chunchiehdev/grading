@@ -10,4 +10,4 @@ export function FeedbackDisplay({ feedback, onClose }: FeedbackDisplayProps) {
       <button onClick={onClose}>Close</button>
     </div>
   );
-} 
+}

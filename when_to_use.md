@@ -7,6 +7,7 @@ This document outlines when and why to use three common tools in modern React ap
 ## Tool Comparison and Use Cases
 
 ### 1. React Router
+
 - **Purpose**: Client-side routing and page-level data loading
 - **Best used when**:
   - Defining application routes and nested layouts
@@ -22,6 +23,7 @@ This document outlines when and why to use three common tools in modern React ap
 ---
 
 ### 2. React Query
+
 - **Purpose**: Server state management, data fetching, caching, and background synchronization
 - **Best used when**:
   - You need to fetch and cache remote data (e.g., from an API)
@@ -36,6 +38,7 @@ This document outlines when and why to use three common tools in modern React ap
 ---
 
 ### 3. Zustand
+
 - **Purpose**: Client-side state management (local/global UI state)
 - **Best used when**:
   - Managing UI state such as toggling modals, sidebars, or tabs
@@ -46,4 +49,3 @@ This document outlines when and why to use three common tools in modern React ap
   - Route definitions or navigation logic
 
 📝 Zustand is a small and flexible global state manager that’s ideal for maintaining non-async data (e.g. UI state) without the boilerplate of Redux or Context API.
-
