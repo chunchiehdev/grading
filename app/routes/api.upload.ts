@@ -30,41 +30,33 @@ function createUploadHandler(uploadId: string) {
       let totalSize = 0;
       const fileKey = `uploads/${Date.now()}-${filename}`;
 
-      await UploadProgressService.updateFile(uploadId, filename, {
-        fileName: filename,
-        fileSize: 0,
-        progress: 0,
+      await UploadProgressService.updateFileProgress(uploadId, filename, {
         status: "uploading",
+        progress: 0
       });
 
       for await (const chunk of data) {
         chunks.push(chunk);
         totalSize += chunk.length;
 
-        await UploadProgressService.updateFile(uploadId, filename, {
-          fileName: filename,
-          fileSize: totalSize,
-          progress: Math.floor((50 * chunks.length) / (chunks.length + 1)), 
+        await UploadProgressService.updateFileProgress(uploadId, filename, {
           status: "uploading",
+          progress: Math.floor((50 * chunks.length) / (chunks.length + 1))
         });
       }
 
       const buffer = Buffer.concat(chunks);
 
-      await UploadProgressService.updateFile(uploadId, filename, {
-        fileName: filename,
-        fileSize: buffer.length,
-        progress: 75,
+      await UploadProgressService.updateFileProgress(uploadId, filename, {
         status: "uploading",
+        progress: 75
       });
 
       const result = await uploadToStorage(buffer, fileKey, contentType);
 
-      await UploadProgressService.updateFile(uploadId, filename, {
-        fileName: filename,
-        fileSize: buffer.length,
-        progress: 100,
+      await UploadProgressService.updateFileProgress(uploadId, filename, {
         status: "success",
+        progress: 100
       });
 
       return JSON.stringify({
@@ -77,12 +69,10 @@ function createUploadHandler(uploadId: string) {
     } catch (error) {
       console.error(`上傳檔案 ${filename} 失敗:`, error);
 
-      await UploadProgressService.updateFile(uploadId, filename, {
-        fileName: filename,
-        fileSize: 0,
-        progress: 0,
+      await UploadProgressService.updateFileProgress(uploadId, filename, {
         status: "error",
-        error: error instanceof Error ? error.message : "上傳失敗",
+        progress: 0,
+        error: error instanceof Error ? error.message : "上傳失敗"
       });
 
       throw error;
@@ -106,14 +96,42 @@ export async function action({ request }: { request: Request }) {
       uploadHandler
     );
 
-    const fileDataStrings = formData.getAll("files") as string[];
+    const files = formData.getAll("files") as File[];
+    const fileResults = await Promise.all(files.map(async (file) => {
+      const fileKey = `uploads/${Date.now()}-${file.name}`;
+      
+      await UploadProgressService.updateFileProgress(uploadId, file.name, {
+        status: "uploading",
+        progress: 0
+      });
 
-    const files = fileDataStrings.map((fileStr) => JSON.parse(fileStr));
+      const buffer = Buffer.from(await file.arrayBuffer());
+      
+      await UploadProgressService.updateFileProgress(uploadId, file.name, {
+        status: "uploading",
+        progress: 50
+      });
+
+      const result = await uploadToStorage(buffer, fileKey, file.type);
+      
+      await UploadProgressService.updateFileProgress(uploadId, file.name, {
+        status: "success",
+        progress: 100
+      });
+      
+      return {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        url: result.url,
+        key: fileKey,
+      };
+    }));
 
     return Response.json({
       success: true,
       uploadId,
-      files,
+      files: fileResults,
     });
   } catch (error) {
     console.error("檔案上傳處理失敗:", error);

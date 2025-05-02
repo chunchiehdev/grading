@@ -1,10 +1,24 @@
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams, redirect } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Mail, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLogin } from "@/hooks/api/auth";
+import { getUser } from "@/services/auth.server";
+
+export async function loader({ request }: { request: Request }) {
+  // Check if user is already logged in
+  const user = await getUser(request);
+  
+  // If logged in, redirect to dashboard
+  if (user) {
+    return redirect("/dashboard");
+  }
+  
+  // Otherwise return null to allow access to login page
+  return { user: null };
+}
 
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });

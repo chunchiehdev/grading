@@ -29,10 +29,12 @@ export default [
   route("/assignments/lti-grading", "./routes/assignments.lti-grading.tsx"),
 
   // Rubric routes
-  route("/rubrics", "./routes/rubrics.tsx"),
-  route("/rubrics/new", "./routes/rubrics.new.tsx"),
-  route("/rubrics/:rubricId", "./routes/rubrics.$rubricId.tsx"),
-  route("/rubrics/:rubricId/edit", "./routes/rubrics.$rubricId.edit.tsx"),
+  route("/rubrics", "./routes/rubrics.tsx", [
+    route("", "./routes/rubrics._index.tsx"),
+    route("new", "./routes/rubrics.new.tsx"),
+    route(":rubricId", "./routes/rubrics.$rubricId.tsx"),
+    route(":rubricId/edit", "./routes/rubrics.$rubricId.edit.tsx"),
+  ]),
 
   // API routes
   route("/api/grading-progress", "./routes/api.grading-progress.ts"),

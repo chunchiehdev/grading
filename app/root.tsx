@@ -9,16 +9,15 @@ import {
   redirect,
 } from "react-router";
 import { ThemeProvider } from "@/theme-provider";
-import { useState, useCallback } from "react";
 import "./tailwind.css";
 import Sidebar from "@/components/sidebar/Sidebar";
 import { cn } from "@/lib/utils";
 import { NavHeader } from "@/components/navbar/NavHeader";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useThemeStore } from "@/stores/theme";
 import { requireAuth } from "@/middleware/auth.server";
 import { PUBLIC_PATHS } from "@/constants/auth";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { useUiStore } from "@/stores/ui";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,24 +67,21 @@ export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  // 檢查是否為公開路徑
   if (PUBLIC_PATHS.some(publicPath => path.startsWith(publicPath))) {
-    return { user: null };
+    return { user: null, isPublicPath: true };
   }
 
   try {
     const user = await requireAuth(request);
-    return { user };
+    return { user, isPublicPath: false};
   } catch (error) {
-    if (error instanceof Response) {
-      return error;
-    }
-    throw error;
+    return redirect("/auth/login");
   }
 }
 
 function Document({ children }: { children: React.ReactNode }) {
-  const { theme } = useThemeStore();
+  // 使用 UI Store 中的主題設置
+  const { theme } = useUiStore();
   
   return (
     <html lang="zh-TW" suppressHydrationWarning className={theme}>
@@ -106,13 +102,12 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const { user } = useLoaderData() as LoaderData;
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const toggleSidebar = useCallback(() => {
-    setIsCollapsed((prev) => !prev);
-  }, []);
+  const { user, isPublicPath } = useLoaderData() as LoaderData;
+  
+  // 使用 UI Store 管理側邊欄狀態
+  const { sidebarCollapsed, toggleSidebar } = useUiStore();
 
-  if (!user) {
+  if (isPublicPath && !user) {
     return (
       <main className="min-h-screen w-full bg-background">
         <Outlet />
@@ -122,12 +117,12 @@ function Layout() {
 
   return (
     <div className="relative flex min-h-screen w-full bg-background">
-      <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
+      <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       <div
         className={cn(
           "flex-1 transition-all duration-300 ease-in-out",
           "md:ml-[260px]",
-          isCollapsed && "md:ml-[20px]"
+          sidebarCollapsed && "md:ml-[20px]"
         )}
       >
         <NavHeader
@@ -153,19 +148,3 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
-// 錯誤邊界
-export function ErrorBoundary() {
-  return (
-    <div className="p-5 m-5 rounded-lg bg-destructive/10 text-destructive">
-      <h1 className="text-xl font-bold mb-2">發生錯誤</h1>
-      <p>應用程序遇到了問題，請稍後再試。</p>
-      <a
-        href="/"
-        className="inline-block mt-5 px-4 py-2 bg-primary text-primary-foreground rounded-md"
-      >
-        返回首頁
-      </a>
-    </div>
-  );
-} 

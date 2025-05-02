@@ -28,7 +28,6 @@ export async function createRubric(rubric: Omit<Rubric, "createdAt" | "updatedAt
     };
   } catch (error: any) {
     console.error("Error creating rubric:", error);
-    // 獲取更詳細的錯誤信息
     const errorMessage = error.response?.data?.detail || error.message || "無法創建評分標準";
     return {
       success: false,
@@ -39,21 +38,52 @@ export async function createRubric(rubric: Omit<Rubric, "createdAt" | "updatedAt
 
 export async function listRubrics(): Promise<{ rubrics: Rubric[]; error?: string }> {
   try {
-    console.log("API_URL", API_URL);
+    console.log("Starting listRubrics...");
+    console.log("API_URL:", API_URL);
+    console.log("AUTH_KEY:", AUTH_KEY ? "Set" : "Not set");
+
     const response = await axios.get(`${API_URL}/rubrics/`, {
       headers: {
         "auth-key": AUTH_KEY,
       },
     });
-    
+
+    console.log("API Response Status:", response.status);
+    console.log("API Response Headers:", response.headers);
+    console.log("API Response Data:", JSON.stringify(response.data, null, 2));
+
+    if (!response.data) {
+      console.error("API returned no data");
+      return {
+        rubrics: [],
+        error: "API returned no data"
+      };
+    }
+
+    // 檢查 response.data 的結構
+    if (!response.data.rubrics) {
+      console.error("API response does not contain 'rubrics' field");
+      console.error("Response data structure:", Object.keys(response.data));
+      return {
+        rubrics: [],
+        error: "API response format is incorrect"
+      };
+    }
+
     return {
       rubrics: response.data.rubrics || [],
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error listing rubrics:", error);
+    console.error("Error details:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      headers: error.response?.headers
+    });
     return {
       rubrics: [],
-      error: "無法獲取評分標準列表",
+      error: error.response?.data?.message || error.message || "無法獲取評分標準列表"
     };
   }
 }

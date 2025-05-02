@@ -1,5 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from "react";
-import { useFetcher } from "react-router";
+import React, { useCallback, useState, useRef } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -13,36 +12,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import type { UploadedFileInfo, FileWithStatus } from "@/types/files";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-// Custom hook for EventSource
-const useEventSource = (url: string, options?: { event?: string, enabled?: boolean }) => {
-  const [data, setData] = useState<string | null>(null);
-  const eventSourceRef = useRef<EventSource | null>(null);
-
-  useEffect(() => {
-    if (!url || options?.enabled === false) {
-      return;
-    }
-
-    const eventSource = new EventSource(url);
-    eventSourceRef.current = eventSource;
-
-    const eventName = options?.event || 'message';
-    
-    const handler = (event: MessageEvent) => {
-      setData(event.data);
-    };
-
-    eventSource.addEventListener(eventName, handler);
-
-    return () => {
-      eventSource.removeEventListener(eventName, handler);
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
-  }, [url, options?.event, options?.enabled]);
-
-  return data;
+// Helper function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 };
 
 interface FileUploadProps {
@@ -53,12 +29,6 @@ interface FileUploadProps {
   onUploadComplete?: (uploadedFiles: UploadedFileInfo[]) => void;
   onError?: (error: string) => void;
 }
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-};
 
 export const CompactFileUpload: React.FC<FileUploadProps> = ({
   maxFiles = 5,
@@ -71,157 +41,85 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<FileWithStatus[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadId, setUploadId] = useState<string | null>(null);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
-  const [_completionCalled, setCompletionCalled] = useState(false);
   const completionRef = useRef(false);
 
-  const idFetcher = useFetcher<{ success: boolean; uploadId: string }>();
-
-  const uploadFetcher = useFetcher<{
-    success: boolean;
-    uploadId: string;
-    files: UploadedFileInfo[];
-    error?: string;
-  }>();
-
-  const uploadFilesToServer = useCallback((files: File[], id: string) => {
-    const formData = new FormData();
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
-
-    uploadFetcher.submit(formData, {
-      method: "POST",
-      action: `/api/upload/${id}`,
-    });
-  }, [uploadFetcher]);
-
-  const progressData = useEventSource(
-    uploadId ? `/api/upload/progress/${uploadId}` : "",
-    { event: "upload-progress", enabled: !!uploadId }
-  );
-
-  useEffect(() => {
-    if (idFetcher.data?.success && idFetcher.data.uploadId) {
-      const newUploadId = idFetcher.data.uploadId;
-      console.log("get new uploadId:", newUploadId);
-      setUploadId(newUploadId);
-
-      if (pendingFiles.length > 0) {
-        uploadFilesToServer(pendingFiles, newUploadId);
-        setPendingFiles([]);
-      }
-    } else if (idFetcher.data && !idFetcher.data.success) {
-      const errorMsg = "獲取上傳 ID 失敗";
-      setError(errorMsg);
-      onError?.(errorMsg);
-      setIsUploading(false);
+  // Create upload ID mutation
+  const createUploadId = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/upload/create-id', { method: 'POST' });
+      const responseData = await response.json();
+      console.log("API Response:", responseData);
+      
+      if (!responseData.success) throw new Error("API request failed");
+      const data = responseData.data;
+      if (!data.success) throw new Error(data.error || "Failed to create upload ID");
+      
+      return data.uploadId;
     }
-  }, [idFetcher.data, pendingFiles, uploadFilesToServer, onError]);
+  });
 
-  useEffect(() => {
-    if (uploadFetcher.data?.success && uploadFetcher.data.files) {
-      console.log("上傳完成:", uploadFetcher.data.files);
-
-      setUploadedFiles((prev) =>
-        prev.map((fileItem) => {
-          const fileData = uploadFetcher.data?.files.find(
-            (f) => f.name === fileItem.file.name
-          );
-
+  // Upload files mutation
+  const uploadFiles = useMutation({
+    mutationFn: async ({ files, uploadId }: { files: FileWithStatus[]; uploadId: string }) => {
+      if (!uploadId) throw new Error('No valid upload ID');
+      
+      // Update file statuses to uploading
+      setUploadedFiles(files.map(file => ({
+        ...file,
+        status: 'uploading',
+        progress: 0
+      })));
+      
+      const formData = new FormData();
+      formData.append('uploadId', uploadId);
+      files.forEach(file => formData.append('files', file.file));
+      
+      console.log(`Uploading files to /api/upload with ${files.length} files and uploadId: ${uploadId}`);
+      
+      const response = await fetch(`/api/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      console.log("Upload response:", data);
+      
+      const responseFiles = data.data?.files || data.files;
+      if (!data.success) throw new Error(data.error || "Upload failed");
+      
+      // Update file statuses to success
+      setUploadedFiles(prevFiles => 
+        prevFiles.map(fileItem => {
+          const fileData = responseFiles.find((f: UploadedFileInfo) => f.name === fileItem.file.name);
           if (fileData && fileData.key) {
             return {
               ...fileItem,
               status: "success",
               progress: 100,
-              key: fileData?.key,
+              key: fileData.key,
             };
           }
           return fileItem;
         })
       );
-
-      setIsUploading(false);
-
       
-
+      return responseFiles;
+    },
+    onSuccess: (uploadedFiles) => {
       if (!completionRef.current) {
-        console.log("Calling onUploadComplete from fetcher effect");
         completionRef.current = true;
-        setCompletionCalled(true);
-        onUploadComplete?.(uploadFetcher.data.files);
+        onUploadComplete?.(uploadedFiles);
       }
-      
-      const timer = setTimeout(() => {
-        setUploadId(null);
-      }, 3000);
-
-      return () => clearTimeout(timer);
-    }
-
-    if (uploadFetcher.data && !uploadFetcher.data.success) {
-      const errorMsg = uploadFetcher.data.error || "上傳失敗";
+    },
+    onError: (error) => {
+      const errorMsg = error instanceof Error ? error.message : 'Upload failed';
       setError(errorMsg);
       onError?.(errorMsg);
-      setIsUploading(false);
     }
-  }, [uploadFetcher.data, onUploadComplete, onError]);
+  });
 
-  useEffect(() => {
-    if (isUploading) {
-      setCompletionCalled(false);
-    }
-  }, [isUploading]);
-
-  useEffect(() => {
-    if (!progressData) return;
-
-    try {
-      const progress = JSON.parse(progressData);
-
-      setUploadedFiles((prev) => {
-        return prev.map((fileItem) => {
-          const fileProgress = progress[fileItem.file.name];
-          if (fileProgress) {
-            return {
-              ...fileItem,
-              progress: fileProgress.progress,
-              status: fileProgress.status,
-              error: fileProgress.error,
-            };
-          }
-          return fileItem;
-        });
-      });
-
-      const allCompleted = Object.values(progress).every(
-        (item: any) => item.status === "success" || item.status === "error"
-      );
-
-      if (allCompleted && isUploading) {
-        setIsUploading(false);
-      }
-    } catch (error) {
-      console.error("解析進度資料失敗", error);
-    }
-  }, [progressData, isUploading]);
-
-  useEffect(() => {
-    const allCompleted = uploadedFiles.every(
-      file => file.status === "success" || file.status === "error"
-    );
-    
-    if (allCompleted && uploadId) {
-      setUploadId(null);
-    }
-  }, [uploadedFiles, uploadId]);
-
-  const validateFile = (
-    file: File,
-    existingFiles: FileWithStatus[]
-  ): string | null => {
+  // Validate file function
+  const validateFile = (file: File, existingFiles: FileWithStatus[]): string | null => {
     if (file.size > maxFileSize) {
       return `檔案 ${file.name} 超過大小限制 ${formatFileSize(maxFileSize)}`;
     }
@@ -232,9 +130,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
     }
 
     const isDuplicate = existingFiles.some(
-      (existingFile) =>
-        existingFile.file.name === file.name &&
-        existingFile.file.size === file.size
+      (existingFile) => existingFile.file.name === file.name && existingFile.file.size === file.size
     );
 
     if (isDuplicate) {
@@ -244,109 +140,65 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
     return null;
   };
 
-  const handleFiles = useCallback(
-    async (newFiles: File[]) => {
-      setError(null);
+  // Handle file upload
+  const handleFiles = useCallback(async (newFiles: File[]) => {
+    setError(null);
+    
+    // Create file objects with initial status
+    const validFiles = newFiles.map(file => ({
+      file,
+      status: 'uploading' as const,
+      progress: 0
+    }));
 
-      if (uploadedFiles.length + newFiles.length > maxFiles) {
-        const errorMsg = `最多只能上傳 ${maxFiles} 個檔案`;
-        setError(errorMsg);
-        onError?.(errorMsg);
-        return;
-      }
+    setUploadedFiles(validFiles);
+    onFilesChange?.(validFiles.map(f => f.file));
+    completionRef.current = false;
 
-      const validFiles: FileWithStatus[] = [];
+    try {
+      // Create upload ID and then upload files
+      const uploadId = await createUploadId.mutateAsync();
+      await uploadFiles.mutateAsync({ files: validFiles, uploadId });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Upload failed');
+      onError?.(error instanceof Error ? error.message : 'Upload failed');
+    }
+  }, [onFilesChange, createUploadId, uploadFiles, onError]);
 
-      for (const file of newFiles) {
-        const validationError = validateFile(file, uploadedFiles);
-
-        if (validationError) {
-          setError(validationError);
-          onError?.(validationError);
-          return;
-        }
-
-        validFiles.push({
-          file,
-          status: "uploading",
-          progress: 0,
-        });
-      }
-
-      setUploadedFiles((prev) => [...prev, ...validFiles]);
-      setIsUploading(true);
-      onFilesChange?.(validFiles.map((f) => f.file));
-
-      const filesToUpload = validFiles.map((f) => f.file);
-
-      if (uploadId) {
-        uploadFilesToServer(filesToUpload, uploadId);
-      } else {
-        setPendingFiles(filesToUpload);
-        idFetcher.submit(
-          {},
-          {
-            method: "post",
-            action: "/api/upload/create-id",
-          }
-        );
-      }
-    },
-    [uploadedFiles, maxFiles, onFilesChange, onError, uploadId]
-  );
-
+  // Handle drag events
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
+  // Handle drop event
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
 
-      const droppedFiles = Array.from(e.dataTransfer.files);
-      await handleFiles(droppedFiles);
-    },
-    [handleFiles]
-  );
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    await handleFiles(droppedFiles);
+  }, [handleFiles]);
 
-  const removeFile = useCallback(
-    (index: number) => {
-      const fileToRemove = uploadedFiles[index];
+  // Remove file
+  const removeFile = useCallback((index: number) => {
+    const fileToRemove = uploadedFiles[index];
 
-      if (uploadId && fileToRemove) {
-        fetch(
-          `/api/upload/clear-progress/${uploadId}/${encodeURIComponent(
-            fileToRemove.file.name
-          )}`,
-          {
-            method: "DELETE",
-          }
-        ).catch((err) => console.error("Failed to clear file progress:", err));
-      }
+    if (fileToRemove.key) {
+      fetch(`/api/upload/delete-file`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: fileToRemove.key }),
+      }).catch((err) => console.error("Failed to delete file from storage:", err));
+    }
 
-      console.log("fileToRemove.key", fileToRemove.key)
-
-      if (fileToRemove.key) {
-        fetch(`/api/upload/delete-file`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: fileToRemove.key }),
-        }).catch((err) =>
-          console.error("Failed to delete file from storage:", err)
-        );
-      }
-
-      setUploadedFiles((prev) => {
-        const newFiles = prev.filter((_, i) => i !== index);
-        onFilesChange?.(newFiles.map((f) => f.file));
-        return newFiles;
-      });
-    },
-    [onFilesChange, uploadId, uploadedFiles]
-  );
+    setUploadedFiles((prev) => {
+      const newFiles = prev.filter((_, i) => i !== index);
+      onFilesChange?.(newFiles.map((f) => f.file));
+      return newFiles;
+    });
+  }, [onFilesChange, uploadedFiles]);
 
   return (
     <div className="border-b border-border">
@@ -379,26 +231,15 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                   border-2 border-dashed rounded-lg p-8
                   flex flex-col items-center justify-center gap-3
                   transition-colors duration-200
-                  ${
-                    isDragging
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary"
-                  }
+                  ${isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary"}
                 `}
               >
-                <div
-                  className={cn(
-                    "p-3 rounded-full transition-colors duration-200",
-                    "bg-secondary group-hover:bg-primary/5"
-                  )}
-                >
+                <div className={cn("p-3 rounded-full transition-colors duration-200", "bg-secondary group-hover:bg-primary/5")}>
                   <Upload className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
                 </div>
 
                 <div className="text-center">
-                  <p className="text-sm text-muted-foreground">
-                    拖放檔案到這裡，或
-                  </p>
+                  <p className="text-sm text-muted-foreground">拖放檔案到這裡，或</p>
                   <label
                     htmlFor="file-input"
                     className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/90 cursor-pointer mt-1 bg-primary/5 px-3 py-1.5 rounded-full transition-all duration-200 hover:bg-primary/10"
@@ -408,9 +249,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                   </label>
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                  支援的檔案格式：PDF、DOC、DOCX
-                </p>
+                <p className="text-xs text-muted-foreground">支援的檔案格式：PDF、DOC、DOCX</p>
 
                 <input
                   id="file-input"
@@ -434,9 +273,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                         key={fileData.file.name + index}
                         className={cn(
                           "flex items-center justify-between p-2 rounded-md",
-                          fileData.status === "error"
-                            ? "bg-destructive/10"
-                            : "hover:bg-accent"
+                          fileData.status === "error" ? "bg-destructive/10" : "hover:bg-accent"
                         )}
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -450,9 +287,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="text-sm text-foreground truncate">
-                                {fileData.file.name}
-                              </p>
+                              <p className="text-sm text-foreground truncate">{fileData.file.name}</p>
                               {fileData.status === "success" && (
                                 <span className="text-xs bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">
                                   上傳完成
@@ -472,10 +307,8 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                                 value={fileData.progress}
                                 className={cn(
                                   "h-1 flex-1",
-                                  fileData.status === "success" &&
-                                    "bg-green-500/20",
-                                  fileData.status === "error" &&
-                                    "bg-destructive/20"
+                                  fileData.status === "success" && "bg-green-500/20",
+                                  fileData.status === "error" && "bg-destructive/20"
                                 )}
                                 style={{
                                   ["--progress-foreground" as any]:
@@ -493,11 +326,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                           </div>
                         </div>
                         <Button
-                          variant={
-                            fileData.status === "error"
-                              ? "destructive"
-                              : "ghost"
-                          }
+                          variant={fileData.status === "error" ? "destructive" : "ghost"}
                           size="sm"
                           onClick={() => removeFile(index)}
                           className="ml-2 h-8 w-8 p-0"

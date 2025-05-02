@@ -38,12 +38,10 @@ export default function GradingWithRubricRoute() {
   
   const gradingFetcher = useFetcher();
   
-  // 處理文件上傳完成
   const handleFilesUploaded = (files: UploadedFileInfo[]) => {
     console.log("上傳檔案完成:", files);
     setUploadedFiles(files);
     if (files.length > 0) {
-      // 延遲一下再切換到下一步，給用戶時間看到上傳的檔案
       setTimeout(() => {
         setStep('select-rubric');
       }, 1500);
@@ -109,29 +107,29 @@ export default function GradingWithRubricRoute() {
       setGradingProgress(100);
       setIsGrading(false);
       
-      const data = gradingFetcher.data as { success: boolean; feedback?: any; error?: string };
+      const data = gradingFetcher.data as { success: boolean; data?: { success: boolean; feedback?: any; error?: string } };
       
-      if (data.success && data.feedback) {
+      if (data.success && data.data?.success && data.data.feedback) {
         console.log("評分成功, 設置反饋數據");
         
         // 確保數據符合 GradingResultData 的格式
         const gradingResult: GradingResultData = {
-          score: data.feedback.score || 0,
-          imageUnderstanding: data.feedback.imageUnderstanding,
-          analysis: data.feedback.analysis || '',
-          criteriaScores: data.feedback.criteriaScores || [],
-          strengths: data.feedback.strengths || [],
-          improvements: data.feedback.improvements || [],
-          overallSuggestions: data.feedback.overallSuggestions,
-          createdAt: data.feedback.createdAt || new Date(),
-          gradingDuration: data.feedback.gradingDuration
+          score: data.data.feedback.score || 0,
+          imageUnderstanding: data.data.feedback.imageUnderstanding,
+          analysis: data.data.feedback.analysis || '',
+          criteriaScores: data.data.feedback.criteriaScores || [],
+          strengths: data.data.feedback.strengths || [],
+          improvements: data.data.feedback.improvements || [],
+          overallSuggestions: data.data.feedback.overallSuggestions,
+          createdAt: data.data.feedback.createdAt || new Date(),
+          gradingDuration: data.data.feedback.gradingDuration
         };
         
         setFeedback(gradingResult);
         setStep('result');
       } else {
-        console.error("評分失敗:", data.error);
-        setGradingError(data.error || '評分過程中發生錯誤');
+        console.error("評分失敗:", data.data?.error || '未知錯誤');
+        setGradingError(data.data?.error || '評分過程中發生錯誤');
       }
     } else if (gradingFetcher.state === 'submitting') {
       console.log("正在提交評分請求...");

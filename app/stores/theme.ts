@@ -1,33 +1,22 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+/**
+ * 主題管理已遷移至 stores/ui.ts
+ * 
+ * 根據最佳實踐，UI相關狀態（如主題）應集中於 UI Store 中
+ * 請使用 useUiStore 替代
+ */
 
-type Theme = 'light' | 'dark';
+import { useUiStore } from './ui';
 
-interface ThemeState {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-  toggleTheme: () => void;
-}
-
-export const useThemeStore = create<ThemeState>()(
-  persist(
-    (set, get) => ({
-      theme: 'light',
-      setTheme: (theme) => {
-        set({ theme });
-        document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(theme);
-      },
-      toggleTheme: () => {
-        const currentTheme = get().theme;
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        set({ theme: newTheme });
-        document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(newTheme);
-      },
-    }),
-    {
-      name: 'theme-storage',
+// 為了兼容性保留舊的 API
+export const useThemeStore = () => {
+  const { theme, setTheme } = useUiStore();
+  
+  return {
+    theme,
+    setTheme: (theme: 'light' | 'dark') => setTheme(theme),
+    toggleTheme: () => {
+      const currentTheme = theme === 'light' ? 'dark' : 'light';
+      setTheme(currentTheme);
     }
-  )
-);
+  };
+};

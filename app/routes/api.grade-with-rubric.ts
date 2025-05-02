@@ -1,35 +1,40 @@
-import { gradeDocument , getRubric } from "@/services/rubric.server";
+import { gradeDocument, getRubric } from "@/services/rubric.server";
+import { withErrorHandler, createApiResponse } from "@/middleware/api.server";
 
-export const action = async ({ request }: { request: Request }) => {
-  const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  console.log(`[${requestId}] 收到評分請求`);
+export async function action({ request }: { request: Request }) {
+  return withErrorHandler(async () => {
+    if (request.method !== "POST") {
+      return createApiResponse({ success: false, error: "Method not allowed" }, 405);
+    }
 
-  try {
+    const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    console.log(`[${requestId}] 收到評分請求`);
+
+    // Parse the incoming form data
     const formData = await request.formData();
-    const fileKey = formData.get("fileKey")?.toString();
-    const rubricId = formData.get("rubricId")?.toString();
+    const fileKey = formData.get("fileKey") as string;
+    const rubricId = formData.get("rubricId") as string;
 
     console.log(`[${requestId}] 評分參數:`, { fileKey, rubricId });
 
     if (!fileKey || !rubricId) {
       console.error(`[${requestId}] 缺少必要參數:`, { fileKey, rubricId });
-      return Response.json(
-        { success: false, error: "缺少必要參數" },
-        { status: 400 }
+      return createApiResponse(
+        { success: false, error: "Missing required fields" },
+        400
       );
     }
 
     // 獲取評分標準
-    console.log(`[${requestId}] 獲取評分標準 (ID: ${rubricId})`);
     const { rubric, error: rubricError } = await getRubric(rubricId);
+
     if (rubricError || !rubric) {
       console.error(`[${requestId}] 無法獲取評分標準:`, rubricError);
-      return Response.json(
+      return createApiResponse(
         { success: false, error: rubricError || "無法獲取評分標準" },
-        { status: 400 }
+        400
       );
     }
-    console.log(`[${requestId}] 成功獲取評分標準:`, { name: rubric.name, criteriaCount: rubric.criteria.length });
 
     // 進行評分
     console.log(`[${requestId}] 開始評分過程 (fileKey: ${fileKey}, rubricId: ${rubricId})`);
@@ -40,36 +45,19 @@ export const action = async ({ request }: { request: Request }) => {
 
     if (!success || !gradingResult) {
       console.error(`[${requestId}] 評分失敗:`, error);
-      return Response.json(
+      return createApiResponse(
         { success: false, error: error || "評分失敗" },
-        { status: 500 }
+        500
       );
     }
 
     // 處理評分結果
-    console.log(`[${requestId}] 處理評分結果，分數: ${gradingResult.score || '未知'}`);
-    const createdAt = new Date();
-
-    // 保留原始的 LLM 輸出
-    const feedbackData = {
-      ...gradingResult,  // 直接使用完整的 LLM 輸出
-      createdAt,
-      gradingDuration,
-    };
+    const feedbackData = gradingResult;
 
     console.log(`[${requestId}] 返回評分結果，總分: ${feedbackData.score || 0}`);
-    return Response.json({ success: true, feedback: feedbackData });
-  } catch (error: any) {
-    console.error(`[${requestId}] 評分過程中發生錯誤:`, error);
-    // 獲取更詳細的錯誤信息
-    const errorMessage = error.message || "評分過程中發生未知錯誤";
-    const errorStack = error.stack || "";
-
-    console.error(`[${requestId}] 詳細錯誤: ${errorMessage}\n${errorStack}`);
-
-    return Response.json(
-      { success: false, error: errorMessage },
-      { status: 500 }
-    );
-  }
-};
+    return createApiResponse({
+      success: true,
+      feedback: feedbackData
+    });
+  });
+}

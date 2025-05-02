@@ -1,14 +1,9 @@
 import { redirect } from "react-router";
 import { getUser } from "@/services/auth.server";
-import { PUBLIC_PATHS } from "@/constants/auth";
 
 export async function requireAuth(request: Request) {
   const url = new URL(request.url);
   const path = url.pathname;
-
-  if (PUBLIC_PATHS.some(publicPath => path.startsWith(publicPath))) {
-    return null;
-  }
 
   const user = await getUser(request);
   if (!user) {

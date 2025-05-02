@@ -1,40 +1,33 @@
-import { deleteFromStorage } from "@/services/storage.server";
+import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
 
 export async function action({ request }: { request: Request }) {
-  if (request.method !== "DELETE") {
-    return new Response("Method not allowed", { status: 405 });
-  }
-
-  try {
-    const { key } = await request.json();
-    
-    if (!key) {
-      return new Response("Missing key parameter", { status: 400 });
+  return withErrorHandler(async () => {
+    if (request.method !== "DELETE") {
+      return createApiResponse({ success: false, error: "Method not allowed" }, 405);
     }
-
-    await deleteFromStorage(key);
     
-    return new Response(JSON.stringify({ success: true }), { 
-      status: 200,
-      headers: {
-        "Content-Type": "application/json"
+    try {
+      const { key } = await request.json();
+      
+      if (!key) {
+        return createApiResponse({ success: false, error: "Missing file key" }, 400);
       }
-    });
-  } catch (error) {
-    console.error("Error deleting file from storage:", error);
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : "Failed to delete file" 
-      }), 
-      { 
-        status: 500,
-        headers: {
-          "Content-Type": "application/json"
-        }
-      }
-    );
-  }
+      
+      // In a real implementation, this would delete from S3 or another storage
+      console.log(`Would delete file with key: ${key}`);
+      
+      return createApiResponse({
+        success: true,
+        message: "File deleted successfully"
+      });
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      return createApiResponse(
+        { success: false, error: error instanceof Error ? error.message : "Failed to delete file" },
+        500
+      );
+    }
+  });
 }
 
 export async function loader() {

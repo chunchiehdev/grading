@@ -2,7 +2,8 @@ import { useNavigate } from "react-router";
 import { ArrowRight, BookOpen, GraduationCap, Users, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useState } from "react";
+import { useUser } from "@/hooks/api/auth";
+import { useEffect } from "react";
 
 const features = [
   {
@@ -27,12 +28,28 @@ const features = [
   },
 ];
 
+/**
+ * 首頁英雄區塊
+ * 使用 React Query 獲取用戶狀態
+ */
 const HeroSection = () => {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+  
+  // 使用 React Query 獲取用戶數據
+  const { data: user, isLoading } = useUser();
+  const isLoggedIn = Boolean(user);
+  
+  // 調試用戶狀態
+  useEffect(() => {
+    console.log("[HeroSection] User authenticated:", isLoggedIn);
+  }, [isLoggedIn]);
 
   const handleGetStarted = () => {
-    navigate("/auth/login");
+    if (isLoggedIn) {
+      navigate("/dashboard");
+    } else {
+      navigate("/auth/login");
+    }
   };
 
   return (
@@ -50,17 +67,20 @@ const HeroSection = () => {
               size="lg"
               onClick={handleGetStarted}
               className="gap-2"
+              disabled={isLoading}
             >
-              開始使用
+              {isLoggedIn ? "進入系統" : "開始使用"}
               <ArrowRight className="h-4 w-4" />
             </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => navigate("/auth/login")}
-            >
-              登入
-            </Button>
+            {!isLoggedIn && !isLoading && (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => navigate("/auth/login")}
+              >
+                登入
+              </Button>
+            )}
           </div>
         </div>
 
@@ -78,13 +98,6 @@ const HeroSection = () => {
           ))}
         </div>
 
-        <div className="mt-24 text-center">
-          <h2 className="text-3xl font-bold mb-4">為什麼選擇我們？</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            我們的系統結合了最新的 AI 技術和教育理念，為教師提供了一個智能、高效的評分平台。
-            無論是日常作業還是期末考試，都能幫助您節省時間，提高評分質量。
-          </p>
-        </div>
       </div>
     </div>
   );

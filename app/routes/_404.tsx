@@ -15,7 +15,7 @@ export default function NotFound() {
         您請求的頁面可能已被移除或暫時不可用。
       </p>
       <a 
-        href="/"
+        href="/dashboard"
         style={{
           padding: '0.75rem 1.5rem',
           backgroundColor: '#4a6cf7',

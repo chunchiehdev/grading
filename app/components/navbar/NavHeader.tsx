@@ -58,7 +58,7 @@ const NavHeader = ({
 
       {/* Left Controls */}
       <div className="flex items-center gap-0">
-        <Link to="/">
+        <Link to="/dashboard">
           <Button
             variant="ghost"
             className="flex items-center gap-1 ml-2 text-lg font-semibold"

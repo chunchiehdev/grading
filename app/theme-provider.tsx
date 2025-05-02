@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect } from "react";
-import { useThemeStore } from "@/stores/theme";
+import { useUiStore } from "@/stores/ui";
 
-type Theme = 'light' | 'dark';
+type Theme = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
   theme: Theme;
@@ -12,11 +12,13 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { theme, setTheme, toggleTheme } = useThemeStore();
+  const { theme, setTheme, toggleTheme } = useUiStore();
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(theme);
+    document.documentElement.classList.add(theme === 'system' 
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme);
   }, [theme]);
 
   return (

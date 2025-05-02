@@ -12,6 +12,7 @@ interface LoginCredentials {
 }
 
 let oauth2Client: OAuth2Client | null = null;
+
 console.log(
   "Using Google redirect URI:",
   process.env.GOOGLE_REDIRECT_URI ||
@@ -130,12 +131,7 @@ export async function requireUserId(
 export async function googleLogin() {
   if (!oauth2Client) {
     console.warn("Google OAuth credentials not configured");
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: "/auth/login?error=google-auth-unavailable"
-      }
-    });
+    return redirect("/auth/login?error=google-auth-unavailable");
   }
 
   const url = oauth2Client.generateAuthUrl({
@@ -146,12 +142,7 @@ export async function googleLogin() {
     ],
   });
 
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: url
-    }
-  });
+  return redirect(url);
 }
 
 export async function handleGoogleCallback(request: Request) {
@@ -193,13 +184,10 @@ export async function handleGoogleCallback(request: Request) {
     }
 
     const session = await createUserSession(user.id);
-    return new Response(null, {
-      status: 302,
-      headers: {
-        "Set-Cookie": session,
-        Location: "/dashboard"
-      }
-    });
+    const response = redirect("/dashboard");
+    response.headers.set("Set-Cookie", session);
+
+    return response;
   } catch (error) {
     console.error("Google authentication error:", error);
     return redirect("/login?error=google-auth-failed");
@@ -210,10 +198,9 @@ export async function register({ email, password }: LoginCredentials) {
   const existingUser = await db.user.findUnique({ where: { email } });
 
   if (existingUser) {
-    return Response.json(
-      { errors: { email: "A user already exists with this email" } },
-      { status: 400 }
-    );
+    throw new ApiError("Registration failed", 400, { 
+      email: "A user already exists with this email" 
+    });
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -224,7 +211,11 @@ export async function register({ email, password }: LoginCredentials) {
     },
   });
 
-  return createUserSession(user.id);
+  const session = await createUserSession(user.id);
+  const response = redirect("/dashboard");
+  response.headers.set("Set-Cookie", session);
+
+  return response;
 }
 
 export async function login({ email, password }: LoginFormValues) {
@@ -238,7 +229,10 @@ export async function login({ email, password }: LoginFormValues) {
     throw new ApiError("Authentication failed", 401, { password: "Invalid password" });
   }
 
-  return createUserSession(user.id);
+  const session = await createUserSession(user.id);
+  const response = redirect("/dashboard");
+  response.headers.set("Set-Cookie", session);
+  return response;
 }
 
 export async function createUserSession(userId: string) {
