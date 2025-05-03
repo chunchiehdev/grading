@@ -1,11 +1,9 @@
-import { useNavigate } from 'react-router';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { PanelLeftOpen, PanelLeftClose, PlusCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import PropTypes from 'prop-types';
-// import { createNewGrading } from "@/utils/grading.server";
 
 interface SidebarProps {
   className?: string;
@@ -14,14 +12,6 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ className, isCollapsed, onToggle }) => {
-  const navigate = useNavigate();
-
-  // const handleCreateNewGrading = useCallback(() => {
-  //   createNewGrading(navigate, {
-  //     source: 'sidebar',
-  //     onNavigate: onToggle
-  //   });
-  // }, [navigate, onToggle]);
 
   return (
     <div

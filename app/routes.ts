@@ -18,7 +18,6 @@ export default [
   route('/dashboard', './routes/dashboard.tsx'),
 
   // Assignment routes
-  route('/assignments/grade/:taskId', './routes/assignments.grade.$taskId.tsx'),
   route('/assignments/grading-with-rubric', './routes/assignments.grading-with-rubric.tsx'),
 
   // Rubric routes
@@ -31,14 +30,11 @@ export default [
 
   // API routes
   route('/api/grading-progress', './routes/api.grading-progress.ts'),
-  route('/api/create-grading', './routes/api.create-grading.ts'),
   route('/api/grade-with-rubric', './routes/api.grade-with-rubric.ts'),
   route('/api/upload', './routes/api.upload.ts'),
   route('/api/upload/create-id', './routes/api.upload.create-id.ts'),
   route('/api/upload/delete-file', './routes/api.upload.delete-file.ts'),
   route('/api/upload/progress/:id', './routes/api.upload.progress.$id.ts'),
-  route('/api/process-documents', './routes/api.process-documents.ts'),
-  route('/api/grading', './routes/api.grading.ts'),
 
   // Auth API routes
   route('/api/auth/login', './routes/api.auth.login.ts'),

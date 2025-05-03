@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import type { UploadedFileInfo } from '@/types/files';
-import { useFileUpload } from '@/hooks/api/useFileUpload';
+import { useFileUpload } from '@/hooks/useFileUpload';
 
 // Helper function to format file size
 const formatFileSize = (bytes: number): string => {

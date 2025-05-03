@@ -6,10 +6,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useThemeStore } from '@/stores/theme';
+import { useUiStore } from '@/stores/ui';
 
 export function ModeToggle() {
-  const { theme, setTheme } = useThemeStore();
+  const { setTheme, toggleTheme } = useUiStore();
 
   return (
     <DropdownMenu>
@@ -23,6 +23,7 @@ export function ModeToggle() {
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setTheme('light')}>淺色</DropdownMenuItem>
         <DropdownMenuItem onClick={() => setTheme('dark')}>深色</DropdownMenuItem>
+        <DropdownMenuItem onClick={toggleTheme}>切換</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

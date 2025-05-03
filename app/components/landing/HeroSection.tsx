@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router';
 import { ArrowRight, BookOpen, GraduationCap, Users, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { useUser } from '@/hooks/api/auth';
+import { useUser } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 
 const features = [

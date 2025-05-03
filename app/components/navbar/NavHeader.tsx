@@ -8,11 +8,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { cn } from '@/lib/utils';
-import { ChevronDown, Share2, LogOut, User, PanelLeftOpen, PanelLeftClose } from 'lucide-react';
-import { Link, Form } from 'react-router';
-import { ModeToggle } from '@/components/mode-toggle';
+import { ChevronDown, Share2, LogOut, User } from 'lucide-react';
+import { Link } from 'react-router';
+import { ModeToggle } from '@/components/ui/mode-toggle';
 import { useLoaderData } from 'react-router';
-import { useLogout } from '@/hooks/api/auth';
+import { useLogout } from '@/hooks/useAuth';
 
 interface NavHeaderProps {
   title?: string;
@@ -22,7 +22,7 @@ interface NavHeaderProps {
   className?: string;
 }
 
-const NavHeader = ({ title = '作業評分系統', onShare, _userName, userImage, className }: NavHeaderProps) => {
+const NavHeader = ({ title = '作業評分系統', onShare, userImage, className }: NavHeaderProps) => {
   const { user } = useLoaderData() as { user: { email: string } | null };
   const logout = useLogout();
 

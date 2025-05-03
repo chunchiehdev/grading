@@ -8,8 +8,8 @@ interface User {
 }
 
 /**
- * Use React Query 獲取當前登入用戶信息
- * 專注於獲取、緩存和同步伺服器數據
+ * Use React Query to fetch user data
+ * focus on the user data structure
  */
 export function useUser() {
   return useQuery<User | null>({
@@ -57,7 +57,7 @@ export function useUser() {
 }
 
 /**
- * 使用 React Query 執行登入操作
+ * use React Query to login
  */
 export function useLogin() {
   const queryClient = useQueryClient();
@@ -91,7 +91,7 @@ export function useLogin() {
 }
 
 /**
- * 使用 React Query 執行登出操作
+ * use React Query to logout 
  */
 export function useLogout() {
   const queryClient = useQueryClient();

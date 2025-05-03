@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Mail, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useLogin } from '@/hooks/api/auth';
+import { useLogin } from '@/hooks/useAuth';
 import { getUser } from '@/services/auth.server';
 
 export async function loader({ request }: { request: Request }) {
