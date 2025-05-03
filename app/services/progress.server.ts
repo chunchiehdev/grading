@@ -1,172 +1,76 @@
+// src/services/progress.server.ts
 import { redis } from '@/lib/redis';
 import { REDIS_KEYS } from '@/config/redis';
-import type { UploadedFileInfo } from '@/types/files';
 
-export interface ProgressData {
-  phase: string;
-  progress: number;
-  message: string;
-}
-
-export interface UploadProgressData {
-  fileName: string;
-  fileSize: number;
-  progress: number;
+export type FileProgress = {
   status: 'uploading' | 'success' | 'error';
-  error?: string;
-  updatedAt: number;
-}
-
-export class ProgressService {
-  private static getKey(taskId: string): string {
-    return REDIS_KEYS.PROGRESS_PREFIX + taskId;
-  }
-
-  static async set(taskId: string, data: ProgressData): Promise<void> {
-    const key = this.getKey(taskId);
-    try {
-      await redis.hset(key, {
-        phase: data.phase,
-        progress: data.progress.toString(),
-        message: data.message,
-        updatedAt: Date.now().toString(),
-      });
-      await redis.expire(key, REDIS_KEYS.EXPIRATION_TIME);
-    } catch (error) {
-      console.error('Error setting progress:', error);
-      throw new Error('Failed to store progress data');
-    }
-  }
-
-  static async get(taskId: string): Promise<ProgressData | null> {
-    const key = this.getKey(taskId);
-    try {
-      const data = await redis.hgetall(key);
-      if (Object.keys(data).length === 0) return null;
-
-      return {
-        phase: data.phase,
-        progress: parseInt(data.progress),
-        message: data.message,
-      };
-    } catch (error) {
-      console.error('Error getting progress:', error);
-      return null;
-    }
-  }
-
-  static async delete(taskId: string): Promise<void> {
-    const key = this.getKey(taskId);
-    try {
-      await redis.del(key);
-    } catch (error) {
-      console.error('Error deleting progress:', error);
-      throw new Error('Failed to delete progress data');
-    }
-  }
-
-  static async exists(taskId: string): Promise<boolean> {
-    const key = this.getKey(taskId);
-    try {
-      const exists = await redis.exists(key);
-      return exists === 1;
-    } catch (error) {
-      console.error('Error checking progress existence:', error);
-      return false;
-    }
-  }
-}
-
-type FileStatus = 'uploading' | 'success' | 'error';
-
-interface FileProgress {
-  status: FileStatus;
   progress: number;
   error?: string;
+  key?: string;
+};
+
+// Helper for Redis operations with JSON
+class ProgressStore {
+  static getKey(uploadId: string): string {
+    return `${REDIS_KEYS.UPLOAD_PROGRESS_PREFIX}${uploadId}`;
+  }
+  
+  static async getProgress(uploadId: string): Promise<Record<string, FileProgress>> {
+    const data = await redis.get(this.getKey(uploadId));
+    return data ? JSON.parse(data) : {};
+  }
+  
+  static async setProgress(uploadId: string, data: Record<string, FileProgress>): Promise<void> {
+    await redis.set(
+      this.getKey(uploadId), 
+      JSON.stringify(data), 
+      'EX', 
+      REDIS_KEYS.EXPIRATION_TIME
+    );
+  }
 }
 
-/**
- * Service for tracking upload progress
- */
-export class UploadProgressService {
-  private static progressStore: Map<string, Map<string, FileProgress>> = new Map();
-
-  /**
-   * Initialize progress tracking for a new upload session
-   */
-  static async initialize(uploadId: string): Promise<void> {
-    this.progressStore.set(uploadId, new Map());
-  }
-
-  /**
-   * Update progress for a specific file
-   */
-  static async updateFileProgress(uploadId: string, fileName: string, progress: FileProgress): Promise<void> {
-    const uploadProgress = this.progressStore.get(uploadId);
-
-    if (!uploadProgress) {
-      throw new Error(`Upload ID ${uploadId} not found`);
+export const UploadProgressService = {
+  initialize: async (uploadId: string): Promise<void> => {
+    await ProgressStore.setProgress(uploadId, {});
+  },
+  
+  updateFileProgress: async (uploadId: string, filename: string, progress: FileProgress): Promise<void> => {
+    // Basic validation without zod
+    if (progress.progress < 0 || progress.progress > 100) {
+      throw new Error('Progress must be between 0 and 100');
     }
-
-    uploadProgress.set(fileName, progress);
-  }
-
-  /**
-   * Get progress for all files in an upload session
-   */
-  static async getProgress(uploadId: string): Promise<Record<string, FileProgress>> {
-    const uploadProgress = this.progressStore.get(uploadId);
-
-    if (!uploadProgress) {
-      return {};
+    
+    if (!['uploading', 'success', 'error'].includes(progress.status)) {
+      throw new Error('Invalid status');
     }
-
-    const result: Record<string, FileProgress> = {};
-
-    for (const [fileName, progress] of uploadProgress.entries()) {
-      result[fileName] = progress;
-    }
-
-    return result;
-  }
-
-  /**
-   * Mark upload as complete with final file information
-   */
-  static async finalizeUpload(uploadId: string, files: UploadedFileInfo[]): Promise<void> {
-    const uploadProgress = this.progressStore.get(uploadId);
-
-    if (!uploadProgress) {
-      return;
-    }
-
-    // Update all files to completed status
-    for (const file of files) {
-      uploadProgress.set(file.name, {
+    
+    const data = await ProgressStore.getProgress(uploadId);
+    data[filename] = progress;
+    await ProgressStore.setProgress(uploadId, data);
+  },
+  
+  getProgress: async (uploadId: string): Promise<Record<string, FileProgress>> => {
+    return ProgressStore.getProgress(uploadId);
+  },
+  
+  clearFileProgress: async (uploadId: string, filename: string): Promise<void> => {
+    const data = await ProgressStore.getProgress(uploadId);
+    delete data[filename];
+    await ProgressStore.setProgress(uploadId, data);
+  },
+  
+  finalizeUpload: async (uploadId: string, uploadResults: any[]): Promise<void> => {
+    const data = await ProgressStore.getProgress(uploadId);
+    
+    uploadResults.forEach(file => {
+      data[file.name] = {
         status: 'success',
         progress: 100,
-      });
-    }
-
-    // Keep progress data for a while before cleanup
-    setTimeout(
-      () => {
-        this.progressStore.delete(uploadId);
-      },
-      1000 * 60 * 10
-    ); // 10 minutes
+        key: file.key
+      };
+    });
+    
+    await ProgressStore.setProgress(uploadId, data);
   }
-
-  /**
-   * Clear progress for a specific file
-   */
-  static async clearFileProgress(uploadId: string, fileName: string): Promise<void> {
-    const uploadProgress = this.progressStore.get(uploadId);
-
-    if (!uploadProgress) {
-      return;
-    }
-
-    uploadProgress.delete(fileName);
-  }
-}
+};

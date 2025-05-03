@@ -1,59 +1,60 @@
-import { UploadProgressService } from './progress.server';
-import type { UploadedFileInfo } from '@/types/files';
+// src/services/file-upload.server.ts
+import { uploadToStorage } from '@/services/storage.server';
+import { UploadProgressService } from '@/services/progress.server';
 
-/**
- * Handles file uploads and returns information about the uploaded files
- */
-export async function uploadFiles(files: File[], uploadId: string): Promise<UploadedFileInfo[]> {
-  const results: UploadedFileInfo[] = [];
+export async function uploadFiles(files: File[], uploadId: string) {
+  const results = [];
 
   for (const file of files) {
+    // Update initial progress
+    await UploadProgressService.updateFileProgress(uploadId, file.name, {
+      status: 'uploading',
+      progress: 0
+    });
+
     try {
-      // Update progress to indicate file processing
+      // Get file buffer
+      const buffer = Buffer.from(await file.arrayBuffer());
+      
+      // Update progress to 50%
       await UploadProgressService.updateFileProgress(uploadId, file.name, {
         status: 'uploading',
-        progress: 10,
+        progress: 50
       });
-
-      // In a real implementation, this would upload to S3, cloud storage, etc.
-      // For now, we'll create a mock implementation
-      const key = `upload_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-
-      // Simulate upload progress
-      await UploadProgressService.updateFileProgress(uploadId, file.name, {
-        status: 'uploading',
-        progress: 50,
-      });
-
-      // Simulate upload delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Final progress update
+      
+      // Generate file key
+      const fileKey = `uploads/${Date.now()}-${file.name}`;
+      
+      // Upload to storage
+      const result = await uploadToStorage(buffer, fileKey, file.type);
+      
+      // Update final progress
       await UploadProgressService.updateFileProgress(uploadId, file.name, {
         status: 'success',
-        progress: 100,
+        progress: 100
       });
-
-      // Add result
+      
+      // Add to results
       results.push({
         name: file.name,
         size: file.size,
         type: file.type,
-        key,
-        url: `/api/files/${key}`,
-        uploadedAt: new Date().toISOString(),
+        url: result.url,
+        key: fileKey
       });
     } catch (error) {
-      console.error(`Error uploading file ${file.name}:`, error);
-
-      // Update progress to indicate failure
+      console.error(`Failed to upload file ${file.name}:`, error);
+      
+      // Update error status
       await UploadProgressService.updateFileProgress(uploadId, file.name, {
         status: 'error',
         progress: 0,
-        error: error instanceof Error ? error.message : 'Upload failed',
+        error: error instanceof Error ? error.message : 'Upload failed'
       });
+      
+      throw error;
     }
   }
-
+  
   return results;
 }

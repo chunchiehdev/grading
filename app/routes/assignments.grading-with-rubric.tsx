@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GradingProgress } from '@/components/grading/GradingProgress';
+import { EmptyState } from '@/components/ui/empty-state';
+
 import { AlertCircle, FileText, File } from 'lucide-react';
 import type { Rubric, RubricCriteria } from '@/types/grading';
 import type { UploadedFileInfo } from '@/types/files';
 import { listRubrics } from '@/services/rubric.server';
-import { EmptyState } from '@/components/ui/empty-state';
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { rubrics, error } = await listRubrics();

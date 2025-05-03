@@ -12,18 +12,13 @@ export default [
     route('logout', './routes/_auth.logout.tsx'),
   ]),
 
-  // Auth API routes
-  route('/api/auth/login', './routes/api.auth.login.ts'),
-  route('/api/auth/logout', './routes/api.auth.logout.ts'),
-  route('/api/auth/check', './routes/api.auth.check.ts'),
-
+  
   // Dashboard routes
   route('/dashboard', './routes/dashboard.tsx'),
 
   // Assignment routes
   route('/assignments/grade/:taskId', './routes/assignments.grade.$taskId.tsx'),
   route('/assignments/grading-with-rubric', './routes/assignments.grading-with-rubric.tsx'),
-  route('/assignments/lti-grading', './routes/assignments.lti-grading.tsx'),
 
   // Rubric routes
   route('/rubrics', './routes/rubrics.tsx', [
@@ -40,19 +35,18 @@ export default [
   route('/api/upload', './routes/api.upload.ts'),
   route('/api/upload/create-id', './routes/api.upload.create-id.ts'),
   route('/api/upload/delete-file', './routes/api.upload.delete-file.ts'),
+  route('/api/upload/progress/:id', './routes/api.upload.progress.$id.ts'),
   route('/api/process-documents', './routes/api.process-documents.ts'),
   route('/api/grading', './routes/api.grading.ts'),
-  route('/api/batch-grading', './routes/api.batch-grading.ts'),
-  route('/api/counter', './routes/api.counter.ts'),
-  route('/api/lti/launch', './routes/api.lti.launch.ts'),
 
-  // Admin routes
-  route('/admin/api-keys', './routes/admin.api-keys.tsx'),
-
+  // Auth API routes
+  route('/api/auth/login', './routes/api.auth.login.ts'),
+  route('/api/auth/logout', './routes/api.auth.logout.ts'),
+  route('/api/auth/check', './routes/api.auth.check.ts'),
   // Other routes
+
   route('/grading-history', './routes/grading-history.tsx'),
   route('/health', './routes/health.tsx'),
-  route('/favicon.ico', './routes/favicon.ico.ts'),
 
   // 404 route
   route('*', './routes/_404.tsx'),

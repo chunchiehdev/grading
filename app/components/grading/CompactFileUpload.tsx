@@ -1,4 +1,5 @@
-import React, { useCallback, useState, useRef } from 'react';
+// src/components/CompactFileUpload.tsx
+import React, { useCallback, useState } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -6,8 +7,8 @@ import { Upload, X, File, Paperclip, AlertCircle, FileUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import type { UploadedFileInfo, FileWithStatus } from '@/types/files';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { UploadedFileInfo } from '@/types/files';
+import { useFileUpload } from '@/hooks/api/useFileUpload';
 
 // Helper function to format file size
 const formatFileSize = (bytes: number): string => {
@@ -33,90 +34,18 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
   onUploadComplete,
   onError,
 }) => {
-  const [uploadedFiles, setUploadedFiles] = useState<FileWithStatus[]>([]);
+  const { 
+    files: uploadedFiles, 
+    uploadFiles, 
+    deleteFile, 
+    isUploading,
+    uploadError 
+  } = useFileUpload();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const completionRef = useRef(false);
-
-  // Create upload ID mutation
-  const createUploadId = useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/upload/create-id', { method: 'POST' });
-      const responseData = await response.json();
-      console.log('API Response:', responseData);
-
-      if (!responseData.success) throw new Error('API request failed');
-      const data = responseData.data;
-      if (!data.success) throw new Error(data.error || 'Failed to create upload ID');
-
-      return data.uploadId;
-    },
-  });
-
-  // Upload files mutation
-  const uploadFiles = useMutation({
-    mutationFn: async ({ files, uploadId }: { files: FileWithStatus[]; uploadId: string }) => {
-      if (!uploadId) throw new Error('No valid upload ID');
-
-      // Update file statuses to uploading
-      setUploadedFiles(
-        files.map((file) => ({
-          ...file,
-          status: 'uploading',
-          progress: 0,
-        }))
-      );
-
-      const formData = new FormData();
-      formData.append('uploadId', uploadId);
-      files.forEach((file) => formData.append('files', file.file));
-
-      console.log(`Uploading files to /api/upload with ${files.length} files and uploadId: ${uploadId}`);
-
-      const response = await fetch(`/api/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-      console.log('Upload response:', data);
-
-      const responseFiles = data.data?.files || data.files;
-      if (!data.success) throw new Error(data.error || 'Upload failed');
-
-      // Update file statuses to success
-      setUploadedFiles((prevFiles) =>
-        prevFiles.map((fileItem) => {
-          const fileData = responseFiles.find((f: UploadedFileInfo) => f.name === fileItem.file.name);
-          if (fileData && fileData.key) {
-            return {
-              ...fileItem,
-              status: 'success',
-              progress: 100,
-              key: fileData.key,
-            };
-          }
-          return fileItem;
-        })
-      );
-
-      return responseFiles;
-    },
-    onSuccess: (uploadedFiles) => {
-      if (!completionRef.current) {
-        completionRef.current = true;
-        onUploadComplete?.(uploadedFiles);
-      }
-    },
-    onError: (error) => {
-      const errorMsg = error instanceof Error ? error.message : 'Upload failed';
-      setError(errorMsg);
-      onError?.(errorMsg);
-    },
-  });
 
   // Validate file function
-  const validateFile = (file: File, existingFiles: FileWithStatus[]): string | null => {
+  const validateFile = useCallback((file: File): string | null => {
     if (file.size > maxFileSize) {
       return `檔案 ${file.name} 超過大小限制 ${formatFileSize(maxFileSize)}`;
     }
@@ -126,44 +55,31 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
       return `不支援的檔案類型: ${fileExt}`;
     }
 
-    const isDuplicate = existingFiles.some(
-      (existingFile) => existingFile.file.name === file.name && existingFile.file.size === file.size
-    );
-
-    if (isDuplicate) {
-      return `檔案 ${file.name} 已經存在`;
-    }
-
     return null;
-  };
+  }, [maxFileSize, acceptedFileTypes]);
 
   // Handle file upload
-  const handleFiles = useCallback(
-    async (newFiles: File[]) => {
-      setError(null);
-
-      // Create file objects with initial status
-      const validFiles = newFiles.map((file) => ({
-        file,
-        status: 'uploading' as const,
-        progress: 0,
-      }));
-
-      setUploadedFiles(validFiles);
-      onFilesChange?.(validFiles.map((f) => f.file));
-      completionRef.current = false;
-
-      try {
-        // Create upload ID and then upload files
-        const uploadId = await createUploadId.mutateAsync();
-        await uploadFiles.mutateAsync({ files: validFiles, uploadId });
-      } catch (error) {
-        setError(error instanceof Error ? error.message : 'Upload failed');
-        onError?.(error instanceof Error ? error.message : 'Upload failed');
+  const handleFiles = useCallback(async (newFiles: File[]) => {
+    setError(null);
+    
+    // Validate files first
+    for (const file of newFiles) {
+      const validationError = validateFile(file);
+      if (validationError) {
+        setError(validationError);
+        return;
       }
-    },
-    [onFilesChange, createUploadId, uploadFiles, onError]
-  );
+    }
+    
+    try {
+      await uploadFiles(newFiles);
+      onFilesChange?.(newFiles);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Upload failed';
+      setError(errorMsg);
+      onError?.(errorMsg);
+    }
+  }, [validateFile, uploadFiles, onFilesChange, onError]);
 
   // Handle drag events
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -172,39 +88,29 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
   }, []);
 
   // Handle drop event
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
 
-      const droppedFiles = Array.from(e.dataTransfer.files);
-      await handleFiles(droppedFiles);
-    },
-    [handleFiles]
-  );
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    await handleFiles(droppedFiles);
+  }, [handleFiles]);
 
-  // Remove file
-  const removeFile = useCallback(
-    (index: number) => {
-      const fileToRemove = uploadedFiles[index];
+  // Handle file deletion
+  const handleRemoveFile = useCallback((fileData: any) => {
+    if (fileData.key) {
+      deleteFile(fileData.key);
+    }
+  }, [deleteFile]);
 
-      if (fileToRemove.key) {
-        fetch(`/api/upload/delete-file`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: fileToRemove.key }),
-        }).catch((err) => console.error('Failed to delete file from storage:', err));
-      }
-
-      setUploadedFiles((prev) => {
-        const newFiles = prev.filter((_, i) => i !== index);
-        onFilesChange?.(newFiles.map((f) => f.file));
-        return newFiles;
-      });
-    },
-    [onFilesChange, uploadedFiles]
-  );
+  // Set error from uploadError
+  React.useEffect(() => {
+    if (uploadError) {
+      setError(uploadError);
+      onError?.(uploadError);
+    }
+  }, [uploadError, onError]);
 
   return (
     <div className="border-b border-border">
@@ -272,15 +178,16 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                     await handleFiles(files);
                     e.target.value = '';
                   }}
+                  disabled={isUploading}
                 />
               </div>
 
               {uploadedFiles.length > 0 && (
                 <ScrollArea className="h-[120px] w-full rounded-md border border-border">
                   <div className="p-2 space-y-2">
-                    {uploadedFiles.map((fileData, index) => (
+                    {uploadedFiles.map((fileData) => (
                       <div
-                        key={fileData.file.name + index}
+                        key={fileData.file.name}
                         className={cn(
                           'flex items-center justify-between p-2 rounded-md',
                           fileData.status === 'error' ? 'bg-destructive/10' : 'hover:bg-accent'
@@ -338,7 +245,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
                         <Button
                           variant={fileData.status === 'error' ? 'destructive' : 'ghost'}
                           size="sm"
-                          onClick={() => removeFile(index)}
+                          onClick={() => handleRemoveFile(fileData)}
                           className="ml-2 h-8 w-8 p-0"
                           disabled={fileData.status === 'uploading'}
                         >

@@ -1,6 +1,6 @@
 # 專案分析與理解
 
-## 1. 技術棧
+## 1. 技術
 
 ### 核心語言與框架
 
@@ -117,9 +117,6 @@
    - Remix Form提交 → 路由處理 → 服務層處理 → 資料庫/外部API
    - 使用fetcher/loader APIs管理異步狀態
 
-2. **後端到前端**:
-   - 路由loader/action → Remix useLoaderData/ActionData hooks → 元件渲染
-   - 實時更新透過SSE (useEventSource)
 
 ### 主要模組互動
 

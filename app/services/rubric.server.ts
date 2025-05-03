@@ -46,10 +46,6 @@ export async function listRubrics(): Promise<{ rubrics: Rubric[]; error?: string
       },
     });
 
-    console.log('API Response Status:', response.status);
-    console.log('API Response Headers:', response.headers);
-    console.log('API Response Data:', JSON.stringify(response.data, null, 2));
-
     if (!response.data) {
       console.error('API returned no data');
       return {

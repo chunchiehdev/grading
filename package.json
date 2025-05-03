@@ -14,7 +14,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/client-s3": "^3.802.0",
     "@aws-sdk/s3-request-presigner": "^3.758.0",
     "@conform-to/react": "^1.2.2",
     "@conform-to/zod": "^1.2.2",
@@ -60,6 +60,7 @@
     "express": "^4.21.2",
     "framer-motion": "^11.13.1",
     "google-auth-library": "^9.15.1",
+    "immer": "^10.1.1",
     "ioredis": "^5.4.1",
     "isbot": "^4.1.0",
     "lodash": "^4.17.21",
