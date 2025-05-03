@@ -14,8 +14,8 @@ import { useUiStore } from '@/stores/ui';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 分鐘
-      gcTime: 10 * 60 * 1000, // 10 分鐘
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
     },
   },
 });
@@ -72,7 +72,6 @@ export async function loader({ request }: { request: Request }) {
 }
 
 function Document({ children }: { children: React.ReactNode }) {
-  // 使用 UI Store 中的主題設置
   const { theme } = useUiStore();
 
   return (
@@ -95,8 +94,6 @@ function Document({ children }: { children: React.ReactNode }) {
 
 function Layout() {
   const { user, isPublicPath } = useLoaderData() as LoaderData;
-
-  // 使用 UI Store 管理側邊欄狀態
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
 
   if (isPublicPath && !user) {
