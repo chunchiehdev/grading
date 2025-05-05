@@ -4,25 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyGradingState } from './EmptyGradingState';
-
-// 專門用於評分結果的類型定義
-export interface GradingResultData {
-  score: number;
-  imageUnderstanding?: string; // 對圖片的理解和看法
-  analysis: string;
-  criteriaScores: {
-    name: string;
-    score: number;
-    comments: string;
-  }[];
-  strengths: string[];
-  improvements: string[];
-  overallSuggestions?: string;
-
-  // 元數據
-  createdAt: Date | string;
-  gradingDuration?: number;
-}
+import type { GradingResultData } from '@/types/grading';
 
 interface GradingResultDisplayProps {
   result?: GradingResultData;

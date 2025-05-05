@@ -1,10 +1,11 @@
 // src/hooks/useFileUpload.ts
 import { useMutation } from '@tanstack/react-query';
 import { useUploadStore } from '@/stores/uploadStore';
+import { useUiStore } from '@/stores/uiStore';
 import { uploadApi } from '@/services/uploadApi';
 import { useEffect, useRef } from 'react';
 
-export function useFileUpload() {
+export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files: any[]) => void } = {}) {
   const { 
     files, 
     uploadId, 
@@ -14,6 +15,8 @@ export function useFileUpload() {
     setFileStatus,
     removeFile 
   } = useUploadStore();
+
+  const { setCanProceed, setStep } = useUiStore();
   const progressSubscriptionRef = useRef<(() => void) | null>(null);
   
   // Mutations setup with simplified structure
@@ -41,13 +44,26 @@ export function useFileUpload() {
       return uploadApi.uploadFiles(filesToUpload, uploadId);
     },
     onSuccess: (uploadedFiles) => {
-      uploadedFiles.forEach(fileData => {
+      const successfulFiles = uploadedFiles.map(fileData => {
         setFileStatus(fileData.name, 'success', { 
           key: fileData.key,
           url: fileData.url,
           progress: 100
         });
+        return {
+          name: fileData.name,
+          key: fileData.key,
+          url: fileData.url
+        };
       });
+      
+      // Update UI state
+      setCanProceed(true);
+      
+      // Call onUploadComplete with successful files
+      if (successfulFiles.length > 0) {
+        onUploadComplete?.(successfulFiles);
+      }
     }
   });
   
@@ -55,7 +71,13 @@ export function useFileUpload() {
     mutationFn: uploadApi.deleteFile,
     onSuccess: (_, key) => {
       const fileEntry = Object.entries(files).find(([_, file]) => file.key === key);
-      if (fileEntry) removeFile(fileEntry[0]);
+      if (fileEntry) {
+        removeFile(fileEntry[0]);
+        // Check if we still have files
+        if (Object.keys(files).length === 0) {
+          setCanProceed(false);
+        }
+      }
     }
   });
   

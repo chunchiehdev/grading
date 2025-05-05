@@ -129,3 +129,22 @@ export interface Rubric {
   criteria: RubricCriteria[];
   totalWeight: number; // 應該等於100
 }
+
+/**
+ * 評分結果數據
+ */
+export interface GradingResultData {
+  score: number;
+  imageUnderstanding?: string;
+  analysis: string;
+  criteriaScores: {
+    name: string;
+    score: number;
+    comments: string;
+  }[];
+  strengths: string[];
+  improvements: string[];
+  overallSuggestions?: string;
+  createdAt: Date | string;
+  gradingDuration?: number;
+}

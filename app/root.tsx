@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { requireAuth } from '@/middleware/auth.server';
 import { PUBLIC_PATHS } from '@/constants/auth';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useUiStore } from '@/stores/ui';
+import { useUiStore } from '@/stores/uiStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {

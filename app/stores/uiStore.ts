@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { immer } from 'zustand/middleware/immer';
 
 type Theme = 'light' | 'dark' | 'system';
+
+export type GradingStep = 'upload' | 'select-rubric' | 'grading' | 'result';
 
 /**
  * UI狀態管理Store
@@ -21,6 +24,14 @@ interface UiState {
   // 上次訪問頁面 (用於返回時導航)
   lastVisitedPage: string | null;
   setLastVisitedPage: (page: string) => void;
+
+  currentStep: GradingStep;
+  canProceed: boolean;
+  
+  // Actions
+  setStep: (step: GradingStep) => void;
+  setCanProceed: (canProceed: boolean) => void;
+  resetUI: () => void;
 }
 
 // 同步更新 DOM 中的主題類
@@ -38,35 +49,56 @@ function applyTheme(theme: Theme) {
 // 創建持久化UI Store
 export const useUiStore = create<UiState>()(
   persist(
-    (set, get) => ({
+    immer((set, get) => ({
       // 側邊欄默認折疊
-      sidebarCollapsed: true,
-      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-      setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+      sidebarCollapsed: true as boolean,
+      toggleSidebar: () => set((state) => {
+        state.sidebarCollapsed = !state.sidebarCollapsed;
+      }),
+      setSidebarCollapsed: (collapsed) => set((state) => {
+        state.sidebarCollapsed = collapsed;
+      }),
 
       // 主題默認跟隨系統
       theme: 'system',
-      setTheme: (theme) => {
-        set({ theme });
+      setTheme: (theme) => set((state) => {
+        state.theme = theme;
         applyTheme(theme);
-      },
-      toggleTheme: () => {
-        const currentTheme = get().theme;
+      }),
+      toggleTheme: () => set((state) => {
+        const currentTheme = state.theme;
         let newTheme: Theme = 'light';
 
-        // 循環切換主題: system -> light -> dark -> system
         if (currentTheme === 'system') newTheme = 'light';
         else if (currentTheme === 'light') newTheme = 'dark';
         else newTheme = 'system';
 
-        set({ theme: newTheme });
+        state.theme = newTheme;
         applyTheme(newTheme);
-      },
+      }),
 
       // 上次訪問頁面
       lastVisitedPage: null,
-      setLastVisitedPage: (page) => set({ lastVisitedPage: page }),
-    }),
+      setLastVisitedPage: (page) => set((state) => {
+        state.lastVisitedPage = page;
+      }),
+
+      currentStep: 'upload',
+      canProceed: false,
+
+      setStep: (step) => set((state) => {
+        state.currentStep = step;
+      }),
+
+      setCanProceed: (canProceed) => set((state) => {
+        state.canProceed = canProceed;
+      }),
+
+      resetUI: () => set((state) => {
+        state.currentStep = 'upload';
+        state.canProceed = false;
+      })
+    })),
     {
       name: 'ui-storage', // localStorage key
       storage: createJSONStorage(() => localStorage),

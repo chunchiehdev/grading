@@ -18,7 +18,7 @@ const formatFileSize = (bytes: number): string => {
 };
 
 interface FileUploadProps {
-  maxFiles?: number;
+  maxFiles: number;
   maxFileSize?: number;
   acceptedFileTypes?: string[];
   onFilesChange?: (files: File[]) => void;
@@ -27,7 +27,7 @@ interface FileUploadProps {
 }
 
 export const CompactFileUpload: React.FC<FileUploadProps> = ({
-  maxFiles = 5,
+  maxFiles,
   maxFileSize = 100 * 1024 * 1024,
   acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt'],
   onFilesChange,
@@ -40,7 +40,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
     deleteFile, 
     isUploading,
     uploadError 
-  } = useFileUpload();
+  } = useFileUpload({ onUploadComplete });
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,11 +58,14 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
     return null;
   }, [maxFileSize, acceptedFileTypes]);
 
-  // Handle file upload
   const handleFiles = useCallback(async (newFiles: File[]) => {
     setError(null);
     
-    // Validate files first
+    if (uploadedFiles.length + newFiles.length > maxFiles) {
+      setError(`最多只能上傳 ${maxFiles} 個檔案`);
+      return;
+    }
+    
     for (const file of newFiles) {
       const validationError = validateFile(file);
       if (validationError) {
@@ -79,7 +82,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
       setError(errorMsg);
       onError?.(errorMsg);
     }
-  }, [validateFile, uploadFiles, onFilesChange, onError]);
+  }, [validateFile, uploadFiles, onFilesChange, onError, uploadedFiles.length, maxFiles]);
 
   // Handle drag events
   const handleDrag = useCallback((e: React.DragEvent) => {

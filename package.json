@@ -65,6 +65,8 @@
     "isbot": "^4.1.0",
     "lodash": "^4.17.21",
     "openai": "^4.76.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router": "^7.5.2",

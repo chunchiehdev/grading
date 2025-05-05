@@ -10,7 +10,6 @@ export async function action({ request }: { request: Request }) {
     const requestId = `req-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     console.log(`[${requestId}] 收到評分請求`);
 
-    // Parse the incoming form data
     const formData = await request.formData();
     const fileKey = formData.get('fileKey') as string;
     const rubricId = formData.get('rubricId') as string;
@@ -22,7 +21,6 @@ export async function action({ request }: { request: Request }) {
       return createApiResponse({ success: false, error: 'Missing required fields' }, 400);
     }
 
-    // 獲取評分標準
     const { rubric, error: rubricError } = await getRubric(rubricId);
 
     if (rubricError || !rubric) {
@@ -30,7 +28,6 @@ export async function action({ request }: { request: Request }) {
       return createApiResponse({ success: false, error: rubricError || '無法獲取評分標準' }, 400);
     }
 
-    // 進行評分
     console.log(`[${requestId}] 開始評分過程 (fileKey: ${fileKey}, rubricId: ${rubricId})`);
     const startTime = Date.now();
     const { success, gradingResult, error } = await gradeDocument(fileKey, rubricId);
@@ -42,7 +39,6 @@ export async function action({ request }: { request: Request }) {
       return createApiResponse({ success: false, error: error || '評分失敗' }, 500);
     }
 
-    // 處理評分結果
     const feedbackData = gradingResult;
 
     console.log(`[${requestId}] 返回評分結果，總分: ${feedbackData.score || 0}`);

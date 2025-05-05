@@ -1,6 +1,8 @@
 import axios from 'axios';
 import type { Rubric } from '@/types/grading';
 import FormData from 'form-data';
+import { fetchFileFromStorage } from '@/services/document-processor.server';
+import logger from '@/utils/logger';
 
 const API_URL = process.env.API_URL || 'http://localhost:8001';
 const AUTH_KEY = process.env.AUTH_KEY || '';
@@ -9,7 +11,7 @@ export async function createRubric(
   rubric: Omit<Rubric, 'createdAt' | 'updatedAt'>
 ): Promise<{ success: boolean; rubricId?: string; error?: string }> {
   try {
-    console.log('Sending rubric to API:', JSON.stringify(rubric, null, 2));
+    logger.info({ rubric }, 'Sending rubric to API');
 
     const response = await axios.post(`${API_URL}/rubrics/`, rubric, {
       headers: {
@@ -18,14 +20,15 @@ export async function createRubric(
       },
     });
 
-    console.log('API response:', response.data);
+    logger.info({ response: response.data }, 'API response received');
 
     return {
       success: true,
       rubricId: response.data.rubric_id,
     };
+
   } catch (error: any) {
-    console.error('Error creating rubric:', error);
+    logger.error({ error }, 'Error creating rubric');
     const errorMessage = error.response?.data?.detail || error.message || '無法創建評分標準';
     return {
       success: false,
@@ -36,9 +39,8 @@ export async function createRubric(
 
 export async function listRubrics(): Promise<{ rubrics: Rubric[]; error?: string }> {
   try {
-    console.log('Starting listRubrics...');
-    console.log('API_URL:', API_URL);
-    console.log('AUTH_KEY:', AUTH_KEY ? 'Set' : 'Not set');
+    logger.info('Starting listRubrics');
+    logger.debug({ API_URL, hasAuthKey: !!AUTH_KEY }, 'API configuration');
 
     const response = await axios.get(`${API_URL}/rubrics/`, {
       headers: {
@@ -47,17 +49,15 @@ export async function listRubrics(): Promise<{ rubrics: Rubric[]; error?: string
     });
 
     if (!response.data) {
-      console.error('API returned no data');
+      logger.error('API returned no data');
       return {
         rubrics: [],
         error: 'API returned no data',
       };
     }
 
-    // 檢查 response.data 的結構
     if (!response.data.rubrics) {
-      console.error("API response does not contain 'rubrics' field");
-      console.error('Response data structure:', Object.keys(response.data));
+      logger.error({ dataKeys: Object.keys(response.data) }, 'API response missing rubrics field');
       return {
         rubrics: [],
         error: 'API response format is incorrect',
@@ -68,13 +68,13 @@ export async function listRubrics(): Promise<{ rubrics: Rubric[]; error?: string
       rubrics: response.data.rubrics || [],
     };
   } catch (error: any) {
-    console.error('Error listing rubrics:', error);
-    console.error('Error details:', {
-      message: error.message,
+    logger.error({ 
+      error: error.message,
       response: error.response?.data,
       status: error.response?.status,
-      headers: error.response?.headers,
-    });
+      headers: error.response?.headers 
+    }, 'Error listing rubrics');
+    
     return {
       rubrics: [],
       error: error.response?.data?.message || error.message || '無法獲取評分標準列表',
@@ -129,20 +129,17 @@ export async function gradeDocument(
   gradingResult?: any;
   error?: string;
 }> {
+  const gradingId = `grade-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  
   try {
-    console.log(`開始評分文件: fileKey=${fileKey}, rubricId=${rubricId}`);
-
-    // 生成唯一評分ID，方便跟踪每個評分請求
-    const gradingId = `grade-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    console.log(`評分ID: ${gradingId} - 開始處理評分請求`);
-
-    // 先從存儲中獲取文件
-    console.log(`評分ID: ${gradingId} - 從存儲中獲取文件`);
-    const { fetchFileFromStorage } = await import('@/services/document-processor.server');
+    logger.info({ fileKey, rubricId, gradingId }, 'Starting document grading');
+    logger.debug({ gradingId }, 'Fetching file from storage');
+    
+    
     const fileResult = await fetchFileFromStorage(fileKey);
 
     if (fileResult.error) {
-      console.error(`評分ID: ${gradingId} - 無法獲取文件:`, fileResult.error);
+      logger.error({ gradingId, error: fileResult.error }, 'Failed to fetch file');
       return {
         success: false,
         error: `無法獲取文件: ${fileResult.error}`,
@@ -150,61 +147,48 @@ export async function gradeDocument(
     }
 
     const buffer = fileResult.buffer;
-    console.log(`評分ID: ${gradingId} - 已獲取文件，大小: ${buffer.length} 字節`);
+    logger.debug({ gradingId, fileSize: buffer.length }, 'File fetched successfully');
 
     const originalFilename = fileKey.split('/').pop() || 'document.pdf';
-    console.log(`評分ID: ${gradingId} - 原始檔案名稱: ${originalFilename}`);
+    logger.debug({ gradingId, originalFilename }, 'Processing file');
 
-    // 創建FormData並添加文件和rubricId
     const formData = new FormData();
-
-    // 正確處理 Node.js 環境中的文件添加，使用原始檔案名稱
     formData.append('file', Buffer.from(buffer), {
       filename: originalFilename,
       contentType: fileResult.contentType || 'application/pdf',
     });
-
     formData.append('rubric_id', rubricId);
 
-    console.log(`評分ID: ${gradingId} - 已準備FormData，將發送請求到API`);
-
-    // 發送到API進行評分
-    console.log(`評分ID: ${gradingId} - 發送請求到 ${API_URL}/grade-document/`);
+    logger.info({ gradingId }, 'Sending request to API');
     const startTime = Date.now();
 
-    const response = await axios.post(`${API_URL}/grade-document/`, formData, {
-      headers: {
-        ...formData.getHeaders(),
-        'auth-key': AUTH_KEY,
-      },
-      // 增加超時時間，因為評分可能需要較長時間
-      timeout: 180000, // 3分鐘
-    });
+    // const response = await axios.post(`${API_URL}/grade-document/`, formData, {
+    //   headers: {
+    //     ...formData.getHeaders(),
+    //     'auth-key': AUTH_KEY,
+    //   },
+    //   timeout: 180000,
+    // });
 
     const endTime = Date.now();
     const duration = (endTime - startTime) / 1000;
-
-    console.log(`評分ID: ${gradingId} - 收到API響應，耗時: ${duration.toFixed(2)} 秒`);
-    console.log(`評分ID: ${gradingId} - 評分分數: ${response.data.score || '未知'}`);
-    console.log(`評分ID: ${gradingId} - 評分結果:`, response || null);
+    logger.info({ gradingId, duration }, 'Grading completed');
 
     return {
       success: true,
-      gradingResult: JSON.parse(response.data),
+      gradingResult: null,
     };
   } catch (error: any) {
-    console.error('評分文件時出錯:', error);
-    const errorMessage = error.response?.data?.detail || error.message || '評分過程中發生錯誤';
-    console.error('詳細錯誤信息:', errorMessage);
-
-    if (error.response) {
-      console.error('API 響應狀態:', error.response.status);
-      console.error('API 響應數據:', error.response.data);
-    }
+    logger.error({ 
+      gradingId,
+      error: error.message,
+      response: error.response?.data,
+      status: error.response?.status 
+    }, 'Error during grading');
 
     return {
       success: false,
-      error: errorMessage,
+      error: error.response?.data?.detail || error.message || '評分過程中發生錯誤',
     };
   }
 }

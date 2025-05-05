@@ -29,7 +29,7 @@ export default [
   ]),
 
   // API routes
-  route('/api/grading-progress', './routes/api.grading-progress.ts'),
+  
   route('/api/grade-with-rubric', './routes/api.grade-with-rubric.ts'),
   route('/api/upload', './routes/api.upload.ts'),
   route('/api/upload/create-id', './routes/api.upload.create-id.ts'),
