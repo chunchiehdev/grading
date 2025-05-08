@@ -4,6 +4,9 @@ import { useUploadStore } from '@/stores/uploadStore';
 import { useUiStore } from '@/stores/uiStore';
 import { uploadApi } from '@/services/uploadApi';
 import { useEffect, useRef } from 'react';
+import { useGradingStore } from '@/stores/gradingStore';
+
+
 
 export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files: any[]) => void } = {}) {
   const { 
@@ -18,6 +21,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
 
   const { setCanProceed, setStep } = useUiStore();
   const progressSubscriptionRef = useRef<(() => void) | null>(null);
+  const { setUploadedFiles } = useGradingStore();
   
   // Mutations setup with simplified structure
   const createUploadIdMutation = useMutation({
@@ -74,6 +78,21 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       if (fileEntry) {
         removeFile(fileEntry[0]);
         // Check if we still have files
+        
+        const remainingFiles = Object.values(files)
+        .filter(f => f.key !== key)
+        .map(f => ({
+          name: f.file.name,
+          key: f.key!,
+          url: f.url || "",
+          size: f.file.size,
+          type: f.file.type
+        }));
+
+        
+        setUploadedFiles(remainingFiles);
+
+
         if (Object.keys(files).length === 0) {
           setCanProceed(false);
         }

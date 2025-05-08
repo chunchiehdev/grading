@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { GradingResultData } from '@/types/grading';
+import type { UploadedFileInfo } from '@/types/files';
+
 
 interface GradingState {
   isGrading: boolean;
@@ -8,12 +10,20 @@ interface GradingState {
   result: GradingResultData | null;
   error: string | null;
 
+  uploadedFiles: UploadedFileInfo[];
+  selectedRubricId: string | null;
+
   // Actions
   startGrading: () => void;
   updateProgress: (progress: number) => void;
   setResult: (result: GradingResultData | null) => void;
   setError: (error: string | null) => void;
   reset: () => void;
+  
+  setUploadedFiles: (files: UploadedFileInfo[]) => void;
+  addUploadedFiles: (files: UploadedFileInfo[]) => void;
+  setSelectedRubricId: (id: string | null) => void;
+
 }
 
 export const useGradingStore = create<GradingState>()(
@@ -22,6 +32,8 @@ export const useGradingStore = create<GradingState>()(
     progress: 0,
     result: null,
     error: null,
+    uploadedFiles: [],
+    selectedRubricId: null,
 
     startGrading: () => set((state) => {
       state.isGrading = true;
@@ -50,6 +62,21 @@ export const useGradingStore = create<GradingState>()(
       state.progress = 0;
       state.result = null;
       state.error = null;
+      state.uploadedFiles = [];
+      state.selectedRubricId = null;
+    }),
+
+
+    setUploadedFiles: (files) => set((state) => {
+      state.uploadedFiles = files;
+    }),
+
+    addUploadedFiles: (files) => set((state) => {
+      state.uploadedFiles = [...state.uploadedFiles, ...files];
+    }),
+
+    setSelectedRubricId: (id) => set((state) => {
+      state.selectedRubricId = id;
     })
   }))
 ); 

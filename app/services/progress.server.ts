@@ -2,12 +2,15 @@
 import { redis } from '@/lib/redis';
 import { REDIS_KEYS } from '@/config/redis';
 
+
 export type FileProgress = {
   status: 'uploading' | 'success' | 'error';
   progress: number;
   error?: string;
   key?: string;
+
 };
+
 
 // Helper for Redis operations with JSON
 class ProgressStore {
@@ -28,6 +31,7 @@ class ProgressStore {
       REDIS_KEYS.EXPIRATION_TIME
     );
   }
+
 }
 
 export const UploadProgressService = {

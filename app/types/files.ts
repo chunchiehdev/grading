@@ -19,6 +19,7 @@ export interface FileWithStatus {
   progress: number;
   error?: string;
   key?: string;
+  url?: string;
 }
 
 export interface ProcessedDocument {

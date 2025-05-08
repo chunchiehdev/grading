@@ -123,7 +123,7 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
             <div className="flex items-center gap-2">
               <Paperclip className="h-4 w-4" />
               <span className="font-medium">
-                請上傳您閱讀的文本 {uploadedFiles.length > 0 && `(${uploadedFiles.length})`}
+                請上傳您的作業 {uploadedFiles.length > 0 && `(${uploadedFiles.length})`}
               </span>
             </div>
           </AccordionTrigger>

@@ -83,7 +83,7 @@ function Document({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="min-h-screen w-full bg-background font-sans antialiased">
+      <body className="min-h-screen w-full font-sans antialiased">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -98,14 +98,14 @@ function Layout() {
 
   if (isPublicPath && !user) {
     return (
-      <main className="min-h-screen w-full bg-background">
+      <main className="min-h-screen w-full ">
         <Outlet />
       </main>
     );
   }
 
   return (
-    <div className="relative flex min-h-screen w-full bg-background">
+    <div className="relative flex min-h-screen w-full ">
       <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       <div
         className={cn(

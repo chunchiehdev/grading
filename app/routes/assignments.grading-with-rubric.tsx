@@ -31,15 +31,32 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function GradingWithRubricRoute() {
   const { rubrics = [], error } = useLoaderData<{ rubrics: Rubric[]; error?: string }>();
-  const { currentStep, canProceed, setStep } = useUiStore();
+  const { currentStep, canProceed, setStep, resetUI } = useUiStore();
   const { gradeWithRubric, isGrading, error: gradingError } = useGrading();
-  const { progress: gradingProgress, result: feedback, setResult: setFeedback } = useGradingStore();
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[]>([]);
-  const [selectedRubricId, setSelectedRubricId] = useState<string | null>(null);
+  const {
+    progress: gradingProgress,
+    result: feedback,
+    setResult: setFeedback,
+    uploadedFiles,
+    selectedRubricId,
+    setUploadedFiles,
+    addUploadedFiles,
+    setSelectedRubricId,
+    reset: resetGrading,
+  } = useGradingStore();
+
+  useEffect(() => {
+    if (!isGrading && (currentStep === 'result' || currentStep === 'grading')) {
+      if (!feedback) {
+        resetUI();
+        resetGrading();
+      }
+    }
+  }, [isGrading, currentStep, feedback]);
 
   const handleFilesUploaded = (files: UploadedFileInfo[]) => {
     console.log('上傳檔案完成:', files);
-    setUploadedFiles((prevFiles) => [...prevFiles, ...files]);
+    addUploadedFiles(files);
   };
 
   const handleRubricSelected = (value: string) => {
@@ -50,7 +67,6 @@ export default function GradingWithRubricRoute() {
     if (!selectedRubricId || uploadedFiles.length === 0) {
       return;
     }
-
     gradeWithRubric({
       fileKey: uploadedFiles[0].key,
       rubricId: selectedRubricId,
@@ -165,7 +181,7 @@ export default function GradingWithRubricRoute() {
                         <h3 className="font-medium mb-2">{selectedRubricData.name}</h3>
                         <p className="text-sm text-muted-foreground mb-4">{selectedRubricData.description}</p>
                         <div className="space-y-2">
-                          <h4 className="text-sm font-medium">評分條目:</h4>
+                          <h4 className="text-sm font-medium">評分項目:</h4>
                           <ul className="list-disc pl-5 space-y-1">
                             {selectedRubricData.criteria.map((criteria: RubricCriteria) => (
                               <li key={criteria.id} className="text-sm">
@@ -202,9 +218,13 @@ export default function GradingWithRubricRoute() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div className="border rounded-lg p-3 bg-muted/30 flex-1">
                         <p className="text-sm font-medium mb-2">已上傳的文件：</p>
-                        <div className="flex items-center gap-2">
-                          <File className="h-4 w-4 text-green-500" />
-                          <span className="text-sm">{uploadedFiles[0]?.name}</span>
+                        <div className="space-y-2">
+                          {uploadedFiles.map((file, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                              <File className="h-4 w-4 text-green-500" />
+                              <span className="text-sm"></span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
@@ -265,9 +285,7 @@ export default function GradingWithRubricRoute() {
                       result={feedback}
                       onRetry={() => {
                         setStep('upload');
-                        setUploadedFiles([]);
-                        setSelectedRubricId(null);
-                        setFeedback(null);
+                        useGradingStore.getState().reset();
                       }}
                     />
 
@@ -276,9 +294,7 @@ export default function GradingWithRubricRoute() {
                         variant="outline"
                         onClick={() => {
                           setStep('upload');
-                          setUploadedFiles([]);
-                          setSelectedRubricId(null);
-                          setFeedback(null);
+                          useGradingStore.getState().reset();
                         }}
                       >
                         重新開始

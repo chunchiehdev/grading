@@ -1,158 +1,158 @@
-# 專案分析與理解
+# Project Analysis and Understanding
 
-## 1. 技術
+## 1. Technology Stack
 
-### 核心語言與框架
+### Core Languages and Frameworks
 
-- **語言**: TypeScript/JavaScript
-- **前端框架**: React
-- **全端框架**: Remix (基於React的全端框架)
-- **CSS框架**: Tailwind CSS (使用shadcn/ui UI元件系統)
+- **Language**: TypeScript/JavaScript
+- **Frontend Framework**: React 19
+- **Routing**: React Router 7
+- **CSS Framework**: Tailwind CSS (with shadcn/ui component system)
 
-### 後端與資料庫
+### Backend and Database
 
-- **資料庫**: PostgreSQL (透過Prisma ORM操作)
-- **快取**: Redis (用於存儲進度、上傳狀態)
-- **檔案儲存**: MinIO (S3相容的對象存儲服務)
+- **Database**: PostgreSQL (via Prisma ORM)
+- **Cache**: Redis (for progress tracking and upload status)
+- **File Storage**: MinIO (S3-compatible object storage)
 
-### 主要套件
+### Key Packages
 
-- **ORM**: Prisma
-- **UI元件**: shadcn/ui (基於Radix UI的元件庫)
-- **狀態管理**: 主要使用React hooks和context
-- **動畫**: Framer Motion, react-spring
-- **圖表**: Recharts
-- **表單處理**: 原生Form + 自定義驗證
-- **認證**: 自建認證系統 + Google OAuth
-- **AI整合**: OpenAI API, Google AI (Gemini)
-- **檔案處理**: AWS SDK (S3), PapaParse
+- **ORM**: Prisma 6
+- **UI Components**: shadcn/ui (based on Radix UI)
+- **State Management**: Zustand + React Query
+- **Animation**: Framer Motion
+- **Charts**: Recharts
+- **Form Handling**: Conform + Zod
+- **Authentication**: Custom auth + Google OAuth
+- **AI Integration**: OpenAI API, Google AI (Gemini)
+- **File Processing**: AWS SDK (S3)
+- **Real-time**: Server-Sent Events (SSE)
 
-### 容器化
+### Containerization
 
-- Docker & Docker Compose (用於開發和部署)
+- Docker & Docker Compose (for development and production)
 
-## 2. 資料夾結構與檔案作用
+## 2. Directory Structure and File Purposes
 
-### 主要資料夾
+### Main Directories
 
-- **/app**: 應用程式主要代碼
+- **/app**: Main application code
+  - **/components**: React components
+    - **/ui**: Base UI components (shadcn/ui)
+    - **/grading**: Grading-related components
+    - **/navbar**: Navigation components
+    - **/sidebar**: Sidebar components
+    - **/landing**: Landing page components
+  - **/routes**: React Router routes and pages
+  - **/services**: Service layer (API calls, data processing)
+  - **/lib**: Utility libraries
+  - **/types**: TypeScript type definitions
+  - **/config**: Application configuration
+  - **/utils**: Utility functions
+  - **/stores**: State management (Zustand stores)
+  - **/hooks**: Custom React hooks
+  - **/middleware**: Request/response middleware
+  - **/schemas**: Zod validation schemas
+  - **/constants**: Application constants
 
-  - **/components**: React元件
-    - **/ui**: 基礎UI元件 (基於shadcn/ui)
-    - **/grading**: 評分相關元件
-    - **/navbar**: 導航相關元件
-    - **/sidebar**: 側邊欄元件
-    - **/landing**: 著陸頁元件
-  - **/routes**: Remix路由與頁面
-  - **/services**: 服務層 (API調用、資料處理等)
-  - **/lib**: 公用函式庫
-  - **/types**: TypeScript型別定義
-  - **/config**: 應用程式配置
-  - **/utils**: 工具函數
-  - **/state**: 狀態管理相關
+- **/prisma**: Prisma ORM related files
+  - **/migrations**: Database migration records
+  - **schema.prisma**: Database model definitions
 
-- **/prisma**: Prisma ORM相關檔案
-  - **/migrations**: 資料庫變更記錄
-  - **schema.prisma**: 資料庫模型定義
+### Important Files
 
-### 重要檔案
+- **docker-compose.dev.yaml**: Development container services
+- **docker-compose.prod.yaml**: Production container services
+- **Dockerfile**: Production container build
+- **Dockerfile.dev**: Development container build
+- **package.json**: Project dependencies
+- **tailwind.config.ts**: Tailwind CSS configuration
+- **vite.config.ts**: Vite build tool configuration
+- **tsconfig.json**: TypeScript configuration
+- **react-router.config.ts**: React Router configuration
 
-- **docker-compose.yaml**: 容器化服務定義
-- **Dockerfile**: Docker容器建構指令
-- **package.json**: 專案依賴
-- **tailwind.config.ts**: Tailwind CSS配置
-- **vite.config.ts**: Vite建構工具配置
-- **tsconfig.json**: TypeScript配置
+## 3. Core Features and Logic
 
-## 3. 專案的主要功能與核心邏輯
+### Core Features
 
-### 核心功能
+1. **AI-Assisted Grading System**
+   - Document upload (PDF, DOCX)
+   - Content analysis
+   - Application of grading criteria
+   - Detailed feedback generation
 
-1. **AI輔助評分系統**
+2. **Grading Criteria Management**
+   - Create, edit, manage grading criteria
+   - Set grading items and weights
+   - Apply criteria to document grading
 
-   - 上傳文件 (PDF, DOCX)
-   - 分析文件內容
-   - 應用評分標準進行評分
-   - 生成詳細反饋與建議
+3. **User Management**
+   - Registration/login system
+   - Third-party login integration (Google)
+   - User permission management
 
-2. **評分標準管理**
+4. **Document Processing**
+   - Document upload with progress tracking
+   - Document storage and management
+   - Content analysis and extraction
 
-   - 創建、編輯、管理評分標準
-   - 設置評分條目與權重
-   - 應用評分標準到文件評分
+### Core Logic
 
-3. **用戶管理**
+1. **Grading Flow**:
+   - Document upload → Content analysis → Apply grading criteria → Generate feedback → Display results
 
-   - 註冊/登入系統
-   - 第三方登入整合 (Google)
-   - 使用者權限管理
+2. **AI Processing Flow**:
+   - Document content understanding via OpenAI/Gemini API
+   - AI model evaluation based on grading criteria
+   - Processing and formatting AI responses into structured feedback
 
-4. **文件處理**
-   - 文件上傳與進度追蹤
-   - 文件存儲與管理
-   - 文件分析與提取內容
+3. **Progress Tracking**:
+   - Redis for storing upload and grading progress
+   - Real-time updates via Server-Sent Events (SSE)
 
-### 核心邏輯
+## 4. Module/Component Interactions
 
-1. **評分流程**:
+### Data Flow
 
-   - 文件上傳 → 內容分析 → 應用評分標準 → 生成反饋 → 顯示評分結果
+1. **Frontend to Backend**:
+   - React Query for data fetching and caching
+   - Server-Sent Events (SSE) for real-time updates
+   - Form submissions via Conform
 
-2. **AI處理流程**:
+### Key Module Interactions
 
-   - 透過OpenAI/Gemini/Ollama API進行文件內容理解與分析
-   - 根據評分標準應用AI模型評估內容
-   - 處理AI回應並格式化為結構化反饋
+1. **UI Components and Business Logic**:
+   - State management via Zustand stores
+   - React Query for server state
+   - Custom hooks for shared logic
 
-3. **進度追蹤機制**:
-   - 使用Redis存儲上傳與評分進度
-   - 使用SSE (Server-Sent Events)實時更新進度
+2. **Grading Service and AI Integration**:
+   - Service layer encapsulation of API calls
+   - Error handling and retry mechanisms
+   - Result formatting and transformation
 
-## 4. 模組/元件之間的互動方式
+3. **File Processing and Storage**:
+   - Upload progress tracking with real-time updates
+   - File analysis and content extraction
+   - Permanent storage via MinIO/S3
 
-### 資料流
+## 5. Project Architecture and Development Logic Summary
 
-1. **前端到後端**:
+This is an AI-assisted educational grading system built with React Router 7, using a modern React full-stack architecture. Core functionality revolves around document upload, AI analysis, grading criteria application, and result feedback.
 
-   - Remix Form提交 → 路由處理 → 服務層處理 → 資料庫/外部API
-   - 使用fetcher/loader APIs管理異步狀態
+The system architecture follows clear separation of concerns:
 
+- **UI Layer**: React components, built with shadcn/ui
+- **Routing Layer**: React Router for page loading and actions
+- **Service Layer**: Business logic and API call encapsulation
+- **Data Layer**: Prisma ORM + PostgreSQL + Redis
 
-### 主要模組互動
+Core development principles:
 
-1. **UI元件與業務邏輯**:
+1. **Separation of Concerns**: Clear UI/service/data layer responsibilities
+2. **Type Safety**: Comprehensive TypeScript type definitions
+3. **Real-time Capabilities**: Server-Sent Events (SSE) for real-time updates
+4. **Scalability**: Modular design for easy integration of new grading criteria and AI models
+5. **User Experience**: Enhanced interaction with upload progress and grading animations
 
-   - 透過hooks和props進行狀態管理
-   - 透過context提供全域狀態 (如主題、認證)
-
-2. **評分服務與AI整合**:
-
-   - 服務層封裝API調用邏輯
-   - 錯誤處理與重試機制
-   - 結果格式化與轉換
-
-3. **檔案處理與儲存**:
-   - 上傳進度追蹤與實時更新
-   - 檔案分析與內容提取
-   - 通過MinIO/S3進行永久儲存
-
-## 5. 專案整體架構與開發邏輯摘要
-
-這是一個基於Remix框架的AI輔助教育評分系統，採用現代React全端架構。核心功能圍繞著文件上傳、AI分析、評分標準應用與結果反饋展開。
-
-系統架構採用清晰的層次分離:
-
-- **UI層**: React元件，基於shadcn/ui構建統一介面
-- **路由層**: Remix路由處理頁面載入與動作
-- **服務層**: 封裝業務邏輯與API調用
-- **資料層**: Prisma ORM + PostgreSQL + Redis
-
-核心開發邏輯體現在:
-
-1. **關注點分離**: UI/服務/資料層職責明確
-2. **型別安全**: 完整TypeScript型別定義確保開發質量
-3. **實時性**: 使用SSE實現評分進度的實時更新
-4. **可擴展性**: 模組化設計允許輕鬆整合新的評分標準與AI模型
-5. **用戶體驗**: 細節處理如上傳進度、評分動畫增強互動體驗
-
-整體而言，這是一個功能完整的現代全端應用，使用React生態系統的最佳實踐，針對教育評分場景提供AI輔助功能。
+Overall, this is a feature-complete modern full-stack application using React ecosystem best practices, providing AI-assisted functionality for educational grading scenarios.

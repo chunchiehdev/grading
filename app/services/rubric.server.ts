@@ -129,6 +129,7 @@ export async function gradeDocument(
   gradingResult?: any;
   error?: string;
 }> {
+  
   const gradingId = `grade-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   
   try {
@@ -158,25 +159,54 @@ export async function gradeDocument(
       contentType: fileResult.contentType || 'application/pdf',
     });
     formData.append('rubric_id', rubricId);
+    
+    // Add grading instruction to handle L1-L4 levels
+    formData.append('grading_format', 'level_based');
+    formData.append('grading_instructions', `
+      請注意評分標準使用了L1到L4的分級系統：
+      - L4（最高級）：表示優秀的表現，應獲得該標準的最高分數（90-100%）
+      - L3：表示良好的表現，應獲得該標準的較高分數（75-89%）
+      - L2：表示基本達標的表現，應獲得該標準的中等分數（60-74%）
+      - L1（最低級）：表示不足的表現，應獲得該標準的較低分數（0-59%）
+      
+      請為每個評分標準明確指出學生表現對應的級別（L1、L2、L3或L4），並根據該級別的描述給予百分比分數。
+      在評語中，清楚說明為什麼學生達到了特定級別，並引用學生作品中的具體例子來支持您的評分。
+      建議應該具體指出如何從目前的級別提升到更高級別。
+    `);
 
     logger.info({ gradingId }, 'Sending request to API');
     const startTime = Date.now();
 
-    // const response = await axios.post(`${API_URL}/grade-document/`, formData, {
-    //   headers: {
-    //     ...formData.getHeaders(),
-    //     'auth-key': AUTH_KEY,
-    //   },
-    //   timeout: 180000,
-    // });
+    const response = await axios.post(`${API_URL}/grade-document/`, formData, {
+      headers: {
+        ...formData.getHeaders(),
+        'auth-key': AUTH_KEY,
+      },
+      timeout: 180000,
+    });
 
     const endTime = Date.now();
     const duration = (endTime - startTime) / 1000;
     logger.info({ gradingId, duration }, 'Grading completed');
 
+    // 檢查 response.data 是否已經是對象
+    let gradingResult = response.data;
+    try {
+      // 嘗試解析，如果是字符串的話
+      if (typeof response.data === 'string') {
+        gradingResult = JSON.parse(response.data);
+      }
+    } catch (parseError) {
+      logger.error({ gradingId, parseError }, 'Error parsing response data');
+      // 如果解析失敗，使用原始數據
+      gradingResult = response.data;
+    }
+
+    logger.debug({ gradingId, gradingResult }, 'Successfully processed grading result');
+
     return {
       success: true,
-      gradingResult: null,
+      gradingResult,
     };
   } catch (error: any) {
     logger.error({ 
