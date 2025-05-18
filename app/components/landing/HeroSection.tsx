@@ -38,10 +38,6 @@ const HeroSection = () => {
   const { data: user, isLoading } = useUser();
   const isLoggedIn = Boolean(user);
 
-  useEffect(() => {
-    console.log('[HeroSection] User authenticated:', isLoggedIn);
-  }, [isLoggedIn]);
-
   const handleGetStarted = () => {
     if (isLoggedIn) {
       navigate('/dashboard');

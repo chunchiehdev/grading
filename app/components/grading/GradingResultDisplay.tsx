@@ -122,16 +122,12 @@ const AnalysisSection = ({ analysis, imageUnderstanding }: { analysis?: string; 
 };
 
 export function GradingResultDisplay({ result, className, onRetry }: GradingResultDisplayProps) {
-  useEffect(() => {
-    console.log('🔍 GradingResultDisplay received result:', result);
-  }, [result]);
+  
 
   if (!result) {
-    console.warn('⚠️ GradingResultDisplay: No result data provided');
     return <EmptyGradingState onRetry={onRetry} />;
   }
 
-  // Fallback for missing data
   const safeResult = {
     score: result.score || 0,
     analysis: result.analysis || '',
@@ -144,7 +140,6 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
     gradingDuration: result.gradingDuration
   };
 
-  // 計算創建時間
   const createdDate = typeof safeResult.createdAt === 'string' 
     ? new Date(safeResult.createdAt) 
     : safeResult.createdAt instanceof Date

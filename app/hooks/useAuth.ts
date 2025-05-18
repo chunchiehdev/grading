@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import logger from '@/utils/logger';
 
 interface User {
   id: string;
@@ -16,8 +17,7 @@ export function useUser() {
     queryKey: ['user'],
     queryFn: async () => {
       try {
-        console.log('[useUser] Fetching user data...');
-
+        logger.debug('[useUser] Fetching user data');
         const res = await fetch('/api/auth/check', {
           credentials: 'include',
           headers: {
@@ -26,24 +26,24 @@ export function useUser() {
         });
 
         if (!res.ok) {
-          console.log('[useUser] User not authenticated:', res.status);
+          logger.error('[useUser] Failed to fetch user data:', res.status);
           return null;
         }
 
         const data = await res.json();
 
         if (data?.success && data?.data) {
-          console.log('[useUser] Found user data in success/data format');
+          logger.debug('[useUser] Found user data in success format');
           return data.data;
         } else if (data?.user) {
-          console.log('[useUser] Found user data in user format');
+          logger.debug('[useUser] Found user data in user format');
           return data.user;
         } else if (data && typeof data === 'object' && data.id) {
-          console.log('[useUser] Found user data in direct format');
+          logger.debug('[useUser] Found user data in object format');
           return data;
         }
 
-        console.log('[useUser] No valid user data found');
+        logger.warn('[useUser] User data not found in response:', data);
         return null;
       } catch (error) {
         console.error('[useUser] Error fetching user data:', error);
@@ -64,7 +64,7 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: async (payload: { email: string; password: string }) => {
-      console.log('[useLogin] Attempting login');
+      logger.info('[useLogin] Attempting login');
 
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -81,7 +81,7 @@ export function useLogin() {
       }
 
       const userData = data.data || data.user || null;
-      console.log('[useLogin] Login successful');
+      logger.info('[useLogin] Login successful');
 
       await queryClient.invalidateQueries({ queryKey: ['user'] });
 
@@ -98,7 +98,7 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: async () => {
-      console.log('[useLogout] Logging out');
+      logger.info('[useLogout] Logging out');
 
       const response = await fetch('/api/auth/logout', {
         method: 'POST',
@@ -113,11 +113,11 @@ export function useLogout() {
         throw new Error('Logout failed');
       }
 
-      console.log('[useLogout] Logout successful');
+      logger.info('[useLogout] Logout successful');
       return response.json();
     },
     onSuccess: () => {
-      console.log('[useLogout] Clearing query cache');
+      logger.info('[useLogout] Clearing query cache');
 
       queryClient.clear();
 

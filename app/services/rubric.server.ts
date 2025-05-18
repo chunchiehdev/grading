@@ -135,10 +135,8 @@ export async function gradeDocument(
   try {
     
     if (gradingId) {
-      console.log('updateProgress', gradingId, new Date().toISOString());
       await GradingProgressService.updateProgress(gradingId, { phase: 'check', progress: 10, message: '檢查檔案...' });
     }
-    await new Promise(r => setTimeout(r, 5000));
 
     logger.info({ fileKey, rubricId, gradingId }, 'Starting document grading');
     logger.debug({ gradingId }, 'Fetching file from storage');
@@ -153,11 +151,8 @@ export async function gradeDocument(
     }
 
     if (gradingId) {
-      console.log('updateProgress: grade');
       await GradingProgressService.updateProgress(gradingId, { phase: 'grade', progress: 40, message: 'AI 分析中...' });
     }
-    await new Promise(r => setTimeout(r, 5000));
-
 
     const buffer = fileResult.buffer;
     logger.debug({ gradingId, fileSize: buffer.length }, 'File fetched successfully');
@@ -172,7 +167,6 @@ export async function gradeDocument(
     });
     formData.append('rubric_id', rubricId);
     
-    // Add grading instruction to handle L1-L4 levels
     formData.append('grading_format', 'level_based');
     formData.append('grading_instructions', `
       請注意評分標準使用了L1到L4的分級系統：
@@ -198,10 +192,8 @@ export async function gradeDocument(
     });
 
     if (gradingId) {
-      console.log('updateProgress: verify');
       await GradingProgressService.updateProgress(gradingId, { phase: 'verify', progress: 80, message: '驗證中...' });
     }
-    await new Promise(r => setTimeout(r, 5000));
     const endTime = Date.now();
     const duration = (endTime - startTime) / 1000;
     logger.info({ gradingId, duration }, 'Grading completed');

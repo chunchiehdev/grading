@@ -1,6 +1,6 @@
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import type { LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, useFetcher } from 'react-router';
+import { useLoaderData } from 'react-router';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { GradingProgress } from '@/components/grading/GradingProgress';
 import { EmptyState } from '@/components/ui/empty-state';
 
 import { AlertCircle, FileText, File } from 'lucide-react';
-import type { Rubric, RubricCriteria, GradingStatus } from '@/types/grading';
+import type { Rubric, RubricCriteria } from '@/types/grading';
 import type { UploadedFileInfo } from '@/types/files';
 import { listRubrics } from '@/services/rubric.server';
 import { useUiStore } from '@/stores/uiStore';

@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
 import { UploadProgressService } from '@/services/progress.server';
+import logger from '@/utils/logger';
+
 
 /**
  * get new id
@@ -19,8 +21,7 @@ export async function action({ request }: { request: Request }) {
       console.warn('初始化上傳進度記錄失敗:', initError);
     }
 
-    console.log('生成新的上傳 ID:', uploadId);
-
+    logger.info('上傳 ID:', uploadId);
     return createApiResponse({
       success: true,
       uploadId,

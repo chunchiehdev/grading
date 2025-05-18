@@ -26,13 +26,13 @@ export default [
   ]),
 
   // API routes
-  route('/api/grade-with-rubric', './api/grade-with-rubric.ts'),
+  route('/api/grade-with-rubric', './api/grade/with-rubric.ts'),
+  route('/api/grade-progress', './api/grade/progress.ts'),
+  route('/api/grade/init', './api/grade/init.ts'),
   route('/api/upload', './api/upload/index.ts'),
   route('/api/upload/create-id', './api/upload/create-id.ts'),
   route('/api/upload/delete-file', './api/upload/delete-file.ts'),
   route('/api/upload/progress/:id', './api/upload/progress.$id.ts'),
-  route('/api/grade-progress', './api/grade-progress.ts'),
-  route('/api/grade/init', './api/grade/init.ts'),
 
   // Auth API routes
   route('/api/auth/login', './api/auth/login.ts'),

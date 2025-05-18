@@ -104,7 +104,6 @@ export async function requireUserId(request: Request, redirectTo: string = new U
     throw redirect(`/auth/login?${searchParams}`);
   }
 
-  // 檢查用戶是否真的存在
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { id: true },

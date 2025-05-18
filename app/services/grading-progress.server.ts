@@ -1,5 +1,6 @@
 import { redis } from '@/lib/redis';
 import { REDIS_KEYS } from '@/config/redis';
+import logger from '@/utils/logger';
 
 export type GradingProgress = {
   phase: 'check' | 'grade' | 'verify' | 'completed' | 'error';
@@ -16,26 +17,26 @@ class GradingProgressStore {
   
   static async getProgress(gradingId: string): Promise<GradingProgress | null> {
     const redisKey = this.getKey(gradingId);
-    console.log(`📝 Fetching progress from Redis key: ${redisKey}`);
+    logger.debug(`📝 Fetching progress from Redis key: ${redisKey}`);
     const data = await redis.get(redisKey);
     
     if (data) {
-      console.log(`✅ Redis data found for ${gradingId}`, data.substring(0, 100) + '...');
+      logger.debug(`✅ Redis data found for ${gradingId}`, data.substring(0, 100) + '...');
       try {
         return JSON.parse(data);
       } catch (err) {
-        console.error(`❌ Error parsing Redis data for ${gradingId}:`, err);
+        logger.error(`❌ Error parsing Redis data for ${gradingId}:`, err);
         return null;
       }
     } else {
-      console.log(`❌ No data found in Redis for ${gradingId}`);
+      logger.debug(`❌ No data found in Redis for ${gradingId}`);
       return null;
     }
   }
   
   static async setProgress(gradingId: string, progress: GradingProgress): Promise<void> {
     const redisKey = this.getKey(gradingId);
-    console.log(`📝 Setting progress to Redis key: ${redisKey}, phase: ${progress.phase}`);
+    logger.debug(`📝 Setting progress to Redis key: ${redisKey}, phase: ${progress.phase}`);
     
     const serializedData = JSON.stringify(progress);
     await redis.set(
@@ -45,18 +46,18 @@ class GradingProgressStore {
       REDIS_KEYS.EXPIRATION_TIME
     );
     
-    console.log(`✅ Progress saved to Redis for ${gradingId}`);
+    logger.debug(`✅ Progress saved to Redis for ${gradingId}`);
     
     // If complete or error, log the full data
     if (progress.phase === 'completed' || progress.phase === 'error') {
-      console.log(`📊 Final progress state for ${gradingId}:`, progress);
+      logger.info(`📊 Final progress state for ${gradingId}:`, progress);
     }
   }
 }
 
 export const GradingProgressService = {
   initialize: async (gradingId: string): Promise<void> => {
-    console.log(`🔄 Initializing grading progress for ${gradingId}`);
+    logger.debug(`🔄 Initializing grading progress for ${gradingId}`);
     await GradingProgressStore.setProgress(gradingId, {
       phase: 'check',
       progress: 0,
@@ -68,10 +69,10 @@ export const GradingProgressService = {
     gradingId: string, 
     progress: Partial<GradingProgress>
   ): Promise<void> => {
-    console.log(`🔄 Updating progress for ${gradingId}:`, progress);
+    logger.debug(`🔄 Updating progress for ${gradingId}:`, progress);
     const currentProgress = await GradingProgressStore.getProgress(gradingId);
     if (!currentProgress) {
-      console.warn(`⚠️ No current progress found for ${gradingId}, initializing new progress`);
+      logger.warn(`⚠️ No current progress found for ${gradingId}, initializing new progress`);
       await GradingProgressStore.setProgress(gradingId, {
         phase: 'check',
         progress: 0,
@@ -94,7 +95,7 @@ export const GradingProgressService = {
   },
   
   complete: async (gradingId: string, result: any): Promise<void> => {
-    console.log(`✅ Completing grading for ${gradingId}`);
+    logger.info(`✅ Completing grading for ${gradingId}`);
     await GradingProgressStore.setProgress(gradingId, {
       phase: 'completed',
       progress: 100,
@@ -104,7 +105,7 @@ export const GradingProgressService = {
   },
   
   error: async (gradingId: string, error: string): Promise<void> => {
-    console.error(`❌ Error in grading for ${gradingId}: ${error}`);
+    logger.error(`❌ Error in grading for ${gradingId}: ${error}`);
     await GradingProgressStore.setProgress(gradingId, {
       phase: 'error',
       progress: 0,

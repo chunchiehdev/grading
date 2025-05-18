@@ -73,7 +73,6 @@ export default function EditRubricRoute() {
   const [criterias, setCriterias] = useState<RubricCriteria[]>([]);
   const [error, setError] = useState('');
 
-  // 初始化表單數據
   useEffect(() => {
     if (initialRubric) {
       setName(initialRubric.name);
@@ -82,7 +81,6 @@ export default function EditRubricRoute() {
     }
   }, [initialRubric]);
 
-  // 新增評分條目
   const addCriteria = () => {
     const newCriteria: RubricCriteria = {
       id: uuidv4(),
@@ -98,12 +96,10 @@ export default function EditRubricRoute() {
     setCriterias([...criterias, newCriteria]);
   };
 
-  // 刪除評分條目
   const removeCriteria = (id: string) => {
     setCriterias(criterias.filter((criteria) => criteria.id !== id));
   };
 
-  // 更新評分條目
   const updateCriteria = (id: string, field: keyof RubricCriteria, value: string | number) => {
     setCriterias(
       criterias.map((criteria) => {
@@ -115,7 +111,6 @@ export default function EditRubricRoute() {
     );
   };
 
-  // 驗證表單
   const validateForm = () => {
     if (!name) {
       setError('請輸入評分標準名稱');
@@ -130,7 +125,6 @@ export default function EditRubricRoute() {
       return false;
     }
 
-    // 檢查每個評分條目
     for (const criteria of criterias) {
       if (!criteria.name) {
         setError(`請輸入評分條目名稱`);
@@ -146,7 +140,6 @@ export default function EditRubricRoute() {
       }
     }
 
-    // 檢查權重總和是否為100
     const totalWeight = criterias.reduce((sum, criteria) => sum + criteria.weight, 0);
     if (totalWeight !== 100) {
       setError(`評分條目權重總和必須等於100，目前為${totalWeight}`);
@@ -157,18 +150,15 @@ export default function EditRubricRoute() {
     return true;
   };
 
-  // 表單提交前驗證
   const handleSubmit = (e: React.FormEvent) => {
-    // 執行表單驗證
     if (!validateForm()) {
-      e.preventDefault(); // 只有驗證失敗時才阻止提交
+      e.preventDefault(); 
     } else {
       console.log('表單提交中，數據：', {
         name,
         description,
         criterias: JSON.stringify(criterias),
       });
-      // 可以在這裡添加載入狀態
       setError('');
     }
   };

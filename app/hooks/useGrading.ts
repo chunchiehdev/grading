@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useGradingStore } from '@/stores/gradingStore';
 import { useUiStore } from '@/stores/uiStore';
 import { useEffect, useRef, useState } from 'react';
-import type { GradingProgressState } from '@/stores/gradingStore';
+import logger from '@/utils/logger';
 
 interface GradeWithRubricParams {
   fileKey: string;
@@ -19,35 +19,35 @@ export function useGrading() {
   const subscribeToProgress = (gradingId: string) => {
     // Clean up any existing connection first
     if (progressSubscriptionRef.current) {
-      console.log('Closing existing SSE connection before creating a new one');
+      logger.info('Closing existing SSE connection before creating a new one');
       progressSubscriptionRef.current();
       progressSubscriptionRef.current = null;
     }
     
     setSseStatus('connecting');
-    console.log(`🔄 Subscribing to progress updates for ${gradingId}`);
+    logger.info(`🔄 Subscribing to progress updates for ${gradingId}`);
     
     try {
       const eventSource = new EventSource(`/api/grade-progress?gradingId=${gradingId}`);
       
       eventSource.onopen = () => {
-        console.log(`📡 SSE connection opened for ${gradingId}`);
+        logger.info(`📡 SSE connection opened for ${gradingId}`);
         setSseStatus('connected');
       };
       
       eventSource.onmessage = (event) => {
         try {
           const progressData = JSON.parse(event.data);
-          console.log(`📊 Progress update for ${gradingId}:`, progressData);
+          logger.info(`📊 Progress update for ${gradingId}:`, progressData);
           
           if (progressData.phase === 'completed') {
-            console.log(`✅ Grading completed:`, progressData.result);
+            logger.info(`✅ Grading completed:`, progressData.result);
             
             // Save the result data to localStorage directly as a backup
             try {
               const backupKey = `grade-result-${gradingId}`;
               localStorage.setItem(backupKey, JSON.stringify(progressData.result));
-              console.log(`💾 Saved backup of result to localStorage: ${backupKey}`);
+              logger.info(`💾 Saved backup of result to localStorage: ${backupKey}`);
             } catch (err) {
               console.warn('Failed to save backup result to localStorage:', err);
             }
@@ -93,7 +93,7 @@ export function useGrading() {
       };
       
       progressSubscriptionRef.current = () => {
-        console.log(`Closing SSE connection for ${gradingId}`);
+        logger.info(`Closing SSE connection for ${gradingId}`);
         eventSource.close();
         setSseStatus('idle');
       };
@@ -106,7 +106,7 @@ export function useGrading() {
 
   const gradeMutation = useMutation({
     mutationFn: async ({ fileKey, rubricId, gradingId }: GradeWithRubricParams) => {
-      console.log(`🚀 Starting grading:`, { fileKey, rubricId, gradingId });
+      logger.info(`🚀 Starting grading:`, { fileKey, rubricId, gradingId });
       const formData = new FormData();
       formData.append('fileKey', fileKey);
       formData.append('rubricId', rubricId);
@@ -125,7 +125,7 @@ export function useGrading() {
         }
         
         const data = await response.json();
-        console.log(`📡 API response:`, data);
+        logger.info(`📡 API response:`, data);
         return data;
       } catch (error) {
         console.error('Fetch error:', error);
@@ -138,7 +138,7 @@ export function useGrading() {
       setCanProceed(false);
     },
     onSuccess: (data) => {
-      console.log(`📬 Grading request successful:`, data);
+      logger.info(`📬 Grading request successful:`, data);
       // The actual result will come through the SSE channel
     },
     onError: (error) => {
