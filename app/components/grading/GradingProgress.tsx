@@ -7,11 +7,10 @@ import type { GradingStatus, GradingProgress as GradingProgressType } from '@/ty
 import { cn } from '@/lib/utils';
 
 interface GradingProgressProps {
-  status: GradingStatus;
+  phase: 'check' | 'grade' | 'verify' | 'completed' | 'error';
   className?: string;
-  initialProgress?: number; // 接收實際進度
-  phase?: string; // 當前階段
-  message?: string; // 當前訊息
+  initialProgress?: number; 
+  message?: string; 
 
   onStepComplete?: (step: number) => void;
   onProgressUpdate?: (progress: GradingProgressType) => void;
@@ -54,7 +53,6 @@ const GRADING_STEPS: GradingStep[] = [
 ];
 
 export function GradingProgress({
-  status,
   initialProgress = 0,
   phase = 'check',
   message,
@@ -74,7 +72,7 @@ export function GradingProgress({
   });
 
   useEffect(() => {
-    if (status === 'processing') {
+    if (phase === 'check' || phase === 'grade' || phase === 'verify') {
       springProgress.set(initialProgress);
 
       const unsubscribe = springProgress.onChange((value) => {
@@ -94,10 +92,10 @@ export function GradingProgress({
 
       return unsubscribe;
     }
-  }, [status, initialProgress, springProgress, currentStep, onProgressUpdate]);
+  }, [phase, initialProgress, springProgress, currentStep, onProgressUpdate]);
 
   useEffect(() => {
-    if (status === 'processing') {
+    if (phase === 'check' || phase === 'grade' || phase === 'verify') {
       const newStepIndex = GRADING_STEPS.findIndex((step) => step.id === phase);
       if (newStepIndex !== -1 && newStepIndex !== currentStep) {
         setCurrentStep(newStepIndex);
@@ -106,20 +104,20 @@ export function GradingProgress({
         }
       }
     }
-  }, [status, phase, currentStep, onStepComplete]);
+  }, [phase, currentStep, onStepComplete]);
 
   useEffect(() => {
-    if (status === 'error') {
+    if (phase === 'error') {
       setError('評分過程發生錯誤，請稍後再試');
     } else {
       setError(null);
     }
-  }, [status]);
+  }, [phase]);
 
   const CurrentStepIcon = GRADING_STEPS[currentStep]?.icon || Search;
 
   const timeRemaining =
-    status === 'processing'
+    phase === 'check' || phase === 'grade' || phase === 'verify'
       ? Math.ceil(GRADING_STEPS.reduce((acc, step) => acc + step.estimatedTime, 0) * (1 - currentProgress / 100))
       : null;
 
@@ -149,11 +147,11 @@ export function GradingProgress({
                   >
                     <CurrentStepIcon className="w-6 h-6 text-gray-600" />
                   </motion.div>
-                  {status === 'processing' && (
+                  {phase === 'check' || phase === 'grade' || phase === 'verify' ? (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute top-0 left-0">
                       <Loader2 className="w-6 h-6 text-gray-600 animate-spin opacity-50" />
                     </motion.div>
-                  )}
+                  ) : null}
                 </div>
                 <motion.h3
                   className="text-lg font-semibold"

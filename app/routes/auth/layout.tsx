@@ -1,6 +1,6 @@
 import { Outlet, useLocation, redirect } from 'react-router';
 import { getUser } from '@/services/auth.server';
-import BackgroundAnimation from '@/components/BackgroundAnimation';
+import Background from '@/components/landing/Background';
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -26,7 +26,7 @@ export default function AuthLayout() {
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
       {/* Background Image */}
-      <BackgroundAnimation />
+      <Background />
 
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-8 text-center">

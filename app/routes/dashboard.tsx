@@ -10,7 +10,7 @@ export default function Dashboard() {
         <DashboardCard
           title="批改作業"
           description="開始批改新的作業或查看已批改的作業"
-          linkTo="/assignments/grading-with-rubric"
+          linkTo="/grading-with-rubric"
         />
 
         <DashboardCard title="評分歷史" description="檢視過去的評分記錄和統計數據" linkTo="/grading-history" />

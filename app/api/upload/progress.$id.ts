@@ -41,6 +41,7 @@ export async function loader({ params }: { params: { id: string } }) {
 
         // Set up interval to send progress updates
         interval = setInterval(async () => {
+          if (isClosed) return;
           try {
             // Send keep-alive comment
             controller.enqueue(new TextEncoder().encode(': ping\n\n'));

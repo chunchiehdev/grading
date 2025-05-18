@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Star, File, ArrowUpDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,27 @@ interface GradingResultDisplayProps {
   className?: string;
   onRetry?: () => void;
 }
+
+// Helper to handle arrays or convert strings to arrays
+const ensureArray = (items: string[] | string | undefined): string[] => {
+  if (!items) return [];
+  if (typeof items === 'string') return [items];
+  return items;
+};
+
+// Helper function for tags
+const TagsList = ({ items, variant }: { items: string[] | string; variant: 'strength' | 'improvement' }) => {
+  const tagItems = ensureArray(items);
+  return (
+    <ul className="space-y-2">
+      {tagItems.map((item, index) => (
+        <li key={index} className="text-sm">
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+};
 
 // 顯示評分分數的組件
 const ScoreCard = ({ score }: { score: number }) => (
@@ -28,35 +50,8 @@ const ScoreCard = ({ score }: { score: number }) => (
   </Card>
 );
 
-// 優點和改進項目的標籤組件
-const TagsList = ({
-  items,
-  variant = 'default',
-}: {
-  items: string[];
-  variant?: 'strength' | 'improvement' | 'default';
-}) => {
-  const variantStyles = {
-    strength: 'bg-green-100 text-green-800 hover:bg-green-200',
-    improvement: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
-    default: 'bg-slate-100 text-slate-800 hover:bg-slate-200',
-  };
-
-  if (!items || items.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap gap-2 mt-3">
-      {items.map((item) => (
-        <Badge key={item} variant="secondary" className={cn('px-3 py-1 text-sm rounded-full', variantStyles[variant])}>
-          {item}
-        </Badge>
-      ))}
-    </div>
-  );
-};
-
 // 顯示評分標準詳情的組件
-const CriteriaDetails = ({ criteriaScores }: { criteriaScores: GradingResultData['criteriaScores'] }) => {
+const CriteriaDetails = ({ criteriaScores }: { criteriaScores?: GradingResultData['criteriaScores'] }) => {
   if (!criteriaScores || criteriaScores.length === 0) return null;
 
   return (
@@ -81,7 +76,7 @@ const CriteriaDetails = ({ criteriaScores }: { criteriaScores: GradingResultData
 };
 
 // 分析內容顯示
-const AnalysisSection = ({ analysis, imageUnderstanding }: { analysis: string; imageUnderstanding?: string }) => {
+const AnalysisSection = ({ analysis, imageUnderstanding }: { analysis?: string; imageUnderstanding?: string }) => {
   if (!analysis && !imageUnderstanding) return null;
 
   // 轉換圖片理解部分的格式
@@ -127,12 +122,34 @@ const AnalysisSection = ({ analysis, imageUnderstanding }: { analysis: string; i
 };
 
 export function GradingResultDisplay({ result, className, onRetry }: GradingResultDisplayProps) {
+  useEffect(() => {
+    console.log('🔍 GradingResultDisplay received result:', result);
+  }, [result]);
+
   if (!result) {
+    console.warn('⚠️ GradingResultDisplay: No result data provided');
     return <EmptyGradingState onRetry={onRetry} />;
   }
 
+  // Fallback for missing data
+  const safeResult = {
+    score: result.score || 0,
+    analysis: result.analysis || '',
+    criteriaScores: result.criteriaScores || [],
+    strengths: ensureArray(result.strengths),
+    improvements: ensureArray(result.improvements),
+    imageUnderstanding: result.imageUnderstanding,
+    overallSuggestions: result.overallSuggestions,
+    createdAt: result.createdAt || new Date(),
+    gradingDuration: result.gradingDuration
+  };
+
   // 計算創建時間
-  const createdDate = result.createdAt ? new Date(result.createdAt) : new Date();
+  const createdDate = typeof safeResult.createdAt === 'string' 
+    ? new Date(safeResult.createdAt) 
+    : safeResult.createdAt instanceof Date
+      ? safeResult.createdAt 
+      : new Date();
 
   const formattedDate = createdDate.toLocaleDateString('zh-TW', {
     year: 'numeric',
@@ -148,17 +165,17 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
         <div>
           <div className="text-sm text-muted-foreground flex flex-col sm:flex-row sm:space-x-4">
             <span>評分時間: {formattedDate}</span>
-            {result.gradingDuration && <span>處理時間: {(result.gradingDuration / 1000).toFixed(1)}秒</span>}
+            {safeResult.gradingDuration && <span>處理時間: {(safeResult.gradingDuration / 1000).toFixed(1)}秒</span>}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1">
-          <ScoreCard score={result.score} />
+          <ScoreCard score={safeResult.score} />
 
           {/* 優點列表 */}
-          {result.strengths && result.strengths.length > 0 && (
+          {safeResult.strengths.length > 0 && (
             <Card className="mb-4">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center">
@@ -167,13 +184,13 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <TagsList items={result.strengths} variant="strength" />
+                <TagsList items={safeResult.strengths} variant="strength" />
               </CardContent>
             </Card>
           )}
 
           {/* 改進項目 */}
-          {result.improvements && result.improvements.length > 0 && (
+          {safeResult.improvements.length > 0 && (
             <Card className="mb-4">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center">
@@ -182,7 +199,7 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <TagsList items={result.improvements} variant="improvement" />
+                <TagsList items={safeResult.improvements} variant="improvement" />
               </CardContent>
             </Card>
           )}
@@ -201,13 +218,13 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                   <CardTitle>評分分析</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <AnalysisSection analysis={result.analysis} imageUnderstanding={result.imageUnderstanding} />
+                  <AnalysisSection analysis={safeResult.analysis} imageUnderstanding={safeResult.imageUnderstanding} />
 
                   {/* 整體建議 */}
-                  {result.overallSuggestions && (
+                  {safeResult.overallSuggestions && (
                     <div className="mt-6 pt-6 border-t">
                       <h3 className="font-medium mb-2">整體建議</h3>
-                      <p>{result.overallSuggestions}</p>
+                      <p>{safeResult.overallSuggestions}</p>
                     </div>
                   )}
                 </CardContent>
@@ -221,14 +238,14 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                 </CardHeader>
                 <CardContent>
                   {/* 顯示詳細評分項目 */}
-                  <CriteriaDetails criteriaScores={result.criteriaScores} />
+                  <CriteriaDetails criteriaScores={safeResult.criteriaScores} />
 
                   {/* 如果沒有細項評分標準，顯示總分說明 */}
-                  {(!result.criteriaScores || result.criteriaScores.length === 0) && (
+                  {(!safeResult.criteriaScores || safeResult.criteriaScores.length === 0) && (
                     <div className="text-center py-8">
-                      <p className="text-lg text-muted-foreground">總評分: {result.score} 分</p>
-                      {result.overallSuggestions && (
-                        <p className="mt-4 max-w-md mx-auto">{result.overallSuggestions}</p>
+                      <p className="text-lg text-muted-foreground">總評分: {safeResult.score} 分</p>
+                      {safeResult.overallSuggestions && (
+                        <p className="mt-4 max-w-md mx-auto">{safeResult.overallSuggestions}</p>
                       )}
                     </div>
                   )}

@@ -22,20 +22,17 @@ export const action = async ({ request }: { request: Request }) => {
   try {
     const criterias = JSON.parse(criteriasJson);
 
-    // 導入createRubric函數
     const { createRubric } = await import('@/services/rubric.server');
 
-    // 創建評分標準對象
     const totalWeight = criterias.reduce((sum: number, criteria: RubricCriteria) => sum + criteria.weight, 0);
     const rubric = {
-      id: uuidv4(), // 生成唯一ID
+      id: uuidv4(),
       name,
       description,
       criteria: criterias,
       totalWeight,
     };
 
-    // 調用API創建評分標準
     const result = await createRubric(rubric);
 
     if (!result.success) {

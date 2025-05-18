@@ -1,32 +1,136 @@
 import { useMutation } from '@tanstack/react-query';
 import { useGradingStore } from '@/stores/gradingStore';
 import { useUiStore } from '@/stores/uiStore';
+import { useEffect, useRef, useState } from 'react';
+import type { GradingProgressState } from '@/stores/gradingStore';
 
 interface GradeWithRubricParams {
   fileKey: string;
   rubricId: string;
+  gradingId: string;
 }
 
 export function useGrading() {
-  const { startGrading, updateProgress, setResult, setError } = useGradingStore();
+  const { startGrading, updateProgress, setResult, setError, gradingProgress } = useGradingStore();
   const { setStep, setCanProceed } = useUiStore();
+  const progressSubscriptionRef = useRef<(() => void) | null>(null);
+  const [sseStatus, setSseStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+
+  const subscribeToProgress = (gradingId: string) => {
+    // Clean up any existing connection first
+    if (progressSubscriptionRef.current) {
+      console.log('Closing existing SSE connection before creating a new one');
+      progressSubscriptionRef.current();
+      progressSubscriptionRef.current = null;
+    }
+    
+    setSseStatus('connecting');
+    console.log(`🔄 Subscribing to progress updates for ${gradingId}`);
+    
+    try {
+      const eventSource = new EventSource(`/api/grade-progress?gradingId=${gradingId}`);
+      
+      eventSource.onopen = () => {
+        console.log(`📡 SSE connection opened for ${gradingId}`);
+        setSseStatus('connected');
+      };
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const progressData = JSON.parse(event.data);
+          console.log(`📊 Progress update for ${gradingId}:`, progressData);
+          
+          if (progressData.phase === 'completed') {
+            console.log(`✅ Grading completed:`, progressData.result);
+            
+            // Save the result data to localStorage directly as a backup
+            try {
+              const backupKey = `grade-result-${gradingId}`;
+              localStorage.setItem(backupKey, JSON.stringify(progressData.result));
+              console.log(`💾 Saved backup of result to localStorage: ${backupKey}`);
+            } catch (err) {
+              console.warn('Failed to save backup result to localStorage:', err);
+            }
+            
+            // Update the store
+            setResult(progressData.result);
+            setStep('result');
+            setCanProceed(true);
+            eventSource.close();
+            setSseStatus('idle');
+          } else if (progressData.phase === 'error') {
+            console.error(`❌ Grading error:`, progressData.error);
+            setError(progressData.error || '評分過程中發生錯誤');
+            setCanProceed(false);
+            eventSource.close();
+            setSseStatus('error');
+          } else {
+            if (progressData.phase && ['check', 'grade', 'verify'].includes(progressData.phase)) {
+              updateProgress({
+                phase: progressData.phase,
+                progress: progressData.progress,
+                message: progressData.message,
+              });
+            } else {
+              if (typeof progressData.progress !== 'undefined' || typeof progressData.message !== 'undefined') {
+                updateProgress({
+                  progress: progressData.progress,
+                  message: progressData.message,
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error processing progress update:', err);
+        }
+      };
+      
+      eventSource.onerror = (error) => {
+        console.error('SSE connection error:', error);
+        setSseStatus('error');
+        setError('進度追蹤連接失敗');
+        eventSource.close();
+      };
+      
+      progressSubscriptionRef.current = () => {
+        console.log(`Closing SSE connection for ${gradingId}`);
+        eventSource.close();
+        setSseStatus('idle');
+      };
+    } catch (error) {
+      console.error('Error setting up SSE connection:', error);
+      setSseStatus('error');
+      setError('無法建立進度追蹤連接');
+    }
+  };
 
   const gradeMutation = useMutation({
-    mutationFn: async ({ fileKey, rubricId }: GradeWithRubricParams) => {
+    mutationFn: async ({ fileKey, rubricId, gradingId }: GradeWithRubricParams) => {
+      console.log(`🚀 Starting grading:`, { fileKey, rubricId, gradingId });
       const formData = new FormData();
       formData.append('fileKey', fileKey);
       formData.append('rubricId', rubricId);
-
-      const response = await fetch('/api/grade-with-rubric', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('評分請求失敗');
+      formData.append('gradingId', gradingId);
+      
+      try {
+        const response = await fetch('/api/grade-with-rubric', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Error response from server: ${response.status} ${errorText}`);
+          throw new Error(`評分請求失敗: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log(`📡 API response:`, data);
+        return data;
+      } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
       }
-
-      return response.json();
     },
     onMutate: () => {
       startGrading();
@@ -34,38 +138,32 @@ export function useGrading() {
       setCanProceed(false);
     },
     onSuccess: (data) => {
-      if (data.success && data.data?.success && data.data.feedback) {
-        const gradingResult = {
-          score: data.data.feedback.score || 0,
-          imageUnderstanding: data.data.feedback.imageUnderstanding,
-          analysis: data.data.feedback.analysis || '',
-          criteriaScores: data.data.feedback.criteriaScores || [],
-          strengths: data.data.feedback.strengths || [],
-          improvements: data.data.feedback.improvements || [],
-          overallSuggestions: data.data.feedback.overallSuggestions,
-          createdAt: data.data.feedback.createdAt || new Date(),
-          gradingDuration: data.data.feedback.gradingDuration,
-        };
-        setResult(gradingResult);
-        setError(null);
-        setStep('result');
-        setCanProceed(true);
-      } else {
-        setResult(null);
-        setError(data.data?.error || '評分過程中發生錯誤');
-        setCanProceed(false);
-      }
+      console.log(`📬 Grading request successful:`, data);
+      // The actual result will come through the SSE channel
     },
     onError: (error) => {
+      console.error(`❌ Grading request failed:`, error);
       setResult(null);
       setError(error instanceof Error ? error.message : '評分過程中發生錯誤');
       setCanProceed(false);
     }
   });
 
+  // Clean up SSE connection on unmount
+  useEffect(() => {
+    return () => {
+      if (progressSubscriptionRef.current) {
+        progressSubscriptionRef.current();
+      }
+    };
+  }, []);
+
   return {
     gradeWithRubric: gradeMutation.mutate,
-    isGrading: gradeMutation.isPending,
-    error: gradeMutation.error
+    isGrading: gradeMutation.isPending || sseStatus === 'connecting' || sseStatus === 'connected',
+    error: gradeMutation.error,
+    gradingProgress,
+    subscribeToProgress,
+    sseStatus,
   };
 } 

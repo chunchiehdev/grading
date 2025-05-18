@@ -3,6 +3,7 @@ import type { Rubric } from '@/types/grading';
 import FormData from 'form-data';
 import { fetchFileFromStorage } from '@/services/document-processor.server';
 import logger from '@/utils/logger';
+import { GradingProgressService } from './grading-progress.server';
 
 const API_URL = process.env.API_URL || 'http://localhost:8001';
 const AUTH_KEY = process.env.AUTH_KEY || '';
@@ -123,20 +124,24 @@ export async function deleteRubric(id: string): Promise<{ success: boolean; erro
 
 export async function gradeDocument(
   fileKey: string,
-  rubricId: string
+  rubricId: string,
+  gradingId?: string,
 ): Promise<{
   success: boolean;
   gradingResult?: any;
   error?: string;
 }> {
   
-  const gradingId = `grade-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  
   try {
+    
+    if (gradingId) {
+      console.log('updateProgress', gradingId, new Date().toISOString());
+      await GradingProgressService.updateProgress(gradingId, { phase: 'check', progress: 10, message: '檢查檔案...' });
+    }
+    await new Promise(r => setTimeout(r, 5000));
+
     logger.info({ fileKey, rubricId, gradingId }, 'Starting document grading');
     logger.debug({ gradingId }, 'Fetching file from storage');
-    
-    
     const fileResult = await fetchFileFromStorage(fileKey);
 
     if (fileResult.error) {
@@ -146,6 +151,13 @@ export async function gradeDocument(
         error: `無法獲取文件: ${fileResult.error}`,
       };
     }
+
+    if (gradingId) {
+      console.log('updateProgress: grade');
+      await GradingProgressService.updateProgress(gradingId, { phase: 'grade', progress: 40, message: 'AI 分析中...' });
+    }
+    await new Promise(r => setTimeout(r, 5000));
+
 
     const buffer = fileResult.buffer;
     logger.debug({ gradingId, fileSize: buffer.length }, 'File fetched successfully');
@@ -185,20 +197,22 @@ export async function gradeDocument(
       timeout: 180000,
     });
 
+    if (gradingId) {
+      console.log('updateProgress: verify');
+      await GradingProgressService.updateProgress(gradingId, { phase: 'verify', progress: 80, message: '驗證中...' });
+    }
+    await new Promise(r => setTimeout(r, 5000));
     const endTime = Date.now();
     const duration = (endTime - startTime) / 1000;
     logger.info({ gradingId, duration }, 'Grading completed');
 
-    // 檢查 response.data 是否已經是對象
     let gradingResult = response.data;
     try {
-      // 嘗試解析，如果是字符串的話
       if (typeof response.data === 'string') {
         gradingResult = JSON.parse(response.data);
       }
     } catch (parseError) {
       logger.error({ gradingId, parseError }, 'Error parsing response data');
-      // 如果解析失敗，使用原始數據
       gradingResult = response.data;
     }
 

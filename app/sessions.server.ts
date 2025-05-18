@@ -11,7 +11,6 @@ export const sessionStorage = createCookieSessionStorage({
     secrets: [process.env.AUTH_SECRET || 'default'],
     secure: process.env.NODE_ENV === 'production',
     maxAge: AUTH_COOKIE_MAX_AGE,
-    expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000),
     domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
   },
 });
@@ -23,7 +22,9 @@ export async function getSession(request: Request) {
 }
 
 export async function commitSession(session: any) {
-  return sessionStorage.commitSession(session);
+  return sessionStorage.commitSession(session, {
+    expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000)
+  });
 }
 
 export async function destroySession(session: any) {

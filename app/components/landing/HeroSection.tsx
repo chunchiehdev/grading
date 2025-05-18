@@ -29,17 +29,15 @@ const features = [
 ];
 
 /**
- * 首頁英雄區塊
- * 使用 React Query 獲取用戶狀態
+ * Hero Section
+ * Using React Query get user status
  */
 const HeroSection = () => {
   const navigate = useNavigate();
 
-  // 使用 React Query 獲取用戶數據
   const { data: user, isLoading } = useUser();
   const isLoggedIn = Boolean(user);
 
-  // 調試用戶狀態
   useEffect(() => {
     console.log('[HeroSection] User authenticated:', isLoggedIn);
   }, [isLoggedIn]);
