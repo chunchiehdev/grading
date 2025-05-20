@@ -24,13 +24,11 @@ export const action = async ({ request }: { request: Request }) => {
 
     const { createRubric } = await import('@/services/rubric.server');
 
-    const totalWeight = criterias.reduce((sum: number, criteria: RubricCriteria) => sum + criteria.weight, 0);
     const rubric = {
       id: uuidv4(),
       name,
       description,
       criteria: criterias,
-      totalWeight,
     };
 
     const result = await createRubric(rubric);
@@ -54,13 +52,11 @@ export default function NewRubricRoute() {
   const [criterias, setCriterias] = useState<RubricCriteria[]>([]);
   const [error, setError] = useState('');
 
-  // 新增評分條目
   const addCriteria = () => {
     const newCriteria: RubricCriteria = {
       id: uuidv4(),
       name: '',
       description: '',
-      weight: 0,
       levels: [
         { score: 1, description: '不符合要求' },
         { score: 3, description: '部分符合要求' },
@@ -70,13 +66,11 @@ export default function NewRubricRoute() {
     setCriterias([...criterias, newCriteria]);
   };
 
-  // 刪除評分條目
   const removeCriteria = (id: string) => {
     setCriterias(criterias.filter((criteria) => criteria.id !== id));
   };
 
-  // 更新評分條目
-  const updateCriteria = (id: string, field: keyof RubricCriteria, value: string | number) => {
+  const updateCriteria = (id: string, field: keyof RubricCriteria, value: any) => {
     setCriterias(
       criterias.map((criteria) => {
         if (criteria.id === id) {
@@ -87,7 +81,6 @@ export default function NewRubricRoute() {
     );
   };
 
-  // 驗證表單
   const validateForm = () => {
     if (!name) {
       setError('請輸入評分標準名稱');
@@ -102,7 +95,6 @@ export default function NewRubricRoute() {
       return false;
     }
 
-    // 檢查每個評分條目
     for (const criteria of criterias) {
       if (!criteria.name) {
         setError(`請輸入評分條目名稱`);
@@ -112,35 +104,21 @@ export default function NewRubricRoute() {
         setError(`請輸入評分條目描述`);
         return false;
       }
-      if (criteria.weight <= 0) {
-        setError(`請設定有效的權重值`);
-        return false;
-      }
-    }
-
-    // 檢查權重總和是否為100
-    const totalWeight = criterias.reduce((sum, criteria) => sum + criteria.weight, 0);
-    if (totalWeight !== 100) {
-      setError(`評分條目權重總和必須等於100，目前為${totalWeight}`);
-      return false;
     }
 
     setError('');
     return true;
   };
 
-  // 表單提交前驗證
   const handleSubmit = (e: React.FormEvent) => {
-    // 執行表單驗證
     if (!validateForm()) {
-      e.preventDefault(); // 只有驗證失敗時才阻止提交
+      e.preventDefault(); 
     } else {
       console.log('表單提交中，數據：', {
         name,
         description,
         criterias: JSON.stringify(criterias),
       });
-      // 可以在這裡添加載入狀態
       setError('');
     }
   };
@@ -205,29 +183,15 @@ export default function NewRubricRoute() {
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <Label htmlFor={`name-${criteria.id}`}>名稱</Label>
-                          <Input
-                            id={`name-${criteria.id}`}
-                            value={criteria.name}
-                            onChange={(e) => updateCriteria(criteria.id, 'name', e.target.value)}
-                            placeholder="例如：流程圖評分"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor={`weight-${criteria.id}`}>權重 (%)</Label>
-                          <Input
-                            id={`weight-${criteria.id}`}
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={criteria.weight.toString()}
-                            onChange={(e) => updateCriteria(criteria.id, 'weight', parseInt(e.target.value) || 0)}
-                            required
-                          />
-                        </div>
+                      <div>
+                        <Label htmlFor={`name-${criteria.id}`}>名稱</Label>
+                        <Input
+                          id={`name-${criteria.id}`}
+                          value={criteria.name}
+                          onChange={(e) => updateCriteria(criteria.id, 'name', e.target.value)}
+                          placeholder="例如：流程圖評分"
+                          required
+                        />
                       </div>
                       <div>
                         <Label htmlFor={`description-${criteria.id}`}>描述</Label>
@@ -239,6 +203,55 @@ export default function NewRubricRoute() {
                           className="min-h-[200px]"
                           required
                         />
+                      </div>
+                      
+                      <div>
+                        <Label>評分等級</Label>
+                        <div className="mt-2 space-y-2">
+                          {criteria.levels.map((level, idx) => (
+                            <div key={idx} className="flex items-center space-x-2 p-2 border rounded-md">
+                              <div className="flex-shrink-0 w-16">
+                                <Input
+                                  type="number"
+                                  value={level.score}
+                                  onChange={(e) => {
+                                    const newLevels = [...criteria.levels];
+                                    newLevels[idx] = {
+                                      ...newLevels[idx],
+                                      score: parseInt(e.target.value) || 0,
+                                    };
+                                    updateCriteria(criteria.id, 'levels', newLevels);
+                                  }}
+                                  className="w-full text-center"
+                                />
+                              </div>
+                              <Textarea
+                                value={level.description}
+                                onChange={(e) => {
+                                  const newLevels = [...criteria.levels];
+                                  newLevels[idx] = {
+                                    ...newLevels[idx],
+                                    description: e.target.value,
+                                  };
+                                  updateCriteria(criteria.id, 'levels', newLevels);
+                                }}
+                                placeholder="評分等級描述"
+                                className="flex-grow min-h-[60px]"
+                              />
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newLevels = [...criteria.levels, { score: 0, description: '' }];
+                              updateCriteria(criteria.id, 'levels', newLevels);
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-1" /> 添加評分等級
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))

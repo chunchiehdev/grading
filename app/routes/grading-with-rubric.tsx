@@ -84,20 +84,7 @@ export default function GradingWithRubricRoute() {
     }
   }, [hasHydrated, currentStep, setStep, storageChecked]);
 
-  // Debug: Log component rendering and current state
-  useEffect(() => {
-    if (hasHydrated) {
-      console.log('🛠️ Current state:', { 
-        currentStep, 
-        isGrading, 
-        feedback: feedback ? 'Present' : 'Null', 
-        uploadedFiles: uploadedFiles.length,
-        selectedRubricId,
-        hasHydrated
-      });
-    }
-  }, [currentStep, isGrading, feedback, uploadedFiles, selectedRubricId, hasHydrated]);
-
+  
   // Safeguard: If we have result but missing context data, reset and go to upload
   useEffect(() => {
     if (hasHydrated && feedback && currentStep === 'result') {
@@ -152,22 +139,6 @@ export default function GradingWithRubricRoute() {
 
   // Find selected rubric data from the loaded rubrics
   const selectedRubricData = rubrics.find((r: Rubric) => r.id === selectedRubricId);
-  
-  useEffect(() => {
-    if (hasHydrated) {
-      const selectedRubricData = rubrics.find(r => r.id === selectedRubricId);
-    
-      console.log(
-        'uploadedFiles:', uploadedFiles,
-        'selectedRubricData:', selectedRubricData,
-        'feedback:', feedback
-      );
-    
-      if (!uploadedFiles?.length) console.warn('❌ uploadedFiles is falsy or empty');
-      if (!selectedRubricData && selectedRubricId) console.warn('❌ selectedRubricData is falsy but has ID:', selectedRubricId);
-      if (!feedback && currentStep === 'result') console.warn('❌ feedback is falsy but on result tab');
-    }
-  }, [uploadedFiles, selectedRubricId, feedback, rubrics, hasHydrated, currentStep]);
 
   // Show loading while store is hydrating
   if (!hasHydrated) {
@@ -307,7 +278,7 @@ export default function GradingWithRubricRoute() {
                           <ul className="list-disc pl-5 space-y-1">
                             {selectedRubricData.criteria.map((criteria: RubricCriteria) => (
                               <li key={criteria.id} className="text-sm">
-                                {criteria.name} ({criteria.weight}%)
+                                {criteria.name}
                               </li>
                             ))}
                           </ul>

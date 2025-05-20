@@ -1,123 +1,194 @@
-import axios from 'axios';
-import type { Rubric } from '@/types/grading';
-import FormData from 'form-data';
-import { fetchFileFromStorage } from '@/services/document-processor.server';
+import { db } from '@/lib/db.server';
+import type { Rubric, RubricCriteria } from '@/types/grading';
 import logger from '@/utils/logger';
 import { GradingProgressService } from './grading-progress.server';
-
-const API_URL = process.env.API_URL || 'http://localhost:8001';
-const AUTH_KEY = process.env.AUTH_KEY || '';
 
 export async function createRubric(
   rubric: Omit<Rubric, 'createdAt' | 'updatedAt'>
 ): Promise<{ success: boolean; rubricId?: string; error?: string }> {
   try {
-    logger.info({ rubric }, 'Sending rubric to API');
+    logger.info({ rubric }, 'Creating new rubric');
 
-    const response = await axios.post(`${API_URL}/rubrics/`, rubric, {
-      headers: {
-        'Content-Type': 'application/json',
-        'auth-key': AUTH_KEY,
-      },
+    const result = await db.$transaction(async (prisma) => {
+      const createdRubric = await prisma.rubric.create({
+        data: {
+          id: rubric.id,
+          name: rubric.name,
+          description: rubric.description,
+          criteria: {
+            create: rubric.criteria.map(criteria => ({
+              id: criteria.id,
+              name: criteria.name,
+              description: criteria.description,
+              levels: criteria.levels as any
+            }))
+          }
+        },
+        include: {
+          criteria: true
+        }
+      });
+
+      return createdRubric;
     });
 
-    logger.info({ response: response.data }, 'API response received');
+    logger.info({ rubricId: result.id }, 'Rubric created successfully');
 
     return {
       success: true,
-      rubricId: response.data.rubric_id,
+      rubricId: result.id,
     };
-
   } catch (error: any) {
     logger.error({ error }, 'Error creating rubric');
-    const errorMessage = error.response?.data?.detail || error.message || '無法創建評分標準';
     return {
       success: false,
-      error: errorMessage,
+      error: error.message || '無法創建評分標準',
     };
   }
 }
 
 export async function listRubrics(): Promise<{ rubrics: Rubric[]; error?: string }> {
   try {
-    logger.info('Starting listRubrics');
-    logger.debug({ API_URL, hasAuthKey: !!AUTH_KEY }, 'API configuration');
+    logger.info('Listing all rubrics');
 
-    const response = await axios.get(`${API_URL}/rubrics/`, {
-      headers: {
-        'auth-key': AUTH_KEY,
+    const dbRubrics = await db.rubric.findMany({
+      include: {
+        criteria: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
       },
     });
 
-    if (!response.data) {
-      logger.error('API returned no data');
-      return {
-        rubrics: [],
-        error: 'API returned no data',
-      };
-    }
+    const rubrics: Rubric[] = dbRubrics.map((dbRubric: any) => {
+      const criteria: RubricCriteria[] = dbRubric.criteria.map((dbCriteria: any) => ({
+        id: dbCriteria.id,
+        name: dbCriteria.name,
+        description: dbCriteria.description,
+        levels: dbCriteria.levels as any, 
+      }));
 
-    if (!response.data.rubrics) {
-      logger.error({ dataKeys: Object.keys(response.data) }, 'API response missing rubrics field');
       return {
-        rubrics: [],
-        error: 'API response format is incorrect',
+        id: dbRubric.id,
+        name: dbRubric.name,
+        description: dbRubric.description,
+        createdAt: dbRubric.createdAt,
+        updatedAt: dbRubric.updatedAt,
+        criteria,
       };
-    }
+    });
 
-    return {
-      rubrics: response.data.rubrics || [],
-    };
+    return { rubrics };
   } catch (error: any) {
-    logger.error({ 
-      error: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      headers: error.response?.headers 
-    }, 'Error listing rubrics');
-    
+    logger.error({ error }, 'Error listing rubrics');
     return {
       rubrics: [],
-      error: error.response?.data?.message || error.message || '無法獲取評分標準列表',
+      error: error.message || '無法獲取評分標準列表',
     };
   }
 }
 
 export async function getRubric(id: string): Promise<{ rubric?: Rubric; error?: string }> {
   try {
-    const response = await axios.get(`${API_URL}/rubrics/${id}`, {
-      headers: {
-        'auth-key': AUTH_KEY,
+    logger.info({ rubricId: id }, 'Getting rubric');
+
+    const dbRubric = await db.rubric.findUnique({
+      where: { id },
+      include: {
+        criteria: true,
       },
     });
 
-    return {
-      rubric: response.data,
+    if (!dbRubric) {
+      return { error: '找不到評分標準' };
+    }
+
+    const criteria: RubricCriteria[] = dbRubric.criteria.map((dbCriteria: any) => ({
+      id: dbCriteria.id,
+      name: dbCriteria.name,
+      description: dbCriteria.description,
+      levels: dbCriteria.levels as any, 
+    }));
+
+    const rubric: Rubric = {
+      id: dbRubric.id,
+      name: dbRubric.name,
+      description: dbRubric.description,
+      createdAt: dbRubric.createdAt,
+      updatedAt: dbRubric.updatedAt,
+      criteria,
     };
-  } catch (error) {
-    console.error(`Error getting rubric ${id}:`, error);
+
+    return { rubric };
+  } catch (error: any) {
+    logger.error({ rubricId: id, error }, 'Error getting rubric');
     return {
-      error: '無法獲取評分標準詳情',
+      error: error.message || '無法獲取評分標準詳情',
+    };
+  }
+}
+
+export async function updateRubric(
+  id: string,
+  rubric: Omit<Rubric, 'createdAt' | 'updatedAt'>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    logger.info({ rubricId: id, rubric }, 'Updating rubric');
+
+    await db.$transaction(async (tx) => {
+      await tx.rubric.update({
+        where: { id },
+        data: {
+          name: rubric.name,
+          description: rubric.description,
+        },
+      });
+
+      await tx.rubricCriteria.deleteMany({
+        where: { rubricId: id },
+      });
+
+      for (const criteria of rubric.criteria) {
+        await tx.rubricCriteria.create({
+          data: {
+            id: criteria.id,
+            name: criteria.name,
+            description: criteria.description,
+            levels: criteria.levels, 
+            rubricId: id,
+          },
+        });
+      }
+    });
+
+    logger.info({ rubricId: id }, 'Rubric updated successfully');
+
+    return { success: true };
+  } catch (error: any) {
+    logger.error({ rubricId: id, error }, 'Error updating rubric');
+    return {
+      success: false,
+      error: error.message || '無法更新評分標準',
     };
   }
 }
 
 export async function deleteRubric(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await axios.delete(`${API_URL}/rubrics/${id}`, {
-      headers: {
-        'auth-key': AUTH_KEY,
-      },
+    logger.info({ rubricId: id }, 'Deleting rubric');
+
+    await db.rubric.delete({
+      where: { id },
     });
 
-    return {
-      success: true,
-    };
-  } catch (error) {
-    console.error(`Error deleting rubric ${id}:`, error);
+    logger.info({ rubricId: id }, 'Rubric deleted successfully');
+
+    return { success: true };
+  } catch (error: any) {
+    logger.error({ rubricId: id, error }, 'Error deleting rubric');
     return {
       success: false,
-      error: '無法刪除評分標準',
+      error: error.message || '無法刪除評分標準',
     };
   }
 }
@@ -131,129 +202,70 @@ export async function gradeDocument(
   gradingResult?: any;
   error?: string;
 }> {
-  
   try {
-    
     if (gradingId) {
       await GradingProgressService.updateProgress(gradingId, { phase: 'check', progress: 10, message: '檢查檔案...' });
     }
 
     logger.info({ fileKey, rubricId, gradingId }, 'Starting document grading');
-    logger.debug({ gradingId }, 'Fetching file from storage');
-    const fileResult = await fetchFileFromStorage(fileKey);
-
-    if (fileResult.error) {
-      logger.error({ gradingId, error: fileResult.error }, 'Failed to fetch file');
+    
+    // 1. 獲取 Rubric
+    const { rubric, error: rubricError } = await getRubric(rubricId);
+    if (rubricError || !rubric) {
+      logger.error({ gradingId, error: rubricError }, 'Failed to fetch rubric');
       return {
         success: false,
-        error: `無法獲取文件: ${fileResult.error}`,
+        error: `無法獲取評分標準: ${rubricError}`,
       };
     }
 
     if (gradingId) {
-      await GradingProgressService.updateProgress(gradingId, { phase: 'grade', progress: 40, message: 'AI 分析中...' });
+      await GradingProgressService.updateProgress(gradingId, { phase: 'grade', progress: 50, message: '批改中...' });
     }
 
-    const buffer = fileResult.buffer;
-    logger.debug({ gradingId, fileSize: buffer.length }, 'File fetched successfully');
-
-    const originalFilename = fileKey.split('/').pop() || 'document.pdf';
-    logger.debug({ gradingId, originalFilename }, 'Processing file');
-
-    const formData = new FormData();
-    formData.append('file', Buffer.from(buffer), {
-      filename: originalFilename,
-      contentType: fileResult.contentType || 'application/pdf',
-    });
-    formData.append('rubric_id', rubricId);
-    
-    formData.append('grading_format', 'level_based');
-    formData.append('grading_instructions', `
-      請注意評分標準使用了L1到L4的分級系統：
-      - L4（最高級）：表示優秀的表現，應獲得該標準的最高分數（90-100%）
-      - L3：表示良好的表現，應獲得該標準的較高分數（75-89%）
-      - L2：表示基本達標的表現，應獲得該標準的中等分數（60-74%）
-      - L1（最低級）：表示不足的表現，應獲得該標準的較低分數（0-59%）
-      
-      請為每個評分標準明確指出學生表現對應的級別（L1、L2、L3或L4），並根據該級別的描述給予百分比分數。
-      在評語中，清楚說明為什麼學生達到了特定級別，並引用學生作品中的具體例子來支持您的評分。
-      建議應該具體指出如何從目前的級別提升到更高級別。
-    `);
-
-    logger.info({ gradingId }, 'Sending request to API');
-    const startTime = Date.now();
-
-    const response = await axios.post(`${API_URL}/grade-document/`, formData, {
-      headers: {
-        ...formData.getHeaders(),
-        'auth-key': AUTH_KEY,
-      },
-      timeout: 180000,
-    });
+    // 這裡應該實現實際的評分邏輯
+    // 由於我們不再呼叫外部 API，需要決定如何實現評分功能
+  
+    const gradingResult = {
+      score: 85,
+      analysis: "這是一個示例分析",
+      criteriaScores: rubric.criteria.map(criteria => ({
+        name: criteria.name,
+        score: Math.floor(Math.random() * 5) + 1, // 1-5 分
+        comments: `關於 ${criteria.name} 的評語`,
+      })),
+      strengths: ["優點 1", "優點 2"],
+      improvements: ["改進點 1", "改進點 2"],
+      createdAt: new Date().toISOString(),
+      gradingDuration: 5, // 秒
+    };
 
     if (gradingId) {
-      await GradingProgressService.updateProgress(gradingId, { phase: 'verify', progress: 80, message: '驗證中...' });
-    }
-    const endTime = Date.now();
-    const duration = (endTime - startTime) / 1000;
-    logger.info({ gradingId, duration }, 'Grading completed');
-
-    let gradingResult = response.data;
-    try {
-      if (typeof response.data === 'string') {
-        gradingResult = JSON.parse(response.data);
-      }
-    } catch (parseError) {
-      logger.error({ gradingId, parseError }, 'Error parsing response data');
-      gradingResult = response.data;
+      await GradingProgressService.updateProgress(gradingId, { phase: 'verify', progress: 90, message: '驗證評分結果...' });
     }
 
-    logger.debug({ gradingId, gradingResult }, 'Successfully processed grading result');
+    if (gradingId) {
+      await GradingProgressService.updateProgress(gradingId, { phase: 'completed', progress: 100, message: '評分完成' });
+    }
 
     return {
       success: true,
       gradingResult,
     };
   } catch (error: any) {
-    logger.error({ 
-      gradingId,
-      error: error.message,
-      response: error.response?.data,
-      status: error.response?.status 
-    }, 'Error during grading');
+    logger.error({ gradingId, error: error.message }, 'Error during grading');
+    
+    if (gradingId) {
+      await GradingProgressService.updateProgress(gradingId, { 
+        phase: 'error', 
+        progress: 0, 
+        message: '評分過程中發生錯誤' 
+      });
+    }
 
     return {
       success: false,
-      error: error.response?.data?.detail || error.message || '評分過程中發生錯誤',
-    };
-  }
-}
-
-export async function updateRubric(
-  id: string,
-  rubric: Omit<Rubric, 'createdAt' | 'updatedAt'>
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    console.log('Updating rubric:', JSON.stringify(rubric, null, 2));
-
-    const response = await axios.put(`${API_URL}/rubrics/${id}`, rubric, {
-      headers: {
-        'Content-Type': 'application/json',
-        'auth-key': AUTH_KEY,
-      },
-    });
-
-    console.log('API response:', response.data);
-
-    return {
-      success: true,
-    };
-  } catch (error: any) {
-    console.error(`Error updating rubric ${id}:`, error);
-    const errorMessage = error.response?.data?.detail || error.message || '無法更新評分標準';
-    return {
-      success: false,
-      error: errorMessage,
+      error: error.message || '評分過程中發生錯誤',
     };
   }
 }

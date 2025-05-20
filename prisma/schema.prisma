@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../app/generated/prisma/client"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -35,3 +37,26 @@ model GradingTask {
   @@index([status])
   @@map("grading_tasks")
 }
+
+model Rubric {
+  id          String          @id @default(uuid())
+  name        String
+  description String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  criteria    RubricCriteria[]
+
+  @@map("rubrics")
+}
+
+model RubricCriteria {
+  id          String @id @default(uuid())
+  name        String
+  description String
+  levels      Json // 存储评分等级 [{score: number, description: string}]
+  rubricId    String
+  rubric      Rubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+
+  @@map("rubric_criteria")
+}
+

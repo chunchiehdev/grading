@@ -70,7 +70,6 @@ export default function RubricDetailRoute() {
         <Card>
           <CardHeader>
             <CardTitle>評分標準</CardTitle>
-            <CardDescription>總權重: {rubric.totalWeight}%</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
@@ -80,9 +79,6 @@ export default function RubricDetailRoute() {
                     <h3 className="font-medium">
                       {index + 1}. {criteria.name}
                     </h3>
-                    <span className="text-sm bg-accent text-accent-foreground px-2 py-1 rounded">
-                      權重: {criteria.weight}%
-                    </span>
                   </div>
                   <p className="text-muted-foreground mb-4">{criteria.description}</p>
 
