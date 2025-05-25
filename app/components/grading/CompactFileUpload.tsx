@@ -5,7 +5,6 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Upload, X, File, Paperclip, AlertCircle, FileUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import type { UploadedFileInfo } from '@/types/files';
 import { useFileUpload } from '@/hooks/useFileUpload';
@@ -130,10 +129,12 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
           <AccordionContent>
             <div className="px-4 pb-3 space-y-3">
               {error && (
-                <Alert variant="destructive" className="py-2">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
+                <div className="py-2 px-3 border border-red-300 bg-red-50 rounded-md">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
+                    <p className="text-red-800 text-sm">{error}</p>
+                  </div>
+                </div>
               )}
 
               <div

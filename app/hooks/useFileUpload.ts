@@ -8,6 +8,12 @@ import { useGradingStore } from '@/stores/gradingStore';
 
 
 
+/**
+ * Custom hook for file upload functionality with progress tracking
+ * @param {Object} [options] - Configuration options
+ * @param {Function} [options.onUploadComplete] - Callback function called when upload completes
+ * @returns {Object} Upload interface with files, states, and upload functions
+ */
 export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files: any[]) => void } = {}) {
   const { 
     files, 

@@ -7,35 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 type StrengthVariant = 'success' | 'info' | 'warning';
-type _FeedbackVariant = 'accordion' | 'tabs' | 'cards';
-
 interface FeedbackDisplayProps {
   feedback?: string | any;
   onClose?: () => void;
-  variant?: _FeedbackVariant;
-  className?: string;
-}
-
-interface FeedbackSection {
-  id: string;
-  title: string;
-  comments: string;
-  strengths: string[];
-  variant: StrengthVariant;
-}
-
-interface _ScoreDisplayProps {
-  score: number;
   className?: string;
 }
 
 interface StrengthBadgesProps {
   strengths: string[];
   variant: StrengthVariant;
-}
-
-interface _VariantProps {
-  sections: FeedbackSection[];
 }
 
 const _StrengthBadges = ({ strengths, variant }: StrengthBadgesProps) => {
@@ -128,7 +108,7 @@ const EmptyFeedbackState = () => {
   );
 };
 
-export default function FeedbackDisplay({ feedback, onClose, variant, className }: FeedbackDisplayProps) {
+export default function FeedbackDisplay({ feedback, onClose, className }: FeedbackDisplayProps) {
   if (!feedback) {
     return <EmptyFeedbackState />;
   }

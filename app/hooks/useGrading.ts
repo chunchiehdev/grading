@@ -4,18 +4,34 @@ import { useUiStore } from '@/stores/uiStore';
 import { useEffect, useRef, useState } from 'react';
 import logger from '@/utils/logger';
 
+/**
+ * Parameters for grading operation
+ * @interface GradeWithRubricParams
+ * @property {string} fileKey - Storage key of the file to grade
+ * @property {string} rubricId - ID of the rubric to use for grading
+ * @property {string} gradingId - Unique grading session identifier
+ */
 interface GradeWithRubricParams {
   fileKey: string;
   rubricId: string;
   gradingId: string;
 }
 
+/**
+ * Custom hook for document grading functionality with real-time progress tracking
+ * Manages grading state, progress updates via Server-Sent Events, and result handling
+ * @returns {Object} Grading interface with mutation functions, states, and progress data
+ */
 export function useGrading() {
   const { startGrading, updateProgress, setResult, setError, gradingProgress } = useGradingStore();
   const { setStep, setCanProceed } = useUiStore();
   const progressSubscriptionRef = useRef<(() => void) | null>(null);
   const [sseStatus, setSseStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
 
+  /**
+   * Subscribes to real-time grading progress updates via Server-Sent Events
+   * @param {string} gradingId - Unique grading session identifier
+   */
   const subscribeToProgress = (gradingId: string) => {
     // Clean up any existing connection first
     if (progressSubscriptionRef.current) {

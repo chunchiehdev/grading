@@ -2,6 +2,12 @@ import { login } from '@/services/auth.server';
 import { loginSchema, formatZodErrors } from '@/schemas/auth';
 import { withErrorHandler, ApiError } from '@/middleware/api.server';
 
+/**
+ * API endpoint for user login with form data validation
+ * @param {Object} params - Route parameters
+ * @param {Request} params.request - HTTP request object with form data
+ * @returns {Promise<Response>} Redirect response with session cookie or error
+ */
 export async function action({ request }: { request: Request }) {
   return withErrorHandler(async () => {
     if (request.method !== 'POST') {

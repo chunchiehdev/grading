@@ -1,5 +1,11 @@
 import { GradingProgressService } from '@/services/grading-progress.server';
 
+/**
+ * API endpoint for Server-Sent Events (SSE) grading progress stream
+ * @param {Object} params - Route parameters
+ * @param {Request} params.request - HTTP request object with gradingId query parameter
+ * @returns {Promise<Response>} SSE stream with real-time grading progress updates
+ */
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const gradingId = url.searchParams.get('gradingId');

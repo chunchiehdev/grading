@@ -1,13 +1,47 @@
 import { useState, useEffect } from 'react';
-import { Form, useActionData, useNavigate, useLoaderData } from 'react-router';
+import { Form, useActionData, useNavigate, useLoaderData, redirect } from 'react-router';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Sparkles } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import type { RubricCriteria } from '@/types/grading';
+
+// Components
+import { RubricHeader } from '@/components/RubricHeader';
+import { RubricForm } from '@/components/RubricForm';
+import { CategoryNav } from '@/components/CategoryNav';
+import { CriterionCard } from '@/components/CriterionCard';
+import { QuickAdd } from '@/components/QuickAdd';
+import { GuidedEmptyState } from '@/components/GuidedEmptyState';
+import { RubricPreview } from '@/components/RubricPreview';
+
+// Utils
+import { 
+  dbCriteriaToUICategories,
+  type UICategory,
+  type UICriterion,
+  type UIRubricData,
+  type Level
+} from '@/utils/rubric-transform';
+
+// Utilities
+const DEFAULT_LEVELS: Level[] = [
+  { score: 4, description: '' },
+  { score: 3, description: '' },
+  { score: 2, description: '' },
+  { score: 1, description: '' },
+];
+
+const createCriterion = (name = '', description = ''): UICriterion => ({
+  id: uuidv4(),
+  name,
+  description,
+  levels: DEFAULT_LEVELS.map(l => ({ ...l })),
+});
+
+const createCategory = (name = ''): UICategory => ({
+  id: uuidv4(),
+  name,
+  criteria: [],
+});
 
 export const loader = async ({ params, request }: { params: Record<string, string | undefined>; request: Request }) => {
   const rubricId = params.rubricId;
@@ -28,37 +62,55 @@ export const loader = async ({ params, request }: { params: Record<string, strin
 };
 
 export const action = async ({ request, params }: { request: Request; params: Record<string, string | undefined> }) => {
-  const rubricId = params.rubricId;
-  if (!rubricId) {
-    return { error: '評分標準ID不存在' };
-  }
-
-  const formData = await request.formData();
-  const name = formData.get('name')?.toString();
-  const description = formData.get('description')?.toString();
-  const criteriasJson = formData.get('criterias')?.toString();
-
-  if (!name || !description || !criteriasJson) {
-    return { error: '請填寫所有必填欄位' };
-  }
-
   try {
-    const criterias = JSON.parse(criteriasJson);
-    const { updateRubric } = await import('@/services/rubric.server');
-    const rubric = {
+    const rubricId = params.rubricId;
+    if (!rubricId) {
+      return Response.json({ error: '評分標準ID不存在' });
+    }
+
+    const formData = await request.formData();
+    
+    // 使用 Zod 驗證表單資料
+    const { UpdateRubricRequestSchema } = await import('@/schemas/rubric');
+    const validationResult = UpdateRubricRequestSchema.safeParse({
       id: rubricId,
+      name: formData.get('name')?.toString(),
+      description: formData.get('description')?.toString(),
+      categoriesJson: formData.get('categoriesJson')?.toString(),
+    });
+
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      console.error('Validation failed:', validationResult.error.errors);
+      return Response.json({ 
+        error: firstError.message || '表單資料驗證失敗',
+        field: firstError.path[0] // 提供錯誤欄位資訊
+      });
+    }
+
+    const { id, name, description, categoriesJson } = validationResult.data;
+    
+    const { updateRubric } = await import('@/services/rubric.server');
+
+    const rubricData = {
       name,
       description,
-      criteria: criterias,
+      categories: categoriesJson, // schema 已經處理過轉換
     };
-    const result = await updateRubric(rubricId, rubric);
+    
+    const result = await updateRubric(id, rubricData);
     if (!result.success) {
-      return { error: result.error || '更新評分標準失敗' };
+      console.error('Update rubric failed:', result.error);
+      return Response.json({ error: result.error || '更新評分標準失敗' });
     }
-    return Response.redirect(`/rubrics/${rubricId}`);
+    
+    console.log('Rubric updated successfully:', id);
+    return redirect(`/rubrics/${id}`);
   } catch (error) {
-    console.error('Error updating rubric:', error);
-    return { error: '處理數據時發生錯誤' };
+    console.error('Action error:', error);
+    return Response.json({ 
+      error: error instanceof Error ? error.message : '處理請求時發生錯誤'
+    });
   }
 };
 
@@ -66,238 +118,371 @@ export default function EditRubricRoute() {
   const { rubric: initialRubric } = useLoaderData<typeof loader>();
   const actionData = useActionData<{ error?: string }>();
   const navigate = useNavigate();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [criterias, setCriterias] = useState<RubricCriteria[]>([]);
-  const [error, setError] = useState('');
+  
+  // State
+  const [rubricData, setRubricData] = useState<UIRubricData>({
+    name: '',
+    description: '',
+    categories: [],
+  });
+  
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedCriterionId, setSelectedCriterionId] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Initialize from loaded rubric
   useEffect(() => {
     if (initialRubric) {
-      setName(initialRubric.name);
-      setDescription(initialRubric.description);
-      setCriterias(initialRubric.criteria);
+      const categories = dbCriteriaToUICategories(initialRubric.criteria);
+      setRubricData({
+        name: initialRubric.name,
+        description: initialRubric.description,
+        categories,
+      });
+      
+      // 預設選擇第一個類別
+      if (categories.length > 0) {
+        setSelectedCategoryId(categories[0].id);
+      }
     }
   }, [initialRubric]);
 
-  const addCriteria = () => {
-    const newCriteria: RubricCriteria = {
-      id: uuidv4(),
-      name: '',
-      description: '',
-      levels: [
-        { score: 1, description: '不符合要求' },
-        { score: 3, description: '部分符合要求' },
-        { score: 5, description: '完全符合要求' },
-      ],
-    };
-    setCriterias([...criterias, newCriteria]);
+  // Reset loading state when action completes
+  useEffect(() => {
+    if (actionData) {
+      setIsLoading(false);
+    }
+  }, [actionData]);
+
+  // Computed values
+  const selectedCategory = rubricData.categories.find(c => c.id === selectedCategoryId);
+  const totalCriteria = rubricData.categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
+  const completedCriteria = rubricData.categories.reduce((acc, cat) => 
+    acc + cat.criteria.filter(crit => 
+      crit.levels.some(level => level.description.trim())
+    ).length, 0
+  );
+
+  const progress = {
+    categories: rubricData.categories.length,
+    criteria: totalCriteria,
+    completed: completedCriteria,
   };
 
-  const removeCriteria = (id: string) => {
-    setCriterias(criterias.filter((criteria) => criteria.id !== id));
+  // 判斷當前步驟
+  const getCurrentStep = (): number => {
+    if (rubricData.categories.length === 0) return 1;
+    if (totalCriteria === 0) return 2;
+    return 3;
   };
 
-  const updateCriteria = (id: string, field: keyof RubricCriteria, value: any) => {
-    setCriterias(
-      criterias.map((criteria) => {
-        if (criteria.id === id) {
-          return { ...criteria, [field]: value };
-        }
-        return criteria;
-      })
-    );
+  // Validation
+  const canSave = () => {
+    return rubricData.name.trim() && 
+           rubricData.description.trim() && 
+           rubricData.categories.length > 0; // 只要有類別就可以儲存，不強制要求標準
   };
 
-  const validateForm = () => {
-    if (!name) {
-      setError('請輸入評分標準名稱');
-      return false;
-    }
-    if (!description) {
-      setError('請輸入評分標準描述');
-      return false;
-    }
-    if (criterias.length === 0) {
-      setError('請至少新增一個評分條目');
-      return false;
-    }
-
-    for (const criteria of criterias) {
-      if (!criteria.name) {
-        setError(`請輸入評分條目名稱`);
-        return false;
-      }
-      if (!criteria.description) {
-        setError(`請輸入評分條目描述`);
-        return false;
-      }
-    }
-
-    setError('');
-    return true;
+  // Handlers
+  const updateRubricForm = (formData: { name: string; description: string }) => {
+    setRubricData(prev => ({ ...prev, ...formData }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    if (!validateForm()) {
-      e.preventDefault(); 
-    } else {
-      console.log('表單提交中，數據：', {
-        name,
-        description,
-        criterias: JSON.stringify(criterias),
-      });
-      setError('');
+  const addCategory = (name?: string): string => {
+    const categoryName = name || `類別 ${rubricData.categories.length + 1}`;
+    const newCategory = createCategory(categoryName);
+    
+    setRubricData(prev => ({
+      ...prev,
+      categories: [...prev.categories, newCategory],
+    }));
+    
+    // 自動選擇新創建的類別
+    setSelectedCategoryId(newCategory.id);
+    setSelectedCriterionId(null);
+    
+    return newCategory.id; // 返回新類別的 ID
+  };
+
+  const updateCategory = (categoryId: string, name: string) => {
+    setRubricData(prev => ({
+      ...prev,
+      categories: prev.categories.map(cat =>
+        cat.id === categoryId ? { ...cat, name } : cat
+      ),
+    }));
+  };
+
+  const deleteCategory = (categoryId: string) => {
+    const category = rubricData.categories.find(c => c.id === categoryId);
+    if (!category) return;
+    
+    const message = category.criteria.length > 0 
+      ? `確定要刪除「${category.name}」類別嗎？這將同時刪除其下的 ${category.criteria.length} 個評分標準。`
+      : `確定要刪除「${category.name}」類別嗎？`;
+      
+    if (!confirm(message)) return;
+    
+    setRubricData(prev => ({
+      ...prev,
+      categories: prev.categories.filter(c => c.id !== categoryId),
+    }));
+    
+    // 智能選擇下一個類別
+    if (selectedCategoryId === categoryId) {
+      const remainingCategories = rubricData.categories.filter(c => c.id !== categoryId);
+      setSelectedCategoryId(remainingCategories.length > 0 ? remainingCategories[0].id : null);
+      setSelectedCriterionId(null);
     }
+  };
+
+  const addCriterion = (name?: string): string => {
+    if (!selectedCategoryId) {
+      console.warn('No category selected for adding criterion');
+      return '';
+    }
+    
+    const criterionName = name || `標準 ${(selectedCategory?.criteria.length || 0) + 1}`;
+    const newCriterion = createCriterion(criterionName);
+    
+    setRubricData(prev => ({
+      ...prev,
+      categories: prev.categories.map(category =>
+        category.id === selectedCategoryId
+          ? { ...category, criteria: [...category.criteria, newCriterion] }
+          : category
+      ),
+    }));
+    
+    // 自動選擇新創建的標準
+    setSelectedCriterionId(newCriterion.id);
+    
+    return newCriterion.id; // 返回新標準的 ID
+  };
+
+  const updateCriterion = (criterionId: string, updates: Partial<UICriterion>) => {
+    setRubricData(prev => ({
+      ...prev,
+      categories: prev.categories.map(category =>
+        category.id === selectedCategoryId
+          ? {
+              ...category,
+              criteria: category.criteria.map(criterion =>
+                criterion.id === criterionId
+                  ? { ...criterion, ...updates }
+                  : criterion
+              ),
+            }
+          : category
+      ),
+    }));
+  };
+
+  const deleteCriterion = (criterionId: string) => {
+    const criterion = selectedCategory?.criteria.find(c => c.id === criterionId);
+    if (!criterion) return;
+    
+    if (!confirm(`確定要刪除「${criterion.name}」評分標準嗎？`)) return;
+    
+    setRubricData(prev => ({
+      ...prev,
+      categories: prev.categories.map(category =>
+        category.id === selectedCategoryId
+          ? { ...category, criteria: category.criteria.filter(c => c.id !== criterionId) }
+          : category
+      ),
+    }));
+    
+    if (selectedCriterionId === criterionId) {
+      setSelectedCriterionId(null);
+    }
+  };
+
+  const updateLevel = (criterionId: string, score: number, description: string) => {
+    setRubricData(prev => ({
+      ...prev,
+      categories: prev.categories.map(category =>
+        category.id === selectedCategoryId
+          ? {
+              ...category,
+              criteria: category.criteria.map(criterion =>
+                criterion.id === criterionId
+                  ? {
+                      ...criterion,
+                      levels: criterion.levels.some(l => l.score === score)
+                        ? criterion.levels.map(l => l.score === score ? { ...l, description } : l)
+                        : [...criterion.levels, { score, description }]
+                    }
+                  : criterion
+              ),
+            }
+          : category
+      ),
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!canSave()) {
+      alert('請完成所有必填項目再儲存');
+      return;
+    }
+    
+    setIsLoading(true);
+    const form = document.getElementById('rubric-form') as HTMLFormElement;
+    form?.requestSubmit();
+  };
+
+  const handlePreview = () => {
+    setShowPreview(true);
   };
 
   return (
-    <div className="container py-8">
-      <div className="mb-6">
-        <Button variant="outline" onClick={() => navigate(`/rubrics/${initialRubric.id}`)} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> 返回詳情
-        </Button>
+    <div className="min-h-screen bg-background">
+      <RubricHeader
+        onBack={() => navigate(`/rubrics/${initialRubric.id}`)}
+        onSave={handleSave}
+        onPreview={handlePreview}
+        progress={progress}
+        rubricName={rubricData.name}
+        isEditing={true}
+      />
+
+      <div className="container mx-auto px-4 sm:px-6 py-8">
+        <Form method="post" id="rubric-form">
+          <input type="hidden" name="name" value={rubricData.name} />
+          <input type="hidden" name="description" value={rubricData.description} />
+          <input type="hidden" name="categoriesJson" value={JSON.stringify(rubricData.categories)} />
+
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+            {/* Left Sidebar - Form & Navigation */}
+            <div className="xl:col-span-3 space-y-6">
+              <RubricForm
+                data={{ name: rubricData.name, description: rubricData.description }}
+                onChange={updateRubricForm}
+              />
+              
+              <CategoryNav
+                categories={rubricData.categories}
+                selectedCategoryId={selectedCategoryId}
+                onSelectCategory={setSelectedCategoryId}
+                onAddCategory={() => addCategory()}
+                onUpdateCategory={updateCategory}
+                onDeleteCategory={deleteCategory}
+              />
+
+              <QuickAdd
+                onAddCategory={addCategory}
+                onAddCriterion={addCriterion}
+                canAddCriterion={!!selectedCategoryId}
+                selectedCategoryName={selectedCategory?.name}
+              />
+            </div>
+
+            {/* Main Content - Criteria */}
+            <div className="xl:col-span-9">
+              {selectedCategory ? (
+                <div className="space-y-6">
+                  {/* Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <h2 className="text-2xl font-bold">{selectedCategory.name}</h2>
+                      <p className="text-muted-foreground mt-1">
+                        {selectedCategory.criteria.length} 個評分標準
+                        {selectedCategory.criteria.length > 0 && (
+                          <span className="ml-2">
+                            • 最高 {selectedCategory.criteria.length * 4} 分
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <Button onClick={() => addCriterion()} disabled={isLoading}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      新增標準
+                    </Button>
+                  </div>
+
+                  {/* Criteria Grid */}
+                  {selectedCategory.criteria.length === 0 ? (
+                    <GuidedEmptyState
+                      type="criteria"
+                      onAction={() => addCriterion()}
+                      currentStep={getCurrentStep()}
+                      totalSteps={3}
+                    />
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Enhancement tip */}
+                      {selectedCategory.criteria.length > 0 && completedCriteria < totalCriteria && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <Sparkles className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <h4 className="font-medium text-amber-800">完善您的評分標準</h4>
+                              <p className="text-sm text-amber-700 mt-1">
+                                還有 {totalCriteria - completedCriteria} 個標準需要添加等級描述。
+                                完整的描述將有助於確保評分的一致性。
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedCategory.criteria.map((criterion) => (
+                        <CriterionCard
+                          key={criterion.id}
+                          criterion={criterion}
+                          isSelected={selectedCriterionId === criterion.id}
+                          onSelect={() => setSelectedCriterionId(criterion.id)}
+                          onUpdate={(updates) => updateCriterion(criterion.id, updates)}
+                          onDelete={() => deleteCriterion(criterion.id)}
+                          onUpdateLevel={(score, description) => 
+                            updateLevel(criterion.id, score, description)
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <GuidedEmptyState
+                  type="categories"
+                  onAction={() => addCategory()}
+                  currentStep={getCurrentStep()}
+                  totalSteps={3}
+                />
+              )}
+            </div>
+          </div>
+        </Form>
       </div>
 
-      <Form method="post" onSubmit={handleSubmit}>
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>編輯評分標準</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="name">評分標準名稱</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="例如：流程圖評分"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">描述</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="描述這個評分標準的用途和適用場景"
-                  required
-                />
-              </div>
-            </CardContent>
-          </Card>
+      {/* Preview Modal */}
+      <RubricPreview
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        rubricData={rubricData}
+      />
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>評分項目</CardTitle>
-              <Button type="button" variant="outline" onClick={addCriteria}>
-                <Plus className="mr-2 h-4 w-4" /> 新增項目
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {criterias.length === 0 ? (
-                  <div className="text-center py-4 text-muted-foreground">尚未新增評分項目，請點擊「新增項目」按鈕</div>
-                ) : (
-                  criterias.map((criteria, index) => (
-                    <div key={criteria.id} className="border rounded-lg p-4 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-medium">項目 {index + 1}</h3>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removeCriteria(criteria.id)}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                      <div>
-                        <Label htmlFor={`name-${criteria.id}`}>名稱</Label>
-                        <Input
-                          id={`name-${criteria.id}`}
-                          value={criteria.name}
-                          onChange={(e) => updateCriteria(criteria.id, 'name', e.target.value)}
-                          placeholder="例如：流程圖評分"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor={`description-${criteria.id}`}>描述</Label>
-                        <Textarea
-                          id={`description-${criteria.id}`}
-                          value={criteria.description}
-                          onChange={(e) => updateCriteria(criteria.id, 'description', e.target.value)}
-                          placeholder="描述這個評分條目評估的具體內容"
-                          className="min-h-[200px]"
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label>評分等級</Label>
-                        <div className="mt-2 space-y-2">
-                          {criteria.levels.map((level, idx) => (
-                            <div key={idx} className="flex items-center space-x-2 p-2 border rounded-md">
-                              <div className="flex-shrink-0 w-16">
-                                <Input
-                                  type="number"
-                                  value={level.score}
-                                  onChange={(e) => {
-                                    const newLevels = [...criteria.levels];
-                                    newLevels[idx] = {
-                                      ...newLevels[idx],
-                                      score: parseInt(e.target.value) || 0,
-                                    };
-                                    updateCriteria(criteria.id, 'levels', newLevels);
-                                  }}
-                                  className="w-full text-center"
-                                />
-                              </div>
-                              <Textarea
-                                value={level.description}
-                                onChange={(e) => {
-                                  const newLevels = [...criteria.levels];
-                                  newLevels[idx] = {
-                                    ...newLevels[idx],
-                                    description: e.target.value,
-                                  };
-                                  updateCriteria(criteria.id, 'levels', newLevels);
-                                }}
-                                placeholder="評分等級描述"
-                                className="flex-grow min-h-[60px]"
-                              />
-                            </div>
-                          ))}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const newLevels = [...criteria.levels, { score: 0, description: '' }];
-                              updateCriteria(criteria.id, 'levels', newLevels);
-                            }}
-                          >
-                            <Plus className="h-4 w-4 mr-1" /> 添加評分等級
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
+      {/* Error Toast */}
+      {actionData?.error && (
+        <div className="fixed bottom-4 right-4 bg-destructive text-destructive-foreground px-6 py-3 rounded-lg shadow-lg z-50 max-w-md">
+          <div className="font-medium">更新失敗</div>
+          <div className="text-sm opacity-90 mt-1">{actionData.error}</div>
+        </div>
+      )}
 
-                <input type="hidden" name="criterias" value={JSON.stringify(criterias)} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {(error || actionData?.error) && <div className="text-red-500 font-medium">{error || actionData?.error}</div>}
-
-          <div className="flex justify-end">
-            <Button type="submit" disabled={criterias.length === 0}>
-              <Save className="mr-2 h-4 w-4" /> 保存評分標準
-            </Button>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-background border rounded-lg p-6 shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
+              <span>正在更新評分標準...</span>
+            </div>
           </div>
         </div>
-      </Form>
+      )}
     </div>
   );
 }

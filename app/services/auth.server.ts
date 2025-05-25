@@ -27,7 +27,12 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 }
 
 /**
- * API 金鑰驗證結果
+ * API authentication result interface
+ * @interface ApiAuthResult
+ * @property {boolean} isAuthenticated - Whether the API request is authenticated
+ * @property {string} [apiKey] - The validated API key if authenticated
+ * @property {string} [error] - Error message if authentication failed
+ * @property {string[]} [scopes] - Available scopes for the API key
  */
 export interface ApiAuthResult {
   isAuthenticated: boolean;
@@ -37,8 +42,10 @@ export interface ApiAuthResult {
 }
 
 /**
- * 驗證 API 請求
- * 支援 API 金鑰驗證 (Authorization: Bearer YOUR_API_KEY)
+ * Authenticates API requests using Bearer token authorization
+ * Supports API key validation from Authorization header
+ * @param {Request} request - The incoming HTTP request object
+ * @returns {Promise<ApiAuthResult>} Authentication result with status and details
  */
 export async function authenticateApiRequest(request: Request): Promise<ApiAuthResult> {
   try {
@@ -74,8 +81,10 @@ export async function authenticateApiRequest(request: Request): Promise<ApiAuthR
 }
 
 /**
- * 驗證 API 金鑰
- * 這裡應該根據實際情況實現與資料庫的整合
+ * Validates an API key against allowed keys from environment
+ * TODO: Integrate with database for proper API key management
+ * @param {string} apiKey - The API key to validate
+ * @returns {Promise<boolean>} Whether the API key is valid
  */
 async function validateApiKey(apiKey: string): Promise<boolean> {
   const validKeys = process.env.API_KEYS?.split(',') || ['test_api_key_1', 'test_api_key_2'];
@@ -83,13 +92,20 @@ async function validateApiKey(apiKey: string): Promise<boolean> {
 }
 
 /**
- * 獲取 API 金鑰的權限範圍
- * 這裡應該根據實際情況實現與資料庫的整合
+ * Retrieves the permission scopes for an API key
+ * TODO: Integrate with database for proper scope management
+ * @param {string} apiKey - The API key to get scopes for
+ * @returns {Promise<string[]>} Array of permission scopes
  */
 async function getApiKeyScopes(apiKey: string): Promise<string[]> {
   return ['grading:read', 'grading:write'];
 }
 
+/**
+ * Extracts user ID from session in the request
+ * @param {Request} request - The HTTP request with session data
+ * @returns {Promise<string|null>} The user ID if found, null otherwise
+ */
 export async function getUserId(request: Request) {
   const session = await getSession(request);
   const userId = session.get('userId');
@@ -97,6 +113,13 @@ export async function getUserId(request: Request) {
   return userId;
 }
 
+/**
+ * Requires authentication and returns user ID, redirects if not authenticated
+ * @param {Request} request - The HTTP request to check authentication
+ * @param {string} [redirectTo] - URL to redirect to after login (defaults to current path)
+ * @returns {Promise<string>} The authenticated user ID
+ * @throws {Response} Redirect response if not authenticated
+ */
 export async function requireUserId(request: Request, redirectTo: string = new URL(request.url).pathname) {
   const userId = await getUserId(request);
   if (!userId) {
@@ -117,6 +140,11 @@ export async function requireUserId(request: Request, redirectTo: string = new U
   return userId;
 }
 
+/**
+ * Initiates Google OAuth login flow
+ * @returns {Promise<Response>} Redirect response to Google OAuth URL
+ * @throws {Response} Redirect to login with error if OAuth not configured
+ */
 export async function googleLogin() {
   if (!oauth2Client) {
     console.warn('Google OAuth credentials not configured');
@@ -131,6 +159,12 @@ export async function googleLogin() {
   return redirect(url);
 }
 
+/**
+ * Handles Google OAuth callback and creates user session
+ * @param {Request} request - The callback request from Google OAuth
+ * @returns {Promise<Response>} Redirect response to dashboard or login with error
+ * @throws {Error} If authorization code is missing or invalid
+ */
 export async function handleGoogleCallback(request: Request) {
   if (!oauth2Client) {
     console.warn('Google OAuth credentials not configured');
@@ -180,6 +214,14 @@ export async function handleGoogleCallback(request: Request) {
   }
 }
 
+/**
+ * Registers a new user with email and password
+ * @param {LoginCredentials} credentials - User email and password
+ * @param {string} credentials.email - User email address
+ * @param {string} credentials.password - User password
+ * @returns {Promise<Response>} Redirect response to dashboard with session
+ * @throws {ApiError} If user already exists
+ */
 export async function register({ email, password }: LoginCredentials) {
   const existingUser = await db.user.findUnique({ where: { email } });
 
@@ -204,6 +246,14 @@ export async function register({ email, password }: LoginCredentials) {
   return response;
 }
 
+/**
+ * Authenticates user login with email and password
+ * @param {LoginFormValues} credentials - User login credentials
+ * @param {string} credentials.email - User email address
+ * @param {string} credentials.password - User password
+ * @returns {Promise<Response>} Redirect response to dashboard with session
+ * @throws {ApiError} If credentials are invalid
+ */
 export async function login({ email, password }: LoginFormValues) {
   const user = await db.user.findUnique({ where: { email } });
   if (!user) {
@@ -221,12 +271,22 @@ export async function login({ email, password }: LoginFormValues) {
   return response;
 }
 
+/**
+ * Creates a new user session and returns session cookie
+ * @param {string} userId - The user ID to create session for
+ * @returns {Promise<string>} Session cookie string for Set-Cookie header
+ */
 export async function createUserSession(userId: string) {
   const session = await getSession(new Request('http://localhost'));
   session.set('userId', userId);
   return commitSession(session);
 }
 
+/**
+ * Retrieves user data from session in request
+ * @param {Request} request - The HTTP request with session data
+ * @returns {Promise<Object|null>} User object with id and email, or null if not found
+ */
 export async function getUser(request: Request) {
   const session = await getSession(request);
   const userId = session.get('userId');
@@ -251,6 +311,11 @@ export async function getUser(request: Request) {
   }
 }
 
+/**
+ * Logs out user by destroying their session
+ * @param {Request} request - The HTTP request with session to destroy
+ * @returns {Promise<string>} Session destruction cookie for Set-Cookie header
+ */
 export async function logout(request: Request) {
   const session = await getSession(request);
   return destroySession(session);

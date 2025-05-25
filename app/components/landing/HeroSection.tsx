@@ -3,7 +3,6 @@ import { ArrowRight, BookOpen, GraduationCap, Users, FileText } from 'lucide-rea
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useUser } from '@/hooks/useAuth';
-import { useEffect } from 'react';
 
 const features = [
   {

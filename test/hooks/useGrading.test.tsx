@@ -101,6 +101,7 @@ describe('useGrading', () => {
       result.current.gradeWithRubric({
         fileKey: 'test-file',
         rubricId: 'test-rubric',
+        gradingId: 'test-grading-id',
       });
     });
 
@@ -162,6 +163,7 @@ describe('useGrading', () => {
         result.current.gradeWithRubric({
           fileKey: 'test-file',
           rubricId: 'test-rubric',
+          gradingId: 'test-grading-id',
         });
       } catch (e) {
         // Mutations don't throw to the caller of mutate by default, they set error state
@@ -194,6 +196,7 @@ describe('useGrading', () => {
       result.current.gradeWithRubric({
         fileKey: 'test-file',
         rubricId: 'test-rubric',
+        gradingId: 'test-grading-id',
       });
     });
 

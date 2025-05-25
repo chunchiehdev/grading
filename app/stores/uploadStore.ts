@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer'
 import type { FileWithStatus } from '@/types/files';
 
+/**
+ * Interface for upload store state management
+ * @interface UploadState
+ */
 interface UploadState {
   files: Record<string, FileWithStatus>; 
   uploadId: string | null;
@@ -15,6 +19,10 @@ interface UploadState {
   clearFiles: () => void;
 }
 
+/**
+ * Zustand store for managing file upload state with Immer for immutable updates
+ * Handles file upload progress, status tracking, and upload session management
+ */
 export const useUploadStore = create<UploadState>()(
   immer((set) => ({
     files: {},

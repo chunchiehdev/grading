@@ -5,7 +5,10 @@ import logger from '@/utils/logger';
 
 
 /**
- * get new id
+ * API endpoint to generate a new upload session ID
+ * @param {Object} params - Route parameters
+ * @param {Request} params.request - HTTP request object
+ * @returns {Promise<Response>} JSON response with unique upload ID
  */
 export async function action({ request }: { request: Request }) {
   return withErrorHandler(async () => {
@@ -30,7 +33,8 @@ export async function action({ request }: { request: Request }) {
 }
 
 /**
- *
+ * API endpoint loader that rejects GET requests for upload ID creation
+ * @returns {Promise<Response>} JSON error response indicating POST method required
  */
 export async function loader() {
   return Response.json(

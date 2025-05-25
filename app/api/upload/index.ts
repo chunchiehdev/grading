@@ -1,6 +1,12 @@
 import { uploadToStorage } from '@/services/storage.server';
 import { UploadProgressService } from '@/services/progress.server';
 
+/**
+ * API endpoint loader that rejects GET requests for file uploads
+ * @param {Object} params - Route parameters
+ * @param {Request} params.request - HTTP request object
+ * @returns {Promise<Response>} JSON error response indicating POST method required
+ */
 export async function loader({ request }: { request: Request }) {
   return Response.json(
     {
@@ -11,7 +17,12 @@ export async function loader({ request }: { request: Request }) {
   );
 }
 
-// Create a temporary implementation until the proper multipart handling is set up
+/**
+ * Temporary multipart form data parser until proper implementation
+ * @param {Request} request - HTTP request with multipart form data
+ * @param {any} uploadHandler - Upload handler function (unused in current implementation)
+ * @returns {Promise<FormData>} Parsed form data
+ */
 async function parseMultipartFormData(request: Request, uploadHandler: any) {
   // This is a simplified version that doesn't track progress
   // You'll need to implement a proper multipart parser
@@ -19,6 +30,11 @@ async function parseMultipartFormData(request: Request, uploadHandler: any) {
   return formData;
 }
 
+/**
+ * Creates an upload handler for processing file uploads with progress tracking
+ * @param {string} uploadId - Unique upload session identifier
+ * @returns {Function} Upload handler function for processing file chunks
+ */
 function createUploadHandler(uploadId: string) {
   return async ({ name, filename, data, contentType }: any) => {
     if (name !== 'files' || !filename) {
@@ -80,6 +96,12 @@ function createUploadHandler(uploadId: string) {
   };
 }
 
+/**
+ * API endpoint to handle file uploads with progress tracking
+ * @param {Object} params - Route parameters
+ * @param {Request} params.request - HTTP request with multipart form data containing files and uploadId
+ * @returns {Promise<Response>} JSON response with upload results or error
+ */
 export async function action({ request }: { request: Request }) {
   try {
     let uploadId: string;

@@ -6,14 +6,40 @@ import { ServerRouter } from 'react-router';
 import { isbot } from 'isbot';
 import type { RenderToPipeableStreamOptions } from 'react-dom/server';
 import { renderToPipeableStream } from 'react-dom/server';
+import { initializeMCP, cleanupMCP } from '@/middleware/mcp.server';
+import { printMCPConfigSummary } from '@/config/mcp';
 
-export const streamTimeout = 5_000;
+const ABORT_DELAY = 5_000;
+
+// Initialize MCP when server starts
+try {
+  printMCPConfigSummary();
+  initializeMCP();
+} catch (error) {
+  console.error('Failed to initialize MCP:', error);
+}
+
+// Cleanup MCP on process exit
+process.on('SIGINT', () => {
+  console.log('Received SIGINT, cleaning up MCP...');
+  cleanupMCP();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, cleaning up MCP...');
+  cleanupMCP();
+  process.exit(0);
+});
 
 export default function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
   routerContext: EntryContext,
+  // This is ignored so we can keep it in the template for visibility.  Feel
+  // free to delete this parameter in your app if you're not using it!
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   loadContext: AppLoadContext
   // If you have middleware enabled:
   // loadContext: unstable_RouterContextProvider
@@ -25,41 +51,44 @@ export default function handleRequest(
     // Ensure requests from bots and SPA Mode renders wait for all content to load before responding
     // https://react.dev/reference/react-dom/server/renderToPipeableStream#waiting-for-all-content-to-load-for-crawlers-and-static-generation
     const readyOption: keyof RenderToPipeableStreamOptions =
-      (userAgent && isbot(userAgent)) || routerContext.isSpaMode ? 'onAllReady' : 'onShellReady';
+      (userAgent && isbot(userAgent)) || routerContext.isSpaMode
+        ? 'onAllReady'
+        : 'onShellReady';
 
-    const { pipe, abort } = renderToPipeableStream(<ServerRouter context={routerContext} url={request.url} />, {
-      [readyOption]() {
-        shellRendered = true;
-        const body = new PassThrough();
-        const stream = createReadableStreamFromReadable(body);
+    const { pipe, abort } = renderToPipeableStream(
+      <ServerRouter context={routerContext} url={request.url} />,
+      {
+        [readyOption]() {
+          shellRendered = true;
+          const body = new PassThrough();
+          const stream = createReadableStreamFromReadable(body);
 
-        responseHeaders.set('Content-Type', 'text/html');
+          responseHeaders.set('Content-Type', 'text/html');
 
-        resolve(
-          new Response(stream, {
-            headers: responseHeaders,
-            status: responseStatusCode,
-          })
-        );
+          resolve(
+            new Response(stream, {
+              headers: responseHeaders,
+              status: responseStatusCode,
+            })
+          );
 
-        pipe(body);
-      },
-      onShellError(error: unknown) {
-        reject(error);
-      },
-      onError(error: unknown) {
-        responseStatusCode = 500;
-        // Log streaming rendering errors from inside the shell.  Don't log
-        // errors encountered during initial shell rendering since they'll
-        // reject and get logged in handleDocumentRequest.
-        if (shellRendered) {
-          console.error(error);
-        }
-      },
-    });
+          pipe(body);
+        },
+        onShellError(error: unknown) {
+          reject(error);
+        },
+        onError(error: unknown) {
+          responseStatusCode = 500;
+          // Log streaming rendering errors from inside the shell.  Don't log
+          // errors encountered during initial shell rendering since they'll
+          // reject and get logged in handleDocumentRequest.
+          if (shellRendered) {
+            console.error(error);
+          }
+        },
+      }
+    );
 
-    // Abort the rendering stream after the `streamTimeout` so it has time to
-    // flush down the rejected boundaries
-    setTimeout(abort, streamTimeout + 1000);
+    setTimeout(abort, ABORT_DELAY);
   });
 }

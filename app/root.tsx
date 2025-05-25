@@ -33,7 +33,7 @@ type LoaderData = {
 
 export const links = () => [
   { rel: 'icon', type: 'image/x-icon', href: '/rubber-duck.ico' },
-  { rel: 'stylesheet', href: './tailwind.css' },
+  { rel: 'stylesheet', href: '/tailwind.css' },
   { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
   {
     rel: 'preconnect',
@@ -106,7 +106,7 @@ function Layout() {
 
   return (
     <div className="relative flex min-h-screen w-full ">
-      <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+      {/* <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} /> */}
       <div
         className={cn(
           'flex-1 transition-all duration-300 ease-in-out',
@@ -115,7 +115,7 @@ function Layout() {
         )}
       >
         <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
-        <main className="p-8">
+        <main className="p-8 flex justify-center items-center">
           <Outlet />
         </main>
       </div>

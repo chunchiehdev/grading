@@ -4,12 +4,23 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { GradingResultData } from '@/types/grading';
 import type { UploadedFileInfo } from '@/types/files';
 
+/**
+ * Interface for grading progress tracking state
+ * @interface GradingProgressState
+ * @property {number} progress - Completion percentage (0-100)
+ * @property {'check'|'grade'|'verify'|'completed'|'error'} phase - Current grading phase
+ * @property {string} message - Human-readable status message
+ */
 export interface GradingProgressState {
   progress: number;
   phase: 'check' | 'grade' | 'verify' | 'completed' | 'error';
   message: string;
 }
 
+/**
+ * Interface for the complete grading store state
+ * @interface GradingState
+ */
 interface GradingState {
   isGrading: boolean;
   gradingProgress: GradingProgressState;
@@ -37,6 +48,10 @@ interface GradingState {
 
 const DEFAULT_GRADING_PROGRESS: GradingProgressState = { progress: 0, phase: 'check', message: '' };
 
+/**
+ * Zustand store for managing grading state with persistence
+ * Handles grading progress, results, file uploads, and rubric selection
+ */
 export const useGradingStore = create<GradingState>()(
   persist(
     immer((set, get) => ({
@@ -116,8 +131,11 @@ export const useGradingStore = create<GradingState>()(
   )
 ); 
 
-// Helper to check if the store has been hydrated
+/**
+ * Helper hook to check if the store has been hydrated from localStorage
+ * @returns {boolean} Whether the store has completed hydration
+ */
 export const useHasHydrated = () => {
   const { _hasHydrated } = useGradingStore();
   return _hasHydrated;
-}; 
+};

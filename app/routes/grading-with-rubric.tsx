@@ -4,7 +4,6 @@ import { useLoaderData } from 'react-router';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -150,12 +149,14 @@ export default function GradingWithRubricRoute() {
     return (
       <div className="flex flex-col items-center w-full">
         <div className="container py-8 max-w-5xl w-full">
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            <AlertDescription>
-              很抱歉，評分資料出現問題。請重新上傳檔案並進行評分。
-            </AlertDescription>
-          </Alert>
+          <div className="mb-6 p-4 border border-red-300 bg-red-50 rounded-md">
+            <div className="flex items-center">
+              <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
+              <p className="text-red-800">
+                很抱歉，評分資料出現問題。請重新上傳檔案並進行評分。
+              </p>
+            </div>
+          </div>
           <Button onClick={() => {
             resetUI();
             resetGrading();
@@ -247,10 +248,12 @@ export default function GradingWithRubricRoute() {
                     icon={<AlertCircle className="h-10 w-10" />}
                   />
                 ) : error ? (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
+                  <div className="p-4 border border-red-300 bg-red-50 rounded-md">
+                    <div className="flex items-center">
+                      <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
+                      <p className="text-red-800">{error}</p>
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div>
@@ -395,10 +398,12 @@ export default function GradingWithRubricRoute() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12">
-                    <Alert className="mb-4">
-                      <AlertCircle className="h-4 w-4 mr-2" />
-                      <AlertDescription>正在加載評分結果，請稍候...</AlertDescription>
-                    </Alert>
+                    <div className="mb-4 p-4 border border-blue-300 bg-blue-50 rounded-md">
+                      <div className="flex items-center">
+                        <AlertCircle className="h-4 w-4 mr-2 text-blue-600" />
+                        <p className="text-blue-800">正在加載評分結果，請稍候...</p>
+                      </div>
+                    </div>
                     <Button
                       variant="outline"
                       onClick={() => {

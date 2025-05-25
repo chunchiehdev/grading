@@ -2,6 +2,13 @@
 import { uploadToStorage } from '@/services/storage.server';
 import { UploadProgressService } from '@/services/progress.server';
 
+/**
+ * Uploads multiple files to storage with progress tracking
+ * @param {File[]} files - Array of files to upload
+ * @param {string} uploadId - Unique upload session ID for progress tracking
+ * @returns {Promise<Object[]>} Array of upload results with file metadata
+ * @throws {Error} If any file upload fails
+ */
 export async function uploadFiles(files: File[], uploadId: string) {
   const results = [];
 

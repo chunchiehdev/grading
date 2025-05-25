@@ -28,6 +28,12 @@ export interface ProcessedDocument {
   content: string;
   contentType: string;
   error?: string;
+  metadata?: {
+    processedBy?: 'MCP' | 'API';
+    mcpResponse?: any;
+    apiResponse?: any;
+    [key: string]: any;
+  };
 }
 
 export interface DocumentSummary {

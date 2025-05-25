@@ -2,10 +2,22 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 
+/**
+ * Theme options for the application
+ * @typedef {'light'|'dark'|'system'} Theme
+ */
 type Theme = 'light' | 'dark' | 'system';
 
+/**
+ * Grading workflow step enumeration
+ * @typedef {'upload'|'select-rubric'|'grading'|'result'} GradingStep
+ */
 export type GradingStep = 'upload' | 'select-rubric' | 'grading' | 'result';
 
+/**
+ * Interface for UI store state management
+ * @interface UiState
+ */
 interface UiState {
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
@@ -26,6 +38,10 @@ interface UiState {
   resetUI: () => void;
 }
 
+/**
+ * Applies the selected theme to the document root element
+ * @param {Theme} theme - The theme to apply ('light', 'dark', or 'system')
+ */
 function applyTheme(theme: Theme) {
   if (typeof window === 'undefined') return;
 
@@ -37,6 +53,10 @@ function applyTheme(theme: Theme) {
   root.classList.add(effectiveTheme);
 }
 
+/**
+ * Zustand store for managing UI state with persistence
+ * Handles sidebar, theme, navigation, and grading workflow state
+ */
 export const useUiStore = create<UiState>()(
   persist(
     immer((set, get) => ({
@@ -89,7 +109,6 @@ export const useUiStore = create<UiState>()(
     {
       name: 'ui-storage', 
       storage: createJSONStorage(() => localStorage),
-      
       
       onRehydrateStorage: () => (state) => {
         if (state && state.theme) {

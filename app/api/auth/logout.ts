@@ -1,9 +1,19 @@
 import { logout } from '@/services/auth.server';
 
+/**
+ * API endpoint to handle logout status check
+ * @returns {Promise<Response>} JSON response indicating success
+ */
 export async function loader() {
   return Response.json({ success: true });
 }
 
+/**
+ * API endpoint to perform user logout and destroy session
+ * @param {Object} params - Route parameters
+ * @param {Request} params.request - HTTP request object with session
+ * @returns {Promise<Response>} JSON response with session destruction cookie
+ */
 export async function action({ request }: { request: Request }) {
   const cookie = await logout(request);
 

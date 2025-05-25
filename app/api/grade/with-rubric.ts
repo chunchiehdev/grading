@@ -1,6 +1,12 @@
 import { GradingProgressService } from '@/services/grading-progress.server';
 import { gradeDocument } from '@/services/rubric.server';
 
+/**
+ * API endpoint to grade a document using a specific rubric
+ * @param {Object} params - Route parameters
+ * @param {Request} params.request - HTTP request with form data containing fileKey, rubricId, and gradingId
+ * @returns {Promise<Response>} JSON response with grading results or error
+ */
 export async function action({ request }: { request: Request }) {
   try {
     const formData = await request.formData();

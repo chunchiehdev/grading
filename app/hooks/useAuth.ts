@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import logger from '@/utils/logger';
 
+/**
+ * User interface definition for authentication
+ * @interface User
+ * @property {string} id - Unique user identifier
+ * @property {string} email - User email address
+ * @property {string} [name] - Optional user display name
+ */
 interface User {
   id: string;
   email: string;
@@ -9,8 +16,9 @@ interface User {
 }
 
 /**
- * Use React Query to fetch user data
- * focus on the user data structure
+ * Custom hook to fetch and manage user authentication state
+ * Uses React Query for caching and automatic refetching
+ * @returns {UseQueryResult<User|null>} Query result with user data or null if not authenticated
  */
 export function useUser() {
   return useQuery<User | null>({
@@ -57,7 +65,8 @@ export function useUser() {
 }
 
 /**
- * use React Query to login
+ * Custom hook for user login functionality
+ * @returns {UseMutationResult} Mutation result with login function and states
  */
 export function useLogin() {
   const queryClient = useQueryClient();
@@ -91,7 +100,8 @@ export function useLogin() {
 }
 
 /**
- * use React Query to logout 
+ * Custom hook for user logout functionality with automatic cache clearing
+ * @returns {UseMutationResult} Mutation result with logout function and states
  */
 export function useLogout() {
   const queryClient = useQueryClient();
