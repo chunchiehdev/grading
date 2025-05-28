@@ -29,9 +29,11 @@ export interface ProcessedDocument {
   contentType: string;
   error?: string;
   metadata?: {
-    processedBy?: 'MCP' | 'API';
+    processedBy?: 'MCP' | 'API' | 'PDF_Parser_API';
     mcpResponse?: any;
     apiResponse?: any;
+    taskId?: string;
+    userId?: string;
     [key: string]: any;
   };
 }

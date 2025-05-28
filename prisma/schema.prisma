@@ -53,7 +53,7 @@ model RubricCriteria {
   id          String @id @default(uuid())
   name        String
   description String
-  levels      Json // 存储评分等级 [{score: number, description: string}]
+  levels      Json 
   rubricId    String
   rubric      Rubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
 

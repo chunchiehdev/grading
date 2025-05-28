@@ -27,81 +27,6 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 }
 
 /**
- * API authentication result interface
- * @interface ApiAuthResult
- * @property {boolean} isAuthenticated - Whether the API request is authenticated
- * @property {string} [apiKey] - The validated API key if authenticated
- * @property {string} [error] - Error message if authentication failed
- * @property {string[]} [scopes] - Available scopes for the API key
- */
-export interface ApiAuthResult {
-  isAuthenticated: boolean;
-  apiKey?: string;
-  error?: string;
-  scopes?: string[];
-}
-
-/**
- * Authenticates API requests using Bearer token authorization
- * Supports API key validation from Authorization header
- * @param {Request} request - The incoming HTTP request object
- * @returns {Promise<ApiAuthResult>} Authentication result with status and details
- */
-export async function authenticateApiRequest(request: Request): Promise<ApiAuthResult> {
-  try {
-    const authHeader = request.headers.get('Authorization');
-    if (!authHeader) {
-      return { isAuthenticated: false, error: '缺少授權標頭' };
-    }
-
-    const [authType, apiKey] = authHeader.split(' ');
-    if (authType.toLowerCase() !== 'bearer' || !apiKey) {
-      return { isAuthenticated: false, error: '無效的授權格式' };
-    }
-
-    const isValid = await validateApiKey(apiKey);
-    if (!isValid) {
-      return { isAuthenticated: false, error: '無效的 API 金鑰' };
-    }
-
-    const scopes = await getApiKeyScopes(apiKey);
-
-    return {
-      isAuthenticated: true,
-      apiKey,
-      scopes,
-    };
-  } catch (error) {
-    console.error('API 授權錯誤:', error);
-    return {
-      isAuthenticated: false,
-      error: error instanceof Error ? error.message : '授權處理過程中發生錯誤',
-    };
-  }
-}
-
-/**
- * Validates an API key against allowed keys from environment
- * TODO: Integrate with database for proper API key management
- * @param {string} apiKey - The API key to validate
- * @returns {Promise<boolean>} Whether the API key is valid
- */
-async function validateApiKey(apiKey: string): Promise<boolean> {
-  const validKeys = process.env.API_KEYS?.split(',') || ['test_api_key_1', 'test_api_key_2'];
-  return validKeys.includes(apiKey);
-}
-
-/**
- * Retrieves the permission scopes for an API key
- * TODO: Integrate with database for proper scope management
- * @param {string} apiKey - The API key to get scopes for
- * @returns {Promise<string[]>} Array of permission scopes
- */
-async function getApiKeyScopes(apiKey: string): Promise<string[]> {
-  return ['grading:read', 'grading:write'];
-}
-
-/**
  * Extracts user ID from session in the request
  * @param {Request} request - The HTTP request with session data
  * @returns {Promise<string|null>} The user ID if found, null otherwise
@@ -110,33 +35,6 @@ export async function getUserId(request: Request) {
   const session = await getSession(request);
   const userId = session.get('userId');
   if (!userId || typeof userId !== 'string') return null;
-  return userId;
-}
-
-/**
- * Requires authentication and returns user ID, redirects if not authenticated
- * @param {Request} request - The HTTP request to check authentication
- * @param {string} [redirectTo] - URL to redirect to after login (defaults to current path)
- * @returns {Promise<string>} The authenticated user ID
- * @throws {Response} Redirect response if not authenticated
- */
-export async function requireUserId(request: Request, redirectTo: string = new URL(request.url).pathname) {
-  const userId = await getUserId(request);
-  if (!userId) {
-    const searchParams = new URLSearchParams([['redirectTo', redirectTo]]);
-    throw redirect(`/auth/login?${searchParams}`);
-  }
-
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { id: true },
-  });
-
-  if (!user) {
-    const searchParams = new URLSearchParams([['redirectTo', redirectTo]]);
-    throw redirect(`/auth/login?${searchParams}`);
-  }
-
   return userId;
 }
 

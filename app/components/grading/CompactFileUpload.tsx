@@ -1,5 +1,5 @@
 // src/components/CompactFileUpload.tsx
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -25,14 +25,14 @@ interface FileUploadProps {
   onError?: (error: string) => void;
 }
 
-export const CompactFileUpload: React.FC<FileUploadProps> = ({
+export const CompactFileUpload = ({
   maxFiles,
   maxFileSize = 100 * 1024 * 1024,
   acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt'],
   onFilesChange,
   onUploadComplete,
   onError,
-}) => {
+}: FileUploadProps) => {
   const { 
     files: uploadedFiles, 
     uploadFiles, 
@@ -43,7 +43,6 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Validate file function
   const validateFile = useCallback((file: File): string | null => {
     if (file.size > maxFileSize) {
       return `檔案 ${file.name} 超過大小限制 ${formatFileSize(maxFileSize)}`;
@@ -84,10 +83,10 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
   }, [validateFile, uploadFiles, onFilesChange, onError, uploadedFiles.length, maxFiles]);
 
   // Handle drag events
-  const handleDrag = useCallback((e: React.DragEvent) => {
+  const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-  }, []);
+  };
 
   // Handle drop event
   const handleDrop = useCallback(async (e: React.DragEvent) => {
@@ -99,17 +98,14 @@ export const CompactFileUpload: React.FC<FileUploadProps> = ({
     await handleFiles(droppedFiles);
   }, [handleFiles]);
 
-  // Handle file deletion
   const handleRemoveFile = useCallback((fileData: any) => {
     if (fileData.key) {
       deleteFile(fileData.key);
     }
   }, [deleteFile]);
 
-  // Set error from uploadError
-  React.useEffect(() => {
+  useEffect(() => {
     if (uploadError) {
-      setError(uploadError);
       onError?.(uploadError);
     }
   }, [uploadError, onError]);

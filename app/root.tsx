@@ -72,10 +72,8 @@ export async function loader({ request }: { request: Request }) {
 }
 
 function Document({ children }: { children: React.ReactNode }) {
-  const { theme } = useUiStore();
-
   return (
-    <html lang="zh-TW" suppressHydrationWarning className={theme}>
+    <html lang="zh-TW" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
+import { useEffect, useState } from 'react';
 
 /**
  * Theme options for the application
@@ -57,7 +58,7 @@ function applyTheme(theme: Theme) {
  * Zustand store for managing UI state with persistence
  * Handles sidebar, theme, navigation, and grading workflow state
  */
-export const useUiStore = create<UiState>()(
+const store = create<UiState>()(
   persist(
     immer((set, get) => ({
       sidebarCollapsed: true as boolean,
@@ -118,3 +119,36 @@ export const useUiStore = create<UiState>()(
     }
   )
 );
+
+/**
+ * Safe hook that waits for hydration before accessing store
+ */
+export const useUiStore = () => {
+  const [hydrated, setHydrated] = useState(false);
+  
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  const state = store();
+  
+  if (!hydrated) {
+    return {
+      sidebarCollapsed: true,
+      theme: 'system' as Theme,
+      currentStep: 'upload' as GradingStep,
+      canProceed: false,
+      lastVisitedPage: null,
+      toggleSidebar: () => {},
+      setSidebarCollapsed: () => {},
+      setTheme: () => {},
+      toggleTheme: () => {},
+      setLastVisitedPage: () => {},
+      setStep: () => {},
+      setCanProceed: () => {},
+      resetUI: () => {},
+    };
+  }
+  
+  return state;
+};

@@ -9,7 +9,6 @@ import {
   type Level
 } from '@/schemas/rubric';
 
-// 重新導出類型以保持向後兼容
 export type { Level, UICriterion, UICategory, UIRubricData };
 
 /**

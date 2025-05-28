@@ -39,9 +39,6 @@ export default [
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
 
-  // MCP API routes
-  route('/api/mcp/health', './api/mcp/health.ts'),
-  
   // Other routes
   route('/grading-history', './routes/grading-history.tsx'),
   route('/health', './routes/health.tsx'),

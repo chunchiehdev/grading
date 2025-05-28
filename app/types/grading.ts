@@ -39,15 +39,21 @@ export interface Rubric {
 export interface GradingResultData {
   score: number;
   imageUnderstanding?: string;
+  imageUnderstandingMarkdown?: string;
   analysis: string;
+  analysisMarkdown?: string;
   criteriaScores: {
     name: string;
     score: number;
     comments: string;
+    commentsMarkdown?: string;
   }[];
   strengths: string[];
+  strengthsMarkdown?: string[];
   improvements: string[];
+  improvementsMarkdown?: string[];
   overallSuggestions?: string;
+  overallSuggestionsMarkdown?: string;
   createdAt: Date | string;
   gradingDuration?: number;
 }

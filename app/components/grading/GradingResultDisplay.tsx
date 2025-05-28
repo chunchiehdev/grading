@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
 import { Star, File, ArrowUpDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyGradingState } from './EmptyGradingState';
+import { SmartContent, Markdown, PlainTextFallback } from '@/components/ui/markdown';
 import type { GradingResultData } from '@/types/grading';
 
 interface GradingResultDisplayProps {
@@ -13,28 +13,42 @@ interface GradingResultDisplayProps {
   onRetry?: () => void;
 }
 
-// Helper to handle arrays or convert strings to arrays
 const ensureArray = (items: string[] | string | undefined): string[] => {
   if (!items) return [];
   if (typeof items === 'string') return [items];
   return items;
 };
 
-// Helper function for tags
-const TagsList = ({ items, variant }: { items: string[] | string; variant: 'strength' | 'improvement' }) => {
+const TagsList = ({ 
+  items, 
+  markdownItems, 
+  variant 
+}: { 
+  items: string[] | string; 
+  markdownItems?: string[] | string;
+  variant: 'strength' | 'improvement';
+}) => {
   const tagItems = ensureArray(items);
+  const markdownTagItems = markdownItems ? ensureArray(markdownItems) : [];
+  
   return (
     <ul className="space-y-2">
-      {tagItems.map((item, index) => (
-        <li key={index} className="text-sm">
-          {item}
-        </li>
-      ))}
+      {tagItems.map((item, index) => {
+        const markdownItem = markdownTagItems[index];
+        return (
+          <li key={index} className="text-sm">
+            <SmartContent
+              markdown={markdownItem}
+              plainText={item}
+              className="prose-p:mb-0 prose-li:mb-0"
+            />
+          </li>
+        );
+      })}
     </ul>
   );
 };
 
-// 顯示評分分數的組件
 const ScoreCard = ({ score }: { score: number }) => (
   <Card className="mb-4">
     <CardContent className="pt-6 text-center">
@@ -50,7 +64,6 @@ const ScoreCard = ({ score }: { score: number }) => (
   </Card>
 );
 
-// 顯示評分標準詳情的組件
 const CriteriaDetails = ({ criteriaScores }: { criteriaScores?: GradingResultData['criteriaScores'] }) => {
   if (!criteriaScores || criteriaScores.length === 0) return null;
 
@@ -67,7 +80,11 @@ const CriteriaDetails = ({ criteriaScores }: { criteriaScores?: GradingResultDat
             </div>
           </CardHeader>
           <CardContent className="pt-4 text-sm">
-            <p>{criteria.comments}</p>
+            <SmartContent
+              markdown={criteria.commentsMarkdown}
+              plainText={criteria.comments}
+              className="prose-p:mb-2"
+            />
           </CardContent>
         </Card>
       ))}
@@ -75,31 +92,23 @@ const CriteriaDetails = ({ criteriaScores }: { criteriaScores?: GradingResultDat
   );
 };
 
-// 分析內容顯示
-const AnalysisSection = ({ analysis, imageUnderstanding }: { analysis?: string; imageUnderstanding?: string }) => {
-  if (!analysis && !imageUnderstanding) return null;
-
-  // 轉換圖片理解部分的格式
-  const formattedImageUnderstanding = imageUnderstanding
-    ? imageUnderstanding.split('\n').map((para, i) => (
-        <p key={`img-${i}`} className={i > 0 ? 'mt-4' : ''}>
-          {para}
-        </p>
-      ))
-    : null;
-
-  // 轉換分析部分的格式
-  const formattedAnalysis = analysis
-    ? analysis.split('\n').map((para, i) => (
-        <p key={`analysis-${i}`} className={i > 0 ? 'mt-4' : ''}>
-          {para}
-        </p>
-      ))
-    : [];
+const AnalysisSection = ({ 
+  analysis, 
+  analysisMarkdown,
+  imageUnderstanding, 
+  imageUnderstandingMarkdown 
+}: { 
+  analysis?: string; 
+  analysisMarkdown?: string;
+  imageUnderstanding?: string;
+  imageUnderstandingMarkdown?: string;
+}) => {
+  if (!analysis && !imageUnderstanding && !analysisMarkdown && !imageUnderstandingMarkdown) return null;
 
   return (
-    <div className="mt-4 prose prose-slate max-w-none">
-      {formattedImageUnderstanding && (
+    <div className="mt-4">
+      {/* Image Understanding Section */}
+      {(imageUnderstanding || imageUnderstandingMarkdown) && (
         <div className="mb-6 pb-6 border-b">
           <h3 className="text-lg font-semibold mb-4 flex items-center text-blue-700">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
@@ -112,11 +121,21 @@ const AnalysisSection = ({ analysis, imageUnderstanding }: { analysis?: string; 
             圖片分析理解
           </h3>
           <div className="pl-4 border-l-4 border-blue-200 py-2 bg-blue-50 rounded-sm">
-            {formattedImageUnderstanding}
+            <SmartContent
+              markdown={imageUnderstandingMarkdown}
+              plainText={imageUnderstanding || ''}
+            />
           </div>
         </div>
       )}
-      {formattedAnalysis.length > 0 && formattedAnalysis}
+      
+      {/* Main Analysis Section */}
+      {(analysis || analysisMarkdown) && (
+        <SmartContent
+          markdown={analysisMarkdown}
+          plainText={analysis || ''}
+        />
+      )}
     </div>
   );
 };
@@ -131,11 +150,16 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
   const safeResult = {
     score: result.score || 0,
     analysis: result.analysis || '',
+    analysisMarkdown: result.analysisMarkdown,
     criteriaScores: result.criteriaScores || [],
     strengths: ensureArray(result.strengths),
+    strengthsMarkdown: result.strengthsMarkdown,
     improvements: ensureArray(result.improvements),
+    improvementsMarkdown: result.improvementsMarkdown,
     imageUnderstanding: result.imageUnderstanding,
+    imageUnderstandingMarkdown: result.imageUnderstandingMarkdown,
     overallSuggestions: result.overallSuggestions,
+    overallSuggestionsMarkdown: result.overallSuggestionsMarkdown,
     createdAt: result.createdAt || new Date(),
     gradingDuration: result.gradingDuration
   };
@@ -179,7 +203,11 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <TagsList items={safeResult.strengths} variant="strength" />
+                <TagsList 
+                  items={safeResult.strengths} 
+                  markdownItems={safeResult.strengthsMarkdown}
+                  variant="strength" 
+                />
               </CardContent>
             </Card>
           )}
@@ -194,7 +222,11 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <TagsList items={safeResult.improvements} variant="improvement" />
+                <TagsList 
+                  items={safeResult.improvements} 
+                  markdownItems={safeResult.improvementsMarkdown}
+                  variant="improvement" 
+                />
               </CardContent>
             </Card>
           )}
@@ -213,13 +245,22 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                   <CardTitle>評分分析</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <AnalysisSection analysis={safeResult.analysis} imageUnderstanding={safeResult.imageUnderstanding} />
+                  <AnalysisSection 
+                    analysis={safeResult.analysis} 
+                    analysisMarkdown={safeResult.analysisMarkdown}
+                    imageUnderstanding={safeResult.imageUnderstanding}
+                    imageUnderstandingMarkdown={safeResult.imageUnderstandingMarkdown}
+                  />
 
                   {/* 整體建議 */}
-                  {safeResult.overallSuggestions && (
+                  {(safeResult.overallSuggestions || safeResult.overallSuggestionsMarkdown) && (
                     <div className="mt-6 pt-6 border-t">
                       <h3 className="font-medium mb-2">整體建議</h3>
-                      <p>{safeResult.overallSuggestions}</p>
+                      <SmartContent
+                        markdown={safeResult.overallSuggestionsMarkdown}
+                        plainText={safeResult.overallSuggestions || ''}
+                        className="prose-p:mb-2"
+                      />
                     </div>
                   )}
                 </CardContent>
@@ -239,8 +280,14 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                   {(!safeResult.criteriaScores || safeResult.criteriaScores.length === 0) && (
                     <div className="text-center py-8">
                       <p className="text-lg text-muted-foreground">總評分: {safeResult.score} 分</p>
-                      {safeResult.overallSuggestions && (
-                        <p className="mt-4 max-w-md mx-auto">{safeResult.overallSuggestions}</p>
+                      {(safeResult.overallSuggestions || safeResult.overallSuggestionsMarkdown) && (
+                        <div className="mt-4 max-w-md mx-auto">
+                          <SmartContent
+                            markdown={safeResult.overallSuggestionsMarkdown}
+                            plainText={safeResult.overallSuggestions || ''}
+                            className="prose-p:mb-2"
+                          />
+                        </div>
                       )}
                     </div>
                   )}

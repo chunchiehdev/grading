@@ -26,12 +26,14 @@ export type FileProgress = {
  */
 class ProgressStore {
   /**
-   * Generates Redis key for upload progress storage
-   * @param {string} uploadId - Unique upload session identifier
+   * Generates Redis key for upload progress storage with user isolation
+   * @param {string} uploadId - Unique upload session identifier (format: userId-uuid)
    * @returns {string} Redis key for the upload progress
    */
   static getKey(uploadId: string): string {
-    return `${REDIS_KEYS.UPLOAD_PROGRESS_PREFIX}${uploadId}`;
+    // Extract userId from uploadId for better key structure
+    const [userId] = uploadId.split('-');
+    return `${REDIS_KEYS.UPLOAD_PROGRESS_PREFIX}${userId}:${uploadId}`;
   }
   
   /**
@@ -59,6 +61,16 @@ class ProgressStore {
     );
   }
 
+  /**
+   * Get all upload sessions for a specific user
+   * @param {string} userId - User identifier
+   * @returns {Promise<string[]>} Array of uploadIds for the user
+   */
+  static async getUserUploads(userId: string): Promise<string[]> {
+    const pattern = `${REDIS_KEYS.UPLOAD_PROGRESS_PREFIX}${userId}:*`;
+    const keys = await redis.keys(pattern);
+    return keys.map(key => key.split(':')[1]); // Extract uploadId from key
+  }
 }
 
 /**
@@ -105,37 +117,5 @@ export const UploadProgressService = {
    */
   getProgress: async (uploadId: string): Promise<Record<string, FileProgress>> => {
     return ProgressStore.getProgress(uploadId);
-  },
-  
-  /**
-   * Removes progress tracking for a specific file
-   * @param {string} uploadId - Unique upload session identifier
-   * @param {string} filename - Name of the file to remove from tracking
-   * @returns {Promise<void>}
-   */
-  clearFileProgress: async (uploadId: string, filename: string): Promise<void> => {
-    const data = await ProgressStore.getProgress(uploadId);
-    delete data[filename];
-    await ProgressStore.setProgress(uploadId, data);
-  },
-  
-  /**
-   * Finalizes upload session by updating all files to success status
-   * @param {string} uploadId - Unique upload session identifier
-   * @param {any[]} uploadResults - Array of upload result objects with file metadata
-   * @returns {Promise<void>}
-   */
-  finalizeUpload: async (uploadId: string, uploadResults: any[]): Promise<void> => {
-    const data = await ProgressStore.getProgress(uploadId);
-    
-    uploadResults.forEach(file => {
-      data[file.name] = {
-        status: 'success',
-        progress: 100,
-        key: file.key
-      };
-    });
-    
-    await ProgressStore.setProgress(uploadId, data);
   }
 };

@@ -2,6 +2,7 @@ import { db } from '@/lib/db.server';
 import type { Rubric, RubricCriteria } from '@/types/grading';
 import { ZodError } from 'zod';
 import { GradingProgressService } from './grading-progress.server';
+import logger from '@/utils/logger';
 import { 
   uiCategoriesToDbCriteria, 
   validateRubricData,
@@ -50,16 +51,13 @@ export async function createRubric(
   rubricData: UIRubricData
 ): Promise<{ success: boolean; rubricId?: string; error?: string }> {
   try {
-    // 使用 Zod 驗證資料
     const validation = validateRubricData(rubricData);
     if (!validation.success) {
       return { success: false, error: validation.errors[0] };
     }
 
-    // 檢查完整性（可選驗證，只顯示警告）
     const completionCheck = validateRubricCompletion(rubricData);
     if (!completionCheck.success) {
-      // 如果有嚴重錯誤才阻止儲存
       const hasBlockingErrors = completionCheck.errors.some(err => 
         err.includes('請至少新增一個評分標準')
       );
@@ -151,7 +149,6 @@ export async function listRubrics(): Promise<{ rubrics: Rubric[]; error?: string
  */
 export async function getRubric(id: string): Promise<{ rubric?: Rubric; error?: string }> {
   try {
-    // 驗證 ID 格式
     const validatedId = DeleteRubricRequestSchema.shape.id.parse(id);
     
     const dbRubric = await db.rubric.findUnique({
@@ -199,7 +196,6 @@ export async function updateRubric(
   rubricData: UIRubricData
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 驗證 ID 和資料
     const validatedId = DeleteRubricRequestSchema.shape.id.parse(id);
     const validation = validateRubricData(rubricData);
     
@@ -295,6 +291,7 @@ export async function deleteRubric(id: string): Promise<{ success: boolean; erro
  * @param {string} fileKey - The file key in storage to grade
  * @param {string} rubricId - The rubric ID to use for grading
  * @param {string} [gradingId] - Optional grading session ID for progress tracking
+ * @param {string} userId - User ID for document processing
  * @returns {Promise<Object>} Result object containing grading results or error
  * @returns {boolean} returns.success - Whether the grading succeeded
  * @returns {any} [returns.gradingResult] - The grading analysis and scores if successful
@@ -304,19 +301,21 @@ export async function gradeDocument(
   fileKey: string,
   rubricId: string,
   gradingId?: string,
+  userId?: string,
 ): Promise<{
   success: boolean;
   gradingResult?: any;
   error?: string;
 }> {
+  let documentResult: any;
+  
   try {
     if (gradingId) {
       await GradingProgressService.updateProgress(gradingId, { phase: 'check', progress: 10, message: '檢查檔案...' });
     }
 
-    console.log('Starting document grading with params:', { fileKey, rubricId, gradingId });
+    console.log('Starting document grading with params:', { fileKey, rubricId, gradingId, userId });
     
-    // 驗證並獲取 Rubric
     const { rubric, error: rubricError } = await getRubric(rubricId);
     if (rubricError || !rubric) {
       return {
@@ -329,15 +328,14 @@ export async function gradeDocument(
       await GradingProgressService.updateProgress(gradingId, { phase: 'grade', progress: 20, message: '分析文件內容...' });
     }
 
-    // 取得文件內容
     const { processDocument } = await import('./document-processor.server');
-    const documentResult = await processDocument({
+    documentResult = await processDocument({
       name: fileKey.split('/').pop() || fileKey,
       size: 0, // We don't know the size here, but it's not critical for processing
       type: 'application/octet-stream', // Default type, will be determined during processing
       key: fileKey,
       url: '', // Not needed for processing
-    });
+    }, userId || 'default_user');
 
     if (documentResult.error) {
       return {
@@ -346,75 +344,111 @@ export async function gradeDocument(
       };
     }
 
-    // Check if using MCP or legacy processing
-    const useMCP = process.env.USE_MCP === 'true';
-    
-    if (useMCP) {
-      // Use MCP for grading
-      const { createMCPGradingClient, convertMCPResponseToLegacyFormat } = await import('./mcp.server');
-      const mcpClient = createMCPGradingClient();
-      
-      if (gradingId) {
-        await GradingProgressService.updateProgress(gradingId, { phase: 'grade', progress: 30, message: '使用 MCP 進行 AI 評分...' });
-      }
-
-      const mcpResponse = await mcpClient.gradeDocument(documentResult, rubric, gradingId);
-      
-      if (!mcpResponse.success) {
-        return {
-          success: false,
-          error: mcpResponse.error || 'MCP 評分失敗',
-        };
-      }
-
-      // Convert MCP response to legacy format for compatibility
-      const gradingResult = convertMCPResponseToLegacyFormat(mcpResponse);
-      
-      if (gradingId) {
-        await GradingProgressService.updateProgress(gradingId, { phase: 'completed', progress: 100, message: '評分完成' });
-      }
-
-      return {
-        success: true,
-        gradingResult,
-      };
-    } else {
-      // Legacy grading logic (示例實現)
-      if (gradingId) {
-        await GradingProgressService.updateProgress(gradingId, { phase: 'grade', progress: 50, message: '使用傳統方式批改中...' });
-      }
-
-      // 這裡應該實現實際的評分邏輯
-      // 目前返回示例結果
-      const gradingResult = {
-        score: 85,
-        analysis: "這是一個示例分析",
-        criteriaScores: rubric.criteria.map(criteria => ({
-          name: criteria.name,
-          score: Math.floor(Math.random() * 5) + 1, // 1-5 分
-          comments: `關於 ${criteria.name} 的評語`,
-        })),
-        strengths: ["優點 1", "優點 2"],
-        improvements: ["改進點 1", "改進點 2"],
-        createdAt: new Date().toISOString(),
-        gradingDuration: 5, // 秒
-      };
-
-      if (gradingId) {
-        await GradingProgressService.updateProgress(gradingId, { phase: 'verify', progress: 90, message: '驗證評分結果...' });
-      }
-
-      if (gradingId) {
-        await GradingProgressService.updateProgress(gradingId, { phase: 'completed', progress: 100, message: '評分完成' });
-      }
-
-      return {
-        success: true,
-        gradingResult,
-      };
+    if (gradingId) {
+      await GradingProgressService.updateProgress(gradingId, { phase: 'grade', progress: 50, message: '使用傳統方式批改中...' });
     }
+
+    // Legacy grading implementation with improved dummy data including Markdown
+    const gradingResult = {
+      score: Math.floor(Math.random() * 30) + 70, // 70-100 score range
+      analysis: `這份作業展現了學生在多個方面的能力。文件結構清晰，內容有一定的深度，但在某些細節上還有改進空間。整體而言，這是一份${documentResult.content.length > 1000 ? '內容豐富' : '簡潔'}的作業。`,
+      analysisMarkdown: `## 作業評析
+
+這份作業展現了學生在多個方面的能力：
+
+### 優點分析
+- **文件結構清晰** - 邏輯層次分明
+- **內容有一定深度** - 展現了思考過程
+- **格式規範** - 符合學術寫作要求
+
+### 待改進之處
+在某些細節上還有**改進空間**，特別是：
+1. 論證的深度可以進一步加強
+2. 引用資料的多樣性需要提升
+
+> 整體而言，這是一份${documentResult.content.length > 1000 ? '**內容豐富**' : '**簡潔明瞭**'}的作業。`,
+      criteriaScores: rubric.criteria.map((criteria, index) => {
+        const baseScore = Math.floor(Math.random() * 3) + 3; // 3-5 score range
+        return {
+          name: criteria.name,
+          score: baseScore,
+          comments: `在${criteria.name}方面表現${baseScore >= 4 ? '良好' : '尚可'}，${baseScore >= 4 ? '符合' : '基本達到'}評分標準的要求。`,
+          commentsMarkdown: `### ${criteria.name} 評分分析
+
+**表現程度**: ${baseScore >= 4 ? '**良好**' : '**尚可**'}
+
+- 評分: **${baseScore}/5**
+- 標準符合度: ${baseScore >= 4 ? '**完全符合**' : '**基本達到**'}評分標準的要求
+
+${baseScore >= 4 ? 
+  '#### 優秀表現\n- 展現了深度理解\n- 技能運用得當\n- 超出基本要求' : 
+  '#### 改進建議\n- 可進一步深化理解\n- 技能運用需加強\n- 朝向更高標準努力'
+}`,
+        };
+      }),
+      strengths: [
+        "文檔結構組織良好",
+        "內容表達清晰",
+        "符合基本格式要求"
+      ],
+      strengthsMarkdown: [
+        "**文檔結構組織良好** - 邏輯清晰，層次分明",
+        "**內容表達清晰** - 語言流暢，表達準確",
+        "**符合基本格式要求** - 遵循學術規範"
+      ],
+      improvements: [
+        "可以增加更多具體的例子或細節",
+        "某些論點可以進一步深化",
+        "建議檢查拼寫和語法"
+      ],
+      improvementsMarkdown: [
+        "**增加具體例子** - 可以增加更多*具體的例子或細節*來支持論點",
+        "**深化論點** - 某些論點可以進一步**深化**和擴展",
+        "**語言精確性** - 建議檢查`拼寫`和`語法`，提升表達精確度"
+      ],
+      overallSuggestions: "建議在下次作業中注重內容的深度分析，並加強論據的支撐。",
+      overallSuggestionsMarkdown: `## 整體建議
+
+### 📈 下次作業重點改進方向
+
+1. **深度分析** - 注重內容的*深度分析*，避免淺顯論述
+2. **論據支撐** - 加強**論據的支撐**，增加引用和實例
+3. **批判思維** - 展現更多個人見解和批判性思考
+
+### 🎯 具體行動建議
+- [ ] 閱讀更多相關資料
+- [ ] 練習論證結構
+- [ ] 加強學術寫作技巧
+
+> **持續進步** 是學習的關鍵，期待看到你在下次作業中的成長！`,
+      createdAt: new Date().toISOString(),
+      gradingDuration: Math.floor(Math.random() * 8) + 3, // 3-10 seconds
+    };
+
+    if (gradingId) {
+      await GradingProgressService.updateProgress(gradingId, { phase: 'verify', progress: 90, message: '驗證評分結果...' });
+    }
+
+    if (gradingId) {
+      await GradingProgressService.updateProgress(gradingId, { phase: 'completed', progress: 100, message: '評分完成' });
+    }
+
+    return {
+      success: true,
+      gradingResult,
+    };
   } catch (error: any) {
     console.error('Error during grading:', error);
+    
+    // Log additional context for debugging
+    console.error('Grading context:', {
+      fileKey,
+      rubricId,
+      gradingId,
+      documentContentLength: documentResult?.content?.length,
+      errorType: error?.constructor?.name,
+      errorStack: error?.stack
+    });
     
     if (gradingId) {
       await GradingProgressService.updateProgress(gradingId, { 

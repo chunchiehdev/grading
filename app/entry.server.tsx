@@ -6,31 +6,8 @@ import { ServerRouter } from 'react-router';
 import { isbot } from 'isbot';
 import type { RenderToPipeableStreamOptions } from 'react-dom/server';
 import { renderToPipeableStream } from 'react-dom/server';
-import { initializeMCP, cleanupMCP } from '@/middleware/mcp.server';
-import { printMCPConfigSummary } from '@/config/mcp';
 
 const ABORT_DELAY = 5_000;
-
-// Initialize MCP when server starts
-try {
-  printMCPConfigSummary();
-  initializeMCP();
-} catch (error) {
-  console.error('Failed to initialize MCP:', error);
-}
-
-// Cleanup MCP on process exit
-process.on('SIGINT', () => {
-  console.log('Received SIGINT, cleaning up MCP...');
-  cleanupMCP();
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  console.log('Received SIGTERM, cleaning up MCP...');
-  cleanupMCP();
-  process.exit(0);
-});
 
 export default function handleRequest(
   request: Request,

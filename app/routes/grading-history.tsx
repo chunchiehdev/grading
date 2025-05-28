@@ -6,7 +6,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Eye, Download, Clock, FileText, Filter } from 'lucide-react';
 
-// 模擬評分歷史資料
 interface GradingHistoryItem {
   id: string;
   fileName: string;
@@ -17,7 +16,6 @@ interface GradingHistoryItem {
 }
 
 export const loader = async () => {
-  // 這裡應該從數據庫獲取評分歷史
   const mockHistory: GradingHistoryItem[] = [
     {
       id: 'grad-001',

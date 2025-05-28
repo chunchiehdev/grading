@@ -1,5 +1,6 @@
 import { GradingProgressService } from '@/services/grading-progress.server';
 import { gradeDocument } from '@/services/rubric.server';
+import { getUserId } from '@/services/auth.server';
 
 /**
  * API endpoint to grade a document using a specific rubric
@@ -9,6 +10,15 @@ import { gradeDocument } from '@/services/rubric.server';
  */
 export async function action({ request }: { request: Request }) {
   try {
+    // Get user ID from session
+    const userId = await getUserId(request);
+    if (!userId) {
+      return Response.json({ 
+        success: false, 
+        error: '用戶未認證' 
+      }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const fileKey = formData.get('fileKey') as string;
     const rubricId = formData.get('rubricId') as string;
@@ -21,7 +31,7 @@ export async function action({ request }: { request: Request }) {
       }, { status: 400 });
     }
 
-    const result = await gradeDocument(fileKey, rubricId, gradingId);
+    const result = await gradeDocument(fileKey, rubricId, gradingId, userId);
 
     if (result.success && result.gradingResult) {
       await GradingProgressService.complete(gradingId, result.gradingResult);
