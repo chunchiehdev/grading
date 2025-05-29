@@ -8,5 +8,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./test/setup.ts'],
+    env: {
+      DATABASE_URL: process.env.TEST_DATABASE_URL || "postgresql://test_user:test_password@localhost:5433/grading_test_template",
+      NODE_ENV: "test"
+    },
+    testTimeout: 30000
   },
 }); 

@@ -34,6 +34,13 @@ export default [
   route('/api/upload/delete-file', './api/upload/delete-file.ts'),
   route('/api/upload/progress/:id', './api/upload/progress.$id.ts'),
 
+  // File management API routes
+  route('/api/files/user-files', './api/files/user-files.ts'),
+  route('/api/files/update-rubric', './api/files/update-rubric.ts'),
+  
+  // Rubric API routes
+  route('/api/rubrics', './api/rubrics/index.ts'),
+
   // Auth API routes
   route('/api/auth/login', './api/auth/login.ts'),
   route('/api/auth/logout', './api/auth/logout.ts'),

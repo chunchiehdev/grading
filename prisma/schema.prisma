@@ -10,53 +10,63 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  password     String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  gradingTasks GradingTask[]
+  id         String   @id @default(uuid())
+  email      String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  rubrics    Rubric[]
+  uploads    Upload[]
 
   @@map("users")
 }
 
-model GradingTask {
-  id          String    @id @default(uuid())
-  authorId    String
-  author      User      @relation(fields: [authorId], references: [id])  
-  courseId    String?
-  status      String    @default("created")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
-  score       Int?
-  feedback    Json?
-  metadata    Json?
-
-  @@index([authorId])
-  @@index([status])
-  @@map("grading_tasks")
-}
-
 model Rubric {
-  id          String          @id @default(uuid())
-  name        String
-  description String
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  criteria    RubricCriteria[]
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  name        String   @db.VarChar(255)
+  description String   @db.Text
+  criteria    Json     // [{ name, description, levels: [{ level, description, score }] }]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  uploads     Upload[]
 
   @@map("rubrics")
 }
 
-model RubricCriteria {
-  id          String @id @default(uuid())
-  name        String
-  description String
-  levels      Json 
-  rubricId    String
-  rubric      Rubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+model Upload {
+  id               String        @id @default(uuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id])
 
-  @@map("rubric_criteria")
+  rubricId         String
+  rubric           Rubric        @relation(fields: [rubricId], references: [id])
+
+  originalFileName String
+  storedFileKey    String        @unique
+  storageLocation  String        // e.g. "s3://bucket/file.pdf" or "/uploads/uuid.pdf"
+  fileSize         Int
+  mimeType         String
+
+  status           UploadStatus  @default(not_started)
+  result           Json?
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([rubricId])
+  @@map("uploads")
 }
+
+enum UploadStatus {
+  not_started
+  processing
+  completed
+  failed
+}
+
 

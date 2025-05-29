@@ -20,20 +20,34 @@ export type PrismaPromise<T> = runtime.Types.Public.PrismaPromise<T>
  */
 export type User = runtime.Types.Result.DefaultSelection<Prisma.$UserPayload>
 /**
- * Model GradingTask
- * 
- */
-export type GradingTask = runtime.Types.Result.DefaultSelection<Prisma.$GradingTaskPayload>
-/**
  * Model Rubric
  * 
  */
 export type Rubric = runtime.Types.Result.DefaultSelection<Prisma.$RubricPayload>
 /**
- * Model RubricCriteria
+ * Model Upload
  * 
  */
-export type RubricCriteria = runtime.Types.Result.DefaultSelection<Prisma.$RubricCriteriaPayload>
+export type Upload = runtime.Types.Result.DefaultSelection<Prisma.$UploadPayload>
+
+/**
+ * Enums
+ */
+export namespace $Enums {
+  export const UploadStatus = {
+  not_started: 'not_started',
+  processing: 'processing',
+  completed: 'completed',
+  failed: 'failed'
+} as const
+
+export type UploadStatus = (typeof UploadStatus)[keyof typeof UploadStatus]
+
+}
+
+export type UploadStatus = $Enums.UploadStatus
+
+export const UploadStatus = $Enums.UploadStatus
 
 
 
@@ -76,17 +90,16 @@ const config: runtime.GetPrismaClientConfig = {
     "db"
   ],
   "activeProvider": "postgresql",
-  "postinstall": true,
   "inlineDatasources": {
     "db": {
       "url": {
         "fromEnvVar": "DATABASE_URL",
-        "value": null
+        "value": "postgresql://test_user:test_password@localhost:5433/grading_test_template"
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id           String        @id @default(uuid())\n  email        String        @unique\n  password     String\n  createdAt    DateTime      @default(now())\n  updatedAt    DateTime      @updatedAt\n  gradingTasks GradingTask[]\n\n  @@map(\"users\")\n}\n\nmodel GradingTask {\n  id          String    @id @default(uuid())\n  authorId    String\n  author      User      @relation(fields: [authorId], references: [id])\n  courseId    String?\n  status      String    @default(\"created\")\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime?\n  score       Int?\n  feedback    Json?\n  metadata    Json?\n\n  @@index([authorId])\n  @@index([status])\n  @@map(\"grading_tasks\")\n}\n\nmodel Rubric {\n  id          String           @id @default(uuid())\n  name        String\n  description String\n  createdAt   DateTime         @default(now())\n  updatedAt   DateTime         @updatedAt\n  criteria    RubricCriteria[]\n\n  @@map(\"rubrics\")\n}\n\nmodel RubricCriteria {\n  id          String @id @default(uuid())\n  name        String\n  description String\n  levels      Json // 存储评分等级 [{score: number, description: string}]\n  rubricId    String\n  rubric      Rubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)\n\n  @@map(\"rubric_criteria\")\n}\n",
-  "inlineSchemaHash": "2034a39d66d34ab8b9b96352f6cfd6d712ce1e5e47c9830b515f6c9ae9c3a58b",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id        String   @id @default(uuid())\n  email     String   @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  rubrics Rubric[]\n  uploads Upload[]\n\n  @@map(\"users\")\n}\n\nmodel Rubric {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id])\n\n  name        String   @db.VarChar(255)\n  description String   @db.Text\n  criteria    Json // [{ name, description, levels: [{ level, description, score }] }]\n  createdAt   DateTime @default(now())\n  updatedAt   DateTime @updatedAt\n\n  uploads Upload[]\n\n  @@map(\"rubrics\")\n}\n\nmodel Upload {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id])\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id])\n\n  originalFileName String\n  storedFileKey    String @unique\n  storageLocation  String // e.g. \"s3://bucket/file.pdf\" or \"/uploads/uuid.pdf\"\n  fileSize         Int\n  mimeType         String\n\n  status UploadStatus @default(not_started)\n  result Json?\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([userId])\n  @@index([rubricId])\n  @@map(\"uploads\")\n}\n\nenum UploadStatus {\n  not_started\n  processing\n  completed\n  failed\n}\n",
+  "inlineSchemaHash": "71ff1472d92d2baa5e8dbd75e3dfc79b6dcf4714e82c06a60673b9afe516f551",
   "copyEngine": true,
   "runtimeDataModel": {
     "models": {},
@@ -97,7 +110,7 @@ const config: runtime.GetPrismaClientConfig = {
 }
 config.dirname = __dirname
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"password\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingTasks\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingTask\",\"nativeType\":null,\"relationName\":\"GradingTaskToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingTask\":{\"dbName\":\"grading_tasks\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"authorId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"author\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingTaskToUser\",\"relationFromFields\":[\"authorId\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":\"created\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"score\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"feedback\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"metadata\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"criteria\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"RubricCriteria\",\"nativeType\":null,\"relationName\":\"RubricToRubricCriteria\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"RubricCriteria\":{\"dbName\":\"rubric_criteria\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"levels\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToRubricCriteria\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploads\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Upload\",\"nativeType\":null,\"relationName\":\"UploadToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"uploads\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Upload\",\"nativeType\":null,\"relationName\":\"RubricToUpload\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Upload\":{\"dbName\":\"uploads\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUpload\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"storedFileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"storageLocation\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UploadStatus\",\"nativeType\":null,\"default\":\"not_started\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"UploadStatus\":{\"values\":[{\"name\":\"not_started\",\"dbName\":null},{\"name\":\"processing\",\"dbName\":null},{\"name\":\"completed\",\"dbName\":null},{\"name\":\"failed\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
 config.engineWasm = undefined
 config.compilerWasm = undefined
 
@@ -255,16 +268,6 @@ export interface PrismaClient<
   get user(): Prisma.UserDelegate<ExtArgs, ClientOptions>;
 
   /**
-   * `prisma.gradingTask`: Exposes CRUD operations for the **GradingTask** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more GradingTasks
-    * const gradingTasks = await prisma.gradingTask.findMany()
-    * ```
-    */
-  get gradingTask(): Prisma.GradingTaskDelegate<ExtArgs, ClientOptions>;
-
-  /**
    * `prisma.rubric`: Exposes CRUD operations for the **Rubric** model.
     * Example usage:
     * ```ts
@@ -275,14 +278,14 @@ export interface PrismaClient<
   get rubric(): Prisma.RubricDelegate<ExtArgs, ClientOptions>;
 
   /**
-   * `prisma.rubricCriteria`: Exposes CRUD operations for the **RubricCriteria** model.
+   * `prisma.upload`: Exposes CRUD operations for the **Upload** model.
     * Example usage:
     * ```ts
-    * // Fetch zero or more RubricCriteria
-    * const rubricCriteria = await prisma.rubricCriteria.findMany()
+    * // Fetch zero or more Uploads
+    * const uploads = await prisma.upload.findMany()
     * ```
     */
-  get rubricCriteria(): Prisma.RubricCriteriaDelegate<ExtArgs, ClientOptions>;
+  get upload(): Prisma.UploadDelegate<ExtArgs, ClientOptions>;
 }
 
 export const PrismaClient = runtime.getPrismaClient(config) as unknown as PrismaClientConstructor
@@ -664,9 +667,8 @@ export namespace Prisma {
 
   export const ModelName = {
     User: 'User',
-    GradingTask: 'GradingTask',
     Rubric: 'Rubric',
-    RubricCriteria: 'RubricCriteria'
+    Upload: 'Upload'
   } as const
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -685,7 +687,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "gradingTask" | "rubric" | "rubricCriteria"
+      modelProps: "user" | "rubric" | "upload"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -763,80 +765,6 @@ export namespace Prisma {
           }
         }
       }
-      GradingTask: {
-        payload: Prisma.$GradingTaskPayload<ExtArgs>
-        fields: Prisma.GradingTaskFieldRefs
-        operations: {
-          findUnique: {
-            args: Prisma.GradingTaskFindUniqueArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload> | null
-          }
-          findUniqueOrThrow: {
-            args: Prisma.GradingTaskFindUniqueOrThrowArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload>
-          }
-          findFirst: {
-            args: Prisma.GradingTaskFindFirstArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload> | null
-          }
-          findFirstOrThrow: {
-            args: Prisma.GradingTaskFindFirstOrThrowArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload>
-          }
-          findMany: {
-            args: Prisma.GradingTaskFindManyArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload>[]
-          }
-          create: {
-            args: Prisma.GradingTaskCreateArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload>
-          }
-          createMany: {
-            args: Prisma.GradingTaskCreateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          createManyAndReturn: {
-            args: Prisma.GradingTaskCreateManyAndReturnArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload>[]
-          }
-          delete: {
-            args: Prisma.GradingTaskDeleteArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload>
-          }
-          update: {
-            args: Prisma.GradingTaskUpdateArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload>
-          }
-          deleteMany: {
-            args: Prisma.GradingTaskDeleteManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateMany: {
-            args: Prisma.GradingTaskUpdateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateManyAndReturn: {
-            args: Prisma.GradingTaskUpdateManyAndReturnArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload>[]
-          }
-          upsert: {
-            args: Prisma.GradingTaskUpsertArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingTaskPayload>
-          }
-          aggregate: {
-            args: Prisma.GradingTaskAggregateArgs<ExtArgs>
-            result: runtime.Types.Utils.Optional<AggregateGradingTask>
-          }
-          groupBy: {
-            args: Prisma.GradingTaskGroupByArgs<ExtArgs>
-            result: runtime.Types.Utils.Optional<GradingTaskGroupByOutputType>[]
-          }
-          count: {
-            args: Prisma.GradingTaskCountArgs<ExtArgs>
-            result: runtime.Types.Utils.Optional<GradingTaskCountAggregateOutputType> | number
-          }
-        }
-      }
       Rubric: {
         payload: Prisma.$RubricPayload<ExtArgs>
         fields: Prisma.RubricFieldRefs
@@ -911,77 +839,77 @@ export namespace Prisma {
           }
         }
       }
-      RubricCriteria: {
-        payload: Prisma.$RubricCriteriaPayload<ExtArgs>
-        fields: Prisma.RubricCriteriaFieldRefs
+      Upload: {
+        payload: Prisma.$UploadPayload<ExtArgs>
+        fields: Prisma.UploadFieldRefs
         operations: {
           findUnique: {
-            args: Prisma.RubricCriteriaFindUniqueArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload> | null
+            args: Prisma.UploadFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload> | null
           }
           findUniqueOrThrow: {
-            args: Prisma.RubricCriteriaFindUniqueOrThrowArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload>
+            args: Prisma.UploadFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
           }
           findFirst: {
-            args: Prisma.RubricCriteriaFindFirstArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload> | null
+            args: Prisma.UploadFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload> | null
           }
           findFirstOrThrow: {
-            args: Prisma.RubricCriteriaFindFirstOrThrowArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload>
+            args: Prisma.UploadFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
           }
           findMany: {
-            args: Prisma.RubricCriteriaFindManyArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload>[]
+            args: Prisma.UploadFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>[]
           }
           create: {
-            args: Prisma.RubricCriteriaCreateArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload>
+            args: Prisma.UploadCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
           }
           createMany: {
-            args: Prisma.RubricCriteriaCreateManyArgs<ExtArgs>
+            args: Prisma.UploadCreateManyArgs<ExtArgs>
             result: BatchPayload
           }
           createManyAndReturn: {
-            args: Prisma.RubricCriteriaCreateManyAndReturnArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload>[]
+            args: Prisma.UploadCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>[]
           }
           delete: {
-            args: Prisma.RubricCriteriaDeleteArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload>
+            args: Prisma.UploadDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
           }
           update: {
-            args: Prisma.RubricCriteriaUpdateArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload>
+            args: Prisma.UploadUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
           }
           deleteMany: {
-            args: Prisma.RubricCriteriaDeleteManyArgs<ExtArgs>
+            args: Prisma.UploadDeleteManyArgs<ExtArgs>
             result: BatchPayload
           }
           updateMany: {
-            args: Prisma.RubricCriteriaUpdateManyArgs<ExtArgs>
+            args: Prisma.UploadUpdateManyArgs<ExtArgs>
             result: BatchPayload
           }
           updateManyAndReturn: {
-            args: Prisma.RubricCriteriaUpdateManyAndReturnArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload>[]
+            args: Prisma.UploadUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>[]
           }
           upsert: {
-            args: Prisma.RubricCriteriaUpsertArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$RubricCriteriaPayload>
+            args: Prisma.UploadUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
           }
           aggregate: {
-            args: Prisma.RubricCriteriaAggregateArgs<ExtArgs>
-            result: runtime.Types.Utils.Optional<AggregateRubricCriteria>
+            args: Prisma.UploadAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateUpload>
           }
           groupBy: {
-            args: Prisma.RubricCriteriaGroupByArgs<ExtArgs>
-            result: runtime.Types.Utils.Optional<RubricCriteriaGroupByOutputType>[]
+            args: Prisma.UploadGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<UploadGroupByOutputType>[]
           }
           count: {
-            args: Prisma.RubricCriteriaCountArgs<ExtArgs>
-            result: runtime.Types.Utils.Optional<RubricCriteriaCountAggregateOutputType> | number
+            args: Prisma.UploadCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<UploadCountAggregateOutputType> | number
           }
         }
       }
@@ -1070,9 +998,8 @@ export namespace Prisma {
   }
   export type GlobalOmitConfig = {
     user?: UserOmit
-    gradingTask?: GradingTaskOmit
     rubric?: RubricOmit
-    rubricCriteria?: RubricCriteriaOmit
+    upload?: UploadOmit
   }
 
   /* Types for Logging */
@@ -1164,11 +1091,13 @@ export namespace Prisma {
    */
 
   export type UserCountOutputType = {
-    gradingTasks: number
+    rubrics: number
+    uploads: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    gradingTasks?: boolean | UserCountOutputTypeCountGradingTasksArgs
+    rubrics?: boolean | UserCountOutputTypeCountRubricsArgs
+    uploads?: boolean | UserCountOutputTypeCountUploadsArgs
   }
 
   // Custom InputTypes
@@ -1185,8 +1114,15 @@ export namespace Prisma {
   /**
    * UserCountOutputType without action
    */
-  export type UserCountOutputTypeCountGradingTasksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    where?: GradingTaskWhereInput
+  export type UserCountOutputTypeCountRubricsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: RubricWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountUploadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: UploadWhereInput
   }
 
 
@@ -1195,11 +1131,11 @@ export namespace Prisma {
    */
 
   export type RubricCountOutputType = {
-    criteria: number
+    uploads: number
   }
 
   export type RubricCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    criteria?: boolean | RubricCountOutputTypeCountCriteriaArgs
+    uploads?: boolean | RubricCountOutputTypeCountUploadsArgs
   }
 
   // Custom InputTypes
@@ -1216,8 +1152,8 @@ export namespace Prisma {
   /**
    * RubricCountOutputType without action
    */
-  export type RubricCountOutputTypeCountCriteriaArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    where?: RubricCriteriaWhereInput
+  export type RubricCountOutputTypeCountUploadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: UploadWhereInput
   }
 
 
@@ -1238,7 +1174,6 @@ export namespace Prisma {
   export type UserMinAggregateOutputType = {
     id: string | null
     email: string | null
-    password: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1246,7 +1181,6 @@ export namespace Prisma {
   export type UserMaxAggregateOutputType = {
     id: string | null
     email: string | null
-    password: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -1254,7 +1188,6 @@ export namespace Prisma {
   export type UserCountAggregateOutputType = {
     id: number
     email: number
-    password: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -1264,7 +1197,6 @@ export namespace Prisma {
   export type UserMinAggregateInputType = {
     id?: true
     email?: true
-    password?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1272,7 +1204,6 @@ export namespace Prisma {
   export type UserMaxAggregateInputType = {
     id?: true
     email?: true
-    password?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -1280,7 +1211,6 @@ export namespace Prisma {
   export type UserCountAggregateInputType = {
     id?: true
     email?: true
-    password?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -1361,7 +1291,6 @@ export namespace Prisma {
   export type UserGroupByOutputType = {
     id: string
     email: string
-    password: string
     createdAt: Date
     updatedAt: Date
     _count: UserCountAggregateOutputType | null
@@ -1386,17 +1315,16 @@ export namespace Prisma {
   export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     email?: boolean
-    password?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    gradingTasks?: boolean | User$gradingTasksArgs<ExtArgs>
+    rubrics?: boolean | User$rubricsArgs<ExtArgs>
+    uploads?: boolean | User$uploadsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     email?: boolean
-    password?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["user"]>
@@ -1404,7 +1332,6 @@ export namespace Prisma {
   export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     email?: boolean
-    password?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["user"]>
@@ -1412,14 +1339,14 @@ export namespace Prisma {
   export type UserSelectScalar = {
     id?: boolean
     email?: boolean
-    password?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "password" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    gradingTasks?: boolean | User$gradingTasksArgs<ExtArgs>
+    rubrics?: boolean | User$rubricsArgs<ExtArgs>
+    uploads?: boolean | User$uploadsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1428,12 +1355,12 @@ export namespace Prisma {
   export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     name: "User"
     objects: {
-      gradingTasks: Prisma.$GradingTaskPayload<ExtArgs>[]
+      rubrics: Prisma.$RubricPayload<ExtArgs>[]
+      uploads: Prisma.$UploadPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
       email: string
-      password: string
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["user"]>
@@ -1830,7 +1757,8 @@ export namespace Prisma {
    */
   export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
-    gradingTasks<T extends User$gradingTasksArgs<ExtArgs> = {}>(args?: Subset<T, User$gradingTasksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    rubrics<T extends User$rubricsArgs<ExtArgs> = {}>(args?: Subset<T, User$rubricsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    uploads<T extends User$uploadsArgs<ExtArgs> = {}>(args?: Subset<T, User$uploadsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1862,7 +1790,6 @@ export namespace Prisma {
   export interface UserFieldRefs {
     readonly id: FieldRef<"User", 'String'>
     readonly email: FieldRef<"User", 'String'>
-    readonly password: FieldRef<"User", 'String'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
     readonly updatedAt: FieldRef<"User", 'DateTime'>
   }
@@ -2253,27 +2180,51 @@ export namespace Prisma {
   }
 
   /**
-   * User.gradingTasks
+   * User.rubrics
    */
-  export type User$gradingTasksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type User$rubricsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the GradingTask
+     * Select specific fields to fetch from the Rubric
      */
-    select?: GradingTaskSelect<ExtArgs> | null
+    select?: RubricSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the GradingTask
+     * Omit specific fields from the Rubric
      */
-    omit?: GradingTaskOmit<ExtArgs> | null
+    omit?: RubricOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: GradingTaskInclude<ExtArgs> | null
-    where?: GradingTaskWhereInput
-    orderBy?: GradingTaskOrderByWithRelationInput | GradingTaskOrderByWithRelationInput[]
-    cursor?: GradingTaskWhereUniqueInput
+    include?: RubricInclude<ExtArgs> | null
+    where?: RubricWhereInput
+    orderBy?: RubricOrderByWithRelationInput | RubricOrderByWithRelationInput[]
+    cursor?: RubricWhereUniqueInput
     take?: number
     skip?: number
-    distinct?: GradingTaskScalarFieldEnum | GradingTaskScalarFieldEnum[]
+    distinct?: RubricScalarFieldEnum | RubricScalarFieldEnum[]
+  }
+
+  /**
+   * User.uploads
+   */
+  export type User$uploadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Upload
+     */
+    select?: UploadSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Upload
+     */
+    omit?: UploadOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadInclude<ExtArgs> | null
+    where?: UploadWhereInput
+    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
+    cursor?: UploadWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
   }
 
   /**
@@ -2296,1155 +2247,6 @@ export namespace Prisma {
 
 
   /**
-   * Model GradingTask
-   */
-
-  export type AggregateGradingTask = {
-    _count: GradingTaskCountAggregateOutputType | null
-    _avg: GradingTaskAvgAggregateOutputType | null
-    _sum: GradingTaskSumAggregateOutputType | null
-    _min: GradingTaskMinAggregateOutputType | null
-    _max: GradingTaskMaxAggregateOutputType | null
-  }
-
-  export type GradingTaskAvgAggregateOutputType = {
-    score: number | null
-  }
-
-  export type GradingTaskSumAggregateOutputType = {
-    score: number | null
-  }
-
-  export type GradingTaskMinAggregateOutputType = {
-    id: string | null
-    authorId: string | null
-    courseId: string | null
-    status: string | null
-    createdAt: Date | null
-    updatedAt: Date | null
-    completedAt: Date | null
-    score: number | null
-  }
-
-  export type GradingTaskMaxAggregateOutputType = {
-    id: string | null
-    authorId: string | null
-    courseId: string | null
-    status: string | null
-    createdAt: Date | null
-    updatedAt: Date | null
-    completedAt: Date | null
-    score: number | null
-  }
-
-  export type GradingTaskCountAggregateOutputType = {
-    id: number
-    authorId: number
-    courseId: number
-    status: number
-    createdAt: number
-    updatedAt: number
-    completedAt: number
-    score: number
-    feedback: number
-    metadata: number
-    _all: number
-  }
-
-
-  export type GradingTaskAvgAggregateInputType = {
-    score?: true
-  }
-
-  export type GradingTaskSumAggregateInputType = {
-    score?: true
-  }
-
-  export type GradingTaskMinAggregateInputType = {
-    id?: true
-    authorId?: true
-    courseId?: true
-    status?: true
-    createdAt?: true
-    updatedAt?: true
-    completedAt?: true
-    score?: true
-  }
-
-  export type GradingTaskMaxAggregateInputType = {
-    id?: true
-    authorId?: true
-    courseId?: true
-    status?: true
-    createdAt?: true
-    updatedAt?: true
-    completedAt?: true
-    score?: true
-  }
-
-  export type GradingTaskCountAggregateInputType = {
-    id?: true
-    authorId?: true
-    courseId?: true
-    status?: true
-    createdAt?: true
-    updatedAt?: true
-    completedAt?: true
-    score?: true
-    feedback?: true
-    metadata?: true
-    _all?: true
-  }
-
-  export type GradingTaskAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Filter which GradingTask to aggregate.
-     */
-    where?: GradingTaskWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of GradingTasks to fetch.
-     */
-    orderBy?: GradingTaskOrderByWithRelationInput | GradingTaskOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the start position
-     */
-    cursor?: GradingTaskWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` GradingTasks from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` GradingTasks.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Count returned GradingTasks
-    **/
-    _count?: true | GradingTaskCountAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to average
-    **/
-    _avg?: GradingTaskAvgAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to sum
-    **/
-    _sum?: GradingTaskSumAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the minimum value
-    **/
-    _min?: GradingTaskMinAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the maximum value
-    **/
-    _max?: GradingTaskMaxAggregateInputType
-  }
-
-  export type GetGradingTaskAggregateType<T extends GradingTaskAggregateArgs> = {
-        [P in keyof T & keyof AggregateGradingTask]: P extends '_count' | 'count'
-      ? T[P] extends true
-        ? number
-        : GetScalarType<T[P], AggregateGradingTask[P]>
-      : GetScalarType<T[P], AggregateGradingTask[P]>
-  }
-
-
-
-
-  export type GradingTaskGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    where?: GradingTaskWhereInput
-    orderBy?: GradingTaskOrderByWithAggregationInput | GradingTaskOrderByWithAggregationInput[]
-    by: GradingTaskScalarFieldEnum[] | GradingTaskScalarFieldEnum
-    having?: GradingTaskScalarWhereWithAggregatesInput
-    take?: number
-    skip?: number
-    _count?: GradingTaskCountAggregateInputType | true
-    _avg?: GradingTaskAvgAggregateInputType
-    _sum?: GradingTaskSumAggregateInputType
-    _min?: GradingTaskMinAggregateInputType
-    _max?: GradingTaskMaxAggregateInputType
-  }
-
-  export type GradingTaskGroupByOutputType = {
-    id: string
-    authorId: string
-    courseId: string | null
-    status: string
-    createdAt: Date
-    updatedAt: Date
-    completedAt: Date | null
-    score: number | null
-    feedback: JsonValue | null
-    metadata: JsonValue | null
-    _count: GradingTaskCountAggregateOutputType | null
-    _avg: GradingTaskAvgAggregateOutputType | null
-    _sum: GradingTaskSumAggregateOutputType | null
-    _min: GradingTaskMinAggregateOutputType | null
-    _max: GradingTaskMaxAggregateOutputType | null
-  }
-
-  type GetGradingTaskGroupByPayload<T extends GradingTaskGroupByArgs> = Prisma.PrismaPromise<
-    Array<
-      PickEnumerable<GradingTaskGroupByOutputType, T['by']> &
-        {
-          [P in ((keyof T) & (keyof GradingTaskGroupByOutputType))]: P extends '_count'
-            ? T[P] extends boolean
-              ? number
-              : GetScalarType<T[P], GradingTaskGroupByOutputType[P]>
-            : GetScalarType<T[P], GradingTaskGroupByOutputType[P]>
-        }
-      >
-    >
-
-
-  export type GradingTaskSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
-    id?: boolean
-    authorId?: boolean
-    courseId?: boolean
-    status?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-    completedAt?: boolean
-    score?: boolean
-    feedback?: boolean
-    metadata?: boolean
-    author?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["gradingTask"]>
-
-  export type GradingTaskSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
-    id?: boolean
-    authorId?: boolean
-    courseId?: boolean
-    status?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-    completedAt?: boolean
-    score?: boolean
-    feedback?: boolean
-    metadata?: boolean
-    author?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["gradingTask"]>
-
-  export type GradingTaskSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
-    id?: boolean
-    authorId?: boolean
-    courseId?: boolean
-    status?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-    completedAt?: boolean
-    score?: boolean
-    feedback?: boolean
-    metadata?: boolean
-    author?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["gradingTask"]>
-
-  export type GradingTaskSelectScalar = {
-    id?: boolean
-    authorId?: boolean
-    courseId?: boolean
-    status?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-    completedAt?: boolean
-    score?: boolean
-    feedback?: boolean
-    metadata?: boolean
-  }
-
-  export type GradingTaskOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "authorId" | "courseId" | "status" | "createdAt" | "updatedAt" | "completedAt" | "score" | "feedback" | "metadata", ExtArgs["result"]["gradingTask"]>
-  export type GradingTaskInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    author?: boolean | UserDefaultArgs<ExtArgs>
-  }
-  export type GradingTaskIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    author?: boolean | UserDefaultArgs<ExtArgs>
-  }
-  export type GradingTaskIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    author?: boolean | UserDefaultArgs<ExtArgs>
-  }
-
-  export type $GradingTaskPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    name: "GradingTask"
-    objects: {
-      author: Prisma.$UserPayload<ExtArgs>
-    }
-    scalars: runtime.Types.Extensions.GetPayloadResult<{
-      id: string
-      authorId: string
-      courseId: string | null
-      status: string
-      createdAt: Date
-      updatedAt: Date
-      completedAt: Date | null
-      score: number | null
-      feedback: Prisma.JsonValue | null
-      metadata: Prisma.JsonValue | null
-    }, ExtArgs["result"]["gradingTask"]>
-    composites: {}
-  }
-
-  export type GradingTaskGetPayload<S extends boolean | null | undefined | GradingTaskDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload, S>
-
-  export type GradingTaskCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
-    Omit<GradingTaskFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-      select?: GradingTaskCountAggregateInputType | true
-    }
-
-  export interface GradingTaskDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['GradingTask'], meta: { name: 'GradingTask' } }
-    /**
-     * Find zero or one GradingTask that matches the filter.
-     * @param {GradingTaskFindUniqueArgs} args - Arguments to find a GradingTask
-     * @example
-     * // Get one GradingTask
-     * const gradingTask = await prisma.gradingTask.findUnique({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUnique<T extends GradingTaskFindUniqueArgs>(args: SelectSubset<T, GradingTaskFindUniqueArgs<ExtArgs>>): Prisma__GradingTaskClient<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find one GradingTask that matches the filter or throw an error with `error.code='P2025'`
-     * if no matches were found.
-     * @param {GradingTaskFindUniqueOrThrowArgs} args - Arguments to find a GradingTask
-     * @example
-     * // Get one GradingTask
-     * const gradingTask = await prisma.gradingTask.findUniqueOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUniqueOrThrow<T extends GradingTaskFindUniqueOrThrowArgs>(args: SelectSubset<T, GradingTaskFindUniqueOrThrowArgs<ExtArgs>>): Prisma__GradingTaskClient<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first GradingTask that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {GradingTaskFindFirstArgs} args - Arguments to find a GradingTask
-     * @example
-     * // Get one GradingTask
-     * const gradingTask = await prisma.gradingTask.findFirst({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirst<T extends GradingTaskFindFirstArgs>(args?: SelectSubset<T, GradingTaskFindFirstArgs<ExtArgs>>): Prisma__GradingTaskClient<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first GradingTask that matches the filter or
-     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {GradingTaskFindFirstOrThrowArgs} args - Arguments to find a GradingTask
-     * @example
-     * // Get one GradingTask
-     * const gradingTask = await prisma.gradingTask.findFirstOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirstOrThrow<T extends GradingTaskFindFirstOrThrowArgs>(args?: SelectSubset<T, GradingTaskFindFirstOrThrowArgs<ExtArgs>>): Prisma__GradingTaskClient<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find zero or more GradingTasks that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {GradingTaskFindManyArgs} args - Arguments to filter and select certain fields only.
-     * @example
-     * // Get all GradingTasks
-     * const gradingTasks = await prisma.gradingTask.findMany()
-     * 
-     * // Get first 10 GradingTasks
-     * const gradingTasks = await prisma.gradingTask.findMany({ take: 10 })
-     * 
-     * // Only select the `id`
-     * const gradingTaskWithIdOnly = await prisma.gradingTask.findMany({ select: { id: true } })
-     * 
-     */
-    findMany<T extends GradingTaskFindManyArgs>(args?: SelectSubset<T, GradingTaskFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
-
-    /**
-     * Create a GradingTask.
-     * @param {GradingTaskCreateArgs} args - Arguments to create a GradingTask.
-     * @example
-     * // Create one GradingTask
-     * const GradingTask = await prisma.gradingTask.create({
-     *   data: {
-     *     // ... data to create a GradingTask
-     *   }
-     * })
-     * 
-     */
-    create<T extends GradingTaskCreateArgs>(args: SelectSubset<T, GradingTaskCreateArgs<ExtArgs>>): Prisma__GradingTaskClient<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Create many GradingTasks.
-     * @param {GradingTaskCreateManyArgs} args - Arguments to create many GradingTasks.
-     * @example
-     * // Create many GradingTasks
-     * const gradingTask = await prisma.gradingTask.createMany({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     *     
-     */
-    createMany<T extends GradingTaskCreateManyArgs>(args?: SelectSubset<T, GradingTaskCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Create many GradingTasks and returns the data saved in the database.
-     * @param {GradingTaskCreateManyAndReturnArgs} args - Arguments to create many GradingTasks.
-     * @example
-     * // Create many GradingTasks
-     * const gradingTask = await prisma.gradingTask.createManyAndReturn({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Create many GradingTasks and only return the `id`
-     * const gradingTaskWithIdOnly = await prisma.gradingTask.createManyAndReturn({
-     *   select: { id: true },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    createManyAndReturn<T extends GradingTaskCreateManyAndReturnArgs>(args?: SelectSubset<T, GradingTaskCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Delete a GradingTask.
-     * @param {GradingTaskDeleteArgs} args - Arguments to delete one GradingTask.
-     * @example
-     * // Delete one GradingTask
-     * const GradingTask = await prisma.gradingTask.delete({
-     *   where: {
-     *     // ... filter to delete one GradingTask
-     *   }
-     * })
-     * 
-     */
-    delete<T extends GradingTaskDeleteArgs>(args: SelectSubset<T, GradingTaskDeleteArgs<ExtArgs>>): Prisma__GradingTaskClient<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Update one GradingTask.
-     * @param {GradingTaskUpdateArgs} args - Arguments to update one GradingTask.
-     * @example
-     * // Update one GradingTask
-     * const gradingTask = await prisma.gradingTask.update({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    update<T extends GradingTaskUpdateArgs>(args: SelectSubset<T, GradingTaskUpdateArgs<ExtArgs>>): Prisma__GradingTaskClient<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Delete zero or more GradingTasks.
-     * @param {GradingTaskDeleteManyArgs} args - Arguments to filter GradingTasks to delete.
-     * @example
-     * // Delete a few GradingTasks
-     * const { count } = await prisma.gradingTask.deleteMany({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     * 
-     */
-    deleteMany<T extends GradingTaskDeleteManyArgs>(args?: SelectSubset<T, GradingTaskDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more GradingTasks.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {GradingTaskUpdateManyArgs} args - Arguments to update one or more rows.
-     * @example
-     * // Update many GradingTasks
-     * const gradingTask = await prisma.gradingTask.updateMany({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    updateMany<T extends GradingTaskUpdateManyArgs>(args: SelectSubset<T, GradingTaskUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more GradingTasks and returns the data updated in the database.
-     * @param {GradingTaskUpdateManyAndReturnArgs} args - Arguments to update many GradingTasks.
-     * @example
-     * // Update many GradingTasks
-     * const gradingTask = await prisma.gradingTask.updateManyAndReturn({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Update zero or more GradingTasks and only return the `id`
-     * const gradingTaskWithIdOnly = await prisma.gradingTask.updateManyAndReturn({
-     *   select: { id: true },
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    updateManyAndReturn<T extends GradingTaskUpdateManyAndReturnArgs>(args: SelectSubset<T, GradingTaskUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Create or update one GradingTask.
-     * @param {GradingTaskUpsertArgs} args - Arguments to update or create a GradingTask.
-     * @example
-     * // Update or create a GradingTask
-     * const gradingTask = await prisma.gradingTask.upsert({
-     *   create: {
-     *     // ... data to create a GradingTask
-     *   },
-     *   update: {
-     *     // ... in case it already exists, update
-     *   },
-     *   where: {
-     *     // ... the filter for the GradingTask we want to update
-     *   }
-     * })
-     */
-    upsert<T extends GradingTaskUpsertArgs>(args: SelectSubset<T, GradingTaskUpsertArgs<ExtArgs>>): Prisma__GradingTaskClient<runtime.Types.Result.GetResult<Prisma.$GradingTaskPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-
-    /**
-     * Count the number of GradingTasks.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {GradingTaskCountArgs} args - Arguments to filter GradingTasks to count.
-     * @example
-     * // Count the number of GradingTasks
-     * const count = await prisma.gradingTask.count({
-     *   where: {
-     *     // ... the filter for the GradingTasks we want to count
-     *   }
-     * })
-    **/
-    count<T extends GradingTaskCountArgs>(
-      args?: Subset<T, GradingTaskCountArgs>,
-    ): Prisma.PrismaPromise<
-      T extends runtime.Types.Utils.Record<'select', any>
-        ? T['select'] extends true
-          ? number
-          : GetScalarType<T['select'], GradingTaskCountAggregateOutputType>
-        : number
-    >
-
-    /**
-     * Allows you to perform aggregations operations on a GradingTask.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {GradingTaskAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
-     * @example
-     * // Ordered by age ascending
-     * // Where email contains prisma.io
-     * // Limited to the 10 users
-     * const aggregations = await prisma.user.aggregate({
-     *   _avg: {
-     *     age: true,
-     *   },
-     *   where: {
-     *     email: {
-     *       contains: "prisma.io",
-     *     },
-     *   },
-     *   orderBy: {
-     *     age: "asc",
-     *   },
-     *   take: 10,
-     * })
-    **/
-    aggregate<T extends GradingTaskAggregateArgs>(args: Subset<T, GradingTaskAggregateArgs>): Prisma.PrismaPromise<GetGradingTaskAggregateType<T>>
-
-    /**
-     * Group by GradingTask.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {GradingTaskGroupByArgs} args - Group by arguments.
-     * @example
-     * // Group by city, order by createdAt, get count
-     * const result = await prisma.user.groupBy({
-     *   by: ['city', 'createdAt'],
-     *   orderBy: {
-     *     createdAt: true
-     *   },
-     *   _count: {
-     *     _all: true
-     *   },
-     * })
-     * 
-    **/
-    groupBy<
-      T extends GradingTaskGroupByArgs,
-      HasSelectOrTake extends Or<
-        Extends<'skip', Keys<T>>,
-        Extends<'take', Keys<T>>
-      >,
-      OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: GradingTaskGroupByArgs['orderBy'] }
-        : { orderBy?: GradingTaskGroupByArgs['orderBy'] },
-      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
-      ByFields extends MaybeTupleToUnion<T['by']>,
-      ByValid extends Has<ByFields, OrderFields>,
-      HavingFields extends GetHavingFields<T['having']>,
-      HavingValid extends Has<ByFields, HavingFields>,
-      ByEmpty extends T['by'] extends never[] ? True : False,
-      InputErrors extends ByEmpty extends True
-      ? `Error: "by" must not be empty.`
-      : HavingValid extends False
-      ? {
-          [P in HavingFields]: P extends ByFields
-            ? never
-            : P extends string
-            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
-            : [
-                Error,
-                'Field ',
-                P,
-                ` in "having" needs to be provided in "by"`,
-              ]
-        }[HavingFields]
-      : 'take' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "take", you also need to provide "orderBy"'
-      : 'skip' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "skip", you also need to provide "orderBy"'
-      : ByValid extends True
-      ? {}
-      : {
-          [P in OrderFields]: P extends ByFields
-            ? never
-            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-        }[OrderFields]
-    >(args: SubsetIntersection<T, GradingTaskGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetGradingTaskGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
-  /**
-   * Fields of the GradingTask model
-   */
-  readonly fields: GradingTaskFieldRefs;
-  }
-
-  /**
-   * The delegate class that acts as a "Promise-like" for GradingTask.
-   * Why is this prefixed with `Prisma__`?
-   * Because we want to prevent naming conflicts as mentioned in
-   * https://github.com/prisma/prisma-client-js/issues/707
-   */
-  export interface Prisma__GradingTaskClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
-    readonly [Symbol.toStringTag]: "PrismaPromise"
-    author<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-    /**
-     * Attaches callbacks for the resolution and/or rejection of the Promise.
-     * @param onfulfilled The callback to execute when the Promise is resolved.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of which ever callback is executed.
-     */
-    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
-    /**
-     * Attaches a callback for only the rejection of the Promise.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of the callback.
-     */
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
-    /**
-     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
-     * resolved value cannot be modified from the callback.
-     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
-     * @returns A Promise for the completion of the callback.
-     */
-    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
-  }
-
-
-
-
-  /**
-   * Fields of the GradingTask model
-   */
-  export interface GradingTaskFieldRefs {
-    readonly id: FieldRef<"GradingTask", 'String'>
-    readonly authorId: FieldRef<"GradingTask", 'String'>
-    readonly courseId: FieldRef<"GradingTask", 'String'>
-    readonly status: FieldRef<"GradingTask", 'String'>
-    readonly createdAt: FieldRef<"GradingTask", 'DateTime'>
-    readonly updatedAt: FieldRef<"GradingTask", 'DateTime'>
-    readonly completedAt: FieldRef<"GradingTask", 'DateTime'>
-    readonly score: FieldRef<"GradingTask", 'Int'>
-    readonly feedback: FieldRef<"GradingTask", 'Json'>
-    readonly metadata: FieldRef<"GradingTask", 'Json'>
-  }
-    
-
-  // Custom InputTypes
-  /**
-   * GradingTask findUnique
-   */
-  export type GradingTaskFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-    /**
-     * Filter, which GradingTask to fetch.
-     */
-    where: GradingTaskWhereUniqueInput
-  }
-
-  /**
-   * GradingTask findUniqueOrThrow
-   */
-  export type GradingTaskFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-    /**
-     * Filter, which GradingTask to fetch.
-     */
-    where: GradingTaskWhereUniqueInput
-  }
-
-  /**
-   * GradingTask findFirst
-   */
-  export type GradingTaskFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-    /**
-     * Filter, which GradingTask to fetch.
-     */
-    where?: GradingTaskWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of GradingTasks to fetch.
-     */
-    orderBy?: GradingTaskOrderByWithRelationInput | GradingTaskOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for GradingTasks.
-     */
-    cursor?: GradingTaskWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` GradingTasks from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` GradingTasks.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of GradingTasks.
-     */
-    distinct?: GradingTaskScalarFieldEnum | GradingTaskScalarFieldEnum[]
-  }
-
-  /**
-   * GradingTask findFirstOrThrow
-   */
-  export type GradingTaskFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-    /**
-     * Filter, which GradingTask to fetch.
-     */
-    where?: GradingTaskWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of GradingTasks to fetch.
-     */
-    orderBy?: GradingTaskOrderByWithRelationInput | GradingTaskOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for GradingTasks.
-     */
-    cursor?: GradingTaskWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` GradingTasks from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` GradingTasks.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of GradingTasks.
-     */
-    distinct?: GradingTaskScalarFieldEnum | GradingTaskScalarFieldEnum[]
-  }
-
-  /**
-   * GradingTask findMany
-   */
-  export type GradingTaskFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-    /**
-     * Filter, which GradingTasks to fetch.
-     */
-    where?: GradingTaskWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of GradingTasks to fetch.
-     */
-    orderBy?: GradingTaskOrderByWithRelationInput | GradingTaskOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for listing GradingTasks.
-     */
-    cursor?: GradingTaskWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` GradingTasks from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` GradingTasks.
-     */
-    skip?: number
-    distinct?: GradingTaskScalarFieldEnum | GradingTaskScalarFieldEnum[]
-  }
-
-  /**
-   * GradingTask create
-   */
-  export type GradingTaskCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-    /**
-     * The data needed to create a GradingTask.
-     */
-    data: XOR<GradingTaskCreateInput, GradingTaskUncheckedCreateInput>
-  }
-
-  /**
-   * GradingTask createMany
-   */
-  export type GradingTaskCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * The data used to create many GradingTasks.
-     */
-    data: GradingTaskCreateManyInput | GradingTaskCreateManyInput[]
-    skipDuplicates?: boolean
-  }
-
-  /**
-   * GradingTask createManyAndReturn
-   */
-  export type GradingTaskCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelectCreateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * The data used to create many GradingTasks.
-     */
-    data: GradingTaskCreateManyInput | GradingTaskCreateManyInput[]
-    skipDuplicates?: boolean
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskIncludeCreateManyAndReturn<ExtArgs> | null
-  }
-
-  /**
-   * GradingTask update
-   */
-  export type GradingTaskUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-    /**
-     * The data needed to update a GradingTask.
-     */
-    data: XOR<GradingTaskUpdateInput, GradingTaskUncheckedUpdateInput>
-    /**
-     * Choose, which GradingTask to update.
-     */
-    where: GradingTaskWhereUniqueInput
-  }
-
-  /**
-   * GradingTask updateMany
-   */
-  export type GradingTaskUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * The data used to update GradingTasks.
-     */
-    data: XOR<GradingTaskUpdateManyMutationInput, GradingTaskUncheckedUpdateManyInput>
-    /**
-     * Filter which GradingTasks to update
-     */
-    where?: GradingTaskWhereInput
-    /**
-     * Limit how many GradingTasks to update.
-     */
-    limit?: number
-  }
-
-  /**
-   * GradingTask updateManyAndReturn
-   */
-  export type GradingTaskUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelectUpdateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * The data used to update GradingTasks.
-     */
-    data: XOR<GradingTaskUpdateManyMutationInput, GradingTaskUncheckedUpdateManyInput>
-    /**
-     * Filter which GradingTasks to update
-     */
-    where?: GradingTaskWhereInput
-    /**
-     * Limit how many GradingTasks to update.
-     */
-    limit?: number
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskIncludeUpdateManyAndReturn<ExtArgs> | null
-  }
-
-  /**
-   * GradingTask upsert
-   */
-  export type GradingTaskUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-    /**
-     * The filter to search for the GradingTask to update in case it exists.
-     */
-    where: GradingTaskWhereUniqueInput
-    /**
-     * In case the GradingTask found by the `where` argument doesn't exist, create a new GradingTask with this data.
-     */
-    create: XOR<GradingTaskCreateInput, GradingTaskUncheckedCreateInput>
-    /**
-     * In case the GradingTask was found with the provided `where` argument, update it with this data.
-     */
-    update: XOR<GradingTaskUpdateInput, GradingTaskUncheckedUpdateInput>
-  }
-
-  /**
-   * GradingTask delete
-   */
-  export type GradingTaskDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-    /**
-     * Filter which GradingTask to delete.
-     */
-    where: GradingTaskWhereUniqueInput
-  }
-
-  /**
-   * GradingTask deleteMany
-   */
-  export type GradingTaskDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Filter which GradingTasks to delete
-     */
-    where?: GradingTaskWhereInput
-    /**
-     * Limit how many GradingTasks to delete.
-     */
-    limit?: number
-  }
-
-  /**
-   * GradingTask without action
-   */
-  export type GradingTaskDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the GradingTask
-     */
-    select?: GradingTaskSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the GradingTask
-     */
-    omit?: GradingTaskOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: GradingTaskInclude<ExtArgs> | null
-  }
-
-
-  /**
    * Model Rubric
    */
 
@@ -3456,6 +2258,7 @@ export namespace Prisma {
 
   export type RubricMinAggregateOutputType = {
     id: string | null
+    userId: string | null
     name: string | null
     description: string | null
     createdAt: Date | null
@@ -3464,6 +2267,7 @@ export namespace Prisma {
 
   export type RubricMaxAggregateOutputType = {
     id: string | null
+    userId: string | null
     name: string | null
     description: string | null
     createdAt: Date | null
@@ -3472,8 +2276,10 @@ export namespace Prisma {
 
   export type RubricCountAggregateOutputType = {
     id: number
+    userId: number
     name: number
     description: number
+    criteria: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -3482,6 +2288,7 @@ export namespace Prisma {
 
   export type RubricMinAggregateInputType = {
     id?: true
+    userId?: true
     name?: true
     description?: true
     createdAt?: true
@@ -3490,6 +2297,7 @@ export namespace Prisma {
 
   export type RubricMaxAggregateInputType = {
     id?: true
+    userId?: true
     name?: true
     description?: true
     createdAt?: true
@@ -3498,8 +2306,10 @@ export namespace Prisma {
 
   export type RubricCountAggregateInputType = {
     id?: true
+    userId?: true
     name?: true
     description?: true
+    criteria?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -3579,8 +2389,10 @@ export namespace Prisma {
 
   export type RubricGroupByOutputType = {
     id: string
+    userId: string
     name: string
     description: string
+    criteria: JsonValue
     createdAt: Date
     updatedAt: Date
     _count: RubricCountAggregateOutputType | null
@@ -3604,55 +2416,74 @@ export namespace Prisma {
 
   export type RubricSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
+    userId?: boolean
     name?: boolean
     description?: boolean
+    criteria?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    criteria?: boolean | Rubric$criteriaArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    uploads?: boolean | Rubric$uploadsArgs<ExtArgs>
     _count?: boolean | RubricCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["rubric"]>
 
   export type RubricSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
+    userId?: boolean
     name?: boolean
     description?: boolean
+    criteria?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["rubric"]>
 
   export type RubricSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
+    userId?: boolean
     name?: boolean
     description?: boolean
+    criteria?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["rubric"]>
 
   export type RubricSelectScalar = {
     id?: boolean
+    userId?: boolean
     name?: boolean
     description?: boolean
+    criteria?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type RubricOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "createdAt" | "updatedAt", ExtArgs["result"]["rubric"]>
+  export type RubricOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "description" | "criteria" | "createdAt" | "updatedAt", ExtArgs["result"]["rubric"]>
   export type RubricInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    criteria?: boolean | Rubric$criteriaArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    uploads?: boolean | Rubric$uploadsArgs<ExtArgs>
     _count?: boolean | RubricCountOutputTypeDefaultArgs<ExtArgs>
   }
-  export type RubricIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
-  export type RubricIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
+  export type RubricIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type RubricIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
 
   export type $RubricPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     name: "Rubric"
     objects: {
-      criteria: Prisma.$RubricCriteriaPayload<ExtArgs>[]
+      user: Prisma.$UserPayload<ExtArgs>
+      uploads: Prisma.$UploadPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
+      userId: string
       name: string
       description: string
+      criteria: Prisma.JsonValue
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["rubric"]>
@@ -4049,7 +2880,8 @@ export namespace Prisma {
    */
   export interface Prisma__RubricClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
-    criteria<T extends Rubric$criteriaArgs<ExtArgs> = {}>(args?: Subset<T, Rubric$criteriaArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    uploads<T extends Rubric$uploadsArgs<ExtArgs> = {}>(args?: Subset<T, Rubric$uploadsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -4080,8 +2912,10 @@ export namespace Prisma {
    */
   export interface RubricFieldRefs {
     readonly id: FieldRef<"Rubric", 'String'>
+    readonly userId: FieldRef<"Rubric", 'String'>
     readonly name: FieldRef<"Rubric", 'String'>
     readonly description: FieldRef<"Rubric", 'String'>
+    readonly criteria: FieldRef<"Rubric", 'Json'>
     readonly createdAt: FieldRef<"Rubric", 'DateTime'>
     readonly updatedAt: FieldRef<"Rubric", 'DateTime'>
   }
@@ -4333,6 +3167,10 @@ export namespace Prisma {
      */
     data: RubricCreateManyInput | RubricCreateManyInput[]
     skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RubricIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -4403,6 +3241,10 @@ export namespace Prisma {
      * Limit how many Rubrics to update.
      */
     limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RubricIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -4472,27 +3314,27 @@ export namespace Prisma {
   }
 
   /**
-   * Rubric.criteria
+   * Rubric.uploads
    */
-  export type Rubric$criteriaArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type Rubric$uploadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
-    where?: RubricCriteriaWhereInput
-    orderBy?: RubricCriteriaOrderByWithRelationInput | RubricCriteriaOrderByWithRelationInput[]
-    cursor?: RubricCriteriaWhereUniqueInput
+    include?: UploadInclude<ExtArgs> | null
+    where?: UploadWhereInput
+    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
+    cursor?: UploadWhereUniqueInput
     take?: number
     skip?: number
-    distinct?: RubricCriteriaScalarFieldEnum | RubricCriteriaScalarFieldEnum[]
+    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
   }
 
   /**
@@ -4515,346 +3357,471 @@ export namespace Prisma {
 
 
   /**
-   * Model RubricCriteria
+   * Model Upload
    */
 
-  export type AggregateRubricCriteria = {
-    _count: RubricCriteriaCountAggregateOutputType | null
-    _min: RubricCriteriaMinAggregateOutputType | null
-    _max: RubricCriteriaMaxAggregateOutputType | null
+  export type AggregateUpload = {
+    _count: UploadCountAggregateOutputType | null
+    _avg: UploadAvgAggregateOutputType | null
+    _sum: UploadSumAggregateOutputType | null
+    _min: UploadMinAggregateOutputType | null
+    _max: UploadMaxAggregateOutputType | null
   }
 
-  export type RubricCriteriaMinAggregateOutputType = {
+  export type UploadAvgAggregateOutputType = {
+    fileSize: number | null
+  }
+
+  export type UploadSumAggregateOutputType = {
+    fileSize: number | null
+  }
+
+  export type UploadMinAggregateOutputType = {
     id: string | null
-    name: string | null
-    description: string | null
+    userId: string | null
     rubricId: string | null
+    originalFileName: string | null
+    storedFileKey: string | null
+    storageLocation: string | null
+    fileSize: number | null
+    mimeType: string | null
+    status: $Enums.UploadStatus | null
+    createdAt: Date | null
+    updatedAt: Date | null
   }
 
-  export type RubricCriteriaMaxAggregateOutputType = {
+  export type UploadMaxAggregateOutputType = {
     id: string | null
-    name: string | null
-    description: string | null
+    userId: string | null
     rubricId: string | null
+    originalFileName: string | null
+    storedFileKey: string | null
+    storageLocation: string | null
+    fileSize: number | null
+    mimeType: string | null
+    status: $Enums.UploadStatus | null
+    createdAt: Date | null
+    updatedAt: Date | null
   }
 
-  export type RubricCriteriaCountAggregateOutputType = {
+  export type UploadCountAggregateOutputType = {
     id: number
-    name: number
-    description: number
-    levels: number
+    userId: number
     rubricId: number
+    originalFileName: number
+    storedFileKey: number
+    storageLocation: number
+    fileSize: number
+    mimeType: number
+    status: number
+    result: number
+    createdAt: number
+    updatedAt: number
     _all: number
   }
 
 
-  export type RubricCriteriaMinAggregateInputType = {
-    id?: true
-    name?: true
-    description?: true
-    rubricId?: true
+  export type UploadAvgAggregateInputType = {
+    fileSize?: true
   }
 
-  export type RubricCriteriaMaxAggregateInputType = {
-    id?: true
-    name?: true
-    description?: true
-    rubricId?: true
+  export type UploadSumAggregateInputType = {
+    fileSize?: true
   }
 
-  export type RubricCriteriaCountAggregateInputType = {
+  export type UploadMinAggregateInputType = {
     id?: true
-    name?: true
-    description?: true
-    levels?: true
+    userId?: true
     rubricId?: true
+    originalFileName?: true
+    storedFileKey?: true
+    storageLocation?: true
+    fileSize?: true
+    mimeType?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type UploadMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    rubricId?: true
+    originalFileName?: true
+    storedFileKey?: true
+    storageLocation?: true
+    fileSize?: true
+    mimeType?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type UploadCountAggregateInputType = {
+    id?: true
+    userId?: true
+    rubricId?: true
+    originalFileName?: true
+    storedFileKey?: true
+    storageLocation?: true
+    fileSize?: true
+    mimeType?: true
+    status?: true
+    result?: true
+    createdAt?: true
+    updatedAt?: true
     _all?: true
   }
 
-  export type RubricCriteriaAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Filter which RubricCriteria to aggregate.
+     * Filter which Upload to aggregate.
      */
-    where?: RubricCriteriaWhereInput
+    where?: UploadWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of RubricCriteria to fetch.
+     * Determine the order of Uploads to fetch.
      */
-    orderBy?: RubricCriteriaOrderByWithRelationInput | RubricCriteriaOrderByWithRelationInput[]
+    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
      * Sets the start position
      */
-    cursor?: RubricCriteriaWhereUniqueInput
+    cursor?: UploadWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` RubricCriteria from the position of the cursor.
+     * Take `±n` Uploads from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` RubricCriteria.
+     * Skip the first `n` Uploads.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
-     * Count returned RubricCriteria
+     * Count returned Uploads
     **/
-    _count?: true | RubricCriteriaCountAggregateInputType
+    _count?: true | UploadCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: UploadAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: UploadSumAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to find the minimum value
     **/
-    _min?: RubricCriteriaMinAggregateInputType
+    _min?: UploadMinAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to find the maximum value
     **/
-    _max?: RubricCriteriaMaxAggregateInputType
+    _max?: UploadMaxAggregateInputType
   }
 
-  export type GetRubricCriteriaAggregateType<T extends RubricCriteriaAggregateArgs> = {
-        [P in keyof T & keyof AggregateRubricCriteria]: P extends '_count' | 'count'
+  export type GetUploadAggregateType<T extends UploadAggregateArgs> = {
+        [P in keyof T & keyof AggregateUpload]: P extends '_count' | 'count'
       ? T[P] extends true
         ? number
-        : GetScalarType<T[P], AggregateRubricCriteria[P]>
-      : GetScalarType<T[P], AggregateRubricCriteria[P]>
+        : GetScalarType<T[P], AggregateUpload[P]>
+      : GetScalarType<T[P], AggregateUpload[P]>
   }
 
 
 
 
-  export type RubricCriteriaGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    where?: RubricCriteriaWhereInput
-    orderBy?: RubricCriteriaOrderByWithAggregationInput | RubricCriteriaOrderByWithAggregationInput[]
-    by: RubricCriteriaScalarFieldEnum[] | RubricCriteriaScalarFieldEnum
-    having?: RubricCriteriaScalarWhereWithAggregatesInput
+  export type UploadGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: UploadWhereInput
+    orderBy?: UploadOrderByWithAggregationInput | UploadOrderByWithAggregationInput[]
+    by: UploadScalarFieldEnum[] | UploadScalarFieldEnum
+    having?: UploadScalarWhereWithAggregatesInput
     take?: number
     skip?: number
-    _count?: RubricCriteriaCountAggregateInputType | true
-    _min?: RubricCriteriaMinAggregateInputType
-    _max?: RubricCriteriaMaxAggregateInputType
+    _count?: UploadCountAggregateInputType | true
+    _avg?: UploadAvgAggregateInputType
+    _sum?: UploadSumAggregateInputType
+    _min?: UploadMinAggregateInputType
+    _max?: UploadMaxAggregateInputType
   }
 
-  export type RubricCriteriaGroupByOutputType = {
+  export type UploadGroupByOutputType = {
     id: string
-    name: string
-    description: string
-    levels: JsonValue
+    userId: string
     rubricId: string
-    _count: RubricCriteriaCountAggregateOutputType | null
-    _min: RubricCriteriaMinAggregateOutputType | null
-    _max: RubricCriteriaMaxAggregateOutputType | null
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status: $Enums.UploadStatus
+    result: JsonValue | null
+    createdAt: Date
+    updatedAt: Date
+    _count: UploadCountAggregateOutputType | null
+    _avg: UploadAvgAggregateOutputType | null
+    _sum: UploadSumAggregateOutputType | null
+    _min: UploadMinAggregateOutputType | null
+    _max: UploadMaxAggregateOutputType | null
   }
 
-  type GetRubricCriteriaGroupByPayload<T extends RubricCriteriaGroupByArgs> = Prisma.PrismaPromise<
+  type GetUploadGroupByPayload<T extends UploadGroupByArgs> = Prisma.PrismaPromise<
     Array<
-      PickEnumerable<RubricCriteriaGroupByOutputType, T['by']> &
+      PickEnumerable<UploadGroupByOutputType, T['by']> &
         {
-          [P in ((keyof T) & (keyof RubricCriteriaGroupByOutputType))]: P extends '_count'
+          [P in ((keyof T) & (keyof UploadGroupByOutputType))]: P extends '_count'
             ? T[P] extends boolean
               ? number
-              : GetScalarType<T[P], RubricCriteriaGroupByOutputType[P]>
-            : GetScalarType<T[P], RubricCriteriaGroupByOutputType[P]>
+              : GetScalarType<T[P], UploadGroupByOutputType[P]>
+            : GetScalarType<T[P], UploadGroupByOutputType[P]>
         }
       >
     >
 
 
-  export type RubricCriteriaSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+  export type UploadSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
-    name?: boolean
-    description?: boolean
-    levels?: boolean
+    userId?: boolean
     rubricId?: boolean
+    originalFileName?: boolean
+    storedFileKey?: boolean
+    storageLocation?: boolean
+    fileSize?: boolean
+    mimeType?: boolean
+    status?: boolean
+    result?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["rubricCriteria"]>
+  }, ExtArgs["result"]["upload"]>
 
-  export type RubricCriteriaSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+  export type UploadSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
-    name?: boolean
-    description?: boolean
-    levels?: boolean
+    userId?: boolean
     rubricId?: boolean
+    originalFileName?: boolean
+    storedFileKey?: boolean
+    storageLocation?: boolean
+    fileSize?: boolean
+    mimeType?: boolean
+    status?: boolean
+    result?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["rubricCriteria"]>
+  }, ExtArgs["result"]["upload"]>
 
-  export type RubricCriteriaSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+  export type UploadSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
-    name?: boolean
-    description?: boolean
-    levels?: boolean
+    userId?: boolean
     rubricId?: boolean
+    originalFileName?: boolean
+    storedFileKey?: boolean
+    storageLocation?: boolean
+    fileSize?: boolean
+    mimeType?: boolean
+    status?: boolean
+    result?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["rubricCriteria"]>
+  }, ExtArgs["result"]["upload"]>
 
-  export type RubricCriteriaSelectScalar = {
+  export type UploadSelectScalar = {
     id?: boolean
-    name?: boolean
-    description?: boolean
-    levels?: boolean
+    userId?: boolean
     rubricId?: boolean
+    originalFileName?: boolean
+    storedFileKey?: boolean
+    storageLocation?: boolean
+    fileSize?: boolean
+    mimeType?: boolean
+    status?: boolean
+    result?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
   }
 
-  export type RubricCriteriaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "levels" | "rubricId", ExtArgs["result"]["rubricCriteria"]>
-  export type RubricCriteriaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "rubricId" | "originalFileName" | "storedFileKey" | "storageLocation" | "fileSize" | "mimeType" | "status" | "result" | "createdAt" | "updatedAt", ExtArgs["result"]["upload"]>
+  export type UploadInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
   }
-  export type RubricCriteriaIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
   }
-  export type RubricCriteriaIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
   }
 
-  export type $RubricCriteriaPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    name: "RubricCriteria"
+  export type $UploadPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "Upload"
     objects: {
+      user: Prisma.$UserPayload<ExtArgs>
       rubric: Prisma.$RubricPayload<ExtArgs>
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
-      name: string
-      description: string
-      levels: Prisma.JsonValue
+      userId: string
       rubricId: string
-    }, ExtArgs["result"]["rubricCriteria"]>
+      originalFileName: string
+      storedFileKey: string
+      storageLocation: string
+      fileSize: number
+      mimeType: string
+      status: $Enums.UploadStatus
+      result: Prisma.JsonValue | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["upload"]>
     composites: {}
   }
 
-  export type RubricCriteriaGetPayload<S extends boolean | null | undefined | RubricCriteriaDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload, S>
+  export type UploadGetPayload<S extends boolean | null | undefined | UploadDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$UploadPayload, S>
 
-  export type RubricCriteriaCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
-    Omit<RubricCriteriaFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-      select?: RubricCriteriaCountAggregateInputType | true
+  export type UploadCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<UploadFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: UploadCountAggregateInputType | true
     }
 
-  export interface RubricCriteriaDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['RubricCriteria'], meta: { name: 'RubricCriteria' } }
+  export interface UploadDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Upload'], meta: { name: 'Upload' } }
     /**
-     * Find zero or one RubricCriteria that matches the filter.
-     * @param {RubricCriteriaFindUniqueArgs} args - Arguments to find a RubricCriteria
+     * Find zero or one Upload that matches the filter.
+     * @param {UploadFindUniqueArgs} args - Arguments to find a Upload
      * @example
-     * // Get one RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.findUnique({
+     * // Get one Upload
+     * const upload = await prisma.upload.findUnique({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findUnique<T extends RubricCriteriaFindUniqueArgs>(args: SelectSubset<T, RubricCriteriaFindUniqueArgs<ExtArgs>>): Prisma__RubricCriteriaClient<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    findUnique<T extends UploadFindUniqueArgs>(args: SelectSubset<T, UploadFindUniqueArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find one RubricCriteria that matches the filter or throw an error with `error.code='P2025'`
+     * Find one Upload that matches the filter or throw an error with `error.code='P2025'`
      * if no matches were found.
-     * @param {RubricCriteriaFindUniqueOrThrowArgs} args - Arguments to find a RubricCriteria
+     * @param {UploadFindUniqueOrThrowArgs} args - Arguments to find a Upload
      * @example
-     * // Get one RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.findUniqueOrThrow({
+     * // Get one Upload
+     * const upload = await prisma.upload.findUniqueOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findUniqueOrThrow<T extends RubricCriteriaFindUniqueOrThrowArgs>(args: SelectSubset<T, RubricCriteriaFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RubricCriteriaClient<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    findUniqueOrThrow<T extends UploadFindUniqueOrThrowArgs>(args: SelectSubset<T, UploadFindUniqueOrThrowArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find the first RubricCriteria that matches the filter.
+     * Find the first Upload that matches the filter.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {RubricCriteriaFindFirstArgs} args - Arguments to find a RubricCriteria
+     * @param {UploadFindFirstArgs} args - Arguments to find a Upload
      * @example
-     * // Get one RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.findFirst({
+     * // Get one Upload
+     * const upload = await prisma.upload.findFirst({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findFirst<T extends RubricCriteriaFindFirstArgs>(args?: SelectSubset<T, RubricCriteriaFindFirstArgs<ExtArgs>>): Prisma__RubricCriteriaClient<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    findFirst<T extends UploadFindFirstArgs>(args?: SelectSubset<T, UploadFindFirstArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find the first RubricCriteria that matches the filter or
+     * Find the first Upload that matches the filter or
      * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {RubricCriteriaFindFirstOrThrowArgs} args - Arguments to find a RubricCriteria
+     * @param {UploadFindFirstOrThrowArgs} args - Arguments to find a Upload
      * @example
-     * // Get one RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.findFirstOrThrow({
+     * // Get one Upload
+     * const upload = await prisma.upload.findFirstOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findFirstOrThrow<T extends RubricCriteriaFindFirstOrThrowArgs>(args?: SelectSubset<T, RubricCriteriaFindFirstOrThrowArgs<ExtArgs>>): Prisma__RubricCriteriaClient<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    findFirstOrThrow<T extends UploadFindFirstOrThrowArgs>(args?: SelectSubset<T, UploadFindFirstOrThrowArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find zero or more RubricCriteria that matches the filter.
+     * Find zero or more Uploads that matches the filter.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {RubricCriteriaFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @param {UploadFindManyArgs} args - Arguments to filter and select certain fields only.
      * @example
-     * // Get all RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.findMany()
+     * // Get all Uploads
+     * const uploads = await prisma.upload.findMany()
      * 
-     * // Get first 10 RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.findMany({ take: 10 })
+     * // Get first 10 Uploads
+     * const uploads = await prisma.upload.findMany({ take: 10 })
      * 
      * // Only select the `id`
-     * const rubricCriteriaWithIdOnly = await prisma.rubricCriteria.findMany({ select: { id: true } })
+     * const uploadWithIdOnly = await prisma.upload.findMany({ select: { id: true } })
      * 
      */
-    findMany<T extends RubricCriteriaFindManyArgs>(args?: SelectSubset<T, RubricCriteriaFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+    findMany<T extends UploadFindManyArgs>(args?: SelectSubset<T, UploadFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
 
     /**
-     * Create a RubricCriteria.
-     * @param {RubricCriteriaCreateArgs} args - Arguments to create a RubricCriteria.
+     * Create a Upload.
+     * @param {UploadCreateArgs} args - Arguments to create a Upload.
      * @example
-     * // Create one RubricCriteria
-     * const RubricCriteria = await prisma.rubricCriteria.create({
+     * // Create one Upload
+     * const Upload = await prisma.upload.create({
      *   data: {
-     *     // ... data to create a RubricCriteria
+     *     // ... data to create a Upload
      *   }
      * })
      * 
      */
-    create<T extends RubricCriteriaCreateArgs>(args: SelectSubset<T, RubricCriteriaCreateArgs<ExtArgs>>): Prisma__RubricCriteriaClient<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    create<T extends UploadCreateArgs>(args: SelectSubset<T, UploadCreateArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Create many RubricCriteria.
-     * @param {RubricCriteriaCreateManyArgs} args - Arguments to create many RubricCriteria.
+     * Create many Uploads.
+     * @param {UploadCreateManyArgs} args - Arguments to create many Uploads.
      * @example
-     * // Create many RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.createMany({
+     * // Create many Uploads
+     * const upload = await prisma.upload.createMany({
      *   data: [
      *     // ... provide data here
      *   ]
      * })
      *     
      */
-    createMany<T extends RubricCriteriaCreateManyArgs>(args?: SelectSubset<T, RubricCriteriaCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    createMany<T extends UploadCreateManyArgs>(args?: SelectSubset<T, UploadCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Create many RubricCriteria and returns the data saved in the database.
-     * @param {RubricCriteriaCreateManyAndReturnArgs} args - Arguments to create many RubricCriteria.
+     * Create many Uploads and returns the data saved in the database.
+     * @param {UploadCreateManyAndReturnArgs} args - Arguments to create many Uploads.
      * @example
-     * // Create many RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.createManyAndReturn({
+     * // Create many Uploads
+     * const upload = await prisma.upload.createManyAndReturn({
      *   data: [
      *     // ... provide data here
      *   ]
      * })
      * 
-     * // Create many RubricCriteria and only return the `id`
-     * const rubricCriteriaWithIdOnly = await prisma.rubricCriteria.createManyAndReturn({
+     * // Create many Uploads and only return the `id`
+     * const uploadWithIdOnly = await prisma.upload.createManyAndReturn({
      *   select: { id: true },
      *   data: [
      *     // ... provide data here
@@ -4864,28 +3831,28 @@ export namespace Prisma {
      * Read more here: https://pris.ly/d/null-undefined
      * 
      */
-    createManyAndReturn<T extends RubricCriteriaCreateManyAndReturnArgs>(args?: SelectSubset<T, RubricCriteriaCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+    createManyAndReturn<T extends UploadCreateManyAndReturnArgs>(args?: SelectSubset<T, UploadCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
 
     /**
-     * Delete a RubricCriteria.
-     * @param {RubricCriteriaDeleteArgs} args - Arguments to delete one RubricCriteria.
+     * Delete a Upload.
+     * @param {UploadDeleteArgs} args - Arguments to delete one Upload.
      * @example
-     * // Delete one RubricCriteria
-     * const RubricCriteria = await prisma.rubricCriteria.delete({
+     * // Delete one Upload
+     * const Upload = await prisma.upload.delete({
      *   where: {
-     *     // ... filter to delete one RubricCriteria
+     *     // ... filter to delete one Upload
      *   }
      * })
      * 
      */
-    delete<T extends RubricCriteriaDeleteArgs>(args: SelectSubset<T, RubricCriteriaDeleteArgs<ExtArgs>>): Prisma__RubricCriteriaClient<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    delete<T extends UploadDeleteArgs>(args: SelectSubset<T, UploadDeleteArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Update one RubricCriteria.
-     * @param {RubricCriteriaUpdateArgs} args - Arguments to update one RubricCriteria.
+     * Update one Upload.
+     * @param {UploadUpdateArgs} args - Arguments to update one Upload.
      * @example
-     * // Update one RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.update({
+     * // Update one Upload
+     * const upload = await prisma.upload.update({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -4895,30 +3862,30 @@ export namespace Prisma {
      * })
      * 
      */
-    update<T extends RubricCriteriaUpdateArgs>(args: SelectSubset<T, RubricCriteriaUpdateArgs<ExtArgs>>): Prisma__RubricCriteriaClient<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    update<T extends UploadUpdateArgs>(args: SelectSubset<T, UploadUpdateArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Delete zero or more RubricCriteria.
-     * @param {RubricCriteriaDeleteManyArgs} args - Arguments to filter RubricCriteria to delete.
+     * Delete zero or more Uploads.
+     * @param {UploadDeleteManyArgs} args - Arguments to filter Uploads to delete.
      * @example
-     * // Delete a few RubricCriteria
-     * const { count } = await prisma.rubricCriteria.deleteMany({
+     * // Delete a few Uploads
+     * const { count } = await prisma.upload.deleteMany({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      * 
      */
-    deleteMany<T extends RubricCriteriaDeleteManyArgs>(args?: SelectSubset<T, RubricCriteriaDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    deleteMany<T extends UploadDeleteManyArgs>(args?: SelectSubset<T, UploadDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Update zero or more RubricCriteria.
+     * Update zero or more Uploads.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {RubricCriteriaUpdateManyArgs} args - Arguments to update one or more rows.
+     * @param {UploadUpdateManyArgs} args - Arguments to update one or more rows.
      * @example
-     * // Update many RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.updateMany({
+     * // Update many Uploads
+     * const upload = await prisma.upload.updateMany({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -4928,14 +3895,14 @@ export namespace Prisma {
      * })
      * 
      */
-    updateMany<T extends RubricCriteriaUpdateManyArgs>(args: SelectSubset<T, RubricCriteriaUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    updateMany<T extends UploadUpdateManyArgs>(args: SelectSubset<T, UploadUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Update zero or more RubricCriteria and returns the data updated in the database.
-     * @param {RubricCriteriaUpdateManyAndReturnArgs} args - Arguments to update many RubricCriteria.
+     * Update zero or more Uploads and returns the data updated in the database.
+     * @param {UploadUpdateManyAndReturnArgs} args - Arguments to update many Uploads.
      * @example
-     * // Update many RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.updateManyAndReturn({
+     * // Update many Uploads
+     * const upload = await prisma.upload.updateManyAndReturn({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -4944,8 +3911,8 @@ export namespace Prisma {
      *   ]
      * })
      * 
-     * // Update zero or more RubricCriteria and only return the `id`
-     * const rubricCriteriaWithIdOnly = await prisma.rubricCriteria.updateManyAndReturn({
+     * // Update zero or more Uploads and only return the `id`
+     * const uploadWithIdOnly = await prisma.upload.updateManyAndReturn({
      *   select: { id: true },
      *   where: {
      *     // ... provide filter here
@@ -4958,56 +3925,56 @@ export namespace Prisma {
      * Read more here: https://pris.ly/d/null-undefined
      * 
      */
-    updateManyAndReturn<T extends RubricCriteriaUpdateManyAndReturnArgs>(args: SelectSubset<T, RubricCriteriaUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+    updateManyAndReturn<T extends UploadUpdateManyAndReturnArgs>(args: SelectSubset<T, UploadUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
 
     /**
-     * Create or update one RubricCriteria.
-     * @param {RubricCriteriaUpsertArgs} args - Arguments to update or create a RubricCriteria.
+     * Create or update one Upload.
+     * @param {UploadUpsertArgs} args - Arguments to update or create a Upload.
      * @example
-     * // Update or create a RubricCriteria
-     * const rubricCriteria = await prisma.rubricCriteria.upsert({
+     * // Update or create a Upload
+     * const upload = await prisma.upload.upsert({
      *   create: {
-     *     // ... data to create a RubricCriteria
+     *     // ... data to create a Upload
      *   },
      *   update: {
      *     // ... in case it already exists, update
      *   },
      *   where: {
-     *     // ... the filter for the RubricCriteria we want to update
+     *     // ... the filter for the Upload we want to update
      *   }
      * })
      */
-    upsert<T extends RubricCriteriaUpsertArgs>(args: SelectSubset<T, RubricCriteriaUpsertArgs<ExtArgs>>): Prisma__RubricCriteriaClient<runtime.Types.Result.GetResult<Prisma.$RubricCriteriaPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    upsert<T extends UploadUpsertArgs>(args: SelectSubset<T, UploadUpsertArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
 
     /**
-     * Count the number of RubricCriteria.
+     * Count the number of Uploads.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {RubricCriteriaCountArgs} args - Arguments to filter RubricCriteria to count.
+     * @param {UploadCountArgs} args - Arguments to filter Uploads to count.
      * @example
-     * // Count the number of RubricCriteria
-     * const count = await prisma.rubricCriteria.count({
+     * // Count the number of Uploads
+     * const count = await prisma.upload.count({
      *   where: {
-     *     // ... the filter for the RubricCriteria we want to count
+     *     // ... the filter for the Uploads we want to count
      *   }
      * })
     **/
-    count<T extends RubricCriteriaCountArgs>(
-      args?: Subset<T, RubricCriteriaCountArgs>,
+    count<T extends UploadCountArgs>(
+      args?: Subset<T, UploadCountArgs>,
     ): Prisma.PrismaPromise<
       T extends runtime.Types.Utils.Record<'select', any>
         ? T['select'] extends true
           ? number
-          : GetScalarType<T['select'], RubricCriteriaCountAggregateOutputType>
+          : GetScalarType<T['select'], UploadCountAggregateOutputType>
         : number
     >
 
     /**
-     * Allows you to perform aggregations operations on a RubricCriteria.
+     * Allows you to perform aggregations operations on a Upload.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {RubricCriteriaAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @param {UploadAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
      * @example
      * // Ordered by age ascending
      * // Where email contains prisma.io
@@ -5027,13 +3994,13 @@ export namespace Prisma {
      *   take: 10,
      * })
     **/
-    aggregate<T extends RubricCriteriaAggregateArgs>(args: Subset<T, RubricCriteriaAggregateArgs>): Prisma.PrismaPromise<GetRubricCriteriaAggregateType<T>>
+    aggregate<T extends UploadAggregateArgs>(args: Subset<T, UploadAggregateArgs>): Prisma.PrismaPromise<GetUploadAggregateType<T>>
 
     /**
-     * Group by RubricCriteria.
+     * Group by Upload.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {RubricCriteriaGroupByArgs} args - Group by arguments.
+     * @param {UploadGroupByArgs} args - Group by arguments.
      * @example
      * // Group by city, order by createdAt, get count
      * const result = await prisma.user.groupBy({
@@ -5048,14 +4015,14 @@ export namespace Prisma {
      * 
     **/
     groupBy<
-      T extends RubricCriteriaGroupByArgs,
+      T extends UploadGroupByArgs,
       HasSelectOrTake extends Or<
         Extends<'skip', Keys<T>>,
         Extends<'take', Keys<T>>
       >,
       OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: RubricCriteriaGroupByArgs['orderBy'] }
-        : { orderBy?: RubricCriteriaGroupByArgs['orderBy'] },
+        ? { orderBy: UploadGroupByArgs['orderBy'] }
+        : { orderBy?: UploadGroupByArgs['orderBy'] },
       OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
       ByFields extends MaybeTupleToUnion<T['by']>,
       ByValid extends Has<ByFields, OrderFields>,
@@ -5104,21 +4071,22 @@ export namespace Prisma {
             ? never
             : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
         }[OrderFields]
-    >(args: SubsetIntersection<T, RubricCriteriaGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRubricCriteriaGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+    >(args: SubsetIntersection<T, UploadGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetUploadGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
   /**
-   * Fields of the RubricCriteria model
+   * Fields of the Upload model
    */
-  readonly fields: RubricCriteriaFieldRefs;
+  readonly fields: UploadFieldRefs;
   }
 
   /**
-   * The delegate class that acts as a "Promise-like" for RubricCriteria.
+   * The delegate class that acts as a "Promise-like" for Upload.
    * Why is this prefixed with `Prisma__`?
    * Because we want to prevent naming conflicts as mentioned in
    * https://github.com/prisma/prisma-client-js/issues/707
    */
-  export interface Prisma__RubricCriteriaClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+  export interface Prisma__UploadClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     rubric<T extends RubricDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RubricDefaultArgs<ExtArgs>>): Prisma__RubricClient<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -5146,425 +4114,432 @@ export namespace Prisma {
 
 
   /**
-   * Fields of the RubricCriteria model
+   * Fields of the Upload model
    */
-  export interface RubricCriteriaFieldRefs {
-    readonly id: FieldRef<"RubricCriteria", 'String'>
-    readonly name: FieldRef<"RubricCriteria", 'String'>
-    readonly description: FieldRef<"RubricCriteria", 'String'>
-    readonly levels: FieldRef<"RubricCriteria", 'Json'>
-    readonly rubricId: FieldRef<"RubricCriteria", 'String'>
+  export interface UploadFieldRefs {
+    readonly id: FieldRef<"Upload", 'String'>
+    readonly userId: FieldRef<"Upload", 'String'>
+    readonly rubricId: FieldRef<"Upload", 'String'>
+    readonly originalFileName: FieldRef<"Upload", 'String'>
+    readonly storedFileKey: FieldRef<"Upload", 'String'>
+    readonly storageLocation: FieldRef<"Upload", 'String'>
+    readonly fileSize: FieldRef<"Upload", 'Int'>
+    readonly mimeType: FieldRef<"Upload", 'String'>
+    readonly status: FieldRef<"Upload", 'UploadStatus'>
+    readonly result: FieldRef<"Upload", 'Json'>
+    readonly createdAt: FieldRef<"Upload", 'DateTime'>
+    readonly updatedAt: FieldRef<"Upload", 'DateTime'>
   }
     
 
   // Custom InputTypes
   /**
-   * RubricCriteria findUnique
+   * Upload findUnique
    */
-  export type RubricCriteriaFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
     /**
-     * Filter, which RubricCriteria to fetch.
+     * Filter, which Upload to fetch.
      */
-    where: RubricCriteriaWhereUniqueInput
+    where: UploadWhereUniqueInput
   }
 
   /**
-   * RubricCriteria findUniqueOrThrow
+   * Upload findUniqueOrThrow
    */
-  export type RubricCriteriaFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
     /**
-     * Filter, which RubricCriteria to fetch.
+     * Filter, which Upload to fetch.
      */
-    where: RubricCriteriaWhereUniqueInput
+    where: UploadWhereUniqueInput
   }
 
   /**
-   * RubricCriteria findFirst
+   * Upload findFirst
    */
-  export type RubricCriteriaFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
     /**
-     * Filter, which RubricCriteria to fetch.
+     * Filter, which Upload to fetch.
      */
-    where?: RubricCriteriaWhereInput
+    where?: UploadWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of RubricCriteria to fetch.
+     * Determine the order of Uploads to fetch.
      */
-    orderBy?: RubricCriteriaOrderByWithRelationInput | RubricCriteriaOrderByWithRelationInput[]
+    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for searching for RubricCriteria.
+     * Sets the position for searching for Uploads.
      */
-    cursor?: RubricCriteriaWhereUniqueInput
+    cursor?: UploadWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` RubricCriteria from the position of the cursor.
+     * Take `±n` Uploads from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` RubricCriteria.
+     * Skip the first `n` Uploads.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
      * 
-     * Filter by unique combinations of RubricCriteria.
+     * Filter by unique combinations of Uploads.
      */
-    distinct?: RubricCriteriaScalarFieldEnum | RubricCriteriaScalarFieldEnum[]
+    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
   }
 
   /**
-   * RubricCriteria findFirstOrThrow
+   * Upload findFirstOrThrow
    */
-  export type RubricCriteriaFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
     /**
-     * Filter, which RubricCriteria to fetch.
+     * Filter, which Upload to fetch.
      */
-    where?: RubricCriteriaWhereInput
+    where?: UploadWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of RubricCriteria to fetch.
+     * Determine the order of Uploads to fetch.
      */
-    orderBy?: RubricCriteriaOrderByWithRelationInput | RubricCriteriaOrderByWithRelationInput[]
+    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for searching for RubricCriteria.
+     * Sets the position for searching for Uploads.
      */
-    cursor?: RubricCriteriaWhereUniqueInput
+    cursor?: UploadWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` RubricCriteria from the position of the cursor.
+     * Take `±n` Uploads from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` RubricCriteria.
+     * Skip the first `n` Uploads.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
      * 
-     * Filter by unique combinations of RubricCriteria.
+     * Filter by unique combinations of Uploads.
      */
-    distinct?: RubricCriteriaScalarFieldEnum | RubricCriteriaScalarFieldEnum[]
+    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
   }
 
   /**
-   * RubricCriteria findMany
+   * Upload findMany
    */
-  export type RubricCriteriaFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
     /**
-     * Filter, which RubricCriteria to fetch.
+     * Filter, which Uploads to fetch.
      */
-    where?: RubricCriteriaWhereInput
+    where?: UploadWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of RubricCriteria to fetch.
+     * Determine the order of Uploads to fetch.
      */
-    orderBy?: RubricCriteriaOrderByWithRelationInput | RubricCriteriaOrderByWithRelationInput[]
+    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for listing RubricCriteria.
+     * Sets the position for listing Uploads.
      */
-    cursor?: RubricCriteriaWhereUniqueInput
+    cursor?: UploadWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` RubricCriteria from the position of the cursor.
+     * Take `±n` Uploads from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` RubricCriteria.
+     * Skip the first `n` Uploads.
      */
     skip?: number
-    distinct?: RubricCriteriaScalarFieldEnum | RubricCriteriaScalarFieldEnum[]
+    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
   }
 
   /**
-   * RubricCriteria create
+   * Upload create
    */
-  export type RubricCriteriaCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
     /**
-     * The data needed to create a RubricCriteria.
+     * The data needed to create a Upload.
      */
-    data: XOR<RubricCriteriaCreateInput, RubricCriteriaUncheckedCreateInput>
+    data: XOR<UploadCreateInput, UploadUncheckedCreateInput>
   }
 
   /**
-   * RubricCriteria createMany
+   * Upload createMany
    */
-  export type RubricCriteriaCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * The data used to create many RubricCriteria.
+     * The data used to create many Uploads.
      */
-    data: RubricCriteriaCreateManyInput | RubricCriteriaCreateManyInput[]
+    data: UploadCreateManyInput | UploadCreateManyInput[]
     skipDuplicates?: boolean
   }
 
   /**
-   * RubricCriteria createManyAndReturn
+   * Upload createManyAndReturn
    */
-  export type RubricCriteriaCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelectCreateManyAndReturn<ExtArgs> | null
+    select?: UploadSelectCreateManyAndReturn<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
-     * The data used to create many RubricCriteria.
+     * The data used to create many Uploads.
      */
-    data: RubricCriteriaCreateManyInput | RubricCriteriaCreateManyInput[]
+    data: UploadCreateManyInput | UploadCreateManyInput[]
     skipDuplicates?: boolean
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaIncludeCreateManyAndReturn<ExtArgs> | null
+    include?: UploadIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
-   * RubricCriteria update
+   * Upload update
    */
-  export type RubricCriteriaUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
     /**
-     * The data needed to update a RubricCriteria.
+     * The data needed to update a Upload.
      */
-    data: XOR<RubricCriteriaUpdateInput, RubricCriteriaUncheckedUpdateInput>
+    data: XOR<UploadUpdateInput, UploadUncheckedUpdateInput>
     /**
-     * Choose, which RubricCriteria to update.
+     * Choose, which Upload to update.
      */
-    where: RubricCriteriaWhereUniqueInput
+    where: UploadWhereUniqueInput
   }
 
   /**
-   * RubricCriteria updateMany
+   * Upload updateMany
    */
-  export type RubricCriteriaUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * The data used to update RubricCriteria.
+     * The data used to update Uploads.
      */
-    data: XOR<RubricCriteriaUpdateManyMutationInput, RubricCriteriaUncheckedUpdateManyInput>
+    data: XOR<UploadUpdateManyMutationInput, UploadUncheckedUpdateManyInput>
     /**
-     * Filter which RubricCriteria to update
+     * Filter which Uploads to update
      */
-    where?: RubricCriteriaWhereInput
+    where?: UploadWhereInput
     /**
-     * Limit how many RubricCriteria to update.
+     * Limit how many Uploads to update.
      */
     limit?: number
   }
 
   /**
-   * RubricCriteria updateManyAndReturn
+   * Upload updateManyAndReturn
    */
-  export type RubricCriteriaUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelectUpdateManyAndReturn<ExtArgs> | null
+    select?: UploadSelectUpdateManyAndReturn<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
-     * The data used to update RubricCriteria.
+     * The data used to update Uploads.
      */
-    data: XOR<RubricCriteriaUpdateManyMutationInput, RubricCriteriaUncheckedUpdateManyInput>
+    data: XOR<UploadUpdateManyMutationInput, UploadUncheckedUpdateManyInput>
     /**
-     * Filter which RubricCriteria to update
+     * Filter which Uploads to update
      */
-    where?: RubricCriteriaWhereInput
+    where?: UploadWhereInput
     /**
-     * Limit how many RubricCriteria to update.
+     * Limit how many Uploads to update.
      */
     limit?: number
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaIncludeUpdateManyAndReturn<ExtArgs> | null
+    include?: UploadIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
-   * RubricCriteria upsert
+   * Upload upsert
    */
-  export type RubricCriteriaUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
     /**
-     * The filter to search for the RubricCriteria to update in case it exists.
+     * The filter to search for the Upload to update in case it exists.
      */
-    where: RubricCriteriaWhereUniqueInput
+    where: UploadWhereUniqueInput
     /**
-     * In case the RubricCriteria found by the `where` argument doesn't exist, create a new RubricCriteria with this data.
+     * In case the Upload found by the `where` argument doesn't exist, create a new Upload with this data.
      */
-    create: XOR<RubricCriteriaCreateInput, RubricCriteriaUncheckedCreateInput>
+    create: XOR<UploadCreateInput, UploadUncheckedCreateInput>
     /**
-     * In case the RubricCriteria was found with the provided `where` argument, update it with this data.
+     * In case the Upload was found with the provided `where` argument, update it with this data.
      */
-    update: XOR<RubricCriteriaUpdateInput, RubricCriteriaUncheckedUpdateInput>
+    update: XOR<UploadUpdateInput, UploadUncheckedUpdateInput>
   }
 
   /**
-   * RubricCriteria delete
+   * Upload delete
    */
-  export type RubricCriteriaDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
     /**
-     * Filter which RubricCriteria to delete.
+     * Filter which Upload to delete.
      */
-    where: RubricCriteriaWhereUniqueInput
+    where: UploadWhereUniqueInput
   }
 
   /**
-   * RubricCriteria deleteMany
+   * Upload deleteMany
    */
-  export type RubricCriteriaDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Filter which RubricCriteria to delete
+     * Filter which Uploads to delete
      */
-    where?: RubricCriteriaWhereInput
+    where?: UploadWhereInput
     /**
-     * Limit how many RubricCriteria to delete.
+     * Limit how many Uploads to delete.
      */
     limit?: number
   }
 
   /**
-   * RubricCriteria without action
+   * Upload without action
    */
-  export type RubricCriteriaDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type UploadDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the RubricCriteria
+     * Select specific fields to fetch from the Upload
      */
-    select?: RubricCriteriaSelect<ExtArgs> | null
+    select?: UploadSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the RubricCriteria
+     * Omit specific fields from the Upload
      */
-    omit?: RubricCriteriaOmit<ExtArgs> | null
+    omit?: UploadOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: RubricCriteriaInclude<ExtArgs> | null
+    include?: UploadInclude<ExtArgs> | null
   }
 
 
@@ -5585,7 +4560,6 @@ export namespace Prisma {
   export const UserScalarFieldEnum = {
     id: 'id',
     email: 'email',
-    password: 'password',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   } as const
@@ -5593,26 +4567,12 @@ export namespace Prisma {
   export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
-  export const GradingTaskScalarFieldEnum = {
-    id: 'id',
-    authorId: 'authorId',
-    courseId: 'courseId',
-    status: 'status',
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt',
-    completedAt: 'completedAt',
-    score: 'score',
-    feedback: 'feedback',
-    metadata: 'metadata'
-  } as const
-
-  export type GradingTaskScalarFieldEnum = (typeof GradingTaskScalarFieldEnum)[keyof typeof GradingTaskScalarFieldEnum]
-
-
   export const RubricScalarFieldEnum = {
     id: 'id',
+    userId: 'userId',
     name: 'name',
     description: 'description',
+    criteria: 'criteria',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   } as const
@@ -5620,15 +4580,22 @@ export namespace Prisma {
   export type RubricScalarFieldEnum = (typeof RubricScalarFieldEnum)[keyof typeof RubricScalarFieldEnum]
 
 
-  export const RubricCriteriaScalarFieldEnum = {
+  export const UploadScalarFieldEnum = {
     id: 'id',
-    name: 'name',
-    description: 'description',
-    levels: 'levels',
-    rubricId: 'rubricId'
+    userId: 'userId',
+    rubricId: 'rubricId',
+    originalFileName: 'originalFileName',
+    storedFileKey: 'storedFileKey',
+    storageLocation: 'storageLocation',
+    fileSize: 'fileSize',
+    mimeType: 'mimeType',
+    status: 'status',
+    result: 'result',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
   } as const
 
-  export type RubricCriteriaScalarFieldEnum = (typeof RubricCriteriaScalarFieldEnum)[keyof typeof RubricCriteriaScalarFieldEnum]
+  export type UploadScalarFieldEnum = (typeof UploadScalarFieldEnum)[keyof typeof UploadScalarFieldEnum]
 
 
   export const SortOrder = {
@@ -5639,19 +4606,19 @@ export namespace Prisma {
   export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+  export const JsonNullValueInput = {
+    JsonNull: JsonNull
+  } as const
+
+  export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
+
+
   export const NullableJsonNullValueInput = {
     DbNull: DbNull,
     JsonNull: JsonNull
   } as const
 
   export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
-
-
-  export const JsonNullValueInput = {
-    JsonNull: JsonNull
-  } as const
-
-  export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
   export const QueryMode = {
@@ -5713,6 +4680,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Json'
+   */
+  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+  /**
+   * Reference to a field of type 'QueryMode'
+   */
+  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+  /**
    * Reference to a field of type 'Int'
    */
   export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
@@ -5727,16 +4708,16 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'Json'
+   * Reference to a field of type 'UploadStatus'
    */
-  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+  export type EnumUploadStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UploadStatus'>
     
 
 
   /**
-   * Reference to a field of type 'QueryMode'
+   * Reference to a field of type 'UploadStatus[]'
    */
-  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+  export type ListEnumUploadStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UploadStatus[]'>
     
 
 
@@ -5763,19 +4744,19 @@ export namespace Prisma {
     NOT?: UserWhereInput | UserWhereInput[]
     id?: StringFilter<"User"> | string
     email?: StringFilter<"User"> | string
-    password?: StringFilter<"User"> | string
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
-    gradingTasks?: GradingTaskListRelationFilter
+    rubrics?: RubricListRelationFilter
+    uploads?: UploadListRelationFilter
   }
 
   export type UserOrderByWithRelationInput = {
     id?: SortOrder
     email?: SortOrder
-    password?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    gradingTasks?: GradingTaskOrderByRelationAggregateInput
+    rubrics?: RubricOrderByRelationAggregateInput
+    uploads?: UploadOrderByRelationAggregateInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -5784,16 +4765,15 @@ export namespace Prisma {
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
-    password?: StringFilter<"User"> | string
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
-    gradingTasks?: GradingTaskListRelationFilter
+    rubrics?: RubricListRelationFilter
+    uploads?: UploadListRelationFilter
   }, "id" | "email">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
     email?: SortOrder
-    password?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: UserCountOrderByAggregateInput
@@ -5807,91 +4787,8 @@ export namespace Prisma {
     NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"User"> | string
     email?: StringWithAggregatesFilter<"User"> | string
-    password?: StringWithAggregatesFilter<"User"> | string
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
-  }
-
-  export type GradingTaskWhereInput = {
-    AND?: GradingTaskWhereInput | GradingTaskWhereInput[]
-    OR?: GradingTaskWhereInput[]
-    NOT?: GradingTaskWhereInput | GradingTaskWhereInput[]
-    id?: StringFilter<"GradingTask"> | string
-    authorId?: StringFilter<"GradingTask"> | string
-    courseId?: StringNullableFilter<"GradingTask"> | string | null
-    status?: StringFilter<"GradingTask"> | string
-    createdAt?: DateTimeFilter<"GradingTask"> | Date | string
-    updatedAt?: DateTimeFilter<"GradingTask"> | Date | string
-    completedAt?: DateTimeNullableFilter<"GradingTask"> | Date | string | null
-    score?: IntNullableFilter<"GradingTask"> | number | null
-    feedback?: JsonNullableFilter<"GradingTask">
-    metadata?: JsonNullableFilter<"GradingTask">
-    author?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }
-
-  export type GradingTaskOrderByWithRelationInput = {
-    id?: SortOrder
-    authorId?: SortOrder
-    courseId?: SortOrderInput | SortOrder
-    status?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-    completedAt?: SortOrderInput | SortOrder
-    score?: SortOrderInput | SortOrder
-    feedback?: SortOrderInput | SortOrder
-    metadata?: SortOrderInput | SortOrder
-    author?: UserOrderByWithRelationInput
-  }
-
-  export type GradingTaskWhereUniqueInput = Prisma.AtLeast<{
-    id?: string
-    AND?: GradingTaskWhereInput | GradingTaskWhereInput[]
-    OR?: GradingTaskWhereInput[]
-    NOT?: GradingTaskWhereInput | GradingTaskWhereInput[]
-    authorId?: StringFilter<"GradingTask"> | string
-    courseId?: StringNullableFilter<"GradingTask"> | string | null
-    status?: StringFilter<"GradingTask"> | string
-    createdAt?: DateTimeFilter<"GradingTask"> | Date | string
-    updatedAt?: DateTimeFilter<"GradingTask"> | Date | string
-    completedAt?: DateTimeNullableFilter<"GradingTask"> | Date | string | null
-    score?: IntNullableFilter<"GradingTask"> | number | null
-    feedback?: JsonNullableFilter<"GradingTask">
-    metadata?: JsonNullableFilter<"GradingTask">
-    author?: XOR<UserScalarRelationFilter, UserWhereInput>
-  }, "id">
-
-  export type GradingTaskOrderByWithAggregationInput = {
-    id?: SortOrder
-    authorId?: SortOrder
-    courseId?: SortOrderInput | SortOrder
-    status?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-    completedAt?: SortOrderInput | SortOrder
-    score?: SortOrderInput | SortOrder
-    feedback?: SortOrderInput | SortOrder
-    metadata?: SortOrderInput | SortOrder
-    _count?: GradingTaskCountOrderByAggregateInput
-    _avg?: GradingTaskAvgOrderByAggregateInput
-    _max?: GradingTaskMaxOrderByAggregateInput
-    _min?: GradingTaskMinOrderByAggregateInput
-    _sum?: GradingTaskSumOrderByAggregateInput
-  }
-
-  export type GradingTaskScalarWhereWithAggregatesInput = {
-    AND?: GradingTaskScalarWhereWithAggregatesInput | GradingTaskScalarWhereWithAggregatesInput[]
-    OR?: GradingTaskScalarWhereWithAggregatesInput[]
-    NOT?: GradingTaskScalarWhereWithAggregatesInput | GradingTaskScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"GradingTask"> | string
-    authorId?: StringWithAggregatesFilter<"GradingTask"> | string
-    courseId?: StringNullableWithAggregatesFilter<"GradingTask"> | string | null
-    status?: StringWithAggregatesFilter<"GradingTask"> | string
-    createdAt?: DateTimeWithAggregatesFilter<"GradingTask"> | Date | string
-    updatedAt?: DateTimeWithAggregatesFilter<"GradingTask"> | Date | string
-    completedAt?: DateTimeNullableWithAggregatesFilter<"GradingTask"> | Date | string | null
-    score?: IntNullableWithAggregatesFilter<"GradingTask"> | number | null
-    feedback?: JsonNullableWithAggregatesFilter<"GradingTask">
-    metadata?: JsonNullableWithAggregatesFilter<"GradingTask">
   }
 
   export type RubricWhereInput = {
@@ -5899,20 +4796,26 @@ export namespace Prisma {
     OR?: RubricWhereInput[]
     NOT?: RubricWhereInput | RubricWhereInput[]
     id?: StringFilter<"Rubric"> | string
+    userId?: StringFilter<"Rubric"> | string
     name?: StringFilter<"Rubric"> | string
     description?: StringFilter<"Rubric"> | string
+    criteria?: JsonFilter<"Rubric">
     createdAt?: DateTimeFilter<"Rubric"> | Date | string
     updatedAt?: DateTimeFilter<"Rubric"> | Date | string
-    criteria?: RubricCriteriaListRelationFilter
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    uploads?: UploadListRelationFilter
   }
 
   export type RubricOrderByWithRelationInput = {
     id?: SortOrder
+    userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
+    criteria?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    criteria?: RubricCriteriaOrderByRelationAggregateInput
+    user?: UserOrderByWithRelationInput
+    uploads?: UploadOrderByRelationAggregateInput
   }
 
   export type RubricWhereUniqueInput = Prisma.AtLeast<{
@@ -5920,17 +4823,22 @@ export namespace Prisma {
     AND?: RubricWhereInput | RubricWhereInput[]
     OR?: RubricWhereInput[]
     NOT?: RubricWhereInput | RubricWhereInput[]
+    userId?: StringFilter<"Rubric"> | string
     name?: StringFilter<"Rubric"> | string
     description?: StringFilter<"Rubric"> | string
+    criteria?: JsonFilter<"Rubric">
     createdAt?: DateTimeFilter<"Rubric"> | Date | string
     updatedAt?: DateTimeFilter<"Rubric"> | Date | string
-    criteria?: RubricCriteriaListRelationFilter
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    uploads?: UploadListRelationFilter
   }, "id">
 
   export type RubricOrderByWithAggregationInput = {
     id?: SortOrder
+    userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
+    criteria?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: RubricCountOrderByAggregateInput
@@ -5943,107 +4851,148 @@ export namespace Prisma {
     OR?: RubricScalarWhereWithAggregatesInput[]
     NOT?: RubricScalarWhereWithAggregatesInput | RubricScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Rubric"> | string
+    userId?: StringWithAggregatesFilter<"Rubric"> | string
     name?: StringWithAggregatesFilter<"Rubric"> | string
     description?: StringWithAggregatesFilter<"Rubric"> | string
+    criteria?: JsonWithAggregatesFilter<"Rubric">
     createdAt?: DateTimeWithAggregatesFilter<"Rubric"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Rubric"> | Date | string
   }
 
-  export type RubricCriteriaWhereInput = {
-    AND?: RubricCriteriaWhereInput | RubricCriteriaWhereInput[]
-    OR?: RubricCriteriaWhereInput[]
-    NOT?: RubricCriteriaWhereInput | RubricCriteriaWhereInput[]
-    id?: StringFilter<"RubricCriteria"> | string
-    name?: StringFilter<"RubricCriteria"> | string
-    description?: StringFilter<"RubricCriteria"> | string
-    levels?: JsonFilter<"RubricCriteria">
-    rubricId?: StringFilter<"RubricCriteria"> | string
+  export type UploadWhereInput = {
+    AND?: UploadWhereInput | UploadWhereInput[]
+    OR?: UploadWhereInput[]
+    NOT?: UploadWhereInput | UploadWhereInput[]
+    id?: StringFilter<"Upload"> | string
+    userId?: StringFilter<"Upload"> | string
+    rubricId?: StringFilter<"Upload"> | string
+    originalFileName?: StringFilter<"Upload"> | string
+    storedFileKey?: StringFilter<"Upload"> | string
+    storageLocation?: StringFilter<"Upload"> | string
+    fileSize?: IntFilter<"Upload"> | number
+    mimeType?: StringFilter<"Upload"> | string
+    status?: EnumUploadStatusFilter<"Upload"> | $Enums.UploadStatus
+    result?: JsonNullableFilter<"Upload">
+    createdAt?: DateTimeFilter<"Upload"> | Date | string
+    updatedAt?: DateTimeFilter<"Upload"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
     rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
   }
 
-  export type RubricCriteriaOrderByWithRelationInput = {
+  export type UploadOrderByWithRelationInput = {
     id?: SortOrder
-    name?: SortOrder
-    description?: SortOrder
-    levels?: SortOrder
+    userId?: SortOrder
     rubricId?: SortOrder
+    originalFileName?: SortOrder
+    storedFileKey?: SortOrder
+    storageLocation?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    status?: SortOrder
+    result?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
     rubric?: RubricOrderByWithRelationInput
   }
 
-  export type RubricCriteriaWhereUniqueInput = Prisma.AtLeast<{
+  export type UploadWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    AND?: RubricCriteriaWhereInput | RubricCriteriaWhereInput[]
-    OR?: RubricCriteriaWhereInput[]
-    NOT?: RubricCriteriaWhereInput | RubricCriteriaWhereInput[]
-    name?: StringFilter<"RubricCriteria"> | string
-    description?: StringFilter<"RubricCriteria"> | string
-    levels?: JsonFilter<"RubricCriteria">
-    rubricId?: StringFilter<"RubricCriteria"> | string
+    storedFileKey?: string
+    AND?: UploadWhereInput | UploadWhereInput[]
+    OR?: UploadWhereInput[]
+    NOT?: UploadWhereInput | UploadWhereInput[]
+    userId?: StringFilter<"Upload"> | string
+    rubricId?: StringFilter<"Upload"> | string
+    originalFileName?: StringFilter<"Upload"> | string
+    storageLocation?: StringFilter<"Upload"> | string
+    fileSize?: IntFilter<"Upload"> | number
+    mimeType?: StringFilter<"Upload"> | string
+    status?: EnumUploadStatusFilter<"Upload"> | $Enums.UploadStatus
+    result?: JsonNullableFilter<"Upload">
+    createdAt?: DateTimeFilter<"Upload"> | Date | string
+    updatedAt?: DateTimeFilter<"Upload"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
     rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
-  }, "id">
+  }, "id" | "storedFileKey">
 
-  export type RubricCriteriaOrderByWithAggregationInput = {
+  export type UploadOrderByWithAggregationInput = {
     id?: SortOrder
-    name?: SortOrder
-    description?: SortOrder
-    levels?: SortOrder
+    userId?: SortOrder
     rubricId?: SortOrder
-    _count?: RubricCriteriaCountOrderByAggregateInput
-    _max?: RubricCriteriaMaxOrderByAggregateInput
-    _min?: RubricCriteriaMinOrderByAggregateInput
+    originalFileName?: SortOrder
+    storedFileKey?: SortOrder
+    storageLocation?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    status?: SortOrder
+    result?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: UploadCountOrderByAggregateInput
+    _avg?: UploadAvgOrderByAggregateInput
+    _max?: UploadMaxOrderByAggregateInput
+    _min?: UploadMinOrderByAggregateInput
+    _sum?: UploadSumOrderByAggregateInput
   }
 
-  export type RubricCriteriaScalarWhereWithAggregatesInput = {
-    AND?: RubricCriteriaScalarWhereWithAggregatesInput | RubricCriteriaScalarWhereWithAggregatesInput[]
-    OR?: RubricCriteriaScalarWhereWithAggregatesInput[]
-    NOT?: RubricCriteriaScalarWhereWithAggregatesInput | RubricCriteriaScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"RubricCriteria"> | string
-    name?: StringWithAggregatesFilter<"RubricCriteria"> | string
-    description?: StringWithAggregatesFilter<"RubricCriteria"> | string
-    levels?: JsonWithAggregatesFilter<"RubricCriteria">
-    rubricId?: StringWithAggregatesFilter<"RubricCriteria"> | string
+  export type UploadScalarWhereWithAggregatesInput = {
+    AND?: UploadScalarWhereWithAggregatesInput | UploadScalarWhereWithAggregatesInput[]
+    OR?: UploadScalarWhereWithAggregatesInput[]
+    NOT?: UploadScalarWhereWithAggregatesInput | UploadScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Upload"> | string
+    userId?: StringWithAggregatesFilter<"Upload"> | string
+    rubricId?: StringWithAggregatesFilter<"Upload"> | string
+    originalFileName?: StringWithAggregatesFilter<"Upload"> | string
+    storedFileKey?: StringWithAggregatesFilter<"Upload"> | string
+    storageLocation?: StringWithAggregatesFilter<"Upload"> | string
+    fileSize?: IntWithAggregatesFilter<"Upload"> | number
+    mimeType?: StringWithAggregatesFilter<"Upload"> | string
+    status?: EnumUploadStatusWithAggregatesFilter<"Upload"> | $Enums.UploadStatus
+    result?: JsonNullableWithAggregatesFilter<"Upload">
+    createdAt?: DateTimeWithAggregatesFilter<"Upload"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Upload"> | Date | string
   }
 
   export type UserCreateInput = {
     id?: string
     email: string
-    password: string
     createdAt?: Date | string
     updatedAt?: Date | string
-    gradingTasks?: GradingTaskCreateNestedManyWithoutAuthorInput
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+    uploads?: UploadCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
     id?: string
     email: string
-    password: string
     createdAt?: Date | string
     updatedAt?: Date | string
-    gradingTasks?: GradingTaskUncheckedCreateNestedManyWithoutAuthorInput
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    uploads?: UploadUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    gradingTasks?: GradingTaskUpdateManyWithoutAuthorNestedInput
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    uploads?: UploadUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    gradingTasks?: GradingTaskUncheckedUpdateManyWithoutAuthorNestedInput
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    uploads?: UploadUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
     id?: string
     email: string
-    password: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -6051,7 +5000,6 @@ export namespace Prisma {
   export type UserUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -6059,141 +5007,60 @@ export namespace Prisma {
   export type UserUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type GradingTaskCreateInput = {
-    id?: string
-    courseId?: string | null
-    status?: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    completedAt?: Date | string | null
-    score?: number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
-    author: UserCreateNestedOneWithoutGradingTasksInput
-  }
-
-  export type GradingTaskUncheckedCreateInput = {
-    id?: string
-    authorId: string
-    courseId?: string | null
-    status?: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    completedAt?: Date | string | null
-    score?: number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
-  }
-
-  export type GradingTaskUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    courseId?: NullableStringFieldUpdateOperationsInput | string | null
-    status?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    score?: NullableIntFieldUpdateOperationsInput | number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
-    author?: UserUpdateOneRequiredWithoutGradingTasksNestedInput
-  }
-
-  export type GradingTaskUncheckedUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    authorId?: StringFieldUpdateOperationsInput | string
-    courseId?: NullableStringFieldUpdateOperationsInput | string | null
-    status?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    score?: NullableIntFieldUpdateOperationsInput | number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
-  }
-
-  export type GradingTaskCreateManyInput = {
-    id?: string
-    authorId: string
-    courseId?: string | null
-    status?: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    completedAt?: Date | string | null
-    score?: number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
-  }
-
-  export type GradingTaskUpdateManyMutationInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    courseId?: NullableStringFieldUpdateOperationsInput | string | null
-    status?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    score?: NullableIntFieldUpdateOperationsInput | number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
-  }
-
-  export type GradingTaskUncheckedUpdateManyInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    authorId?: StringFieldUpdateOperationsInput | string
-    courseId?: NullableStringFieldUpdateOperationsInput | string | null
-    status?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    score?: NullableIntFieldUpdateOperationsInput | number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type RubricCreateInput = {
     id?: string
     name: string
     description: string
+    criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
-    criteria?: RubricCriteriaCreateNestedManyWithoutRubricInput
+    user: UserCreateNestedOneWithoutRubricsInput
+    uploads?: UploadCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUncheckedCreateInput = {
     id?: string
+    userId: string
     name: string
     description: string
+    criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
-    criteria?: RubricCriteriaUncheckedCreateNestedManyWithoutRubricInput
+    uploads?: UploadUncheckedCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    criteria?: RubricCriteriaUpdateManyWithoutRubricNestedInput
+    user?: UserUpdateOneRequiredWithoutRubricsNestedInput
+    uploads?: UploadUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    criteria?: RubricCriteriaUncheckedUpdateManyWithoutRubricNestedInput
+    uploads?: UploadUncheckedUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricCreateManyInput = {
     id?: string
+    userId: string
     name: string
     description: string
+    criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -6202,71 +5069,122 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type RubricUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type RubricCriteriaCreateInput = {
+  export type UploadCreateInput = {
     id?: string
-    name: string
-    description: string
-    levels: JsonNullValueInput | InputJsonValue
-    rubric: RubricCreateNestedOneWithoutCriteriaInput
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status?: $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutUploadsInput
+    rubric: RubricCreateNestedOneWithoutUploadsInput
   }
 
-  export type RubricCriteriaUncheckedCreateInput = {
+  export type UploadUncheckedCreateInput = {
     id?: string
-    name: string
-    description: string
-    levels: JsonNullValueInput | InputJsonValue
+    userId: string
     rubricId: string
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status?: $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
   }
 
-  export type RubricCriteriaUpdateInput = {
+  export type UploadUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    description?: StringFieldUpdateOperationsInput | string
-    levels?: JsonNullValueInput | InputJsonValue
-    rubric?: RubricUpdateOneRequiredWithoutCriteriaNestedInput
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutUploadsNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutUploadsNestedInput
   }
 
-  export type RubricCriteriaUncheckedUpdateInput = {
+  export type UploadUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    description?: StringFieldUpdateOperationsInput | string
-    levels?: JsonNullValueInput | InputJsonValue
+    userId?: StringFieldUpdateOperationsInput | string
     rubricId?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type RubricCriteriaCreateManyInput = {
+  export type UploadCreateManyInput = {
     id?: string
-    name: string
-    description: string
-    levels: JsonNullValueInput | InputJsonValue
+    userId: string
     rubricId: string
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status?: $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
   }
 
-  export type RubricCriteriaUpdateManyMutationInput = {
+  export type UploadUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    description?: StringFieldUpdateOperationsInput | string
-    levels?: JsonNullValueInput | InputJsonValue
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type RubricCriteriaUncheckedUpdateManyInput = {
+  export type UploadUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    description?: StringFieldUpdateOperationsInput | string
-    levels?: JsonNullValueInput | InputJsonValue
+    userId?: StringFieldUpdateOperationsInput | string
     rubricId?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -6295,20 +5213,29 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
-  export type GradingTaskListRelationFilter = {
-    every?: GradingTaskWhereInput
-    some?: GradingTaskWhereInput
-    none?: GradingTaskWhereInput
+  export type RubricListRelationFilter = {
+    every?: RubricWhereInput
+    some?: RubricWhereInput
+    none?: RubricWhereInput
   }
 
-  export type GradingTaskOrderByRelationAggregateInput = {
+  export type UploadListRelationFilter = {
+    every?: UploadWhereInput
+    some?: UploadWhereInput
+    none?: UploadWhereInput
+  }
+
+  export type RubricOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type UploadOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
   export type UserCountOrderByAggregateInput = {
     id?: SortOrder
     email?: SortOrder
-    password?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -6316,7 +5243,6 @@ export namespace Prisma {
   export type UserMaxOrderByAggregateInput = {
     id?: SortOrder
     email?: SortOrder
-    password?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -6324,7 +5250,6 @@ export namespace Prisma {
   export type UserMinOrderByAggregateInput = {
     id?: SortOrder
     email?: SortOrder
-    password?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -6360,227 +5285,6 @@ export namespace Prisma {
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
-
-  export type StringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
-  export type DateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
-  }
-
-  export type IntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
-  }
-  export type JsonNullableFilter<$PrismaModel = never> =
-    | PatchUndefined<
-        Either<Required<JsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>,
-        Required<JsonNullableFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>
-
-  export type JsonNullableFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-  }
-
-  export type UserScalarRelationFilter = {
-    is?: UserWhereInput
-    isNot?: UserWhereInput
-  }
-
-  export type SortOrderInput = {
-    sort: SortOrder
-    nulls?: NullsOrder
-  }
-
-  export type GradingTaskCountOrderByAggregateInput = {
-    id?: SortOrder
-    authorId?: SortOrder
-    courseId?: SortOrder
-    status?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-    completedAt?: SortOrder
-    score?: SortOrder
-    feedback?: SortOrder
-    metadata?: SortOrder
-  }
-
-  export type GradingTaskAvgOrderByAggregateInput = {
-    score?: SortOrder
-  }
-
-  export type GradingTaskMaxOrderByAggregateInput = {
-    id?: SortOrder
-    authorId?: SortOrder
-    courseId?: SortOrder
-    status?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-    completedAt?: SortOrder
-    score?: SortOrder
-  }
-
-  export type GradingTaskMinOrderByAggregateInput = {
-    id?: SortOrder
-    authorId?: SortOrder
-    courseId?: SortOrder
-    status?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-    completedAt?: SortOrder
-    score?: SortOrder
-  }
-
-  export type GradingTaskSumOrderByAggregateInput = {
-    score?: SortOrder
-  }
-
-  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
-  }
-
-  export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _avg?: NestedFloatNullableFilter<$PrismaModel>
-    _sum?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedIntNullableFilter<$PrismaModel>
-    _max?: NestedIntNullableFilter<$PrismaModel>
-  }
-  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
-    | PatchUndefined<
-        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
-        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
-
-  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedJsonNullableFilter<$PrismaModel>
-    _max?: NestedJsonNullableFilter<$PrismaModel>
-  }
-
-  export type RubricCriteriaListRelationFilter = {
-    every?: RubricCriteriaWhereInput
-    some?: RubricCriteriaWhereInput
-    none?: RubricCriteriaWhereInput
-  }
-
-  export type RubricCriteriaOrderByRelationAggregateInput = {
-    _count?: SortOrder
-  }
-
-  export type RubricCountOrderByAggregateInput = {
-    id?: SortOrder
-    name?: SortOrder
-    description?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type RubricMaxOrderByAggregateInput = {
-    id?: SortOrder
-    name?: SortOrder
-    description?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type RubricMinOrderByAggregateInput = {
-    id?: SortOrder
-    name?: SortOrder
-    description?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
   export type JsonFilter<$PrismaModel = never> =
     | PatchUndefined<
         Either<Required<JsonFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonFilterBase<$PrismaModel>>, 'path'>>,
@@ -6605,31 +5309,37 @@ export namespace Prisma {
     not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
   }
 
-  export type RubricScalarRelationFilter = {
-    is?: RubricWhereInput
-    isNot?: RubricWhereInput
+  export type UserScalarRelationFilter = {
+    is?: UserWhereInput
+    isNot?: UserWhereInput
   }
 
-  export type RubricCriteriaCountOrderByAggregateInput = {
+  export type RubricCountOrderByAggregateInput = {
     id?: SortOrder
+    userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
-    levels?: SortOrder
-    rubricId?: SortOrder
+    criteria?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
   }
 
-  export type RubricCriteriaMaxOrderByAggregateInput = {
+  export type RubricMaxOrderByAggregateInput = {
     id?: SortOrder
+    userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
-    rubricId?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
   }
 
-  export type RubricCriteriaMinOrderByAggregateInput = {
+  export type RubricMinOrderByAggregateInput = {
     id?: SortOrder
+    userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
-    rubricId?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
   }
   export type JsonWithAggregatesFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -6658,18 +5368,186 @@ export namespace Prisma {
     _max?: NestedJsonFilter<$PrismaModel>
   }
 
-  export type GradingTaskCreateNestedManyWithoutAuthorInput = {
-    create?: XOR<GradingTaskCreateWithoutAuthorInput, GradingTaskUncheckedCreateWithoutAuthorInput> | GradingTaskCreateWithoutAuthorInput[] | GradingTaskUncheckedCreateWithoutAuthorInput[]
-    connectOrCreate?: GradingTaskCreateOrConnectWithoutAuthorInput | GradingTaskCreateOrConnectWithoutAuthorInput[]
-    createMany?: GradingTaskCreateManyAuthorInputEnvelope
-    connect?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
   }
 
-  export type GradingTaskUncheckedCreateNestedManyWithoutAuthorInput = {
-    create?: XOR<GradingTaskCreateWithoutAuthorInput, GradingTaskUncheckedCreateWithoutAuthorInput> | GradingTaskCreateWithoutAuthorInput[] | GradingTaskUncheckedCreateWithoutAuthorInput[]
-    connectOrCreate?: GradingTaskCreateOrConnectWithoutAuthorInput | GradingTaskCreateOrConnectWithoutAuthorInput[]
-    createMany?: GradingTaskCreateManyAuthorInputEnvelope
-    connect?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
+  export type EnumUploadStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.UploadStatus | EnumUploadStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumUploadStatusFilter<$PrismaModel> | $Enums.UploadStatus
+  }
+  export type JsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
+
+  export type RubricScalarRelationFilter = {
+    is?: RubricWhereInput
+    isNot?: RubricWhereInput
+  }
+
+  export type SortOrderInput = {
+    sort: SortOrder
+    nulls?: NullsOrder
+  }
+
+  export type UploadCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    rubricId?: SortOrder
+    originalFileName?: SortOrder
+    storedFileKey?: SortOrder
+    storageLocation?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    status?: SortOrder
+    result?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type UploadAvgOrderByAggregateInput = {
+    fileSize?: SortOrder
+  }
+
+  export type UploadMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    rubricId?: SortOrder
+    originalFileName?: SortOrder
+    storedFileKey?: SortOrder
+    storageLocation?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type UploadMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    rubricId?: SortOrder
+    originalFileName?: SortOrder
+    storedFileKey?: SortOrder
+    storageLocation?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type UploadSumOrderByAggregateInput = {
+    fileSize?: SortOrder
+  }
+
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type EnumUploadStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.UploadStatus | EnumUploadStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumUploadStatusWithAggregatesFilter<$PrismaModel> | $Enums.UploadStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumUploadStatusFilter<$PrismaModel>
+    _max?: NestedEnumUploadStatusFilter<$PrismaModel>
+  }
+  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedJsonNullableFilter<$PrismaModel>
+    _max?: NestedJsonNullableFilter<$PrismaModel>
+  }
+
+  export type RubricCreateNestedManyWithoutUserInput = {
+    create?: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput> | RubricCreateWithoutUserInput[] | RubricUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: RubricCreateOrConnectWithoutUserInput | RubricCreateOrConnectWithoutUserInput[]
+    createMany?: RubricCreateManyUserInputEnvelope
+    connect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+  }
+
+  export type UploadCreateNestedManyWithoutUserInput = {
+    create?: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput> | UploadCreateWithoutUserInput[] | UploadUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UploadCreateOrConnectWithoutUserInput | UploadCreateOrConnectWithoutUserInput[]
+    createMany?: UploadCreateManyUserInputEnvelope
+    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+  }
+
+  export type RubricUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput> | RubricCreateWithoutUserInput[] | RubricUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: RubricCreateOrConnectWithoutUserInput | RubricCreateOrConnectWithoutUserInput[]
+    createMany?: RubricCreateManyUserInputEnvelope
+    connect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+  }
+
+  export type UploadUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput> | UploadCreateWithoutUserInput[] | UploadUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UploadCreateOrConnectWithoutUserInput | UploadCreateOrConnectWithoutUserInput[]
+    createMany?: UploadCreateManyUserInputEnvelope
+    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -6680,118 +5558,156 @@ export namespace Prisma {
     set?: Date | string
   }
 
-  export type GradingTaskUpdateManyWithoutAuthorNestedInput = {
-    create?: XOR<GradingTaskCreateWithoutAuthorInput, GradingTaskUncheckedCreateWithoutAuthorInput> | GradingTaskCreateWithoutAuthorInput[] | GradingTaskUncheckedCreateWithoutAuthorInput[]
-    connectOrCreate?: GradingTaskCreateOrConnectWithoutAuthorInput | GradingTaskCreateOrConnectWithoutAuthorInput[]
-    upsert?: GradingTaskUpsertWithWhereUniqueWithoutAuthorInput | GradingTaskUpsertWithWhereUniqueWithoutAuthorInput[]
-    createMany?: GradingTaskCreateManyAuthorInputEnvelope
-    set?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
-    disconnect?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
-    delete?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
-    connect?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
-    update?: GradingTaskUpdateWithWhereUniqueWithoutAuthorInput | GradingTaskUpdateWithWhereUniqueWithoutAuthorInput[]
-    updateMany?: GradingTaskUpdateManyWithWhereWithoutAuthorInput | GradingTaskUpdateManyWithWhereWithoutAuthorInput[]
-    deleteMany?: GradingTaskScalarWhereInput | GradingTaskScalarWhereInput[]
+  export type RubricUpdateManyWithoutUserNestedInput = {
+    create?: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput> | RubricCreateWithoutUserInput[] | RubricUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: RubricCreateOrConnectWithoutUserInput | RubricCreateOrConnectWithoutUserInput[]
+    upsert?: RubricUpsertWithWhereUniqueWithoutUserInput | RubricUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: RubricCreateManyUserInputEnvelope
+    set?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+    disconnect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+    delete?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+    connect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+    update?: RubricUpdateWithWhereUniqueWithoutUserInput | RubricUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: RubricUpdateManyWithWhereWithoutUserInput | RubricUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: RubricScalarWhereInput | RubricScalarWhereInput[]
   }
 
-  export type GradingTaskUncheckedUpdateManyWithoutAuthorNestedInput = {
-    create?: XOR<GradingTaskCreateWithoutAuthorInput, GradingTaskUncheckedCreateWithoutAuthorInput> | GradingTaskCreateWithoutAuthorInput[] | GradingTaskUncheckedCreateWithoutAuthorInput[]
-    connectOrCreate?: GradingTaskCreateOrConnectWithoutAuthorInput | GradingTaskCreateOrConnectWithoutAuthorInput[]
-    upsert?: GradingTaskUpsertWithWhereUniqueWithoutAuthorInput | GradingTaskUpsertWithWhereUniqueWithoutAuthorInput[]
-    createMany?: GradingTaskCreateManyAuthorInputEnvelope
-    set?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
-    disconnect?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
-    delete?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
-    connect?: GradingTaskWhereUniqueInput | GradingTaskWhereUniqueInput[]
-    update?: GradingTaskUpdateWithWhereUniqueWithoutAuthorInput | GradingTaskUpdateWithWhereUniqueWithoutAuthorInput[]
-    updateMany?: GradingTaskUpdateManyWithWhereWithoutAuthorInput | GradingTaskUpdateManyWithWhereWithoutAuthorInput[]
-    deleteMany?: GradingTaskScalarWhereInput | GradingTaskScalarWhereInput[]
+  export type UploadUpdateManyWithoutUserNestedInput = {
+    create?: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput> | UploadCreateWithoutUserInput[] | UploadUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UploadCreateOrConnectWithoutUserInput | UploadCreateOrConnectWithoutUserInput[]
+    upsert?: UploadUpsertWithWhereUniqueWithoutUserInput | UploadUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: UploadCreateManyUserInputEnvelope
+    set?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    disconnect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    delete?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    update?: UploadUpdateWithWhereUniqueWithoutUserInput | UploadUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: UploadUpdateManyWithWhereWithoutUserInput | UploadUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: UploadScalarWhereInput | UploadScalarWhereInput[]
   }
 
-  export type UserCreateNestedOneWithoutGradingTasksInput = {
-    create?: XOR<UserCreateWithoutGradingTasksInput, UserUncheckedCreateWithoutGradingTasksInput>
-    connectOrCreate?: UserCreateOrConnectWithoutGradingTasksInput
+  export type RubricUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput> | RubricCreateWithoutUserInput[] | RubricUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: RubricCreateOrConnectWithoutUserInput | RubricCreateOrConnectWithoutUserInput[]
+    upsert?: RubricUpsertWithWhereUniqueWithoutUserInput | RubricUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: RubricCreateManyUserInputEnvelope
+    set?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+    disconnect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+    delete?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+    connect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+    update?: RubricUpdateWithWhereUniqueWithoutUserInput | RubricUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: RubricUpdateManyWithWhereWithoutUserInput | RubricUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: RubricScalarWhereInput | RubricScalarWhereInput[]
+  }
+
+  export type UploadUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput> | UploadCreateWithoutUserInput[] | UploadUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UploadCreateOrConnectWithoutUserInput | UploadCreateOrConnectWithoutUserInput[]
+    upsert?: UploadUpsertWithWhereUniqueWithoutUserInput | UploadUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: UploadCreateManyUserInputEnvelope
+    set?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    disconnect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    delete?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    update?: UploadUpdateWithWhereUniqueWithoutUserInput | UploadUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: UploadUpdateManyWithWhereWithoutUserInput | UploadUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: UploadScalarWhereInput | UploadScalarWhereInput[]
+  }
+
+  export type UserCreateNestedOneWithoutRubricsInput = {
+    create?: XOR<UserCreateWithoutRubricsInput, UserUncheckedCreateWithoutRubricsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutRubricsInput
     connect?: UserWhereUniqueInput
   }
 
-  export type NullableStringFieldUpdateOperationsInput = {
-    set?: string | null
+  export type UploadCreateNestedManyWithoutRubricInput = {
+    create?: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput> | UploadCreateWithoutRubricInput[] | UploadUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: UploadCreateOrConnectWithoutRubricInput | UploadCreateOrConnectWithoutRubricInput[]
+    createMany?: UploadCreateManyRubricInputEnvelope
+    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
   }
 
-  export type NullableDateTimeFieldUpdateOperationsInput = {
-    set?: Date | string | null
+  export type UploadUncheckedCreateNestedManyWithoutRubricInput = {
+    create?: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput> | UploadCreateWithoutRubricInput[] | UploadUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: UploadCreateOrConnectWithoutRubricInput | UploadCreateOrConnectWithoutRubricInput[]
+    createMany?: UploadCreateManyRubricInputEnvelope
+    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
   }
 
-  export type NullableIntFieldUpdateOperationsInput = {
-    set?: number | null
+  export type UserUpdateOneRequiredWithoutRubricsNestedInput = {
+    create?: XOR<UserCreateWithoutRubricsInput, UserUncheckedCreateWithoutRubricsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutRubricsInput
+    upsert?: UserUpsertWithoutRubricsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutRubricsInput, UserUpdateWithoutRubricsInput>, UserUncheckedUpdateWithoutRubricsInput>
+  }
+
+  export type UploadUpdateManyWithoutRubricNestedInput = {
+    create?: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput> | UploadCreateWithoutRubricInput[] | UploadUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: UploadCreateOrConnectWithoutRubricInput | UploadCreateOrConnectWithoutRubricInput[]
+    upsert?: UploadUpsertWithWhereUniqueWithoutRubricInput | UploadUpsertWithWhereUniqueWithoutRubricInput[]
+    createMany?: UploadCreateManyRubricInputEnvelope
+    set?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    disconnect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    delete?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    update?: UploadUpdateWithWhereUniqueWithoutRubricInput | UploadUpdateWithWhereUniqueWithoutRubricInput[]
+    updateMany?: UploadUpdateManyWithWhereWithoutRubricInput | UploadUpdateManyWithWhereWithoutRubricInput[]
+    deleteMany?: UploadScalarWhereInput | UploadScalarWhereInput[]
+  }
+
+  export type UploadUncheckedUpdateManyWithoutRubricNestedInput = {
+    create?: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput> | UploadCreateWithoutRubricInput[] | UploadUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: UploadCreateOrConnectWithoutRubricInput | UploadCreateOrConnectWithoutRubricInput[]
+    upsert?: UploadUpsertWithWhereUniqueWithoutRubricInput | UploadUpsertWithWhereUniqueWithoutRubricInput[]
+    createMany?: UploadCreateManyRubricInputEnvelope
+    set?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    disconnect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    delete?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+    update?: UploadUpdateWithWhereUniqueWithoutRubricInput | UploadUpdateWithWhereUniqueWithoutRubricInput[]
+    updateMany?: UploadUpdateManyWithWhereWithoutRubricInput | UploadUpdateManyWithWhereWithoutRubricInput[]
+    deleteMany?: UploadScalarWhereInput | UploadScalarWhereInput[]
+  }
+
+  export type UserCreateNestedOneWithoutUploadsInput = {
+    create?: XOR<UserCreateWithoutUploadsInput, UserUncheckedCreateWithoutUploadsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutUploadsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type RubricCreateNestedOneWithoutUploadsInput = {
+    create?: XOR<RubricCreateWithoutUploadsInput, RubricUncheckedCreateWithoutUploadsInput>
+    connectOrCreate?: RubricCreateOrConnectWithoutUploadsInput
+    connect?: RubricWhereUniqueInput
+  }
+
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
     increment?: number
     decrement?: number
     multiply?: number
     divide?: number
   }
 
-  export type UserUpdateOneRequiredWithoutGradingTasksNestedInput = {
-    create?: XOR<UserCreateWithoutGradingTasksInput, UserUncheckedCreateWithoutGradingTasksInput>
-    connectOrCreate?: UserCreateOrConnectWithoutGradingTasksInput
-    upsert?: UserUpsertWithoutGradingTasksInput
+  export type EnumUploadStatusFieldUpdateOperationsInput = {
+    set?: $Enums.UploadStatus
+  }
+
+  export type UserUpdateOneRequiredWithoutUploadsNestedInput = {
+    create?: XOR<UserCreateWithoutUploadsInput, UserUncheckedCreateWithoutUploadsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutUploadsInput
+    upsert?: UserUpsertWithoutUploadsInput
     connect?: UserWhereUniqueInput
-    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutGradingTasksInput, UserUpdateWithoutGradingTasksInput>, UserUncheckedUpdateWithoutGradingTasksInput>
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutUploadsInput, UserUpdateWithoutUploadsInput>, UserUncheckedUpdateWithoutUploadsInput>
   }
 
-  export type RubricCriteriaCreateNestedManyWithoutRubricInput = {
-    create?: XOR<RubricCriteriaCreateWithoutRubricInput, RubricCriteriaUncheckedCreateWithoutRubricInput> | RubricCriteriaCreateWithoutRubricInput[] | RubricCriteriaUncheckedCreateWithoutRubricInput[]
-    connectOrCreate?: RubricCriteriaCreateOrConnectWithoutRubricInput | RubricCriteriaCreateOrConnectWithoutRubricInput[]
-    createMany?: RubricCriteriaCreateManyRubricInputEnvelope
-    connect?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-  }
-
-  export type RubricCriteriaUncheckedCreateNestedManyWithoutRubricInput = {
-    create?: XOR<RubricCriteriaCreateWithoutRubricInput, RubricCriteriaUncheckedCreateWithoutRubricInput> | RubricCriteriaCreateWithoutRubricInput[] | RubricCriteriaUncheckedCreateWithoutRubricInput[]
-    connectOrCreate?: RubricCriteriaCreateOrConnectWithoutRubricInput | RubricCriteriaCreateOrConnectWithoutRubricInput[]
-    createMany?: RubricCriteriaCreateManyRubricInputEnvelope
-    connect?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-  }
-
-  export type RubricCriteriaUpdateManyWithoutRubricNestedInput = {
-    create?: XOR<RubricCriteriaCreateWithoutRubricInput, RubricCriteriaUncheckedCreateWithoutRubricInput> | RubricCriteriaCreateWithoutRubricInput[] | RubricCriteriaUncheckedCreateWithoutRubricInput[]
-    connectOrCreate?: RubricCriteriaCreateOrConnectWithoutRubricInput | RubricCriteriaCreateOrConnectWithoutRubricInput[]
-    upsert?: RubricCriteriaUpsertWithWhereUniqueWithoutRubricInput | RubricCriteriaUpsertWithWhereUniqueWithoutRubricInput[]
-    createMany?: RubricCriteriaCreateManyRubricInputEnvelope
-    set?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-    disconnect?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-    delete?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-    connect?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-    update?: RubricCriteriaUpdateWithWhereUniqueWithoutRubricInput | RubricCriteriaUpdateWithWhereUniqueWithoutRubricInput[]
-    updateMany?: RubricCriteriaUpdateManyWithWhereWithoutRubricInput | RubricCriteriaUpdateManyWithWhereWithoutRubricInput[]
-    deleteMany?: RubricCriteriaScalarWhereInput | RubricCriteriaScalarWhereInput[]
-  }
-
-  export type RubricCriteriaUncheckedUpdateManyWithoutRubricNestedInput = {
-    create?: XOR<RubricCriteriaCreateWithoutRubricInput, RubricCriteriaUncheckedCreateWithoutRubricInput> | RubricCriteriaCreateWithoutRubricInput[] | RubricCriteriaUncheckedCreateWithoutRubricInput[]
-    connectOrCreate?: RubricCriteriaCreateOrConnectWithoutRubricInput | RubricCriteriaCreateOrConnectWithoutRubricInput[]
-    upsert?: RubricCriteriaUpsertWithWhereUniqueWithoutRubricInput | RubricCriteriaUpsertWithWhereUniqueWithoutRubricInput[]
-    createMany?: RubricCriteriaCreateManyRubricInputEnvelope
-    set?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-    disconnect?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-    delete?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-    connect?: RubricCriteriaWhereUniqueInput | RubricCriteriaWhereUniqueInput[]
-    update?: RubricCriteriaUpdateWithWhereUniqueWithoutRubricInput | RubricCriteriaUpdateWithWhereUniqueWithoutRubricInput[]
-    updateMany?: RubricCriteriaUpdateManyWithWhereWithoutRubricInput | RubricCriteriaUpdateManyWithWhereWithoutRubricInput[]
-    deleteMany?: RubricCriteriaScalarWhereInput | RubricCriteriaScalarWhereInput[]
-  }
-
-  export type RubricCreateNestedOneWithoutCriteriaInput = {
-    create?: XOR<RubricCreateWithoutCriteriaInput, RubricUncheckedCreateWithoutCriteriaInput>
-    connectOrCreate?: RubricCreateOrConnectWithoutCriteriaInput
+  export type RubricUpdateOneRequiredWithoutUploadsNestedInput = {
+    create?: XOR<RubricCreateWithoutUploadsInput, RubricUncheckedCreateWithoutUploadsInput>
+    connectOrCreate?: RubricCreateOrConnectWithoutUploadsInput
+    upsert?: RubricUpsertWithoutUploadsInput
     connect?: RubricWhereUniqueInput
-  }
-
-  export type RubricUpdateOneRequiredWithoutCriteriaNestedInput = {
-    create?: XOR<RubricCreateWithoutCriteriaInput, RubricUncheckedCreateWithoutCriteriaInput>
-    connectOrCreate?: RubricCreateOrConnectWithoutCriteriaInput
-    upsert?: RubricUpsertWithoutCriteriaInput
-    connect?: RubricWhereUniqueInput
-    update?: XOR<XOR<RubricUpdateToOneWithWhereWithoutCriteriaInput, RubricUpdateWithoutCriteriaInput>, RubricUncheckedUpdateWithoutCriteriaInput>
+    update?: XOR<XOR<RubricUpdateToOneWithWhereWithoutUploadsInput, RubricUpdateWithoutUploadsInput>, RubricUncheckedUpdateWithoutUploadsInput>
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -6860,123 +5776,6 @@ export namespace Prisma {
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
-
-  export type NestedStringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
-  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
-  }
-
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
-  }
-
-  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
-  }
-
-  export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _avg?: NestedFloatNullableFilter<$PrismaModel>
-    _sum?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedIntNullableFilter<$PrismaModel>
-    _max?: NestedIntNullableFilter<$PrismaModel>
-  }
-
-  export type NestedFloatNullableFilter<$PrismaModel = never> = {
-    equals?: number | FloatFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
-    lt?: number | FloatFieldRefInput<$PrismaModel>
-    lte?: number | FloatFieldRefInput<$PrismaModel>
-    gt?: number | FloatFieldRefInput<$PrismaModel>
-    gte?: number | FloatFieldRefInput<$PrismaModel>
-    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
-  }
-  export type NestedJsonNullableFilter<$PrismaModel = never> =
-    | PatchUndefined<
-        Either<Required<NestedJsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>,
-        Required<NestedJsonNullableFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>
-
-  export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-  }
   export type NestedJsonFilter<$PrismaModel = never> =
     | PatchUndefined<
         Either<Required<NestedJsonFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonFilterBase<$PrismaModel>>, 'path'>>,
@@ -7001,293 +5800,569 @@ export namespace Prisma {
     not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
   }
 
-  export type GradingTaskCreateWithoutAuthorInput = {
-    id?: string
-    courseId?: string | null
-    status?: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    completedAt?: Date | string | null
-    score?: number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
+  export type NestedEnumUploadStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.UploadStatus | EnumUploadStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumUploadStatusFilter<$PrismaModel> | $Enums.UploadStatus
   }
 
-  export type GradingTaskUncheckedCreateWithoutAuthorInput = {
-    id?: string
-    courseId?: string | null
-    status?: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    completedAt?: Date | string | null
-    score?: number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
+  export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
   }
 
-  export type GradingTaskCreateOrConnectWithoutAuthorInput = {
-    where: GradingTaskWhereUniqueInput
-    create: XOR<GradingTaskCreateWithoutAuthorInput, GradingTaskUncheckedCreateWithoutAuthorInput>
+  export type NestedFloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
   }
 
-  export type GradingTaskCreateManyAuthorInputEnvelope = {
-    data: GradingTaskCreateManyAuthorInput | GradingTaskCreateManyAuthorInput[]
-    skipDuplicates?: boolean
+  export type NestedEnumUploadStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.UploadStatus | EnumUploadStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumUploadStatusWithAggregatesFilter<$PrismaModel> | $Enums.UploadStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumUploadStatusFilter<$PrismaModel>
+    _max?: NestedEnumUploadStatusFilter<$PrismaModel>
   }
 
-  export type GradingTaskUpsertWithWhereUniqueWithoutAuthorInput = {
-    where: GradingTaskWhereUniqueInput
-    update: XOR<GradingTaskUpdateWithoutAuthorInput, GradingTaskUncheckedUpdateWithoutAuthorInput>
-    create: XOR<GradingTaskCreateWithoutAuthorInput, GradingTaskUncheckedCreateWithoutAuthorInput>
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+  export type NestedJsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<NestedJsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<NestedJsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
   }
 
-  export type GradingTaskUpdateWithWhereUniqueWithoutAuthorInput = {
-    where: GradingTaskWhereUniqueInput
-    data: XOR<GradingTaskUpdateWithoutAuthorInput, GradingTaskUncheckedUpdateWithoutAuthorInput>
-  }
-
-  export type GradingTaskUpdateManyWithWhereWithoutAuthorInput = {
-    where: GradingTaskScalarWhereInput
-    data: XOR<GradingTaskUpdateManyMutationInput, GradingTaskUncheckedUpdateManyWithoutAuthorInput>
-  }
-
-  export type GradingTaskScalarWhereInput = {
-    AND?: GradingTaskScalarWhereInput | GradingTaskScalarWhereInput[]
-    OR?: GradingTaskScalarWhereInput[]
-    NOT?: GradingTaskScalarWhereInput | GradingTaskScalarWhereInput[]
-    id?: StringFilter<"GradingTask"> | string
-    authorId?: StringFilter<"GradingTask"> | string
-    courseId?: StringNullableFilter<"GradingTask"> | string | null
-    status?: StringFilter<"GradingTask"> | string
-    createdAt?: DateTimeFilter<"GradingTask"> | Date | string
-    updatedAt?: DateTimeFilter<"GradingTask"> | Date | string
-    completedAt?: DateTimeNullableFilter<"GradingTask"> | Date | string | null
-    score?: IntNullableFilter<"GradingTask"> | number | null
-    feedback?: JsonNullableFilter<"GradingTask">
-    metadata?: JsonNullableFilter<"GradingTask">
-  }
-
-  export type UserCreateWithoutGradingTasksInput = {
-    id?: string
-    email: string
-    password: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type UserUncheckedCreateWithoutGradingTasksInput = {
-    id?: string
-    email: string
-    password: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type UserCreateOrConnectWithoutGradingTasksInput = {
-    where: UserWhereUniqueInput
-    create: XOR<UserCreateWithoutGradingTasksInput, UserUncheckedCreateWithoutGradingTasksInput>
-  }
-
-  export type UserUpsertWithoutGradingTasksInput = {
-    update: XOR<UserUpdateWithoutGradingTasksInput, UserUncheckedUpdateWithoutGradingTasksInput>
-    create: XOR<UserCreateWithoutGradingTasksInput, UserUncheckedCreateWithoutGradingTasksInput>
-    where?: UserWhereInput
-  }
-
-  export type UserUpdateToOneWithWhereWithoutGradingTasksInput = {
-    where?: UserWhereInput
-    data: XOR<UserUpdateWithoutGradingTasksInput, UserUncheckedUpdateWithoutGradingTasksInput>
-  }
-
-  export type UserUpdateWithoutGradingTasksInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type UserUncheckedUpdateWithoutGradingTasksInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    password?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type RubricCriteriaCreateWithoutRubricInput = {
+  export type RubricCreateWithoutUserInput = {
     id?: string
     name: string
     description: string
-    levels: JsonNullValueInput | InputJsonValue
-  }
-
-  export type RubricCriteriaUncheckedCreateWithoutRubricInput = {
-    id?: string
-    name: string
-    description: string
-    levels: JsonNullValueInput | InputJsonValue
-  }
-
-  export type RubricCriteriaCreateOrConnectWithoutRubricInput = {
-    where: RubricCriteriaWhereUniqueInput
-    create: XOR<RubricCriteriaCreateWithoutRubricInput, RubricCriteriaUncheckedCreateWithoutRubricInput>
-  }
-
-  export type RubricCriteriaCreateManyRubricInputEnvelope = {
-    data: RubricCriteriaCreateManyRubricInput | RubricCriteriaCreateManyRubricInput[]
-    skipDuplicates?: boolean
-  }
-
-  export type RubricCriteriaUpsertWithWhereUniqueWithoutRubricInput = {
-    where: RubricCriteriaWhereUniqueInput
-    update: XOR<RubricCriteriaUpdateWithoutRubricInput, RubricCriteriaUncheckedUpdateWithoutRubricInput>
-    create: XOR<RubricCriteriaCreateWithoutRubricInput, RubricCriteriaUncheckedCreateWithoutRubricInput>
-  }
-
-  export type RubricCriteriaUpdateWithWhereUniqueWithoutRubricInput = {
-    where: RubricCriteriaWhereUniqueInput
-    data: XOR<RubricCriteriaUpdateWithoutRubricInput, RubricCriteriaUncheckedUpdateWithoutRubricInput>
-  }
-
-  export type RubricCriteriaUpdateManyWithWhereWithoutRubricInput = {
-    where: RubricCriteriaScalarWhereInput
-    data: XOR<RubricCriteriaUpdateManyMutationInput, RubricCriteriaUncheckedUpdateManyWithoutRubricInput>
-  }
-
-  export type RubricCriteriaScalarWhereInput = {
-    AND?: RubricCriteriaScalarWhereInput | RubricCriteriaScalarWhereInput[]
-    OR?: RubricCriteriaScalarWhereInput[]
-    NOT?: RubricCriteriaScalarWhereInput | RubricCriteriaScalarWhereInput[]
-    id?: StringFilter<"RubricCriteria"> | string
-    name?: StringFilter<"RubricCriteria"> | string
-    description?: StringFilter<"RubricCriteria"> | string
-    levels?: JsonFilter<"RubricCriteria">
-    rubricId?: StringFilter<"RubricCriteria"> | string
-  }
-
-  export type RubricCreateWithoutCriteriaInput = {
-    id?: string
-    name: string
-    description: string
+    criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
+    uploads?: UploadCreateNestedManyWithoutRubricInput
   }
 
-  export type RubricUncheckedCreateWithoutCriteriaInput = {
+  export type RubricUncheckedCreateWithoutUserInput = {
     id?: string
     name: string
     description: string
+    criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
+    uploads?: UploadUncheckedCreateNestedManyWithoutRubricInput
   }
 
-  export type RubricCreateOrConnectWithoutCriteriaInput = {
+  export type RubricCreateOrConnectWithoutUserInput = {
     where: RubricWhereUniqueInput
-    create: XOR<RubricCreateWithoutCriteriaInput, RubricUncheckedCreateWithoutCriteriaInput>
+    create: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput>
   }
 
-  export type RubricUpsertWithoutCriteriaInput = {
-    update: XOR<RubricUpdateWithoutCriteriaInput, RubricUncheckedUpdateWithoutCriteriaInput>
-    create: XOR<RubricCreateWithoutCriteriaInput, RubricUncheckedCreateWithoutCriteriaInput>
-    where?: RubricWhereInput
+  export type RubricCreateManyUserInputEnvelope = {
+    data: RubricCreateManyUserInput | RubricCreateManyUserInput[]
+    skipDuplicates?: boolean
   }
 
-  export type RubricUpdateToOneWithWhereWithoutCriteriaInput = {
-    where?: RubricWhereInput
-    data: XOR<RubricUpdateWithoutCriteriaInput, RubricUncheckedUpdateWithoutCriteriaInput>
-  }
-
-  export type RubricUpdateWithoutCriteriaInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    description?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type RubricUncheckedUpdateWithoutCriteriaInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    description?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type GradingTaskCreateManyAuthorInput = {
+  export type UploadCreateWithoutUserInput = {
     id?: string
-    courseId?: string | null
-    status?: string
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status?: $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
-    completedAt?: Date | string | null
-    score?: number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
+    rubric: RubricCreateNestedOneWithoutUploadsInput
   }
 
-  export type GradingTaskUpdateWithoutAuthorInput = {
+  export type UploadUncheckedCreateWithoutUserInput = {
+    id?: string
+    rubricId: string
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status?: $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type UploadCreateOrConnectWithoutUserInput = {
+    where: UploadWhereUniqueInput
+    create: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput>
+  }
+
+  export type UploadCreateManyUserInputEnvelope = {
+    data: UploadCreateManyUserInput | UploadCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type RubricUpsertWithWhereUniqueWithoutUserInput = {
+    where: RubricWhereUniqueInput
+    update: XOR<RubricUpdateWithoutUserInput, RubricUncheckedUpdateWithoutUserInput>
+    create: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput>
+  }
+
+  export type RubricUpdateWithWhereUniqueWithoutUserInput = {
+    where: RubricWhereUniqueInput
+    data: XOR<RubricUpdateWithoutUserInput, RubricUncheckedUpdateWithoutUserInput>
+  }
+
+  export type RubricUpdateManyWithWhereWithoutUserInput = {
+    where: RubricScalarWhereInput
+    data: XOR<RubricUpdateManyMutationInput, RubricUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type RubricScalarWhereInput = {
+    AND?: RubricScalarWhereInput | RubricScalarWhereInput[]
+    OR?: RubricScalarWhereInput[]
+    NOT?: RubricScalarWhereInput | RubricScalarWhereInput[]
+    id?: StringFilter<"Rubric"> | string
+    userId?: StringFilter<"Rubric"> | string
+    name?: StringFilter<"Rubric"> | string
+    description?: StringFilter<"Rubric"> | string
+    criteria?: JsonFilter<"Rubric">
+    createdAt?: DateTimeFilter<"Rubric"> | Date | string
+    updatedAt?: DateTimeFilter<"Rubric"> | Date | string
+  }
+
+  export type UploadUpsertWithWhereUniqueWithoutUserInput = {
+    where: UploadWhereUniqueInput
+    update: XOR<UploadUpdateWithoutUserInput, UploadUncheckedUpdateWithoutUserInput>
+    create: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput>
+  }
+
+  export type UploadUpdateWithWhereUniqueWithoutUserInput = {
+    where: UploadWhereUniqueInput
+    data: XOR<UploadUpdateWithoutUserInput, UploadUncheckedUpdateWithoutUserInput>
+  }
+
+  export type UploadUpdateManyWithWhereWithoutUserInput = {
+    where: UploadScalarWhereInput
+    data: XOR<UploadUpdateManyMutationInput, UploadUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type UploadScalarWhereInput = {
+    AND?: UploadScalarWhereInput | UploadScalarWhereInput[]
+    OR?: UploadScalarWhereInput[]
+    NOT?: UploadScalarWhereInput | UploadScalarWhereInput[]
+    id?: StringFilter<"Upload"> | string
+    userId?: StringFilter<"Upload"> | string
+    rubricId?: StringFilter<"Upload"> | string
+    originalFileName?: StringFilter<"Upload"> | string
+    storedFileKey?: StringFilter<"Upload"> | string
+    storageLocation?: StringFilter<"Upload"> | string
+    fileSize?: IntFilter<"Upload"> | number
+    mimeType?: StringFilter<"Upload"> | string
+    status?: EnumUploadStatusFilter<"Upload"> | $Enums.UploadStatus
+    result?: JsonNullableFilter<"Upload">
+    createdAt?: DateTimeFilter<"Upload"> | Date | string
+    updatedAt?: DateTimeFilter<"Upload"> | Date | string
+  }
+
+  export type UserCreateWithoutRubricsInput = {
+    id?: string
+    email: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    uploads?: UploadCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutRubricsInput = {
+    id?: string
+    email: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    uploads?: UploadUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutRubricsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutRubricsInput, UserUncheckedCreateWithoutRubricsInput>
+  }
+
+  export type UploadCreateWithoutRubricInput = {
+    id?: string
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status?: $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutUploadsInput
+  }
+
+  export type UploadUncheckedCreateWithoutRubricInput = {
+    id?: string
+    userId: string
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status?: $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type UploadCreateOrConnectWithoutRubricInput = {
+    where: UploadWhereUniqueInput
+    create: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput>
+  }
+
+  export type UploadCreateManyRubricInputEnvelope = {
+    data: UploadCreateManyRubricInput | UploadCreateManyRubricInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UserUpsertWithoutRubricsInput = {
+    update: XOR<UserUpdateWithoutRubricsInput, UserUncheckedUpdateWithoutRubricsInput>
+    create: XOR<UserCreateWithoutRubricsInput, UserUncheckedCreateWithoutRubricsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutRubricsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutRubricsInput, UserUncheckedUpdateWithoutRubricsInput>
+  }
+
+  export type UserUpdateWithoutRubricsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    courseId?: NullableStringFieldUpdateOperationsInput | string | null
-    status?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    score?: NullableIntFieldUpdateOperationsInput | number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
+    uploads?: UploadUpdateManyWithoutUserNestedInput
   }
 
-  export type GradingTaskUncheckedUpdateWithoutAuthorInput = {
+  export type UserUncheckedUpdateWithoutRubricsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    courseId?: NullableStringFieldUpdateOperationsInput | string | null
-    status?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    score?: NullableIntFieldUpdateOperationsInput | number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
+    uploads?: UploadUncheckedUpdateManyWithoutUserNestedInput
   }
 
-  export type GradingTaskUncheckedUpdateManyWithoutAuthorInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    courseId?: NullableStringFieldUpdateOperationsInput | string | null
-    status?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    score?: NullableIntFieldUpdateOperationsInput | number | null
-    feedback?: NullableJsonNullValueInput | InputJsonValue
-    metadata?: NullableJsonNullValueInput | InputJsonValue
+  export type UploadUpsertWithWhereUniqueWithoutRubricInput = {
+    where: UploadWhereUniqueInput
+    update: XOR<UploadUpdateWithoutRubricInput, UploadUncheckedUpdateWithoutRubricInput>
+    create: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput>
   }
 
-  export type RubricCriteriaCreateManyRubricInput = {
+  export type UploadUpdateWithWhereUniqueWithoutRubricInput = {
+    where: UploadWhereUniqueInput
+    data: XOR<UploadUpdateWithoutRubricInput, UploadUncheckedUpdateWithoutRubricInput>
+  }
+
+  export type UploadUpdateManyWithWhereWithoutRubricInput = {
+    where: UploadScalarWhereInput
+    data: XOR<UploadUpdateManyMutationInput, UploadUncheckedUpdateManyWithoutRubricInput>
+  }
+
+  export type UserCreateWithoutUploadsInput = {
+    id?: string
+    email: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutUploadsInput = {
+    id?: string
+    email: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutUploadsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutUploadsInput, UserUncheckedCreateWithoutUploadsInput>
+  }
+
+  export type RubricCreateWithoutUploadsInput = {
     id?: string
     name: string
     description: string
-    levels: JsonNullValueInput | InputJsonValue
+    criteria: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutRubricsInput
   }
 
-  export type RubricCriteriaUpdateWithoutRubricInput = {
+  export type RubricUncheckedCreateWithoutUploadsInput = {
+    id?: string
+    userId: string
+    name: string
+    description: string
+    criteria: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RubricCreateOrConnectWithoutUploadsInput = {
+    where: RubricWhereUniqueInput
+    create: XOR<RubricCreateWithoutUploadsInput, RubricUncheckedCreateWithoutUploadsInput>
+  }
+
+  export type UserUpsertWithoutUploadsInput = {
+    update: XOR<UserUpdateWithoutUploadsInput, UserUncheckedUpdateWithoutUploadsInput>
+    create: XOR<UserCreateWithoutUploadsInput, UserUncheckedCreateWithoutUploadsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutUploadsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutUploadsInput, UserUncheckedUpdateWithoutUploadsInput>
+  }
+
+  export type UserUpdateWithoutUploadsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutUploadsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type RubricUpsertWithoutUploadsInput = {
+    update: XOR<RubricUpdateWithoutUploadsInput, RubricUncheckedUpdateWithoutUploadsInput>
+    create: XOR<RubricCreateWithoutUploadsInput, RubricUncheckedCreateWithoutUploadsInput>
+    where?: RubricWhereInput
+  }
+
+  export type RubricUpdateToOneWithWhereWithoutUploadsInput = {
+    where?: RubricWhereInput
+    data: XOR<RubricUpdateWithoutUploadsInput, RubricUncheckedUpdateWithoutUploadsInput>
+  }
+
+  export type RubricUpdateWithoutUploadsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
-    levels?: JsonNullValueInput | InputJsonValue
+    criteria?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutRubricsNestedInput
   }
 
-  export type RubricCriteriaUncheckedUpdateWithoutRubricInput = {
+  export type RubricUncheckedUpdateWithoutUploadsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    criteria?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RubricCreateManyUserInput = {
+    id?: string
+    name: string
+    description: string
+    criteria: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type UploadCreateManyUserInput = {
+    id?: string
+    rubricId: string
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status?: $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RubricUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
-    levels?: JsonNullValueInput | InputJsonValue
+    criteria?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    uploads?: UploadUpdateManyWithoutRubricNestedInput
   }
 
-  export type RubricCriteriaUncheckedUpdateManyWithoutRubricInput = {
+  export type RubricUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
-    levels?: JsonNullValueInput | InputJsonValue
+    criteria?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    uploads?: UploadUncheckedUpdateManyWithoutRubricNestedInput
+  }
+
+  export type RubricUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    criteria?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UploadUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubric?: RubricUpdateOneRequiredWithoutUploadsNestedInput
+  }
+
+  export type UploadUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UploadUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UploadCreateManyRubricInput = {
+    id?: string
+    userId: string
+    originalFileName: string
+    storedFileKey: string
+    storageLocation: string
+    fileSize: number
+    mimeType: string
+    status?: $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type UploadUpdateWithoutRubricInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutUploadsNestedInput
+  }
+
+  export type UploadUncheckedUpdateWithoutRubricInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UploadUncheckedUpdateManyWithoutRubricInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    storedFileKey?: StringFieldUpdateOperationsInput | string
+    storageLocation?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    result?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
 

@@ -1,0 +1,20 @@
+services:
+  test-db:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"  
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: grading_test_template
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+    networks:
+      - test_network
+    command: postgres -c log_statement=all -c log_destination=stderr
+
+networks:
+  test_network:
+
+volumes:
+  test_postgres_data: 

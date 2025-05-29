@@ -1,5 +1,8 @@
 import { uploadToStorage } from '@/services/storage.server';
 import { UploadProgressService } from '@/services/progress.server';
+import { getUserId } from '@/services/auth.server';
+import { db } from '@/lib/db.server';
+import { triggerPdfParsing } from '@/services/pdf-parser.server';
 
 /**
  * API endpoint loader that rejects GET requests for file uploads
@@ -97,57 +100,112 @@ function createUploadHandler(uploadId: string) {
 }
 
 /**
- * API endpoint to handle file uploads with progress tracking
+ * API endpoint to handle file uploads with progress tracking and database storage
  * @param {Object} params - Route parameters
  * @param {Request} params.request - HTTP request with multipart form data containing files and uploadId
  * @returns {Promise<Response>} JSON response with upload results or error
  */
 export async function action({ request }: { request: Request }) {
   try {
-    let uploadId: string;
+    // Get user authentication
+    const userId = await getUserId(request);
+    if (!userId) {
+      return Response.json(
+        {
+          success: false,
+          error: '用戶未認證',
+        },
+        { status: 401 }
+      );
+    }
 
-    const clonedRequest = request.clone();
-
-    const formDataForId = await clonedRequest.formData();
-    uploadId = formDataForId.get('uploadId') as string;
-    const uploadHandler = createUploadHandler(uploadId);
-
-    // Use our temporary implementation
-    const formData = await parseMultipartFormData(request, uploadHandler);
-
+    const formData = await request.formData();
+    const uploadId = formData.get('uploadId') as string;
     const files = formData.getAll('files') as File[];
+
+    if (!uploadId) {
+      return Response.json(
+        {
+          success: false,
+          error: 'Missing uploadId',
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log(`🚀 Processing ${files.length} files for user ${userId}, uploadId: ${uploadId}`);
+
     const fileResults = await Promise.all(
       files.map(async (file) => {
         const fileKey = `uploads/${Date.now()}-${file.name}`;
 
-        await UploadProgressService.updateFileProgress(uploadId, file.name, {
-          status: 'uploading',
-          progress: 0,
-        });
+        try {
+          await UploadProgressService.updateFileProgress(uploadId, file.name, {
+            status: 'uploading',
+            progress: 0,
+          });
 
-        const buffer = Buffer.from(await file.arrayBuffer());
+          const buffer = Buffer.from(await file.arrayBuffer());
 
-        await UploadProgressService.updateFileProgress(uploadId, file.name, {
-          status: 'uploading',
-          progress: 50,
-        });
+          await UploadProgressService.updateFileProgress(uploadId, file.name, {
+            status: 'uploading',
+            progress: 50,
+          });
 
-        const result = await uploadToStorage(buffer, fileKey, file.type);
+          // Upload to storage
+          const result = await uploadToStorage(buffer, fileKey, file.type);
 
-        await UploadProgressService.updateFileProgress(uploadId, file.name, {
-          status: 'success',
-          progress: 100,
-        });
+          // Save to database
+          const uploadedFile = await db.uploadedFile.create({
+            data: {
+              userId,
+              fileName: file.name,
+              fileKey,
+              fileSize: file.size,
+              mimeType: file.type,
+              uploadId,
+              parseStatus: 'pending',
+            },
+          });
 
-        return {
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          url: result.url,
-          key: fileKey,
-        };
+          console.log(`💾 File saved to database:`, { id: uploadedFile.id, fileName: file.name });
+
+          // Trigger PDF parsing asynchronously
+          if (file.type === 'application/pdf') {
+            triggerPdfParsing(uploadedFile.id, fileKey, file.name, userId).catch((error: any) => {
+              console.error(`❌ PDF parsing trigger failed for ${file.name}:`, error);
+            });
+          }
+
+          await UploadProgressService.updateFileProgress(uploadId, file.name, {
+            status: 'success',
+            progress: 100,
+            key: fileKey,
+          });
+
+          return {
+            id: uploadedFile.id,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            url: result.url,
+            key: fileKey,
+          };
+        } catch (error) {
+          console.error(`❌ Upload failed for ${file.name}:`, error);
+          
+          await UploadProgressService.updateFileProgress(uploadId, file.name, {
+            status: 'error',
+            progress: 0,
+            error: error instanceof Error ? error.message : '上傳失敗',
+          });
+
+          throw error;
+        }
       })
     );
+
+    console.log(`✅ Successfully uploaded ${fileResults.length} files for user ${userId}`);
 
     return Response.json({
       success: true,
