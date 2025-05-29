@@ -1,14 +1,18 @@
-import { PrismaClient } from '../app/generated/prisma/client';
+import { PrismaClient } from '@/types/database';
 import { UserFactory } from './factories/user.factory';
 import { RubricFactory } from './factories/rubric.factory';
-import { UploadFactory } from './factories/upload.factory';
+import { UploadedFileFactory } from './factories/uploaded-file.factory';
+import { GradingSessionFactory } from './factories/grading-session.factory';
+import { GradingResultFactory } from './factories/grading-result.factory';
 import { setupTestDatabase } from './database';
 
 export interface TestContext {
   prisma: PrismaClient;
   userFactory: UserFactory;
   rubricFactory: RubricFactory;
-  uploadFactory: UploadFactory;
+  uploadedFileFactory: UploadedFileFactory;
+  gradingSessionFactory: GradingSessionFactory;
+  gradingResultFactory: GradingResultFactory;
   cleanup: () => Promise<void>;
 }
 
@@ -17,24 +21,29 @@ export async function setupTest(): Promise<TestContext> {
   
   const userFactory = new UserFactory(prisma);
   const rubricFactory = new RubricFactory(prisma);
-  const uploadFactory = new UploadFactory(prisma);
+  const uploadedFileFactory = new UploadedFileFactory(prisma);
+  const gradingSessionFactory = new GradingSessionFactory(prisma);
+  const gradingResultFactory = new GradingResultFactory(prisma);
   
   return {
     prisma,
     userFactory,
     rubricFactory,
-    uploadFactory,
+    uploadedFileFactory,
+    gradingSessionFactory,
+    gradingResultFactory,
     cleanup
   };
 }
-
 
 export async function cleanupTest(context: TestContext): Promise<void> {
   const { prisma } = context;
   
   try {
-    // 這有順序要先刪除外鍵
-    await prisma.upload.deleteMany();
+    // 正確的刪除順序 - 先刪除有外鍵依賴的表
+    await prisma.gradingResult.deleteMany();
+    await prisma.gradingSession.deleteMany();
+    await prisma.uploadedFile.deleteMany();
     await prisma.rubric.deleteMany();
     await prisma.user.deleteMany();
   } catch (error) {

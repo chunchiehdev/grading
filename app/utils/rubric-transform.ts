@@ -1,11 +1,14 @@
 import { ZodError } from 'zod';
-import type { RubricCriteria } from '@/types/grading';
+import { 
+  type RubricCriteria,
+  type UIRubricData,
+  type UICategory,
+  type UICriterion,
+  type UILevel
+} from '@/types/rubric';
 import { 
   UIRubricDataSchema,
   RubricCompletionSchema,
-  type UICategory,
-  type UICriterion,
-  type UIRubricData,
   type Level
 } from '@/schemas/rubric';
 
@@ -20,7 +23,7 @@ export function dbCriteriaToUICategories(criteria: RubricCriteria[]): UICategory
   const categoryMap = new Map<string, UICategory>();
 
   criteria.forEach((criterion) => {
-    const categoryName = criterion.category || '預設類別';
+    const categoryName = '預設類別'; // 新schema沒有category概念，統一分組
     
     if (!categoryMap.has(categoryName)) {
       categoryMap.set(categoryName, {
@@ -35,7 +38,7 @@ export function dbCriteriaToUICategories(criteria: RubricCriteria[]): UICategory
       id: criterion.id,
       name: criterion.name,
       description: criterion.description || '',
-      levels: Array.isArray(criterion.levels) ? criterion.levels as Level[] : [],
+      levels: criterion.levels as UILevel[],
     });
   });
 
@@ -43,18 +46,18 @@ export function dbCriteriaToUICategories(criteria: RubricCriteria[]): UICategory
 }
 
 /**
- * Converts UI categories to database criteria structure
+ * Converts UI categories to database criteria structure (for new JSON schema)
  * @param {UICategory[]} categories - Array of UI category objects
- * @returns {Omit<RubricCriteria, 'rubricId'>[]} Array of criteria for database storage
+ * @returns {RubricCriteria[]} Array of criteria for database storage as JSON
  */
-export function uiCategoriesToDbCriteria(categories: UICategory[]): Omit<RubricCriteria, 'rubricId'>[] {
+export function uiCategoriesToDbCriteria(categories: UICategory[]): RubricCriteria[] {
   return categories.flatMap((category) =>
     category.criteria.map((criterion) => ({
       id: criterion.id,
       name: criterion.name,
       description: criterion.description || '',
+      maxScore: Math.max(...criterion.levels.map(l => l.score)),
       levels: criterion.levels,
-      category: category.name, // 添加類別資訊
     }))
   );
 }
@@ -199,18 +202,15 @@ export function safeParseCategoriesJson(jsonString: string): {
     
     return { success: true, data: categories };
   } catch (error) {
-    return { success: false, error: '無法解析類別資料' };
+    return { success: false, error: 'JSON 格式錯誤' };
   }
 }
 
 /**
- * Formats Zod validation errors into readable messages
- * @param {ZodError} errors - Zod error object containing validation failures
- * @returns {string[]} Array of formatted error messages with field paths
+ * Converts Zod error object to human-readable error messages
+ * @param {ZodError} errors - Zod validation error object
+ * @returns {string[]} Array of formatted error messages in Chinese
  */
 export function formatZodErrors(errors: ZodError): string[] {
-  return errors.errors.map(err => {
-    const path = err.path.join('.');
-    return path ? `${path}: ${err.message}` : err.message;
-  });
+  return errors.errors.map(err => err.message);
 } 

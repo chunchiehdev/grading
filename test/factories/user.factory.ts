@@ -1,4 +1,4 @@
-import { PrismaClient, User } from '../../app/generated/prisma/client';
+import { PrismaClient, User } from '@/types/database';
 
 export interface CreateUserData {
   email?: string;

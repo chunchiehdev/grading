@@ -13,11 +13,26 @@ import {
   BarChart3,
   Clock,
   Target,
-  Trash2
+  Trash2,
+  Calendar,
+  Users,
+  CheckCircle2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import type { RubricCriteria } from '@/types/grading';
+import { cn } from '@/lib/utils';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import type { RubricCriteria } from '@/types/rubric';
 import { dbCriteriaToUICategories, calculateRubricStats } from '@/utils/rubric-transform';
 
 export const loader = async ({ params, request }: { params: Record<string, string | undefined>; request: Request }) => {

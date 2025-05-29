@@ -1,20 +1,12 @@
-import { PrismaClient } from '../../app/generated/prisma/client';
-
-export interface Rubric {
-  id: string;
-  userId: string;
-  name: string;
-  description: string;
-  criteria: any;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { PrismaClient, Rubric } from '@/types/database';
 
 export interface CreateRubricData {
   userId: string;
   name?: string;
   description?: string;
-  criteria?: any;
+  version?: number;
+  isActive?: boolean;
+  criteria?: any[];
 }
 
 export class RubricFactory {
@@ -31,13 +23,15 @@ export class RubricFactory {
 
     const defaultCriteria = [
       {
+        id: 'criteria-1',
         name: 'Content Quality',
         description: 'Quality of content and ideas',
+        maxScore: 4,
         levels: [
-          { level: 1, description: 'Poor', score: 1 },
-          { level: 2, description: 'Fair', score: 2 },
-          { level: 3, description: 'Good', score: 3 },
-          { level: 4, description: 'Excellent', score: 4 }
+          { score: 1, description: 'Poor' },
+          { score: 2, description: 'Fair' },
+          { score: 3, description: 'Good' },
+          { score: 4, description: 'Excellent' }
         ]
       }
     ];
@@ -46,6 +40,8 @@ export class RubricFactory {
       userId: data.userId,
       name: data.name || `Test Rubric ${Date.now()}`,
       description: data.description || 'A test rubric for grading',
+      version: data.version || 1,
+      isActive: data.isActive !== undefined ? data.isActive : true,
       criteria: data.criteria !== undefined ? data.criteria : defaultCriteria
     };
 
@@ -65,5 +61,58 @@ export class RubricFactory {
       }));
     }
     return rubrics;
+  }
+
+  async createWithVersions(userId: string, baseData: Partial<CreateRubricData> = {}): Promise<Rubric[]> {
+    const versions: Rubric[] = [];
+    
+    // Create version 1 (inactive)
+    const v1 = await this.create({
+      userId,
+      name: baseData.name || 'Test Rubric',
+      description: baseData.description || 'Version 1',
+      version: 1,
+      isActive: false,
+      criteria: [
+        {
+          id: 'criteria-1',
+          name: 'Basic Criteria',
+          description: 'Basic evaluation criteria',
+          maxScore: 3,
+          levels: [
+            { score: 1, description: 'Poor' },
+            { score: 2, description: 'Good' },
+            { score: 3, description: 'Excellent' }
+          ]
+        }
+      ]
+    });
+    versions.push(v1);
+
+    // Create version 2 (active)
+    const v2 = await this.create({
+      userId,
+      name: baseData.name || 'Test Rubric',
+      description: baseData.description || 'Version 2 - Updated',
+      version: 2,
+      isActive: true,
+      criteria: [
+        {
+          id: 'criteria-1',
+          name: 'Enhanced Criteria',
+          description: 'Enhanced evaluation criteria',
+          maxScore: 4,
+          levels: [
+            { score: 1, description: 'Poor' },
+            { score: 2, description: 'Fair' },
+            { score: 3, description: 'Good' },
+            { score: 4, description: 'Excellent' }
+          ]
+        }
+      ]
+    });
+    versions.push(v2);
+
+    return versions;
   }
 } 

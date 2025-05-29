@@ -1,4 +1,4 @@
-import { PrismaClient } from '../app/generated/prisma/client';
+import { PrismaClient } from '@/types/database';
 
 const TEST_DB_CONFIG = {
   host: 'localhost',
@@ -23,11 +23,21 @@ export async function setupTestDatabase(): Promise<{
   });
 
   const cleanup = async (): Promise<void> => {
-    await prisma.upload.deleteMany();
-    await prisma.rubric.deleteMany();
-    await prisma.user.deleteMany();
+    await resetDatabase(prisma);
     await prisma.$disconnect();
   };
 
   return { prisma, cleanup };
+}
+
+export async function resetDatabase(prisma?: PrismaClient): Promise<void> {
+  // Use the global db instance if no prisma instance is provided
+  const db = prisma || (await import('@/types/database')).db;
+  
+  // Delete in correct order to respect foreign key constraints
+  await db.gradingResult.deleteMany();
+  await db.gradingSession.deleteMany();
+  await db.uploadedFile.deleteMany();
+  await db.rubric.deleteMany();
+  await db.user.deleteMany();
 } 

@@ -4,9 +4,9 @@ import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
 
 /**
  * API endpoint to update file's selected rubric
- * @param {Object} params - Route parameters  
- * @param {Request} params.request - HTTP request object
- * @returns {Promise<Response>} JSON response with update result
+ * 注意：在新架構中，此功能已被重新設計
+ * 檔案與評分標準的關聯現在透過 GradingSession/GradingResult 來處理
+ * 此 API 保留作為向後相容，但建議使用新的評分會話 API
  */
 export async function action({ request }: { request: Request }) {
   return withErrorHandler(async () => {
@@ -33,19 +33,20 @@ export async function action({ request }: { request: Request }) {
       return Response.json({ success: false, error: 'File not found or access denied' }, { status: 404 });
     }
 
-    // Update the file's selected rubric
-    const updatedFile = await db.uploadedFile.update({
-      where: { id: fileId },
-      data: { selectedRubricId: rubricId },
-      include: {
-        selectedRubric: {
-          include: {
-            criteria: true,
-          },
-        },
+    // 在新架構中，我們不直接關聯檔案與 rubric
+    // 而是返回檔案資訊和建議使用評分會話 API
+    return Response.json({
+      success: true,
+      message: 'File found. Please use grading session API to associate files with rubrics.',
+      file: {
+        id: file.id,
+        fileName: file.fileName,
+        parseStatus: file.parseStatus,
       },
+      suggestion: {
+        useNewAPI: '/api/grading-sessions',
+        rubricId: rubricId,
+      }
     });
-
-    return createApiResponse({ file: updatedFile });
   });
 } 

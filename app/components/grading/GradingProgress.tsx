@@ -1,9 +1,11 @@
 // GradingProgress.tsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence, useSpring } from 'framer-motion';
 import { Search, PenLine, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
-import type { GradingStatus, GradingProgress as GradingProgressType } from '@/types/grading';
+import { Badge } from '@/components/ui/badge';
+import type { GradingStatus, GradingProgress as GradingProgressType } from '@/types/rubric';
 import { cn } from '@/lib/utils';
 
 interface GradingProgressProps {
@@ -83,9 +85,9 @@ export function GradingProgress({
 
         if (onProgressUpdate) {
           onProgressUpdate({
-            percentage: value,
-            currentStep: GRADING_STEPS[currentStep].label,
-            estimatedTimeLeft: remaining,
+            phase: phase as 'check' | 'grade' | 'verify' | 'completed' | 'error',
+            progress: value,
+            message: GRADING_STEPS[currentStep].label,
           });
         }
       });

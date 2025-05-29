@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Link, useLoaderData, Form } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,14 +12,31 @@ import {
   Edit,
   Trash2,
   Search,
-  Filter
+  Filter,
+  MoreVertical
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import type { Rubric } from '@/types/grading';
+import type { Rubric } from '@/types/rubric';
 import { dbCriteriaToUICategories, calculateRubricStats } from '@/utils/rubric-transform';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 export const loader = async () => {
   console.log('Fetching rubrics in loader...');

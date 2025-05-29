@@ -1,11 +1,15 @@
+import React from 'react';
+import { motion } from 'framer-motion';
 import { Star, File, ArrowUpDown } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { EmptyGradingState } from './EmptyGradingState';
 import { SmartContent, Markdown, PlainTextFallback } from '@/components/ui/markdown';
-import type { GradingResultData } from '@/types/grading';
+import type { GradingResultData } from '@/types/rubric';
 
 interface GradingResultDisplayProps {
   result?: GradingResultData;
@@ -94,48 +98,19 @@ const CriteriaDetails = ({ criteriaScores }: { criteriaScores?: GradingResultDat
 
 const AnalysisSection = ({ 
   analysis, 
-  analysisMarkdown,
-  imageUnderstanding, 
-  imageUnderstandingMarkdown 
+  analysisMarkdown
 }: { 
   analysis?: string; 
   analysisMarkdown?: string;
-  imageUnderstanding?: string;
-  imageUnderstandingMarkdown?: string;
 }) => {
-  if (!analysis && !imageUnderstanding && !analysisMarkdown && !imageUnderstandingMarkdown) return null;
+  if (!analysis && !analysisMarkdown) return null;
 
   return (
     <div className="mt-4">
-      {/* Image Understanding Section */}
-      {(imageUnderstanding || imageUnderstandingMarkdown) && (
-        <div className="mb-6 pb-6 border-b">
-          <h3 className="text-lg font-semibold mb-4 flex items-center text-blue-700">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fillRule="evenodd"
-                d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
-                clipRule="evenodd"
-              />
-            </svg>
-            圖片分析理解
-          </h3>
-          <div className="pl-4 border-l-4 border-blue-200 py-2 bg-blue-50 rounded-sm">
-            <SmartContent
-              markdown={imageUnderstandingMarkdown}
-              plainText={imageUnderstanding || ''}
-            />
-          </div>
-        </div>
-      )}
-      
-      {/* Main Analysis Section */}
-      {(analysis || analysisMarkdown) && (
-        <SmartContent
-          markdown={analysisMarkdown}
-          plainText={analysis || ''}
-        />
-      )}
+      <SmartContent
+        markdown={analysisMarkdown}
+        plainText={analysis || ''}
+      />
     </div>
   );
 };
@@ -156,8 +131,6 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
     strengthsMarkdown: result.strengthsMarkdown,
     improvements: ensureArray(result.improvements),
     improvementsMarkdown: result.improvementsMarkdown,
-    imageUnderstanding: result.imageUnderstanding,
-    imageUnderstandingMarkdown: result.imageUnderstandingMarkdown,
     overallSuggestions: result.overallSuggestions,
     overallSuggestionsMarkdown: result.overallSuggestionsMarkdown,
     createdAt: result.createdAt || new Date(),
@@ -248,8 +221,6 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                   <AnalysisSection 
                     analysis={safeResult.analysis} 
                     analysisMarkdown={safeResult.analysisMarkdown}
-                    imageUnderstanding={safeResult.imageUnderstanding}
-                    imageUnderstandingMarkdown={safeResult.imageUnderstandingMarkdown}
                   />
 
                   {/* 整體建議 */}

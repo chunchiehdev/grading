@@ -1,4 +1,5 @@
 import { db } from '@/lib/db.server';
+import { FileParseStatus } from '@/types/database';
 import fetch from 'node-fetch';
 import FormData from 'form-data';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
@@ -6,6 +7,13 @@ import { s3Client } from '@/services/storage.server';
 import { storageConfig } from '@/config/storage';
 
 const PDF_PARSER_API_BASE = process.env.PDF_PARSER_API_URL || 'http://localhost:8000';
+
+// 內部解析結果類型
+interface ParseResult {
+  status: string;
+  content?: string;
+  error?: string;
+}
 
 /**
  * 從 Minio 獲取文件數據
@@ -53,21 +61,21 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
     throw new Error(`PDF Parser API error: ${response.status} - ${errorText}`);
   }
 
-  const result = await response.json();
+  const result = await response.json() as any;
   return result.task_id;
 }
 
 /**
  * 查詢解析結果
  */
-async function getParsingResult(taskId: string): Promise<{ status: string; content?: string; error?: string }> {
+async function getParsingResult(taskId: string): Promise<ParseResult> {
   const response = await fetch(`${PDF_PARSER_API_BASE}/task/${taskId}`);
   
   if (!response.ok) {
     throw new Error(`Failed to check task status: ${response.status}`);
   }
 
-  return response.json();
+  return response.json() as Promise<ParseResult>;
 }
 
 /**
@@ -101,10 +109,10 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
   try {
     console.log(`🔄 Starting PDF parsing for file: ${fileName} (${fileId})`);
     
-    // 更新狀態為 processing
+    // 更新狀態為 PROCESSING
     await db.uploadedFile.update({
       where: { id: fileId },
-      data: { parseStatus: 'processing' },
+      data: { parseStatus: FileParseStatus.PROCESSING },
     });
 
     // 從 Minio 獲取文件
@@ -115,11 +123,8 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
     const taskId = await submitPdfForParsing(fileBuffer, fileName, userId);
     console.log(`📤 PDF parsing task submitted: ${taskId} for file: ${fileName}`);
 
-    // 更新 taskId
-    await db.uploadedFile.update({
-      where: { id: fileId },
-      data: { parseTaskId: taskId },
-    });
+    // 注意：parseTaskId 欄位在新 schema 中不存在，我們暫時跳過
+    // TODO: 可以考慮將 taskId 存在 metadata JSON 欄位中
 
     // 開始輪詢結果 (在背景執行)
     pollForResult(taskId)
@@ -129,7 +134,7 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
         await db.uploadedFile.update({
           where: { id: fileId },
           data: {
-            parseStatus: 'success',
+            parseStatus: FileParseStatus.COMPLETED,
             parsedContent: content,
           },
         });
@@ -140,7 +145,7 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
         await db.uploadedFile.update({
           where: { id: fileId },
           data: {
-            parseStatus: 'failed',
+            parseStatus: FileParseStatus.FAILED,
             parseError: error.message,
           },
         });
@@ -152,7 +157,7 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
     await db.uploadedFile.update({
       where: { id: fileId },
       data: {
-        parseStatus: 'failed',
+        parseStatus: FileParseStatus.FAILED,
         parseError: error instanceof Error ? error.message : 'Unknown error',
       },
     });
@@ -161,6 +166,7 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
 
 /**
  * 獲取用戶的所有上傳檔案
+ * 注意：在新架構中，檔案與 rubric 的關聯已移至 GradingResult
  */
 export async function getUserUploadedFiles(userId: string, uploadId?: string) {
   const where: any = { userId };
@@ -170,13 +176,6 @@ export async function getUserUploadedFiles(userId: string, uploadId?: string) {
 
   return db.uploadedFile.findMany({
     where,
-    include: {
-      selectedRubric: {
-        include: {
-          criteria: true,
-        },
-      },
-    },
     orderBy: { createdAt: 'desc' },
   });
 } 

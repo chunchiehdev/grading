@@ -3,6 +3,7 @@ import { UploadProgressService } from '@/services/progress.server';
 import { getUserId } from '@/services/auth.server';
 import { db } from '@/lib/db.server';
 import { triggerPdfParsing } from '@/services/pdf-parser.server';
+import { FileParseStatus } from '@/types/database';
 
 /**
  * API endpoint loader that rejects GET requests for file uploads
@@ -163,63 +164,8 @@ export async function action({ request }: { request: Request }) {
               fileKey,
               fileSize: file.size,
               mimeType: file.type,
-              uploadId,
-              parseStatus: 'pending',
+              parseStatus: FileParseStatus.PENDING,
             },
           });
 
-          console.log(`💾 File saved to database:`, { id: uploadedFile.id, fileName: file.name });
-
-          // Trigger PDF parsing asynchronously
-          if (file.type === 'application/pdf') {
-            triggerPdfParsing(uploadedFile.id, fileKey, file.name, userId).catch((error: any) => {
-              console.error(`❌ PDF parsing trigger failed for ${file.name}:`, error);
-            });
-          }
-
-          await UploadProgressService.updateFileProgress(uploadId, file.name, {
-            status: 'success',
-            progress: 100,
-            key: fileKey,
-          });
-
-          return {
-            id: uploadedFile.id,
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            url: result.url,
-            key: fileKey,
-          };
-        } catch (error) {
-          console.error(`❌ Upload failed for ${file.name}:`, error);
-          
-          await UploadProgressService.updateFileProgress(uploadId, file.name, {
-            status: 'error',
-            progress: 0,
-            error: error instanceof Error ? error.message : '上傳失敗',
-          });
-
-          throw error;
-        }
-      })
-    );
-
-    console.log(`✅ Successfully uploaded ${fileResults.length} files for user ${userId}`);
-
-    return Response.json({
-      success: true,
-      uploadId,
-      files: fileResults,
-    });
-  } catch (error) {
-    console.error('檔案上傳處理失敗:', error);
-    return Response.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : '檔案上傳處理失敗',
-      },
-      { status: 500 }
-    );
-  }
-}
+          console.log(`

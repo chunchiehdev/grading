@@ -25,29 +25,69 @@ export type User = runtime.Types.Result.DefaultSelection<Prisma.$UserPayload>
  */
 export type Rubric = runtime.Types.Result.DefaultSelection<Prisma.$RubricPayload>
 /**
- * Model Upload
+ * Model GradingSession
  * 
  */
-export type Upload = runtime.Types.Result.DefaultSelection<Prisma.$UploadPayload>
+export type GradingSession = runtime.Types.Result.DefaultSelection<Prisma.$GradingSessionPayload>
+/**
+ * Model UploadedFile
+ * 
+ */
+export type UploadedFile = runtime.Types.Result.DefaultSelection<Prisma.$UploadedFilePayload>
+/**
+ * Model GradingResult
+ * 
+ */
+export type GradingResult = runtime.Types.Result.DefaultSelection<Prisma.$GradingResultPayload>
 
 /**
  * Enums
  */
 export namespace $Enums {
-  export const UploadStatus = {
-  not_started: 'not_started',
-  processing: 'processing',
-  completed: 'completed',
-  failed: 'failed'
+  export const GradingSessionStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  CANCELLED: 'CANCELLED'
 } as const
 
-export type UploadStatus = (typeof UploadStatus)[keyof typeof UploadStatus]
+export type GradingSessionStatus = (typeof GradingSessionStatus)[keyof typeof GradingSessionStatus]
+
+
+export const GradingStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+  SKIPPED: 'SKIPPED'
+} as const
+
+export type GradingStatus = (typeof GradingStatus)[keyof typeof GradingStatus]
+
+
+export const FileParseStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+} as const
+
+export type FileParseStatus = (typeof FileParseStatus)[keyof typeof FileParseStatus]
 
 }
 
-export type UploadStatus = $Enums.UploadStatus
+export type GradingSessionStatus = $Enums.GradingSessionStatus
 
-export const UploadStatus = $Enums.UploadStatus
+export const GradingSessionStatus = $Enums.GradingSessionStatus
+
+export type GradingStatus = $Enums.GradingStatus
+
+export const GradingStatus = $Enums.GradingStatus
+
+export type FileParseStatus = $Enums.FileParseStatus
+
+export const FileParseStatus = $Enums.FileParseStatus
 
 
 
@@ -98,8 +138,8 @@ const config: runtime.GetPrismaClientConfig = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id        String   @id @default(uuid())\n  email     String   @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  rubrics Rubric[]\n  uploads Upload[]\n\n  @@map(\"users\")\n}\n\nmodel Rubric {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id])\n\n  name        String   @db.VarChar(255)\n  description String   @db.Text\n  criteria    Json // [{ name, description, levels: [{ level, description, score }] }]\n  createdAt   DateTime @default(now())\n  updatedAt   DateTime @updatedAt\n\n  uploads Upload[]\n\n  @@map(\"rubrics\")\n}\n\nmodel Upload {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id])\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id])\n\n  originalFileName String\n  storedFileKey    String @unique\n  storageLocation  String // e.g. \"s3://bucket/file.pdf\" or \"/uploads/uuid.pdf\"\n  fileSize         Int\n  mimeType         String\n\n  status UploadStatus @default(not_started)\n  result Json?\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([userId])\n  @@index([rubricId])\n  @@map(\"uploads\")\n}\n\nenum UploadStatus {\n  not_started\n  processing\n  completed\n  failed\n}\n",
-  "inlineSchemaHash": "71ff1472d92d2baa5e8dbd75e3dfc79b6dcf4714e82c06a60673b9afe516f551",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id        String   @id @default(uuid())\n  email     String   @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  rubrics         Rubric[]\n  gradingSessions GradingSession[]\n  uploadedFiles   UploadedFile[]\n\n  @@map(\"users\")\n}\n\n// 評分標準表 - 支援版本控制\nmodel Rubric {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  name        String  @db.VarChar(255)\n  description String  @db.Text\n  version     Int     @default(1) // 版本號\n  isActive    Boolean @default(true) // 是否為當前版本\n\n  // 評分標準結構 (JSON)\n  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, isActive])\n  @@map(\"rubrics\")\n}\n\n// 評分會話 - 一次評分請求可包含多個檔案\nmodel GradingSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  status   GradingSessionStatus @default(PENDING)\n  progress Int                  @default(0) // 整體進度 0-100\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, status])\n  @@map(\"grading_sessions\")\n}\n\n// 上傳的檔案記錄\nmodel UploadedFile {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  fileName         String @db.VarChar(500)\n  originalFileName String @db.VarChar(500)\n  fileKey          String @unique // S3 key\n  fileSize         Int\n  mimeType         String @db.VarChar(100)\n\n  // 檔案處理狀態\n  parseStatus   FileParseStatus @default(PENDING)\n  parsedContent String?         @db.Text // 解析後的文字內容\n  parseError    String? // 解析錯誤訊息\n\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  expiresAt DateTime? // 檔案過期時間，用於自動清理\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, parseStatus])\n  @@index([expiresAt]) // 用於清理過期檔案\n  @@map(\"uploaded_files\")\n}\n\n// 評分結果 - 每個檔案對應一個評分標準的結果\nmodel GradingResult {\n  id               String         @id @default(uuid())\n  gradingSessionId String\n  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)\n\n  uploadedFileId String\n  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // 評分狀態和結果\n  status   GradingStatus @default(PENDING)\n  progress Int           @default(0) // 此項評分進度 0-100\n\n  // LLM評分結果 (JSON結構)\n  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }\n  errorMessage String? // 評分失敗時的錯誤訊息\n\n  // 評分元數據\n  gradingModel    String? @db.VarChar(100) // 使用的模型名稱\n  gradingTokens   Int? // 消耗的tokens數量\n  gradingDuration Int? // 評分耗時(毫秒)\n\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime? // 評分完成時間\n\n  @@index([gradingSessionId, status])\n  @@index([uploadedFileId])\n  @@index([rubricId])\n  @@map(\"grading_results\")\n}\n\n// 評分會話狀態\nenum GradingSessionStatus {\n  PENDING // 等待開始\n  PROCESSING // 評分中\n  COMPLETED // 全部完成\n  FAILED // 失敗\n  CANCELLED // 已取消\n}\n\n// 單項評分狀態\nenum GradingStatus {\n  PENDING // 等待評分\n  PROCESSING // 評分中\n  COMPLETED // 評分完成\n  FAILED // 評分失敗\n  SKIPPED // 跳過(檔案解析失敗等)\n}\n\n// 檔案解析狀態\nenum FileParseStatus {\n  PENDING // 等待解析\n  PROCESSING // 解析中\n  COMPLETED // 解析完成\n  FAILED // 解析失敗\n}\n",
+  "inlineSchemaHash": "80c8b6a4f373714097cc9fc50ebc90e57f244ae1b684e7b1ab28189e1197e06d",
   "copyEngine": true,
   "runtimeDataModel": {
     "models": {},
@@ -110,7 +150,7 @@ const config: runtime.GetPrismaClientConfig = {
 }
 config.dirname = __dirname
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploads\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Upload\",\"nativeType\":null,\"relationName\":\"UploadToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"uploads\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Upload\",\"nativeType\":null,\"relationName\":\"RubricToUpload\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Upload\":{\"dbName\":\"uploads\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUpload\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"storedFileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"storageLocation\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UploadStatus\",\"nativeType\":null,\"default\":\"not_started\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"UploadStatus\":{\"values\":[{\"name\":\"not_started\",\"dbName\":null},{\"name\":\"processing\",\"dbName\":null},{\"name\":\"completed\",\"dbName\":null},{\"name\":\"failed\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFiles\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingSession\":{\"dbName\":\"grading_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingSessionStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"UploadedFile\":{\"dbName\":\"uploaded_files\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseStatus\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"FileParseStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContent\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseError\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingResult\":{\"dbName\":\"grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSession\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[\"gradingSessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFileId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFile\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[\"uploadedFileId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"errorMessage\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"GradingSessionStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"CANCELLED\",\"dbName\":null}],\"dbName\":null},\"GradingStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"SKIPPED\",\"dbName\":null}],\"dbName\":null},\"FileParseStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
 config.engineWasm = undefined
 config.compilerWasm = undefined
 
@@ -278,14 +318,34 @@ export interface PrismaClient<
   get rubric(): Prisma.RubricDelegate<ExtArgs, ClientOptions>;
 
   /**
-   * `prisma.upload`: Exposes CRUD operations for the **Upload** model.
+   * `prisma.gradingSession`: Exposes CRUD operations for the **GradingSession** model.
     * Example usage:
     * ```ts
-    * // Fetch zero or more Uploads
-    * const uploads = await prisma.upload.findMany()
+    * // Fetch zero or more GradingSessions
+    * const gradingSessions = await prisma.gradingSession.findMany()
     * ```
     */
-  get upload(): Prisma.UploadDelegate<ExtArgs, ClientOptions>;
+  get gradingSession(): Prisma.GradingSessionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.uploadedFile`: Exposes CRUD operations for the **UploadedFile** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more UploadedFiles
+    * const uploadedFiles = await prisma.uploadedFile.findMany()
+    * ```
+    */
+  get uploadedFile(): Prisma.UploadedFileDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.gradingResult`: Exposes CRUD operations for the **GradingResult** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more GradingResults
+    * const gradingResults = await prisma.gradingResult.findMany()
+    * ```
+    */
+  get gradingResult(): Prisma.GradingResultDelegate<ExtArgs, ClientOptions>;
 }
 
 export const PrismaClient = runtime.getPrismaClient(config) as unknown as PrismaClientConstructor
@@ -668,7 +728,9 @@ export namespace Prisma {
   export const ModelName = {
     User: 'User',
     Rubric: 'Rubric',
-    Upload: 'Upload'
+    GradingSession: 'GradingSession',
+    UploadedFile: 'UploadedFile',
+    GradingResult: 'GradingResult'
   } as const
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -687,7 +749,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "rubric" | "upload"
+      modelProps: "user" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -839,77 +901,225 @@ export namespace Prisma {
           }
         }
       }
-      Upload: {
-        payload: Prisma.$UploadPayload<ExtArgs>
-        fields: Prisma.UploadFieldRefs
+      GradingSession: {
+        payload: Prisma.$GradingSessionPayload<ExtArgs>
+        fields: Prisma.GradingSessionFieldRefs
         operations: {
           findUnique: {
-            args: Prisma.UploadFindUniqueArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload> | null
+            args: Prisma.GradingSessionFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload> | null
           }
           findUniqueOrThrow: {
-            args: Prisma.UploadFindUniqueOrThrowArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
+            args: Prisma.GradingSessionFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload>
           }
           findFirst: {
-            args: Prisma.UploadFindFirstArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload> | null
+            args: Prisma.GradingSessionFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload> | null
           }
           findFirstOrThrow: {
-            args: Prisma.UploadFindFirstOrThrowArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
+            args: Prisma.GradingSessionFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload>
           }
           findMany: {
-            args: Prisma.UploadFindManyArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>[]
+            args: Prisma.GradingSessionFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload>[]
           }
           create: {
-            args: Prisma.UploadCreateArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
+            args: Prisma.GradingSessionCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload>
           }
           createMany: {
-            args: Prisma.UploadCreateManyArgs<ExtArgs>
+            args: Prisma.GradingSessionCreateManyArgs<ExtArgs>
             result: BatchPayload
           }
           createManyAndReturn: {
-            args: Prisma.UploadCreateManyAndReturnArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>[]
+            args: Prisma.GradingSessionCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload>[]
           }
           delete: {
-            args: Prisma.UploadDeleteArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
+            args: Prisma.GradingSessionDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload>
           }
           update: {
-            args: Prisma.UploadUpdateArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
+            args: Prisma.GradingSessionUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload>
           }
           deleteMany: {
-            args: Prisma.UploadDeleteManyArgs<ExtArgs>
+            args: Prisma.GradingSessionDeleteManyArgs<ExtArgs>
             result: BatchPayload
           }
           updateMany: {
-            args: Prisma.UploadUpdateManyArgs<ExtArgs>
+            args: Prisma.GradingSessionUpdateManyArgs<ExtArgs>
             result: BatchPayload
           }
           updateManyAndReturn: {
-            args: Prisma.UploadUpdateManyAndReturnArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>[]
+            args: Prisma.GradingSessionUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload>[]
           }
           upsert: {
-            args: Prisma.UploadUpsertArgs<ExtArgs>
-            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadPayload>
+            args: Prisma.GradingSessionUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingSessionPayload>
           }
           aggregate: {
-            args: Prisma.UploadAggregateArgs<ExtArgs>
-            result: runtime.Types.Utils.Optional<AggregateUpload>
+            args: Prisma.GradingSessionAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateGradingSession>
           }
           groupBy: {
-            args: Prisma.UploadGroupByArgs<ExtArgs>
-            result: runtime.Types.Utils.Optional<UploadGroupByOutputType>[]
+            args: Prisma.GradingSessionGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<GradingSessionGroupByOutputType>[]
           }
           count: {
-            args: Prisma.UploadCountArgs<ExtArgs>
-            result: runtime.Types.Utils.Optional<UploadCountAggregateOutputType> | number
+            args: Prisma.GradingSessionCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<GradingSessionCountAggregateOutputType> | number
+          }
+        }
+      }
+      UploadedFile: {
+        payload: Prisma.$UploadedFilePayload<ExtArgs>
+        fields: Prisma.UploadedFileFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.UploadedFileFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.UploadedFileFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload>
+          }
+          findFirst: {
+            args: Prisma.UploadedFileFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.UploadedFileFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload>
+          }
+          findMany: {
+            args: Prisma.UploadedFileFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload>[]
+          }
+          create: {
+            args: Prisma.UploadedFileCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload>
+          }
+          createMany: {
+            args: Prisma.UploadedFileCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.UploadedFileCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload>[]
+          }
+          delete: {
+            args: Prisma.UploadedFileDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload>
+          }
+          update: {
+            args: Prisma.UploadedFileUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload>
+          }
+          deleteMany: {
+            args: Prisma.UploadedFileDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.UploadedFileUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.UploadedFileUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload>[]
+          }
+          upsert: {
+            args: Prisma.UploadedFileUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$UploadedFilePayload>
+          }
+          aggregate: {
+            args: Prisma.UploadedFileAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateUploadedFile>
+          }
+          groupBy: {
+            args: Prisma.UploadedFileGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<UploadedFileGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.UploadedFileCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<UploadedFileCountAggregateOutputType> | number
+          }
+        }
+      }
+      GradingResult: {
+        payload: Prisma.$GradingResultPayload<ExtArgs>
+        fields: Prisma.GradingResultFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.GradingResultFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.GradingResultFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload>
+          }
+          findFirst: {
+            args: Prisma.GradingResultFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.GradingResultFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload>
+          }
+          findMany: {
+            args: Prisma.GradingResultFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload>[]
+          }
+          create: {
+            args: Prisma.GradingResultCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload>
+          }
+          createMany: {
+            args: Prisma.GradingResultCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.GradingResultCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload>[]
+          }
+          delete: {
+            args: Prisma.GradingResultDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload>
+          }
+          update: {
+            args: Prisma.GradingResultUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload>
+          }
+          deleteMany: {
+            args: Prisma.GradingResultDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.GradingResultUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.GradingResultUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload>[]
+          }
+          upsert: {
+            args: Prisma.GradingResultUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$GradingResultPayload>
+          }
+          aggregate: {
+            args: Prisma.GradingResultAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateGradingResult>
+          }
+          groupBy: {
+            args: Prisma.GradingResultGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<GradingResultGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.GradingResultCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<GradingResultCountAggregateOutputType> | number
           }
         }
       }
@@ -999,7 +1209,9 @@ export namespace Prisma {
   export type GlobalOmitConfig = {
     user?: UserOmit
     rubric?: RubricOmit
-    upload?: UploadOmit
+    gradingSession?: GradingSessionOmit
+    uploadedFile?: UploadedFileOmit
+    gradingResult?: GradingResultOmit
   }
 
   /* Types for Logging */
@@ -1092,12 +1304,14 @@ export namespace Prisma {
 
   export type UserCountOutputType = {
     rubrics: number
-    uploads: number
+    gradingSessions: number
+    uploadedFiles: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     rubrics?: boolean | UserCountOutputTypeCountRubricsArgs
-    uploads?: boolean | UserCountOutputTypeCountUploadsArgs
+    gradingSessions?: boolean | UserCountOutputTypeCountGradingSessionsArgs
+    uploadedFiles?: boolean | UserCountOutputTypeCountUploadedFilesArgs
   }
 
   // Custom InputTypes
@@ -1121,8 +1335,15 @@ export namespace Prisma {
   /**
    * UserCountOutputType without action
    */
-  export type UserCountOutputTypeCountUploadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    where?: UploadWhereInput
+  export type UserCountOutputTypeCountGradingSessionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: GradingSessionWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountUploadedFilesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: UploadedFileWhereInput
   }
 
 
@@ -1131,11 +1352,11 @@ export namespace Prisma {
    */
 
   export type RubricCountOutputType = {
-    uploads: number
+    gradingResults: number
   }
 
   export type RubricCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    uploads?: boolean | RubricCountOutputTypeCountUploadsArgs
+    gradingResults?: boolean | RubricCountOutputTypeCountGradingResultsArgs
   }
 
   // Custom InputTypes
@@ -1152,8 +1373,70 @@ export namespace Prisma {
   /**
    * RubricCountOutputType without action
    */
-  export type RubricCountOutputTypeCountUploadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    where?: UploadWhereInput
+  export type RubricCountOutputTypeCountGradingResultsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: GradingResultWhereInput
+  }
+
+
+  /**
+   * Count Type GradingSessionCountOutputType
+   */
+
+  export type GradingSessionCountOutputType = {
+    gradingResults: number
+  }
+
+  export type GradingSessionCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    gradingResults?: boolean | GradingSessionCountOutputTypeCountGradingResultsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * GradingSessionCountOutputType without action
+   */
+  export type GradingSessionCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSessionCountOutputType
+     */
+    select?: GradingSessionCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * GradingSessionCountOutputType without action
+   */
+  export type GradingSessionCountOutputTypeCountGradingResultsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: GradingResultWhereInput
+  }
+
+
+  /**
+   * Count Type UploadedFileCountOutputType
+   */
+
+  export type UploadedFileCountOutputType = {
+    gradingResults: number
+  }
+
+  export type UploadedFileCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    gradingResults?: boolean | UploadedFileCountOutputTypeCountGradingResultsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * UploadedFileCountOutputType without action
+   */
+  export type UploadedFileCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFileCountOutputType
+     */
+    select?: UploadedFileCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * UploadedFileCountOutputType without action
+   */
+  export type UploadedFileCountOutputTypeCountGradingResultsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: GradingResultWhereInput
   }
 
 
@@ -1318,7 +1601,8 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     rubrics?: boolean | User$rubricsArgs<ExtArgs>
-    uploads?: boolean | User$uploadsArgs<ExtArgs>
+    gradingSessions?: boolean | User$gradingSessionsArgs<ExtArgs>
+    uploadedFiles?: boolean | User$uploadedFilesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -1346,7 +1630,8 @@ export namespace Prisma {
   export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     rubrics?: boolean | User$rubricsArgs<ExtArgs>
-    uploads?: boolean | User$uploadsArgs<ExtArgs>
+    gradingSessions?: boolean | User$gradingSessionsArgs<ExtArgs>
+    uploadedFiles?: boolean | User$uploadedFilesArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1356,7 +1641,8 @@ export namespace Prisma {
     name: "User"
     objects: {
       rubrics: Prisma.$RubricPayload<ExtArgs>[]
-      uploads: Prisma.$UploadPayload<ExtArgs>[]
+      gradingSessions: Prisma.$GradingSessionPayload<ExtArgs>[]
+      uploadedFiles: Prisma.$UploadedFilePayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
@@ -1758,7 +2044,8 @@ export namespace Prisma {
   export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     rubrics<T extends User$rubricsArgs<ExtArgs> = {}>(args?: Subset<T, User$rubricsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-    uploads<T extends User$uploadsArgs<ExtArgs> = {}>(args?: Subset<T, User$uploadsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    gradingSessions<T extends User$gradingSessionsArgs<ExtArgs> = {}>(args?: Subset<T, User$gradingSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    uploadedFiles<T extends User$uploadedFilesArgs<ExtArgs> = {}>(args?: Subset<T, User$uploadedFilesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2204,27 +2491,51 @@ export namespace Prisma {
   }
 
   /**
-   * User.uploads
+   * User.gradingSessions
    */
-  export type User$uploadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type User$gradingSessionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingSession
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingSessionSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingSession
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingSessionOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
-    where?: UploadWhereInput
-    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
-    cursor?: UploadWhereUniqueInput
+    include?: GradingSessionInclude<ExtArgs> | null
+    where?: GradingSessionWhereInput
+    orderBy?: GradingSessionOrderByWithRelationInput | GradingSessionOrderByWithRelationInput[]
+    cursor?: GradingSessionWhereUniqueInput
     take?: number
     skip?: number
-    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
+    distinct?: GradingSessionScalarFieldEnum | GradingSessionScalarFieldEnum[]
+  }
+
+  /**
+   * User.uploadedFiles
+   */
+  export type User$uploadedFilesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    where?: UploadedFileWhereInput
+    orderBy?: UploadedFileOrderByWithRelationInput | UploadedFileOrderByWithRelationInput[]
+    cursor?: UploadedFileWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: UploadedFileScalarFieldEnum | UploadedFileScalarFieldEnum[]
   }
 
   /**
@@ -2252,8 +2563,18 @@ export namespace Prisma {
 
   export type AggregateRubric = {
     _count: RubricCountAggregateOutputType | null
+    _avg: RubricAvgAggregateOutputType | null
+    _sum: RubricSumAggregateOutputType | null
     _min: RubricMinAggregateOutputType | null
     _max: RubricMaxAggregateOutputType | null
+  }
+
+  export type RubricAvgAggregateOutputType = {
+    version: number | null
+  }
+
+  export type RubricSumAggregateOutputType = {
+    version: number | null
   }
 
   export type RubricMinAggregateOutputType = {
@@ -2261,6 +2582,8 @@ export namespace Prisma {
     userId: string | null
     name: string | null
     description: string | null
+    version: number | null
+    isActive: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2270,6 +2593,8 @@ export namespace Prisma {
     userId: string | null
     name: string | null
     description: string | null
+    version: number | null
+    isActive: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2279,6 +2604,8 @@ export namespace Prisma {
     userId: number
     name: number
     description: number
+    version: number
+    isActive: number
     criteria: number
     createdAt: number
     updatedAt: number
@@ -2286,11 +2613,21 @@ export namespace Prisma {
   }
 
 
+  export type RubricAvgAggregateInputType = {
+    version?: true
+  }
+
+  export type RubricSumAggregateInputType = {
+    version?: true
+  }
+
   export type RubricMinAggregateInputType = {
     id?: true
     userId?: true
     name?: true
     description?: true
+    version?: true
+    isActive?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2300,6 +2637,8 @@ export namespace Prisma {
     userId?: true
     name?: true
     description?: true
+    version?: true
+    isActive?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2309,6 +2648,8 @@ export namespace Prisma {
     userId?: true
     name?: true
     description?: true
+    version?: true
+    isActive?: true
     criteria?: true
     createdAt?: true
     updatedAt?: true
@@ -2353,6 +2694,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: RubricAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: RubricSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: RubricMinAggregateInputType
@@ -2383,6 +2736,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: RubricCountAggregateInputType | true
+    _avg?: RubricAvgAggregateInputType
+    _sum?: RubricSumAggregateInputType
     _min?: RubricMinAggregateInputType
     _max?: RubricMaxAggregateInputType
   }
@@ -2392,10 +2747,14 @@ export namespace Prisma {
     userId: string
     name: string
     description: string
+    version: number
+    isActive: boolean
     criteria: JsonValue
     createdAt: Date
     updatedAt: Date
     _count: RubricCountAggregateOutputType | null
+    _avg: RubricAvgAggregateOutputType | null
+    _sum: RubricSumAggregateOutputType | null
     _min: RubricMinAggregateOutputType | null
     _max: RubricMaxAggregateOutputType | null
   }
@@ -2419,11 +2778,13 @@ export namespace Prisma {
     userId?: boolean
     name?: boolean
     description?: boolean
+    version?: boolean
+    isActive?: boolean
     criteria?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
-    uploads?: boolean | Rubric$uploadsArgs<ExtArgs>
+    gradingResults?: boolean | Rubric$gradingResultsArgs<ExtArgs>
     _count?: boolean | RubricCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["rubric"]>
 
@@ -2432,6 +2793,8 @@ export namespace Prisma {
     userId?: boolean
     name?: boolean
     description?: boolean
+    version?: boolean
+    isActive?: boolean
     criteria?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -2443,6 +2806,8 @@ export namespace Prisma {
     userId?: boolean
     name?: boolean
     description?: boolean
+    version?: boolean
+    isActive?: boolean
     criteria?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -2454,15 +2819,17 @@ export namespace Prisma {
     userId?: boolean
     name?: boolean
     description?: boolean
+    version?: boolean
+    isActive?: boolean
     criteria?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type RubricOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "description" | "criteria" | "createdAt" | "updatedAt", ExtArgs["result"]["rubric"]>
+  export type RubricOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "description" | "version" | "isActive" | "criteria" | "createdAt" | "updatedAt", ExtArgs["result"]["rubric"]>
   export type RubricInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
-    uploads?: boolean | Rubric$uploadsArgs<ExtArgs>
+    gradingResults?: boolean | Rubric$gradingResultsArgs<ExtArgs>
     _count?: boolean | RubricCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type RubricIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2476,13 +2843,15 @@ export namespace Prisma {
     name: "Rubric"
     objects: {
       user: Prisma.$UserPayload<ExtArgs>
-      uploads: Prisma.$UploadPayload<ExtArgs>[]
+      gradingResults: Prisma.$GradingResultPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
       userId: string
       name: string
       description: string
+      version: number
+      isActive: boolean
       criteria: Prisma.JsonValue
       createdAt: Date
       updatedAt: Date
@@ -2881,7 +3250,7 @@ export namespace Prisma {
   export interface Prisma__RubricClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-    uploads<T extends Rubric$uploadsArgs<ExtArgs> = {}>(args?: Subset<T, Rubric$uploadsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    gradingResults<T extends Rubric$gradingResultsArgs<ExtArgs> = {}>(args?: Subset<T, Rubric$gradingResultsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2915,6 +3284,8 @@ export namespace Prisma {
     readonly userId: FieldRef<"Rubric", 'String'>
     readonly name: FieldRef<"Rubric", 'String'>
     readonly description: FieldRef<"Rubric", 'String'>
+    readonly version: FieldRef<"Rubric", 'Int'>
+    readonly isActive: FieldRef<"Rubric", 'Boolean'>
     readonly criteria: FieldRef<"Rubric", 'Json'>
     readonly createdAt: FieldRef<"Rubric", 'DateTime'>
     readonly updatedAt: FieldRef<"Rubric", 'DateTime'>
@@ -3314,27 +3685,27 @@ export namespace Prisma {
   }
 
   /**
-   * Rubric.uploads
+   * Rubric.gradingResults
    */
-  export type Rubric$uploadsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type Rubric$gradingResultsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
-    where?: UploadWhereInput
-    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
-    cursor?: UploadWhereUniqueInput
+    include?: GradingResultInclude<ExtArgs> | null
+    where?: GradingResultWhereInput
+    orderBy?: GradingResultOrderByWithRelationInput | GradingResultOrderByWithRelationInput[]
+    cursor?: GradingResultWhereUniqueInput
     take?: number
     skip?: number
-    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
+    distinct?: GradingResultScalarFieldEnum | GradingResultScalarFieldEnum[]
   }
 
   /**
@@ -3357,471 +3728,401 @@ export namespace Prisma {
 
 
   /**
-   * Model Upload
+   * Model GradingSession
    */
 
-  export type AggregateUpload = {
-    _count: UploadCountAggregateOutputType | null
-    _avg: UploadAvgAggregateOutputType | null
-    _sum: UploadSumAggregateOutputType | null
-    _min: UploadMinAggregateOutputType | null
-    _max: UploadMaxAggregateOutputType | null
+  export type AggregateGradingSession = {
+    _count: GradingSessionCountAggregateOutputType | null
+    _avg: GradingSessionAvgAggregateOutputType | null
+    _sum: GradingSessionSumAggregateOutputType | null
+    _min: GradingSessionMinAggregateOutputType | null
+    _max: GradingSessionMaxAggregateOutputType | null
   }
 
-  export type UploadAvgAggregateOutputType = {
-    fileSize: number | null
+  export type GradingSessionAvgAggregateOutputType = {
+    progress: number | null
   }
 
-  export type UploadSumAggregateOutputType = {
-    fileSize: number | null
+  export type GradingSessionSumAggregateOutputType = {
+    progress: number | null
   }
 
-  export type UploadMinAggregateOutputType = {
+  export type GradingSessionMinAggregateOutputType = {
     id: string | null
     userId: string | null
-    rubricId: string | null
-    originalFileName: string | null
-    storedFileKey: string | null
-    storageLocation: string | null
-    fileSize: number | null
-    mimeType: string | null
-    status: $Enums.UploadStatus | null
+    status: $Enums.GradingSessionStatus | null
+    progress: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
 
-  export type UploadMaxAggregateOutputType = {
+  export type GradingSessionMaxAggregateOutputType = {
     id: string | null
     userId: string | null
-    rubricId: string | null
-    originalFileName: string | null
-    storedFileKey: string | null
-    storageLocation: string | null
-    fileSize: number | null
-    mimeType: string | null
-    status: $Enums.UploadStatus | null
+    status: $Enums.GradingSessionStatus | null
+    progress: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
 
-  export type UploadCountAggregateOutputType = {
+  export type GradingSessionCountAggregateOutputType = {
     id: number
     userId: number
-    rubricId: number
-    originalFileName: number
-    storedFileKey: number
-    storageLocation: number
-    fileSize: number
-    mimeType: number
     status: number
-    result: number
+    progress: number
     createdAt: number
     updatedAt: number
     _all: number
   }
 
 
-  export type UploadAvgAggregateInputType = {
-    fileSize?: true
+  export type GradingSessionAvgAggregateInputType = {
+    progress?: true
   }
 
-  export type UploadSumAggregateInputType = {
-    fileSize?: true
+  export type GradingSessionSumAggregateInputType = {
+    progress?: true
   }
 
-  export type UploadMinAggregateInputType = {
+  export type GradingSessionMinAggregateInputType = {
     id?: true
     userId?: true
-    rubricId?: true
-    originalFileName?: true
-    storedFileKey?: true
-    storageLocation?: true
-    fileSize?: true
-    mimeType?: true
     status?: true
+    progress?: true
     createdAt?: true
     updatedAt?: true
   }
 
-  export type UploadMaxAggregateInputType = {
+  export type GradingSessionMaxAggregateInputType = {
     id?: true
     userId?: true
-    rubricId?: true
-    originalFileName?: true
-    storedFileKey?: true
-    storageLocation?: true
-    fileSize?: true
-    mimeType?: true
     status?: true
+    progress?: true
     createdAt?: true
     updatedAt?: true
   }
 
-  export type UploadCountAggregateInputType = {
+  export type GradingSessionCountAggregateInputType = {
     id?: true
     userId?: true
-    rubricId?: true
-    originalFileName?: true
-    storedFileKey?: true
-    storageLocation?: true
-    fileSize?: true
-    mimeType?: true
     status?: true
-    result?: true
+    progress?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
   }
 
-  export type UploadAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingSessionAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Filter which Upload to aggregate.
+     * Filter which GradingSession to aggregate.
      */
-    where?: UploadWhereInput
+    where?: GradingSessionWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of Uploads to fetch.
+     * Determine the order of GradingSessions to fetch.
      */
-    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
+    orderBy?: GradingSessionOrderByWithRelationInput | GradingSessionOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
      * Sets the start position
      */
-    cursor?: UploadWhereUniqueInput
+    cursor?: GradingSessionWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` Uploads from the position of the cursor.
+     * Take `±n` GradingSessions from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` Uploads.
+     * Skip the first `n` GradingSessions.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
-     * Count returned Uploads
+     * Count returned GradingSessions
     **/
-    _count?: true | UploadCountAggregateInputType
+    _count?: true | GradingSessionCountAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to average
     **/
-    _avg?: UploadAvgAggregateInputType
+    _avg?: GradingSessionAvgAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to sum
     **/
-    _sum?: UploadSumAggregateInputType
+    _sum?: GradingSessionSumAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to find the minimum value
     **/
-    _min?: UploadMinAggregateInputType
+    _min?: GradingSessionMinAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to find the maximum value
     **/
-    _max?: UploadMaxAggregateInputType
+    _max?: GradingSessionMaxAggregateInputType
   }
 
-  export type GetUploadAggregateType<T extends UploadAggregateArgs> = {
-        [P in keyof T & keyof AggregateUpload]: P extends '_count' | 'count'
+  export type GetGradingSessionAggregateType<T extends GradingSessionAggregateArgs> = {
+        [P in keyof T & keyof AggregateGradingSession]: P extends '_count' | 'count'
       ? T[P] extends true
         ? number
-        : GetScalarType<T[P], AggregateUpload[P]>
-      : GetScalarType<T[P], AggregateUpload[P]>
+        : GetScalarType<T[P], AggregateGradingSession[P]>
+      : GetScalarType<T[P], AggregateGradingSession[P]>
   }
 
 
 
 
-  export type UploadGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    where?: UploadWhereInput
-    orderBy?: UploadOrderByWithAggregationInput | UploadOrderByWithAggregationInput[]
-    by: UploadScalarFieldEnum[] | UploadScalarFieldEnum
-    having?: UploadScalarWhereWithAggregatesInput
+  export type GradingSessionGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: GradingSessionWhereInput
+    orderBy?: GradingSessionOrderByWithAggregationInput | GradingSessionOrderByWithAggregationInput[]
+    by: GradingSessionScalarFieldEnum[] | GradingSessionScalarFieldEnum
+    having?: GradingSessionScalarWhereWithAggregatesInput
     take?: number
     skip?: number
-    _count?: UploadCountAggregateInputType | true
-    _avg?: UploadAvgAggregateInputType
-    _sum?: UploadSumAggregateInputType
-    _min?: UploadMinAggregateInputType
-    _max?: UploadMaxAggregateInputType
+    _count?: GradingSessionCountAggregateInputType | true
+    _avg?: GradingSessionAvgAggregateInputType
+    _sum?: GradingSessionSumAggregateInputType
+    _min?: GradingSessionMinAggregateInputType
+    _max?: GradingSessionMaxAggregateInputType
   }
 
-  export type UploadGroupByOutputType = {
+  export type GradingSessionGroupByOutputType = {
     id: string
     userId: string
-    rubricId: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status: $Enums.UploadStatus
-    result: JsonValue | null
+    status: $Enums.GradingSessionStatus
+    progress: number
     createdAt: Date
     updatedAt: Date
-    _count: UploadCountAggregateOutputType | null
-    _avg: UploadAvgAggregateOutputType | null
-    _sum: UploadSumAggregateOutputType | null
-    _min: UploadMinAggregateOutputType | null
-    _max: UploadMaxAggregateOutputType | null
+    _count: GradingSessionCountAggregateOutputType | null
+    _avg: GradingSessionAvgAggregateOutputType | null
+    _sum: GradingSessionSumAggregateOutputType | null
+    _min: GradingSessionMinAggregateOutputType | null
+    _max: GradingSessionMaxAggregateOutputType | null
   }
 
-  type GetUploadGroupByPayload<T extends UploadGroupByArgs> = Prisma.PrismaPromise<
+  type GetGradingSessionGroupByPayload<T extends GradingSessionGroupByArgs> = Prisma.PrismaPromise<
     Array<
-      PickEnumerable<UploadGroupByOutputType, T['by']> &
+      PickEnumerable<GradingSessionGroupByOutputType, T['by']> &
         {
-          [P in ((keyof T) & (keyof UploadGroupByOutputType))]: P extends '_count'
+          [P in ((keyof T) & (keyof GradingSessionGroupByOutputType))]: P extends '_count'
             ? T[P] extends boolean
               ? number
-              : GetScalarType<T[P], UploadGroupByOutputType[P]>
-            : GetScalarType<T[P], UploadGroupByOutputType[P]>
+              : GetScalarType<T[P], GradingSessionGroupByOutputType[P]>
+            : GetScalarType<T[P], GradingSessionGroupByOutputType[P]>
         }
       >
     >
 
 
-  export type UploadSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+  export type GradingSessionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    rubricId?: boolean
-    originalFileName?: boolean
-    storedFileKey?: boolean
-    storageLocation?: boolean
-    fileSize?: boolean
-    mimeType?: boolean
     status?: boolean
-    result?: boolean
+    progress?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
-    rubric?: boolean | RubricDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["upload"]>
+    gradingResults?: boolean | GradingSession$gradingResultsArgs<ExtArgs>
+    _count?: boolean | GradingSessionCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["gradingSession"]>
 
-  export type UploadSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+  export type GradingSessionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    rubricId?: boolean
-    originalFileName?: boolean
-    storedFileKey?: boolean
-    storageLocation?: boolean
-    fileSize?: boolean
-    mimeType?: boolean
     status?: boolean
-    result?: boolean
+    progress?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
-    rubric?: boolean | RubricDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["upload"]>
+  }, ExtArgs["result"]["gradingSession"]>
 
-  export type UploadSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+  export type GradingSessionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    rubricId?: boolean
-    originalFileName?: boolean
-    storedFileKey?: boolean
-    storageLocation?: boolean
-    fileSize?: boolean
-    mimeType?: boolean
     status?: boolean
-    result?: boolean
+    progress?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
-    rubric?: boolean | RubricDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["upload"]>
+  }, ExtArgs["result"]["gradingSession"]>
 
-  export type UploadSelectScalar = {
+  export type GradingSessionSelectScalar = {
     id?: boolean
     userId?: boolean
-    rubricId?: boolean
-    originalFileName?: boolean
-    storedFileKey?: boolean
-    storageLocation?: boolean
-    fileSize?: boolean
-    mimeType?: boolean
     status?: boolean
-    result?: boolean
+    progress?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type UploadOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "rubricId" | "originalFileName" | "storedFileKey" | "storageLocation" | "fileSize" | "mimeType" | "status" | "result" | "createdAt" | "updatedAt", ExtArgs["result"]["upload"]>
-  export type UploadInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingSessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "status" | "progress" | "createdAt" | "updatedAt", ExtArgs["result"]["gradingSession"]>
+  export type GradingSessionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
-    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+    gradingResults?: boolean | GradingSession$gradingResultsArgs<ExtArgs>
+    _count?: boolean | GradingSessionCountOutputTypeDefaultArgs<ExtArgs>
   }
-  export type UploadIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingSessionIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
-    rubric?: boolean | RubricDefaultArgs<ExtArgs>
   }
-  export type UploadIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingSessionIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
-    rubric?: boolean | RubricDefaultArgs<ExtArgs>
   }
 
-  export type $UploadPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-    name: "Upload"
+  export type $GradingSessionPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "GradingSession"
     objects: {
       user: Prisma.$UserPayload<ExtArgs>
-      rubric: Prisma.$RubricPayload<ExtArgs>
+      gradingResults: Prisma.$GradingResultPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
       userId: string
-      rubricId: string
-      originalFileName: string
-      storedFileKey: string
-      storageLocation: string
-      fileSize: number
-      mimeType: string
-      status: $Enums.UploadStatus
-      result: Prisma.JsonValue | null
+      status: $Enums.GradingSessionStatus
+      progress: number
       createdAt: Date
       updatedAt: Date
-    }, ExtArgs["result"]["upload"]>
+    }, ExtArgs["result"]["gradingSession"]>
     composites: {}
   }
 
-  export type UploadGetPayload<S extends boolean | null | undefined | UploadDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$UploadPayload, S>
+  export type GradingSessionGetPayload<S extends boolean | null | undefined | GradingSessionDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload, S>
 
-  export type UploadCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
-    Omit<UploadFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-      select?: UploadCountAggregateInputType | true
+  export type GradingSessionCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<GradingSessionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: GradingSessionCountAggregateInputType | true
     }
 
-  export interface UploadDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Upload'], meta: { name: 'Upload' } }
+  export interface GradingSessionDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['GradingSession'], meta: { name: 'GradingSession' } }
     /**
-     * Find zero or one Upload that matches the filter.
-     * @param {UploadFindUniqueArgs} args - Arguments to find a Upload
+     * Find zero or one GradingSession that matches the filter.
+     * @param {GradingSessionFindUniqueArgs} args - Arguments to find a GradingSession
      * @example
-     * // Get one Upload
-     * const upload = await prisma.upload.findUnique({
+     * // Get one GradingSession
+     * const gradingSession = await prisma.gradingSession.findUnique({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findUnique<T extends UploadFindUniqueArgs>(args: SelectSubset<T, UploadFindUniqueArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    findUnique<T extends GradingSessionFindUniqueArgs>(args: SelectSubset<T, GradingSessionFindUniqueArgs<ExtArgs>>): Prisma__GradingSessionClient<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find one Upload that matches the filter or throw an error with `error.code='P2025'`
+     * Find one GradingSession that matches the filter or throw an error with `error.code='P2025'`
      * if no matches were found.
-     * @param {UploadFindUniqueOrThrowArgs} args - Arguments to find a Upload
+     * @param {GradingSessionFindUniqueOrThrowArgs} args - Arguments to find a GradingSession
      * @example
-     * // Get one Upload
-     * const upload = await prisma.upload.findUniqueOrThrow({
+     * // Get one GradingSession
+     * const gradingSession = await prisma.gradingSession.findUniqueOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findUniqueOrThrow<T extends UploadFindUniqueOrThrowArgs>(args: SelectSubset<T, UploadFindUniqueOrThrowArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    findUniqueOrThrow<T extends GradingSessionFindUniqueOrThrowArgs>(args: SelectSubset<T, GradingSessionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__GradingSessionClient<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find the first Upload that matches the filter.
+     * Find the first GradingSession that matches the filter.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UploadFindFirstArgs} args - Arguments to find a Upload
+     * @param {GradingSessionFindFirstArgs} args - Arguments to find a GradingSession
      * @example
-     * // Get one Upload
-     * const upload = await prisma.upload.findFirst({
+     * // Get one GradingSession
+     * const gradingSession = await prisma.gradingSession.findFirst({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findFirst<T extends UploadFindFirstArgs>(args?: SelectSubset<T, UploadFindFirstArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    findFirst<T extends GradingSessionFindFirstArgs>(args?: SelectSubset<T, GradingSessionFindFirstArgs<ExtArgs>>): Prisma__GradingSessionClient<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find the first Upload that matches the filter or
+     * Find the first GradingSession that matches the filter or
      * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UploadFindFirstOrThrowArgs} args - Arguments to find a Upload
+     * @param {GradingSessionFindFirstOrThrowArgs} args - Arguments to find a GradingSession
      * @example
-     * // Get one Upload
-     * const upload = await prisma.upload.findFirstOrThrow({
+     * // Get one GradingSession
+     * const gradingSession = await prisma.gradingSession.findFirstOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findFirstOrThrow<T extends UploadFindFirstOrThrowArgs>(args?: SelectSubset<T, UploadFindFirstOrThrowArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    findFirstOrThrow<T extends GradingSessionFindFirstOrThrowArgs>(args?: SelectSubset<T, GradingSessionFindFirstOrThrowArgs<ExtArgs>>): Prisma__GradingSessionClient<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find zero or more Uploads that matches the filter.
+     * Find zero or more GradingSessions that matches the filter.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UploadFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @param {GradingSessionFindManyArgs} args - Arguments to filter and select certain fields only.
      * @example
-     * // Get all Uploads
-     * const uploads = await prisma.upload.findMany()
+     * // Get all GradingSessions
+     * const gradingSessions = await prisma.gradingSession.findMany()
      * 
-     * // Get first 10 Uploads
-     * const uploads = await prisma.upload.findMany({ take: 10 })
+     * // Get first 10 GradingSessions
+     * const gradingSessions = await prisma.gradingSession.findMany({ take: 10 })
      * 
      * // Only select the `id`
-     * const uploadWithIdOnly = await prisma.upload.findMany({ select: { id: true } })
+     * const gradingSessionWithIdOnly = await prisma.gradingSession.findMany({ select: { id: true } })
      * 
      */
-    findMany<T extends UploadFindManyArgs>(args?: SelectSubset<T, UploadFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+    findMany<T extends GradingSessionFindManyArgs>(args?: SelectSubset<T, GradingSessionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
 
     /**
-     * Create a Upload.
-     * @param {UploadCreateArgs} args - Arguments to create a Upload.
+     * Create a GradingSession.
+     * @param {GradingSessionCreateArgs} args - Arguments to create a GradingSession.
      * @example
-     * // Create one Upload
-     * const Upload = await prisma.upload.create({
+     * // Create one GradingSession
+     * const GradingSession = await prisma.gradingSession.create({
      *   data: {
-     *     // ... data to create a Upload
+     *     // ... data to create a GradingSession
      *   }
      * })
      * 
      */
-    create<T extends UploadCreateArgs>(args: SelectSubset<T, UploadCreateArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    create<T extends GradingSessionCreateArgs>(args: SelectSubset<T, GradingSessionCreateArgs<ExtArgs>>): Prisma__GradingSessionClient<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Create many Uploads.
-     * @param {UploadCreateManyArgs} args - Arguments to create many Uploads.
+     * Create many GradingSessions.
+     * @param {GradingSessionCreateManyArgs} args - Arguments to create many GradingSessions.
      * @example
-     * // Create many Uploads
-     * const upload = await prisma.upload.createMany({
+     * // Create many GradingSessions
+     * const gradingSession = await prisma.gradingSession.createMany({
      *   data: [
      *     // ... provide data here
      *   ]
      * })
      *     
      */
-    createMany<T extends UploadCreateManyArgs>(args?: SelectSubset<T, UploadCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    createMany<T extends GradingSessionCreateManyArgs>(args?: SelectSubset<T, GradingSessionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Create many Uploads and returns the data saved in the database.
-     * @param {UploadCreateManyAndReturnArgs} args - Arguments to create many Uploads.
+     * Create many GradingSessions and returns the data saved in the database.
+     * @param {GradingSessionCreateManyAndReturnArgs} args - Arguments to create many GradingSessions.
      * @example
-     * // Create many Uploads
-     * const upload = await prisma.upload.createManyAndReturn({
+     * // Create many GradingSessions
+     * const gradingSession = await prisma.gradingSession.createManyAndReturn({
      *   data: [
      *     // ... provide data here
      *   ]
      * })
      * 
-     * // Create many Uploads and only return the `id`
-     * const uploadWithIdOnly = await prisma.upload.createManyAndReturn({
+     * // Create many GradingSessions and only return the `id`
+     * const gradingSessionWithIdOnly = await prisma.gradingSession.createManyAndReturn({
      *   select: { id: true },
      *   data: [
      *     // ... provide data here
@@ -3831,28 +4132,28 @@ export namespace Prisma {
      * Read more here: https://pris.ly/d/null-undefined
      * 
      */
-    createManyAndReturn<T extends UploadCreateManyAndReturnArgs>(args?: SelectSubset<T, UploadCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+    createManyAndReturn<T extends GradingSessionCreateManyAndReturnArgs>(args?: SelectSubset<T, GradingSessionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
 
     /**
-     * Delete a Upload.
-     * @param {UploadDeleteArgs} args - Arguments to delete one Upload.
+     * Delete a GradingSession.
+     * @param {GradingSessionDeleteArgs} args - Arguments to delete one GradingSession.
      * @example
-     * // Delete one Upload
-     * const Upload = await prisma.upload.delete({
+     * // Delete one GradingSession
+     * const GradingSession = await prisma.gradingSession.delete({
      *   where: {
-     *     // ... filter to delete one Upload
+     *     // ... filter to delete one GradingSession
      *   }
      * })
      * 
      */
-    delete<T extends UploadDeleteArgs>(args: SelectSubset<T, UploadDeleteArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    delete<T extends GradingSessionDeleteArgs>(args: SelectSubset<T, GradingSessionDeleteArgs<ExtArgs>>): Prisma__GradingSessionClient<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Update one Upload.
-     * @param {UploadUpdateArgs} args - Arguments to update one Upload.
+     * Update one GradingSession.
+     * @param {GradingSessionUpdateArgs} args - Arguments to update one GradingSession.
      * @example
-     * // Update one Upload
-     * const upload = await prisma.upload.update({
+     * // Update one GradingSession
+     * const gradingSession = await prisma.gradingSession.update({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -3862,30 +4163,30 @@ export namespace Prisma {
      * })
      * 
      */
-    update<T extends UploadUpdateArgs>(args: SelectSubset<T, UploadUpdateArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    update<T extends GradingSessionUpdateArgs>(args: SelectSubset<T, GradingSessionUpdateArgs<ExtArgs>>): Prisma__GradingSessionClient<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Delete zero or more Uploads.
-     * @param {UploadDeleteManyArgs} args - Arguments to filter Uploads to delete.
+     * Delete zero or more GradingSessions.
+     * @param {GradingSessionDeleteManyArgs} args - Arguments to filter GradingSessions to delete.
      * @example
-     * // Delete a few Uploads
-     * const { count } = await prisma.upload.deleteMany({
+     * // Delete a few GradingSessions
+     * const { count } = await prisma.gradingSession.deleteMany({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      * 
      */
-    deleteMany<T extends UploadDeleteManyArgs>(args?: SelectSubset<T, UploadDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    deleteMany<T extends GradingSessionDeleteManyArgs>(args?: SelectSubset<T, GradingSessionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Update zero or more Uploads.
+     * Update zero or more GradingSessions.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UploadUpdateManyArgs} args - Arguments to update one or more rows.
+     * @param {GradingSessionUpdateManyArgs} args - Arguments to update one or more rows.
      * @example
-     * // Update many Uploads
-     * const upload = await prisma.upload.updateMany({
+     * // Update many GradingSessions
+     * const gradingSession = await prisma.gradingSession.updateMany({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -3895,14 +4196,14 @@ export namespace Prisma {
      * })
      * 
      */
-    updateMany<T extends UploadUpdateManyArgs>(args: SelectSubset<T, UploadUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    updateMany<T extends GradingSessionUpdateManyArgs>(args: SelectSubset<T, GradingSessionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Update zero or more Uploads and returns the data updated in the database.
-     * @param {UploadUpdateManyAndReturnArgs} args - Arguments to update many Uploads.
+     * Update zero or more GradingSessions and returns the data updated in the database.
+     * @param {GradingSessionUpdateManyAndReturnArgs} args - Arguments to update many GradingSessions.
      * @example
-     * // Update many Uploads
-     * const upload = await prisma.upload.updateManyAndReturn({
+     * // Update many GradingSessions
+     * const gradingSession = await prisma.gradingSession.updateManyAndReturn({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -3911,8 +4212,8 @@ export namespace Prisma {
      *   ]
      * })
      * 
-     * // Update zero or more Uploads and only return the `id`
-     * const uploadWithIdOnly = await prisma.upload.updateManyAndReturn({
+     * // Update zero or more GradingSessions and only return the `id`
+     * const gradingSessionWithIdOnly = await prisma.gradingSession.updateManyAndReturn({
      *   select: { id: true },
      *   where: {
      *     // ... provide filter here
@@ -3925,56 +4226,56 @@ export namespace Prisma {
      * Read more here: https://pris.ly/d/null-undefined
      * 
      */
-    updateManyAndReturn<T extends UploadUpdateManyAndReturnArgs>(args: SelectSubset<T, UploadUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+    updateManyAndReturn<T extends GradingSessionUpdateManyAndReturnArgs>(args: SelectSubset<T, GradingSessionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
 
     /**
-     * Create or update one Upload.
-     * @param {UploadUpsertArgs} args - Arguments to update or create a Upload.
+     * Create or update one GradingSession.
+     * @param {GradingSessionUpsertArgs} args - Arguments to update or create a GradingSession.
      * @example
-     * // Update or create a Upload
-     * const upload = await prisma.upload.upsert({
+     * // Update or create a GradingSession
+     * const gradingSession = await prisma.gradingSession.upsert({
      *   create: {
-     *     // ... data to create a Upload
+     *     // ... data to create a GradingSession
      *   },
      *   update: {
      *     // ... in case it already exists, update
      *   },
      *   where: {
-     *     // ... the filter for the Upload we want to update
+     *     // ... the filter for the GradingSession we want to update
      *   }
      * })
      */
-    upsert<T extends UploadUpsertArgs>(args: SelectSubset<T, UploadUpsertArgs<ExtArgs>>): Prisma__UploadClient<runtime.Types.Result.GetResult<Prisma.$UploadPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    upsert<T extends GradingSessionUpsertArgs>(args: SelectSubset<T, GradingSessionUpsertArgs<ExtArgs>>): Prisma__GradingSessionClient<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
 
     /**
-     * Count the number of Uploads.
+     * Count the number of GradingSessions.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UploadCountArgs} args - Arguments to filter Uploads to count.
+     * @param {GradingSessionCountArgs} args - Arguments to filter GradingSessions to count.
      * @example
-     * // Count the number of Uploads
-     * const count = await prisma.upload.count({
+     * // Count the number of GradingSessions
+     * const count = await prisma.gradingSession.count({
      *   where: {
-     *     // ... the filter for the Uploads we want to count
+     *     // ... the filter for the GradingSessions we want to count
      *   }
      * })
     **/
-    count<T extends UploadCountArgs>(
-      args?: Subset<T, UploadCountArgs>,
+    count<T extends GradingSessionCountArgs>(
+      args?: Subset<T, GradingSessionCountArgs>,
     ): Prisma.PrismaPromise<
       T extends runtime.Types.Utils.Record<'select', any>
         ? T['select'] extends true
           ? number
-          : GetScalarType<T['select'], UploadCountAggregateOutputType>
+          : GetScalarType<T['select'], GradingSessionCountAggregateOutputType>
         : number
     >
 
     /**
-     * Allows you to perform aggregations operations on a Upload.
+     * Allows you to perform aggregations operations on a GradingSession.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UploadAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @param {GradingSessionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
      * @example
      * // Ordered by age ascending
      * // Where email contains prisma.io
@@ -3994,13 +4295,13 @@ export namespace Prisma {
      *   take: 10,
      * })
     **/
-    aggregate<T extends UploadAggregateArgs>(args: Subset<T, UploadAggregateArgs>): Prisma.PrismaPromise<GetUploadAggregateType<T>>
+    aggregate<T extends GradingSessionAggregateArgs>(args: Subset<T, GradingSessionAggregateArgs>): Prisma.PrismaPromise<GetGradingSessionAggregateType<T>>
 
     /**
-     * Group by Upload.
+     * Group by GradingSession.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UploadGroupByArgs} args - Group by arguments.
+     * @param {GradingSessionGroupByArgs} args - Group by arguments.
      * @example
      * // Group by city, order by createdAt, get count
      * const result = await prisma.user.groupBy({
@@ -4015,14 +4316,14 @@ export namespace Prisma {
      * 
     **/
     groupBy<
-      T extends UploadGroupByArgs,
+      T extends GradingSessionGroupByArgs,
       HasSelectOrTake extends Or<
         Extends<'skip', Keys<T>>,
         Extends<'take', Keys<T>>
       >,
       OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: UploadGroupByArgs['orderBy'] }
-        : { orderBy?: UploadGroupByArgs['orderBy'] },
+        ? { orderBy: GradingSessionGroupByArgs['orderBy'] }
+        : { orderBy?: GradingSessionGroupByArgs['orderBy'] },
       OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
       ByFields extends MaybeTupleToUnion<T['by']>,
       ByValid extends Has<ByFields, OrderFields>,
@@ -4071,22 +4372,2493 @@ export namespace Prisma {
             ? never
             : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
         }[OrderFields]
-    >(args: SubsetIntersection<T, UploadGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetUploadGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+    >(args: SubsetIntersection<T, GradingSessionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetGradingSessionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
   /**
-   * Fields of the Upload model
+   * Fields of the GradingSession model
    */
-  readonly fields: UploadFieldRefs;
+  readonly fields: GradingSessionFieldRefs;
   }
 
   /**
-   * The delegate class that acts as a "Promise-like" for Upload.
+   * The delegate class that acts as a "Promise-like" for GradingSession.
    * Why is this prefixed with `Prisma__`?
    * Because we want to prevent naming conflicts as mentioned in
    * https://github.com/prisma/prisma-client-js/issues/707
    */
-  export interface Prisma__UploadClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+  export interface Prisma__GradingSessionClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    gradingResults<T extends GradingSession$gradingResultsArgs<ExtArgs> = {}>(args?: Subset<T, GradingSession$gradingResultsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the GradingSession model
+   */
+  export interface GradingSessionFieldRefs {
+    readonly id: FieldRef<"GradingSession", 'String'>
+    readonly userId: FieldRef<"GradingSession", 'String'>
+    readonly status: FieldRef<"GradingSession", 'GradingSessionStatus'>
+    readonly progress: FieldRef<"GradingSession", 'Int'>
+    readonly createdAt: FieldRef<"GradingSession", 'DateTime'>
+    readonly updatedAt: FieldRef<"GradingSession", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * GradingSession findUnique
+   */
+  export type GradingSessionFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which GradingSession to fetch.
+     */
+    where: GradingSessionWhereUniqueInput
+  }
+
+  /**
+   * GradingSession findUniqueOrThrow
+   */
+  export type GradingSessionFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which GradingSession to fetch.
+     */
+    where: GradingSessionWhereUniqueInput
+  }
+
+  /**
+   * GradingSession findFirst
+   */
+  export type GradingSessionFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which GradingSession to fetch.
+     */
+    where?: GradingSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of GradingSessions to fetch.
+     */
+    orderBy?: GradingSessionOrderByWithRelationInput | GradingSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for GradingSessions.
+     */
+    cursor?: GradingSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` GradingSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` GradingSessions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of GradingSessions.
+     */
+    distinct?: GradingSessionScalarFieldEnum | GradingSessionScalarFieldEnum[]
+  }
+
+  /**
+   * GradingSession findFirstOrThrow
+   */
+  export type GradingSessionFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which GradingSession to fetch.
+     */
+    where?: GradingSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of GradingSessions to fetch.
+     */
+    orderBy?: GradingSessionOrderByWithRelationInput | GradingSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for GradingSessions.
+     */
+    cursor?: GradingSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` GradingSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` GradingSessions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of GradingSessions.
+     */
+    distinct?: GradingSessionScalarFieldEnum | GradingSessionScalarFieldEnum[]
+  }
+
+  /**
+   * GradingSession findMany
+   */
+  export type GradingSessionFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which GradingSessions to fetch.
+     */
+    where?: GradingSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of GradingSessions to fetch.
+     */
+    orderBy?: GradingSessionOrderByWithRelationInput | GradingSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing GradingSessions.
+     */
+    cursor?: GradingSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` GradingSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` GradingSessions.
+     */
+    skip?: number
+    distinct?: GradingSessionScalarFieldEnum | GradingSessionScalarFieldEnum[]
+  }
+
+  /**
+   * GradingSession create
+   */
+  export type GradingSessionCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a GradingSession.
+     */
+    data: XOR<GradingSessionCreateInput, GradingSessionUncheckedCreateInput>
+  }
+
+  /**
+   * GradingSession createMany
+   */
+  export type GradingSessionCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many GradingSessions.
+     */
+    data: GradingSessionCreateManyInput | GradingSessionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * GradingSession createManyAndReturn
+   */
+  export type GradingSessionCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * The data used to create many GradingSessions.
+     */
+    data: GradingSessionCreateManyInput | GradingSessionCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * GradingSession update
+   */
+  export type GradingSessionUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a GradingSession.
+     */
+    data: XOR<GradingSessionUpdateInput, GradingSessionUncheckedUpdateInput>
+    /**
+     * Choose, which GradingSession to update.
+     */
+    where: GradingSessionWhereUniqueInput
+  }
+
+  /**
+   * GradingSession updateMany
+   */
+  export type GradingSessionUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update GradingSessions.
+     */
+    data: XOR<GradingSessionUpdateManyMutationInput, GradingSessionUncheckedUpdateManyInput>
+    /**
+     * Filter which GradingSessions to update
+     */
+    where?: GradingSessionWhereInput
+    /**
+     * Limit how many GradingSessions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * GradingSession updateManyAndReturn
+   */
+  export type GradingSessionUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * The data used to update GradingSessions.
+     */
+    data: XOR<GradingSessionUpdateManyMutationInput, GradingSessionUncheckedUpdateManyInput>
+    /**
+     * Filter which GradingSessions to update
+     */
+    where?: GradingSessionWhereInput
+    /**
+     * Limit how many GradingSessions to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * GradingSession upsert
+   */
+  export type GradingSessionUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the GradingSession to update in case it exists.
+     */
+    where: GradingSessionWhereUniqueInput
+    /**
+     * In case the GradingSession found by the `where` argument doesn't exist, create a new GradingSession with this data.
+     */
+    create: XOR<GradingSessionCreateInput, GradingSessionUncheckedCreateInput>
+    /**
+     * In case the GradingSession was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<GradingSessionUpdateInput, GradingSessionUncheckedUpdateInput>
+  }
+
+  /**
+   * GradingSession delete
+   */
+  export type GradingSessionDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+    /**
+     * Filter which GradingSession to delete.
+     */
+    where: GradingSessionWhereUniqueInput
+  }
+
+  /**
+   * GradingSession deleteMany
+   */
+  export type GradingSessionDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which GradingSessions to delete
+     */
+    where?: GradingSessionWhereInput
+    /**
+     * Limit how many GradingSessions to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * GradingSession.gradingResults
+   */
+  export type GradingSession$gradingResultsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingResult
+     */
+    select?: GradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingResult
+     */
+    omit?: GradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingResultInclude<ExtArgs> | null
+    where?: GradingResultWhereInput
+    orderBy?: GradingResultOrderByWithRelationInput | GradingResultOrderByWithRelationInput[]
+    cursor?: GradingResultWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: GradingResultScalarFieldEnum | GradingResultScalarFieldEnum[]
+  }
+
+  /**
+   * GradingSession without action
+   */
+  export type GradingSessionDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingSession
+     */
+    select?: GradingSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingSession
+     */
+    omit?: GradingSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingSessionInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model UploadedFile
+   */
+
+  export type AggregateUploadedFile = {
+    _count: UploadedFileCountAggregateOutputType | null
+    _avg: UploadedFileAvgAggregateOutputType | null
+    _sum: UploadedFileSumAggregateOutputType | null
+    _min: UploadedFileMinAggregateOutputType | null
+    _max: UploadedFileMaxAggregateOutputType | null
+  }
+
+  export type UploadedFileAvgAggregateOutputType = {
+    fileSize: number | null
+  }
+
+  export type UploadedFileSumAggregateOutputType = {
+    fileSize: number | null
+  }
+
+  export type UploadedFileMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    fileName: string | null
+    originalFileName: string | null
+    fileKey: string | null
+    fileSize: number | null
+    mimeType: string | null
+    parseStatus: $Enums.FileParseStatus | null
+    parsedContent: string | null
+    parseError: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    expiresAt: Date | null
+  }
+
+  export type UploadedFileMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    fileName: string | null
+    originalFileName: string | null
+    fileKey: string | null
+    fileSize: number | null
+    mimeType: string | null
+    parseStatus: $Enums.FileParseStatus | null
+    parsedContent: string | null
+    parseError: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    expiresAt: Date | null
+  }
+
+  export type UploadedFileCountAggregateOutputType = {
+    id: number
+    userId: number
+    fileName: number
+    originalFileName: number
+    fileKey: number
+    fileSize: number
+    mimeType: number
+    parseStatus: number
+    parsedContent: number
+    parseError: number
+    createdAt: number
+    updatedAt: number
+    expiresAt: number
+    _all: number
+  }
+
+
+  export type UploadedFileAvgAggregateInputType = {
+    fileSize?: true
+  }
+
+  export type UploadedFileSumAggregateInputType = {
+    fileSize?: true
+  }
+
+  export type UploadedFileMinAggregateInputType = {
+    id?: true
+    userId?: true
+    fileName?: true
+    originalFileName?: true
+    fileKey?: true
+    fileSize?: true
+    mimeType?: true
+    parseStatus?: true
+    parsedContent?: true
+    parseError?: true
+    createdAt?: true
+    updatedAt?: true
+    expiresAt?: true
+  }
+
+  export type UploadedFileMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    fileName?: true
+    originalFileName?: true
+    fileKey?: true
+    fileSize?: true
+    mimeType?: true
+    parseStatus?: true
+    parsedContent?: true
+    parseError?: true
+    createdAt?: true
+    updatedAt?: true
+    expiresAt?: true
+  }
+
+  export type UploadedFileCountAggregateInputType = {
+    id?: true
+    userId?: true
+    fileName?: true
+    originalFileName?: true
+    fileKey?: true
+    fileSize?: true
+    mimeType?: true
+    parseStatus?: true
+    parsedContent?: true
+    parseError?: true
+    createdAt?: true
+    updatedAt?: true
+    expiresAt?: true
+    _all?: true
+  }
+
+  export type UploadedFileAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which UploadedFile to aggregate.
+     */
+    where?: UploadedFileWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UploadedFiles to fetch.
+     */
+    orderBy?: UploadedFileOrderByWithRelationInput | UploadedFileOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: UploadedFileWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UploadedFiles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UploadedFiles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned UploadedFiles
+    **/
+    _count?: true | UploadedFileCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: UploadedFileAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: UploadedFileSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: UploadedFileMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: UploadedFileMaxAggregateInputType
+  }
+
+  export type GetUploadedFileAggregateType<T extends UploadedFileAggregateArgs> = {
+        [P in keyof T & keyof AggregateUploadedFile]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateUploadedFile[P]>
+      : GetScalarType<T[P], AggregateUploadedFile[P]>
+  }
+
+
+
+
+  export type UploadedFileGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: UploadedFileWhereInput
+    orderBy?: UploadedFileOrderByWithAggregationInput | UploadedFileOrderByWithAggregationInput[]
+    by: UploadedFileScalarFieldEnum[] | UploadedFileScalarFieldEnum
+    having?: UploadedFileScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: UploadedFileCountAggregateInputType | true
+    _avg?: UploadedFileAvgAggregateInputType
+    _sum?: UploadedFileSumAggregateInputType
+    _min?: UploadedFileMinAggregateInputType
+    _max?: UploadedFileMaxAggregateInputType
+  }
+
+  export type UploadedFileGroupByOutputType = {
+    id: string
+    userId: string
+    fileName: string
+    originalFileName: string
+    fileKey: string
+    fileSize: number
+    mimeType: string
+    parseStatus: $Enums.FileParseStatus
+    parsedContent: string | null
+    parseError: string | null
+    createdAt: Date
+    updatedAt: Date
+    expiresAt: Date | null
+    _count: UploadedFileCountAggregateOutputType | null
+    _avg: UploadedFileAvgAggregateOutputType | null
+    _sum: UploadedFileSumAggregateOutputType | null
+    _min: UploadedFileMinAggregateOutputType | null
+    _max: UploadedFileMaxAggregateOutputType | null
+  }
+
+  type GetUploadedFileGroupByPayload<T extends UploadedFileGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<UploadedFileGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof UploadedFileGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], UploadedFileGroupByOutputType[P]>
+            : GetScalarType<T[P], UploadedFileGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type UploadedFileSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    fileName?: boolean
+    originalFileName?: boolean
+    fileKey?: boolean
+    fileSize?: boolean
+    mimeType?: boolean
+    parseStatus?: boolean
+    parsedContent?: boolean
+    parseError?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    expiresAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    gradingResults?: boolean | UploadedFile$gradingResultsArgs<ExtArgs>
+    _count?: boolean | UploadedFileCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["uploadedFile"]>
+
+  export type UploadedFileSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    fileName?: boolean
+    originalFileName?: boolean
+    fileKey?: boolean
+    fileSize?: boolean
+    mimeType?: boolean
+    parseStatus?: boolean
+    parsedContent?: boolean
+    parseError?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    expiresAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["uploadedFile"]>
+
+  export type UploadedFileSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    fileName?: boolean
+    originalFileName?: boolean
+    fileKey?: boolean
+    fileSize?: boolean
+    mimeType?: boolean
+    parseStatus?: boolean
+    parsedContent?: boolean
+    parseError?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    expiresAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["uploadedFile"]>
+
+  export type UploadedFileSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    fileName?: boolean
+    originalFileName?: boolean
+    fileKey?: boolean
+    fileSize?: boolean
+    mimeType?: boolean
+    parseStatus?: boolean
+    parsedContent?: boolean
+    parseError?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    expiresAt?: boolean
+  }
+
+  export type UploadedFileOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "fileName" | "originalFileName" | "fileKey" | "fileSize" | "mimeType" | "parseStatus" | "parsedContent" | "parseError" | "createdAt" | "updatedAt" | "expiresAt", ExtArgs["result"]["uploadedFile"]>
+  export type UploadedFileInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    gradingResults?: boolean | UploadedFile$gradingResultsArgs<ExtArgs>
+    _count?: boolean | UploadedFileCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type UploadedFileIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type UploadedFileIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $UploadedFilePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "UploadedFile"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+      gradingResults: Prisma.$GradingResultPayload<ExtArgs>[]
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      fileName: string
+      originalFileName: string
+      fileKey: string
+      fileSize: number
+      mimeType: string
+      parseStatus: $Enums.FileParseStatus
+      parsedContent: string | null
+      parseError: string | null
+      createdAt: Date
+      updatedAt: Date
+      expiresAt: Date | null
+    }, ExtArgs["result"]["uploadedFile"]>
+    composites: {}
+  }
+
+  export type UploadedFileGetPayload<S extends boolean | null | undefined | UploadedFileDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload, S>
+
+  export type UploadedFileCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<UploadedFileFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: UploadedFileCountAggregateInputType | true
+    }
+
+  export interface UploadedFileDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['UploadedFile'], meta: { name: 'UploadedFile' } }
+    /**
+     * Find zero or one UploadedFile that matches the filter.
+     * @param {UploadedFileFindUniqueArgs} args - Arguments to find a UploadedFile
+     * @example
+     * // Get one UploadedFile
+     * const uploadedFile = await prisma.uploadedFile.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends UploadedFileFindUniqueArgs>(args: SelectSubset<T, UploadedFileFindUniqueArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one UploadedFile that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {UploadedFileFindUniqueOrThrowArgs} args - Arguments to find a UploadedFile
+     * @example
+     * // Get one UploadedFile
+     * const uploadedFile = await prisma.uploadedFile.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends UploadedFileFindUniqueOrThrowArgs>(args: SelectSubset<T, UploadedFileFindUniqueOrThrowArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first UploadedFile that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UploadedFileFindFirstArgs} args - Arguments to find a UploadedFile
+     * @example
+     * // Get one UploadedFile
+     * const uploadedFile = await prisma.uploadedFile.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends UploadedFileFindFirstArgs>(args?: SelectSubset<T, UploadedFileFindFirstArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first UploadedFile that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UploadedFileFindFirstOrThrowArgs} args - Arguments to find a UploadedFile
+     * @example
+     * // Get one UploadedFile
+     * const uploadedFile = await prisma.uploadedFile.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends UploadedFileFindFirstOrThrowArgs>(args?: SelectSubset<T, UploadedFileFindFirstOrThrowArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more UploadedFiles that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UploadedFileFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all UploadedFiles
+     * const uploadedFiles = await prisma.uploadedFile.findMany()
+     * 
+     * // Get first 10 UploadedFiles
+     * const uploadedFiles = await prisma.uploadedFile.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const uploadedFileWithIdOnly = await prisma.uploadedFile.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends UploadedFileFindManyArgs>(args?: SelectSubset<T, UploadedFileFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a UploadedFile.
+     * @param {UploadedFileCreateArgs} args - Arguments to create a UploadedFile.
+     * @example
+     * // Create one UploadedFile
+     * const UploadedFile = await prisma.uploadedFile.create({
+     *   data: {
+     *     // ... data to create a UploadedFile
+     *   }
+     * })
+     * 
+     */
+    create<T extends UploadedFileCreateArgs>(args: SelectSubset<T, UploadedFileCreateArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many UploadedFiles.
+     * @param {UploadedFileCreateManyArgs} args - Arguments to create many UploadedFiles.
+     * @example
+     * // Create many UploadedFiles
+     * const uploadedFile = await prisma.uploadedFile.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends UploadedFileCreateManyArgs>(args?: SelectSubset<T, UploadedFileCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many UploadedFiles and returns the data saved in the database.
+     * @param {UploadedFileCreateManyAndReturnArgs} args - Arguments to create many UploadedFiles.
+     * @example
+     * // Create many UploadedFiles
+     * const uploadedFile = await prisma.uploadedFile.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many UploadedFiles and only return the `id`
+     * const uploadedFileWithIdOnly = await prisma.uploadedFile.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends UploadedFileCreateManyAndReturnArgs>(args?: SelectSubset<T, UploadedFileCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a UploadedFile.
+     * @param {UploadedFileDeleteArgs} args - Arguments to delete one UploadedFile.
+     * @example
+     * // Delete one UploadedFile
+     * const UploadedFile = await prisma.uploadedFile.delete({
+     *   where: {
+     *     // ... filter to delete one UploadedFile
+     *   }
+     * })
+     * 
+     */
+    delete<T extends UploadedFileDeleteArgs>(args: SelectSubset<T, UploadedFileDeleteArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one UploadedFile.
+     * @param {UploadedFileUpdateArgs} args - Arguments to update one UploadedFile.
+     * @example
+     * // Update one UploadedFile
+     * const uploadedFile = await prisma.uploadedFile.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends UploadedFileUpdateArgs>(args: SelectSubset<T, UploadedFileUpdateArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more UploadedFiles.
+     * @param {UploadedFileDeleteManyArgs} args - Arguments to filter UploadedFiles to delete.
+     * @example
+     * // Delete a few UploadedFiles
+     * const { count } = await prisma.uploadedFile.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends UploadedFileDeleteManyArgs>(args?: SelectSubset<T, UploadedFileDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more UploadedFiles.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UploadedFileUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many UploadedFiles
+     * const uploadedFile = await prisma.uploadedFile.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends UploadedFileUpdateManyArgs>(args: SelectSubset<T, UploadedFileUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more UploadedFiles and returns the data updated in the database.
+     * @param {UploadedFileUpdateManyAndReturnArgs} args - Arguments to update many UploadedFiles.
+     * @example
+     * // Update many UploadedFiles
+     * const uploadedFile = await prisma.uploadedFile.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more UploadedFiles and only return the `id`
+     * const uploadedFileWithIdOnly = await prisma.uploadedFile.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends UploadedFileUpdateManyAndReturnArgs>(args: SelectSubset<T, UploadedFileUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one UploadedFile.
+     * @param {UploadedFileUpsertArgs} args - Arguments to update or create a UploadedFile.
+     * @example
+     * // Update or create a UploadedFile
+     * const uploadedFile = await prisma.uploadedFile.upsert({
+     *   create: {
+     *     // ... data to create a UploadedFile
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the UploadedFile we want to update
+     *   }
+     * })
+     */
+    upsert<T extends UploadedFileUpsertArgs>(args: SelectSubset<T, UploadedFileUpsertArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of UploadedFiles.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UploadedFileCountArgs} args - Arguments to filter UploadedFiles to count.
+     * @example
+     * // Count the number of UploadedFiles
+     * const count = await prisma.uploadedFile.count({
+     *   where: {
+     *     // ... the filter for the UploadedFiles we want to count
+     *   }
+     * })
+    **/
+    count<T extends UploadedFileCountArgs>(
+      args?: Subset<T, UploadedFileCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], UploadedFileCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a UploadedFile.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UploadedFileAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends UploadedFileAggregateArgs>(args: Subset<T, UploadedFileAggregateArgs>): Prisma.PrismaPromise<GetUploadedFileAggregateType<T>>
+
+    /**
+     * Group by UploadedFile.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {UploadedFileGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends UploadedFileGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: UploadedFileGroupByArgs['orderBy'] }
+        : { orderBy?: UploadedFileGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, UploadedFileGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetUploadedFileGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the UploadedFile model
+   */
+  readonly fields: UploadedFileFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for UploadedFile.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__UploadedFileClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    gradingResults<T extends UploadedFile$gradingResultsArgs<ExtArgs> = {}>(args?: Subset<T, UploadedFile$gradingResultsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the UploadedFile model
+   */
+  export interface UploadedFileFieldRefs {
+    readonly id: FieldRef<"UploadedFile", 'String'>
+    readonly userId: FieldRef<"UploadedFile", 'String'>
+    readonly fileName: FieldRef<"UploadedFile", 'String'>
+    readonly originalFileName: FieldRef<"UploadedFile", 'String'>
+    readonly fileKey: FieldRef<"UploadedFile", 'String'>
+    readonly fileSize: FieldRef<"UploadedFile", 'Int'>
+    readonly mimeType: FieldRef<"UploadedFile", 'String'>
+    readonly parseStatus: FieldRef<"UploadedFile", 'FileParseStatus'>
+    readonly parsedContent: FieldRef<"UploadedFile", 'String'>
+    readonly parseError: FieldRef<"UploadedFile", 'String'>
+    readonly createdAt: FieldRef<"UploadedFile", 'DateTime'>
+    readonly updatedAt: FieldRef<"UploadedFile", 'DateTime'>
+    readonly expiresAt: FieldRef<"UploadedFile", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * UploadedFile findUnique
+   */
+  export type UploadedFileFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    /**
+     * Filter, which UploadedFile to fetch.
+     */
+    where: UploadedFileWhereUniqueInput
+  }
+
+  /**
+   * UploadedFile findUniqueOrThrow
+   */
+  export type UploadedFileFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    /**
+     * Filter, which UploadedFile to fetch.
+     */
+    where: UploadedFileWhereUniqueInput
+  }
+
+  /**
+   * UploadedFile findFirst
+   */
+  export type UploadedFileFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    /**
+     * Filter, which UploadedFile to fetch.
+     */
+    where?: UploadedFileWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UploadedFiles to fetch.
+     */
+    orderBy?: UploadedFileOrderByWithRelationInput | UploadedFileOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for UploadedFiles.
+     */
+    cursor?: UploadedFileWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UploadedFiles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UploadedFiles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of UploadedFiles.
+     */
+    distinct?: UploadedFileScalarFieldEnum | UploadedFileScalarFieldEnum[]
+  }
+
+  /**
+   * UploadedFile findFirstOrThrow
+   */
+  export type UploadedFileFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    /**
+     * Filter, which UploadedFile to fetch.
+     */
+    where?: UploadedFileWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UploadedFiles to fetch.
+     */
+    orderBy?: UploadedFileOrderByWithRelationInput | UploadedFileOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for UploadedFiles.
+     */
+    cursor?: UploadedFileWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UploadedFiles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UploadedFiles.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of UploadedFiles.
+     */
+    distinct?: UploadedFileScalarFieldEnum | UploadedFileScalarFieldEnum[]
+  }
+
+  /**
+   * UploadedFile findMany
+   */
+  export type UploadedFileFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    /**
+     * Filter, which UploadedFiles to fetch.
+     */
+    where?: UploadedFileWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of UploadedFiles to fetch.
+     */
+    orderBy?: UploadedFileOrderByWithRelationInput | UploadedFileOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing UploadedFiles.
+     */
+    cursor?: UploadedFileWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` UploadedFiles from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` UploadedFiles.
+     */
+    skip?: number
+    distinct?: UploadedFileScalarFieldEnum | UploadedFileScalarFieldEnum[]
+  }
+
+  /**
+   * UploadedFile create
+   */
+  export type UploadedFileCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    /**
+     * The data needed to create a UploadedFile.
+     */
+    data: XOR<UploadedFileCreateInput, UploadedFileUncheckedCreateInput>
+  }
+
+  /**
+   * UploadedFile createMany
+   */
+  export type UploadedFileCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many UploadedFiles.
+     */
+    data: UploadedFileCreateManyInput | UploadedFileCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * UploadedFile createManyAndReturn
+   */
+  export type UploadedFileCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * The data used to create many UploadedFiles.
+     */
+    data: UploadedFileCreateManyInput | UploadedFileCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * UploadedFile update
+   */
+  export type UploadedFileUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    /**
+     * The data needed to update a UploadedFile.
+     */
+    data: XOR<UploadedFileUpdateInput, UploadedFileUncheckedUpdateInput>
+    /**
+     * Choose, which UploadedFile to update.
+     */
+    where: UploadedFileWhereUniqueInput
+  }
+
+  /**
+   * UploadedFile updateMany
+   */
+  export type UploadedFileUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update UploadedFiles.
+     */
+    data: XOR<UploadedFileUpdateManyMutationInput, UploadedFileUncheckedUpdateManyInput>
+    /**
+     * Filter which UploadedFiles to update
+     */
+    where?: UploadedFileWhereInput
+    /**
+     * Limit how many UploadedFiles to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * UploadedFile updateManyAndReturn
+   */
+  export type UploadedFileUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * The data used to update UploadedFiles.
+     */
+    data: XOR<UploadedFileUpdateManyMutationInput, UploadedFileUncheckedUpdateManyInput>
+    /**
+     * Filter which UploadedFiles to update
+     */
+    where?: UploadedFileWhereInput
+    /**
+     * Limit how many UploadedFiles to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * UploadedFile upsert
+   */
+  export type UploadedFileUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    /**
+     * The filter to search for the UploadedFile to update in case it exists.
+     */
+    where: UploadedFileWhereUniqueInput
+    /**
+     * In case the UploadedFile found by the `where` argument doesn't exist, create a new UploadedFile with this data.
+     */
+    create: XOR<UploadedFileCreateInput, UploadedFileUncheckedCreateInput>
+    /**
+     * In case the UploadedFile was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<UploadedFileUpdateInput, UploadedFileUncheckedUpdateInput>
+  }
+
+  /**
+   * UploadedFile delete
+   */
+  export type UploadedFileDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+    /**
+     * Filter which UploadedFile to delete.
+     */
+    where: UploadedFileWhereUniqueInput
+  }
+
+  /**
+   * UploadedFile deleteMany
+   */
+  export type UploadedFileDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which UploadedFiles to delete
+     */
+    where?: UploadedFileWhereInput
+    /**
+     * Limit how many UploadedFiles to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * UploadedFile.gradingResults
+   */
+  export type UploadedFile$gradingResultsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingResult
+     */
+    select?: GradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the GradingResult
+     */
+    omit?: GradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GradingResultInclude<ExtArgs> | null
+    where?: GradingResultWhereInput
+    orderBy?: GradingResultOrderByWithRelationInput | GradingResultOrderByWithRelationInput[]
+    cursor?: GradingResultWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: GradingResultScalarFieldEnum | GradingResultScalarFieldEnum[]
+  }
+
+  /**
+   * UploadedFile without action
+   */
+  export type UploadedFileDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the UploadedFile
+     */
+    select?: UploadedFileSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the UploadedFile
+     */
+    omit?: UploadedFileOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UploadedFileInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model GradingResult
+   */
+
+  export type AggregateGradingResult = {
+    _count: GradingResultCountAggregateOutputType | null
+    _avg: GradingResultAvgAggregateOutputType | null
+    _sum: GradingResultSumAggregateOutputType | null
+    _min: GradingResultMinAggregateOutputType | null
+    _max: GradingResultMaxAggregateOutputType | null
+  }
+
+  export type GradingResultAvgAggregateOutputType = {
+    progress: number | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+  }
+
+  export type GradingResultSumAggregateOutputType = {
+    progress: number | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+  }
+
+  export type GradingResultMinAggregateOutputType = {
+    id: string | null
+    gradingSessionId: string | null
+    uploadedFileId: string | null
+    rubricId: string | null
+    status: $Enums.GradingStatus | null
+    progress: number | null
+    errorMessage: string | null
+    gradingModel: string | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    completedAt: Date | null
+  }
+
+  export type GradingResultMaxAggregateOutputType = {
+    id: string | null
+    gradingSessionId: string | null
+    uploadedFileId: string | null
+    rubricId: string | null
+    status: $Enums.GradingStatus | null
+    progress: number | null
+    errorMessage: string | null
+    gradingModel: string | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+    completedAt: Date | null
+  }
+
+  export type GradingResultCountAggregateOutputType = {
+    id: number
+    gradingSessionId: number
+    uploadedFileId: number
+    rubricId: number
+    status: number
+    progress: number
+    result: number
+    errorMessage: number
+    gradingModel: number
+    gradingTokens: number
+    gradingDuration: number
+    createdAt: number
+    updatedAt: number
+    completedAt: number
+    _all: number
+  }
+
+
+  export type GradingResultAvgAggregateInputType = {
+    progress?: true
+    gradingTokens?: true
+    gradingDuration?: true
+  }
+
+  export type GradingResultSumAggregateInputType = {
+    progress?: true
+    gradingTokens?: true
+    gradingDuration?: true
+  }
+
+  export type GradingResultMinAggregateInputType = {
+    id?: true
+    gradingSessionId?: true
+    uploadedFileId?: true
+    rubricId?: true
+    status?: true
+    progress?: true
+    errorMessage?: true
+    gradingModel?: true
+    gradingTokens?: true
+    gradingDuration?: true
+    createdAt?: true
+    updatedAt?: true
+    completedAt?: true
+  }
+
+  export type GradingResultMaxAggregateInputType = {
+    id?: true
+    gradingSessionId?: true
+    uploadedFileId?: true
+    rubricId?: true
+    status?: true
+    progress?: true
+    errorMessage?: true
+    gradingModel?: true
+    gradingTokens?: true
+    gradingDuration?: true
+    createdAt?: true
+    updatedAt?: true
+    completedAt?: true
+  }
+
+  export type GradingResultCountAggregateInputType = {
+    id?: true
+    gradingSessionId?: true
+    uploadedFileId?: true
+    rubricId?: true
+    status?: true
+    progress?: true
+    result?: true
+    errorMessage?: true
+    gradingModel?: true
+    gradingTokens?: true
+    gradingDuration?: true
+    createdAt?: true
+    updatedAt?: true
+    completedAt?: true
+    _all?: true
+  }
+
+  export type GradingResultAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which GradingResult to aggregate.
+     */
+    where?: GradingResultWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of GradingResults to fetch.
+     */
+    orderBy?: GradingResultOrderByWithRelationInput | GradingResultOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: GradingResultWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` GradingResults from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` GradingResults.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned GradingResults
+    **/
+    _count?: true | GradingResultCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: GradingResultAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: GradingResultSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: GradingResultMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: GradingResultMaxAggregateInputType
+  }
+
+  export type GetGradingResultAggregateType<T extends GradingResultAggregateArgs> = {
+        [P in keyof T & keyof AggregateGradingResult]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateGradingResult[P]>
+      : GetScalarType<T[P], AggregateGradingResult[P]>
+  }
+
+
+
+
+  export type GradingResultGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: GradingResultWhereInput
+    orderBy?: GradingResultOrderByWithAggregationInput | GradingResultOrderByWithAggregationInput[]
+    by: GradingResultScalarFieldEnum[] | GradingResultScalarFieldEnum
+    having?: GradingResultScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: GradingResultCountAggregateInputType | true
+    _avg?: GradingResultAvgAggregateInputType
+    _sum?: GradingResultSumAggregateInputType
+    _min?: GradingResultMinAggregateInputType
+    _max?: GradingResultMaxAggregateInputType
+  }
+
+  export type GradingResultGroupByOutputType = {
+    id: string
+    gradingSessionId: string
+    uploadedFileId: string
+    rubricId: string
+    status: $Enums.GradingStatus
+    progress: number
+    result: JsonValue | null
+    errorMessage: string | null
+    gradingModel: string | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+    createdAt: Date
+    updatedAt: Date
+    completedAt: Date | null
+    _count: GradingResultCountAggregateOutputType | null
+    _avg: GradingResultAvgAggregateOutputType | null
+    _sum: GradingResultSumAggregateOutputType | null
+    _min: GradingResultMinAggregateOutputType | null
+    _max: GradingResultMaxAggregateOutputType | null
+  }
+
+  type GetGradingResultGroupByPayload<T extends GradingResultGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<GradingResultGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof GradingResultGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], GradingResultGroupByOutputType[P]>
+            : GetScalarType<T[P], GradingResultGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type GradingResultSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    gradingSessionId?: boolean
+    uploadedFileId?: boolean
+    rubricId?: boolean
+    status?: boolean
+    progress?: boolean
+    result?: boolean
+    errorMessage?: boolean
+    gradingModel?: boolean
+    gradingTokens?: boolean
+    gradingDuration?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    completedAt?: boolean
+    gradingSession?: boolean | GradingSessionDefaultArgs<ExtArgs>
+    uploadedFile?: boolean | UploadedFileDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["gradingResult"]>
+
+  export type GradingResultSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    gradingSessionId?: boolean
+    uploadedFileId?: boolean
+    rubricId?: boolean
+    status?: boolean
+    progress?: boolean
+    result?: boolean
+    errorMessage?: boolean
+    gradingModel?: boolean
+    gradingTokens?: boolean
+    gradingDuration?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    completedAt?: boolean
+    gradingSession?: boolean | GradingSessionDefaultArgs<ExtArgs>
+    uploadedFile?: boolean | UploadedFileDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["gradingResult"]>
+
+  export type GradingResultSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    gradingSessionId?: boolean
+    uploadedFileId?: boolean
+    rubricId?: boolean
+    status?: boolean
+    progress?: boolean
+    result?: boolean
+    errorMessage?: boolean
+    gradingModel?: boolean
+    gradingTokens?: boolean
+    gradingDuration?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    completedAt?: boolean
+    gradingSession?: boolean | GradingSessionDefaultArgs<ExtArgs>
+    uploadedFile?: boolean | UploadedFileDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["gradingResult"]>
+
+  export type GradingResultSelectScalar = {
+    id?: boolean
+    gradingSessionId?: boolean
+    uploadedFileId?: boolean
+    rubricId?: boolean
+    status?: boolean
+    progress?: boolean
+    result?: boolean
+    errorMessage?: boolean
+    gradingModel?: boolean
+    gradingTokens?: boolean
+    gradingDuration?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    completedAt?: boolean
+  }
+
+  export type GradingResultOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "gradingSessionId" | "uploadedFileId" | "rubricId" | "status" | "progress" | "result" | "errorMessage" | "gradingModel" | "gradingTokens" | "gradingDuration" | "createdAt" | "updatedAt" | "completedAt", ExtArgs["result"]["gradingResult"]>
+  export type GradingResultInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    gradingSession?: boolean | GradingSessionDefaultArgs<ExtArgs>
+    uploadedFile?: boolean | UploadedFileDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }
+  export type GradingResultIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    gradingSession?: boolean | GradingSessionDefaultArgs<ExtArgs>
+    uploadedFile?: boolean | UploadedFileDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }
+  export type GradingResultIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    gradingSession?: boolean | GradingSessionDefaultArgs<ExtArgs>
+    uploadedFile?: boolean | UploadedFileDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }
+
+  export type $GradingResultPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "GradingResult"
+    objects: {
+      gradingSession: Prisma.$GradingSessionPayload<ExtArgs>
+      uploadedFile: Prisma.$UploadedFilePayload<ExtArgs>
+      rubric: Prisma.$RubricPayload<ExtArgs>
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      gradingSessionId: string
+      uploadedFileId: string
+      rubricId: string
+      status: $Enums.GradingStatus
+      progress: number
+      result: Prisma.JsonValue | null
+      errorMessage: string | null
+      gradingModel: string | null
+      gradingTokens: number | null
+      gradingDuration: number | null
+      createdAt: Date
+      updatedAt: Date
+      completedAt: Date | null
+    }, ExtArgs["result"]["gradingResult"]>
+    composites: {}
+  }
+
+  export type GradingResultGetPayload<S extends boolean | null | undefined | GradingResultDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$GradingResultPayload, S>
+
+  export type GradingResultCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<GradingResultFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: GradingResultCountAggregateInputType | true
+    }
+
+  export interface GradingResultDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['GradingResult'], meta: { name: 'GradingResult' } }
+    /**
+     * Find zero or one GradingResult that matches the filter.
+     * @param {GradingResultFindUniqueArgs} args - Arguments to find a GradingResult
+     * @example
+     * // Get one GradingResult
+     * const gradingResult = await prisma.gradingResult.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends GradingResultFindUniqueArgs>(args: SelectSubset<T, GradingResultFindUniqueArgs<ExtArgs>>): Prisma__GradingResultClient<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one GradingResult that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {GradingResultFindUniqueOrThrowArgs} args - Arguments to find a GradingResult
+     * @example
+     * // Get one GradingResult
+     * const gradingResult = await prisma.gradingResult.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends GradingResultFindUniqueOrThrowArgs>(args: SelectSubset<T, GradingResultFindUniqueOrThrowArgs<ExtArgs>>): Prisma__GradingResultClient<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first GradingResult that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {GradingResultFindFirstArgs} args - Arguments to find a GradingResult
+     * @example
+     * // Get one GradingResult
+     * const gradingResult = await prisma.gradingResult.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends GradingResultFindFirstArgs>(args?: SelectSubset<T, GradingResultFindFirstArgs<ExtArgs>>): Prisma__GradingResultClient<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first GradingResult that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {GradingResultFindFirstOrThrowArgs} args - Arguments to find a GradingResult
+     * @example
+     * // Get one GradingResult
+     * const gradingResult = await prisma.gradingResult.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends GradingResultFindFirstOrThrowArgs>(args?: SelectSubset<T, GradingResultFindFirstOrThrowArgs<ExtArgs>>): Prisma__GradingResultClient<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more GradingResults that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {GradingResultFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all GradingResults
+     * const gradingResults = await prisma.gradingResult.findMany()
+     * 
+     * // Get first 10 GradingResults
+     * const gradingResults = await prisma.gradingResult.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const gradingResultWithIdOnly = await prisma.gradingResult.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends GradingResultFindManyArgs>(args?: SelectSubset<T, GradingResultFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a GradingResult.
+     * @param {GradingResultCreateArgs} args - Arguments to create a GradingResult.
+     * @example
+     * // Create one GradingResult
+     * const GradingResult = await prisma.gradingResult.create({
+     *   data: {
+     *     // ... data to create a GradingResult
+     *   }
+     * })
+     * 
+     */
+    create<T extends GradingResultCreateArgs>(args: SelectSubset<T, GradingResultCreateArgs<ExtArgs>>): Prisma__GradingResultClient<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many GradingResults.
+     * @param {GradingResultCreateManyArgs} args - Arguments to create many GradingResults.
+     * @example
+     * // Create many GradingResults
+     * const gradingResult = await prisma.gradingResult.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends GradingResultCreateManyArgs>(args?: SelectSubset<T, GradingResultCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many GradingResults and returns the data saved in the database.
+     * @param {GradingResultCreateManyAndReturnArgs} args - Arguments to create many GradingResults.
+     * @example
+     * // Create many GradingResults
+     * const gradingResult = await prisma.gradingResult.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many GradingResults and only return the `id`
+     * const gradingResultWithIdOnly = await prisma.gradingResult.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends GradingResultCreateManyAndReturnArgs>(args?: SelectSubset<T, GradingResultCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a GradingResult.
+     * @param {GradingResultDeleteArgs} args - Arguments to delete one GradingResult.
+     * @example
+     * // Delete one GradingResult
+     * const GradingResult = await prisma.gradingResult.delete({
+     *   where: {
+     *     // ... filter to delete one GradingResult
+     *   }
+     * })
+     * 
+     */
+    delete<T extends GradingResultDeleteArgs>(args: SelectSubset<T, GradingResultDeleteArgs<ExtArgs>>): Prisma__GradingResultClient<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one GradingResult.
+     * @param {GradingResultUpdateArgs} args - Arguments to update one GradingResult.
+     * @example
+     * // Update one GradingResult
+     * const gradingResult = await prisma.gradingResult.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends GradingResultUpdateArgs>(args: SelectSubset<T, GradingResultUpdateArgs<ExtArgs>>): Prisma__GradingResultClient<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more GradingResults.
+     * @param {GradingResultDeleteManyArgs} args - Arguments to filter GradingResults to delete.
+     * @example
+     * // Delete a few GradingResults
+     * const { count } = await prisma.gradingResult.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends GradingResultDeleteManyArgs>(args?: SelectSubset<T, GradingResultDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more GradingResults.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {GradingResultUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many GradingResults
+     * const gradingResult = await prisma.gradingResult.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends GradingResultUpdateManyArgs>(args: SelectSubset<T, GradingResultUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more GradingResults and returns the data updated in the database.
+     * @param {GradingResultUpdateManyAndReturnArgs} args - Arguments to update many GradingResults.
+     * @example
+     * // Update many GradingResults
+     * const gradingResult = await prisma.gradingResult.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more GradingResults and only return the `id`
+     * const gradingResultWithIdOnly = await prisma.gradingResult.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends GradingResultUpdateManyAndReturnArgs>(args: SelectSubset<T, GradingResultUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one GradingResult.
+     * @param {GradingResultUpsertArgs} args - Arguments to update or create a GradingResult.
+     * @example
+     * // Update or create a GradingResult
+     * const gradingResult = await prisma.gradingResult.upsert({
+     *   create: {
+     *     // ... data to create a GradingResult
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the GradingResult we want to update
+     *   }
+     * })
+     */
+    upsert<T extends GradingResultUpsertArgs>(args: SelectSubset<T, GradingResultUpsertArgs<ExtArgs>>): Prisma__GradingResultClient<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of GradingResults.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {GradingResultCountArgs} args - Arguments to filter GradingResults to count.
+     * @example
+     * // Count the number of GradingResults
+     * const count = await prisma.gradingResult.count({
+     *   where: {
+     *     // ... the filter for the GradingResults we want to count
+     *   }
+     * })
+    **/
+    count<T extends GradingResultCountArgs>(
+      args?: Subset<T, GradingResultCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], GradingResultCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a GradingResult.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {GradingResultAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends GradingResultAggregateArgs>(args: Subset<T, GradingResultAggregateArgs>): Prisma.PrismaPromise<GetGradingResultAggregateType<T>>
+
+    /**
+     * Group by GradingResult.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {GradingResultGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends GradingResultGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: GradingResultGroupByArgs['orderBy'] }
+        : { orderBy?: GradingResultGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, GradingResultGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetGradingResultGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the GradingResult model
+   */
+  readonly fields: GradingResultFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for GradingResult.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__GradingResultClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    gradingSession<T extends GradingSessionDefaultArgs<ExtArgs> = {}>(args?: Subset<T, GradingSessionDefaultArgs<ExtArgs>>): Prisma__GradingSessionClient<runtime.Types.Result.GetResult<Prisma.$GradingSessionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    uploadedFile<T extends UploadedFileDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UploadedFileDefaultArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     rubric<T extends RubricDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RubricDefaultArgs<ExtArgs>>): Prisma__RubricClient<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -4114,432 +6886,434 @@ export namespace Prisma {
 
 
   /**
-   * Fields of the Upload model
+   * Fields of the GradingResult model
    */
-  export interface UploadFieldRefs {
-    readonly id: FieldRef<"Upload", 'String'>
-    readonly userId: FieldRef<"Upload", 'String'>
-    readonly rubricId: FieldRef<"Upload", 'String'>
-    readonly originalFileName: FieldRef<"Upload", 'String'>
-    readonly storedFileKey: FieldRef<"Upload", 'String'>
-    readonly storageLocation: FieldRef<"Upload", 'String'>
-    readonly fileSize: FieldRef<"Upload", 'Int'>
-    readonly mimeType: FieldRef<"Upload", 'String'>
-    readonly status: FieldRef<"Upload", 'UploadStatus'>
-    readonly result: FieldRef<"Upload", 'Json'>
-    readonly createdAt: FieldRef<"Upload", 'DateTime'>
-    readonly updatedAt: FieldRef<"Upload", 'DateTime'>
+  export interface GradingResultFieldRefs {
+    readonly id: FieldRef<"GradingResult", 'String'>
+    readonly gradingSessionId: FieldRef<"GradingResult", 'String'>
+    readonly uploadedFileId: FieldRef<"GradingResult", 'String'>
+    readonly rubricId: FieldRef<"GradingResult", 'String'>
+    readonly status: FieldRef<"GradingResult", 'GradingStatus'>
+    readonly progress: FieldRef<"GradingResult", 'Int'>
+    readonly result: FieldRef<"GradingResult", 'Json'>
+    readonly errorMessage: FieldRef<"GradingResult", 'String'>
+    readonly gradingModel: FieldRef<"GradingResult", 'String'>
+    readonly gradingTokens: FieldRef<"GradingResult", 'Int'>
+    readonly gradingDuration: FieldRef<"GradingResult", 'Int'>
+    readonly createdAt: FieldRef<"GradingResult", 'DateTime'>
+    readonly updatedAt: FieldRef<"GradingResult", 'DateTime'>
+    readonly completedAt: FieldRef<"GradingResult", 'DateTime'>
   }
     
 
   // Custom InputTypes
   /**
-   * Upload findUnique
+   * GradingResult findUnique
    */
-  export type UploadFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
     /**
-     * Filter, which Upload to fetch.
+     * Filter, which GradingResult to fetch.
      */
-    where: UploadWhereUniqueInput
+    where: GradingResultWhereUniqueInput
   }
 
   /**
-   * Upload findUniqueOrThrow
+   * GradingResult findUniqueOrThrow
    */
-  export type UploadFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
     /**
-     * Filter, which Upload to fetch.
+     * Filter, which GradingResult to fetch.
      */
-    where: UploadWhereUniqueInput
+    where: GradingResultWhereUniqueInput
   }
 
   /**
-   * Upload findFirst
+   * GradingResult findFirst
    */
-  export type UploadFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
     /**
-     * Filter, which Upload to fetch.
+     * Filter, which GradingResult to fetch.
      */
-    where?: UploadWhereInput
+    where?: GradingResultWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of Uploads to fetch.
+     * Determine the order of GradingResults to fetch.
      */
-    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
+    orderBy?: GradingResultOrderByWithRelationInput | GradingResultOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for searching for Uploads.
+     * Sets the position for searching for GradingResults.
      */
-    cursor?: UploadWhereUniqueInput
+    cursor?: GradingResultWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` Uploads from the position of the cursor.
+     * Take `±n` GradingResults from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` Uploads.
+     * Skip the first `n` GradingResults.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
      * 
-     * Filter by unique combinations of Uploads.
+     * Filter by unique combinations of GradingResults.
      */
-    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
+    distinct?: GradingResultScalarFieldEnum | GradingResultScalarFieldEnum[]
   }
 
   /**
-   * Upload findFirstOrThrow
+   * GradingResult findFirstOrThrow
    */
-  export type UploadFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
     /**
-     * Filter, which Upload to fetch.
+     * Filter, which GradingResult to fetch.
      */
-    where?: UploadWhereInput
+    where?: GradingResultWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of Uploads to fetch.
+     * Determine the order of GradingResults to fetch.
      */
-    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
+    orderBy?: GradingResultOrderByWithRelationInput | GradingResultOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for searching for Uploads.
+     * Sets the position for searching for GradingResults.
      */
-    cursor?: UploadWhereUniqueInput
+    cursor?: GradingResultWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` Uploads from the position of the cursor.
+     * Take `±n` GradingResults from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` Uploads.
+     * Skip the first `n` GradingResults.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
      * 
-     * Filter by unique combinations of Uploads.
+     * Filter by unique combinations of GradingResults.
      */
-    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
+    distinct?: GradingResultScalarFieldEnum | GradingResultScalarFieldEnum[]
   }
 
   /**
-   * Upload findMany
+   * GradingResult findMany
    */
-  export type UploadFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
     /**
-     * Filter, which Uploads to fetch.
+     * Filter, which GradingResults to fetch.
      */
-    where?: UploadWhereInput
+    where?: GradingResultWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of Uploads to fetch.
+     * Determine the order of GradingResults to fetch.
      */
-    orderBy?: UploadOrderByWithRelationInput | UploadOrderByWithRelationInput[]
+    orderBy?: GradingResultOrderByWithRelationInput | GradingResultOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for listing Uploads.
+     * Sets the position for listing GradingResults.
      */
-    cursor?: UploadWhereUniqueInput
+    cursor?: GradingResultWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` Uploads from the position of the cursor.
+     * Take `±n` GradingResults from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` Uploads.
+     * Skip the first `n` GradingResults.
      */
     skip?: number
-    distinct?: UploadScalarFieldEnum | UploadScalarFieldEnum[]
+    distinct?: GradingResultScalarFieldEnum | GradingResultScalarFieldEnum[]
   }
 
   /**
-   * Upload create
+   * GradingResult create
    */
-  export type UploadCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
     /**
-     * The data needed to create a Upload.
+     * The data needed to create a GradingResult.
      */
-    data: XOR<UploadCreateInput, UploadUncheckedCreateInput>
+    data: XOR<GradingResultCreateInput, GradingResultUncheckedCreateInput>
   }
 
   /**
-   * Upload createMany
+   * GradingResult createMany
    */
-  export type UploadCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * The data used to create many Uploads.
+     * The data used to create many GradingResults.
      */
-    data: UploadCreateManyInput | UploadCreateManyInput[]
+    data: GradingResultCreateManyInput | GradingResultCreateManyInput[]
     skipDuplicates?: boolean
   }
 
   /**
-   * Upload createManyAndReturn
+   * GradingResult createManyAndReturn
    */
-  export type UploadCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelectCreateManyAndReturn<ExtArgs> | null
+    select?: GradingResultSelectCreateManyAndReturn<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
-     * The data used to create many Uploads.
+     * The data used to create many GradingResults.
      */
-    data: UploadCreateManyInput | UploadCreateManyInput[]
+    data: GradingResultCreateManyInput | GradingResultCreateManyInput[]
     skipDuplicates?: boolean
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadIncludeCreateManyAndReturn<ExtArgs> | null
+    include?: GradingResultIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
-   * Upload update
+   * GradingResult update
    */
-  export type UploadUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
     /**
-     * The data needed to update a Upload.
+     * The data needed to update a GradingResult.
      */
-    data: XOR<UploadUpdateInput, UploadUncheckedUpdateInput>
+    data: XOR<GradingResultUpdateInput, GradingResultUncheckedUpdateInput>
     /**
-     * Choose, which Upload to update.
+     * Choose, which GradingResult to update.
      */
-    where: UploadWhereUniqueInput
+    where: GradingResultWhereUniqueInput
   }
 
   /**
-   * Upload updateMany
+   * GradingResult updateMany
    */
-  export type UploadUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * The data used to update Uploads.
+     * The data used to update GradingResults.
      */
-    data: XOR<UploadUpdateManyMutationInput, UploadUncheckedUpdateManyInput>
+    data: XOR<GradingResultUpdateManyMutationInput, GradingResultUncheckedUpdateManyInput>
     /**
-     * Filter which Uploads to update
+     * Filter which GradingResults to update
      */
-    where?: UploadWhereInput
+    where?: GradingResultWhereInput
     /**
-     * Limit how many Uploads to update.
+     * Limit how many GradingResults to update.
      */
     limit?: number
   }
 
   /**
-   * Upload updateManyAndReturn
+   * GradingResult updateManyAndReturn
    */
-  export type UploadUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelectUpdateManyAndReturn<ExtArgs> | null
+    select?: GradingResultSelectUpdateManyAndReturn<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
-     * The data used to update Uploads.
+     * The data used to update GradingResults.
      */
-    data: XOR<UploadUpdateManyMutationInput, UploadUncheckedUpdateManyInput>
+    data: XOR<GradingResultUpdateManyMutationInput, GradingResultUncheckedUpdateManyInput>
     /**
-     * Filter which Uploads to update
+     * Filter which GradingResults to update
      */
-    where?: UploadWhereInput
+    where?: GradingResultWhereInput
     /**
-     * Limit how many Uploads to update.
+     * Limit how many GradingResults to update.
      */
     limit?: number
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadIncludeUpdateManyAndReturn<ExtArgs> | null
+    include?: GradingResultIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
-   * Upload upsert
+   * GradingResult upsert
    */
-  export type UploadUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
     /**
-     * The filter to search for the Upload to update in case it exists.
+     * The filter to search for the GradingResult to update in case it exists.
      */
-    where: UploadWhereUniqueInput
+    where: GradingResultWhereUniqueInput
     /**
-     * In case the Upload found by the `where` argument doesn't exist, create a new Upload with this data.
+     * In case the GradingResult found by the `where` argument doesn't exist, create a new GradingResult with this data.
      */
-    create: XOR<UploadCreateInput, UploadUncheckedCreateInput>
+    create: XOR<GradingResultCreateInput, GradingResultUncheckedCreateInput>
     /**
-     * In case the Upload was found with the provided `where` argument, update it with this data.
+     * In case the GradingResult was found with the provided `where` argument, update it with this data.
      */
-    update: XOR<UploadUpdateInput, UploadUncheckedUpdateInput>
+    update: XOR<GradingResultUpdateInput, GradingResultUncheckedUpdateInput>
   }
 
   /**
-   * Upload delete
+   * GradingResult delete
    */
-  export type UploadDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
     /**
-     * Filter which Upload to delete.
+     * Filter which GradingResult to delete.
      */
-    where: UploadWhereUniqueInput
+    where: GradingResultWhereUniqueInput
   }
 
   /**
-   * Upload deleteMany
+   * GradingResult deleteMany
    */
-  export type UploadDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Filter which Uploads to delete
+     * Filter which GradingResults to delete
      */
-    where?: UploadWhereInput
+    where?: GradingResultWhereInput
     /**
-     * Limit how many Uploads to delete.
+     * Limit how many GradingResults to delete.
      */
     limit?: number
   }
 
   /**
-   * Upload without action
+   * GradingResult without action
    */
-  export type UploadDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  export type GradingResultDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the Upload
+     * Select specific fields to fetch from the GradingResult
      */
-    select?: UploadSelect<ExtArgs> | null
+    select?: GradingResultSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the Upload
+     * Omit specific fields from the GradingResult
      */
-    omit?: UploadOmit<ExtArgs> | null
+    omit?: GradingResultOmit<ExtArgs> | null
     /**
      * Choose, which related nodes to fetch as well
      */
-    include?: UploadInclude<ExtArgs> | null
+    include?: GradingResultInclude<ExtArgs> | null
   }
 
 
@@ -4572,6 +7346,8 @@ export namespace Prisma {
     userId: 'userId',
     name: 'name',
     description: 'description',
+    version: 'version',
+    isActive: 'isActive',
     criteria: 'criteria',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -4580,22 +7356,55 @@ export namespace Prisma {
   export type RubricScalarFieldEnum = (typeof RubricScalarFieldEnum)[keyof typeof RubricScalarFieldEnum]
 
 
-  export const UploadScalarFieldEnum = {
+  export const GradingSessionScalarFieldEnum = {
     id: 'id',
     userId: 'userId',
-    rubricId: 'rubricId',
-    originalFileName: 'originalFileName',
-    storedFileKey: 'storedFileKey',
-    storageLocation: 'storageLocation',
-    fileSize: 'fileSize',
-    mimeType: 'mimeType',
     status: 'status',
-    result: 'result',
+    progress: 'progress',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   } as const
 
-  export type UploadScalarFieldEnum = (typeof UploadScalarFieldEnum)[keyof typeof UploadScalarFieldEnum]
+  export type GradingSessionScalarFieldEnum = (typeof GradingSessionScalarFieldEnum)[keyof typeof GradingSessionScalarFieldEnum]
+
+
+  export const UploadedFileScalarFieldEnum = {
+    id: 'id',
+    userId: 'userId',
+    fileName: 'fileName',
+    originalFileName: 'originalFileName',
+    fileKey: 'fileKey',
+    fileSize: 'fileSize',
+    mimeType: 'mimeType',
+    parseStatus: 'parseStatus',
+    parsedContent: 'parsedContent',
+    parseError: 'parseError',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
+    expiresAt: 'expiresAt'
+  } as const
+
+  export type UploadedFileScalarFieldEnum = (typeof UploadedFileScalarFieldEnum)[keyof typeof UploadedFileScalarFieldEnum]
+
+
+  export const GradingResultScalarFieldEnum = {
+    id: 'id',
+    gradingSessionId: 'gradingSessionId',
+    uploadedFileId: 'uploadedFileId',
+    rubricId: 'rubricId',
+    status: 'status',
+    progress: 'progress',
+    result: 'result',
+    errorMessage: 'errorMessage',
+    gradingModel: 'gradingModel',
+    gradingTokens: 'gradingTokens',
+    gradingDuration: 'gradingDuration',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
+    completedAt: 'completedAt'
+  } as const
+
+  export type GradingResultScalarFieldEnum = (typeof GradingResultScalarFieldEnum)[keyof typeof GradingResultScalarFieldEnum]
 
 
   export const SortOrder = {
@@ -4680,20 +7489,6 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'Json'
-   */
-  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-    
-
-
-  /**
-   * Reference to a field of type 'QueryMode'
-   */
-  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
-    
-
-
-  /**
    * Reference to a field of type 'Int'
    */
   export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
@@ -4708,16 +7503,65 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'UploadStatus'
+   * Reference to a field of type 'Boolean'
    */
-  export type EnumUploadStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UploadStatus'>
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
   /**
-   * Reference to a field of type 'UploadStatus[]'
+   * Reference to a field of type 'Json'
    */
-  export type ListEnumUploadStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'UploadStatus[]'>
+  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+  /**
+   * Reference to a field of type 'QueryMode'
+   */
+  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+  /**
+   * Reference to a field of type 'GradingSessionStatus'
+   */
+  export type EnumGradingSessionStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GradingSessionStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'GradingSessionStatus[]'
+   */
+  export type ListEnumGradingSessionStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GradingSessionStatus[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'FileParseStatus'
+   */
+  export type EnumFileParseStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FileParseStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'FileParseStatus[]'
+   */
+  export type ListEnumFileParseStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'FileParseStatus[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'GradingStatus'
+   */
+  export type EnumGradingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GradingStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'GradingStatus[]'
+   */
+  export type ListEnumGradingStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'GradingStatus[]'>
     
 
 
@@ -4747,7 +7591,8 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     rubrics?: RubricListRelationFilter
-    uploads?: UploadListRelationFilter
+    gradingSessions?: GradingSessionListRelationFilter
+    uploadedFiles?: UploadedFileListRelationFilter
   }
 
   export type UserOrderByWithRelationInput = {
@@ -4756,7 +7601,8 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     rubrics?: RubricOrderByRelationAggregateInput
-    uploads?: UploadOrderByRelationAggregateInput
+    gradingSessions?: GradingSessionOrderByRelationAggregateInput
+    uploadedFiles?: UploadedFileOrderByRelationAggregateInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -4768,7 +7614,8 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
     rubrics?: RubricListRelationFilter
-    uploads?: UploadListRelationFilter
+    gradingSessions?: GradingSessionListRelationFilter
+    uploadedFiles?: UploadedFileListRelationFilter
   }, "id" | "email">
 
   export type UserOrderByWithAggregationInput = {
@@ -4799,11 +7646,13 @@ export namespace Prisma {
     userId?: StringFilter<"Rubric"> | string
     name?: StringFilter<"Rubric"> | string
     description?: StringFilter<"Rubric"> | string
+    version?: IntFilter<"Rubric"> | number
+    isActive?: BoolFilter<"Rubric"> | boolean
     criteria?: JsonFilter<"Rubric">
     createdAt?: DateTimeFilter<"Rubric"> | Date | string
     updatedAt?: DateTimeFilter<"Rubric"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
-    uploads?: UploadListRelationFilter
+    gradingResults?: GradingResultListRelationFilter
   }
 
   export type RubricOrderByWithRelationInput = {
@@ -4811,11 +7660,13 @@ export namespace Prisma {
     userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
+    version?: SortOrder
+    isActive?: SortOrder
     criteria?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
-    uploads?: UploadOrderByRelationAggregateInput
+    gradingResults?: GradingResultOrderByRelationAggregateInput
   }
 
   export type RubricWhereUniqueInput = Prisma.AtLeast<{
@@ -4826,11 +7677,13 @@ export namespace Prisma {
     userId?: StringFilter<"Rubric"> | string
     name?: StringFilter<"Rubric"> | string
     description?: StringFilter<"Rubric"> | string
+    version?: IntFilter<"Rubric"> | number
+    isActive?: BoolFilter<"Rubric"> | boolean
     criteria?: JsonFilter<"Rubric">
     createdAt?: DateTimeFilter<"Rubric"> | Date | string
     updatedAt?: DateTimeFilter<"Rubric"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
-    uploads?: UploadListRelationFilter
+    gradingResults?: GradingResultListRelationFilter
   }, "id">
 
   export type RubricOrderByWithAggregationInput = {
@@ -4838,12 +7691,16 @@ export namespace Prisma {
     userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
+    version?: SortOrder
+    isActive?: SortOrder
     criteria?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: RubricCountOrderByAggregateInput
+    _avg?: RubricAvgOrderByAggregateInput
     _max?: RubricMaxOrderByAggregateInput
     _min?: RubricMinOrderByAggregateInput
+    _sum?: RubricSumOrderByAggregateInput
   }
 
   export type RubricScalarWhereWithAggregatesInput = {
@@ -4854,104 +7711,284 @@ export namespace Prisma {
     userId?: StringWithAggregatesFilter<"Rubric"> | string
     name?: StringWithAggregatesFilter<"Rubric"> | string
     description?: StringWithAggregatesFilter<"Rubric"> | string
+    version?: IntWithAggregatesFilter<"Rubric"> | number
+    isActive?: BoolWithAggregatesFilter<"Rubric"> | boolean
     criteria?: JsonWithAggregatesFilter<"Rubric">
     createdAt?: DateTimeWithAggregatesFilter<"Rubric"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Rubric"> | Date | string
   }
 
-  export type UploadWhereInput = {
-    AND?: UploadWhereInput | UploadWhereInput[]
-    OR?: UploadWhereInput[]
-    NOT?: UploadWhereInput | UploadWhereInput[]
-    id?: StringFilter<"Upload"> | string
-    userId?: StringFilter<"Upload"> | string
-    rubricId?: StringFilter<"Upload"> | string
-    originalFileName?: StringFilter<"Upload"> | string
-    storedFileKey?: StringFilter<"Upload"> | string
-    storageLocation?: StringFilter<"Upload"> | string
-    fileSize?: IntFilter<"Upload"> | number
-    mimeType?: StringFilter<"Upload"> | string
-    status?: EnumUploadStatusFilter<"Upload"> | $Enums.UploadStatus
-    result?: JsonNullableFilter<"Upload">
-    createdAt?: DateTimeFilter<"Upload"> | Date | string
-    updatedAt?: DateTimeFilter<"Upload"> | Date | string
+  export type GradingSessionWhereInput = {
+    AND?: GradingSessionWhereInput | GradingSessionWhereInput[]
+    OR?: GradingSessionWhereInput[]
+    NOT?: GradingSessionWhereInput | GradingSessionWhereInput[]
+    id?: StringFilter<"GradingSession"> | string
+    userId?: StringFilter<"GradingSession"> | string
+    status?: EnumGradingSessionStatusFilter<"GradingSession"> | $Enums.GradingSessionStatus
+    progress?: IntFilter<"GradingSession"> | number
+    createdAt?: DateTimeFilter<"GradingSession"> | Date | string
+    updatedAt?: DateTimeFilter<"GradingSession"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
-    rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
+    gradingResults?: GradingResultListRelationFilter
   }
 
-  export type UploadOrderByWithRelationInput = {
+  export type GradingSessionOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
-    rubricId?: SortOrder
-    originalFileName?: SortOrder
-    storedFileKey?: SortOrder
-    storageLocation?: SortOrder
-    fileSize?: SortOrder
-    mimeType?: SortOrder
     status?: SortOrder
-    result?: SortOrderInput | SortOrder
+    progress?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
+    gradingResults?: GradingResultOrderByRelationAggregateInput
+  }
+
+  export type GradingSessionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: GradingSessionWhereInput | GradingSessionWhereInput[]
+    OR?: GradingSessionWhereInput[]
+    NOT?: GradingSessionWhereInput | GradingSessionWhereInput[]
+    userId?: StringFilter<"GradingSession"> | string
+    status?: EnumGradingSessionStatusFilter<"GradingSession"> | $Enums.GradingSessionStatus
+    progress?: IntFilter<"GradingSession"> | number
+    createdAt?: DateTimeFilter<"GradingSession"> | Date | string
+    updatedAt?: DateTimeFilter<"GradingSession"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    gradingResults?: GradingResultListRelationFilter
+  }, "id">
+
+  export type GradingSessionOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    status?: SortOrder
+    progress?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: GradingSessionCountOrderByAggregateInput
+    _avg?: GradingSessionAvgOrderByAggregateInput
+    _max?: GradingSessionMaxOrderByAggregateInput
+    _min?: GradingSessionMinOrderByAggregateInput
+    _sum?: GradingSessionSumOrderByAggregateInput
+  }
+
+  export type GradingSessionScalarWhereWithAggregatesInput = {
+    AND?: GradingSessionScalarWhereWithAggregatesInput | GradingSessionScalarWhereWithAggregatesInput[]
+    OR?: GradingSessionScalarWhereWithAggregatesInput[]
+    NOT?: GradingSessionScalarWhereWithAggregatesInput | GradingSessionScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"GradingSession"> | string
+    userId?: StringWithAggregatesFilter<"GradingSession"> | string
+    status?: EnumGradingSessionStatusWithAggregatesFilter<"GradingSession"> | $Enums.GradingSessionStatus
+    progress?: IntWithAggregatesFilter<"GradingSession"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"GradingSession"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"GradingSession"> | Date | string
+  }
+
+  export type UploadedFileWhereInput = {
+    AND?: UploadedFileWhereInput | UploadedFileWhereInput[]
+    OR?: UploadedFileWhereInput[]
+    NOT?: UploadedFileWhereInput | UploadedFileWhereInput[]
+    id?: StringFilter<"UploadedFile"> | string
+    userId?: StringFilter<"UploadedFile"> | string
+    fileName?: StringFilter<"UploadedFile"> | string
+    originalFileName?: StringFilter<"UploadedFile"> | string
+    fileKey?: StringFilter<"UploadedFile"> | string
+    fileSize?: IntFilter<"UploadedFile"> | number
+    mimeType?: StringFilter<"UploadedFile"> | string
+    parseStatus?: EnumFileParseStatusFilter<"UploadedFile"> | $Enums.FileParseStatus
+    parsedContent?: StringNullableFilter<"UploadedFile"> | string | null
+    parseError?: StringNullableFilter<"UploadedFile"> | string | null
+    createdAt?: DateTimeFilter<"UploadedFile"> | Date | string
+    updatedAt?: DateTimeFilter<"UploadedFile"> | Date | string
+    expiresAt?: DateTimeNullableFilter<"UploadedFile"> | Date | string | null
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    gradingResults?: GradingResultListRelationFilter
+  }
+
+  export type UploadedFileOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    fileName?: SortOrder
+    originalFileName?: SortOrder
+    fileKey?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    parseStatus?: SortOrder
+    parsedContent?: SortOrderInput | SortOrder
+    parseError?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    expiresAt?: SortOrderInput | SortOrder
+    user?: UserOrderByWithRelationInput
+    gradingResults?: GradingResultOrderByRelationAggregateInput
+  }
+
+  export type UploadedFileWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    fileKey?: string
+    AND?: UploadedFileWhereInput | UploadedFileWhereInput[]
+    OR?: UploadedFileWhereInput[]
+    NOT?: UploadedFileWhereInput | UploadedFileWhereInput[]
+    userId?: StringFilter<"UploadedFile"> | string
+    fileName?: StringFilter<"UploadedFile"> | string
+    originalFileName?: StringFilter<"UploadedFile"> | string
+    fileSize?: IntFilter<"UploadedFile"> | number
+    mimeType?: StringFilter<"UploadedFile"> | string
+    parseStatus?: EnumFileParseStatusFilter<"UploadedFile"> | $Enums.FileParseStatus
+    parsedContent?: StringNullableFilter<"UploadedFile"> | string | null
+    parseError?: StringNullableFilter<"UploadedFile"> | string | null
+    createdAt?: DateTimeFilter<"UploadedFile"> | Date | string
+    updatedAt?: DateTimeFilter<"UploadedFile"> | Date | string
+    expiresAt?: DateTimeNullableFilter<"UploadedFile"> | Date | string | null
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    gradingResults?: GradingResultListRelationFilter
+  }, "id" | "fileKey">
+
+  export type UploadedFileOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    fileName?: SortOrder
+    originalFileName?: SortOrder
+    fileKey?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    parseStatus?: SortOrder
+    parsedContent?: SortOrderInput | SortOrder
+    parseError?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    expiresAt?: SortOrderInput | SortOrder
+    _count?: UploadedFileCountOrderByAggregateInput
+    _avg?: UploadedFileAvgOrderByAggregateInput
+    _max?: UploadedFileMaxOrderByAggregateInput
+    _min?: UploadedFileMinOrderByAggregateInput
+    _sum?: UploadedFileSumOrderByAggregateInput
+  }
+
+  export type UploadedFileScalarWhereWithAggregatesInput = {
+    AND?: UploadedFileScalarWhereWithAggregatesInput | UploadedFileScalarWhereWithAggregatesInput[]
+    OR?: UploadedFileScalarWhereWithAggregatesInput[]
+    NOT?: UploadedFileScalarWhereWithAggregatesInput | UploadedFileScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"UploadedFile"> | string
+    userId?: StringWithAggregatesFilter<"UploadedFile"> | string
+    fileName?: StringWithAggregatesFilter<"UploadedFile"> | string
+    originalFileName?: StringWithAggregatesFilter<"UploadedFile"> | string
+    fileKey?: StringWithAggregatesFilter<"UploadedFile"> | string
+    fileSize?: IntWithAggregatesFilter<"UploadedFile"> | number
+    mimeType?: StringWithAggregatesFilter<"UploadedFile"> | string
+    parseStatus?: EnumFileParseStatusWithAggregatesFilter<"UploadedFile"> | $Enums.FileParseStatus
+    parsedContent?: StringNullableWithAggregatesFilter<"UploadedFile"> | string | null
+    parseError?: StringNullableWithAggregatesFilter<"UploadedFile"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"UploadedFile"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"UploadedFile"> | Date | string
+    expiresAt?: DateTimeNullableWithAggregatesFilter<"UploadedFile"> | Date | string | null
+  }
+
+  export type GradingResultWhereInput = {
+    AND?: GradingResultWhereInput | GradingResultWhereInput[]
+    OR?: GradingResultWhereInput[]
+    NOT?: GradingResultWhereInput | GradingResultWhereInput[]
+    id?: StringFilter<"GradingResult"> | string
+    gradingSessionId?: StringFilter<"GradingResult"> | string
+    uploadedFileId?: StringFilter<"GradingResult"> | string
+    rubricId?: StringFilter<"GradingResult"> | string
+    status?: EnumGradingStatusFilter<"GradingResult"> | $Enums.GradingStatus
+    progress?: IntFilter<"GradingResult"> | number
+    result?: JsonNullableFilter<"GradingResult">
+    errorMessage?: StringNullableFilter<"GradingResult"> | string | null
+    gradingModel?: StringNullableFilter<"GradingResult"> | string | null
+    gradingTokens?: IntNullableFilter<"GradingResult"> | number | null
+    gradingDuration?: IntNullableFilter<"GradingResult"> | number | null
+    createdAt?: DateTimeFilter<"GradingResult"> | Date | string
+    updatedAt?: DateTimeFilter<"GradingResult"> | Date | string
+    completedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
+    gradingSession?: XOR<GradingSessionScalarRelationFilter, GradingSessionWhereInput>
+    uploadedFile?: XOR<UploadedFileScalarRelationFilter, UploadedFileWhereInput>
+    rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
+  }
+
+  export type GradingResultOrderByWithRelationInput = {
+    id?: SortOrder
+    gradingSessionId?: SortOrder
+    uploadedFileId?: SortOrder
+    rubricId?: SortOrder
+    status?: SortOrder
+    progress?: SortOrder
+    result?: SortOrderInput | SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    gradingModel?: SortOrderInput | SortOrder
+    gradingTokens?: SortOrderInput | SortOrder
+    gradingDuration?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    completedAt?: SortOrderInput | SortOrder
+    gradingSession?: GradingSessionOrderByWithRelationInput
+    uploadedFile?: UploadedFileOrderByWithRelationInput
     rubric?: RubricOrderByWithRelationInput
   }
 
-  export type UploadWhereUniqueInput = Prisma.AtLeast<{
+  export type GradingResultWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    storedFileKey?: string
-    AND?: UploadWhereInput | UploadWhereInput[]
-    OR?: UploadWhereInput[]
-    NOT?: UploadWhereInput | UploadWhereInput[]
-    userId?: StringFilter<"Upload"> | string
-    rubricId?: StringFilter<"Upload"> | string
-    originalFileName?: StringFilter<"Upload"> | string
-    storageLocation?: StringFilter<"Upload"> | string
-    fileSize?: IntFilter<"Upload"> | number
-    mimeType?: StringFilter<"Upload"> | string
-    status?: EnumUploadStatusFilter<"Upload"> | $Enums.UploadStatus
-    result?: JsonNullableFilter<"Upload">
-    createdAt?: DateTimeFilter<"Upload"> | Date | string
-    updatedAt?: DateTimeFilter<"Upload"> | Date | string
-    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    AND?: GradingResultWhereInput | GradingResultWhereInput[]
+    OR?: GradingResultWhereInput[]
+    NOT?: GradingResultWhereInput | GradingResultWhereInput[]
+    gradingSessionId?: StringFilter<"GradingResult"> | string
+    uploadedFileId?: StringFilter<"GradingResult"> | string
+    rubricId?: StringFilter<"GradingResult"> | string
+    status?: EnumGradingStatusFilter<"GradingResult"> | $Enums.GradingStatus
+    progress?: IntFilter<"GradingResult"> | number
+    result?: JsonNullableFilter<"GradingResult">
+    errorMessage?: StringNullableFilter<"GradingResult"> | string | null
+    gradingModel?: StringNullableFilter<"GradingResult"> | string | null
+    gradingTokens?: IntNullableFilter<"GradingResult"> | number | null
+    gradingDuration?: IntNullableFilter<"GradingResult"> | number | null
+    createdAt?: DateTimeFilter<"GradingResult"> | Date | string
+    updatedAt?: DateTimeFilter<"GradingResult"> | Date | string
+    completedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
+    gradingSession?: XOR<GradingSessionScalarRelationFilter, GradingSessionWhereInput>
+    uploadedFile?: XOR<UploadedFileScalarRelationFilter, UploadedFileWhereInput>
     rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
-  }, "id" | "storedFileKey">
+  }, "id">
 
-  export type UploadOrderByWithAggregationInput = {
+  export type GradingResultOrderByWithAggregationInput = {
     id?: SortOrder
-    userId?: SortOrder
+    gradingSessionId?: SortOrder
+    uploadedFileId?: SortOrder
     rubricId?: SortOrder
-    originalFileName?: SortOrder
-    storedFileKey?: SortOrder
-    storageLocation?: SortOrder
-    fileSize?: SortOrder
-    mimeType?: SortOrder
     status?: SortOrder
+    progress?: SortOrder
     result?: SortOrderInput | SortOrder
+    errorMessage?: SortOrderInput | SortOrder
+    gradingModel?: SortOrderInput | SortOrder
+    gradingTokens?: SortOrderInput | SortOrder
+    gradingDuration?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    _count?: UploadCountOrderByAggregateInput
-    _avg?: UploadAvgOrderByAggregateInput
-    _max?: UploadMaxOrderByAggregateInput
-    _min?: UploadMinOrderByAggregateInput
-    _sum?: UploadSumOrderByAggregateInput
+    completedAt?: SortOrderInput | SortOrder
+    _count?: GradingResultCountOrderByAggregateInput
+    _avg?: GradingResultAvgOrderByAggregateInput
+    _max?: GradingResultMaxOrderByAggregateInput
+    _min?: GradingResultMinOrderByAggregateInput
+    _sum?: GradingResultSumOrderByAggregateInput
   }
 
-  export type UploadScalarWhereWithAggregatesInput = {
-    AND?: UploadScalarWhereWithAggregatesInput | UploadScalarWhereWithAggregatesInput[]
-    OR?: UploadScalarWhereWithAggregatesInput[]
-    NOT?: UploadScalarWhereWithAggregatesInput | UploadScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"Upload"> | string
-    userId?: StringWithAggregatesFilter<"Upload"> | string
-    rubricId?: StringWithAggregatesFilter<"Upload"> | string
-    originalFileName?: StringWithAggregatesFilter<"Upload"> | string
-    storedFileKey?: StringWithAggregatesFilter<"Upload"> | string
-    storageLocation?: StringWithAggregatesFilter<"Upload"> | string
-    fileSize?: IntWithAggregatesFilter<"Upload"> | number
-    mimeType?: StringWithAggregatesFilter<"Upload"> | string
-    status?: EnumUploadStatusWithAggregatesFilter<"Upload"> | $Enums.UploadStatus
-    result?: JsonNullableWithAggregatesFilter<"Upload">
-    createdAt?: DateTimeWithAggregatesFilter<"Upload"> | Date | string
-    updatedAt?: DateTimeWithAggregatesFilter<"Upload"> | Date | string
+  export type GradingResultScalarWhereWithAggregatesInput = {
+    AND?: GradingResultScalarWhereWithAggregatesInput | GradingResultScalarWhereWithAggregatesInput[]
+    OR?: GradingResultScalarWhereWithAggregatesInput[]
+    NOT?: GradingResultScalarWhereWithAggregatesInput | GradingResultScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"GradingResult"> | string
+    gradingSessionId?: StringWithAggregatesFilter<"GradingResult"> | string
+    uploadedFileId?: StringWithAggregatesFilter<"GradingResult"> | string
+    rubricId?: StringWithAggregatesFilter<"GradingResult"> | string
+    status?: EnumGradingStatusWithAggregatesFilter<"GradingResult"> | $Enums.GradingStatus
+    progress?: IntWithAggregatesFilter<"GradingResult"> | number
+    result?: JsonNullableWithAggregatesFilter<"GradingResult">
+    errorMessage?: StringNullableWithAggregatesFilter<"GradingResult"> | string | null
+    gradingModel?: StringNullableWithAggregatesFilter<"GradingResult"> | string | null
+    gradingTokens?: IntNullableWithAggregatesFilter<"GradingResult"> | number | null
+    gradingDuration?: IntNullableWithAggregatesFilter<"GradingResult"> | number | null
+    createdAt?: DateTimeWithAggregatesFilter<"GradingResult"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"GradingResult"> | Date | string
+    completedAt?: DateTimeNullableWithAggregatesFilter<"GradingResult"> | Date | string | null
   }
 
   export type UserCreateInput = {
@@ -4960,7 +7997,8 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     rubrics?: RubricCreateNestedManyWithoutUserInput
-    uploads?: UploadCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -4969,7 +8007,8 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
-    uploads?: UploadUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserUpdateInput = {
@@ -4978,7 +8017,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     rubrics?: RubricUpdateManyWithoutUserNestedInput
-    uploads?: UploadUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -4987,7 +8027,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
-    uploads?: UploadUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -5015,11 +8056,13 @@ export namespace Prisma {
     id?: string
     name: string
     description: string
+    version?: number
+    isActive?: boolean
     criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutRubricsInput
-    uploads?: UploadCreateNestedManyWithoutRubricInput
+    gradingResults?: GradingResultCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUncheckedCreateInput = {
@@ -5027,21 +8070,25 @@ export namespace Prisma {
     userId: string
     name: string
     description: string
+    version?: number
+    isActive?: boolean
     criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
-    uploads?: UploadUncheckedCreateNestedManyWithoutRubricInput
+    gradingResults?: GradingResultUncheckedCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutRubricsNestedInput
-    uploads?: UploadUpdateManyWithoutRubricNestedInput
+    gradingResults?: GradingResultUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateInput = {
@@ -5049,10 +8096,12 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    uploads?: UploadUncheckedUpdateManyWithoutRubricNestedInput
+    gradingResults?: GradingResultUncheckedUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricCreateManyInput = {
@@ -5060,6 +8109,8 @@ export namespace Prisma {
     userId: string
     name: string
     description: string
+    version?: number
+    isActive?: boolean
     criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -5069,6 +8120,8 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -5079,112 +8132,308 @@ export namespace Prisma {
     userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type UploadCreateInput = {
+  export type GradingSessionCreateInput = {
     id?: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status?: $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: $Enums.GradingSessionStatus
+    progress?: number
     createdAt?: Date | string
     updatedAt?: Date | string
-    user: UserCreateNestedOneWithoutUploadsInput
-    rubric: RubricCreateNestedOneWithoutUploadsInput
+    user: UserCreateNestedOneWithoutGradingSessionsInput
+    gradingResults?: GradingResultCreateNestedManyWithoutGradingSessionInput
   }
 
-  export type UploadUncheckedCreateInput = {
+  export type GradingSessionUncheckedCreateInput = {
     id?: string
     userId: string
-    rubricId: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status?: $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: $Enums.GradingSessionStatus
+    progress?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    gradingResults?: GradingResultUncheckedCreateNestedManyWithoutGradingSessionInput
   }
 
-  export type UploadUpdateInput = {
+  export type GradingSessionUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: EnumGradingSessionStatusFieldUpdateOperationsInput | $Enums.GradingSessionStatus
+    progress?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutUploadsNestedInput
-    rubric?: RubricUpdateOneRequiredWithoutUploadsNestedInput
+    user?: UserUpdateOneRequiredWithoutGradingSessionsNestedInput
+    gradingResults?: GradingResultUpdateManyWithoutGradingSessionNestedInput
   }
 
-  export type UploadUncheckedUpdateInput = {
+  export type GradingSessionUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    rubricId?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: EnumGradingSessionStatusFieldUpdateOperationsInput | $Enums.GradingSessionStatus
+    progress?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    gradingResults?: GradingResultUncheckedUpdateManyWithoutGradingSessionNestedInput
   }
 
-  export type UploadCreateManyInput = {
+  export type GradingSessionCreateManyInput = {
     id?: string
     userId: string
-    rubricId: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status?: $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: $Enums.GradingSessionStatus
+    progress?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
-  export type UploadUpdateManyMutationInput = {
+  export type GradingSessionUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: EnumGradingSessionStatusFieldUpdateOperationsInput | $Enums.GradingSessionStatus
+    progress?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type UploadUncheckedUpdateManyInput = {
+  export type GradingSessionUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    rubricId?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: EnumGradingSessionStatusFieldUpdateOperationsInput | $Enums.GradingSessionStatus
+    progress?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type UploadedFileCreateInput = {
+    id?: string
+    fileName: string
+    originalFileName: string
+    fileKey: string
+    fileSize: number
+    mimeType: string
+    parseStatus?: $Enums.FileParseStatus
+    parsedContent?: string | null
+    parseError?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    expiresAt?: Date | string | null
+    user: UserCreateNestedOneWithoutUploadedFilesInput
+    gradingResults?: GradingResultCreateNestedManyWithoutUploadedFileInput
+  }
+
+  export type UploadedFileUncheckedCreateInput = {
+    id?: string
+    userId: string
+    fileName: string
+    originalFileName: string
+    fileKey: string
+    fileSize: number
+    mimeType: string
+    parseStatus?: $Enums.FileParseStatus
+    parsedContent?: string | null
+    parseError?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    expiresAt?: Date | string | null
+    gradingResults?: GradingResultUncheckedCreateNestedManyWithoutUploadedFileInput
+  }
+
+  export type UploadedFileUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    fileKey?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
+    parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parseError?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    user?: UserUpdateOneRequiredWithoutUploadedFilesNestedInput
+    gradingResults?: GradingResultUpdateManyWithoutUploadedFileNestedInput
+  }
+
+  export type UploadedFileUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    fileKey?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
+    parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parseError?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gradingResults?: GradingResultUncheckedUpdateManyWithoutUploadedFileNestedInput
+  }
+
+  export type UploadedFileCreateManyInput = {
+    id?: string
+    userId: string
+    fileName: string
+    originalFileName: string
+    fileKey: string
+    fileSize: number
+    mimeType: string
+    parseStatus?: $Enums.FileParseStatus
+    parsedContent?: string | null
+    parseError?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    expiresAt?: Date | string | null
+  }
+
+  export type UploadedFileUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    fileKey?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
+    parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parseError?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type UploadedFileUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    fileKey?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
+    parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parseError?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type GradingResultCreateInput = {
+    id?: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+    gradingSession: GradingSessionCreateNestedOneWithoutGradingResultsInput
+    uploadedFile: UploadedFileCreateNestedOneWithoutGradingResultsInput
+    rubric: RubricCreateNestedOneWithoutGradingResultsInput
+  }
+
+  export type GradingResultUncheckedCreateInput = {
+    id?: string
+    gradingSessionId: string
+    uploadedFileId: string
+    rubricId: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type GradingResultUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gradingSession?: GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
+    uploadedFile?: UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutGradingResultsNestedInput
+  }
+
+  export type GradingResultUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    gradingSessionId?: StringFieldUpdateOperationsInput | string
+    uploadedFileId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type GradingResultCreateManyInput = {
+    id?: string
+    gradingSessionId: string
+    uploadedFileId: string
+    rubricId: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type GradingResultUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type GradingResultUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    gradingSessionId?: StringFieldUpdateOperationsInput | string
+    uploadedFileId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -5219,17 +8468,27 @@ export namespace Prisma {
     none?: RubricWhereInput
   }
 
-  export type UploadListRelationFilter = {
-    every?: UploadWhereInput
-    some?: UploadWhereInput
-    none?: UploadWhereInput
+  export type GradingSessionListRelationFilter = {
+    every?: GradingSessionWhereInput
+    some?: GradingSessionWhereInput
+    none?: GradingSessionWhereInput
+  }
+
+  export type UploadedFileListRelationFilter = {
+    every?: UploadedFileWhereInput
+    some?: UploadedFileWhereInput
+    none?: UploadedFileWhereInput
   }
 
   export type RubricOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
-  export type UploadOrderByRelationAggregateInput = {
+  export type GradingSessionOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type UploadedFileOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -5285,6 +8544,22 @@ export namespace Prisma {
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
+
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
   export type JsonFilter<$PrismaModel = never> =
     | PatchUndefined<
         Either<Required<JsonFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonFilterBase<$PrismaModel>>, 'path'>>,
@@ -5314,14 +8589,30 @@ export namespace Prisma {
     isNot?: UserWhereInput
   }
 
+  export type GradingResultListRelationFilter = {
+    every?: GradingResultWhereInput
+    some?: GradingResultWhereInput
+    none?: GradingResultWhereInput
+  }
+
+  export type GradingResultOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type RubricCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
+    version?: SortOrder
+    isActive?: SortOrder
     criteria?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type RubricAvgOrderByAggregateInput = {
+    version?: SortOrder
   }
 
   export type RubricMaxOrderByAggregateInput = {
@@ -5329,6 +8620,8 @@ export namespace Prisma {
     userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
+    version?: SortOrder
+    isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -5338,8 +8631,38 @@ export namespace Prisma {
     userId?: SortOrder
     name?: SortOrder
     description?: SortOrder
+    version?: SortOrder
+    isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type RubricSumOrderByAggregateInput = {
+    version?: SortOrder
+  }
+
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
   }
   export type JsonWithAggregatesFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -5368,22 +8691,199 @@ export namespace Prisma {
     _max?: NestedJsonFilter<$PrismaModel>
   }
 
-  export type IntFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
+  export type EnumGradingSessionStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.GradingSessionStatus | EnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.GradingSessionStatus[] | ListEnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.GradingSessionStatus[] | ListEnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumGradingSessionStatusFilter<$PrismaModel> | $Enums.GradingSessionStatus
   }
 
-  export type EnumUploadStatusFilter<$PrismaModel = never> = {
-    equals?: $Enums.UploadStatus | EnumUploadStatusFieldRefInput<$PrismaModel>
-    in?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
-    notIn?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
-    not?: NestedEnumUploadStatusFilter<$PrismaModel> | $Enums.UploadStatus
+  export type GradingSessionCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    status?: SortOrder
+    progress?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type GradingSessionAvgOrderByAggregateInput = {
+    progress?: SortOrder
+  }
+
+  export type GradingSessionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    status?: SortOrder
+    progress?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type GradingSessionMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    status?: SortOrder
+    progress?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type GradingSessionSumOrderByAggregateInput = {
+    progress?: SortOrder
+  }
+
+  export type EnumGradingSessionStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.GradingSessionStatus | EnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.GradingSessionStatus[] | ListEnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.GradingSessionStatus[] | ListEnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumGradingSessionStatusWithAggregatesFilter<$PrismaModel> | $Enums.GradingSessionStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumGradingSessionStatusFilter<$PrismaModel>
+    _max?: NestedEnumGradingSessionStatusFilter<$PrismaModel>
+  }
+
+  export type EnumFileParseStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.FileParseStatus | EnumFileParseStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.FileParseStatus[] | ListEnumFileParseStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.FileParseStatus[] | ListEnumFileParseStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumFileParseStatusFilter<$PrismaModel> | $Enums.FileParseStatus
+  }
+
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
+  export type DateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
+  export type SortOrderInput = {
+    sort: SortOrder
+    nulls?: NullsOrder
+  }
+
+  export type UploadedFileCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    fileName?: SortOrder
+    originalFileName?: SortOrder
+    fileKey?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    parseStatus?: SortOrder
+    parsedContent?: SortOrder
+    parseError?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type UploadedFileAvgOrderByAggregateInput = {
+    fileSize?: SortOrder
+  }
+
+  export type UploadedFileMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    fileName?: SortOrder
+    originalFileName?: SortOrder
+    fileKey?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    parseStatus?: SortOrder
+    parsedContent?: SortOrder
+    parseError?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type UploadedFileMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    fileName?: SortOrder
+    originalFileName?: SortOrder
+    fileKey?: SortOrder
+    fileSize?: SortOrder
+    mimeType?: SortOrder
+    parseStatus?: SortOrder
+    parsedContent?: SortOrder
+    parseError?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    expiresAt?: SortOrder
+  }
+
+  export type UploadedFileSumOrderByAggregateInput = {
+    fileSize?: SortOrder
+  }
+
+  export type EnumFileParseStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.FileParseStatus | EnumFileParseStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.FileParseStatus[] | ListEnumFileParseStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.FileParseStatus[] | ListEnumFileParseStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumFileParseStatusWithAggregatesFilter<$PrismaModel> | $Enums.FileParseStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumFileParseStatusFilter<$PrismaModel>
+    _max?: NestedEnumFileParseStatusFilter<$PrismaModel>
+  }
+
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
+  export type EnumGradingStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.GradingStatus | EnumGradingStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.GradingStatus[] | ListEnumGradingStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.GradingStatus[] | ListEnumGradingStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumGradingStatusFilter<$PrismaModel> | $Enums.GradingStatus
   }
   export type JsonNullableFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -5409,91 +8909,101 @@ export namespace Prisma {
     not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
   }
 
+  export type IntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type GradingSessionScalarRelationFilter = {
+    is?: GradingSessionWhereInput
+    isNot?: GradingSessionWhereInput
+  }
+
+  export type UploadedFileScalarRelationFilter = {
+    is?: UploadedFileWhereInput
+    isNot?: UploadedFileWhereInput
+  }
+
   export type RubricScalarRelationFilter = {
     is?: RubricWhereInput
     isNot?: RubricWhereInput
   }
 
-  export type SortOrderInput = {
-    sort: SortOrder
-    nulls?: NullsOrder
-  }
-
-  export type UploadCountOrderByAggregateInput = {
+  export type GradingResultCountOrderByAggregateInput = {
     id?: SortOrder
-    userId?: SortOrder
+    gradingSessionId?: SortOrder
+    uploadedFileId?: SortOrder
     rubricId?: SortOrder
-    originalFileName?: SortOrder
-    storedFileKey?: SortOrder
-    storageLocation?: SortOrder
-    fileSize?: SortOrder
-    mimeType?: SortOrder
     status?: SortOrder
+    progress?: SortOrder
     result?: SortOrder
+    errorMessage?: SortOrder
+    gradingModel?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    completedAt?: SortOrder
   }
 
-  export type UploadAvgOrderByAggregateInput = {
-    fileSize?: SortOrder
+  export type GradingResultAvgOrderByAggregateInput = {
+    progress?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
   }
 
-  export type UploadMaxOrderByAggregateInput = {
+  export type GradingResultMaxOrderByAggregateInput = {
     id?: SortOrder
-    userId?: SortOrder
+    gradingSessionId?: SortOrder
+    uploadedFileId?: SortOrder
     rubricId?: SortOrder
-    originalFileName?: SortOrder
-    storedFileKey?: SortOrder
-    storageLocation?: SortOrder
-    fileSize?: SortOrder
-    mimeType?: SortOrder
     status?: SortOrder
+    progress?: SortOrder
+    errorMessage?: SortOrder
+    gradingModel?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    completedAt?: SortOrder
   }
 
-  export type UploadMinOrderByAggregateInput = {
+  export type GradingResultMinOrderByAggregateInput = {
     id?: SortOrder
-    userId?: SortOrder
+    gradingSessionId?: SortOrder
+    uploadedFileId?: SortOrder
     rubricId?: SortOrder
-    originalFileName?: SortOrder
-    storedFileKey?: SortOrder
-    storageLocation?: SortOrder
-    fileSize?: SortOrder
-    mimeType?: SortOrder
     status?: SortOrder
+    progress?: SortOrder
+    errorMessage?: SortOrder
+    gradingModel?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    completedAt?: SortOrder
   }
 
-  export type UploadSumOrderByAggregateInput = {
-    fileSize?: SortOrder
+  export type GradingResultSumOrderByAggregateInput = {
+    progress?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
   }
 
-  export type IntWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+  export type EnumGradingStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.GradingStatus | EnumGradingStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.GradingStatus[] | ListEnumGradingStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.GradingStatus[] | ListEnumGradingStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumGradingStatusWithAggregatesFilter<$PrismaModel> | $Enums.GradingStatus
     _count?: NestedIntFilter<$PrismaModel>
-    _avg?: NestedFloatFilter<$PrismaModel>
-    _sum?: NestedIntFilter<$PrismaModel>
-    _min?: NestedIntFilter<$PrismaModel>
-    _max?: NestedIntFilter<$PrismaModel>
-  }
-
-  export type EnumUploadStatusWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: $Enums.UploadStatus | EnumUploadStatusFieldRefInput<$PrismaModel>
-    in?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
-    notIn?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
-    not?: NestedEnumUploadStatusWithAggregatesFilter<$PrismaModel> | $Enums.UploadStatus
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedEnumUploadStatusFilter<$PrismaModel>
-    _max?: NestedEnumUploadStatusFilter<$PrismaModel>
+    _min?: NestedEnumGradingStatusFilter<$PrismaModel>
+    _max?: NestedEnumGradingStatusFilter<$PrismaModel>
   }
   export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -5522,6 +9032,22 @@ export namespace Prisma {
     _max?: NestedJsonNullableFilter<$PrismaModel>
   }
 
+  export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+
   export type RubricCreateNestedManyWithoutUserInput = {
     create?: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput> | RubricCreateWithoutUserInput[] | RubricUncheckedCreateWithoutUserInput[]
     connectOrCreate?: RubricCreateOrConnectWithoutUserInput | RubricCreateOrConnectWithoutUserInput[]
@@ -5529,11 +9055,18 @@ export namespace Prisma {
     connect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
   }
 
-  export type UploadCreateNestedManyWithoutUserInput = {
-    create?: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput> | UploadCreateWithoutUserInput[] | UploadUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: UploadCreateOrConnectWithoutUserInput | UploadCreateOrConnectWithoutUserInput[]
-    createMany?: UploadCreateManyUserInputEnvelope
-    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+  export type GradingSessionCreateNestedManyWithoutUserInput = {
+    create?: XOR<GradingSessionCreateWithoutUserInput, GradingSessionUncheckedCreateWithoutUserInput> | GradingSessionCreateWithoutUserInput[] | GradingSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: GradingSessionCreateOrConnectWithoutUserInput | GradingSessionCreateOrConnectWithoutUserInput[]
+    createMany?: GradingSessionCreateManyUserInputEnvelope
+    connect?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+  }
+
+  export type UploadedFileCreateNestedManyWithoutUserInput = {
+    create?: XOR<UploadedFileCreateWithoutUserInput, UploadedFileUncheckedCreateWithoutUserInput> | UploadedFileCreateWithoutUserInput[] | UploadedFileUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UploadedFileCreateOrConnectWithoutUserInput | UploadedFileCreateOrConnectWithoutUserInput[]
+    createMany?: UploadedFileCreateManyUserInputEnvelope
+    connect?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
   }
 
   export type RubricUncheckedCreateNestedManyWithoutUserInput = {
@@ -5543,11 +9076,18 @@ export namespace Prisma {
     connect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
   }
 
-  export type UploadUncheckedCreateNestedManyWithoutUserInput = {
-    create?: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput> | UploadCreateWithoutUserInput[] | UploadUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: UploadCreateOrConnectWithoutUserInput | UploadCreateOrConnectWithoutUserInput[]
-    createMany?: UploadCreateManyUserInputEnvelope
-    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+  export type GradingSessionUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<GradingSessionCreateWithoutUserInput, GradingSessionUncheckedCreateWithoutUserInput> | GradingSessionCreateWithoutUserInput[] | GradingSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: GradingSessionCreateOrConnectWithoutUserInput | GradingSessionCreateOrConnectWithoutUserInput[]
+    createMany?: GradingSessionCreateManyUserInputEnvelope
+    connect?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+  }
+
+  export type UploadedFileUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<UploadedFileCreateWithoutUserInput, UploadedFileUncheckedCreateWithoutUserInput> | UploadedFileCreateWithoutUserInput[] | UploadedFileUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UploadedFileCreateOrConnectWithoutUserInput | UploadedFileCreateOrConnectWithoutUserInput[]
+    createMany?: UploadedFileCreateManyUserInputEnvelope
+    connect?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -5572,18 +9112,32 @@ export namespace Prisma {
     deleteMany?: RubricScalarWhereInput | RubricScalarWhereInput[]
   }
 
-  export type UploadUpdateManyWithoutUserNestedInput = {
-    create?: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput> | UploadCreateWithoutUserInput[] | UploadUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: UploadCreateOrConnectWithoutUserInput | UploadCreateOrConnectWithoutUserInput[]
-    upsert?: UploadUpsertWithWhereUniqueWithoutUserInput | UploadUpsertWithWhereUniqueWithoutUserInput[]
-    createMany?: UploadCreateManyUserInputEnvelope
-    set?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    disconnect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    delete?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    update?: UploadUpdateWithWhereUniqueWithoutUserInput | UploadUpdateWithWhereUniqueWithoutUserInput[]
-    updateMany?: UploadUpdateManyWithWhereWithoutUserInput | UploadUpdateManyWithWhereWithoutUserInput[]
-    deleteMany?: UploadScalarWhereInput | UploadScalarWhereInput[]
+  export type GradingSessionUpdateManyWithoutUserNestedInput = {
+    create?: XOR<GradingSessionCreateWithoutUserInput, GradingSessionUncheckedCreateWithoutUserInput> | GradingSessionCreateWithoutUserInput[] | GradingSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: GradingSessionCreateOrConnectWithoutUserInput | GradingSessionCreateOrConnectWithoutUserInput[]
+    upsert?: GradingSessionUpsertWithWhereUniqueWithoutUserInput | GradingSessionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: GradingSessionCreateManyUserInputEnvelope
+    set?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+    disconnect?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+    delete?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+    connect?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+    update?: GradingSessionUpdateWithWhereUniqueWithoutUserInput | GradingSessionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: GradingSessionUpdateManyWithWhereWithoutUserInput | GradingSessionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: GradingSessionScalarWhereInput | GradingSessionScalarWhereInput[]
+  }
+
+  export type UploadedFileUpdateManyWithoutUserNestedInput = {
+    create?: XOR<UploadedFileCreateWithoutUserInput, UploadedFileUncheckedCreateWithoutUserInput> | UploadedFileCreateWithoutUserInput[] | UploadedFileUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UploadedFileCreateOrConnectWithoutUserInput | UploadedFileCreateOrConnectWithoutUserInput[]
+    upsert?: UploadedFileUpsertWithWhereUniqueWithoutUserInput | UploadedFileUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: UploadedFileCreateManyUserInputEnvelope
+    set?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
+    disconnect?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
+    delete?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
+    connect?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
+    update?: UploadedFileUpdateWithWhereUniqueWithoutUserInput | UploadedFileUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: UploadedFileUpdateManyWithWhereWithoutUserInput | UploadedFileUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: UploadedFileScalarWhereInput | UploadedFileScalarWhereInput[]
   }
 
   export type RubricUncheckedUpdateManyWithoutUserNestedInput = {
@@ -5600,18 +9154,32 @@ export namespace Prisma {
     deleteMany?: RubricScalarWhereInput | RubricScalarWhereInput[]
   }
 
-  export type UploadUncheckedUpdateManyWithoutUserNestedInput = {
-    create?: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput> | UploadCreateWithoutUserInput[] | UploadUncheckedCreateWithoutUserInput[]
-    connectOrCreate?: UploadCreateOrConnectWithoutUserInput | UploadCreateOrConnectWithoutUserInput[]
-    upsert?: UploadUpsertWithWhereUniqueWithoutUserInput | UploadUpsertWithWhereUniqueWithoutUserInput[]
-    createMany?: UploadCreateManyUserInputEnvelope
-    set?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    disconnect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    delete?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    update?: UploadUpdateWithWhereUniqueWithoutUserInput | UploadUpdateWithWhereUniqueWithoutUserInput[]
-    updateMany?: UploadUpdateManyWithWhereWithoutUserInput | UploadUpdateManyWithWhereWithoutUserInput[]
-    deleteMany?: UploadScalarWhereInput | UploadScalarWhereInput[]
+  export type GradingSessionUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<GradingSessionCreateWithoutUserInput, GradingSessionUncheckedCreateWithoutUserInput> | GradingSessionCreateWithoutUserInput[] | GradingSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: GradingSessionCreateOrConnectWithoutUserInput | GradingSessionCreateOrConnectWithoutUserInput[]
+    upsert?: GradingSessionUpsertWithWhereUniqueWithoutUserInput | GradingSessionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: GradingSessionCreateManyUserInputEnvelope
+    set?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+    disconnect?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+    delete?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+    connect?: GradingSessionWhereUniqueInput | GradingSessionWhereUniqueInput[]
+    update?: GradingSessionUpdateWithWhereUniqueWithoutUserInput | GradingSessionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: GradingSessionUpdateManyWithWhereWithoutUserInput | GradingSessionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: GradingSessionScalarWhereInput | GradingSessionScalarWhereInput[]
+  }
+
+  export type UploadedFileUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<UploadedFileCreateWithoutUserInput, UploadedFileUncheckedCreateWithoutUserInput> | UploadedFileCreateWithoutUserInput[] | UploadedFileUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: UploadedFileCreateOrConnectWithoutUserInput | UploadedFileCreateOrConnectWithoutUserInput[]
+    upsert?: UploadedFileUpsertWithWhereUniqueWithoutUserInput | UploadedFileUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: UploadedFileCreateManyUserInputEnvelope
+    set?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
+    disconnect?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
+    delete?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
+    connect?: UploadedFileWhereUniqueInput | UploadedFileWhereUniqueInput[]
+    update?: UploadedFileUpdateWithWhereUniqueWithoutUserInput | UploadedFileUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: UploadedFileUpdateManyWithWhereWithoutUserInput | UploadedFileUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: UploadedFileScalarWhereInput | UploadedFileScalarWhereInput[]
   }
 
   export type UserCreateNestedOneWithoutRubricsInput = {
@@ -5620,66 +9188,18 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
-  export type UploadCreateNestedManyWithoutRubricInput = {
-    create?: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput> | UploadCreateWithoutRubricInput[] | UploadUncheckedCreateWithoutRubricInput[]
-    connectOrCreate?: UploadCreateOrConnectWithoutRubricInput | UploadCreateOrConnectWithoutRubricInput[]
-    createMany?: UploadCreateManyRubricInputEnvelope
-    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
+  export type GradingResultCreateNestedManyWithoutRubricInput = {
+    create?: XOR<GradingResultCreateWithoutRubricInput, GradingResultUncheckedCreateWithoutRubricInput> | GradingResultCreateWithoutRubricInput[] | GradingResultUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutRubricInput | GradingResultCreateOrConnectWithoutRubricInput[]
+    createMany?: GradingResultCreateManyRubricInputEnvelope
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
   }
 
-  export type UploadUncheckedCreateNestedManyWithoutRubricInput = {
-    create?: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput> | UploadCreateWithoutRubricInput[] | UploadUncheckedCreateWithoutRubricInput[]
-    connectOrCreate?: UploadCreateOrConnectWithoutRubricInput | UploadCreateOrConnectWithoutRubricInput[]
-    createMany?: UploadCreateManyRubricInputEnvelope
-    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-  }
-
-  export type UserUpdateOneRequiredWithoutRubricsNestedInput = {
-    create?: XOR<UserCreateWithoutRubricsInput, UserUncheckedCreateWithoutRubricsInput>
-    connectOrCreate?: UserCreateOrConnectWithoutRubricsInput
-    upsert?: UserUpsertWithoutRubricsInput
-    connect?: UserWhereUniqueInput
-    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutRubricsInput, UserUpdateWithoutRubricsInput>, UserUncheckedUpdateWithoutRubricsInput>
-  }
-
-  export type UploadUpdateManyWithoutRubricNestedInput = {
-    create?: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput> | UploadCreateWithoutRubricInput[] | UploadUncheckedCreateWithoutRubricInput[]
-    connectOrCreate?: UploadCreateOrConnectWithoutRubricInput | UploadCreateOrConnectWithoutRubricInput[]
-    upsert?: UploadUpsertWithWhereUniqueWithoutRubricInput | UploadUpsertWithWhereUniqueWithoutRubricInput[]
-    createMany?: UploadCreateManyRubricInputEnvelope
-    set?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    disconnect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    delete?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    update?: UploadUpdateWithWhereUniqueWithoutRubricInput | UploadUpdateWithWhereUniqueWithoutRubricInput[]
-    updateMany?: UploadUpdateManyWithWhereWithoutRubricInput | UploadUpdateManyWithWhereWithoutRubricInput[]
-    deleteMany?: UploadScalarWhereInput | UploadScalarWhereInput[]
-  }
-
-  export type UploadUncheckedUpdateManyWithoutRubricNestedInput = {
-    create?: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput> | UploadCreateWithoutRubricInput[] | UploadUncheckedCreateWithoutRubricInput[]
-    connectOrCreate?: UploadCreateOrConnectWithoutRubricInput | UploadCreateOrConnectWithoutRubricInput[]
-    upsert?: UploadUpsertWithWhereUniqueWithoutRubricInput | UploadUpsertWithWhereUniqueWithoutRubricInput[]
-    createMany?: UploadCreateManyRubricInputEnvelope
-    set?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    disconnect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    delete?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    connect?: UploadWhereUniqueInput | UploadWhereUniqueInput[]
-    update?: UploadUpdateWithWhereUniqueWithoutRubricInput | UploadUpdateWithWhereUniqueWithoutRubricInput[]
-    updateMany?: UploadUpdateManyWithWhereWithoutRubricInput | UploadUpdateManyWithWhereWithoutRubricInput[]
-    deleteMany?: UploadScalarWhereInput | UploadScalarWhereInput[]
-  }
-
-  export type UserCreateNestedOneWithoutUploadsInput = {
-    create?: XOR<UserCreateWithoutUploadsInput, UserUncheckedCreateWithoutUploadsInput>
-    connectOrCreate?: UserCreateOrConnectWithoutUploadsInput
-    connect?: UserWhereUniqueInput
-  }
-
-  export type RubricCreateNestedOneWithoutUploadsInput = {
-    create?: XOR<RubricCreateWithoutUploadsInput, RubricUncheckedCreateWithoutUploadsInput>
-    connectOrCreate?: RubricCreateOrConnectWithoutUploadsInput
-    connect?: RubricWhereUniqueInput
+  export type GradingResultUncheckedCreateNestedManyWithoutRubricInput = {
+    create?: XOR<GradingResultCreateWithoutRubricInput, GradingResultUncheckedCreateWithoutRubricInput> | GradingResultCreateWithoutRubricInput[] | GradingResultUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutRubricInput | GradingResultCreateOrConnectWithoutRubricInput[]
+    createMany?: GradingResultCreateManyRubricInputEnvelope
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
   }
 
   export type IntFieldUpdateOperationsInput = {
@@ -5690,24 +9210,226 @@ export namespace Prisma {
     divide?: number
   }
 
-  export type EnumUploadStatusFieldUpdateOperationsInput = {
-    set?: $Enums.UploadStatus
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
   }
 
-  export type UserUpdateOneRequiredWithoutUploadsNestedInput = {
-    create?: XOR<UserCreateWithoutUploadsInput, UserUncheckedCreateWithoutUploadsInput>
-    connectOrCreate?: UserCreateOrConnectWithoutUploadsInput
-    upsert?: UserUpsertWithoutUploadsInput
+  export type UserUpdateOneRequiredWithoutRubricsNestedInput = {
+    create?: XOR<UserCreateWithoutRubricsInput, UserUncheckedCreateWithoutRubricsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutRubricsInput
+    upsert?: UserUpsertWithoutRubricsInput
     connect?: UserWhereUniqueInput
-    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutUploadsInput, UserUpdateWithoutUploadsInput>, UserUncheckedUpdateWithoutUploadsInput>
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutRubricsInput, UserUpdateWithoutRubricsInput>, UserUncheckedUpdateWithoutRubricsInput>
   }
 
-  export type RubricUpdateOneRequiredWithoutUploadsNestedInput = {
-    create?: XOR<RubricCreateWithoutUploadsInput, RubricUncheckedCreateWithoutUploadsInput>
-    connectOrCreate?: RubricCreateOrConnectWithoutUploadsInput
-    upsert?: RubricUpsertWithoutUploadsInput
+  export type GradingResultUpdateManyWithoutRubricNestedInput = {
+    create?: XOR<GradingResultCreateWithoutRubricInput, GradingResultUncheckedCreateWithoutRubricInput> | GradingResultCreateWithoutRubricInput[] | GradingResultUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutRubricInput | GradingResultCreateOrConnectWithoutRubricInput[]
+    upsert?: GradingResultUpsertWithWhereUniqueWithoutRubricInput | GradingResultUpsertWithWhereUniqueWithoutRubricInput[]
+    createMany?: GradingResultCreateManyRubricInputEnvelope
+    set?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    disconnect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    delete?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    update?: GradingResultUpdateWithWhereUniqueWithoutRubricInput | GradingResultUpdateWithWhereUniqueWithoutRubricInput[]
+    updateMany?: GradingResultUpdateManyWithWhereWithoutRubricInput | GradingResultUpdateManyWithWhereWithoutRubricInput[]
+    deleteMany?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
+  }
+
+  export type GradingResultUncheckedUpdateManyWithoutRubricNestedInput = {
+    create?: XOR<GradingResultCreateWithoutRubricInput, GradingResultUncheckedCreateWithoutRubricInput> | GradingResultCreateWithoutRubricInput[] | GradingResultUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutRubricInput | GradingResultCreateOrConnectWithoutRubricInput[]
+    upsert?: GradingResultUpsertWithWhereUniqueWithoutRubricInput | GradingResultUpsertWithWhereUniqueWithoutRubricInput[]
+    createMany?: GradingResultCreateManyRubricInputEnvelope
+    set?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    disconnect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    delete?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    update?: GradingResultUpdateWithWhereUniqueWithoutRubricInput | GradingResultUpdateWithWhereUniqueWithoutRubricInput[]
+    updateMany?: GradingResultUpdateManyWithWhereWithoutRubricInput | GradingResultUpdateManyWithWhereWithoutRubricInput[]
+    deleteMany?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
+  }
+
+  export type UserCreateNestedOneWithoutGradingSessionsInput = {
+    create?: XOR<UserCreateWithoutGradingSessionsInput, UserUncheckedCreateWithoutGradingSessionsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutGradingSessionsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type GradingResultCreateNestedManyWithoutGradingSessionInput = {
+    create?: XOR<GradingResultCreateWithoutGradingSessionInput, GradingResultUncheckedCreateWithoutGradingSessionInput> | GradingResultCreateWithoutGradingSessionInput[] | GradingResultUncheckedCreateWithoutGradingSessionInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutGradingSessionInput | GradingResultCreateOrConnectWithoutGradingSessionInput[]
+    createMany?: GradingResultCreateManyGradingSessionInputEnvelope
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+  }
+
+  export type GradingResultUncheckedCreateNestedManyWithoutGradingSessionInput = {
+    create?: XOR<GradingResultCreateWithoutGradingSessionInput, GradingResultUncheckedCreateWithoutGradingSessionInput> | GradingResultCreateWithoutGradingSessionInput[] | GradingResultUncheckedCreateWithoutGradingSessionInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutGradingSessionInput | GradingResultCreateOrConnectWithoutGradingSessionInput[]
+    createMany?: GradingResultCreateManyGradingSessionInputEnvelope
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+  }
+
+  export type EnumGradingSessionStatusFieldUpdateOperationsInput = {
+    set?: $Enums.GradingSessionStatus
+  }
+
+  export type UserUpdateOneRequiredWithoutGradingSessionsNestedInput = {
+    create?: XOR<UserCreateWithoutGradingSessionsInput, UserUncheckedCreateWithoutGradingSessionsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutGradingSessionsInput
+    upsert?: UserUpsertWithoutGradingSessionsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutGradingSessionsInput, UserUpdateWithoutGradingSessionsInput>, UserUncheckedUpdateWithoutGradingSessionsInput>
+  }
+
+  export type GradingResultUpdateManyWithoutGradingSessionNestedInput = {
+    create?: XOR<GradingResultCreateWithoutGradingSessionInput, GradingResultUncheckedCreateWithoutGradingSessionInput> | GradingResultCreateWithoutGradingSessionInput[] | GradingResultUncheckedCreateWithoutGradingSessionInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutGradingSessionInput | GradingResultCreateOrConnectWithoutGradingSessionInput[]
+    upsert?: GradingResultUpsertWithWhereUniqueWithoutGradingSessionInput | GradingResultUpsertWithWhereUniqueWithoutGradingSessionInput[]
+    createMany?: GradingResultCreateManyGradingSessionInputEnvelope
+    set?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    disconnect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    delete?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    update?: GradingResultUpdateWithWhereUniqueWithoutGradingSessionInput | GradingResultUpdateWithWhereUniqueWithoutGradingSessionInput[]
+    updateMany?: GradingResultUpdateManyWithWhereWithoutGradingSessionInput | GradingResultUpdateManyWithWhereWithoutGradingSessionInput[]
+    deleteMany?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
+  }
+
+  export type GradingResultUncheckedUpdateManyWithoutGradingSessionNestedInput = {
+    create?: XOR<GradingResultCreateWithoutGradingSessionInput, GradingResultUncheckedCreateWithoutGradingSessionInput> | GradingResultCreateWithoutGradingSessionInput[] | GradingResultUncheckedCreateWithoutGradingSessionInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutGradingSessionInput | GradingResultCreateOrConnectWithoutGradingSessionInput[]
+    upsert?: GradingResultUpsertWithWhereUniqueWithoutGradingSessionInput | GradingResultUpsertWithWhereUniqueWithoutGradingSessionInput[]
+    createMany?: GradingResultCreateManyGradingSessionInputEnvelope
+    set?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    disconnect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    delete?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    update?: GradingResultUpdateWithWhereUniqueWithoutGradingSessionInput | GradingResultUpdateWithWhereUniqueWithoutGradingSessionInput[]
+    updateMany?: GradingResultUpdateManyWithWhereWithoutGradingSessionInput | GradingResultUpdateManyWithWhereWithoutGradingSessionInput[]
+    deleteMany?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
+  }
+
+  export type UserCreateNestedOneWithoutUploadedFilesInput = {
+    create?: XOR<UserCreateWithoutUploadedFilesInput, UserUncheckedCreateWithoutUploadedFilesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutUploadedFilesInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type GradingResultCreateNestedManyWithoutUploadedFileInput = {
+    create?: XOR<GradingResultCreateWithoutUploadedFileInput, GradingResultUncheckedCreateWithoutUploadedFileInput> | GradingResultCreateWithoutUploadedFileInput[] | GradingResultUncheckedCreateWithoutUploadedFileInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutUploadedFileInput | GradingResultCreateOrConnectWithoutUploadedFileInput[]
+    createMany?: GradingResultCreateManyUploadedFileInputEnvelope
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+  }
+
+  export type GradingResultUncheckedCreateNestedManyWithoutUploadedFileInput = {
+    create?: XOR<GradingResultCreateWithoutUploadedFileInput, GradingResultUncheckedCreateWithoutUploadedFileInput> | GradingResultCreateWithoutUploadedFileInput[] | GradingResultUncheckedCreateWithoutUploadedFileInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutUploadedFileInput | GradingResultCreateOrConnectWithoutUploadedFileInput[]
+    createMany?: GradingResultCreateManyUploadedFileInputEnvelope
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+  }
+
+  export type EnumFileParseStatusFieldUpdateOperationsInput = {
+    set?: $Enums.FileParseStatus
+  }
+
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
+  }
+
+  export type NullableDateTimeFieldUpdateOperationsInput = {
+    set?: Date | string | null
+  }
+
+  export type UserUpdateOneRequiredWithoutUploadedFilesNestedInput = {
+    create?: XOR<UserCreateWithoutUploadedFilesInput, UserUncheckedCreateWithoutUploadedFilesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutUploadedFilesInput
+    upsert?: UserUpsertWithoutUploadedFilesInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutUploadedFilesInput, UserUpdateWithoutUploadedFilesInput>, UserUncheckedUpdateWithoutUploadedFilesInput>
+  }
+
+  export type GradingResultUpdateManyWithoutUploadedFileNestedInput = {
+    create?: XOR<GradingResultCreateWithoutUploadedFileInput, GradingResultUncheckedCreateWithoutUploadedFileInput> | GradingResultCreateWithoutUploadedFileInput[] | GradingResultUncheckedCreateWithoutUploadedFileInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutUploadedFileInput | GradingResultCreateOrConnectWithoutUploadedFileInput[]
+    upsert?: GradingResultUpsertWithWhereUniqueWithoutUploadedFileInput | GradingResultUpsertWithWhereUniqueWithoutUploadedFileInput[]
+    createMany?: GradingResultCreateManyUploadedFileInputEnvelope
+    set?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    disconnect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    delete?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    update?: GradingResultUpdateWithWhereUniqueWithoutUploadedFileInput | GradingResultUpdateWithWhereUniqueWithoutUploadedFileInput[]
+    updateMany?: GradingResultUpdateManyWithWhereWithoutUploadedFileInput | GradingResultUpdateManyWithWhereWithoutUploadedFileInput[]
+    deleteMany?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
+  }
+
+  export type GradingResultUncheckedUpdateManyWithoutUploadedFileNestedInput = {
+    create?: XOR<GradingResultCreateWithoutUploadedFileInput, GradingResultUncheckedCreateWithoutUploadedFileInput> | GradingResultCreateWithoutUploadedFileInput[] | GradingResultUncheckedCreateWithoutUploadedFileInput[]
+    connectOrCreate?: GradingResultCreateOrConnectWithoutUploadedFileInput | GradingResultCreateOrConnectWithoutUploadedFileInput[]
+    upsert?: GradingResultUpsertWithWhereUniqueWithoutUploadedFileInput | GradingResultUpsertWithWhereUniqueWithoutUploadedFileInput[]
+    createMany?: GradingResultCreateManyUploadedFileInputEnvelope
+    set?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    disconnect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    delete?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+    update?: GradingResultUpdateWithWhereUniqueWithoutUploadedFileInput | GradingResultUpdateWithWhereUniqueWithoutUploadedFileInput[]
+    updateMany?: GradingResultUpdateManyWithWhereWithoutUploadedFileInput | GradingResultUpdateManyWithWhereWithoutUploadedFileInput[]
+    deleteMany?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
+  }
+
+  export type GradingSessionCreateNestedOneWithoutGradingResultsInput = {
+    create?: XOR<GradingSessionCreateWithoutGradingResultsInput, GradingSessionUncheckedCreateWithoutGradingResultsInput>
+    connectOrCreate?: GradingSessionCreateOrConnectWithoutGradingResultsInput
+    connect?: GradingSessionWhereUniqueInput
+  }
+
+  export type UploadedFileCreateNestedOneWithoutGradingResultsInput = {
+    create?: XOR<UploadedFileCreateWithoutGradingResultsInput, UploadedFileUncheckedCreateWithoutGradingResultsInput>
+    connectOrCreate?: UploadedFileCreateOrConnectWithoutGradingResultsInput
+    connect?: UploadedFileWhereUniqueInput
+  }
+
+  export type RubricCreateNestedOneWithoutGradingResultsInput = {
+    create?: XOR<RubricCreateWithoutGradingResultsInput, RubricUncheckedCreateWithoutGradingResultsInput>
+    connectOrCreate?: RubricCreateOrConnectWithoutGradingResultsInput
     connect?: RubricWhereUniqueInput
-    update?: XOR<XOR<RubricUpdateToOneWithWhereWithoutUploadsInput, RubricUpdateWithoutUploadsInput>, RubricUncheckedUpdateWithoutUploadsInput>
+  }
+
+  export type EnumGradingStatusFieldUpdateOperationsInput = {
+    set?: $Enums.GradingStatus
+  }
+
+  export type NullableIntFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
+  export type GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput = {
+    create?: XOR<GradingSessionCreateWithoutGradingResultsInput, GradingSessionUncheckedCreateWithoutGradingResultsInput>
+    connectOrCreate?: GradingSessionCreateOrConnectWithoutGradingResultsInput
+    upsert?: GradingSessionUpsertWithoutGradingResultsInput
+    connect?: GradingSessionWhereUniqueInput
+    update?: XOR<XOR<GradingSessionUpdateToOneWithWhereWithoutGradingResultsInput, GradingSessionUpdateWithoutGradingResultsInput>, GradingSessionUncheckedUpdateWithoutGradingResultsInput>
+  }
+
+  export type UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput = {
+    create?: XOR<UploadedFileCreateWithoutGradingResultsInput, UploadedFileUncheckedCreateWithoutGradingResultsInput>
+    connectOrCreate?: UploadedFileCreateOrConnectWithoutGradingResultsInput
+    upsert?: UploadedFileUpsertWithoutGradingResultsInput
+    connect?: UploadedFileWhereUniqueInput
+    update?: XOR<XOR<UploadedFileUpdateToOneWithWhereWithoutGradingResultsInput, UploadedFileUpdateWithoutGradingResultsInput>, UploadedFileUncheckedUpdateWithoutGradingResultsInput>
+  }
+
+  export type RubricUpdateOneRequiredWithoutGradingResultsNestedInput = {
+    create?: XOR<RubricCreateWithoutGradingResultsInput, RubricUncheckedCreateWithoutGradingResultsInput>
+    connectOrCreate?: RubricCreateOrConnectWithoutGradingResultsInput
+    upsert?: RubricUpsertWithoutGradingResultsInput
+    connect?: RubricWhereUniqueInput
+    update?: XOR<XOR<RubricUpdateToOneWithWhereWithoutGradingResultsInput, RubricUpdateWithoutGradingResultsInput>, RubricUncheckedUpdateWithoutGradingResultsInput>
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -5776,35 +9498,10 @@ export namespace Prisma {
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
-  export type NestedJsonFilter<$PrismaModel = never> =
-    | PatchUndefined<
-        Either<Required<NestedJsonFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonFilterBase<$PrismaModel>>, 'path'>>,
-        Required<NestedJsonFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<NestedJsonFilterBase<$PrismaModel>>, 'path'>>
 
-  export type NestedJsonFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-  }
-
-  export type NestedEnumUploadStatusFilter<$PrismaModel = never> = {
-    equals?: $Enums.UploadStatus | EnumUploadStatusFieldRefInput<$PrismaModel>
-    in?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
-    notIn?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
-    not?: NestedEnumUploadStatusFilter<$PrismaModel> | $Enums.UploadStatus
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
@@ -5834,14 +9531,111 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
-  export type NestedEnumUploadStatusWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: $Enums.UploadStatus | EnumUploadStatusFieldRefInput<$PrismaModel>
-    in?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
-    notIn?: $Enums.UploadStatus[] | ListEnumUploadStatusFieldRefInput<$PrismaModel>
-    not?: NestedEnumUploadStatusWithAggregatesFilter<$PrismaModel> | $Enums.UploadStatus
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
     _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedEnumUploadStatusFilter<$PrismaModel>
-    _max?: NestedEnumUploadStatusFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+  export type NestedJsonFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<NestedJsonFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonFilterBase<$PrismaModel>>, 'path'>>,
+        Required<NestedJsonFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<NestedJsonFilterBase<$PrismaModel>>, 'path'>>
+
+  export type NestedJsonFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
+
+  export type NestedEnumGradingSessionStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.GradingSessionStatus | EnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.GradingSessionStatus[] | ListEnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.GradingSessionStatus[] | ListEnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumGradingSessionStatusFilter<$PrismaModel> | $Enums.GradingSessionStatus
+  }
+
+  export type NestedEnumGradingSessionStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.GradingSessionStatus | EnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.GradingSessionStatus[] | ListEnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.GradingSessionStatus[] | ListEnumGradingSessionStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumGradingSessionStatusWithAggregatesFilter<$PrismaModel> | $Enums.GradingSessionStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumGradingSessionStatusFilter<$PrismaModel>
+    _max?: NestedEnumGradingSessionStatusFilter<$PrismaModel>
+  }
+
+  export type NestedEnumFileParseStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.FileParseStatus | EnumFileParseStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.FileParseStatus[] | ListEnumFileParseStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.FileParseStatus[] | ListEnumFileParseStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumFileParseStatusFilter<$PrismaModel> | $Enums.FileParseStatus
+  }
+
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
+  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
+  export type NestedEnumFileParseStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.FileParseStatus | EnumFileParseStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.FileParseStatus[] | ListEnumFileParseStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.FileParseStatus[] | ListEnumFileParseStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumFileParseStatusWithAggregatesFilter<$PrismaModel> | $Enums.FileParseStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumFileParseStatusFilter<$PrismaModel>
+    _max?: NestedEnumFileParseStatusFilter<$PrismaModel>
+  }
+
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type NestedIntNullableFilter<$PrismaModel = never> = {
@@ -5853,6 +9647,37 @@ export namespace Prisma {
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
+  export type NestedEnumGradingStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.GradingStatus | EnumGradingStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.GradingStatus[] | ListEnumGradingStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.GradingStatus[] | ListEnumGradingStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumGradingStatusFilter<$PrismaModel> | $Enums.GradingStatus
+  }
+
+  export type NestedEnumGradingStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.GradingStatus | EnumGradingStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.GradingStatus[] | ListEnumGradingStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.GradingStatus[] | ListEnumGradingStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumGradingStatusWithAggregatesFilter<$PrismaModel> | $Enums.GradingStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumGradingStatusFilter<$PrismaModel>
+    _max?: NestedEnumGradingStatusFilter<$PrismaModel>
   }
   export type NestedJsonNullableFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -5878,24 +9703,55 @@ export namespace Prisma {
     not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
   }
 
+  export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+
+  export type NestedFloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
   export type RubricCreateWithoutUserInput = {
     id?: string
     name: string
     description: string
+    version?: number
+    isActive?: boolean
     criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
-    uploads?: UploadCreateNestedManyWithoutRubricInput
+    gradingResults?: GradingResultCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUncheckedCreateWithoutUserInput = {
     id?: string
     name: string
     description: string
+    version?: number
+    isActive?: boolean
     criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
-    uploads?: UploadUncheckedCreateNestedManyWithoutRubricInput
+    gradingResults?: GradingResultUncheckedCreateNestedManyWithoutRubricInput
   }
 
   export type RubricCreateOrConnectWithoutUserInput = {
@@ -5908,41 +9764,73 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
-  export type UploadCreateWithoutUserInput = {
+  export type GradingSessionCreateWithoutUserInput = {
     id?: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status?: $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: $Enums.GradingSessionStatus
+    progress?: number
     createdAt?: Date | string
     updatedAt?: Date | string
-    rubric: RubricCreateNestedOneWithoutUploadsInput
+    gradingResults?: GradingResultCreateNestedManyWithoutGradingSessionInput
   }
 
-  export type UploadUncheckedCreateWithoutUserInput = {
+  export type GradingSessionUncheckedCreateWithoutUserInput = {
     id?: string
-    rubricId: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status?: $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: $Enums.GradingSessionStatus
+    progress?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    gradingResults?: GradingResultUncheckedCreateNestedManyWithoutGradingSessionInput
   }
 
-  export type UploadCreateOrConnectWithoutUserInput = {
-    where: UploadWhereUniqueInput
-    create: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput>
+  export type GradingSessionCreateOrConnectWithoutUserInput = {
+    where: GradingSessionWhereUniqueInput
+    create: XOR<GradingSessionCreateWithoutUserInput, GradingSessionUncheckedCreateWithoutUserInput>
   }
 
-  export type UploadCreateManyUserInputEnvelope = {
-    data: UploadCreateManyUserInput | UploadCreateManyUserInput[]
+  export type GradingSessionCreateManyUserInputEnvelope = {
+    data: GradingSessionCreateManyUserInput | GradingSessionCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UploadedFileCreateWithoutUserInput = {
+    id?: string
+    fileName: string
+    originalFileName: string
+    fileKey: string
+    fileSize: number
+    mimeType: string
+    parseStatus?: $Enums.FileParseStatus
+    parsedContent?: string | null
+    parseError?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    expiresAt?: Date | string | null
+    gradingResults?: GradingResultCreateNestedManyWithoutUploadedFileInput
+  }
+
+  export type UploadedFileUncheckedCreateWithoutUserInput = {
+    id?: string
+    fileName: string
+    originalFileName: string
+    fileKey: string
+    fileSize: number
+    mimeType: string
+    parseStatus?: $Enums.FileParseStatus
+    parsedContent?: string | null
+    parseError?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    expiresAt?: Date | string | null
+    gradingResults?: GradingResultUncheckedCreateNestedManyWithoutUploadedFileInput
+  }
+
+  export type UploadedFileCreateOrConnectWithoutUserInput = {
+    where: UploadedFileWhereUniqueInput
+    create: XOR<UploadedFileCreateWithoutUserInput, UploadedFileUncheckedCreateWithoutUserInput>
+  }
+
+  export type UploadedFileCreateManyUserInputEnvelope = {
+    data: UploadedFileCreateManyUserInput | UploadedFileCreateManyUserInput[]
     skipDuplicates?: boolean
   }
 
@@ -5970,43 +9858,74 @@ export namespace Prisma {
     userId?: StringFilter<"Rubric"> | string
     name?: StringFilter<"Rubric"> | string
     description?: StringFilter<"Rubric"> | string
+    version?: IntFilter<"Rubric"> | number
+    isActive?: BoolFilter<"Rubric"> | boolean
     criteria?: JsonFilter<"Rubric">
     createdAt?: DateTimeFilter<"Rubric"> | Date | string
     updatedAt?: DateTimeFilter<"Rubric"> | Date | string
   }
 
-  export type UploadUpsertWithWhereUniqueWithoutUserInput = {
-    where: UploadWhereUniqueInput
-    update: XOR<UploadUpdateWithoutUserInput, UploadUncheckedUpdateWithoutUserInput>
-    create: XOR<UploadCreateWithoutUserInput, UploadUncheckedCreateWithoutUserInput>
+  export type GradingSessionUpsertWithWhereUniqueWithoutUserInput = {
+    where: GradingSessionWhereUniqueInput
+    update: XOR<GradingSessionUpdateWithoutUserInput, GradingSessionUncheckedUpdateWithoutUserInput>
+    create: XOR<GradingSessionCreateWithoutUserInput, GradingSessionUncheckedCreateWithoutUserInput>
   }
 
-  export type UploadUpdateWithWhereUniqueWithoutUserInput = {
-    where: UploadWhereUniqueInput
-    data: XOR<UploadUpdateWithoutUserInput, UploadUncheckedUpdateWithoutUserInput>
+  export type GradingSessionUpdateWithWhereUniqueWithoutUserInput = {
+    where: GradingSessionWhereUniqueInput
+    data: XOR<GradingSessionUpdateWithoutUserInput, GradingSessionUncheckedUpdateWithoutUserInput>
   }
 
-  export type UploadUpdateManyWithWhereWithoutUserInput = {
-    where: UploadScalarWhereInput
-    data: XOR<UploadUpdateManyMutationInput, UploadUncheckedUpdateManyWithoutUserInput>
+  export type GradingSessionUpdateManyWithWhereWithoutUserInput = {
+    where: GradingSessionScalarWhereInput
+    data: XOR<GradingSessionUpdateManyMutationInput, GradingSessionUncheckedUpdateManyWithoutUserInput>
   }
 
-  export type UploadScalarWhereInput = {
-    AND?: UploadScalarWhereInput | UploadScalarWhereInput[]
-    OR?: UploadScalarWhereInput[]
-    NOT?: UploadScalarWhereInput | UploadScalarWhereInput[]
-    id?: StringFilter<"Upload"> | string
-    userId?: StringFilter<"Upload"> | string
-    rubricId?: StringFilter<"Upload"> | string
-    originalFileName?: StringFilter<"Upload"> | string
-    storedFileKey?: StringFilter<"Upload"> | string
-    storageLocation?: StringFilter<"Upload"> | string
-    fileSize?: IntFilter<"Upload"> | number
-    mimeType?: StringFilter<"Upload"> | string
-    status?: EnumUploadStatusFilter<"Upload"> | $Enums.UploadStatus
-    result?: JsonNullableFilter<"Upload">
-    createdAt?: DateTimeFilter<"Upload"> | Date | string
-    updatedAt?: DateTimeFilter<"Upload"> | Date | string
+  export type GradingSessionScalarWhereInput = {
+    AND?: GradingSessionScalarWhereInput | GradingSessionScalarWhereInput[]
+    OR?: GradingSessionScalarWhereInput[]
+    NOT?: GradingSessionScalarWhereInput | GradingSessionScalarWhereInput[]
+    id?: StringFilter<"GradingSession"> | string
+    userId?: StringFilter<"GradingSession"> | string
+    status?: EnumGradingSessionStatusFilter<"GradingSession"> | $Enums.GradingSessionStatus
+    progress?: IntFilter<"GradingSession"> | number
+    createdAt?: DateTimeFilter<"GradingSession"> | Date | string
+    updatedAt?: DateTimeFilter<"GradingSession"> | Date | string
+  }
+
+  export type UploadedFileUpsertWithWhereUniqueWithoutUserInput = {
+    where: UploadedFileWhereUniqueInput
+    update: XOR<UploadedFileUpdateWithoutUserInput, UploadedFileUncheckedUpdateWithoutUserInput>
+    create: XOR<UploadedFileCreateWithoutUserInput, UploadedFileUncheckedCreateWithoutUserInput>
+  }
+
+  export type UploadedFileUpdateWithWhereUniqueWithoutUserInput = {
+    where: UploadedFileWhereUniqueInput
+    data: XOR<UploadedFileUpdateWithoutUserInput, UploadedFileUncheckedUpdateWithoutUserInput>
+  }
+
+  export type UploadedFileUpdateManyWithWhereWithoutUserInput = {
+    where: UploadedFileScalarWhereInput
+    data: XOR<UploadedFileUpdateManyMutationInput, UploadedFileUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type UploadedFileScalarWhereInput = {
+    AND?: UploadedFileScalarWhereInput | UploadedFileScalarWhereInput[]
+    OR?: UploadedFileScalarWhereInput[]
+    NOT?: UploadedFileScalarWhereInput | UploadedFileScalarWhereInput[]
+    id?: StringFilter<"UploadedFile"> | string
+    userId?: StringFilter<"UploadedFile"> | string
+    fileName?: StringFilter<"UploadedFile"> | string
+    originalFileName?: StringFilter<"UploadedFile"> | string
+    fileKey?: StringFilter<"UploadedFile"> | string
+    fileSize?: IntFilter<"UploadedFile"> | number
+    mimeType?: StringFilter<"UploadedFile"> | string
+    parseStatus?: EnumFileParseStatusFilter<"UploadedFile"> | $Enums.FileParseStatus
+    parsedContent?: StringNullableFilter<"UploadedFile"> | string | null
+    parseError?: StringNullableFilter<"UploadedFile"> | string | null
+    createdAt?: DateTimeFilter<"UploadedFile"> | Date | string
+    updatedAt?: DateTimeFilter<"UploadedFile"> | Date | string
+    expiresAt?: DateTimeNullableFilter<"UploadedFile"> | Date | string | null
   }
 
   export type UserCreateWithoutRubricsInput = {
@@ -6014,7 +9933,8 @@ export namespace Prisma {
     email: string
     createdAt?: Date | string
     updatedAt?: Date | string
-    uploads?: UploadCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutRubricsInput = {
@@ -6022,7 +9942,8 @@ export namespace Prisma {
     email: string
     createdAt?: Date | string
     updatedAt?: Date | string
-    uploads?: UploadUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutRubricsInput = {
@@ -6030,41 +9951,45 @@ export namespace Prisma {
     create: XOR<UserCreateWithoutRubricsInput, UserUncheckedCreateWithoutRubricsInput>
   }
 
-  export type UploadCreateWithoutRubricInput = {
+  export type GradingResultCreateWithoutRubricInput = {
     id?: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status?: $Enums.UploadStatus
+    status?: $Enums.GradingStatus
+    progress?: number
     result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    user: UserCreateNestedOneWithoutUploadsInput
+    completedAt?: Date | string | null
+    gradingSession: GradingSessionCreateNestedOneWithoutGradingResultsInput
+    uploadedFile: UploadedFileCreateNestedOneWithoutGradingResultsInput
   }
 
-  export type UploadUncheckedCreateWithoutRubricInput = {
+  export type GradingResultUncheckedCreateWithoutRubricInput = {
     id?: string
-    userId: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status?: $Enums.UploadStatus
+    gradingSessionId: string
+    uploadedFileId: string
+    status?: $Enums.GradingStatus
+    progress?: number
     result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    completedAt?: Date | string | null
   }
 
-  export type UploadCreateOrConnectWithoutRubricInput = {
-    where: UploadWhereUniqueInput
-    create: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput>
+  export type GradingResultCreateOrConnectWithoutRubricInput = {
+    where: GradingResultWhereUniqueInput
+    create: XOR<GradingResultCreateWithoutRubricInput, GradingResultUncheckedCreateWithoutRubricInput>
   }
 
-  export type UploadCreateManyRubricInputEnvelope = {
-    data: UploadCreateManyRubricInput | UploadCreateManyRubricInput[]
+  export type GradingResultCreateManyRubricInputEnvelope = {
+    data: GradingResultCreateManyRubricInput | GradingResultCreateManyRubricInput[]
     skipDuplicates?: boolean
   }
 
@@ -6084,7 +10009,8 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    uploads?: UploadUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutRubricsInput = {
@@ -6092,124 +10018,457 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    uploads?: UploadUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
   }
 
-  export type UploadUpsertWithWhereUniqueWithoutRubricInput = {
-    where: UploadWhereUniqueInput
-    update: XOR<UploadUpdateWithoutRubricInput, UploadUncheckedUpdateWithoutRubricInput>
-    create: XOR<UploadCreateWithoutRubricInput, UploadUncheckedCreateWithoutRubricInput>
+  export type GradingResultUpsertWithWhereUniqueWithoutRubricInput = {
+    where: GradingResultWhereUniqueInput
+    update: XOR<GradingResultUpdateWithoutRubricInput, GradingResultUncheckedUpdateWithoutRubricInput>
+    create: XOR<GradingResultCreateWithoutRubricInput, GradingResultUncheckedCreateWithoutRubricInput>
   }
 
-  export type UploadUpdateWithWhereUniqueWithoutRubricInput = {
-    where: UploadWhereUniqueInput
-    data: XOR<UploadUpdateWithoutRubricInput, UploadUncheckedUpdateWithoutRubricInput>
+  export type GradingResultUpdateWithWhereUniqueWithoutRubricInput = {
+    where: GradingResultWhereUniqueInput
+    data: XOR<GradingResultUpdateWithoutRubricInput, GradingResultUncheckedUpdateWithoutRubricInput>
   }
 
-  export type UploadUpdateManyWithWhereWithoutRubricInput = {
-    where: UploadScalarWhereInput
-    data: XOR<UploadUpdateManyMutationInput, UploadUncheckedUpdateManyWithoutRubricInput>
+  export type GradingResultUpdateManyWithWhereWithoutRubricInput = {
+    where: GradingResultScalarWhereInput
+    data: XOR<GradingResultUpdateManyMutationInput, GradingResultUncheckedUpdateManyWithoutRubricInput>
   }
 
-  export type UserCreateWithoutUploadsInput = {
+  export type GradingResultScalarWhereInput = {
+    AND?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
+    OR?: GradingResultScalarWhereInput[]
+    NOT?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
+    id?: StringFilter<"GradingResult"> | string
+    gradingSessionId?: StringFilter<"GradingResult"> | string
+    uploadedFileId?: StringFilter<"GradingResult"> | string
+    rubricId?: StringFilter<"GradingResult"> | string
+    status?: EnumGradingStatusFilter<"GradingResult"> | $Enums.GradingStatus
+    progress?: IntFilter<"GradingResult"> | number
+    result?: JsonNullableFilter<"GradingResult">
+    errorMessage?: StringNullableFilter<"GradingResult"> | string | null
+    gradingModel?: StringNullableFilter<"GradingResult"> | string | null
+    gradingTokens?: IntNullableFilter<"GradingResult"> | number | null
+    gradingDuration?: IntNullableFilter<"GradingResult"> | number | null
+    createdAt?: DateTimeFilter<"GradingResult"> | Date | string
+    updatedAt?: DateTimeFilter<"GradingResult"> | Date | string
+    completedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
+  }
+
+  export type UserCreateWithoutGradingSessionsInput = {
     id?: string
     email: string
     createdAt?: Date | string
     updatedAt?: Date | string
     rubrics?: RubricCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
   }
 
-  export type UserUncheckedCreateWithoutUploadsInput = {
+  export type UserUncheckedCreateWithoutGradingSessionsInput = {
     id?: string
     email: string
     createdAt?: Date | string
     updatedAt?: Date | string
     rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
   }
 
-  export type UserCreateOrConnectWithoutUploadsInput = {
+  export type UserCreateOrConnectWithoutGradingSessionsInput = {
     where: UserWhereUniqueInput
-    create: XOR<UserCreateWithoutUploadsInput, UserUncheckedCreateWithoutUploadsInput>
+    create: XOR<UserCreateWithoutGradingSessionsInput, UserUncheckedCreateWithoutGradingSessionsInput>
   }
 
-  export type RubricCreateWithoutUploadsInput = {
+  export type GradingResultCreateWithoutGradingSessionInput = {
+    id?: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+    uploadedFile: UploadedFileCreateNestedOneWithoutGradingResultsInput
+    rubric: RubricCreateNestedOneWithoutGradingResultsInput
+  }
+
+  export type GradingResultUncheckedCreateWithoutGradingSessionInput = {
+    id?: string
+    uploadedFileId: string
+    rubricId: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type GradingResultCreateOrConnectWithoutGradingSessionInput = {
+    where: GradingResultWhereUniqueInput
+    create: XOR<GradingResultCreateWithoutGradingSessionInput, GradingResultUncheckedCreateWithoutGradingSessionInput>
+  }
+
+  export type GradingResultCreateManyGradingSessionInputEnvelope = {
+    data: GradingResultCreateManyGradingSessionInput | GradingResultCreateManyGradingSessionInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UserUpsertWithoutGradingSessionsInput = {
+    update: XOR<UserUpdateWithoutGradingSessionsInput, UserUncheckedUpdateWithoutGradingSessionsInput>
+    create: XOR<UserCreateWithoutGradingSessionsInput, UserUncheckedCreateWithoutGradingSessionsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutGradingSessionsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutGradingSessionsInput, UserUncheckedUpdateWithoutGradingSessionsInput>
+  }
+
+  export type UserUpdateWithoutGradingSessionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutGradingSessionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type GradingResultUpsertWithWhereUniqueWithoutGradingSessionInput = {
+    where: GradingResultWhereUniqueInput
+    update: XOR<GradingResultUpdateWithoutGradingSessionInput, GradingResultUncheckedUpdateWithoutGradingSessionInput>
+    create: XOR<GradingResultCreateWithoutGradingSessionInput, GradingResultUncheckedCreateWithoutGradingSessionInput>
+  }
+
+  export type GradingResultUpdateWithWhereUniqueWithoutGradingSessionInput = {
+    where: GradingResultWhereUniqueInput
+    data: XOR<GradingResultUpdateWithoutGradingSessionInput, GradingResultUncheckedUpdateWithoutGradingSessionInput>
+  }
+
+  export type GradingResultUpdateManyWithWhereWithoutGradingSessionInput = {
+    where: GradingResultScalarWhereInput
+    data: XOR<GradingResultUpdateManyMutationInput, GradingResultUncheckedUpdateManyWithoutGradingSessionInput>
+  }
+
+  export type UserCreateWithoutUploadedFilesInput = {
+    id?: string
+    email: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutUploadedFilesInput = {
+    id?: string
+    email: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutUploadedFilesInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutUploadedFilesInput, UserUncheckedCreateWithoutUploadedFilesInput>
+  }
+
+  export type GradingResultCreateWithoutUploadedFileInput = {
+    id?: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+    gradingSession: GradingSessionCreateNestedOneWithoutGradingResultsInput
+    rubric: RubricCreateNestedOneWithoutGradingResultsInput
+  }
+
+  export type GradingResultUncheckedCreateWithoutUploadedFileInput = {
+    id?: string
+    gradingSessionId: string
+    rubricId: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type GradingResultCreateOrConnectWithoutUploadedFileInput = {
+    where: GradingResultWhereUniqueInput
+    create: XOR<GradingResultCreateWithoutUploadedFileInput, GradingResultUncheckedCreateWithoutUploadedFileInput>
+  }
+
+  export type GradingResultCreateManyUploadedFileInputEnvelope = {
+    data: GradingResultCreateManyUploadedFileInput | GradingResultCreateManyUploadedFileInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UserUpsertWithoutUploadedFilesInput = {
+    update: XOR<UserUpdateWithoutUploadedFilesInput, UserUncheckedUpdateWithoutUploadedFilesInput>
+    create: XOR<UserCreateWithoutUploadedFilesInput, UserUncheckedCreateWithoutUploadedFilesInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutUploadedFilesInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutUploadedFilesInput, UserUncheckedUpdateWithoutUploadedFilesInput>
+  }
+
+  export type UserUpdateWithoutUploadedFilesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutUploadedFilesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type GradingResultUpsertWithWhereUniqueWithoutUploadedFileInput = {
+    where: GradingResultWhereUniqueInput
+    update: XOR<GradingResultUpdateWithoutUploadedFileInput, GradingResultUncheckedUpdateWithoutUploadedFileInput>
+    create: XOR<GradingResultCreateWithoutUploadedFileInput, GradingResultUncheckedCreateWithoutUploadedFileInput>
+  }
+
+  export type GradingResultUpdateWithWhereUniqueWithoutUploadedFileInput = {
+    where: GradingResultWhereUniqueInput
+    data: XOR<GradingResultUpdateWithoutUploadedFileInput, GradingResultUncheckedUpdateWithoutUploadedFileInput>
+  }
+
+  export type GradingResultUpdateManyWithWhereWithoutUploadedFileInput = {
+    where: GradingResultScalarWhereInput
+    data: XOR<GradingResultUpdateManyMutationInput, GradingResultUncheckedUpdateManyWithoutUploadedFileInput>
+  }
+
+  export type GradingSessionCreateWithoutGradingResultsInput = {
+    id?: string
+    status?: $Enums.GradingSessionStatus
+    progress?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutGradingSessionsInput
+  }
+
+  export type GradingSessionUncheckedCreateWithoutGradingResultsInput = {
+    id?: string
+    userId: string
+    status?: $Enums.GradingSessionStatus
+    progress?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type GradingSessionCreateOrConnectWithoutGradingResultsInput = {
+    where: GradingSessionWhereUniqueInput
+    create: XOR<GradingSessionCreateWithoutGradingResultsInput, GradingSessionUncheckedCreateWithoutGradingResultsInput>
+  }
+
+  export type UploadedFileCreateWithoutGradingResultsInput = {
+    id?: string
+    fileName: string
+    originalFileName: string
+    fileKey: string
+    fileSize: number
+    mimeType: string
+    parseStatus?: $Enums.FileParseStatus
+    parsedContent?: string | null
+    parseError?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    expiresAt?: Date | string | null
+    user: UserCreateNestedOneWithoutUploadedFilesInput
+  }
+
+  export type UploadedFileUncheckedCreateWithoutGradingResultsInput = {
+    id?: string
+    userId: string
+    fileName: string
+    originalFileName: string
+    fileKey: string
+    fileSize: number
+    mimeType: string
+    parseStatus?: $Enums.FileParseStatus
+    parsedContent?: string | null
+    parseError?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    expiresAt?: Date | string | null
+  }
+
+  export type UploadedFileCreateOrConnectWithoutGradingResultsInput = {
+    where: UploadedFileWhereUniqueInput
+    create: XOR<UploadedFileCreateWithoutGradingResultsInput, UploadedFileUncheckedCreateWithoutGradingResultsInput>
+  }
+
+  export type RubricCreateWithoutGradingResultsInput = {
     id?: string
     name: string
     description: string
+    version?: number
+    isActive?: boolean
     criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutRubricsInput
   }
 
-  export type RubricUncheckedCreateWithoutUploadsInput = {
+  export type RubricUncheckedCreateWithoutGradingResultsInput = {
     id?: string
     userId: string
     name: string
     description: string
+    version?: number
+    isActive?: boolean
     criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
-  export type RubricCreateOrConnectWithoutUploadsInput = {
+  export type RubricCreateOrConnectWithoutGradingResultsInput = {
     where: RubricWhereUniqueInput
-    create: XOR<RubricCreateWithoutUploadsInput, RubricUncheckedCreateWithoutUploadsInput>
+    create: XOR<RubricCreateWithoutGradingResultsInput, RubricUncheckedCreateWithoutGradingResultsInput>
   }
 
-  export type UserUpsertWithoutUploadsInput = {
-    update: XOR<UserUpdateWithoutUploadsInput, UserUncheckedUpdateWithoutUploadsInput>
-    create: XOR<UserCreateWithoutUploadsInput, UserUncheckedCreateWithoutUploadsInput>
-    where?: UserWhereInput
+  export type GradingSessionUpsertWithoutGradingResultsInput = {
+    update: XOR<GradingSessionUpdateWithoutGradingResultsInput, GradingSessionUncheckedUpdateWithoutGradingResultsInput>
+    create: XOR<GradingSessionCreateWithoutGradingResultsInput, GradingSessionUncheckedCreateWithoutGradingResultsInput>
+    where?: GradingSessionWhereInput
   }
 
-  export type UserUpdateToOneWithWhereWithoutUploadsInput = {
-    where?: UserWhereInput
-    data: XOR<UserUpdateWithoutUploadsInput, UserUncheckedUpdateWithoutUploadsInput>
+  export type GradingSessionUpdateToOneWithWhereWithoutGradingResultsInput = {
+    where?: GradingSessionWhereInput
+    data: XOR<GradingSessionUpdateWithoutGradingResultsInput, GradingSessionUncheckedUpdateWithoutGradingResultsInput>
   }
 
-  export type UserUpdateWithoutUploadsInput = {
+  export type GradingSessionUpdateWithoutGradingResultsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingSessionStatusFieldUpdateOperationsInput | $Enums.GradingSessionStatus
+    progress?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    user?: UserUpdateOneRequiredWithoutGradingSessionsNestedInput
   }
 
-  export type UserUncheckedUpdateWithoutUploadsInput = {
+  export type GradingSessionUncheckedUpdateWithoutGradingResultsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingSessionStatusFieldUpdateOperationsInput | $Enums.GradingSessionStatus
+    progress?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
   }
 
-  export type RubricUpsertWithoutUploadsInput = {
-    update: XOR<RubricUpdateWithoutUploadsInput, RubricUncheckedUpdateWithoutUploadsInput>
-    create: XOR<RubricCreateWithoutUploadsInput, RubricUncheckedCreateWithoutUploadsInput>
+  export type UploadedFileUpsertWithoutGradingResultsInput = {
+    update: XOR<UploadedFileUpdateWithoutGradingResultsInput, UploadedFileUncheckedUpdateWithoutGradingResultsInput>
+    create: XOR<UploadedFileCreateWithoutGradingResultsInput, UploadedFileUncheckedCreateWithoutGradingResultsInput>
+    where?: UploadedFileWhereInput
+  }
+
+  export type UploadedFileUpdateToOneWithWhereWithoutGradingResultsInput = {
+    where?: UploadedFileWhereInput
+    data: XOR<UploadedFileUpdateWithoutGradingResultsInput, UploadedFileUncheckedUpdateWithoutGradingResultsInput>
+  }
+
+  export type UploadedFileUpdateWithoutGradingResultsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    fileKey?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
+    parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parseError?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    user?: UserUpdateOneRequiredWithoutUploadedFilesNestedInput
+  }
+
+  export type UploadedFileUncheckedUpdateWithoutGradingResultsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    fileKey?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
+    parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parseError?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type RubricUpsertWithoutGradingResultsInput = {
+    update: XOR<RubricUpdateWithoutGradingResultsInput, RubricUncheckedUpdateWithoutGradingResultsInput>
+    create: XOR<RubricCreateWithoutGradingResultsInput, RubricUncheckedCreateWithoutGradingResultsInput>
     where?: RubricWhereInput
   }
 
-  export type RubricUpdateToOneWithWhereWithoutUploadsInput = {
+  export type RubricUpdateToOneWithWhereWithoutGradingResultsInput = {
     where?: RubricWhereInput
-    data: XOR<RubricUpdateWithoutUploadsInput, RubricUncheckedUpdateWithoutUploadsInput>
+    data: XOR<RubricUpdateWithoutGradingResultsInput, RubricUncheckedUpdateWithoutGradingResultsInput>
   }
 
-  export type RubricUpdateWithoutUploadsInput = {
+  export type RubricUpdateWithoutGradingResultsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutRubricsNestedInput
   }
 
-  export type RubricUncheckedUpdateWithoutUploadsInput = {
+  export type RubricUncheckedUpdateWithoutGradingResultsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -6219,150 +10478,334 @@ export namespace Prisma {
     id?: string
     name: string
     description: string
+    version?: number
+    isActive?: boolean
     criteria: JsonNullValueInput | InputJsonValue
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
-  export type UploadCreateManyUserInput = {
+  export type GradingSessionCreateManyUserInput = {
     id?: string
-    rubricId: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status?: $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: $Enums.GradingSessionStatus
+    progress?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+  }
+
+  export type UploadedFileCreateManyUserInput = {
+    id?: string
+    fileName: string
+    originalFileName: string
+    fileKey: string
+    fileSize: number
+    mimeType: string
+    parseStatus?: $Enums.FileParseStatus
+    parsedContent?: string | null
+    parseError?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    expiresAt?: Date | string | null
   }
 
   export type RubricUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    uploads?: UploadUpdateManyWithoutRubricNestedInput
+    gradingResults?: GradingResultUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    uploads?: UploadUncheckedUpdateManyWithoutRubricNestedInput
+    gradingResults?: GradingResultUncheckedUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateManyWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     criteria?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type UploadUpdateWithoutUserInput = {
+  export type GradingSessionUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: EnumGradingSessionStatusFieldUpdateOperationsInput | $Enums.GradingSessionStatus
+    progress?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    rubric?: RubricUpdateOneRequiredWithoutUploadsNestedInput
+    gradingResults?: GradingResultUpdateManyWithoutGradingSessionNestedInput
   }
 
-  export type UploadUncheckedUpdateWithoutUserInput = {
+  export type GradingSessionUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    rubricId?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: EnumGradingSessionStatusFieldUpdateOperationsInput | $Enums.GradingSessionStatus
+    progress?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    gradingResults?: GradingResultUncheckedUpdateManyWithoutGradingSessionNestedInput
   }
 
-  export type UploadUncheckedUpdateManyWithoutUserInput = {
+  export type GradingSessionUncheckedUpdateManyWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    rubricId?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
-    result?: NullableJsonNullValueInput | InputJsonValue
+    status?: EnumGradingSessionStatusFieldUpdateOperationsInput | $Enums.GradingSessionStatus
+    progress?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type UploadCreateManyRubricInput = {
+  export type UploadedFileUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    fileKey?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
+    parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parseError?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gradingResults?: GradingResultUpdateManyWithoutUploadedFileNestedInput
+  }
+
+  export type UploadedFileUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    fileKey?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
+    parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parseError?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gradingResults?: GradingResultUncheckedUpdateManyWithoutUploadedFileNestedInput
+  }
+
+  export type UploadedFileUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    originalFileName?: StringFieldUpdateOperationsInput | string
+    fileKey?: StringFieldUpdateOperationsInput | string
+    fileSize?: IntFieldUpdateOperationsInput | number
+    mimeType?: StringFieldUpdateOperationsInput | string
+    parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
+    parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parseError?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type GradingResultCreateManyRubricInput = {
     id?: string
-    userId: string
-    originalFileName: string
-    storedFileKey: string
-    storageLocation: string
-    fileSize: number
-    mimeType: string
-    status?: $Enums.UploadStatus
+    gradingSessionId: string
+    uploadedFileId: string
+    status?: $Enums.GradingStatus
+    progress?: number
     result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    completedAt?: Date | string | null
   }
 
-  export type UploadUpdateWithoutRubricInput = {
+  export type GradingResultUpdateWithoutRubricInput = {
     id?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
     result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutUploadsNestedInput
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gradingSession?: GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
+    uploadedFile?: UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
   }
 
-  export type UploadUncheckedUpdateWithoutRubricInput = {
+  export type GradingResultUncheckedUpdateWithoutRubricInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    gradingSessionId?: StringFieldUpdateOperationsInput | string
+    uploadedFileId?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
     result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
-  export type UploadUncheckedUpdateManyWithoutRubricInput = {
+  export type GradingResultUncheckedUpdateManyWithoutRubricInput = {
     id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    originalFileName?: StringFieldUpdateOperationsInput | string
-    storedFileKey?: StringFieldUpdateOperationsInput | string
-    storageLocation?: StringFieldUpdateOperationsInput | string
-    fileSize?: IntFieldUpdateOperationsInput | number
-    mimeType?: StringFieldUpdateOperationsInput | string
-    status?: EnumUploadStatusFieldUpdateOperationsInput | $Enums.UploadStatus
+    gradingSessionId?: StringFieldUpdateOperationsInput | string
+    uploadedFileId?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
     result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type GradingResultCreateManyGradingSessionInput = {
+    id?: string
+    uploadedFileId: string
+    rubricId: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type GradingResultUpdateWithoutGradingSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    uploadedFile?: UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutGradingResultsNestedInput
+  }
+
+  export type GradingResultUncheckedUpdateWithoutGradingSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    uploadedFileId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type GradingResultUncheckedUpdateManyWithoutGradingSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    uploadedFileId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type GradingResultCreateManyUploadedFileInput = {
+    id?: string
+    gradingSessionId: string
+    rubricId: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type GradingResultUpdateWithoutUploadedFileInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gradingSession?: GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutGradingResultsNestedInput
+  }
+
+  export type GradingResultUncheckedUpdateWithoutUploadedFileInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    gradingSessionId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type GradingResultUncheckedUpdateManyWithoutUploadedFileInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    gradingSessionId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
 
