@@ -52,9 +52,14 @@ export default [
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
 
+  // Gemini API routes
+  route('/api/gemini/test', './api/gemini/test.ts'),
+
   // Other routes
   route('/grading-history', './routes/grading-history.tsx'),
   route('/health', './routes/health.tsx'),
+  route('/test-markdown', './routes/test-markdown.tsx'),
+  route('/test-result-layouts', './routes/test-result-layouts.tsx'),
 
   // 404 route
   route('*', './routes/_404.tsx'),

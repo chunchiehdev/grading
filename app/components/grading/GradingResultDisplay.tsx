@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Markdown } from '@/components/ui/markdown';
 import { EmptyGradingState } from './EmptyGradingState';
 // Updated to work with new grading result format from database
 export interface GradingResultData {
@@ -63,9 +64,7 @@ const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdo
             </div>
           </CardHeader>
           <CardContent className="pt-4 text-sm">
-            <div className="prose prose-sm max-w-none">
-              {criteria.feedback}
-            </div>
+            <Markdown>{criteria.feedback}</Markdown>
           </CardContent>
         </Card>
       ))}
@@ -107,27 +106,7 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
-          <ScoreCard score={safeResult.totalScore} maxScore={safeResult.maxScore} />
-          
-          {/* Progress visualization */}
-          <Card className="mb-4">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center">
-                <File className="h-5 w-5 mr-2 text-blue-600" />
-                評分進度
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Progress value={percentage} className="mb-2" />
-              <div className="text-sm text-muted-foreground text-center">
-                {safeResult.totalScore} / {safeResult.maxScore} 分 ({percentage}%)
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
+      <div>
         <div className="md:col-span-2">
           <Tabs defaultValue="feedback" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -141,9 +120,7 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
                   <CardTitle>整體評分回饋</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="prose prose-sm max-w-none">
-                    {safeResult.overallFeedback}
-                  </div>
+                  <Markdown>{safeResult.overallFeedback}</Markdown>
                 </CardContent>
               </Card>
             </TabsContent>

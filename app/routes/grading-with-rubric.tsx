@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { type GradingResultData } from '@/components/grading/GradingResultDisplay';
-import { ResultCarousel } from '@/components/grading/ResultCarousel';
+import { ResultCardList } from '@/components/grading/ResultCardList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
- import { EmptyState } from '@/components/ui/empty-state';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
@@ -460,7 +460,7 @@ export default function GradingWithRubricPage() {
                               <div>
                                 <p className="font-medium">{file.originalFileName || file.fileName}</p>
                                 <p className="text-sm text-muted-foreground">
-                                  {(file.fileSize / 1024 / 1024).toFixed(2)} MB • {file.mimeType}
+                                  {(file.fileSize / 1024 / 1024).toFixed(2)} MB
                                 </p>
                               </div>
                             </div>
@@ -497,7 +497,7 @@ export default function GradingWithRubricPage() {
         <TabsContent value="configure" className="pt-6">
           <Card>
             <CardHeader>
-              <CardTitle>配對檔案與評分標準</CardTitle>
+              <CardTitle>選擇檔案與評分標準</CardTitle>
               <p className="text-sm text-muted-foreground">
                 為每個檔案選擇一個評分標準，總共 {fileSelections.filter(f => f.parseStatus === 'COMPLETED').length} 個檔案待配對
               </p>
@@ -553,7 +553,7 @@ export default function GradingWithRubricPage() {
                                 <SelectContent>
                                   {rubrics.map((rubric) => (
                                     <SelectItem key={rubric.id} value={rubric.id}>
-                                      {rubric.name} ({rubric.criteria?.length || 0} 個評分項目)
+                                      {rubric.name} 
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -697,7 +697,7 @@ export default function GradingWithRubricPage() {
                   return <p className="text-muted-foreground text-center py-8">尚無評分結果</p>;
                 }
 
-                const carouselResults = completedResults
+                const cardListResults = completedResults
                   .filter(result => result.result)
                   .map((result) => ({
                     id: result.id,
@@ -707,8 +707,8 @@ export default function GradingWithRubricPage() {
                     result: result.result as unknown as GradingResultData
                   }));
 
-                return carouselResults.length > 0 
-                  ? <ResultCarousel results={carouselResults} />
+                return cardListResults.length > 0 
+                  ? <ResultCardList results={cardListResults} />
                   : <p className="text-muted-foreground text-center py-8">評分結果資料不完整</p>;
               })()}
             </CardContent>

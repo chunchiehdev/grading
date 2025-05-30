@@ -27,6 +27,8 @@ services:
       # Auth secrets
       - THEME_SECRET=${THEME_SECRET}
       - AUTH_SECRET=${AUTH_SECRET}
+      # Gemini API
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
 
     volumes:
       - .:/app

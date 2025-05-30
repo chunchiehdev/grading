@@ -22,6 +22,8 @@ services:
       - MINIO_BUCKET=${MINIO_BUCKET:-grading-files}
       - API_URL=${API_URL}
       - AUTH_KEY=${AUTH_KEY}
+      # Gemini API
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     restart: always
     depends_on:
       - redis
