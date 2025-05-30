@@ -52,6 +52,9 @@ export default [
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
 
+  // AI API routes
+  route('/api/ai/generate-rubric', './routes/api.ai.generate-rubric.ts'),
+
   // Gemini API routes
   route('/api/gemini/test', './api/gemini/test.ts'),
 

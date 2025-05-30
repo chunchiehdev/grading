@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { cn } from '@/lib/utils';
-import { ChevronDown, Share2, LogOut, User } from 'lucide-react';
+import { ChevronDown, Share2, LogOut, User, GraduationCap } from 'lucide-react';
 import { Link } from 'react-router';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { useLoaderData } from 'react-router';
@@ -51,9 +51,16 @@ const NavHeader = ({ title = '作業評分系統', onShare, userImage, className
       {/* Left Controls */}
       <div className="flex items-center gap-0">
         <Link to="/dashboard">
-          <Button variant="ghost" className="flex items-center gap-1 ml-2 text-lg font-semibold">
-            <span>首頁</span>
-            <ChevronDown className="w-4 h-4" />
+          <Button variant="ghost" className="flex items-center gap-3 ml-2 px-3 py-2 hover:bg-slate-50">
+            {/* Logo Icon */}
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-12 h-10 flex items-center justify-center"
+                dangerouslySetInnerHTML={{
+                  __html: `<dotlottie-player src="https://lottie.host/955baaf6-ba82-4c0e-a72c-9a7b00bf7858/0tsxdhkaXh.lottie" background="transparent" speed="1" style="width: 40px; height: 40px" loop autoplay></dotlottie-player>`
+                }}
+              />
+            </div>
           </Button>
         </Link>
       </div>

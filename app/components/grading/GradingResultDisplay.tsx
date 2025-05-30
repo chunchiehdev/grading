@@ -52,21 +52,19 @@ const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdo
   if (!breakdown || breakdown.length === 0) return null;
 
   return (
-    <div className="space-y-4 mt-4">
+    <div className="space-y-6 mt-4">
       {breakdown.map((criteria, index) => (
-        <Card key={criteria.criteriaId || index} className="overflow-hidden">
-          <CardHeader className="bg-slate-50 py-3">
-            <div className="flex justify-between items-center">
-              <h4 className="font-medium text-sm">評分項目 {index + 1}</h4>
-              <Badge variant="outline" className="font-bold">
-                {criteria.score} 分
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-4 text-sm">
+        <div key={criteria.criteriaId || index} className="border-l-4 border-slate-200 pl-4 py-3">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-semibold text-slate-900">評分項目 {index + 1}</h4>
+            <span className="text-lg font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
+              {criteria.score} 分
+            </span>
+          </div>
+          <div className="text-sm text-slate-600 leading-relaxed">
             <Markdown>{criteria.feedback}</Markdown>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -115,36 +113,31 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
             </TabsList>
 
             <TabsContent value="feedback" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>整體評分回饋</CardTitle>
-                </CardHeader>
-                <CardContent>
+              <div className="bg-white border border-slate-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">整體評分回饋</h3>
+                <div className="prose prose-sm max-w-none">
                   <Markdown>{safeResult.overallFeedback}</Markdown>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="breakdown" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>評分項目詳情</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CriteriaDetails breakdown={safeResult.breakdown} />
+              <div className="bg-white border border-slate-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">評分項目詳情</h3>
+                
+                <CriteriaDetails breakdown={safeResult.breakdown} />
 
-                  {safeResult.breakdown.length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-lg text-muted-foreground">
-                        總評分: {safeResult.totalScore} / {safeResult.maxScore} 分
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        無詳細評分項目
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                {safeResult.breakdown.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-xl text-slate-700 mb-2">
+                      總評分: {safeResult.totalScore} / {safeResult.maxScore} 分
+                    </p>
+                    <p className="text-sm text-slate-500">
+                      無詳細評分項目
+                    </p>
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </Tabs>
         </div>

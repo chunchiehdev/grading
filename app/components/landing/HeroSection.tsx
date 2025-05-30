@@ -1,39 +1,12 @@
 import { useNavigate } from 'react-router';
-import { ArrowRight, BookOpen, GraduationCap, Users, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { useUser } from '@/hooks/useAuth';
 
-const features = [
-  {
-    title: '智能評分',
-    description: '利用 AI 技術輔助評分，提高評分效率和準確性',
-    icon: FileText,
-  },
-  {
-    title: '多人協作',
-    description: '支持多位教師同時評分，實時同步評分結果',
-    icon: Users,
-  },
-  {
-    title: '學習分析',
-    description: '提供詳細的學習分析報告，幫助教師了解學生學習狀況',
-    icon: BookOpen,
-  },
-  {
-    title: '教學改進',
-    description: '基於評分數據提供教學改進建議，提升教學質量',
-    icon: GraduationCap,
-  },
-];
-
 /**
- * Hero Section
- * Using React Query get user status
+ * Modern Minimal Landing Page - Full screen width
  */
 const HeroSection = () => {
   const navigate = useNavigate();
-
   const { data: user, isLoading } = useUser();
   const isLoggedIn = Boolean(user);
 
@@ -46,41 +19,80 @@ const HeroSection = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-background to-muted">
-      <div className="container mx-auto px-4 py-16">
-        <div className="flex flex-col items-center text-center space-y-8">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight">教育評分系統</h1>
-          <p className="text-xl text-muted-foreground max-w-2xl">
-            使用現代科技輔助教學評量，提升教學效能，讓評分更智能、更高效
-          </p>
-          <div className="flex gap-4">
-            <Button size="lg" onClick={handleGetStarted} className="gap-2" disabled={isLoading}>
-              {isLoggedIn ? '進入系統' : '開始使用'}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-            {!isLoggedIn && !isLoading && (
-              <Button variant="outline" size="lg" onClick={() => navigate('/auth/login')}>
-                登入
-              </Button>
-            )}
+    <section className="min-h-screen bg-white">
+      <div className="w-full px-6 lg:px-12 xl:px-20 py-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center min-h-[80vh]">
+          
+          {/* Text Content */}
+          <div className="lg:col-span-7 space-y-8">
+            <div className="space-y-6">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extralight text-gray-900 leading-[1.1] tracking-tight">
+                <br />
+                <span className="font-light">評分</span>
+                <br />
+                系統
+              </h1>
+              
+              <div className="w-24 h-px bg-gray-300"></div>
+              
+              <p className="text-lg lg:text-xl text-gray-600 font-light leading-relaxed max-w-lg">
+                為現代教育工作者設計的直觀評分工具，讓評分過程更加高效且準確。
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-6 pt-8">
+              <button 
+                onClick={handleGetStarted}
+                disabled={isLoading}
+                className="group bg-gray-900 text-white px-8 py-4 text-sm font-light tracking-wide transition-all duration-300 hover:bg-gray-800"
+              >
+                <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">
+                  {isLoggedIn ? '進入系統' : '開始使用'}
+                </span>
+              </button>
+              
+              <button 
+                onClick={() => navigate('/auth/login')}
+                className="text-gray-700 hover:text-gray-900 px-8 py-4 text-sm font-light tracking-wide border border-gray-200 transition-all duration-300 hover:border-gray-300"
+              >
+                了解更多
+              </button>
+            </div>
           </div>
+
+          {/* Visual Element */}
+          <div className="lg:col-span-5">
+            <div className="relative">
+              <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-sm"></div>
+              <div className="absolute top-8 left-8 w-16 h-16 bg-gray-900 rounded-sm opacity-90"></div>
+              <div className="absolute bottom-8 right-8 w-24 h-24 bg-gray-200 rounded-sm"></div>
+            </div>
+          </div>
+          
         </div>
 
-        <div className="mt-24 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {features.map((feature) => (
-            <Card key={feature.title} className="p-6">
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="rounded-full bg-primary/10 p-3">
-                  <feature.icon className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
-              </div>
-            </Card>
-          ))}
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pt-20 border-t border-gray-100 mt-20">
+          <div className="text-center space-y-2">
+            <div className="text-2xl font-light text-gray-900">500+</div>
+            <div className="text-sm text-gray-600 font-light tracking-wide">教師用戶</div>
+          </div>
+          <div className="text-center space-y-2">
+            <div className="text-2xl font-light text-gray-900">50K+</div>
+            <div className="text-sm text-gray-600 font-light tracking-wide">評分作業</div>
+          </div>
+          <div className="text-center space-y-2">
+            <div className="text-2xl font-light text-gray-900">95%</div>
+            <div className="text-sm text-gray-600 font-light tracking-wide">時間節省</div>
+          </div>
+          <div className="text-center space-y-2">
+            <div className="text-2xl font-light text-gray-900">4.9</div>
+            <div className="text-sm text-gray-600 font-light tracking-wide">用戶評分</div>
+          </div>
         </div>
+        
       </div>
-    </div>
+    </section>
   );
 };
 

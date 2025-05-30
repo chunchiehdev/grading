@@ -28,12 +28,12 @@ export const RubricHeader = ({
     : 0;
 
   return (
-    <div className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-50">
+    <div className="border-b bg-background/95 backdrop-blur-sm z-40">
       <div className="container mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           {/* Left side */}
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={onBack}>
+            <Button variant="ghost" size="sm" onClick={onBack} type="button">
               <ArrowLeft className="w-4 h-4 mr-2" />
               返回
             </Button>
@@ -63,11 +63,11 @@ export const RubricHeader = ({
 
           {/* Right side */}
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onPreview}>
+            <Button variant="outline" size="sm" onClick={onPreview} type="button">
               <Eye className="w-4 h-4 mr-2" />
               預覽
             </Button>
-            <Button size="sm" onClick={onSave}>
+            <Button size="sm" onClick={onSave} type="button">
               <Save className="w-4 h-4 mr-2" />
               {isEditing ? '更新' : '儲存'}
             </Button>

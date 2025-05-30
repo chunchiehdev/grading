@@ -48,6 +48,10 @@ export const links = () => [
     rel: 'stylesheet',
     href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&display=swap',
   },
+  {
+    rel: 'modulepreload',
+    href: 'https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs',
+  },
 ];
 
 export const meta = () => [
@@ -80,6 +84,10 @@ function Document({ children }: { children: React.ReactNode }) {
         <meta name="theme-color" content="#000000" />
         <Meta />
         <Links />
+        <script 
+          src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" 
+          type="module"
+        ></script>
       </head>
       <body className="min-h-screen w-full font-sans antialiased">
         {children}

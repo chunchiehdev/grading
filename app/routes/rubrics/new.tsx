@@ -12,6 +12,7 @@ import { CriterionCard } from '@/components/CriterionCard';
 import { QuickAdd } from '@/components/QuickAdd';
 import { GuidedEmptyState } from '@/components/GuidedEmptyState';
 import { RubricPreview } from '@/components/RubricPreview';
+import { AIRubricAssistant } from '@/components/AIRubricAssistant';
 
 // Types and Utils
 import type { 
@@ -107,6 +108,7 @@ export default function NewRubricRoute() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedCriterionId, setSelectedCriterionId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Computed values
@@ -291,6 +293,29 @@ export default function NewRubricRoute() {
     setShowPreview(true);
   };
 
+  const handleApplyAIRubric = (aiRubric: UIRubricData) => {
+    // 確認是否要覆蓋現有內容
+    if (rubricData.categories.length > 0 || rubricData.name || rubricData.description) {
+      if (!confirm('套用 AI 生成的評分標準將會覆蓋現有內容，確定要繼續嗎？')) {
+        return;
+      }
+    }
+    
+    // 套用 AI 生成的評分標準
+    setRubricData(aiRubric);
+    
+    // 自動選擇第一個類別
+    if (aiRubric.categories.length > 0) {
+      setSelectedCategoryId(aiRubric.categories[0].id);
+      if (aiRubric.categories[0].criteria.length > 0) {
+        setSelectedCriterionId(aiRubric.categories[0].criteria[0].id);
+      }
+    }
+    
+    // 關閉 AI 助手面板
+    setShowAIAssistant(false);
+  };
+
   // Reset loading state when action completes
   useEffect(() => {
     if (actionData) {
@@ -332,6 +357,19 @@ export default function NewRubricRoute() {
                 onChange={updateRubricForm}
               />
               
+              {/* AI 助手按鈕 */}
+              <div className="flex gap-2">
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  onClick={() => setShowAIAssistant(true)}
+                  className="flex-1"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  AI 智能助手
+                </Button>
+              </div>
+              
               <CategoryNav
                 categories={rubricData.categories}
                 selectedCategoryId={selectedCategoryId}
@@ -366,7 +404,7 @@ export default function NewRubricRoute() {
                         )}
                       </p>
                     </div>
-                    <Button onClick={() => addCriterion()} disabled={isLoading}>
+                    <Button onClick={() => addCriterion()} disabled={isLoading} type="button">
                       <Plus className="w-4 h-4 mr-2" />
                       新增標準
                     </Button>
@@ -426,6 +464,14 @@ export default function NewRubricRoute() {
           </div>
         </Form>
       </div>
+
+      {/* AI Assistant Modal */}
+      <AIRubricAssistant
+        isOpen={showAIAssistant}
+        onClose={() => setShowAIAssistant(false)}
+        onApplyRubric={handleApplyAIRubric}
+        currentRubric={rubricData}
+      />
 
       {/* Preview Modal */}
       <RubricPreview
