@@ -1,12 +1,12 @@
-import { GradingProgressService } from '@/services/grading-progress.server';
-import { gradeDocument } from '@/services/rubric.server';
 import { getUserId } from '@/services/auth.server';
+import { createGradingSession, startGradingSession } from '@/services/grading-session.server';
 
 /**
- * API endpoint to grade a document using a specific rubric
+ * API endpoint to start grading using the new grading session system
+ * This endpoint now creates a grading session and starts the grading process
  * @param {Object} params - Route parameters
- * @param {Request} params.request - HTTP request with form data containing fileKey, rubricId, and gradingId
- * @returns {Promise<Response>} JSON response with grading results or error
+ * @param {Request} params.request - HTTP request with form data containing fileIds and rubricIds
+ * @returns {Promise<Response>} JSON response with session ID or error
  */
 export async function action({ request }: { request: Request }) {
   try {
@@ -20,33 +20,54 @@ export async function action({ request }: { request: Request }) {
     }
 
     const formData = await request.formData();
-    const fileKey = formData.get('fileKey') as string;
-    const rubricId = formData.get('rubricId') as string;
-    const gradingId = formData.get('gradingId') as string;
+    const fileIds = JSON.parse(formData.get('fileIds') as string || '[]');
+    const rubricIds = JSON.parse(formData.get('rubricIds') as string || '[]');
 
-    if (!fileKey || !rubricId || !gradingId) {
+    if (!Array.isArray(fileIds) || fileIds.length === 0) {
       return Response.json({ 
         success: false, 
-        error: '缺少必要參數' 
+        error: '至少需要選擇一個檔案' 
       }, { status: 400 });
     }
 
-    const result = await gradeDocument(fileKey, rubricId, gradingId, userId);
-
-    if (result.success && result.gradingResult) {
-      await GradingProgressService.complete(gradingId, result.gradingResult);
-      return Response.json({ 
-        success: true, 
-        gradingId,
-        data: result.gradingResult 
-      });
-    } else {
-      await GradingProgressService.error(gradingId, result.error || '評分失敗');
+    if (!Array.isArray(rubricIds) || rubricIds.length === 0) {
       return Response.json({ 
         success: false, 
-        error: result.error 
+        error: '至少需要選擇一個評分標準' 
+      }, { status: 400 });
+    }
+
+    // Create grading session
+    const sessionResult = await createGradingSession({
+      userId,
+      filePairs: fileIds.map((fileId: string, index: number) => ({
+        fileId,
+        rubricId: rubricIds[index]
+      }))
+    });
+
+    if (!sessionResult.success) {
+      return Response.json({ 
+        success: false, 
+        error: sessionResult.error 
+      }, { status: 400 });
+    }
+
+    // Start grading process
+    const startResult = await startGradingSession(sessionResult.sessionId!, userId);
+    
+    if (!startResult.success) {
+      return Response.json({ 
+        success: false, 
+        error: startResult.error 
       }, { status: 500 });
     }
+
+    return Response.json({ 
+      success: true, 
+      sessionId: sessionResult.sessionId,
+      message: '評分會話已建立並開始處理'
+    });
   } catch (error) {
     return Response.json({ 
       success: false, 

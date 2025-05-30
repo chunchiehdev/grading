@@ -8,16 +8,12 @@ import { storageConfig } from '@/config/storage';
 
 const PDF_PARSER_API_BASE = process.env.PDF_PARSER_API_URL || 'http://localhost:8000';
 
-// 內部解析結果類型
 interface ParseResult {
   status: string;
   content?: string;
   error?: string;
 }
 
-/**
- * 從 Minio 獲取文件數據
- */
 async function getFileFromStorage(fileKey: string): Promise<Buffer> {
   const command = new GetObjectCommand({
     Bucket: storageConfig.bucket,
@@ -37,9 +33,6 @@ async function getFileFromStorage(fileKey: string): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-/**
- * 提交 PDF 到解析 API
- */
 async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId: string): Promise<string> {
   const formData = new FormData();
   
@@ -65,9 +58,6 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
   return result.task_id;
 }
 
-/**
- * 查詢解析結果
- */
 async function getParsingResult(taskId: string): Promise<ParseResult> {
   const response = await fetch(`${PDF_PARSER_API_BASE}/task/${taskId}`);
   
@@ -78,9 +68,7 @@ async function getParsingResult(taskId: string): Promise<ParseResult> {
   return response.json() as Promise<ParseResult>;
 }
 
-/**
- * 輪詢解析結果直到完成
- */
+
 async function pollForResult(taskId: string, maxAttempts: number = 60, intervalMs: number = 2000): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const result = await getParsingResult(taskId);
@@ -91,7 +79,6 @@ async function pollForResult(taskId: string, maxAttempts: number = 60, intervalM
       throw new Error(`PDF parsing failed: ${result.error}`);
     }
     
-    // Status is 'pending' or 'processing', continue polling
     console.log(`📋 Task ${taskId} status: ${result.status}, attempt ${attempt + 1}/${maxAttempts}`);
     
     if (attempt < maxAttempts - 1) {
@@ -102,31 +89,21 @@ async function pollForResult(taskId: string, maxAttempts: number = 60, intervalM
   throw new Error(`PDF parsing timed out after ${maxAttempts} attempts`);
 }
 
-/**
- * 觸發 PDF 解析 (異步)
- */
 export async function triggerPdfParsing(fileId: string, fileKey: string, fileName: string, userId: string): Promise<void> {
   try {
     console.log(`🔄 Starting PDF parsing for file: ${fileName} (${fileId})`);
     
-    // 更新狀態為 PROCESSING
     await db.uploadedFile.update({
       where: { id: fileId },
       data: { parseStatus: FileParseStatus.PROCESSING },
     });
 
-    // 從 Minio 獲取文件
     const fileBuffer = await getFileFromStorage(fileKey);
     console.log(`📥 Retrieved file from storage: ${fileName} (${fileBuffer.length} bytes)`);
 
-    // 提交到 PDF Parser API
     const taskId = await submitPdfForParsing(fileBuffer, fileName, userId);
     console.log(`📤 PDF parsing task submitted: ${taskId} for file: ${fileName}`);
 
-    // 注意：parseTaskId 欄位在新 schema 中不存在，我們暫時跳過
-    // TODO: 可以考慮將 taskId 存在 metadata JSON 欄位中
-
-    // 開始輪詢結果 (在背景執行)
     pollForResult(taskId)
       .then(async (content) => {
         console.log(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
@@ -164,10 +141,7 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
   }
 }
 
-/**
- * 獲取用戶的所有上傳檔案
- * 注意：在新架構中，檔案與 rubric 的關聯已移至 GradingResult
- */
+
 export async function getUserUploadedFiles(userId: string, uploadId?: string) {
   const where: any = { userId };
   if (uploadId) {

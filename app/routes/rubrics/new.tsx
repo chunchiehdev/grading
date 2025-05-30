@@ -46,24 +46,27 @@ export const action = async ({ request }: { request: Request }) => {
   try {
     const formData = await request.formData();
     
-    // 使用 Zod 驗證表單資料
     const { CreateRubricRequestSchema } = await import('@/schemas/rubric');
     const validationResult = CreateRubricRequestSchema.safeParse({
-      name: formData.get('name')?.toString(),
-      description: formData.get('description')?.toString(),
-      categoriesJson: formData.get('categoriesJson')?.toString(),
+      name: formData.get('name'),
+      description: formData.get('description'),
+      categoriesJson: formData.get('categoriesJson'),
     });
 
     if (!validationResult.success) {
-      const firstError = validationResult.error.errors[0];
-      console.error('Validation failed:', validationResult.error.errors);
-      return Response.json({ 
-        error: firstError.message || '表單資料驗證失敗',
-        field: firstError.path[0] // 提供錯誤欄位資訊
-      });
+      console.error('Validation failed:', validationResult.error);
+      return Response.json({ error: '資料驗證失敗' });
     }
 
     const { name, description, categoriesJson } = validationResult.data;
+    
+    // Get user ID from session
+    const { getUserId } = await import('@/services/auth.server');
+    const userId = await getUserId(request);
+    
+    if (!userId) {
+      return Response.json({ error: '用戶未登入' });
+    }
     
     const { createRubric } = await import('@/services/rubric.server');
 
@@ -73,7 +76,7 @@ export const action = async ({ request }: { request: Request }) => {
       categories: categoriesJson, // schema 已經處理過轉換
     };
     
-    const result = await createRubric(rubricData);
+    const result = await createRubric(rubricData, userId);
     if (!result.success) {
       console.error('Create rubric failed:', result.error);
       return Response.json({ error: result.error || '創建評分標準失敗' });

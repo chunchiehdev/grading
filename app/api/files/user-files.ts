@@ -1,6 +1,5 @@
 import { getUserId } from '@/services/auth.server';
-import { getUserUploadedFiles } from '@/services/pdf-parser.server';
-import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
+import { getUserFiles } from '@/services/uploaded-file.server';
 
 /**
  * API endpoint to get user's uploaded files with parsing status
@@ -9,17 +8,37 @@ import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
  * @returns {Promise<Response>} JSON response with user's files
  */
 export async function loader({ request }: { request: Request }) {
-  return withErrorHandler(async () => {
+  try {
     const userId = await getUserId(request);
     if (!userId) {
       return Response.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
     const url = new URL(request.url);
-    const uploadId = url.searchParams.get('uploadId');
+    const parseStatus = url.searchParams.get('parseStatus') as any;
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const offset = parseInt(url.searchParams.get('offset') || '0');
 
-    const files = await getUserUploadedFiles(userId, uploadId || undefined);
+    const result = await getUserFiles(userId, {
+      parseStatus,
+      limit,
+      offset
+    });
 
-    return createApiResponse({ files });
-  });
+    if (result.error) {
+      return Response.json({ success: false, error: result.error }, { status: 500 });
+    }
+
+    return Response.json({
+      success: true,
+      files: result.files,
+      total: result.total
+    });
+  } catch (error) {
+    console.error('Failed to get user files:', error);
+    return Response.json(
+      { success: false, error: 'Failed to get user files' },
+      { status: 500 }
+    );
+  }
 } 

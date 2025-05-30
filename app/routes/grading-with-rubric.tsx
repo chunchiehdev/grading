@@ -1,57 +1,104 @@
 import { useState, useCallback, useEffect } from 'react';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
-import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
+import { type GradingResultData } from '@/components/grading/GradingResultDisplay';
+import { ResultCarousel } from '@/components/grading/ResultCarousel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GradingProgress } from '@/components/grading/GradingProgress';
-import { EmptyState } from '@/components/ui/empty-state';
+ import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
-import { AlertCircle, FileText, File, CheckCircle, Clock, AlertTriangle, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { 
+  AlertCircle, 
+  FileText, 
+  File, 
+  CheckCircle, 
+  Clock, 
+  AlertTriangle, 
+  Loader2,
+  Play,
+  Pause,
+  RotateCcw,
+  ArrowRight,
+  Trash2
+} from 'lucide-react';
 import { type Rubric } from '@/types/rubric';
-import type { UploadedFileInfo } from '@/types/files';
-import { useUiStore } from '@/stores/uiStore';
-import { useGrading } from '@/hooks/useGrading';
-import { useGradingStore, useHasHydrated } from '@/stores/gradingStore';
+import { type UploadedFile, type GradingSession, type GradingResult } from '@/types/database';
 
-type ParseStatus = 'pending' | 'processing' | 'success' | 'failed';
-type GradingStatus = 'not_started' | 'processing' | 'completed' | 'failed';
+type ParseStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+type GradingStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
 
-interface UploadedFileData {
-  id: string;
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  parseStatus: ParseStatus;
-  parsedContent?: string;
-  parseError?: string;
-  selectedRubricId?: string;
-  selectedRubric?: Rubric;
-  gradingStatus: GradingStatus;
-  gradingResult?: any;
-  createdAt: string;
-}
-
-interface FileRubricSelection {
+interface FileSelection {
   fileId: string;
   fileName: string;
   parseStatus: ParseStatus;
-  selectedRubricId?: string;
-  selectedRubric?: Rubric;
+  selected: boolean;
+}
+
+interface RubricSelection {
+  rubricId: string;
+  rubricName: string;
+  selected: boolean;
+}
+
+interface GradingSessionDetails extends GradingSession {
+  gradingResults: (GradingResult & {
+    uploadedFile: {
+      fileName: string;
+      originalFileName: string;
+    };
+    rubric: {
+      name: string;
+    };
+  })[];
 }
 
 export default function GradingWithRubricPage() {
-  const [step, setStep] = useState<'upload' | 'select-rubrics' | 'grading'>('upload');
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileData[]>([]);
-  const [fileRubricSelections, setFileRubricSelections] = useState<FileRubricSelection[]>([]);
+  const [step, setStep] = useState<'upload' | 'configure' | 'grading' | 'results'>('upload');
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [rubrics, setRubrics] = useState<Rubric[]>([]);
+  const [fileSelections, setFileSelections] = useState<FileSelection[]>([]);
+  const [rubricSelections, setRubricSelections] = useState<RubricSelection[]>([]);
+  const [gradingSession, setGradingSession] = useState<GradingSessionDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [isLoadingRubrics, setIsLoadingRubrics] = useState(false);
+  const [filePairings, setFilePairings] = useState<Record<string, string>>({});
 
-  // Load rubrics from API
+  // Load user's uploaded files
+  const loadUserFiles = useCallback(async () => {
+    setIsLoadingFiles(true);
+    try {
+      const response = await fetch('/api/files/user-files?parseStatus=COMPLETED', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setUploadedFiles(data.files || []);
+        setFileSelections(data.files?.map((file: UploadedFile) => ({
+          fileId: file.id,
+          fileName: file.originalFileName || file.fileName,
+          parseStatus: file.parseStatus,
+          selected: false
+        })) || []);
+      } else {
+        setError(data.error || 'Failed to load files');
+        setUploadedFiles([]);
+        setFileSelections([]);
+      }
+    } catch (err) {
+      setError('Failed to load files');
+      setUploadedFiles([]);
+      setFileSelections([]);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  }, []);
+
+  // Load rubrics
   const loadRubrics = useCallback(async () => {
     setIsLoadingRubrics(true);
     try {
@@ -61,182 +108,316 @@ export default function GradingWithRubricPage() {
       const data = await response.json();
       
       if (data.success) {
-        setRubrics(data.rubrics);
+        setRubrics(data.rubrics || []);
+        setRubricSelections(data.rubrics?.map((rubric: Rubric) => ({
+          rubricId: rubric.id,
+          rubricName: rubric.name,
+          selected: false
+        })) || []);
       } else {
         setError(data.error || 'Failed to load rubrics');
+        setRubrics([]);
+        setRubricSelections([]);
       }
     } catch (err) {
       setError('Failed to load rubrics');
+      setRubrics([]);
+      setRubricSelections([]);
     } finally {
       setIsLoadingRubrics(false);
     }
   }, []);
 
-  // Load user's uploaded files
-  const loadUserFiles = useCallback(async () => {
-    setIsLoadingFiles(true);
+  // Handle file upload completion
+  const handleFilesChange = useCallback((files: File[]) => {
+    // Immediately reload to get the uploaded files
+    loadUserFiles();
+    
+    // Set up polling to check for parsing completion
+    const pollForParsingCompletion = () => {
+      const pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/files/user-files', {
+            credentials: 'include',
+          });
+          const data = await response.json();
+          
+          if (data.success) {
+            const allParsed = data.files.every((file: any) => 
+              file.parseStatus === 'COMPLETED' || file.parseStatus === 'FAILED'
+            );
+            
+            if (allParsed) {
+              clearInterval(pollInterval);
+              loadUserFiles(); // Final reload
+              setStep('configure'); // Auto advance to next step
+            } else {
+              // Update state with current parsing status
+              setUploadedFiles(data.files || []);
+              setFileSelections(data.files?.map((file: any) => ({
+                fileId: file.id,
+                fileName: file.originalFileName || file.fileName,
+                parseStatus: file.parseStatus,
+                selected: false
+              })) || []);
+            }
+          }
+        } catch (err) {
+          console.error('Polling error:', err);
+        }
+      }, 2000); // Poll every 2 seconds
+      
+      // Stop polling after 60 seconds to prevent infinite polling
+      setTimeout(() => {
+        clearInterval(pollInterval);
+      }, 60000);
+    };
+    
+    // Start polling after a short delay
+    setTimeout(pollForParsingCompletion, 1000);
+  }, [loadUserFiles]);
+
+  // Toggle file selection
+  const toggleFileSelection = useCallback((fileId: string) => {
+    setFileSelections(prev => 
+      prev.map(selection => 
+        selection.fileId === fileId 
+          ? { ...selection, selected: !selection.selected }
+          : selection
+      )
+    );
+  }, []);
+
+  // Toggle rubric selection
+  const toggleRubricSelection = useCallback((rubricId: string) => {
+    setRubricSelections(prev => 
+      prev.map(selection => 
+        selection.rubricId === rubricId 
+          ? { ...selection, selected: !selection.selected }
+          : selection
+      )
+    );
+  }, []);
+
+  // Load grading session details
+  const loadGradingSession = useCallback(async (sessionId: string) => {
     try {
-      const response = await fetch('/api/files/user-files', {
+      const response = await fetch(`/api/grading/session/${sessionId}`, {
         credentials: 'include',
       });
       const data = await response.json();
       
       if (data.success) {
-        setUploadedFiles(data.files || []);  // 確保不會是 undefined
-        // Initialize file-rubric selections
-        setFileRubricSelections((data.files || []).map((file: UploadedFileData) => ({
-          fileId: file.id,
-          fileName: file.fileName,
-          parseStatus: file.parseStatus,
-          selectedRubricId: file.selectedRubricId,
-          selectedRubric: file.selectedRubric,
-        })));
+        setGradingSession(data.session);
       } else {
-        setError(data.error || 'Failed to load files');
-        setUploadedFiles([]);  // 確保設置為空數組
-        setFileRubricSelections([]);
+        setError(data.error || 'Failed to load grading session');
       }
     } catch (err) {
-      setError('Failed to load files');
-      setUploadedFiles([]);  // 確保設置為空數組
-      setFileRubricSelections([]);
-    } finally {
-      setIsLoadingFiles(false);
+      setError('Failed to load grading session');
     }
   }, []);
 
-  // Handle file upload completion
-  const handleUploadComplete = useCallback(() => {
-    loadUserFiles();
-    setStep('select-rubrics');
-  }, [loadUserFiles]);
+  // Create grading session
+  const createGradingSession = useCallback(async () => {
+    const pairedFiles = Object.entries(filePairings)
+      .filter(([fileId, rubricId]) => fileId && rubricId);
+    
+    if (pairedFiles.length === 0) {
+      setError('請為至少一個檔案選擇評分標準');
+      return;
+    }
 
-  // Handle rubric selection for a specific file
-  const handleFileRubricChange = useCallback(async (fileId: string, rubricId: string) => {
+    setIsLoading(true);
     try {
-      const response = await fetch('/api/files/update-rubric', {
+      const formData = new FormData();
+      const fileIds = pairedFiles.map(([fileId]) => fileId);
+      const rubricIds = pairedFiles.map(([, rubricId]) => rubricId);
+      
+      formData.append('fileIds', JSON.stringify(fileIds));
+      formData.append('rubricIds', JSON.stringify(rubricIds));
+
+      const response = await fetch('/api/grading/session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ fileId, rubricId }),
+        body: formData
       });
 
       const data = await response.json();
+      
       if (data.success) {
-        // Update local state
-        setFileRubricSelections(prev => 
-          prev.map(selection => 
-            selection.fileId === fileId 
-              ? { 
-                  ...selection, 
-                  selectedRubricId: rubricId,
-                  selectedRubric: data.file.selectedRubric 
-                }
-              : selection
-          )
-        );
-        
-        // Also update uploaded files
-        setUploadedFiles(prev => 
-          prev.map(file => 
-            file.id === fileId 
-              ? { ...file, selectedRubricId: rubricId, selectedRubric: data.file.selectedRubric }
-              : file
-          )
-        );
+        // Load the created session
+        await loadGradingSession(data.sessionId);
+        setStep('grading');
       } else {
-        setError(data.error || 'Failed to update rubric selection');
+        setError(data.error || 'Failed to create grading session');
       }
     } catch (err) {
-      setError('Failed to update rubric selection');
+      setError('Failed to create grading session');
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  }, [filePairings, loadGradingSession]);
 
-  // Check if all files are ready for grading
-  const allFilesReady = fileRubricSelections.every(selection => 
-    selection.parseStatus === 'success' && selection.selectedRubricId
-  );
+  // Start grading process
+  const startGrading = useCallback(async () => {
+    if (!gradingSession) return;
 
-  const readyFilesCount = fileRubricSelections.filter(selection => 
-    selection.parseStatus === 'success' && selection.selectedRubricId
-  ).length;
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('action', 'start');
 
-  // Get parse status icon and color
+      const response = await fetch(`/api/grading/session/${gradingSession.id}`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Reload session to get updated status
+        await loadGradingSession(gradingSession.id);
+      } else {
+        setError(data.error || 'Failed to start grading');
+      }
+    } catch (err) {
+      setError('Failed to start grading');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [gradingSession, loadGradingSession]);
+
+  // Get parse status display
   const getParseStatusDisplay = (status: ParseStatus) => {
     switch (status) {
-      case 'pending':
+      case 'PENDING':
         return { icon: Clock, color: 'text-yellow-500', text: '等待解析' };
-      case 'processing':
+      case 'PROCESSING':
         return { icon: Loader2, color: 'text-blue-500', text: '解析中' };
-      case 'success':
+      case 'COMPLETED':
         return { icon: CheckCircle, color: 'text-green-500', text: '解析完成' };
-      case 'failed':
+      case 'FAILED':
         return { icon: AlertTriangle, color: 'text-red-500', text: '解析失敗' };
+      default:
+        return { icon: Clock, color: 'text-gray-500', text: '未知狀態' };
     }
   };
 
-  // Start grading process
-  const startGrading = useCallback(() => {
-    const readyFiles = fileRubricSelections.filter(selection => 
-      selection.parseStatus === 'success' && selection.selectedRubricId
-    );
-    
-    if (readyFiles.length === 0) {
-      setError('沒有可以評分的檔案');
-      return;
+  // Get grading status display
+  const getGradingStatusDisplay = (status: GradingStatus) => {
+    switch (status) {
+      case 'PENDING':
+        return { icon: Clock, color: 'text-yellow-500', text: '等待評分' };
+      case 'PROCESSING':
+        return { icon: Loader2, color: 'text-blue-500', text: '評分中' };
+      case 'COMPLETED':
+        return { icon: CheckCircle, color: 'text-green-500', text: '評分完成' };
+      case 'FAILED':
+        return { icon: AlertTriangle, color: 'text-red-500', text: '評分失敗' };
+      case 'SKIPPED':
+        return { icon: AlertCircle, color: 'text-gray-500', text: '已跳過' };
+      default:
+        return { icon: Clock, color: 'text-gray-500', text: '未知狀態' };
     }
-    
-    setStep('grading');
-    // TODO: Implement grading logic
-  }, [fileRubricSelections]);
+  };
 
   // Load data on component mount
   useEffect(() => {
     loadUserFiles();
-    loadRubrics();  // 載入評分標準
+    loadRubrics();
   }, [loadUserFiles, loadRubrics]);
 
-  // Auto-refresh parsing status every 5 seconds if files are still parsing
+  // Auto-refresh grading session if in progress
   useEffect(() => {
-    const hasParsingFiles = fileRubricSelections.some(
-      selection => selection.parseStatus === 'pending' || selection.parseStatus === 'processing'
-    );
-
-    if (hasParsingFiles) {
+    if (gradingSession && gradingSession.status === 'PROCESSING') {
       const interval = setInterval(() => {
-        loadUserFiles();
-      }, 5000);
+        loadGradingSession(gradingSession.id);
+      }, 3000);
 
       return () => clearInterval(interval);
     }
-  }, [fileRubricSelections, loadUserFiles]);
+  }, [gradingSession, loadGradingSession]);
+
+  const selectedFilesCount = fileSelections.filter(s => s.selected).length;
+  const selectedRubricsCount = rubricSelections.filter(s => s.selected).length;
+  const totalGradingTasks = selectedFilesCount * selectedRubricsCount;
+
+  // Delete file function (smart delete: hard/soft based on usage)
+  const deleteFile = useCallback(async (fileId: string) => {
+    if (!window.confirm('確定要刪除這個檔案嗎？')) {
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('fileId', fileId);
+
+      const response = await fetch('/api/files', {
+        method: 'DELETE',
+        credentials: 'include',
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove from local state
+        setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+        setFileSelections(prev => prev.filter(f => f.fileId !== fileId));
+        
+        // Remove from pairings
+        setFilePairings(prev => {
+          const updated = { ...prev };
+          delete updated[fileId];
+          return updated;
+        });
+        
+        // Show success message based on deletion type
+        if (data.deletionType === 'soft') {
+          console.log('✅ 檔案已隱藏（因為已用於評分，保留資料完整性）');
+        } else {
+          console.log('✅ 檔案已永久刪除');
+        }
+      } else {
+        setError(data.error || 'Failed to delete file');
+      }
+    } catch (err) {
+      setError('刪除檔案時發生網路錯誤');
+    }
+  }, []);
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">智能評分系統 (每檔案獨立評分)</h1>
-        <p className="text-muted-foreground">
-          上傳您的作業文件，為每個檔案選擇評分標準，然後開始智能評分
-        </p>
-      </div>
 
       {error && (
         <div className="p-4 border border-red-300 bg-red-50 rounded-md">
           <div className="flex items-center">
             <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
             <p className="text-red-800">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="ml-auto"
+              onClick={() => setError(null)}
+            >
+              關閉
+            </Button>
           </div>
         </div>
       )}
 
       <Tabs value={step} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="upload">1. 上傳文件</TabsTrigger>
-          <TabsTrigger value="select-rubrics" disabled={uploadedFiles.length === 0}>
-            2. 選擇評分標準
+          <TabsTrigger value="configure" disabled={uploadedFiles.length === 0}>
+            2. 選擇評分標準 
           </TabsTrigger>
-          <TabsTrigger value="grading" disabled={!allFilesReady}>
-            3. 評分 ({readyFilesCount}/{fileRubricSelections.length})
+          <TabsTrigger value="grading" disabled={!gradingSession}>
+            3. 執行評分
+          </TabsTrigger>
+          <TabsTrigger value="results" disabled={!gradingSession || gradingSession.status !== 'COMPLETED'}>
+            4. 查看結果
           </TabsTrigger>
         </TabsList>
 
@@ -244,13 +425,16 @@ export default function GradingWithRubricPage() {
           <Card>
             <CardHeader>
               <CardTitle>上傳作業文件</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                支援 PDF 格式，文件將自動解析以準備評分
+              </p>
             </CardHeader>
             <CardContent>
               <CompactFileUpload
                 maxFiles={10}
                 maxFileSize={50 * 1024 * 1024}
                 acceptedFileTypes={['.pdf']}
-                onUploadComplete={handleUploadComplete}
+                onFilesChange={handleFilesChange}
                 onError={setError}
               />
               
@@ -258,8 +442,8 @@ export default function GradingWithRubricPage() {
                 <div className="mt-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-medium">已上傳的文件 ({uploadedFiles.length})</h3>
-                    <Button onClick={() => setStep('select-rubrics')} variant="outline">
-                      繼續選擇評分標準
+                    <Button onClick={() => setStep('configure')} variant="outline">
+                      配置評分
                     </Button>
                   </div>
                   
@@ -274,7 +458,7 @@ export default function GradingWithRubricPage() {
                             <div className="flex items-center gap-3">
                               <File className="h-5 w-5 text-muted-foreground" />
                               <div>
-                                <p className="font-medium">{file.fileName}</p>
+                                <p className="font-medium">{file.originalFileName || file.fileName}</p>
                                 <p className="text-sm text-muted-foreground">
                                   {(file.fileSize / 1024 / 1024).toFixed(2)} MB • {file.mimeType}
                                 </p>
@@ -282,9 +466,17 @@ export default function GradingWithRubricPage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <ParseIcon className={`h-4 w-4 ${parseDisplay.color} ${parseDisplay.icon === Loader2 ? 'animate-spin' : ''}`} />
-                              <Badge variant={file.parseStatus === 'success' ? 'default' : 'secondary'}>
+                              <Badge variant={file.parseStatus === 'COMPLETED' ? 'default' : 'secondary'}>
                                 {parseDisplay.text}
                               </Badge>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => deleteFile(file.id)}
+                                className="ml-2 text-red-600 hover:text-red-800 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
                           {file.parseError && (
@@ -302,160 +494,227 @@ export default function GradingWithRubricPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="select-rubrics" className="pt-6">
+        <TabsContent value="configure" className="pt-6">
           <Card>
             <CardHeader>
-              <CardTitle>為每個檔案選擇評分標準</CardTitle>
+              <CardTitle>配對檔案與評分標準</CardTitle>
               <p className="text-sm text-muted-foreground">
-                每個檔案可以有不同的評分標準，請為每個檔案選擇適合的評分標準
+                為每個檔案選擇一個評分標準，總共 {fileSelections.filter(f => f.parseStatus === 'COMPLETED').length} 個檔案待配對
               </p>
             </CardHeader>
             <CardContent>
               {rubrics.length === 0 ? (
                 <EmptyState
-                  title="沒有找到評分標準"
+                  title="沒有評分標準"
                   description="您需要先創建評分標準才能進行評分。"
                   actionText="創建評分標準"
                   actionLink="/rubrics/new"
                   icon={<AlertCircle className="h-10 w-10" />}
                 />
               ) : (
-                <div className="space-y-6">
-                  {fileRubricSelections.map((selection, index) => {
-                    const parseDisplay = getParseStatusDisplay(selection.parseStatus);
-                    const ParseIcon = parseDisplay.icon;
-                    const isFileReady = selection.parseStatus === 'success';
-                    
-                    return (
-                      <div key={selection.fileId} className="border rounded-lg p-4 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <File className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">{selection.fileName}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <ParseIcon className={`h-3 w-3 ${parseDisplay.color} ${parseDisplay.icon === Loader2 ? 'animate-spin' : ''}`} />
-                                <span className="text-xs text-muted-foreground">{parseDisplay.text}</span>
+                <div className="space-y-4">
+                  {fileSelections
+                    .filter(file => file.parseStatus === 'COMPLETED')
+                    .map((fileSelection) => {
+                      const parseDisplay = getParseStatusDisplay(fileSelection.parseStatus);
+                      const ParseIcon = parseDisplay.icon;
+                      const selectedRubric = rubrics.find(r => r.id === (filePairings[fileSelection.fileId] || ''));
+                      
+                      return (
+                        <div key={fileSelection.fileId} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between">
+                            {/* File info */}
+                            <div className="flex items-center gap-3 flex-1">
+                              <File className="h-5 w-5 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium">{fileSelection.fileName}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <ParseIcon className={`h-3 w-3 ${parseDisplay.color}`} />
+                                  <span className="text-xs text-muted-foreground">{parseDisplay.text}</span>
+                                </div>
                               </div>
+                            </div>
+                            
+                            {/* Arrow */}
+                            <ArrowRight className="h-4 w-4 text-muted-foreground mx-4" />
+                            
+                            {/* Rubric selector */}
+                            <div className="flex-1">
+                              <Select
+                                value={filePairings[fileSelection.fileId] || ''}
+                                onValueChange={(value) => setFilePairings(prev => ({
+                                  ...prev,
+                                  [fileSelection.fileId]: value
+                                }))}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="選擇評分標準..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {rubrics.map((rubric) => (
+                                    <SelectItem key={rubric.id} value={rubric.id}>
+                                      {rubric.name} ({rubric.criteria?.length || 0} 個評分項目)
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              
                             </div>
                           </div>
-                          {selection.selectedRubric && (
-                            <Badge variant="outline">
-                              {selection.selectedRubric.name}
-                            </Badge>
-                          )}
                         </div>
-
-                        <div className="space-y-3">
-                          <Label htmlFor={`rubric-select-${index}`}>選擇評分標準</Label>
-                          <Select 
-                            value={selection.selectedRubricId || ''} 
-                            onValueChange={(value) => handleFileRubricChange(selection.fileId, value)}
-                            disabled={!isFileReady}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder={
-                                isFileReady 
-                                  ? "選擇評分標準" 
-                                  : "等待檔案解析完成..."
-                              } />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {rubrics.map((rubric: Rubric) => (
-                                <SelectItem key={rubric.id} value={rubric.id}>
-                                  {rubric.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-
-                          {selection.selectedRubric && (
-                            <div className="border rounded-lg p-3 bg-muted/30">
-                              <h4 className="font-medium mb-2">{selection.selectedRubric.name}</h4>
-                              <p className="text-sm text-muted-foreground mb-3">
-                                {selection.selectedRubric.description}
-                              </p>
-                              <div className="space-y-2">
-                                <h5 className="text-sm font-medium">評分項目:</h5>
-                                <ul className="list-disc pl-5 space-y-1">
-                                  {selection.selectedRubric.criteria?.map((criteria: any) => (
-                                    <li key={criteria.id} className="text-sm">
-                                      {criteria.name}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  <div className="flex justify-between items-center pt-4">
-                    <Button variant="outline" onClick={() => setStep('upload')}>
-                      返回上傳
-                    </Button>
-                    <div className="text-sm text-muted-foreground">
-                      {readyFilesCount} / {fileRubricSelections.length} 個檔案已準備就緒
-                    </div>
-                    <Button 
-                      onClick={startGrading} 
-                      disabled={!allFilesReady || readyFilesCount === 0}
-                    >
-                      開始評分 ({readyFilesCount} 個檔案)
-                    </Button>
-                  </div>
+                      );
+                    })
+                  }
                 </div>
               )}
             </CardContent>
           </Card>
+
+          <div className="flex justify-between items-center pt-6">
+            <Button variant="outline" onClick={() => setStep('upload')}>
+              返回上傳
+            </Button>
+            
+            <Button 
+              onClick={createGradingSession} 
+              disabled={Object.keys(filePairings).length === 0 || isLoading}
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              評分
+            </Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="grading" className="pt-6">
           <Card>
             <CardHeader>
-              <CardTitle>評分進行中</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                評分進行中
+                {gradingSession && (
+                  <Badge variant={gradingSession.status === 'PROCESSING' ? 'default' : 'secondary'}>
+                    {gradingSession.status}
+                  </Badge>
+                )}
+              </CardTitle>
+              {gradingSession && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>整體進度</span>
+                    <span>{gradingSession.progress}%</span>
+                  </div>
+                  <Progress value={gradingSession.progress} />
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              <div className="space-y-6">
-                {fileRubricSelections
-                  .filter(selection => selection.parseStatus === 'success' && selection.selectedRubricId)
-                  .map((selection) => (
-                    <div key={selection.fileId} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <File className="h-5 w-5 text-green-500" />
-                          <div>
-                            <p className="font-medium">{selection.fileName}</p>
-                            <p className="text-sm text-muted-foreground">
-                              評分標準: {selection.selectedRubric?.name}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge variant="outline">準備評分</Badge>
-                      </div>
+              {gradingSession ? (
+                <div className="space-y-6">
+                  <div className="flex gap-2">
+                    {gradingSession.status === 'PENDING' && (
+                      <Button onClick={startGrading} disabled={isLoading}>
+                        <Play className="h-4 w-4 mr-2" />
+                        開始評分
+                      </Button>
+                    )}
+                    {gradingSession.status === 'PROCESSING' && (
+                      <Button variant="outline" disabled>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        評分中...
+                      </Button>
+                    )}
+                    {gradingSession.status === 'COMPLETED' && (
+                      <Button onClick={() => setStep('results')}>
+                        查看結果
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-medium">評分任務 ({gradingSession.gradingResults.length})</h3>
+                    {gradingSession.gradingResults.map((result) => {
+                      const statusDisplay = getGradingStatusDisplay(result.status);
+                      const StatusIcon = statusDisplay.icon;
                       
-                      {/* TODO: 添加評分進度和結果顯示 */}
-                      <div className="bg-muted/30 p-3 rounded">
-                        <p className="text-sm text-muted-foreground">
-                          評分功能開發中...
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                }
-                
-                <div className="flex justify-center">
-                  <Button variant="outline" onClick={() => setStep('select-rubrics')}>
-                    返回選擇評分標準
-                  </Button>
+                      return (
+                        <div key={result.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <File className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium text-sm">
+                                  {result.uploadedFile.originalFileName}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  評分標準: {result.rubric.name}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <StatusIcon className={`h-4 w-4 ${statusDisplay.color} ${statusDisplay.icon === Loader2 ? 'animate-spin' : ''}`} />
+                              <Badge variant={result.status === 'COMPLETED' ? 'default' : 'secondary'}>
+                                {statusDisplay.text}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          {result.progress > 0 && result.status === 'PROCESSING' && (
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span>進度</span>
+                                <span>{result.progress}%</span>
+                              </div>
+                              <Progress value={result.progress} className="h-2" />
+                            </div>
+                          )}
+                          
+                          {result.errorMessage && (
+                            <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+                              錯誤: {result.errorMessage}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="text-muted-foreground">沒有評分對話</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="results" className="pt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>評分結果</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {gradingSession && (() => {
+                const completedResults = gradingSession.gradingResults.filter(r => r.status === 'COMPLETED' && r.result);
+                
+                if (completedResults.length === 0) {
+                  return <p className="text-muted-foreground text-center py-8">尚無評分結果</p>;
+                }
+
+                const carouselResults = completedResults
+                  .filter(result => result.result)
+                  .map((result) => ({
+                    id: result.id,
+                    title: `${result.uploadedFile.originalFileName} - ${result.rubric.name}`,
+                    fileName: result.uploadedFile.originalFileName,
+                    rubricName: result.rubric.name,
+                    result: result.result as unknown as GradingResultData
+                  }));
+
+                return carouselResults.length > 0 
+                  ? <ResultCarousel results={carouselResults} />
+                  : <p className="text-muted-foreground text-center py-8">評分結果資料不完整</p>;
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
-} 
+}

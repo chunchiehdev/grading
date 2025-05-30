@@ -35,11 +35,17 @@ export default [
   route('/api/upload/progress/:id', './api/upload/progress.$id.ts'),
 
   // File management API routes
+  route('/api/files', './api/files/index.ts'),
   route('/api/files/user-files', './api/files/user-files.ts'),
   route('/api/files/update-rubric', './api/files/update-rubric.ts'),
   
   // Rubric API routes
   route('/api/rubrics', './api/rubrics/index.ts'),
+
+  // Grading session API routes
+  route('/api/grading/session', './api/grading/session.ts'),
+  route('/api/grading/session/:sessionId', './api/grading/session.$sessionId.ts'),
+  route('/api/grading/results', './api/grading/results.ts'),
 
   // Auth API routes
   route('/api/auth/login', './api/auth/login.ts'),

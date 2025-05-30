@@ -83,6 +83,10 @@ model UploadedFile {
   parsedContent    String?         @db.Text // 解析後的文字內容
   parseError       String?         // 解析錯誤訊息
   
+  // 軟刪除標記
+  isDeleted        Boolean  @default(false)
+  deletedAt        DateTime? // 刪除時間
+  
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   expiresAt        DateTime? // 檔案過期時間，用於自動清理
@@ -91,6 +95,7 @@ model UploadedFile {
   gradingResults   GradingResult[]
 
   @@index([userId, parseStatus])
+  @@index([userId, isDeleted]) // 用於過濾已刪除檔案
   @@index([expiresAt]) // 用於清理過期檔案
   @@map("uploaded_files")
 }

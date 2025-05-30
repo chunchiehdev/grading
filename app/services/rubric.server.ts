@@ -80,7 +80,7 @@ function parseCriteriaFromDB(criteria: unknown): RubricCriteria[] {
 /**
  * Creates a new rubric with validation and version control
  * @param {UIRubricData} rubricData - The rubric data from UI form
- * @param {string} [userId] - Optional user ID for version control
+ * @param {string} userId - Required user ID for version control
  * @returns {Promise<Object>} Result object containing success status, rubricId, or error
  * @returns {boolean} returns.success - Whether the operation succeeded
  * @returns {string} [returns.rubricId] - The created rubric ID if successful
@@ -88,10 +88,11 @@ function parseCriteriaFromDB(criteria: unknown): RubricCriteria[] {
  */
 export async function createRubric(
   rubricData: UIRubricData,
-  userId?: string
+  userId: string
 ): Promise<{ success: boolean; rubricId?: string; error?: string }> {
   try {
     const validation = validateRubricData(rubricData);
+    
     if (!validation.success) {
       return { success: false, error: validation.errors[0] };
     }
@@ -110,7 +111,7 @@ export async function createRubric(
     
     const result = await db.rubric.create({
       data: {
-        userId: userId || 'default-user', // TODO: 從認證中取得真實userId
+        userId: userId,
         name: validation.data!.name,
         description: validation.data!.description,
         version: 1,
@@ -355,29 +356,27 @@ export async function getRubricVersions(id: string): Promise<{ versions: RubricR
 }
 
 /**
- * Grades a document using the specified rubric with progress tracking
- * @param {string} fileKey - The file key in storage to grade
- * @param {string} rubricId - The rubric ID to use for grading
- * @param {string} [gradingId] - Optional grading session ID for progress tracking
- * @param {string} userId - User ID for document processing
- * @returns {Promise<Object>} Result object containing grading results or error
- * @returns {boolean} returns.success - Whether the grading succeeded
- * @returns {any} [returns.gradingResult] - The grading analysis and scores if successful
- * @returns {string} [returns.error] - Error message if grading failed
+ * Starts a background grading process for a grading session
+ * @param {string} sessionId - The grading session ID to process
+ * @returns {Promise<Object>} Result object indicating if grading was started
  */
-export async function gradeDocument(
-  fileKey: string,
-  rubricId: string,
-  gradingId?: string,
-  userId?: string,
-): Promise<{
-  success: boolean;
-  gradingResult?: any;
-  error?: string;
-}> {
-  // TODO: 這個函數需要重新實作以配合新的GradingSession/GradingResult架構
-  return {
-    success: false,
-    error: '評分功能正在重構中，請稍後再試'
-  };
+export async function startGradingProcess(
+  sessionId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Import here to avoid circular dependencies
+    const { processGradingSession } = await import('./grading-engine.server');
+    
+    // Start grading process asynchronously
+    processGradingSession(sessionId).catch(error => {
+      console.error(`Background grading failed for session ${sessionId}:`, error);
+    });
+    
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to start grading process'
+    };
+  }
 }

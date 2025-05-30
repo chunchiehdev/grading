@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Upload, X, File, Paperclip, AlertCircle, FileUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { UploadedFileInfo } from '@/types/files';
 import { useFileUpload } from '@/hooks/useFileUpload';
 
 // Helper function to format file size
@@ -21,7 +20,6 @@ interface FileUploadProps {
   maxFileSize?: number;
   acceptedFileTypes?: string[];
   onFilesChange?: (files: File[]) => void;
-  onUploadComplete?: (uploadedFiles: UploadedFileInfo[]) => void;
   onError?: (error: string) => void;
 }
 
@@ -30,7 +28,6 @@ export const CompactFileUpload = ({
   maxFileSize = 100 * 1024 * 1024,
   acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt'],
   onFilesChange,
-  onUploadComplete,
   onError,
 }: FileUploadProps) => {
   const { 
@@ -39,7 +36,7 @@ export const CompactFileUpload = ({
     deleteFile, 
     isUploading,
     uploadError 
-  } = useFileUpload({ onUploadComplete });
+  } = useFileUpload();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

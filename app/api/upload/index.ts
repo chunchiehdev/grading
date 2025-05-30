@@ -1,15 +1,9 @@
-import { uploadToStorage } from '@/services/storage.server';
-import { UploadProgressService } from '@/services/progress.server';
 import { getUserId } from '@/services/auth.server';
-import { db } from '@/lib/db.server';
-import { triggerPdfParsing } from '@/services/pdf-parser.server';
-import { FileParseStatus } from '@/types/database';
+import { uploadFile } from '@/services/uploaded-file.server';
+import { UploadProgressService } from '@/services/progress.server';
 
 /**
  * API endpoint loader that rejects GET requests for file uploads
- * @param {Object} params - Route parameters
- * @param {Request} params.request - HTTP request object
- * @returns {Promise<Response>} JSON error response indicating POST method required
  */
 export async function loader({ request }: { request: Request }) {
   return Response.json(
@@ -22,89 +16,7 @@ export async function loader({ request }: { request: Request }) {
 }
 
 /**
- * Temporary multipart form data parser until proper implementation
- * @param {Request} request - HTTP request with multipart form data
- * @param {any} uploadHandler - Upload handler function (unused in current implementation)
- * @returns {Promise<FormData>} Parsed form data
- */
-async function parseMultipartFormData(request: Request, uploadHandler: any) {
-  // This is a simplified version that doesn't track progress
-  // You'll need to implement a proper multipart parser
-  const formData = await request.formData();
-  return formData;
-}
-
-/**
- * Creates an upload handler for processing file uploads with progress tracking
- * @param {string} uploadId - Unique upload session identifier
- * @returns {Function} Upload handler function for processing file chunks
- */
-function createUploadHandler(uploadId: string) {
-  return async ({ name, filename, data, contentType }: any) => {
-    if (name !== 'files' || !filename) {
-      return undefined;
-    }
-
-    try {
-      const chunks: Uint8Array[] = [];
-      let totalSize = 0;
-      const fileKey = `uploads/${Date.now()}-${filename}`;
-
-      await UploadProgressService.updateFileProgress(uploadId, filename, {
-        status: 'uploading',
-        progress: 0,
-      });
-
-      for await (const chunk of data) {
-        chunks.push(chunk);
-        totalSize += chunk.length;
-
-        await UploadProgressService.updateFileProgress(uploadId, filename, {
-          status: 'uploading',
-          progress: Math.floor((50 * chunks.length) / (chunks.length + 1)),
-        });
-      }
-
-      const buffer = Buffer.concat(chunks);
-
-      await UploadProgressService.updateFileProgress(uploadId, filename, {
-        status: 'uploading',
-        progress: 75,
-      });
-
-      const result = await uploadToStorage(buffer, fileKey, contentType);
-
-      await UploadProgressService.updateFileProgress(uploadId, filename, {
-        status: 'success',
-        progress: 100,
-      });
-
-      return JSON.stringify({
-        name: filename,
-        size: buffer.length,
-        type: contentType,
-        url: result.url,
-        key: fileKey,
-      });
-    } catch (error) {
-      console.error(`上傳檔案 ${filename} 失敗:`, error);
-
-      await UploadProgressService.updateFileProgress(uploadId, filename, {
-        status: 'error',
-        progress: 0,
-        error: error instanceof Error ? error.message : '上傳失敗',
-      });
-
-      throw error;
-    }
-  };
-}
-
-/**
  * API endpoint to handle file uploads with progress tracking and database storage
- * @param {Object} params - Route parameters
- * @param {Request} params.request - HTTP request with multipart form data containing files and uploadId
- * @returns {Promise<Response>} JSON response with upload results or error
  */
 export async function action({ request }: { request: Request }) {
   try {
@@ -134,38 +46,93 @@ export async function action({ request }: { request: Request }) {
       );
     }
 
+    if (!files || files.length === 0) {
+      return Response.json(
+        {
+          success: false,
+          error: 'No files provided',
+        },
+        { status: 400 }
+      );
+    }
+
     console.log(`🚀 Processing ${files.length} files for user ${userId}, uploadId: ${uploadId}`);
 
     const fileResults = await Promise.all(
       files.map(async (file) => {
-        const fileKey = `uploads/${Date.now()}-${file.name}`;
-
         try {
           await UploadProgressService.updateFileProgress(uploadId, file.name, {
             status: 'uploading',
             progress: 0,
           });
 
-          const buffer = Buffer.from(await file.arrayBuffer());
+          // Upload using the new service
+          const result = await uploadFile({
+            userId,
+            file,
+            originalFileName: file.name
+          });
+
+          if (!result.success) {
+            throw new Error(result.error || 'Upload failed');
+          }
 
           await UploadProgressService.updateFileProgress(uploadId, file.name, {
-            status: 'uploading',
-            progress: 50,
+            status: 'success',
+            progress: 100,
           });
 
-          // Upload to storage
-          const result = await uploadToStorage(buffer, fileKey, file.type);
+          console.log(`✅ File uploaded successfully: ${file.name} -> ${result.fileId}`);
 
-          // Save to database
-          const uploadedFile = await db.uploadedFile.create({
-            data: {
-              userId,
-              fileName: file.name,
-              fileKey,
-              fileSize: file.size,
-              mimeType: file.type,
-              parseStatus: FileParseStatus.PENDING,
-            },
+          return {
+            fileId: result.fileId,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            success: true
+          };
+        } catch (error) {
+          console.error(`❌ Upload failed for ${file.name}:`, error);
+
+          await UploadProgressService.updateFileProgress(uploadId, file.name, {
+            status: 'error',
+            progress: 0,
+            error: error instanceof Error ? error.message : '上傳失敗',
           });
 
-          console.log(`
+          return {
+            fileName: file.name,
+            success: false,
+            error: error instanceof Error ? error.message : '上傳失敗'
+          };
+        }
+      })
+    );
+
+    const successfulUploads = fileResults.filter(result => result.success);
+    const failedUploads = fileResults.filter(result => !result.success);
+
+    // Log completion status
+    console.log(`Upload completed for ${uploadId}: ${successfulUploads.length}/${files.length} successful`);
+
+    return Response.json({
+      success: true,
+      uploadId,
+      results: fileResults,
+      summary: {
+        total: files.length,
+        successful: successfulUploads.length,
+        failed: failedUploads.length,
+      },
+    });
+  } catch (error) {
+    console.error('Upload API error:', error);
+    return Response.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : '上傳過程中發生錯誤',
+      },
+      { status: 500 }
+    );
+  }
+}

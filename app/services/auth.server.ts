@@ -1,15 +1,7 @@
 import { db } from '@/lib/db.server';
-import bcrypt from 'bcryptjs';
 import { redirect } from 'react-router';
 import { getSession, commitSession, destroySession } from '@/sessions.server';
 import { OAuth2Client } from 'google-auth-library';
-import type { LoginFormValues } from '@/schemas/auth';
-import { ApiError } from '@/middleware/api.server';
-
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
 
 let oauth2Client: OAuth2Client | null = null;
 
@@ -96,12 +88,11 @@ export async function handleGoogleCallback(request: Request) {
       user = await db.user.create({
         data: {
           email: payload.email,
-          password: await bcrypt.hash(Math.random().toString(36), 10),
         },
       });
     }
 
-    const session = await createUserSession(user.id);
+    const session = await createUserSession(user.id, request);
     const response = redirect('/dashboard');
     response.headers.set('Set-Cookie', session);
 
@@ -113,69 +104,13 @@ export async function handleGoogleCallback(request: Request) {
 }
 
 /**
- * Registers a new user with email and password
- * @param {LoginCredentials} credentials - User email and password
- * @param {string} credentials.email - User email address
- * @param {string} credentials.password - User password
- * @returns {Promise<Response>} Redirect response to dashboard with session
- * @throws {ApiError} If user already exists
- */
-export async function register({ email, password }: LoginCredentials) {
-  const existingUser = await db.user.findUnique({ where: { email } });
-
-  if (existingUser) {
-    throw new ApiError('Registration failed', 400, {
-      email: 'A user already exists with this email',
-    });
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await db.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-    },
-  });
-
-  const session = await createUserSession(user.id);
-  const response = redirect('/dashboard');
-  response.headers.set('Set-Cookie', session);
-
-  return response;
-}
-
-/**
- * Authenticates user login with email and password
- * @param {LoginFormValues} credentials - User login credentials
- * @param {string} credentials.email - User email address
- * @param {string} credentials.password - User password
- * @returns {Promise<Response>} Redirect response to dashboard with session
- * @throws {ApiError} If credentials are invalid
- */
-export async function login({ email, password }: LoginFormValues) {
-  const user = await db.user.findUnique({ where: { email } });
-  if (!user) {
-    throw new ApiError('Authentication failed', 401, { email: 'Invalid email' });
-  }
-
-  const isValidPassword = await bcrypt.compare(password, user.password);
-  if (!isValidPassword) {
-    throw new ApiError('Authentication failed', 401, { password: 'Invalid password' });
-  }
-
-  const session = await createUserSession(user.id);
-  const response = redirect('/dashboard');
-  response.headers.set('Set-Cookie', session);
-  return response;
-}
-
-/**
  * Creates a new user session and returns session cookie
  * @param {string} userId - The user ID to create session for
+ * @param {Request} request - The original request to maintain session continuity
  * @returns {Promise<string>} Session cookie string for Set-Cookie header
  */
-export async function createUserSession(userId: string) {
-  const session = await getSession(new Request('http://localhost'));
+export async function createUserSession(userId: string, request: Request) {
+  const session = await getSession(request);
   session.set('userId', userId);
   return commitSession(session);
 }

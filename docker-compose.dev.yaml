@@ -19,7 +19,7 @@ services:
       - MINIO_BUCKET=${MINIO_BUCKET:-grading-files}
       - API_URL=http://140.115.126.192:8001
       # PDF Parser API
-      - PDF_PARSER_API_URL=http://grading-pdf-api-1:8000
+      - PDF_PARSER_API_URL=${PDF_PARSER_API_URL}
       # Google OAuth
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
@@ -27,6 +27,7 @@ services:
       # Auth secrets
       - THEME_SECRET=${THEME_SECRET}
       - AUTH_SECRET=${AUTH_SECRET}
+
     volumes:
       - .:/app
       - /app/node_modules
@@ -37,7 +38,6 @@ services:
       - minio
     networks:
       - app_network
-
 
   db:   
     image: postgres:16-alpine

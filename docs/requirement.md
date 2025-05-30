@@ -1,47 +1,47 @@
-補充使用者對評分標準的管理功能，並整合至完整需求中如下：
+Add the user's functionality to manage scoring criteria and integrate it into the complete requirements as follows:
 
 ---
 
-# 專案需求說明
+# Project Requirements Description
 
-## 使用者流程
+## User Flow
 
-1. **Google 登入**
+1. **Google Login**
 
-   * 使用者需先透過 Google 帳戶登入系統。
+   * Users must log in to the system using their Google account.
 
-2. **上傳檔案**
+2. **File Upload**
 
-   * 使用者可上傳一或多個檔案。
-   * 上傳過程中需即時顯示進度條。
+   * Users can upload one or multiple files.
+   * A real-time progress bar must be displayed during the upload process.
 
-     * 採用 **Server-Sent Events (SSE)** 讓伺服器與前端同步上傳進度。
+     * Use **Server-Sent Events (SSE)** to synchronize upload progress between the server and the frontend.
 
-3. **選擇評分標準**
+3. **Select Scoring Criteria**
 
-   * 每個上傳的檔案需搭配一個選擇的評分標準（例如從下拉選單選取）。
+   * Each uploaded file must be paired with a selected scoring criterion (e.g., chosen from a dropdown menu).
 
-4. **管理評分標準**
+4. **Manage Scoring Criteria**
 
-   * 使用者可以新增、修改、刪除評分標準。
+   * Users can add, edit, or delete scoring criteria.
 
-     * **新增**：自定義標準名稱與描述。
-     * **修改**：更新既有標準的名稱與內容。
-     * **刪除**：移除不需要的標準。
-   * 所有變更應立即反映到前端選擇列表中。
+     * **Add**: Define custom criterion name and description.
+     * **Edit**: Update the name and content of existing criteria.
+     * **Delete**: Remove unnecessary criteria.
+   * All changes should immediately reflect in the frontend selection list.
 
-5. **送出評分請求**
+5. **Submit Scoring Request**
 
-   * 檔案與其對應的評分標準會一起送交至 **大型語言模型** 進行分析與評分。
+   * Files and their corresponding scoring criteria are submitted to a **large language model** for analysis and scoring.
 
-6. **結果顯示**
+6. **Result Display**
 
-   * 每個檔案對應一個評分結果。
-   * 若使用者上傳兩個檔案，就會看到兩個評分結果。
+   * Each file corresponds to one scoring result.
+   * For example, if two files are uploaded, two scoring results will be displayed.
 
-## 前端顯示（使用 shadcn UI）
+## Frontend Display (Using shadcn UI)
 
-* 評分結果以 Carousel 元件方式顯示。
+* Scoring results are displayed as a Carousel component.
 
 ```tsx
 import * as React from "react"
@@ -79,10 +79,10 @@ export function ResultCarousel({ results }: { results: { title: string; score: s
 }
 ```
 
-## 備註
+## Notes
 
-* 評分標準 CRUD 功能建議用 Modal 或頁面區塊管理。
-* 上傳進度以 SSE 傳送，
-* 使用者送出前需完成檔案與標準的配對。
+* The CRUD functionality for scoring criteria is recommended to be managed using a Modal or a dedicated page section.
+* Upload progress should be transmitted using SSE.
+* Users must complete the pairing of files and criteria before submission.
 
 ---

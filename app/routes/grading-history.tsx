@@ -1,200 +1,344 @@
-import { useLoaderData, Link } from 'react-router';
+import { useState, useCallback, useEffect } from 'react';
+import { Link } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Eye, Download, Clock, FileText, Filter } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { EmptyState } from '@/components/ui/empty-state';
+import { 
+  AlertCircle, 
+  FileText, 
+  File, 
+  CheckCircle, 
+  Clock, 
+  AlertTriangle, 
+  Loader2,
+  Eye,
+  Calendar,
+  BarChart3
+} from 'lucide-react';
+import { format } from 'date-fns';
+import { zhTW } from 'date-fns/locale';
+import { type GradingSession, type GradingResult } from '@/types/database';
 
-interface GradingHistoryItem {
-  id: string;
-  fileName: string;
-  score: number;
-  rubricName: string;
-  gradedAt: string;
-  duration: number;
+type SessionStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+type GradingStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+
+interface GradingSessionWithResults extends GradingSession {
+  gradingResults: (GradingResult & {
+    uploadedFile: {
+      fileName: string;
+      originalFileName: string;
+    };
+    rubric: {
+      name: string;
+    };
+  })[];
 }
 
-export const loader = async () => {
-  const mockHistory: GradingHistoryItem[] = [
-    {
-      id: 'grad-001',
-      fileName: '期末報告.pdf',
-      score: 92,
-      rubricName: '論文評分標準',
-      gradedAt: '2023-06-15T14:32:00Z',
-      duration: 6200,
-    },
-    {
-      id: 'grad-002',
-      fileName: '研究計畫書.docx',
-      score: 85,
-      rubricName: '研究計畫評分標準',
-      gradedAt: '2023-06-14T09:12:00Z',
-      duration: 5800,
-    },
-    {
-      id: 'grad-003',
-      fileName: '文學分析.pdf',
-      score: 78,
-      rubricName: '文學分析評分標準',
-      gradedAt: '2023-06-13T16:45:00Z',
-      duration: 4900,
-    },
-    {
-      id: 'grad-004',
-      fileName: '科學報告.pdf',
-      score: 88,
-      rubricName: '科學報告評分標準',
-      gradedAt: '2023-06-12T11:20:00Z',
-      duration: 5500,
-    },
-    {
-      id: 'grad-005',
-      fileName: '專題簡報.pdf',
-      score: 94,
-      rubricName: '簡報評分標準',
-      gradedAt: '2023-06-10T15:10:00Z',
-      duration: 4200,
-    },
-  ];
+export default function GradingHistoryPage() {
+  const [sessions, setSessions] = useState<GradingSessionWithResults[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [limit] = useState(20);
 
-  return Response.json({ history: mockHistory });
-};
+  // Load grading sessions
+  const loadSessions = useCallback(async (currentOffset = 0) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/grading/session?limit=${limit}&offset=${currentOffset}`, {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setSessions(data.sessions || []);
+        setTotal(data.total || 0);
+        setOffset(currentOffset);
+      } else {
+        setError(data.error || 'Failed to load grading sessions');
+        setSessions([]);
+      }
+    } catch (err) {
+      setError('Failed to load grading sessions');
+      setSessions([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [limit]);
 
-function getScoreBadgeVariant(score: number) {
-  if (score >= 90) return 'bg-green-100 text-green-800';
-  if (score >= 80) return 'bg-blue-100 text-blue-800';
-  if (score >= 70) return 'bg-yellow-100 text-yellow-800';
-  return 'bg-red-100 text-red-800';
-}
+  // Get session status display
+  const getSessionStatusDisplay = (status: SessionStatus) => {
+    switch (status) {
+      case 'PENDING':
+        return { icon: Clock, color: 'text-yellow-500', text: '等待開始', variant: 'secondary' as const };
+      case 'PROCESSING':
+        return { icon: Loader2, color: 'text-blue-500', text: '評分中', variant: 'default' as const };
+      case 'COMPLETED':
+        return { icon: CheckCircle, color: 'text-green-500', text: '已完成', variant: 'default' as const };
+      case 'FAILED':
+        return { icon: AlertTriangle, color: 'text-red-500', text: '失敗', variant: 'destructive' as const };
+      case 'CANCELLED':
+        return { icon: AlertCircle, color: 'text-gray-500', text: '已取消', variant: 'secondary' as const };
+      default:
+        return { icon: Clock, color: 'text-gray-500', text: '未知', variant: 'secondary' as const };
+    }
+  };
 
-export default function GradingHistory() {
-  const { history } = useLoaderData<{ history: GradingHistoryItem[] }>();
+  // Get grading status display
+  const getGradingStatusDisplay = (status: GradingStatus) => {
+    switch (status) {
+      case 'PENDING':
+        return { icon: Clock, color: 'text-yellow-500', text: '等待評分' };
+      case 'PROCESSING':
+        return { icon: Loader2, color: 'text-blue-500', text: '評分中' };
+      case 'COMPLETED':
+        return { icon: CheckCircle, color: 'text-green-500', text: '評分完成' };
+      case 'FAILED':
+        return { icon: AlertTriangle, color: 'text-red-500', text: '評分失敗' };
+      case 'SKIPPED':
+        return { icon: AlertCircle, color: 'text-gray-500', text: '已跳過' };
+      default:
+        return { icon: Clock, color: 'text-gray-500', text: '未知狀態' };
+    }
+  };
+
+  // Calculate session statistics
+  const getSessionStats = (session: GradingSessionWithResults) => {
+    const totalTasks = session.gradingResults.length;
+    const completedTasks = session.gradingResults.filter(r => r.status === 'COMPLETED').length;
+    const failedTasks = session.gradingResults.filter(r => r.status === 'FAILED').length;
+    const processingTasks = session.gradingResults.filter(r => r.status === 'PROCESSING').length;
+    
+    return {
+      totalTasks,
+      completedTasks,
+      failedTasks,
+      processingTasks,
+      successRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+    };
+  };
+
+  // Load sessions on component mount
+  useEffect(() => {
+    loadSessions(0);
+  }, [loadSessions]);
+
+  // Auto-refresh processing sessions
+  useEffect(() => {
+    const processingCount = sessions.filter(s => s.status === 'PROCESSING').length;
+    
+    if (processingCount > 0) {
+      const interval = setInterval(() => {
+        loadSessions(offset);
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [sessions, offset, loadSessions]);
+
+  const hasNextPage = offset + limit < total;
+  const hasPrevPage = offset > 0;
 
   return (
-    <div className="container px-4 py-8 max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">評分歷史</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            匯出紀錄
-          </Button>
-          <Button variant="outline" size="sm">
-            <Filter className="h-4 w-4 mr-2" />
-            篩選
-          </Button>
+    <div className="container mx-auto py-8 space-y-6">
+      <div className="flex justify-between items-center">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">評分歷史</h1>
+          <p className="text-muted-foreground">
+            查看您的評分會話記錄和結果
+          </p>
         </div>
+        <Button asChild>
+          <Link to="/grading-with-rubric">
+            開始新的評分
+          </Link>
+        </Button>
       </div>
 
-      <Tabs defaultValue="all" className="mb-8">
-        <TabsList>
-          <TabsTrigger value="all">全部紀錄</TabsTrigger>
-          <TabsTrigger value="recent">最近評分</TabsTrigger>
-          <TabsTrigger value="highscore">高分紀錄</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="all" className="pt-4">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>檔案名稱</TableHead>
-                    <TableHead>評分標準</TableHead>
-                    <TableHead>評分時間</TableHead>
-                    <TableHead className="text-center">評分</TableHead>
-                    <TableHead>操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          {item.fileName}
-                        </div>
-                      </TableCell>
-                      <TableCell>{item.rubricName}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span>{new Date(item.gradedAt).toLocaleDateString('zh-TW')}</span>
-                          <span className="text-xs text-muted-foreground flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            {(item.duration / 1000).toFixed(1)}秒
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="secondary" className={`px-2 ${getScoreBadgeVariant(item.score)}`}>
-                          {item.score}分
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Link to={`/grading-view/${item.id}`}>
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4 mr-1" />
-                              查看
-                            </Button>
-                          </Link>
-                          <Button variant="ghost" size="sm">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="recent" className="pt-4">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground">顯示最近7天的評分記錄</p>
-              {/* 這裡可以添加最近評分的篩選內容 */}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="highscore" className="pt-4">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground">顯示得分高於85分的記錄</p>
-              {/* 這裡可以添加高分紀錄的篩選內容 */}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>評分統計</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground mb-1">總評分次數</p>
-              <p className="text-2xl font-bold">{history.length}</p>
-            </div>
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground mb-1">平均分數</p>
-              <p className="text-2xl font-bold">
-                {(history.reduce((acc, item) => acc + item.score, 0) / history.length).toFixed(1)}
-              </p>
-            </div>
-            <div className="border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground mb-1">最高分</p>
-              <p className="text-2xl font-bold">{Math.max(...history.map((item) => item.score))}</p>
-            </div>
+      {error && (
+        <div className="p-4 border border-red-300 bg-red-50 rounded-md">
+          <div className="flex items-center">
+            <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
+            <p className="text-red-800">{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="ml-auto"
+              onClick={() => setError(null)}
+            >
+              關閉
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
+
+      {isLoading && sessions.length === 0 ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : sessions.length === 0 ? (
+        <EmptyState
+          title="還沒有評分記錄"
+          description="開始您的第一次評分，記錄將會出現在這裡。"
+          actionText="開始評分"
+          actionLink="/grading-with-rubric"
+          icon={<BarChart3 className="h-12 w-12" />}
+        />
+      ) : (
+        <div className="space-y-6">
+          {/* Session List */}
+          <div className="space-y-4">
+            {sessions.map((session) => {
+              const statusDisplay = getSessionStatusDisplay(session.status);
+              const StatusIcon = statusDisplay.icon;
+              const stats = getSessionStats(session);
+              
+              return (
+                <Card key={session.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                          <StatusIcon className={`h-5 w-5 ${statusDisplay.color} ${statusDisplay.icon === Loader2 ? 'animate-spin' : ''}`} />
+                          <CardTitle className="text-lg">
+                            評分會話 #{session.id.slice(-8)}
+                          </CardTitle>
+                          <Badge variant={statusDisplay.variant}>
+                            {statusDisplay.text}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>建立於 {format(new Date(session.createdAt), 'yyyy/MM/dd HH:mm', { locale: zhTW })}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <File className="h-3 w-3" />
+                            <span>{stats.totalTasks} 個評分任務</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-2xl font-bold text-primary">
+                          {session.progress}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          完成進度
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <Progress value={session.progress} className="mt-3" />
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Statistics */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center p-3 bg-muted/30 rounded-lg">
+                          <div className="text-lg font-semibold text-green-600">
+                            {stats.completedTasks}
+                          </div>
+                          <div className="text-xs text-muted-foreground">已完成</div>
+                        </div>
+                        <div className="text-center p-3 bg-muted/30 rounded-lg">
+                          <div className="text-lg font-semibold text-blue-600">
+                            {stats.processingTasks}
+                          </div>
+                          <div className="text-xs text-muted-foreground">進行中</div>
+                        </div>
+                        <div className="text-center p-3 bg-muted/30 rounded-lg">
+                          <div className="text-lg font-semibold text-red-600">
+                            {stats.failedTasks}
+                          </div>
+                          <div className="text-xs text-muted-foreground">失敗</div>
+                        </div>
+                        <div className="text-center p-3 bg-muted/30 rounded-lg">
+                          <div className="text-lg font-semibold text-primary">
+                            {stats.successRate}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">成功率</div>
+                        </div>
+                      </div>
+
+                      {/* Recent Results Preview */}
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-sm">評分任務預覽 (前3項)</h4>
+                        <div className="space-y-2">
+                          {session.gradingResults.slice(0, 3).map((result) => {
+                            const resultStatusDisplay = getGradingStatusDisplay(result.status);
+                            const ResultIcon = resultStatusDisplay.icon;
+                            
+                            return (
+                              <div key={result.id} className="flex items-center justify-between p-2 bg-muted/20 rounded">
+                                <div className="flex items-center gap-2">
+                                  <File className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-sm font-medium">
+                                    {result.uploadedFile.originalFileName}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    • {result.rubric.name}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <ResultIcon className={`h-3 w-3 ${resultStatusDisplay.color} ${resultStatusDisplay.icon === Loader2 ? 'animate-spin' : ''}`} />
+                                  <span className="text-xs">{resultStatusDisplay.text}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {session.gradingResults.length > 3 && (
+                            <div className="text-xs text-muted-foreground text-center py-1">
+                              還有 {session.gradingResults.length - 3} 個任務...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex justify-end">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/grading-history/${session.id}`}>
+                            <Eye className="h-3 w-3 mr-1" />
+                            查看詳情
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Pagination */}
+          {(hasNextPage || hasPrevPage) && (
+            <div className="flex justify-between items-center pt-6">
+              <Button 
+                variant="outline" 
+                onClick={() => loadSessions(offset - limit)}
+                disabled={!hasPrevPage || isLoading}
+              >
+                上一頁
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                顯示 {offset + 1} - {Math.min(offset + limit, total)} / {total} 個會話
+              </span>
+              <Button 
+                variant="outline" 
+                onClick={() => loadSessions(offset + limit)}
+                disabled={!hasNextPage || isLoading}
+              >
+                下一頁
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
