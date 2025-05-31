@@ -64,9 +64,6 @@ export async function handleGoogleCallback(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
 
-  console.log('🔍 Google callback - URL:', url.toString());
-  console.log('🔍 Google callback - Code present:', !!code);
-
   if (!code) {
     throw new Error('Missing authorization code');
   }
@@ -83,14 +80,11 @@ export async function handleGoogleCallback(request: Request) {
     const payload = ticket.getPayload();
     if (!payload || !payload.email) throw new Error('No user payload');
 
-    console.log('✅ Google auth successful for:', payload.email);
-
     let user = await db.user.findUnique({
       where: { email: payload.email },
     });
 
     if (!user) {
-      console.log('📝 Creating new user:', payload.email);
       user = await db.user.create({
         data: {
           email: payload.email,
@@ -98,15 +92,13 @@ export async function handleGoogleCallback(request: Request) {
       });
     }
 
-    console.log('🍪 Creating session for user:', user.id);
     const session = await createUserSession(user.id, request);
     const response = redirect('/dashboard');
     response.headers.set('Set-Cookie', session);
 
-    console.log('🔄 Redirecting to dashboard with session cookie');
     return response;
   } catch (error) {
-    console.error('❌ Google authentication error:', error);
+    console.error('Google authentication error:', error);
     return redirect('/login?error=google-auth-failed');
   }
 }
@@ -132,10 +124,7 @@ export async function getUser(request: Request) {
   const session = await getSession(request);
   const userId = session.get('userId');
 
-  console.log('👤 getUser - userId from session:', userId);
-
   if (!userId || typeof userId !== 'string') {
-    console.log('❌ getUser - No valid userId in session');
     return null;
   }
 
@@ -145,16 +134,12 @@ export async function getUser(request: Request) {
       select: { id: true, email: true },
     });
 
-    console.log('👤 getUser - Found user in DB:', user ? user.email : 'null');
-
     if (!user) {
-      console.log('❌ getUser - User not found in database with id:', userId);
       return null;
     }
 
     return user;
   } catch (error) {
-    console.error('❌ getUser - Database error:', error);
     return null;
   }
 }
