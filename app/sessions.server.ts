@@ -8,23 +8,29 @@ export const sessionStorage = createCookieSessionStorage({
     httpOnly: true,
     path: '/',
     sameSite: 'lax',
-    secrets: [process.env.AUTH_SECRET || 'default'],
+    secrets: [process.env.AUTH_SECRET || 'default-dev-secret-change-in-production'],
     secure: process.env.NODE_ENV === 'production',
     maxAge: AUTH_COOKIE_MAX_AGE,
-    domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
+    domain: process.env.COOKIE_DOMAIN || undefined,
   },
 });
 
 // Helper to get auth session
 export async function getSession(request: Request) {
   const cookie = request.headers.get('Cookie');
-  return sessionStorage.getSession(cookie);
+  console.log('🍪 Request cookies:', cookie);
+  const session = await sessionStorage.getSession(cookie);
+  console.log('🍪 Session data:', session.data);
+  return session;
 }
 
 export async function commitSession(session: any) {
-  return sessionStorage.commitSession(session, {
+  console.log('💾 Committing session with userId:', session.get('userId'));
+  const cookieHeader = await sessionStorage.commitSession(session, {
     expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000)
   });
+  console.log('💾 Generated Set-Cookie header:', cookieHeader);
+  return cookieHeader;
 }
 
 export async function destroySession(session: any) {
