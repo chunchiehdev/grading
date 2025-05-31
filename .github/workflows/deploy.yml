@@ -53,7 +53,7 @@ jobs:
                 --image=chunchiehdev/gradsystem:master \
                 --env="DATABASE_URL=$(kubectl get secret gradsystem-secret -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
                 --env="NODE_ENV=production" \
-                -- npx prisma migrate reset --force --schema=/app/prisma/schema.prisma
+                -- npx prisma migrate deploy --schema=/app/prisma/schema.prisma
 
               if [ $? -eq 0 ]; then
                 echo "Migration successful, deploying application..."
