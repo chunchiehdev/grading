@@ -63,7 +63,18 @@ export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  if (PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath))) {
+  // Skip auth for static assets and public paths
+  if (
+    PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath)) ||
+    path.startsWith('/assets/') ||
+    path.includes('.css') ||
+    path.includes('.js') ||
+    path.includes('.ico') ||
+    path.includes('.png') ||
+    path.includes('.jpg') ||
+    path.includes('.svg') ||
+    path.startsWith('/__')  // React Router internal routes
+  ) {
     return { user: null, isPublicPath: true };
   }
 

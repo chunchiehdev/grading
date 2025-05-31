@@ -11,14 +11,5 @@ export async function requireAuth(request: Request) {
     throw redirect(`/auth/login?${searchParams}`);
   }
 
-  const referer = request.headers.get('Referer');
-  if (referer) {
-    const refererUrl = new URL(referer);
-    const currentUrl = new URL(request.url);
-    if (refererUrl.origin !== currentUrl.origin) {
-      throw redirect('/auth/login');
-    }
-  }
-
   return user;
 }
