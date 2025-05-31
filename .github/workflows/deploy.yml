@@ -52,7 +52,7 @@ jobs:
                 --restart=Never \
                 --image=chunchiehdev/gradsystem:master \
                 --env="DATABASE_URL=$(kubectl get secret gradsystem-secret -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
-                --env="NODE_ENV=development" \
+                --env="NODE_ENV=production" \
                 -- npx prisma migrate deploy --schema=/app/prisma/schema.prisma
 
               if [ $? -eq 0 ]; then
