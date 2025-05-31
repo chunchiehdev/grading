@@ -9,7 +9,7 @@ export const sessionStorage = createCookieSessionStorage({
     path: '/',
     sameSite: 'lax',
     secrets: [process.env.AUTH_SECRET || 'default-dev-secret-change-in-production'],
-    secure: process.env.NODE_ENV === 'production' && process.env.COOKIE_SECURE !== 'false',
+    secure: process.env.NODE_ENV === 'production',
     maxAge: AUTH_COOKIE_MAX_AGE,
     domain: process.env.COOKIE_DOMAIN || undefined,
   },
