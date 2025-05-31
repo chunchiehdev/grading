@@ -132,10 +132,10 @@ export async function getUser(request: Request) {
   const session = await getSession(request);
   const userId = session.get('userId');
 
-  console.log('👤 getUser - userId from session:', userId);
+  console.error('👤 getUser - userId from session:', userId);
 
   if (!userId || typeof userId !== 'string') {
-    console.log('❌ getUser - No valid userId in session');
+    console.error('❌ getUser - No valid userId in session');
     return null;
   }
 
@@ -145,10 +145,10 @@ export async function getUser(request: Request) {
       select: { id: true, email: true },
     });
 
-    console.log('👤 getUser - Found user in DB:', user ? user.email : 'null');
+    console.error('👤 getUser - Found user in DB:', user ? user.email : 'null');
 
     if (!user) {
-      console.log('❌ getUser - User not found in database with id:', userId);
+      console.error('❌ getUser - User not found in database with id:', userId);
       return null;
     }
 

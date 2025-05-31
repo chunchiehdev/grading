@@ -18,18 +18,18 @@ export const sessionStorage = createCookieSessionStorage({
 // Helper to get auth session
 export async function getSession(request: Request) {
   const cookie = request.headers.get('Cookie');
-  console.log('🍪 Request cookies:', cookie);
+  console.error('🍪 Request cookies:', cookie);
   const session = await sessionStorage.getSession(cookie);
-  console.log('🍪 Session data:', session.data);
+  console.error('🍪 Session data:', session.data);
   return session;
 }
 
 export async function commitSession(session: any) {
-  console.log('💾 Committing session with userId:', session.get('userId'));
+  console.error('💾 Committing session with userId:', session.get('userId'));
   const cookieHeader = await sessionStorage.commitSession(session, {
     expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000)
   });
-  console.log('💾 Generated Set-Cookie header:', cookieHeader);
+  console.error('💾 Generated Set-Cookie header:', cookieHeader);
   return cookieHeader;
 }
 
