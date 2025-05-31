@@ -45,7 +45,7 @@ jobs:
             cd ~/gradsystem
             if [ -f deployment.yaml ]; then
               
-              echo "Running database migrations..."
+              echo "Running database migrations ..."
               kubectl run migrate-$(date +%s) \
                 --rm \
                 --attach \
