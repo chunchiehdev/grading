@@ -1,6 +1,11 @@
-node_modules
-
 /.cache
 /build
 .env
 Architecture.md
+
+bundle-report.html
+
+# React Router generated types
+.react-router/
+
+node_modules/

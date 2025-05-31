@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../app/generated/prisma/client"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -8,30 +10,155 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  password     String
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  gradingTasks GradingTask[]
+  id         String   @id @default(uuid())
+  email      String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  rubrics         Rubric[]
+  gradingSessions GradingSession[]
+  uploadedFiles   UploadedFile[]
 
   @@map("users")
 }
 
-model GradingTask {
-  id          String    @id @default(uuid())
-  authorId    String
-  author      User      @relation(fields: [authorId], references: [id])  
-  courseId    String?
-  status      String    @default("created")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
-  score       Int?
-  feedback    Json?
-  metadata    Json?
+// 評分標準表 - 支援版本控制
+model Rubric {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([authorId])
-  @@index([status])
-  @@map("grading_tasks")
+  name        String   @db.VarChar(255)
+  description String   @db.Text
+  version     Int      @default(1) // 版本號
+  isActive    Boolean  @default(true) // 是否為當前版本
+  
+  // 評分標準結構 (JSON)
+  criteria    Json     // [{ id, name, description, maxScore, levels: [{ score, description }] }]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  gradingResults GradingResult[]
+
+  @@index([userId, isActive])
+  @@map("rubrics")
 }
+
+// 評分會話 - 一次評分請求可包含多個檔案
+model GradingSession {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  status    GradingSessionStatus @default(PENDING)
+  progress  Int      @default(0) // 整體進度 0-100
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  gradingResults GradingResult[]
+
+  @@index([userId, status])
+  @@map("grading_sessions")
+}
+
+// 上傳的檔案記錄
+model UploadedFile {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fileName         String   @db.VarChar(500)
+  originalFileName String   @db.VarChar(500)
+  fileKey          String   @unique // S3 key
+  fileSize         Int
+  mimeType         String   @db.VarChar(100)
+  
+  // 檔案處理狀態
+  parseStatus      FileParseStatus @default(PENDING)
+  parsedContent    String?         @db.Text // 解析後的文字內容
+  parseError       String?         // 解析錯誤訊息
+  
+  // 軟刪除標記
+  isDeleted        Boolean  @default(false)
+  deletedAt        DateTime? // 刪除時間
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  expiresAt        DateTime? // 檔案過期時間，用於自動清理
+
+  // Relations
+  gradingResults   GradingResult[]
+
+  @@index([userId, parseStatus])
+  @@index([userId, isDeleted]) // 用於過濾已刪除檔案
+  @@index([expiresAt]) // 用於清理過期檔案
+  @@map("uploaded_files")
+}
+
+// 評分結果 - 每個檔案對應一個評分標準的結果
+model GradingResult {
+  id                String   @id @default(uuid())
+  gradingSessionId  String
+  gradingSession    GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)
+  
+  uploadedFileId    String
+  uploadedFile      UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)
+  
+  rubricId          String
+  rubric            Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)
+  
+  // 評分狀態和結果
+  status            GradingStatus @default(PENDING)
+  progress          Int      @default(0) // 此項評分進度 0-100
+  
+  // LLM評分結果 (JSON結構)
+  result            Json?    // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }
+  errorMessage      String?  // 評分失敗時的錯誤訊息
+  
+  // 評分元數據
+  gradingModel      String?  @db.VarChar(100) // 使用的模型名稱
+  gradingTokens     Int?     // 消耗的tokens數量
+  gradingDuration   Int?     // 評分耗時(毫秒)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  completedAt       DateTime? // 評分完成時間
+
+  @@index([gradingSessionId, status])
+  @@index([uploadedFileId])
+  @@index([rubricId])
+  @@map("grading_results")
+}
+
+// 評分會話狀態
+enum GradingSessionStatus {
+  PENDING     // 等待開始
+  PROCESSING  // 評分中
+  COMPLETED   // 全部完成
+  FAILED      // 失敗
+  CANCELLED   // 已取消
+}
+
+// 單項評分狀態
+enum GradingStatus {
+  PENDING     // 等待評分
+  PROCESSING  // 評分中
+  COMPLETED   // 評分完成
+  FAILED      // 評分失敗
+  SKIPPED     // 跳過(檔案解析失敗等)
+}
+
+// 檔案解析狀態
+enum FileParseStatus {
+  PENDING     // 等待解析
+  PROCESSING  // 解析中
+  COMPLETED   // 解析完成
+  FAILED      // 解析失敗
+}
+
+

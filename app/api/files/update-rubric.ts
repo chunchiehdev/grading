@@ -1,0 +1,52 @@
+import { getUserId } from '@/services/auth.server';
+import { db } from '@/lib/db.server';
+import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
+
+/**
+ * API endpoint to update file's selected rubric
+ * 注意：在新架構中，此功能已被重新設計
+ * 檔案與評分標準的關聯現在透過 GradingSession/GradingResult 來處理
+ * 此 API 保留作為向後相容，但建議使用新的評分會話 API
+ */
+export async function action({ request }: { request: Request }) {
+  return withErrorHandler(async () => {
+    const userId = await getUserId(request);
+    if (!userId) {
+      return Response.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+
+    const { fileId, rubricId } = await request.json();
+
+    if (!fileId) {
+      return Response.json({ success: false, error: 'File ID is required' }, { status: 400 });
+    }
+
+    // Verify file belongs to user
+    const file = await db.uploadedFile.findFirst({
+      where: {
+        id: fileId,
+        userId,
+      },
+    });
+
+    if (!file) {
+      return Response.json({ success: false, error: 'File not found or access denied' }, { status: 404 });
+    }
+
+    // 在新架構中，我們不直接關聯檔案與 rubric
+    // 而是返回檔案資訊和建議使用評分會話 API
+    return Response.json({
+      success: true,
+      message: 'File found. Please use grading session API to associate files with rubrics.',
+      file: {
+        id: file.id,
+        fileName: file.fileName,
+        parseStatus: file.parseStatus,
+      },
+      suggestion: {
+        useNewAPI: '/api/grading-sessions',
+        rubricId: rubricId,
+      }
+    });
+  });
+} 

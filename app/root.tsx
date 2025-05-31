@@ -1,91 +1,95 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  useLoaderData,
-} from "@remix-run/react";
-import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
-import { useState, useCallback } from "react";
-import stylesheet from "./tailwind.css?url";
-import Sidebar from "./components/sidebar/Sidebar";
-import { cn } from "@/lib/utils";
-import { NavHeader } from "@/components/navbar/NavHeader";
-import {
-  PreventFlashOnWrongTheme,
-  ThemeProvider,
-  useTheme,
-} from "remix-themes";
-import { themeSessionResolver } from "./sessions.server";
-import { redirect } from "@remix-run/node";
-import { getUser } from "@/services/auth.server";
+// root.tsx
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, redirect } from 'react-router';
+import { ThemeProvider } from '@/theme-provider';
+import './tailwind.css';
+import Sidebar from '@/components/sidebar/Sidebar';
+import { cn } from '@/lib/utils';
+import { NavHeader } from '@/components/navbar/NavHeader';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { requireAuth } from '@/middleware/auth.server';
+import { PUBLIC_PATHS } from '@/constants/auth';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { useUiStore } from '@/stores/uiStore';
 
-export const links: LinksFunction = () => [
-  { rel: "icon", type: "image/x-icon", href: "/rubber-duck.ico" },
-  { rel: "stylesheet", href: stylesheet },
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+    },
+  },
+});
+
+type User = {
+  id: string;
+  email: string;
+  name: string;
+};
+
+type LoaderData = {
+  user: User | null;
+  isPublicPath: boolean;
+};
+
+export const links = () => [
+  { rel: 'icon', type: 'image/x-icon', href: '/rubber-duck.ico' },
+  { rel: 'stylesheet', href: '/tailwind.css' },
+  { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
   {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
+    rel: 'preconnect',
+    href: 'https://fonts.gstatic.com',
+    crossOrigin: 'anonymous',
   },
   {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+    rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap',
   },
   {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&display=swap",
+    rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&display=swap',
+  },
+  {
+    rel: 'modulepreload',
+    href: 'https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs',
   },
 ];
 
-export async function loader({ request }: LoaderFunctionArgs) {
-  const { getTheme } = await themeSessionResolver(request);
+export const meta = () => [
+  { title: 'Grading System' },
+  { name: 'description', content: 'A grading system application' },
+];
 
-  const user = await getUser(request);
-
-  const publicPaths = [
-    "/login",
-    "/register",
-    "/auth/google",       
-    "/auth/callback",     
-  ];
-
+export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
-  const isPublicPath = publicPaths.some(path => url.pathname.startsWith(path));
+  const path = url.pathname;
 
-  if (!user && !isPublicPath) {
-    return redirect("/login");
+  if (PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath))) {
+    return { user: null, isPublicPath: true };
   }
 
-  return {
-    theme: getTheme(),
-    user,
-  };
+  try {
+    const user = await requireAuth(request);
+    return { user, isPublicPath: false };
+  } catch (error) {
+    return redirect('/auth/login');
+  }
 }
 
 function Document({ children }: { children: React.ReactNode }) {
-  const data = useLoaderData<typeof loader>();
-  const [theme] = useTheme();
-
   return (
-    <html
-      lang="zh-TW"
-      className={cn(
-        theme === "dark" ? "dark" : "",
-        "h-full antialiased",
-        "selection:bg-accent selection:text-accent-foreground"
-      )}
-    >
+    <html lang="zh-TW" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#000000" />
         <Meta />
-        <PreventFlashOnWrongTheme ssrTheme={Boolean(data.theme)} />
         <Links />
+        <script 
+          src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" 
+          type="module"
+        ></script>
       </head>
-      <body className="min-h-screen bg-background">
+      <body className="min-h-screen w-full font-sans antialiased">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -95,37 +99,29 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const data = useLoaderData<typeof loader>();
-  const user = data.user;
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const toggleSidebar = useCallback(() => {
-    setIsCollapsed((prev) => !prev);
-  }, []);
+  const { user, isPublicPath } = useLoaderData() as LoaderData;
+  const { sidebarCollapsed, toggleSidebar } = useUiStore();
 
-  if (!user) {
+  if (isPublicPath && !user) {
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen w-full ">
         <Outlet />
       </main>
     );
   }
+
   return (
-    <div className="relative flex min-h-screen">
-      <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
+    <div className="relative flex min-h-screen w-full ">
+      {/* <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} /> */}
       <div
         className={cn(
-          "flex-1 transition-all duration-300 ease-in-out",
-          "md:ml-[260px]",
-          isCollapsed && "md:ml-[20px]"
+          'flex-1 transition-all duration-300 ease-in-out',
+          'md:ml-[260px]',
+          sidebarCollapsed && 'md:ml-[20px]'
         )}
       >
-        <NavHeader
-          onSidebarToggle={toggleSidebar}
-          onShare={() => console.log("Share clicked")}
-          user={user}  
-          className="bg-background/80 backdrop-blur-sm border-b border-border"
-        />
-        <main className="p-8">
+        <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
+        <main className="p-8 flex justify-center items-center">
           <Outlet />
         </main>
       </div>
@@ -134,12 +130,14 @@ function Layout() {
 }
 
 export default function App() {
-  const data = useLoaderData<typeof loader>();
   return (
-    <ThemeProvider specifiedTheme={data.theme} themeAction="/set-theme">
-      <Document>
-        <Layout />
-      </Document>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <Document>
+          <Layout />
+        </Document>
+      </ThemeProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 }
