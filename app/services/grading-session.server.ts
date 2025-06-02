@@ -322,13 +322,45 @@ export async function startGradingSession(
       }
     });
 
-    // Start background grading process
-    const { processGradingSession } = await import('./grading-engine.server');
-    
-    // Process grading asynchronously
-    processGradingSession(sessionId).catch(error => {
-      logger.error(`Background grading failed for session ${sessionId}:`, error);
+    // Get all pending results for this session
+    const pendingResults = await db.gradingResult.findMany({
+      where: {
+        gradingSessionId: sessionId,
+        status: 'PENDING'
+      },
+      select: {
+        id: true
+      }
     });
+
+    if (pendingResults.length === 0) {
+      return { success: true };
+    }
+
+    // Use simple grading service (no BullMQ dependencies)
+    const { addGradingJobs } = await import('./simple-grading.server');
+    
+    const gradingJobs = pendingResults.map(result => ({
+      resultId: result.id,
+      userId: userId,
+      sessionId: sessionId
+    }));
+
+    const queueResult = await addGradingJobs(gradingJobs);
+    
+    if (!queueResult.success) {
+      await db.gradingSession.update({
+        where: { id: sessionId },
+        data: { status: GradingSessionStatus.FAILED }
+      });
+      
+      return { 
+        success: false, 
+        error: queueResult.error || 'Failed to start grading jobs' 
+      };
+    }
+
+    logger.info(`🚀 Started grading session ${sessionId} with ${queueResult.addedCount} jobs`);
 
     return { success: true };
   } catch (error) {

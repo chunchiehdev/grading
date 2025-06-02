@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 import { storageConfig } from '@/config/storage';
 
@@ -6,6 +6,30 @@ import { storageConfig } from '@/config/storage';
  * AWS S3 client instance configured with storage settings
  */
 export const s3Client = new S3Client(storageConfig.s3Config);
+
+/**
+ * Gets file buffer from S3 storage
+ * @param {string} fileKey - Storage key/path of the file
+ * @returns {Promise<Buffer>} File content as Buffer
+ */
+export async function getFileFromStorage(fileKey: string): Promise<Buffer> {
+  const command = new GetObjectCommand({
+    Bucket: storageConfig.bucket,
+    Key: fileKey,
+  });
+
+  const response = await s3Client.send(command);
+  const chunks: Uint8Array[] = [];
+  
+  if (response.Body) {
+    // @ts-ignore
+    for await (const chunk of response.Body) {
+      chunks.push(chunk);
+    }
+  }
+  
+  return Buffer.concat(chunks);
+}
 
 /**
  * Uploads file data to S3-compatible storage

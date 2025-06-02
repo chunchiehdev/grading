@@ -7,7 +7,8 @@ import {
   type GradingResultData 
 } from './grading-result.server';
 import { updateGradingSessionProgress } from './grading-session.server';
-import { getGeminiService, type GeminiGradingRequest } from './gemini.server';
+import { getGeminiService, type GeminiFileGradingRequest } from './gemini.server';
+import { getFileFromStorage } from './storage.server';
 import logger from '@/utils/logger';
 
 /**
@@ -34,12 +35,6 @@ export async function processGradingResult(resultId: string): Promise<{ success:
       return { success: false, error: 'Grading result not found' };
     }
     
-    // Check if file has parsed content
-    if (!gradingResult.uploadedFile.parsedContent) {
-      await failGradingResult(resultId, 'File content not available for grading');
-      return { success: false, error: 'File content not available' };
-    }
-    
     // Parse rubric criteria
     const criteria = Array.isArray(gradingResult.rubric.criteria) 
       ? gradingResult.rubric.criteria 
@@ -53,41 +48,94 @@ export async function processGradingResult(resultId: string): Promise<{ success:
     // Update progress
     await updateGradingProgress(resultId, 25);
     
-    // Grade with Gemini directly
-    const geminiService = getGeminiService();
-    const geminiRequest: GeminiGradingRequest = {
-      content: gradingResult.uploadedFile.parsedContent,
-      criteria,
-      fileName: gradingResult.uploadedFile.originalFileName,
-      rubricName: gradingResult.rubric.name
-    };
-    
-    await updateGradingProgress(resultId, 50);
-    
-    const response = await geminiService.gradeDocument(geminiRequest);
-    
-    if (!response.success || !response.result) {
-      await failGradingResult(resultId, response.error || 'LLM grading failed');
-      return { success: false, error: response.error };
+    try {
+      // Get file buffer from storage
+      const fileBuffer = await getFileFromStorage(gradingResult.uploadedFile.fileKey);
+      
+      await updateGradingProgress(resultId, 50);
+      
+      // Grade with Gemini using direct file upload
+      const geminiService = getGeminiService();
+      const geminiRequest: GeminiFileGradingRequest = {
+        fileBuffer,
+        mimeType: gradingResult.uploadedFile.mimeType,
+        criteria,
+        fileName: gradingResult.uploadedFile.originalFileName,
+        rubricName: gradingResult.rubric.name
+      };
+      
+      await updateGradingProgress(resultId, 75);
+      
+      const response = await geminiService.gradeDocumentWithFile(geminiRequest);
+      
+      if (!response.success || !response.result) {
+        await failGradingResult(resultId, response.error || 'LLM grading failed');
+        return { success: false, error: response.error };
+      }
+      
+      await updateGradingProgress(resultId, 90);
+      
+      // Save grading result
+      const metadata = response.metadata ? {
+        gradingModel: response.metadata.model,
+        gradingTokens: response.metadata.tokens,
+        gradingDuration: response.metadata.duration
+      } : undefined;
+      
+      await updateGradingResult(resultId, response.result, metadata);
+      
+      // Update session progress
+      await updateGradingSessionProgress(gradingResult.gradingSessionId, gradingResult.gradingSession.userId);
+      
+      logger.info(`Completed grading for result ${resultId} with score ${response.result.totalScore}/${response.result.maxScore}`);
+      
+      return { success: true };
+      
+    } catch (fileError) {
+      // Fallback to parsed content if file upload fails
+      logger.warn(`File upload failed for ${resultId}, falling back to parsed content:`, fileError);
+      
+      if (!gradingResult.uploadedFile.parsedContent) {
+        await failGradingResult(resultId, 'File content not available for grading and file upload failed');
+        return { success: false, error: 'File content not available' };
+      }
+      
+      // Use original text-based grading as fallback
+      const geminiService = getGeminiService();
+      const geminiRequest = {
+        content: gradingResult.uploadedFile.parsedContent,
+        criteria,
+        fileName: gradingResult.uploadedFile.originalFileName,
+        rubricName: gradingResult.rubric.name
+      };
+      
+      await updateGradingProgress(resultId, 75);
+      
+      const response = await geminiService.gradeDocument(geminiRequest);
+      
+      if (!response.success || !response.result) {
+        await failGradingResult(resultId, response.error || 'LLM grading failed');
+        return { success: false, error: response.error };
+      }
+      
+      await updateGradingProgress(resultId, 90);
+      
+      // Save grading result
+      const metadata = response.metadata ? {
+        gradingModel: response.metadata.model,
+        gradingTokens: response.metadata.tokens,
+        gradingDuration: response.metadata.duration
+      } : undefined;
+      
+      await updateGradingResult(resultId, response.result, metadata);
+      
+      // Update session progress
+      await updateGradingSessionProgress(gradingResult.gradingSessionId, gradingResult.gradingSession.userId);
+      
+      logger.info(`Completed fallback grading for result ${resultId} with score ${response.result.totalScore}/${response.result.maxScore}`);
+      
+      return { success: true };
     }
-    
-    await updateGradingProgress(resultId, 90);
-    
-    // Save grading result
-    const metadata = response.metadata ? {
-      gradingModel: response.metadata.model,
-      gradingTokens: response.metadata.tokens,
-      gradingDuration: response.metadata.duration
-    } : undefined;
-    
-    await updateGradingResult(resultId, response.result, metadata);
-    
-    // Update session progress
-    await updateGradingSessionProgress(gradingResult.gradingSessionId, gradingResult.gradingSession.userId);
-    
-    logger.info(`Completed grading for result ${resultId} with score ${response.result.totalScore}/${response.result.maxScore}`);
-    
-    return { success: true };
   } catch (error) {
     logger.error(`Failed to process grading result ${resultId}:`, error);
     await failGradingResult(resultId, error instanceof Error ? error.message : 'Grading failed');
@@ -122,7 +170,7 @@ export async function processGradingSession(sessionId: string): Promise<{ succes
       await processGradingResult(result.id);
       
       // Add a small delay between requests
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
     
     logger.info(`Completed grading session ${sessionId}`);
@@ -161,7 +209,7 @@ export async function processAllPendingGrading(): Promise<{ processed: number; f
       }
       
       // Add delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
     
     logger.info(`Processed ${processed} grading results, ${failed} failed`);

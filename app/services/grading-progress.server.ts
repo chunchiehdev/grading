@@ -1,5 +1,4 @@
-import { redis } from '@/lib/redis';
-import { REDIS_KEYS } from '@/config/redis';
+import { db } from '@/types/database';
 import logger from '@/utils/logger';
 
 /**
@@ -20,72 +19,132 @@ export type GradingProgress = {
 };
 
 /**
- * Internal class for Redis operations on grading progress data
+ * Internal class for database operations on grading progress data
  * @class GradingProgressStore
  */
 class GradingProgressStore {
   /**
-   * Generates Redis key for grading progress storage
-   * @param {string} gradingId - Unique grading session identifier
-   * @returns {string} Redis key for the grading progress
-   */
-  static getKey(gradingId: string): string {
-    return `${REDIS_KEYS.GRADING_PROGRESS_PREFIX}${gradingId}`;
-  }
-  
-  /**
-   * Retrieves grading progress from Redis
+   * Retrieves grading progress from database
    * @param {string} gradingId - Unique grading session identifier
    * @returns {Promise<GradingProgress|null>} Progress data or null if not found
    */
   static async getProgress(gradingId: string): Promise<GradingProgress | null> {
-    const redisKey = this.getKey(gradingId);
-    logger.debug(`📝 Fetching progress from Redis key: ${redisKey}`);
-    const data = await redis.get(redisKey);
-    
-    if (data) {
-      logger.debug(`Redis data found for ${gradingId}`, data.substring(0, 100) + '...');
-      try {
-        return JSON.parse(data);
-      } catch (err) {
-        logger.error(`Error parsing Redis data for ${gradingId}:`, err);
+    try {
+      logger.debug(`📝 Fetching progress from database for: ${gradingId}`);
+      
+      // Try to find existing grading result
+      const result = await db.gradingResult.findUnique({
+        where: { id: gradingId },
+        select: {
+          status: true,
+          progress: true,
+          result: true,
+          errorMessage: true
+        }
+      });
+      
+      if (!result) {
+        logger.debug(`No data found in database for ${gradingId}`);
         return null;
       }
-    } else {
-      logger.debug(`No data found in Redis for ${gradingId}`);
+      
+      // Convert database status to progress format
+      let phase: GradingProgress['phase'];
+      let message: string;
+      
+      switch (result.status) {
+        case 'PENDING':
+          phase = 'check';
+          message = '等待評分中...';
+          break;
+        case 'PROCESSING':
+          phase = 'grade';
+          message = '評分進行中...';
+          break;
+        case 'COMPLETED':
+          phase = 'completed';
+          message = '評分完成';
+          break;
+        case 'FAILED':
+          phase = 'error';
+          message = '評分失敗';
+          break;
+        default:
+          phase = 'check';
+          message = '準備中...';
+      }
+      
+      const progressData: GradingProgress = {
+        phase,
+        progress: result.progress,
+        message,
+        error: result.errorMessage || undefined,
+        result: result.status === 'COMPLETED' ? result.result : undefined
+      };
+      
+      logger.debug(`Found progress for ${gradingId}:`, progressData);
+      return progressData;
+      
+    } catch (error) {
+      logger.error(`Error fetching progress for ${gradingId}:`, error);
       return null;
     }
   }
   
   /**
-   * Stores grading progress to Redis with expiration
+   * Stores grading progress to database
    * @param {string} gradingId - Unique grading session identifier
    * @param {GradingProgress} progress - Progress data to store
    * @returns {Promise<void>}
    */
   static async setProgress(gradingId: string, progress: GradingProgress): Promise<void> {
-    const redisKey = this.getKey(gradingId);
-    logger.debug(`Setting progress to Redis key: ${redisKey}, phase: ${progress.phase}`);
-    
-    const serializedData = JSON.stringify(progress);
-    await redis.set(
-      redisKey, 
-      serializedData, 
-      'EX', 
-      REDIS_KEYS.EXPIRATION_TIME
-    );
-    
-    logger.debug(`Progress saved to Redis for ${gradingId}`);
-    
-    // If complete or error, log the full data
-    if (progress.phase === 'completed' || progress.phase === 'error') {
-      logger.info(`Final progress state for ${gradingId}:`, progress);
+    try {
+      logger.debug(`Setting progress for ${gradingId}, phase: ${progress.phase}`);
+      
+      // Convert progress format to database fields
+      let status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+      switch (progress.phase) {
+        case 'check':
+          status = 'PENDING';
+          break;
+        case 'grade':
+        case 'verify':
+          status = 'PROCESSING';
+          break;
+        case 'completed':
+          status = 'COMPLETED';
+          break;
+        case 'error':
+          status = 'FAILED';
+          break;
+        default:
+          status = 'PENDING';
+      }
+      
+      await db.gradingResult.update({
+        where: { id: gradingId },
+        data: {
+          status,
+          progress: progress.progress,
+          errorMessage: progress.error
+        }
+      });
+      
+      logger.debug(`Progress saved to database for ${gradingId}`);
+      
+      // Log completion
+      if (progress.phase === 'completed' || progress.phase === 'error') {
+        logger.info(`Final progress state for ${gradingId}:`, progress);
+      }
+      
+    } catch (error) {
+      logger.error(`Error saving progress for ${gradingId}:`, error);
     }
   }
 }
 
 /**
- * Service for managing grading progress with Redis storage
+ * Service for managing grading progress with database storage
  * Provides methods to initialize, update, and track grading operations
  */
 export const GradingProgressService = {
@@ -115,6 +174,7 @@ export const GradingProgressService = {
   ): Promise<void> => {
     logger.debug(`Updating progress for ${gradingId}:`, progress);
     const currentProgress = await GradingProgressStore.getProgress(gradingId);
+    
     if (!currentProgress) {
       logger.warn(`⚠️ No current progress found for ${gradingId}, initializing new progress`);
       await GradingProgressStore.setProgress(gradingId, {

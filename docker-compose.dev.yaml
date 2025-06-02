@@ -8,6 +8,7 @@ services:
     environment:
       - NODE_ENV=development
       - DOCKER_ENV=true
+      - PRISMA_LOG_LEVEL=error
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-dev_password}
@@ -29,7 +30,10 @@ services:
       - AUTH_SECRET=${AUTH_SECRET}
       # Gemini API
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-
+      - GEMINI_API_KEY2=${GEMINI_API_KEY2}
+      - GEMINI_API_KEY3=${GEMINI_API_KEY3}
+      # Prisma log
+      - PRISMA_LOG_LEVEL=error
     volumes:
       - .:/app
       - /app/node_modules

@@ -18,9 +18,7 @@ export const sessionStorage = createCookieSessionStorage({
 // Helper to get auth session
 export async function getSession(request: Request) {
   const cookie = request.headers.get('Cookie');
-  console.error('🍪 Request cookies:', cookie);
   const session = await sessionStorage.getSession(cookie);
-  console.error('🍪 Session data:', session.data);
   return session;
 }
 
