@@ -47,6 +47,9 @@ export default [
   route('/api/grading/session/:sessionId', './api/grading/session.$sessionId.ts'),
   route('/api/grading/results', './api/grading/results.ts'),
 
+  // Admin API routes
+  route('/api/admin/queue-status', './api/admin/queue-status.ts'),
+
   // Auth API routes
   route('/api/auth/login', './api/auth/login.ts'),
   route('/api/auth/logout', './api/auth/logout.ts'),

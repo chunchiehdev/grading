@@ -24,7 +24,12 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
     
     // Generate unique file key
     const timestamp = Date.now();
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const sanitizedName = file.name
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') // 只替換檔案系統不安全字符
+      .replace(/\s+/g, '_') // 將空格替換為下劃線
+      .replace(/\.{2,}/g, '.') // 防止多個連續的點
+      .substring(0, 255); // 限制檔名長度
+    
     const fileKey = `uploads/${userId}/${timestamp}-${sanitizedName}`;
     
     // Convert file to buffer
@@ -60,8 +65,8 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
         file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
         file.type === 'text/plain') {
       
-      // Start parsing asynchronously
-      triggerPdfParsing(uploadedFile.id, fileKey, sanitizedName, userId).catch(error => {
+      // Start parsing asynchronously - 使用 originalFileName 而非 sanitizedName
+      triggerPdfParsing(uploadedFile.id, fileKey, originalFileName || file.name, userId).catch(error => {
         logger.error(`Failed to parse file ${uploadedFile.id}:`, error);
       });
     } else {

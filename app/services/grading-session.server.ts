@@ -304,7 +304,13 @@ export async function updateGradingSessionProgress(
 }
 
 /**
- * Starts grading for a session
+ * 把這次評分（sessionId）的狀態改成「處理中」
+ * 找出這場裡所有還沒評分的項目（狀態是 PENDING）
+ * 如果沒東西要評，直接回傳成功
+ * 如果有，要載入一個評分服務，把每個待評項目加進評分任務去做排隊
+ * 如果加任務失敗，就標記程式為「失敗」，並回傳錯誤訊息
+ * 如果成功，就記錄一下並回傳成功
+ * 中途如果出錯，會捕捉錯誤並回傳失敗
  */
 export async function startGradingSession(
   sessionId: string,
@@ -322,13 +328,45 @@ export async function startGradingSession(
       }
     });
 
-    // Start background grading process
-    const { processGradingSession } = await import('./grading-engine.server');
-    
-    // Process grading asynchronously
-    processGradingSession(sessionId).catch(error => {
-      logger.error(`Background grading failed for session ${sessionId}:`, error);
+    // Get all pending results for this session
+    const pendingResults = await db.gradingResult.findMany({
+      where: {
+        gradingSessionId: sessionId,
+        status: 'PENDING'
+      },
+      select: {
+        id: true
+      }
     });
+
+    if (pendingResults.length === 0) {
+      return { success: true };
+    }
+
+    // Use simple grading service 
+    const { addGradingJobs } = await import('./simple-grading.server');
+    
+    const gradingJobs = pendingResults.map(result => ({
+      resultId: result.id,
+      userId: userId,
+      sessionId: sessionId
+    }));
+
+    const queueResult = await addGradingJobs(gradingJobs);
+    
+    if (!queueResult.success) {
+      await db.gradingSession.update({
+        where: { id: sessionId },
+        data: { status: GradingSessionStatus.FAILED }
+      });
+      
+      return { 
+        success: false, 
+        error: queueResult.error || 'Failed to start grading jobs' 
+      };
+    }
+
+    logger.info(`🚀 Started grading session ${sessionId} with ${queueResult.addedCount} jobs`);
 
     return { success: true };
   } catch (error) {
