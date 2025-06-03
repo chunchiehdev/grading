@@ -48,7 +48,7 @@ export default [
   route('/api/grading/results', './api/grading/results.ts'),
 
   // Admin API routes
-  // route('/api/admin/queue-status', './routes/api.admin.queue-status.ts'),
+  route('/api/admin/queue-status', './api/admin/queue-status.ts'),
 
   // Auth API routes
   route('/api/auth/login', './api/auth/login.ts'),

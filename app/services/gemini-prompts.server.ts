@@ -119,24 +119,31 @@ export class GeminiPrompts {
     }
 
     /**
-     * 格式化評分標準描述
+     * 格式化評分標準描述，並明確列出 criteriaId
      */
     private static formatCriteriaDescription(criteria: any[]): string {
-        return criteria.map((criterion, index) => {
+        const criteriaList = criteria.map((criterion, index) => {
             const levelsText = criterion.levels 
                 ? criterion.levels.map((level: any) => `${level.score}分 - ${level.description}`).join('；')
                 : '';
             
             return this.dedent(`
                 ${index + 1}. **${criterion.name}** (${criterion.maxScore || 0} 分)
+                   ID: "${criterion.id}" ← 請在 JSON 中使用此 ID
                    說明：${criterion.description || '無說明'}
                    ${levelsText ? `評分等級：${levelsText}` : ''}
             `).trim();
         }).join('\n\n');
+
+        const criteriaIds = criteria.map(c => `"${c.id}"`).join(', ');
+        
+        return `${criteriaList}
+
+**重要：** 在 JSON 回應中，"criteriaId" 必須完全匹配上述 ID：${criteriaIds}`;
     }
 
     /**
-     * 獲取詳細輸出格式（用於文件評分）
+     * 生成詳細輸出格式（用於文件評分）
      */
     private static getDetailedOutputFormat(maxScore: number): string {
         return this.dedent(`
@@ -146,7 +153,7 @@ export class GeminiPrompts {
               "maxScore": ${maxScore},
               "breakdown": [
                 {
-                  "criteriaId": "評分項目ID",
+                  "criteriaId": "評分項目的真實ID（見下方列表）",
                   "score": 該項目得分,
                   "evidence": {
                     "strengths": "表現好的原文引用「具體內容」及分析",
@@ -187,7 +194,7 @@ export class GeminiPrompts {
               "maxScore": ${maxScore},
               "breakdown": [
                 {
-                  "criteriaId": "評分項目ID",
+                  "criteriaId": "評分項目的真實ID（見下方列表）",
                   "score": 該項目得分,
                   "feedback": "基於「原文引用」的具體分析，包括優點和改進建議"
                 }

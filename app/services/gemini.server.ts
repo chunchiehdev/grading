@@ -61,6 +61,10 @@ class GeminiService {
     private readonly MAX_CONSECUTIVE_ERRORS = 3;
     private keyFailureCounts: number[] = [0, 0, 0]; // 追蹤每個 key 的失敗次數（支援3個key）
     private keyLastFailureTime: number[] = [0, 0, 0]; // 追蹤每個 key 的最後失敗時間（支援3個key）
+    private global503Count: number = 0;
+    private last503Time: number = 0;
+    private readonly GLOBAL_503_THRESHOLD = 3; // 全域 503 錯誤門檻
+    private readonly GLOBAL_503_COOLDOWN = 120000; // 2 分鐘冷卻時間
 
     constructor() {
         const apiKey1 = process.env.GEMINI_API_KEY;
@@ -326,6 +330,38 @@ class GeminiService {
         let attemptedKeys = new Set<number>(); // 追蹤已嘗試的 keys
 
         try {
+            // 檢查是否處於全域 503 冷卻期
+            if (this.isInGlobal503Cooldown()) {
+                const cooldownInfo = {
+                    remainingTime: Math.round((this.GLOBAL_503_COOLDOWN - (Date.now() - this.last503Time)) / 1000),
+                    errorCount: this.global503Count
+                };
+                
+                return {
+                    success: false,
+                    error: `🌐 Gemini 服務目前過載中，請稍後再試
+
+**服務狀態：** 全域過載檢測
+**冷卻時間：** 還需等待 ${cooldownInfo.remainingTime} 秒
+**錯誤次數：** ${cooldownInfo.errorCount} 次連續 503 錯誤
+
+**建議操作：**
+1. ⏰ 等待 ${Math.ceil(cooldownInfo.remainingTime/60)} 分鐘後重試
+2. 🔄 系統將自動恢復服務
+3. 📞 如持續問題請聯繫技術支援
+
+這是暫時性的服務過載，不是您的檔案問題。`,
+                    metadata: {
+                        model: this.model,
+                        tokens: 0,
+                        duration: Date.now() - startTime,
+                        errorType: 'Global503Cooldown',
+                        retryable: true,
+                        fileProcessed: false
+                    }
+                };
+            }
+
             await this.enforceRateLimit();
             
             logger.info(`Starting Gemini file grading for: ${request.fileName} with initial key ${this.currentClientIndex + 1}`);
@@ -405,6 +441,15 @@ class GeminiService {
         } catch (error) {
             const duration = Date.now() - startTime;
             
+            // 檢查是否為 503 錯誤
+            const is503Error = (error as any)?.status === 503 || 
+                              (error as any)?.message?.includes('503') || 
+                              (error as any)?.message?.includes('overloaded');
+            
+            if (is503Error) {
+                this.recordGlobal503Error();
+            }
+            
             // 記錄錯誤
             this.recordApiError(error);
             
@@ -415,34 +460,59 @@ class GeminiService {
             
             const errorInfo = this.analyzeError(error);
             
-            // 為 403 錯誤提供更具體的錯誤訊息
-            if ((error as any)?.status === 403 && (error as any)?.message?.includes('permission')) {
-                errorInfo.userMessage = `文件訪問權限錯誤：由於服務器過載導致的 API key 切換問題。
+            // 為 503 錯誤提供更具體的錯誤訊息
+            if (is503Error) {
+                errorInfo.userMessage = `🌐 Gemini 服務暫時過載
 
 **檔案：** ${request.fileName}
-**錯誤代碼：** 403 Forbidden
-**原因：** 文件上傳和評分使用了不同的 API key
+**錯誤類型：** 503 Service Unavailable - 服務過載
+**已嘗試：** ${Array.from(attemptedKeys).map(i => `API Key ${i + 1}`).join(', ')}
+
+**系統已自動嘗試：**
+✅ 3個不同的 API Keys
+✅ 智能重試機制
+✅ 檔案重新上傳
 
 **建議解決方案：**
-1. 重新上傳此文件進行評分
-2. 系統將自動優化 API key 使用策略
-3. 如問題持續，請聯繫技術支援
+1. ⏰ 等待 2-3 分鐘後重新評分
+2. 🔄 這是 Google 服務的暫時性過載
+3. 📊 您的檔案沒有問題，請稍後重試
+4. 🆘 如持續發生請聯繫技術支援
 
-**技術細節：** 文件 ID ${(error as any)?.message?.match(/File (\w+)/)?.[1] || 'unknown'}`;
+**技術詳情：** ${(error as any)?.message || 'Service overloaded'}`;
+                
+                logger.error(`🌐 All API keys hit 503 overload for file: ${request.fileName}`);
+            }
+            // 為 403 錯誤提供更具體的錯誤訊息
+            else if ((error as any)?.status === 403 && (error as any)?.message?.includes('permission')) {
+                errorInfo.userMessage = `文件訪問權限錯誤：由於服務器過載導致的 API key 切換問題。
+
+                **檔案：** ${request.fileName}
+                **錯誤代碼：** 403 Forbidden
+                **原因：** 文件上傳和評分使用了不同的 API key
+
+                **建議解決方案：**
+                1. 重新上傳此文件進行評分
+                2. 系統將自動優化 API key 使用策略
+                3. 如問題持續，請聯繫技術支援
+
+                **技術細節：** 文件 ID ${(error as any)?.message?.match(/File (\w+)/)?.[1] || 'unknown'}`;
                 
                 logger.error(`🚫 403 Permission error - API key mismatch detected for file: ${request.fileName}`);
             }
             
             // 確保錯誤訊息不會太長（避免 UI 問題）
-            if (errorInfo.userMessage.length > 1000) {
-                errorInfo.userMessage = errorInfo.userMessage.substring(0, 997) + '...';
+            if (errorInfo.userMessage.length > 1500) {
+                errorInfo.userMessage = errorInfo.userMessage.substring(0, 1497) + '...';
             }
             
             logger.error(`Gemini file grading failed for ${request.fileName}:`, {
                 error: (error as any)?.message || error,
                 status: (error as any)?.status,
                 duration,
-                fileId: uploadedFile?.name
+                fileId: uploadedFile?.name,
+                is503: is503Error,
+                global503Count: this.global503Count
             });
 
             // 確保總是返回有效的錯誤回應（避免 UI 卡住）
@@ -538,89 +608,22 @@ class GeminiService {
             parsed.breakdown = [];
         }
 
-        // 構建實用的回饋格式
-        const buildFeedback = (item: any) => {
-            let feedback = '';
-            
-            // 處理新格式的詳細回饋
-            if (item.evidence && item.feedback) {
-                // 優點分析
-                if (item.evidence.strengths) {
-                    feedback += `**✨ 表現優點：**\n${item.evidence.strengths}\n\n`;
-                }
-                
-                // 改進分析  
-                if (item.evidence.weaknesses) {
-                    feedback += `**⚠️ 改進空間：**\n${item.evidence.weaknesses}\n\n`;
-                }
-                
-                // 具體回饋
-                if (item.feedback.whatWorked) {
-                    feedback += `**👍 成功之處：**\n${item.feedback.whatWorked}\n\n`;
-                }
-                
-                if (item.feedback.whatNeedsWork) {
-                    feedback += `**🔧 需要改進：**\n${item.feedback.whatNeedsWork}\n\n`;
-                }
-                
-                if (item.feedback.howToImprove) {
-                    feedback += `**💡 改進建議：**\n${item.feedback.howToImprove}\n\n`;
-                }
-                
-                // 評分理由
-                if (item.scoreJustification) {
-                    feedback += `**📊 評分理由：**\n${item.scoreJustification}`;
-                }
-            }
-            // 處理簡化格式或舊格式
-            else if (item.feedback) {
-                feedback = item.feedback;
-            }
-            // 向後兼容更舊的格式
-            else {
-                if (item.strengths) {
-                    feedback += `**✨ 表現優點：**\n${item.strengths}\n\n`;
-                }
-                if (item.improvements) {
-                    feedback += `**🔧 改進建議：**\n`;
-                    if (typeof item.improvements === 'string') {
-                        feedback += `${item.improvements}\n\n`;
-                    } else {
-                        if (item.improvements.specificIssues) {
-                            feedback += `需改進：${item.improvements.specificIssues}\n`;
-                        }
-                        if (item.improvements.actionableSuggestions) {
-                            feedback += `建議：${item.improvements.actionableSuggestions}\n`;
-                        }
-                        feedback += '\n';
-                    }
-                }
-                if (item.scoreRationale || item.scoreReason) {
-                    feedback += `**📊 評分理由：**\n${item.scoreRationale || item.scoreReason}`;
-                }
-            }
-            
-            return feedback || '無詳細分析';
-        };
-
         // 構建整體回饋
         let overallFeedback = '';
         
         if (parsed.overallFeedback && typeof parsed.overallFeedback === 'object') {
             const overall = parsed.overallFeedback;
             
-            // 整體優點
+            // 優點部分
             if (overall.documentStrengths && Array.isArray(overall.documentStrengths)) {
-                overallFeedback += '**🌟 整體優點：**\n';
                 overall.documentStrengths.forEach((strength: string, index: number) => {
                     overallFeedback += `${index + 1}. ${strength}\n`;
                 });
                 overallFeedback += '\n';
             }
             
-            // 關鍵改進
+            // 改進部分
             if (overall.keyImprovements && Array.isArray(overall.keyImprovements)) {
-                overallFeedback += '**🎯 重點改進：**\n';
                 overall.keyImprovements.forEach((improvement: string, index: number) => {
                     overallFeedback += `${index + 1}. ${improvement}\n`;
                 });
@@ -629,13 +632,16 @@ class GeminiService {
             
             // 下一步建議
             if (overall.nextSteps) {
-                overallFeedback += `**📋 下一步：**\n${overall.nextSteps}`;
+                overallFeedback += `${overall.nextSteps}`;
             }
+            
+            overallFeedback = overallFeedback.trim();
         } else if (parsed.overallFeedback) {
+            // 直接使用模型的原始整體回饋
             overallFeedback = parsed.overallFeedback;
         }
 
-        // 確保 breakdown 包含所有評分項目
+        // 確保 breakdown 包含所有評分項目，處理複雜和簡單兩種格式
         const result: GradingResultData = {
             totalScore: Math.round(parsed.totalScore),
             maxScore: Math.round(parsed.maxScore),
@@ -644,11 +650,59 @@ class GeminiService {
                     item.criteriaId === criterion.id || item.criteriaId === criterion.name
                 );
 
-                return {
-                    criteriaId: criterion.id,
-                    score: found ? Math.round(found.score) : 0,
-                    feedback: found ? buildFeedback(found) : '無詳細分析'
-                };
+                if (!found) {
+                    return {
+                        criteriaId: criterion.id,
+                        score: 0,
+                        feedback: '無評分資料'
+                    };
+                }
+
+                // 處理複雜格式（包含 evidence 和 detailed feedback）
+                if (found.evidence || found.feedback?.whatWorked) {
+                    let detailedFeedback = '';
+                    
+                    // 處理證據部分
+                    if (found.evidence) {
+                        if (found.evidence.strengths) {
+                            detailedFeedback += `**表現優點：**\n${found.evidence.strengths}\n\n`;
+                        }
+                        if (found.evidence.weaknesses) {
+                            detailedFeedback += `**需要改進：**\n${found.evidence.weaknesses}\n\n`;
+                        }
+                    }
+                    
+                    // 處理詳細回饋部分
+                    if (found.feedback && typeof found.feedback === 'object') {
+                        if (found.feedback.whatWorked) {
+                            detailedFeedback += `**成功之處：**\n${found.feedback.whatWorked}\n\n`;
+                        }
+                        if (found.feedback.whatNeedsWork) {
+                            detailedFeedback += `**改進重點：**\n${found.feedback.whatNeedsWork}\n\n`;
+                        }
+                        if (found.feedback.howToImprove) {
+                            detailedFeedback += `**改進建議：**\n${found.feedback.howToImprove}\n\n`;
+                        }
+                    }
+                    
+                    // 處理評分理由
+                    if (found.scoreJustification) {
+                        detailedFeedback += `**評分說明：**\n${found.scoreJustification}`;
+                    }
+                    
+                    return {
+                        criteriaId: criterion.id,
+                        score: found.score ? Math.round(found.score) : 0,
+                        feedback: detailedFeedback.trim() || '詳細分析已處理'
+                    };
+                } else {
+                    // 處理簡單格式（直接的 feedback 字串）
+                    return {
+                        criteriaId: criterion.id,
+                        score: found.score ? Math.round(found.score) : 0,
+                        feedback: found.feedback || '無詳細分析'
+                    };
+                }
             }),
             overallFeedback: overallFeedback || '無綜合評價'
         };
@@ -1212,6 +1266,39 @@ class GeminiService {
         }
         
         logger.error(`❌ Emergency cleanup failed for all attempted keys: ${uploadedFile.name}`);
+    }
+
+    /**
+     * 檢查是否處於全域 503 冷卻期
+     */
+    private isInGlobal503Cooldown(): boolean {
+        const now = Date.now();
+        if (this.global503Count >= this.GLOBAL_503_THRESHOLD) {
+            const timeSinceLastError = now - this.last503Time;
+            if (timeSinceLastError < this.GLOBAL_503_COOLDOWN) {
+                const remainingTime = Math.round((this.GLOBAL_503_COOLDOWN - timeSinceLastError) / 1000);
+                logger.warn(`🌐 Global 503 cooldown active. Remaining: ${remainingTime}s (${this.global503Count} consecutive 503s)`);
+                return true;
+            } else {
+                // 冷卻期結束，重置計數
+                this.global503Count = 0;
+                logger.info(`🌱 Global 503 cooldown period ended, resetting error count`);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 記錄全域 503 錯誤
+     */
+    private recordGlobal503Error(): void {
+        this.global503Count++;
+        this.last503Time = Date.now();
+        logger.warn(`🌐 Global 503 error recorded: ${this.global503Count}/${this.GLOBAL_503_THRESHOLD}`);
+        
+        if (this.global503Count >= this.GLOBAL_503_THRESHOLD) {
+            logger.error(`🚨 Gemini service appears to be globally overloaded! Entering ${this.GLOBAL_503_COOLDOWN/1000}s cooldown period.`);
+        }
     }
 }
 

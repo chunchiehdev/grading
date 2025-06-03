@@ -304,7 +304,13 @@ export async function updateGradingSessionProgress(
 }
 
 /**
- * Starts grading for a session
+ * 把這次評分（sessionId）的狀態改成「處理中」
+ * 找出這場裡所有還沒評分的項目（狀態是 PENDING）
+ * 如果沒東西要評，直接回傳成功
+ * 如果有，要載入一個評分服務，把每個待評項目加進評分任務去做排隊
+ * 如果加任務失敗，就標記程式為「失敗」，並回傳錯誤訊息
+ * 如果成功，就記錄一下並回傳成功
+ * 中途如果出錯，會捕捉錯誤並回傳失敗
  */
 export async function startGradingSession(
   sessionId: string,
@@ -337,7 +343,7 @@ export async function startGradingSession(
       return { success: true };
     }
 
-    // Use simple grading service (no BullMQ dependencies)
+    // Use simple grading service 
     const { addGradingJobs } = await import('./simple-grading.server');
     
     const gradingJobs = pendingResults.map(result => ({
