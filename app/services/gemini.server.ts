@@ -441,10 +441,13 @@ class GeminiService {
         } catch (error) {
             const duration = Date.now() - startTime;
             
-            // 檢查是否為 503 錯誤
+            // 檢查錯誤類型
             const is503Error = (error as any)?.status === 503 || 
                               (error as any)?.message?.includes('503') || 
                               (error as any)?.message?.includes('overloaded');
+            const is429Error = (error as any)?.status === 429 || 
+                              (error as any)?.message?.includes('429') || 
+                              (error as any)?.message?.includes('Too Many Requests');
             
             if (is503Error) {
                 this.recordGlobal503Error();
@@ -469,7 +472,7 @@ class GeminiService {
 **已嘗試：** ${Array.from(attemptedKeys).map(i => `API Key ${i + 1}`).join(', ')}
 
 **系統已自動嘗試：**
-✅ 3個不同的 API Keys
+✅ 多個不同的 API Keys
 ✅ 智能重試機制
 ✅ 檔案重新上傳
 
@@ -482,6 +485,35 @@ class GeminiService {
 **技術詳情：** ${(error as any)?.message || 'Service overloaded'}`;
                 
                 logger.error(`🌐 All API keys hit 503 overload for file: ${request.fileName}`);
+            }
+            // 為 429 錯誤提供更具體的錯誤訊息
+            else if (is429Error) {
+                errorInfo.userMessage = `⏸️ API 請求頻率限制
+
+**檔案：** ${request.fileName}
+**錯誤類型：** 429 Too Many Requests - 請求過於頻繁
+**已嘗試：** ${Array.from(attemptedKeys).map(i => `API Key ${i + 1}`).join(', ')}
+
+**系統已自動嘗試：**
+✅ 多個 API Key 輪換使用
+✅ 智能延遲重試機制
+✅ 文件重新上傳到不同服務器
+✅ 適應性退避演算法
+
+**發生原因：**
+• 🔥 Gemini API 使用量達到限制
+• ⚡ 系統處理大量評分請求
+• 🕒 短時間內過多 API 呼叫
+
+**建議解決方案：**
+1. ⏰ 等待 3-5 分鐘後重新評分
+2. 🔄 系統會自動平衡負載
+3. 📊 考慮分批處理大量文件
+4. 🆘 如持續問題請聯繫技術支援
+
+**技術詳情：** ${(error as any)?.message || 'Rate limit exceeded'}`;
+                
+                logger.error(`⏸️ All API keys hit 429 rate limit for file: ${request.fileName}`);
             }
             // 為 403 錯誤提供更具體的錯誤訊息
             else if ((error as any)?.status === 403 && (error as any)?.message?.includes('permission')) {
@@ -512,7 +544,9 @@ class GeminiService {
                 duration,
                 fileId: uploadedFile?.name,
                 is503: is503Error,
-                global503Count: this.global503Count
+                is429: is429Error,
+                global503Count: this.global503Count,
+                keysAttempted: Array.from(attemptedKeys)
             });
 
             // 確保總是返回有效的錯誤回應（避免 UI 卡住）
@@ -946,7 +980,7 @@ class GeminiService {
     }
 
     /**
-     * 文件操作專用重試機制 - 修復 key 一致性邏輯
+     * 文件操作專用重試機制 - 增強版支援多種錯誤類型的 key 切換
      */
     private async retryFileOperationWithFallback<T>(
         operation: () => Promise<T>,
@@ -964,40 +998,67 @@ class GeminiService {
                 return await operation();
             } catch (error: any) {
                 const is503Error = error.status === 503 || (error.message && error.message.includes('503'));
+                const is429Error = error.status === 429 || (error.message && error.message.includes('429')) || (error.message && error.message.includes('Too Many Requests'));
+                const is500Error = error.status === 500 || (error.message && error.message.includes('500'));
+                const isRateLimitError = error.message && (error.message.includes('rate limit') || error.message.includes('quota'));
                 const isLastAttempt = attempt === maxRetries;
+                
+                // 統一的可重新上傳錯誤判斷
+                const shouldReuploadToNewKey = (is503Error || is429Error || is500Error || isRateLimitError) && !isLastAttempt && this.clients.length > 1;
                 
                 logger.warn(`❌ File operation failed with key ${this.currentClientIndex + 1}:`, {
                     error: error.message,
                     status: error.status,
                     attempt,
                     maxRetries,
-                    is503: is503Error
+                    is503: is503Error,
+                    is429: is429Error,
+                    is500: is500Error,
+                    isRateLimit: isRateLimitError,
+                    shouldReupload: shouldReuploadToNewKey
                 });
                 
-                // 對於 503 錯誤，嘗試重新上傳到不同的 key 並重試
-                if (is503Error && !isLastAttempt && this.clients.length > 1) {
-                    const newKeyIndex = await this.handleFileOperation503Error(
+                // 對於可重新上傳的錯誤（503, 429, 500, rate limit等），嘗試重新上傳到不同的 key
+                if (shouldReuploadToNewKey) {
+                    const errorType = is503Error ? '503' : is429Error ? '429' : is500Error ? '500' : 'rate_limit';
+                    const newKeyIndex = await this.handleFileOperationErrorWithReupload(
                         uploadedFile, 
                         request, 
                         currentFileKeyIndex, 
-                        attemptedKeys
+                        attemptedKeys,
+                        errorType
                     );
                     
                     if (newKeyIndex !== null) {
                         // 成功重新上傳，更新文件所在的 key
                         currentFileKeyIndex = newKeyIndex;
-                        logger.info(`🔄 File now available on key ${currentFileKeyIndex + 1}, continuing with this key`);
+                        logger.info(`🔄 File re-uploaded to key ${currentFileKeyIndex + 1} due to ${errorType} error, continuing with this key`);
                         continue;
+                    } else {
+                        logger.warn(`❌ Failed to re-upload file to alternative key for ${errorType} error`);
                     }
                 }
                 
-                // 如果是最後一次嘗試或非503錯誤，拋出錯誤
+                // 如果是最後一次嘗試，拋出錯誤
                 if (isLastAttempt) {
                     throw error;
                 }
                 
-                // 其他錯誤，等待後重試
-                const delay = 2000 + Math.random() * 2000; // 2-4秒
+                // 其他錯誤或重新上傳失敗，等待後重試（使用當前 key）
+                let delay: number;
+                if (is429Error || isRateLimitError) {
+                    // 對於 rate limit 錯誤使用較長延遲
+                    delay = 5000 + Math.random() * 3000; // 5-8秒
+                    logger.warn(`⏸️ Rate limit detected, using longer delay: ${Math.round(delay/1000)}s...`);
+                } else if (is503Error) {
+                    // 503 錯誤使用中等延遲
+                    delay = 3000 + Math.random() * 2000; // 3-5秒
+                    logger.warn(`🚫 503 overload, using medium delay: ${Math.round(delay/1000)}s...`);
+                } else {
+                    // 其他錯誤使用標準延遲
+                    delay = 2000 + Math.random() * 2000; // 2-4秒
+                }
+                
                 logger.warn(`⏳ Retrying in ${delay.toFixed(0)}ms...`);
                 await this.sleep(delay);
             }
@@ -1007,13 +1068,14 @@ class GeminiService {
     }
 
     /**
-     * 處理文件操作的 503 錯誤 - 重新上傳文件到不同的 key（修復版）
+     * 處理文件操作的各種錯誤 - 重新上傳文件到不同的 key（通用版本）
      */
-    private async handleFileOperation503Error(
+    private async handleFileOperationErrorWithReupload(
         uploadedFile: any,
         request: GeminiFileGradingRequest,
         currentFileKeyIndex: number,
-        attemptedKeys: Set<number>
+        attemptedKeys: Set<number>,
+        errorType: string
     ): Promise<number | null> {
         try {
             // 先清理當前文件
@@ -1021,42 +1083,70 @@ class GeminiService {
             
             // 尋找未嘗試過的 key
             let foundUntriedKey = false;
+            const originalIndex = this.currentClientIndex;
+            
             for (let i = 0; i < this.clients.length; i++) {
                 this.switchToNextApiKey();
                 if (!attemptedKeys.has(this.currentClientIndex)) {
                     foundUntriedKey = true;
                     break;
                 }
+                // 避免無限循環
+                if (this.currentClientIndex === originalIndex) {
+                    break;
+                }
             }
             
             if (!foundUntriedKey) {
-                logger.warn(`🚫 No untried keys available for file re-upload`);
+                logger.warn(`🚫 No untried keys available for file re-upload (${errorType} error)`);
                 return null;
             }
             
             attemptedKeys.add(this.currentClientIndex);
-            logger.info(`🔄 503 fallback: re-uploading file to key ${this.currentClientIndex + 1}`);
+            logger.info(`🔄 ${errorType} fallback: re-uploading file to key ${this.currentClientIndex + 1}`);
             
-            // 重新上傳文件
-            const fileBlob = new Blob([request.fileBuffer], { type: request.mimeType });
-            const newUploadedFile = await this.getCurrentClient().files.upload({
-                file: fileBlob
-            });
+            // 對於 429 錯誤，添加額外延遲
+            if (errorType === '429') {
+                const rateLimitDelay = 2000 + Math.random() * 1000; // 2-3秒
+                logger.info(`⏸️ Adding rate limit delay before re-upload: ${Math.round(rateLimitDelay/1000)}s`);
+                await this.sleep(rateLimitDelay);
+            }
+            
+            // 重新上傳文件，使用重試機制
+            const newUploadedFile = await this.retryWithBackoff(async () => {
+                const fileBlob = new Blob([request.fileBuffer], { type: request.mimeType });
+                return await this.getCurrentClient().files.upload({
+                    file: fileBlob
+                });
+            }, 2, 1000, false); // 不允許在重新上傳時再次切換 key
             
             // 更新 uploadedFile 參考
             uploadedFile.name = newUploadedFile.name;
             uploadedFile.uri = newUploadedFile.uri;
             uploadedFile.mimeType = newUploadedFile.mimeType;
             
-            logger.info(`✅ File re-uploaded successfully to key ${this.currentClientIndex + 1}: ${newUploadedFile.name}`);
+            logger.info(`✅ File re-uploaded successfully to key ${this.currentClientIndex + 1}: ${newUploadedFile.name} (${errorType} recovery)`);
             
             // 返回新的 key index
             return this.currentClientIndex;
             
         } catch (reUploadError) {
-            logger.error(`❌ Failed to re-upload file to key ${this.currentClientIndex + 1}:`, reUploadError);
+            logger.error(`❌ Failed to re-upload file to key ${this.currentClientIndex + 1} (${errorType} recovery):`, reUploadError);
             return null;
         }
+    }
+
+    /**
+     * 處理文件操作的 503 錯誤 - 重新上傳文件到不同的 key（舊版兼容）
+     * @deprecated 使用 handleFileOperationErrorWithReupload 替代
+     */
+    private async handleFileOperation503Error(
+        uploadedFile: any,
+        request: GeminiFileGradingRequest,
+        currentFileKeyIndex: number,
+        attemptedKeys: Set<number>
+    ): Promise<number | null> {
+        return this.handleFileOperationErrorWithReupload(uploadedFile, request, currentFileKeyIndex, attemptedKeys, '503');
     }
 
     /**
