@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { GradingResultData } from '@/types/rubric';
+import type { GradingResultData } from '@/types/grading';
 import type { UploadedFileInfo } from '@/types/files';
 
 /**

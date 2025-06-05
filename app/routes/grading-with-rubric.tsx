@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
-import { type GradingResultData } from '@/components/grading/GradingResultDisplay';
+import { type GradingResultData } from '@/types/grading';
 import { ResultCardList } from '@/components/grading/ResultCardList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

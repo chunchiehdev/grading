@@ -1,4 +1,4 @@
-import { Link, useLoaderData, useNavigate, Form, redirect } from 'react-router';
+import { Link, useLoaderData, useNavigate, useActionData, Form, redirect } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -72,7 +72,11 @@ export const action = async ({ params, request }: {
 
       if (!result.success) {
         console.error('Delete rubric failed:', result.error);
-        throw new Response(result.error || '刪除評分標準失敗', { status: 500 });
+        // 返回 JSON 錯誤而不是拋出異常，讓前端可以處理
+        return Response.json({ 
+          success: false, 
+          error: result.error || '刪除評分標準失敗' 
+        }, { status: 409 }); // 409 Conflict - 資源被使用中
       }
 
       console.log('Rubric deleted successfully:', id);
@@ -110,10 +114,14 @@ const LEVEL_LABELS = {
 
 export default function RubricDetailRoute() {
   const { rubric } = useLoaderData<typeof loader>();
+  const actionData = useActionData<{ success: boolean; error?: string }>();
   const navigate = useNavigate();
 
   // 轉換資料結構
-  const categories = dbCriteriaToUICategories(rubric.criteria);
+      // 優先使用新的 categories 欄位，否則從 criteria 轉換
+    const categories = rubric.categories 
+      ? rubric.categories 
+      : dbCriteriaToUICategories(rubric.criteria);
   const stats = calculateRubricStats(categories);
 
   const handleExport = () => {
@@ -137,6 +145,31 @@ export default function RubricDetailRoute() {
 
   return (
     <div className="container py-8">
+      {/* 錯誤提示 */}
+      {actionData?.error && (
+        <div className="mb-6 bg-destructive/15 border border-destructive/20 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <div className="bg-destructive/20 rounded-full p-1">
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-medium text-destructive mb-1">無法刪除評分標準</h4>
+              <p className="text-sm text-destructive/80">{actionData.error}</p>
+              {actionData.error.includes('已被使用') && (
+                <div className="mt-3 text-sm text-muted-foreground">
+                  <p className="mb-2">您可以選擇以下替代方案：</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>建立此評分標準的新版本</li>
+                    <li>先完成並刪除相關的評分作業</li>
+                    <li>將評分標準設為非活躍狀態</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 導航和標題 */}
       <div className="mb-6">
         <Button variant="outline" onClick={() => navigate('/rubrics')} className="mb-4">

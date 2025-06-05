@@ -16,14 +16,32 @@ export type { Level, UICriterion, UICategory, UIRubricData };
 
 /**
  * Converts database criteria to UI categories structure
- * @param {RubricCriteria[]} criteria - Array of rubric criteria from database
- * @returns {UICategory[]} Array of UI category objects with grouped criteria
+ * @param {any[]} criteriaOrCategories - Array of categories or legacy criteria from database
+ * @returns {UICategory[]} Array of UI category objects
  */
-export function dbCriteriaToUICategories(criteria: RubricCriteria[]): UICategory[] {
-  const categoryMap = new Map<string, UICategory>();
+export function dbCriteriaToUICategories(criteriaOrCategories: any[]): UICategory[] {
+  if (!Array.isArray(criteriaOrCategories) || criteriaOrCategories.length === 0) {
+    return [];
+  }
 
-  criteria.forEach((criterion) => {
-    const categoryName = '預設類別'; // 新schema沒有category概念，統一分組
+  // 檢查是否為新格式（包含類別結構）
+  const firstItem = criteriaOrCategories[0];
+  if (firstItem.id && firstItem.name && Array.isArray(firstItem.criteria)) {
+    // 新格式：直接轉換類別
+    return criteriaOrCategories.map(category => ({
+      id: category.id,
+      name: category.name,
+      criteria: category.criteria.map((criterion: any) => ({
+        id: criterion.id,
+        name: criterion.name,
+        description: criterion.description || '',
+        levels: criterion.levels as UILevel[],
+      }))
+    }));
+  } else {
+    // 舊格式：將所有 criteria 放入預設類別
+    const categoryMap = new Map<string, UICategory>();
+    const categoryName = '預設類別';
     
     if (!categoryMap.has(categoryName)) {
       categoryMap.set(categoryName, {
@@ -33,16 +51,18 @@ export function dbCriteriaToUICategories(criteria: RubricCriteria[]): UICategory
       });
     }
 
-    const category = categoryMap.get(categoryName)!;
-    category.criteria.push({
-      id: criterion.id,
-      name: criterion.name,
-      description: criterion.description || '',
-      levels: criterion.levels as UILevel[],
+    criteriaOrCategories.forEach((criterion) => {
+      const category = categoryMap.get(categoryName)!;
+      category.criteria.push({
+        id: criterion.id,
+        name: criterion.name,
+        description: criterion.description || '',
+        levels: criterion.levels as UILevel[],
+      });
     });
-  });
 
-  return Array.from(categoryMap.values());
+    return Array.from(categoryMap.values());
+  }
 }
 
 /**

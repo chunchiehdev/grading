@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { GradingResultDisplay, type GradingResultData } from './GradingResultDisplay'
+import { GradingResultDisplay } from './GradingResultDisplay'
+import { type GradingResultData } from '@/types/grading'
 import { FileText, Star, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

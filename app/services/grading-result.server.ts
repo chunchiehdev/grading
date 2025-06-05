@@ -1,16 +1,8 @@
 import { db, GradingStatus, type GradingResult, type Rubric, type UploadedFile } from '@/types/database';
 import logger from '@/utils/logger';
+import { GradingResultData } from '@/types/grading';
 
-export interface GradingResultData {
-  totalScore: number;
-  maxScore: number;
-  breakdown: Array<{
-    criteriaId: string;
-    score: number;
-    feedback: string;
-  }>;
-  overallFeedback: string;
-}
+// GradingResultData 現在從 @/types/grading 統一導入
 
 export interface GradingResultWithDetails extends GradingResult {
   uploadedFile: UploadedFile;

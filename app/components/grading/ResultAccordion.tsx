@@ -8,7 +8,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { GradingResultDisplay, type GradingResultData } from './GradingResultDisplay'
+import { GradingResultDisplay } from './GradingResultDisplay'
+import { type GradingResultData } from '@/types/grading'
 import { FileText, Star, Clock } from 'lucide-react'
 
 interface ResultAccordionItem {

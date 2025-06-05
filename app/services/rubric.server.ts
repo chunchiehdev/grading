@@ -46,33 +46,41 @@ function handleServiceError(error: unknown, operation: string): { success: false
 /**
  * 將UI類別轉換為新schema的criteria JSON格式
  */
-function transformUICategoriesToCriteria(categories: any[]): RubricCriteria[] {
-  const criteria: RubricCriteria[] = [];
-  
-  categories.forEach(category => {
-    category.criteria.forEach((criterion: any) => {
-      criteria.push({
-        id: criterion.id,
-        name: criterion.name,
-        description: criterion.description || '',
-        maxScore: Math.max(...criterion.levels.map((l: any) => l.score)),
-        levels: criterion.levels.map((level: any) => ({
-          score: level.score,
-          description: level.description
-        }))
-      });
-    });
-  });
-  
-  return criteria;
+function transformUICategoriesToCriteria(categories: any[]): any {
+  // 改為儲存完整的類別結構，而不是扁平化的 criteria
+  return categories.map(category => ({
+    id: category.id,
+    name: category.name,
+    criteria: category.criteria.map((criterion: any) => ({
+      id: criterion.id,
+      name: criterion.name,
+      description: criterion.description || '',
+      maxScore: Math.max(...criterion.levels.map((l: any) => l.score)),
+      levels: criterion.levels.map((level: any) => ({
+        score: level.score,
+        description: level.description
+      }))
+    }))
+  }));
 }
 
 /**
- * 將資料庫 criteria JSON 轉換為 RubricCriteria[]
+ * 將資料庫 criteria JSON 轉換為 UI Categories 或舊版 RubricCriteria[]
  */
-function parseCriteriaFromDB(criteria: unknown): RubricCriteria[] {
+function parseCriteriaFromDB(criteria: unknown): any[] {
   if (Array.isArray(criteria)) {
-    return criteria as RubricCriteria[];
+    // 檢查是否為新格式（包含類別）
+    if (criteria.length > 0 && criteria[0].id && criteria[0].name && criteria[0].criteria) {
+      // 新格式：直接返回類別陣列
+      return criteria;
+    } else {
+      // 舊格式：轉換為預設類別
+      return [{
+        id: 'default-category',
+        name: '預設類別',
+        criteria: criteria
+      }];
+    }
   }
   return [];
 }
@@ -148,16 +156,33 @@ export async function listRubrics(userId?: string): Promise<{ rubrics: RubricRes
       },
     });
 
-    const rubrics: RubricResponse[] = dbRubrics.map((dbRubric) => ({
-      id: dbRubric.id,
-      name: dbRubric.name,
-      description: dbRubric.description,
-      version: dbRubric.version,
-      isActive: dbRubric.isActive,
-      createdAt: dbRubric.createdAt,
-      updatedAt: dbRubric.updatedAt,
-      criteria: parseCriteriaFromDB(dbRubric.criteria),
-    }));
+    const rubrics: RubricResponse[] = dbRubrics.map((dbRubric) => {
+      const parsedData = parseCriteriaFromDB(dbRubric.criteria);
+      
+      // 檢查是否為新的類別格式
+      const isNewFormat = Array.isArray(parsedData) && 
+                         parsedData.length > 0 && 
+                         parsedData[0] && 
+                         typeof parsedData[0] === 'object' && 
+                         'criteria' in parsedData[0] &&
+                         Array.isArray(parsedData[0].criteria);
+      
+      return {
+        id: dbRubric.id,
+        name: dbRubric.name,
+        description: dbRubric.description,
+        version: dbRubric.version,
+        isActive: dbRubric.isActive,
+        createdAt: dbRubric.createdAt,
+        updatedAt: dbRubric.updatedAt,
+        criteria: isNewFormat 
+          ? parsedData.flatMap(cat => cat.criteria) 
+          : parsedData,
+        categories: isNewFormat 
+          ? parsedData 
+          : undefined,
+      };
+    });
 
     return { rubrics };
   } catch (error) {
@@ -191,6 +216,16 @@ export async function getRubric(id: string): Promise<{ rubric?: RubricResponse; 
       return { error: '找不到評分標準' };
     }
 
+    const parsedData = parseCriteriaFromDB(dbRubric.criteria);
+    
+    // 檢查是否為新的類別格式（有 categories 結構）
+    const isNewFormat = Array.isArray(parsedData) && 
+                       parsedData.length > 0 && 
+                       parsedData[0] && 
+                       typeof parsedData[0] === 'object' && 
+                       'criteria' in parsedData[0] &&
+                       Array.isArray(parsedData[0].criteria);
+    
     const rubric: RubricResponse = {
       id: dbRubric.id,
       name: dbRubric.name,
@@ -199,7 +234,12 @@ export async function getRubric(id: string): Promise<{ rubric?: RubricResponse; 
       isActive: dbRubric.isActive,
       createdAt: dbRubric.createdAt,
       updatedAt: dbRubric.updatedAt,
-      criteria: parseCriteriaFromDB(dbRubric.criteria),
+      criteria: isNewFormat 
+        ? parsedData.flatMap(cat => cat.criteria) 
+        : parsedData,
+      categories: isNewFormat 
+        ? parsedData 
+        : undefined,
     };
 
     return { rubric };
@@ -242,25 +282,16 @@ export async function updateRubric(
 
     const criteria = transformUICategoriesToCriteria(validation.data!.categories);
     
-    // 使用事務處理版本控制
-    await db.$transaction(async (prisma) => {
-      // 將舊版本設為非活躍
-      await prisma.rubric.update({
-        where: { id: validatedId },
-        data: { isActive: false }
-      });
-
-      // 創建新版本
-      await prisma.rubric.create({
-        data: {
-          userId: existingRubric.userId,
-          name: validation.data!.name,
-          description: validation.data!.description,
-          version: existingRubric.version + 1,
-          isActive: true,
-          criteria: criteria as any // Prisma JsonValue
-        }
-      });
+    // 直接更新現有記錄（保持相同 ID）
+    await db.rubric.update({
+      where: { id: validatedId },
+      data: {
+        name: validation.data!.name,
+        description: validation.data!.description,
+        version: existingRubric.version + 1,
+        criteria: criteria as any, // Prisma JsonValue
+        updatedAt: new Date()
+      }
     });
 
     return { success: true };

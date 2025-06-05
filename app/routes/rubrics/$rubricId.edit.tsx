@@ -134,7 +134,11 @@ export default function EditRubricRoute() {
   // Initialize from loaded rubric
   useEffect(() => {
     if (initialRubric) {
-      const categories = dbCriteriaToUICategories(initialRubric.criteria);
+      // 優先使用新的 categories 欄位，否則從 criteria 轉換
+      const categories = initialRubric.categories 
+        ? initialRubric.categories 
+        : dbCriteriaToUICategories(initialRubric.criteria);
+      
       setRubricData({
         name: initialRubric.name,
         description: initialRubric.description,

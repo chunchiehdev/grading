@@ -6,17 +6,10 @@ import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Markdown } from '@/components/ui/markdown';
 import { EmptyGradingState } from './EmptyGradingState';
-// Updated to work with new grading result format from database
-export interface GradingResultData {
-  totalScore: number;
-  maxScore: number;
-  breakdown: Array<{
-    criteriaId: string;
-    score: number;
-    feedback: string;
-  }>;
-  overallFeedback: string;
-}
+import { StructuredFeedback } from './StructuredFeedback';
+import { GradingResultData } from '@/types/grading';
+
+// Updated to work with new grading result format from database - types now imported from @/types/grading
 
 interface GradingResultDisplayProps {
   result?: GradingResultData;
@@ -116,7 +109,7 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
               <div className="bg-white border border-slate-200 rounded-lg p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">整體評分回饋</h3>
                 <div className="prose prose-sm max-w-none">
-                  <Markdown>{safeResult.overallFeedback}</Markdown>
+                  <StructuredFeedback feedback={safeResult.overallFeedback} />
                 </div>
               </div>
             </TabsContent>

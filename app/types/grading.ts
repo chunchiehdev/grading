@@ -36,24 +36,22 @@ export interface Rubric {
   criteria: RubricCriteria[];
 }
 
+// 結構化的整體回饋類型
+export interface OverallFeedbackStructured {
+  documentStrengths?: string[];
+  keyImprovements?: string[];
+  nextSteps?: string;
+  summary?: string;
+}
+
+// 統一的評分結果資料結構 - 支援 Gemini 和 OpenAI
 export interface GradingResultData {
-  score: number;
-  imageUnderstanding?: string;
-  imageUnderstandingMarkdown?: string;
-  analysis: string;
-  analysisMarkdown?: string;
-  criteriaScores: {
-    name: string;
+  totalScore: number;
+  maxScore: number;
+  breakdown: Array<{
+    criteriaId: string;
     score: number;
-    comments: string;
-    commentsMarkdown?: string;
-  }[];
-  strengths: string[];
-  strengthsMarkdown?: string[];
-  improvements: string[];
-  improvementsMarkdown?: string[];
-  overallSuggestions?: string;
-  overallSuggestionsMarkdown?: string;
-  createdAt: Date | string;
-  gradingDuration?: number;
+    feedback: string;
+  }>;
+  overallFeedback: string | OverallFeedbackStructured;
 }
