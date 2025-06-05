@@ -18,6 +18,7 @@ export interface Rubric {
   version: number;
   isActive: boolean;
   criteria: RubricCriteria[];
+  categories?: UICategory[]; // 新增 categories 欄位，向後兼容
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,8 +51,9 @@ export interface UILevel {
   description: string;
 }
 
-// 評分相關類型 (保留需要的評分類型)
-export interface GradingResultData {
+// 評分相關類型移到 @/types/grading 統一管理
+// 保留舊評分格式的相容性類型
+export interface LegacyGradingResultData {
   score: number;
   analysis: string;
   analysisMarkdown?: string;

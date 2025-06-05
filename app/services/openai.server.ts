@@ -1,10 +1,12 @@
 import OpenAI from 'openai';
 import logger from '@/utils/logger';
+import { GradingResultData, OverallFeedbackStructured } from '@/types/grading';
 
 // OpenAI 評分請求介面 - 文字內容方式
 export interface OpenAIGradingRequest {
     content: string;
-    criteria: any[];
+    criteria: any[]; // 向後兼容，保留扁平化格式
+    categories?: any[]; // 新增：完整的類別結構
     fileName: string;
     rubricName: string;
 }
@@ -13,7 +15,8 @@ export interface OpenAIGradingRequest {
 export interface OpenAIFileGradingRequest {
     fileBuffer: Buffer;
     mimeType: string;
-    criteria: any[];
+    criteria: any[]; // 向後兼容，保留扁平化格式
+    categories?: any[]; // 新增：完整的類別結構
     fileName: string;
     rubricName: string;
 }
@@ -35,17 +38,7 @@ export interface OpenAIGradingResponse {
     };
 }
 
-// 評分結果資料結構（與 Gemini 一致）
-export interface GradingResultData {
-    totalScore: number;
-    maxScore: number;
-    breakdown: Array<{
-        criteriaId: string;
-        score: number;
-        feedback: string;
-    }>;
-    overallFeedback: string;
-}
+// 評分結果資料結構從 @/types/grading 導入（與 Gemini 一致）
 
 class OpenAIService {
     private client: OpenAI;
@@ -214,7 +207,8 @@ class OpenAIService {
                     name: "Document Grader",
                     model: this.model,
                     instructions: this.generateAssistantInstructions(request),
-                    tools: [{ type: "file_search" }]
+                    tools: [{ type: "file_search" }],
+                    response_format: { type: "json_object" }
                 });
             }, 2, 1000);
 
@@ -303,7 +297,9 @@ class OpenAIService {
      * 生成文字評分提示
      */
     private generateTextGradingPrompt(request: OpenAIGradingRequest): string {
-        const criteriaText = this.formatCriteriaDescription(request.criteria);
+        const criteriaText = request.categories 
+            ? this.formatCategorizedCriteriaDescription(request.categories)
+            : this.formatCriteriaDescription(request.criteria);
 
         return `請根據以下評分標準為文件"${request.fileName}"進行詳細評分：
 
@@ -333,7 +329,18 @@ ${request.content}
       "feedback": "基於「原文引用」的詳細分析，包括：\\n\\n**表現優點：** 引用原文說明好的地方\\n\\n**需要改進：** 引用原文指出問題\\n\\n**改進建議：** 具體可執行的建議\\n\\n**評分理由：** 為什麼給這個分數"
     }
   ],
-  "overallFeedback": "整體評價，包含最重要的優點和改進建議，要引用原文支持"
+  "overallFeedback": {
+    "documentStrengths": [
+      "主要優點1：具體說明（引用原文支持）",
+      "主要優點2：具體說明（引用原文支持）"
+    ],
+    "keyImprovements": [
+      "關鍵改進點1：具體建議（引用原文支持）",
+      "關鍵改進點2：具體建議（引用原文支持）"
+    ],
+    "nextSteps": "下一步具體建議和學習方向",
+    "summary": "總結性評價，整合優點和改進建議"
+  }
 }`;
     }
 
@@ -341,7 +348,9 @@ ${request.content}
      * 生成檔案評分提示
      */
     private generateFileGradingPrompt(request: OpenAIFileGradingRequest): string {
-        const criteriaText = this.formatCriteriaDescription(request.criteria);
+        const criteriaText = request.categories 
+            ? this.formatCategorizedCriteriaDescription(request.categories)
+            : this.formatCriteriaDescription(request.criteria);
 
         return `請仔細分析上傳的文件並根據以下評分標準進行詳細評分：
 
@@ -373,7 +382,18 @@ ${criteriaText}
       "feedback": "詳細分析內容，格式如下：\\n\\n**引用與分析：** 「文件中的具體內容」- 這部分表現如何\\n\\n**表現優點：** 好的地方及原因\\n\\n**改進空間：** 需要改善的地方\\n\\n**具體建議：** 如何改進，要可執行\\n\\n**評分依據：** 為什麼給這個分數"
     }
   ],
-  "overallFeedback": "整體評價和建議，要包含：\\n1. 最突出的優點（引用支持）\\n2. 最需要改進的地方（引用支持）\\n3. 具體的下一步建議"
+  "overallFeedback": {
+    "documentStrengths": [
+      "主要優點1：具體說明（引用文件支持）",
+      "主要優點2：具體說明（引用文件支持）"
+    ],
+    "keyImprovements": [
+      "關鍵改進點1：具體建議（引用文件支持）",
+      "關鍵改進點2：具體建議（引用文件支持）"
+    ],
+    "nextSteps": "下一步具體建議和學習方向",
+    "summary": "總結性評價，整合優點和改進建議"
+  }
 }
 
 如果無法從文件中提取相關資訊，請說明原因。`;
@@ -402,6 +422,43 @@ ${criteriaText}
     }
 
     /**
+     * 格式化類別化評分標準描述，保持類別結構
+     */
+    private formatCategorizedCriteriaDescription(categories: any[]): string {
+        const allCriteriaIds: string[] = [];
+        
+        const categoriesList = categories.map((category, categoryIndex) => {
+            const categoryNumber = categoryIndex + 1;
+            
+            const criteriaList = category.criteria.map((criterion: any, criterionIndex: number) => {
+                const criterionNumber = `${categoryNumber}.${criterionIndex + 1}`;
+                allCriteriaIds.push(criterion.id);
+                
+                const levelsText = criterion.levels 
+                    ? criterion.levels.map((level: any) => `${level.score}分 - ${level.description}`).join('；')
+                    : '';
+                
+                return `   ${criterionNumber} **${criterion.name}** (${criterion.maxScore || 0} 分)
+      ID: "${criterion.id}" ← 請在 JSON 中使用此 ID
+      說明：${criterion.description || '無說明'}
+      ${levelsText ? `評分等級：${levelsText}` : ''}`;
+            }).join('\n\n');
+            
+            return `### ${categoryNumber}. ${category.name} 類別
+
+${criteriaList}`;
+        }).join('\n\n');
+
+        const criteriaIds = allCriteriaIds.map(id => `"${id}"`).join(', ');
+        
+        return `${categoriesList}
+
+**重要：** 在 JSON 回應中，"criteriaId" 必須完全匹配上述 ID：${criteriaIds}
+
+**評分要求：** 請根據類別結構理解評分標準的邏輯分組，這將有助於提供更有組織性的評分分析。每個類別代表一個評分維度，請在分析時考慮其整體性。`;
+    }
+
+    /**
      * 生成系統指令
      */
     private generateSystemInstruction(): string {
@@ -411,8 +468,10 @@ ${criteriaText}
 2. 提供建設性的回饋和具體改進建議
 3. 使用正面鼓勵的語言，但指出需要改進的地方
 4. 確保評分與標準一致
-5. 回應必須是有效的JSON格式
-6. 如果文件內容不足以評分，請說明原因`;
+5. **回應必須是完整且有效的JSON格式，不要包含任何解釋文字**
+6. 如果文件內容不足以評分，請在JSON中說明原因
+
+**重要：你的回應應該是純粹的JSON對象，開始於{，結束於}，不要包含任何markdown標記或其他文字。**`;
     }
 
     /**
@@ -425,16 +484,20 @@ ${criteriaText}
 2. 根據提供的評分標準進行客觀評分
 3. 為每個評分項目提供詳細回饋
 4. 給出整體評價和改進建議
-5. 以JSON格式回應
+5. **必須**以有效的JSON格式回應，不要包含任何其他文字或解釋
 
 檔案類型：${request.mimeType}
 評分標準：${request.rubricName}
 
-請確保：
+**重要要求：**
+- 你的回應必須是純粹的 JSON 對象，不要包含任何說明文字
+- 不要使用 markdown 代碼塊標記（如 \`\`\`json）
+- 確保 JSON 格式完整且有效
 - 評分基於文件實際內容
 - 回饋具體且有建設性
-- JSON格式正確且完整
-- 如果文件無法讀取，請說明原因`;
+- 如果文件無法讀取，請在 JSON 中說明原因
+
+你的回應必須是完整的 JSON 對象，開始和結束都是大括號 { }。`;
     }
 
     /**
@@ -471,15 +534,43 @@ ${criteriaText}
      */
     private parseGradingResponse(responseText: string, criteria: any[]): GradingResultData {
         try {
+            // 詳細記錄原始回應用於調試
+            logger.info(`OpenAI raw response length: ${responseText.length} chars`);
+            
             // 移除可能的 markdown 標記
             const cleanedText = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+            
+            // 記錄清理後的文字
+            logger.info(`OpenAI cleaned text length: ${cleanedText.length} chars`);
+            
+            // 檢查 JSON 結構完整性
+            const openBraces = (cleanedText.match(/\{/g) || []).length;
+            const closeBraces = (cleanedText.match(/\}/g) || []).length;
+            
+            if (openBraces !== closeBraces) {
+                logger.warn(`OpenAI JSON structure issue: ${openBraces} opening braces vs ${closeBraces} closing braces`);
+            }
+            
             const parsed = JSON.parse(cleanedText);
             
             // 驗證和構建結果
             return this.buildResultFromParsed(parsed, criteria);
 
         } catch (error) {
-            logger.error('Failed to parse OpenAI response:', { responseText: responseText.substring(0, 500) + '...', error });
+            // 增強錯誤日誌 - 記錄完整回應和清理過程
+            logger.error('Failed to parse OpenAI response:', {
+                responseLength: responseText.length,
+                responseStart: responseText.substring(0, 1000),
+                responseEnd: responseText.substring(Math.max(0, responseText.length - 1000)),
+                error: error instanceof Error ? error.message : String(error)
+            });
+            
+            // 嘗試更積極的修復
+            const repairedResult = this.attemptOpenAIResponseRepair(responseText, criteria);
+            if (repairedResult) {
+                logger.info('✅ Successfully repaired OpenAI response');
+                return repairedResult;
+            }
 
             // 返回預設結果
             const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
@@ -511,6 +602,34 @@ ${criteriaText}
             parsed.breakdown = [];
         }
 
+        // 構建整體回饋 - 支援結構化格式（與 Gemini 一致）
+        let overallFeedback: string | OverallFeedbackStructured = '';
+        
+        if (parsed.overallFeedback && typeof parsed.overallFeedback === 'object') {
+            const overall = parsed.overallFeedback;
+            
+            // 檢查是否為結構化格式
+            if (overall.documentStrengths || overall.keyImprovements || overall.nextSteps) {
+                // 保持結構化資料，讓前端決定如何呈現
+                overallFeedback = {
+                    documentStrengths: overall.documentStrengths && Array.isArray(overall.documentStrengths) 
+                        ? overall.documentStrengths 
+                        : undefined,
+                    keyImprovements: overall.keyImprovements && Array.isArray(overall.keyImprovements) 
+                        ? overall.keyImprovements 
+                        : undefined,
+                    nextSteps: overall.nextSteps || undefined,
+                    summary: overall.summary || undefined
+                };
+            } else {
+                // 退化為字串格式（兼容舊版）
+                overallFeedback = JSON.stringify(overall);
+            }
+        } else if (parsed.overallFeedback) {
+            // 直接使用字串格式
+            overallFeedback = parsed.overallFeedback;
+        }
+
         // 確保 breakdown 包含所有評分項目
         const result: GradingResultData = {
             totalScore: Math.round(parsed.totalScore),
@@ -526,10 +645,59 @@ ${criteriaText}
                     feedback: found ? found.feedback : '無詳細分析'
                 };
             }),
-            overallFeedback: parsed.overallFeedback || '無綜合評價'
+            overallFeedback: overallFeedback || '無綜合評價'
         };
 
         return result;
+    }
+
+    /**
+     * 嘗試修復 OpenAI 的截斷或格式錯誤回應
+     */
+    private attemptOpenAIResponseRepair(responseText: string, criteria: any[]): GradingResultData | null {
+        try {
+            // 移除所有可能的標記和額外文字
+            let cleanedText = responseText
+                .replace(/```json\s*/g, '')
+                .replace(/```\s*/g, '')
+                .replace(/^[^{]*/, '') // 移除開頭的非JSON內容
+                .replace(/[^}]*$/, '') // 移除結尾的非JSON內容
+                .trim();
+            
+            // 如果找不到 JSON 結構，嘗試提取
+            if (!cleanedText.includes('{') || !cleanedText.includes('}')) {
+                // 尋找可能的 JSON 片段
+                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    cleanedText = jsonMatch[0];
+                } else {
+                    logger.warn('No JSON structure found in OpenAI response');
+                    return null;
+                }
+            }
+            
+            // 嘗試修復不平衡的括號
+            const openBraces = (cleanedText.match(/\{/g) || []).length;
+            const closeBraces = (cleanedText.match(/\}/g) || []).length;
+            
+            if (openBraces > closeBraces) {
+                const missingBraces = openBraces - closeBraces;
+                for (let i = 0; i < missingBraces; i++) {
+                    cleanedText += '}';
+                }
+                logger.info(`Fixed ${missingBraces} missing closing braces in OpenAI response`);
+            }
+            
+            // 嘗試解析修復後的 JSON
+            const parsed = JSON.parse(cleanedText);
+            logger.info('✅ Successfully repaired OpenAI JSON response');
+            
+            return this.buildResultFromParsed(parsed, criteria);
+            
+        } catch (repairError) {
+            logger.warn('Failed to repair OpenAI response:', repairError);
+            return null;
+        }
     }
 
     /**

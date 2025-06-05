@@ -1,11 +1,13 @@
 import { GoogleGenAI, createUserContent, createPartFromUri } from "@google/genai";
 import logger from '@/utils/logger';
+import { GradingResultData, OverallFeedbackStructured } from '@/types/grading';
 import { GeminiPrompts } from './gemini-prompts.server';
 
 // Gemini 評分請求介面 - 原有的文字內容方式
 export interface GeminiGradingRequest {
     content: string;
-    criteria: any[];
+    criteria: any[]; // 向後兼容，保留扁平化格式
+    categories?: any[]; // 新增：完整的類別結構
     fileName: string;
     rubricName: string;
 }
@@ -14,7 +16,8 @@ export interface GeminiGradingRequest {
 export interface GeminiFileGradingRequest {
     fileBuffer: Buffer;
     mimeType: string;
-    criteria: any[];
+    criteria: any[]; // 向後兼容，保留扁平化格式
+    categories?: any[]; // 新增：完整的類別結構
     fileName: string;
     rubricName: string;
 }
@@ -35,17 +38,7 @@ export interface GeminiGradingResponse {
     };
 }
 
-// 評分結果資料結構
-export interface GradingResultData {
-    totalScore: number;
-    maxScore: number;
-    breakdown: Array<{
-        criteriaId: string;
-        score: number;
-        feedback: string;
-    }>;
-    overallFeedback: string;
-}
+// 評分結果資料結構從 @/types/grading 導入
 
 class GeminiService {
     private clients: GoogleGenAI[];
@@ -236,12 +229,29 @@ class GeminiService {
         const errorMessage = error.message || '';
         const statusCode = error.status || error.code;
         
-        return statusCode === 503 || 
-               statusCode === 429 ||
-               errorMessage.includes('503') ||
-               errorMessage.includes('429') ||
-               errorMessage.includes('overloaded') ||
-               errorMessage.includes('rate limit');
+        // 標準過載錯誤
+        if (statusCode === 503 || 
+            statusCode === 429 ||
+            errorMessage.includes('503') ||
+            errorMessage.includes('429') ||
+            errorMessage.includes('overloaded') ||
+            errorMessage.includes('rate limit')) {
+            return true;
+        }
+        
+        // Gemini 特殊過載錯誤模式
+        if (errorMessage.includes('RESOURCE_EXHAUSTED') ||
+            errorMessage.includes('DEADLINE_EXCEEDED') ||
+            errorMessage.includes('UNAVAILABLE')) {
+            return true;
+        }
+        
+        // 500 錯誤也可能是過載
+        if (statusCode === 500 || errorMessage.includes('500')) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**
@@ -642,34 +652,49 @@ class GeminiService {
             parsed.breakdown = [];
         }
 
-        // 構建整體回饋
-        let overallFeedback = '';
+        // 構建整體回饋 - 優先保持結構化資料
+        let overallFeedback: string | OverallFeedbackStructured = '';
         
         if (parsed.overallFeedback && typeof parsed.overallFeedback === 'object') {
             const overall = parsed.overallFeedback;
             
-            // 優點部分
-            if (overall.documentStrengths && Array.isArray(overall.documentStrengths)) {
-                overall.documentStrengths.forEach((strength: string, index: number) => {
-                    overallFeedback += `${index + 1}. ${strength}\n`;
-                });
-                overallFeedback += '\n';
+            // 檢查是否為結構化格式
+            if (overall.documentStrengths || overall.keyImprovements || overall.nextSteps) {
+                // 保持結構化資料，讓前端決定如何呈現
+                overallFeedback = {
+                    documentStrengths: overall.documentStrengths && Array.isArray(overall.documentStrengths) 
+                        ? overall.documentStrengths 
+                        : undefined,
+                    keyImprovements: overall.keyImprovements && Array.isArray(overall.keyImprovements) 
+                        ? overall.keyImprovements 
+                        : undefined,
+                    nextSteps: overall.nextSteps || undefined,
+                    summary: overall.summary || undefined
+                };
+            } else {
+                // 退化為字串格式（兼容舊版）
+                let feedbackText = '';
+                
+                if (overall.documentStrengths && Array.isArray(overall.documentStrengths)) {
+                    overall.documentStrengths.forEach((strength: string, index: number) => {
+                        feedbackText += `${index + 1}. ${strength}\n`;
+                    });
+                    feedbackText += '\n';
+                }
+                
+                if (overall.keyImprovements && Array.isArray(overall.keyImprovements)) {
+                    overall.keyImprovements.forEach((improvement: string, index: number) => {
+                        feedbackText += `${index + 1}. ${improvement}\n`;
+                    });
+                    feedbackText += '\n';
+                }
+                
+                if (overall.nextSteps) {
+                    feedbackText += `${overall.nextSteps}`;
+                }
+                
+                overallFeedback = feedbackText.trim();
             }
-            
-            // 改進部分
-            if (overall.keyImprovements && Array.isArray(overall.keyImprovements)) {
-                overall.keyImprovements.forEach((improvement: string, index: number) => {
-                    overallFeedback += `${index + 1}. ${improvement}\n`;
-                });
-                overallFeedback += '\n';
-            }
-            
-            // 下一步建議
-            if (overall.nextSteps) {
-                overallFeedback += `${overall.nextSteps}`;
-            }
-            
-            overallFeedback = overallFeedback.trim();
         } else if (parsed.overallFeedback) {
             // 直接使用模型的原始整體回饋
             overallFeedback = parsed.overallFeedback;
@@ -785,15 +810,29 @@ class GeminiService {
                 const isOverload = this.isOverloadError(error);
                 const is503Error = error.status === 503 || (error.message && error.message.includes('503'));
                 
-                logger.warn(`❌ API call failed with key ${this.currentClientIndex + 1}:`, {
-                    error: error.message,
-                    status: error.status,
-                    attempt,
-                    maxRetries,
+                // 增強錯誤日誌 - 分段記錄確保不被截斷
+                logger.warn(`❌ API call failed with key ${this.currentClientIndex + 1} (attempt ${attempt}/${maxRetries})`);
+                logger.warn(`📋 Error Details:`, {
+                    message: error.message || 'No message',
+                    status: error.status || 'No status',
+                    code: error.code || 'No code',
+                    name: error.name || 'No name'
+                });
+                logger.warn(`🔍 Error Classification:`, {
                     isRetryable: isRetryableError,
                     isOverload,
-                    is503: is503Error
+                    is503: is503Error,
+                    shouldSwitch: this.shouldSwitchApiKey(error)
                 });
+                if (error.stack) {
+                    logger.warn(`📚 Error Stack (first 500 chars):`, error.stack.substring(0, 500));
+                }
+                try {
+                    const serializedError = JSON.stringify(error, Object.getOwnPropertyNames(error));
+                    logger.warn(`🔧 Full Error Object (first 1000 chars):`, serializedError.substring(0, 1000));
+                } catch (serializeError) {
+                    logger.warn(`⚠️ Failed to serialize error:`, serializeError);
+                }
                 
                 // 對於 503 錯誤，立即嘗試切換到下一個可用的 key
                 if (is503Error && this.clients.length > 1 && allowSwitch) {
@@ -891,9 +930,18 @@ class GeminiService {
         }
         
         // API key 相關錯誤
-        if (statusCode === 401 || statusCode === 403) return true;
-        if (errorMessage.includes('401') || errorMessage.includes('403')) return true;
-        if (errorMessage.includes('invalid api key') || errorMessage.includes('unauthorized')) return true;
+        if (statusCode === 401 || statusCode === 403) {
+            logger.warn(`🔑 API key authentication issue (${statusCode}), switching key`);
+            return true;
+        }
+        if (errorMessage.includes('401') || errorMessage.includes('403')) {
+            logger.warn(`🔑 API key authentication issue (message), switching key`);
+            return true;
+        }
+        if (errorMessage.includes('invalid api key') || errorMessage.includes('unauthorized')) {
+            logger.warn(`🔑 Invalid API key detected, switching key`);
+            return true;
+        }
         
         // 500 Internal Server Error - 也可以嘗試切換
         if (statusCode === 500 || errorMessage.includes('500')) {
@@ -902,11 +950,37 @@ class GeminiService {
         }
         
         // 配額相關錯誤
-        if (errorMessage.includes('quota')) return true;
+        if (errorMessage.includes('quota')) {
+            logger.warn(`📊 Quota exceeded, switching API key`);
+            return true;
+        }
         
         // 服務不可用相關錯誤
         if (errorMessage.includes('unavailable') || errorMessage.includes('timeout')) {
+            logger.warn(`🌐 Service unavailable/timeout, switching API key`);
             return true;
+        }
+        
+        // Gemini 特殊錯誤模式
+        if (errorMessage.includes('PERMISSION_DENIED')) {
+            logger.warn(`🚫 Permission denied, likely API key issue, switching key`);
+            return true;
+        }
+        
+        if (errorMessage.includes('RESOURCE_EXHAUSTED')) {
+            logger.warn(`💰 Resource exhausted, switching API key`);
+            return true;
+        }
+        
+        if (errorMessage.includes('INTERNAL')) {
+            logger.warn(`⚙️ Internal Gemini error, trying different API key`);
+            return true;
+        }
+        
+        // 特殊的文件訪問錯誤 - 可能由於 key 切換後的權限問題
+        if (errorMessage.includes('File') && errorMessage.includes('not found')) {
+            logger.warn(`📁 File access error after key switch, might need re-upload`);
+            return false; // 這種情況需要重新上傳，不是切換 key
         }
         
         return false;
@@ -1006,17 +1080,57 @@ class GeminiService {
                 // 統一的可重新上傳錯誤判斷
                 const shouldReuploadToNewKey = (is503Error || is429Error || is500Error || isRateLimitError) && !isLastAttempt && this.clients.length > 1;
                 
-                logger.warn(`❌ File operation failed with key ${this.currentClientIndex + 1}:`, {
-                    error: error.message,
-                    status: error.status,
-                    attempt,
-                    maxRetries,
-                    is503: is503Error,
-                    is429: is429Error,
-                    is500: is500Error,
-                    isRateLimit: isRateLimitError,
-                    shouldReupload: shouldReuploadToNewKey
-                });
+                // 🚨 CRITICAL DEBUG LOGGING - 捕獲真實錯誤
+                logger.error(`🚨 GEMINI FILE OPERATION FAILED - Key ${this.currentClientIndex + 1}, Attempt ${attempt}/${maxRetries}`);
+                
+                // 逐個檢查錯誤屬性
+                logger.error(`🔍 RAW ERROR MESSAGE: "${error?.message || 'NO MESSAGE'}"`);
+                logger.error(`🔍 RAW ERROR STATUS: "${error?.status || 'NO STATUS'}"`);
+                logger.error(`🔍 RAW ERROR CODE: "${error?.code || 'NO CODE'}"`);
+                logger.error(`🔍 RAW ERROR NAME: "${error?.name || 'NO NAME'}"`);
+                
+                // 檢查錯誤是否有其他可能的屬性
+                if (error) {
+                    logger.error(`🔍 ERROR TYPEOF: ${typeof error}`);
+                    logger.error(`🔍 ERROR CONSTRUCTOR: ${error.constructor?.name || 'NO CONSTRUCTOR'}`);
+                    logger.error(`🔍 ERROR KEYS: [${Object.keys(error).join(', ')}]`);
+                    
+                    // 檢查可能的嵌套錯誤
+                    if (error.response) {
+                        logger.error(`🔍 ERROR.RESPONSE EXISTS: ${typeof error.response}`);
+                        logger.error(`🔍 ERROR.RESPONSE.STATUS: ${error.response?.status || 'NO STATUS'}`);
+                        logger.error(`🔍 ERROR.RESPONSE.DATA: ${JSON.stringify(error.response?.data || 'NO DATA').substring(0, 500)}`);
+                    }
+                    
+                    if (error.cause) {
+                        logger.error(`🔍 ERROR.CAUSE: ${error.cause}`);
+                    }
+                    
+                    if (error.details) {
+                        logger.error(`🔍 ERROR.DETAILS: ${JSON.stringify(error.details).substring(0, 500)}`);
+                    }
+                }
+                
+                // 強制轉換為字串查看原始內容
+                logger.error(`🔍 ERROR AS STRING: "${String(error).substring(0, 500)}"`);
+                
+                // 嘗試完整序列化
+                try {
+                    const fullSerialized = JSON.stringify(error, Object.getOwnPropertyNames(error));
+                    logger.error(`🔍 FULL SERIALIZED ERROR: ${fullSerialized.substring(0, 1000)}`);
+                } catch (serializeError) {
+                    logger.error(`⚠️ SERIALIZATION FAILED: ${serializeError}`);
+                }
+                
+                // 錯誤分類判斷
+                logger.error(`🔍 ERROR CLASSIFICATION RESULTS:`);
+                logger.error(`   - is503Error: ${is503Error}`);
+                logger.error(`   - is429Error: ${is429Error}`);
+                logger.error(`   - is500Error: ${is500Error}`);
+                logger.error(`   - isRateLimitError: ${isRateLimitError}`);
+                logger.error(`   - isOverloadError: ${this.isOverloadError(error)}`);
+                logger.error(`   - shouldSwitchApiKey: ${this.shouldSwitchApiKey(error)}`);
+                logger.error(`   - shouldReupload: ${shouldReuploadToNewKey}`);
                 
                 // 對於可重新上傳的錯誤（503, 429, 500, rate limit等），嘗試重新上傳到不同的 key
                 if (shouldReuploadToNewKey) {

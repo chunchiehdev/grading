@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ResultAccordion } from '@/components/grading/ResultAccordion';
 import { ResultSidebar } from '@/components/grading/ResultSidebar';
 import { ResultCardList } from '@/components/grading/ResultCardList';
-import { GradingResultData } from '@/components/grading/GradingResultDisplay';
+import { GradingResultData } from '@/types/grading';
 
 // Mock data for testing
 const mockResults = [

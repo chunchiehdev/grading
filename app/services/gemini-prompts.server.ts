@@ -36,9 +36,11 @@ export class GeminiPrompts {
      * 生成文件評分提示
      */
     static generateFileGradingPrompt(request: GeminiFileGradingRequest): string {
-        const { criteria, fileName, rubricName } = request;
+        const { criteria, categories, fileName, rubricName } = request;
         const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-        const criteriaDescription = this.formatCriteriaDescription(criteria);
+        const criteriaDescription = categories 
+            ? this.formatCategorizedCriteriaDescription(categories)
+            : this.formatCriteriaDescription(criteria);
 
         return this.dedent(`
             請對上傳的文件進行專業評分分析：
@@ -81,9 +83,11 @@ export class GeminiPrompts {
      * 生成文字內容評分提示
      */
     static generateTextGradingPrompt(request: GeminiGradingRequest): string {
-        const { content, criteria, fileName, rubricName } = request;
+        const { content, criteria, categories, fileName, rubricName } = request;
         const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-        const criteriaDescription = this.formatCriteriaDescription(criteria);
+        const criteriaDescription = categories 
+            ? this.formatCategorizedCriteriaDescription(categories)
+            : this.formatCriteriaDescription(criteria);
 
         return this.dedent(`
             請對以下內容進行專業評分：
@@ -140,6 +144,47 @@ export class GeminiPrompts {
         return `${criteriaList}
 
 **重要：** 在 JSON 回應中，"criteriaId" 必須完全匹配上述 ID：${criteriaIds}`;
+    }
+
+    /**
+     * 格式化類別化評分標準描述，保持類別結構
+     */
+    private static formatCategorizedCriteriaDescription(categories: any[]): string {
+        const allCriteriaIds: string[] = [];
+        
+        const categoriesList = categories.map((category, categoryIndex) => {
+            const categoryNumber = categoryIndex + 1;
+            
+            const criteriaList = category.criteria.map((criterion: any, criterionIndex: number) => {
+                const criterionNumber = `${categoryNumber}.${criterionIndex + 1}`;
+                allCriteriaIds.push(criterion.id);
+                
+                const levelsText = criterion.levels 
+                    ? criterion.levels.map((level: any) => `${level.score}分 - ${level.description}`).join('；')
+                    : '';
+                
+                return this.dedent(`
+                    ${criterionNumber} **${criterion.name}** (${criterion.maxScore || 0} 分)
+                       ID: "${criterion.id}" ← 請在 JSON 中使用此 ID
+                       說明：${criterion.description || '無說明'}
+                       ${levelsText ? `評分等級：${levelsText}` : ''}
+                `).trim();
+            }).join('\n\n   ');
+            
+            return this.dedent(`
+                ### ${categoryNumber}. ${category.name} 類別
+                
+                ${criteriaList}
+            `).trim();
+        }).join('\n\n');
+
+        const criteriaIds = allCriteriaIds.map(id => `"${id}"`).join(', ');
+        
+        return `${categoriesList}
+
+**重要：** 在 JSON 回應中，"criteriaId" 必須完全匹配上述 ID：${criteriaIds}
+
+**評分要求：** 請按照類別結構理解評分標準的邏輯分組，這將有助於提供更有組織性的評分分析。`;
     }
 
     /**

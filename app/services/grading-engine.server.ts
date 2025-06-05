@@ -59,11 +59,31 @@ export async function processGradingResult(
     });
     
     // Parse rubric criteria from JSON
-    const criteria = Array.isArray(result.rubric.criteria) 
-      ? result.rubric.criteria 
-      : [];
+    // 解析評分標準並支援類別結構
+    let parsedData: any;
+    try {
+      parsedData = Array.isArray(result.rubric.criteria) 
+        ? result.rubric.criteria 
+        : JSON.parse(result.rubric.criteria as string);
+    } catch (error) {
+      parsedData = [];
+    }
     
-    if (criteria.length === 0) {
+    // 檢查是否為新的類別格式
+    const isNewFormat = Array.isArray(parsedData) && 
+                       parsedData.length > 0 && 
+                       parsedData[0] && 
+                       typeof parsedData[0] === 'object' && 
+                       'criteria' in parsedData[0] &&
+                       Array.isArray(parsedData[0].criteria);
+    
+    const criteria = isNewFormat 
+      ? parsedData.flatMap((cat: any) => cat.criteria) 
+      : parsedData;
+    
+    const categories = isNewFormat ? parsedData : undefined;
+    
+    if (!Array.isArray(criteria) || criteria.length === 0) {
       await db.gradingResult.update({
         where: { id: resultId },
         data: {
@@ -92,6 +112,7 @@ export async function processGradingResult(
     const gradingResponse = await attemptGradingWithFallback({
       content: result.uploadedFile.parsedContent,
       criteria: criteria,
+      categories: categories, // 新增類別資訊
       fileName: result.uploadedFile.originalFileName,
       rubricName: result.rubric.name,
       fileBuffer: fileBuffer, // 傳入實際的檔案 buffer
@@ -163,6 +184,7 @@ export async function processGradingResult(
 async function attemptGradingWithFallback(request: {
   content: string;
   criteria: any[];
+  categories?: any[]; // 新增類別支援
   fileName: string;
   rubricName: string;
   fileBuffer?: Buffer | null;
@@ -183,6 +205,7 @@ async function attemptGradingWithFallback(request: {
         fileBuffer: request.fileBuffer,
         mimeType: request.mimeType,
         criteria: request.criteria,
+        categories: request.categories, // 傳遞類別資訊
         fileName: request.fileName,
         rubricName: request.rubricName
       };
@@ -221,6 +244,7 @@ async function attemptGradingWithFallback(request: {
           fileBuffer: request.fileBuffer,
           mimeType: request.mimeType,
           criteria: request.criteria,
+          categories: request.categories, // 傳遞類別資訊
           fileName: request.fileName,
           rubricName: request.rubricName
         };
@@ -253,6 +277,7 @@ async function attemptGradingWithFallback(request: {
     const geminiTextResponse = await geminiService.gradeDocument({
       content: request.content,
       criteria: request.criteria,
+      categories: request.categories, // 傳遞類別資訊
       fileName: request.fileName,
       rubricName: request.rubricName
     });
@@ -278,6 +303,7 @@ async function attemptGradingWithFallback(request: {
     const openaiTextRequest: OpenAIGradingRequest = {
       content: request.content,
       criteria: request.criteria,
+      categories: request.categories, // 傳遞類別資訊
       fileName: request.fileName,
       rubricName: request.rubricName
     };
