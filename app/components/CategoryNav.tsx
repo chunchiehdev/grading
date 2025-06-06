@@ -53,10 +53,10 @@ export const CategoryNav = ({
           <div className="p-6 text-center">
             <Folder className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground mb-3">尚未新增類別</p>
-            <Button type="button" variant="outline" size="sm" onClick={handleAddCategory}>
+            {/* <Button type="button" variant="outline" size="sm" onClick={handleAddCategory}>
               <Plus className="h-4 w-4 mr-2" />
               新增類別
-            </Button>
+            </Button> */}
           </div>
         ) : (
           <div className="p-2 max-h-96 overflow-y-auto">

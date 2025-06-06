@@ -50,7 +50,7 @@ export const GuidedEmptyState = ({
       case 'criteria':
         return {
           title: "為此類別添加評分標準",
-          description: "評分標準是具體的評估項目，每個標準都有四個等級的詳細描述。",
+          description: "評分標準為具體的評估項目，每個標準都有四個等級的詳細描述。",
           actionLabel: "新增第一個標準",
           icon: <FileText className="w-12 h-12" />,
           tips: [

@@ -379,12 +379,12 @@ export default function NewRubricRoute() {
                 onDeleteCategory={deleteCategory}
               />
 
-              <QuickAdd
+              {/* <QuickAdd
                 onAddCategory={addCategory}
                 onAddCriterion={addCriterion}
                 canAddCriterion={!!selectedCategoryId}
                 selectedCategoryName={selectedCategory?.name}
-              />
+              /> */}
             </div>
 
             {/* Main Content - Criteria */}
