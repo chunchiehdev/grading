@@ -579,6 +579,7 @@ ${criteriaList}`;
                 maxScore,
                 breakdown: criteria.map(criterion => ({
                     criteriaId: criterion.id,
+                    name: criterion.name,
                     score: 0,
                     feedback: '**評分失敗 - JSON 解析錯誤**\n\n可能原因：OpenAI 回應格式錯誤或內容被截斷。\n\n請重試或聯繫技術支援。'
                 })),
@@ -641,6 +642,7 @@ ${criteriaList}`;
 
                 return {
                     criteriaId: criterion.id,
+                    name: criterion.name,
                     score: found ? Math.round(found.score) : 0,
                     feedback: found ? found.feedback : '無詳細分析'
                 };

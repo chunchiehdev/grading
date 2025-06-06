@@ -626,6 +626,7 @@ class GeminiService {
                 maxScore,
                 breakdown: criteria.map(criterion => ({
                     criteriaId: criterion.id,
+                    name: criterion.name,
                     score: 0,
                     feedback: '**評分失敗 - JSON 解析錯誤**\n\n可能原因：\n1. ✂️ AI 回應被截斷（內容太長）\n2. 🔧 JSON 格式錯誤\n3. 📁 文件讀取問題\n\n**建議解決方案：**\n1. 重新上傳文件\n2. 檢查文件大小和格式\n3. 如問題持續請聯繫技術支援\n\n**錯誤詳情：** ' + (error instanceof Error ? error.message : '未知錯誤')
                 })),
@@ -712,6 +713,7 @@ class GeminiService {
                 if (!found) {
                     return {
                         criteriaId: criterion.id,
+                        name: criterion.name,
                         score: 0,
                         feedback: '無評分資料'
                     };
@@ -751,6 +753,7 @@ class GeminiService {
                     
                     return {
                         criteriaId: criterion.id,
+                        name: criterion.name,
                         score: found.score ? Math.round(found.score) : 0,
                         feedback: detailedFeedback.trim() || '詳細分析已處理'
                     };
@@ -758,6 +761,7 @@ class GeminiService {
                     // 處理簡單格式（直接的 feedback 字串）
                     return {
                         criteriaId: criterion.id,
+                        name: criterion.name,
                         score: found.score ? Math.round(found.score) : 0,
                         feedback: found.feedback || '無詳細分析'
                     };
@@ -1299,6 +1303,7 @@ class GeminiService {
                 maxScore,
                 breakdown: criteria.map(criterion => ({
                     criteriaId: criterion.id,
+                    name: criterion.name,
                     score: 0,
                     feedback: this.generateEnhancedErrorFeedback(error, responseText, fileName)
                 })),

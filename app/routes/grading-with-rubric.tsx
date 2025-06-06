@@ -409,14 +409,14 @@ export default function GradingWithRubricPage() {
 
       <Tabs value={step} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="upload">1. 上傳文件</TabsTrigger>
-          <TabsTrigger value="configure" disabled={uploadedFiles.length === 0}>
+          <TabsTrigger value="upload" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" >1. 上傳文件</TabsTrigger>
+          <TabsTrigger value="configure" disabled={uploadedFiles.length === 0} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             2. 選擇評分標準 
           </TabsTrigger>
-          <TabsTrigger value="grading" disabled={!gradingSession}>
+          <TabsTrigger value="grading" disabled={!gradingSession} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             3. 執行評分
           </TabsTrigger>
-          <TabsTrigger value="results" disabled={!gradingSession || gradingSession.status !== 'COMPLETED'}>
+          <TabsTrigger value="results" disabled={!gradingSession || gradingSession.status !== 'COMPLETED'} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             4. 查看結果
           </TabsTrigger>
         </TabsList>
@@ -599,8 +599,8 @@ export default function GradingWithRubricPage() {
               {gradingSession && (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span>整體進度</span>
-                    <span>{gradingSession.progress}%</span>
+                    <span></span>
+                    <span></span>
                   </div>
                   <Progress value={gradingSession.progress} />
                 </div>

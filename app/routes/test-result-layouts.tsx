@@ -124,11 +124,11 @@ export default function TestResultLayoutsPage() {
         </Card>
 
         {/* 顯示選擇的佈局 */}
-        <div className="min-h-[600px]">
+        {/* <div className="min-h-[600px]">
           {selectedLayout === 'accordion' && <ResultAccordion results={mockResults} />}
           {selectedLayout === 'sidebar' && <ResultSidebar results={mockResults} />}
           {selectedLayout === 'cardlist' && <ResultCardList results={mockResults} />}
-        </div>
+        </div> */}
 
         {/* 設計說明 */}
         <Card>
