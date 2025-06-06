@@ -179,6 +179,44 @@ export async function processGradingResult(
 }
 
 /**
+ * 驗證評分結果是否有效
+ */
+function isValidGradingResult(result: any): boolean {
+  if (!result) return false;
+  
+  // 檢查必要欄位
+  if (typeof result.totalScore !== 'number' || typeof result.maxScore !== 'number') {
+    return false;
+  }
+  
+  // 檢查 breakdown 是否存在且為陣列
+  if (!Array.isArray(result.breakdown)) {
+    return false;
+  }
+  
+  // 檢查是否有實際的評分內容（排除全部為0分的錯誤情況）
+  const hasValidScores = result.breakdown.some((item: any) => 
+    item && typeof item.score === 'number' && item.score > 0
+  );
+  
+  // 檢查是否有實際的回饋內容（排除錯誤回饋）
+  const hasValidFeedback = result.breakdown.some((item: any) => 
+    item && item.feedback && 
+    typeof item.feedback === 'string' && 
+    item.feedback.length > 20 && // 至少20個字元
+    !item.feedback.includes('評分失敗') && 
+    !item.feedback.includes('JSON 解析錯誤')
+  );
+  
+  // 如果總分為0且沒有有效回饋，可能是解析失敗
+  if (result.totalScore === 0 && !hasValidScores && !hasValidFeedback) {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
  * 嘗試評分並支援備援機制（檔案優先 -> 文字備援）
  */
 async function attemptGradingWithFallback(request: {
@@ -212,7 +250,7 @@ async function attemptGradingWithFallback(request: {
       
       const geminiFileResponse = await geminiService.gradeDocumentWithFile(geminiFileRequest);
       
-      if (geminiFileResponse.success) {
+      if (geminiFileResponse.success && isValidGradingResult(geminiFileResponse.result)) {
         logger.info(`✅ Gemini file grading successful for ${request.fileName}`);
         return {
           success: true,
@@ -220,13 +258,17 @@ async function attemptGradingWithFallback(request: {
           metadata: { ...geminiFileResponse.metadata, provider: 'gemini', method: 'file' }
         };
       } else {
-        logger.warn(`⚠️ Gemini file grading failed: ${geminiFileResponse.error}`);
+        const errorReason = !geminiFileResponse.success 
+          ? `API error: ${geminiFileResponse.error}`
+          : 'Invalid or corrupted result data (possibly JSON parsing failure)';
+          
+        logger.warn(`⚠️ Gemini file grading failed: ${errorReason}`);
         
         // 檢查是否應該繼續嘗試備援
         if (!shouldContinueFallback(geminiFileResponse)) {
           return {
             success: false,
-            error: `Gemini 檔案評分失敗且不適合使用備援: ${geminiFileResponse.error}`,
+            error: `Gemini 檔案評分失敗且不適合使用備援: ${errorReason}`,
             metadata: { ...geminiFileResponse.metadata, provider: 'gemini', method: 'file', fallbackSkipped: true }
           };
         }
@@ -282,7 +324,7 @@ async function attemptGradingWithFallback(request: {
       rubricName: request.rubricName
     });
     
-    if (geminiTextResponse.success) {
+    if (geminiTextResponse.success && isValidGradingResult(geminiTextResponse.result)) {
       logger.info(`✅ Gemini text grading successful for ${request.fileName}`);
       return {
         success: true,
@@ -290,7 +332,10 @@ async function attemptGradingWithFallback(request: {
         metadata: { ...geminiTextResponse.metadata, provider: 'gemini', method: 'text', fallbackFromFile: true }
       };
     } else {
-      logger.warn(`⚠️ Gemini text grading failed: ${geminiTextResponse.error}`);
+      const errorReason = !geminiTextResponse.success 
+        ? `API error: ${geminiTextResponse.error}`
+        : 'Invalid or corrupted result data (possibly JSON parsing failure)';
+      logger.warn(`⚠️ Gemini text grading failed: ${errorReason}`);
     }
   } catch (geminiTextError) {
     logger.error(`💥 Gemini text service error:`, geminiTextError);
@@ -349,7 +394,6 @@ async function attemptGradingWithFallback(request: {
     }
   };
 }
-
 /**
  * 判斷是否應該繼續使用備援服務
  */

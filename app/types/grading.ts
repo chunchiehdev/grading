@@ -50,6 +50,7 @@ export interface GradingResultData {
   maxScore: number;
   breakdown: Array<{
     criteriaId: string;
+    name: string;
     score: number;
     feedback: string;
   }>;

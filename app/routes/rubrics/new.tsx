@@ -366,7 +366,7 @@ export default function NewRubricRoute() {
                   className="flex-1"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
-                  AI 智能助手
+                  AI 生成標準
                 </Button>
               </div>
               

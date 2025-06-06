@@ -44,6 +44,7 @@ export class GradingResultFactory {
       breakdown: [
         {
           criteriaId: 'criteria-1',
+          name: '評分項目 1',
           score: 85,
           feedback: 'Good work overall with room for improvement in some areas.'
         }
@@ -100,6 +101,7 @@ export class GradingResultFactory {
       breakdown: [
         {
           criteriaId: 'criteria-1',
+          name: '評分項目 1',
           score: score,
           feedback: `Score: ${score}/${maxScore}`
         }

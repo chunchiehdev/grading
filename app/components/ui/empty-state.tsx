@@ -18,7 +18,6 @@ export function EmptyState({ title, description, actionText, actionLink, icon, c
       <CardContent className="pt-6 px-6 pb-8 flex flex-col items-center justify-center text-center space-y-4">
         {icon && <div className="text-muted-foreground mb-2">{icon}</div>}
         <h3 className="text-lg font-medium">{title}</h3>
-        <p className="text-sm text-muted-foreground max-w-md">{description}</p>
         {actionText && actionLink && (
           <Button asChild className="mt-2">
             <Link to={actionLink}>{actionText}</Link>
