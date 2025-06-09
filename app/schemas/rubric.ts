@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// 基本驗證 schemas
 export const LevelSchema = z.object({
   score: z.number().int().min(1).max(4),
   description: z.string().min(1, '等級描述不能為空').max(500, '等級描述過長'),
@@ -25,7 +24,6 @@ export const UIRubricDataSchema = z.object({
   categories: z.array(UICategorySchema).min(1, '請至少新增一個評分類別'),
 });
 
-// 資料庫 schemas
 export const DbCriterionSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(100),
@@ -33,7 +31,6 @@ export const DbCriterionSchema = z.object({
   levels: z.array(LevelSchema),
 });
 
-// API 請求 schemas
 export const CreateRubricRequestSchema = z.object({
   name: z.string().min(1, '評分標準名稱不能為空').max(200),
   description: z.string().min(1, '評分標準描述不能為空').max(1000),
@@ -72,19 +69,15 @@ export const DeleteRubricRequestSchema = z.object({
   id: z.string().uuid('無效的評分標準ID'),
 });
 
-// 完整性驗證 - 只要求有類別，標準是可選的
 export const RubricCompletionSchema = UIRubricDataSchema.refine(
   (data) => {
-    // 移除要求必須有標準的檢查，只要有類別就可以
     return data.categories.length > 0;
   },
   { message: '請至少新增一個評分類別' }
 );
 
-// 額外的警告檢查（不會阻止儲存）
 export function getRubricWarnings(data: UIRubricData): string[] {
   const warnings: string[] = [];
-  
   const totalCriteria = data.categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
   if (totalCriteria === 0) {
     warnings.push('建議為每個類別添加評分標準');
@@ -100,7 +93,6 @@ export function getRubricWarnings(data: UIRubricData): string[] {
     warnings.push(`還有 ${totalCriteria - completedCriteria} 個評分標準未完成等級描述`);
   }
   
-  // 檢查是否所有等級都有描述
   data.categories.forEach(category => {
     category.criteria.forEach(criterion => {
       const incompletelevels = criterion.levels.filter(level => !level.description.trim());
@@ -113,7 +105,6 @@ export function getRubricWarnings(data: UIRubricData): string[] {
   return warnings;
 }
 
-// Type exports
 export type Level = z.infer<typeof LevelSchema>;
 export type UICriterion = z.infer<typeof UICriterionSchema>;
 export type UICategory = z.infer<typeof UICategorySchema>;
