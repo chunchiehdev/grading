@@ -309,7 +309,6 @@ export class GeminiPrompts {
         
         if (lines.length === 0) return '';
         
-        // 找出最小的前導空白數量（忽略空行）
         const nonEmptyLines = lines.filter(line => line.trim() !== '');
         if (nonEmptyLines.length === 0) return '';
         
@@ -318,7 +317,6 @@ export class GeminiPrompts {
             return match ? match[1].length : 0;
         }));
         
-        // 移除共同的前導空白
         return lines.map(line => line.slice(minIndent)).join('\n');
     }
 } 
