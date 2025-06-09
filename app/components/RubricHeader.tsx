@@ -49,14 +49,14 @@ export const RubricHeader = ({
                 <Badge variant="outline" className="text-xs">
                   {progress.criteria} 標準
                 </Badge>
-                {completionRate > 0 && (
+                {/* {completionRate > 0 && (
                   <Badge 
                     variant={completionRate === 100 ? "default" : "secondary"} 
                     className="text-xs"
                   >
                     {completionRate}% 完成
                   </Badge>
-                )}
+                )} */}
               </div>
             </div>
           </div>
@@ -74,7 +74,7 @@ export const RubricHeader = ({
           </div>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress bar
         {completionRate > 0 && (
           <div className="mt-3">
             <div className="w-full bg-muted rounded-full h-1.5">
@@ -84,7 +84,7 @@ export const RubricHeader = ({
               />
             </div>
           </div>
-        )}
+        )} */}
       </div>
     </div>
   );

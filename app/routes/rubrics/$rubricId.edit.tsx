@@ -9,17 +9,17 @@ import { RubricHeader } from '@/components/RubricHeader';
 import { RubricForm } from '@/components/RubricForm';
 import { CategoryNav } from '@/components/CategoryNav';
 import { CriterionCard } from '@/components/CriterionCard';
-import { QuickAdd } from '@/components/QuickAdd';
+// import { QuickAdd } from '@/components/QuickAdd';
 import { GuidedEmptyState } from '@/components/GuidedEmptyState';
 import { RubricPreview } from '@/components/RubricPreview';
 
 // Utils
-import { 
+import {
   dbCriteriaToUICategories,
   type UICategory,
   type UICriterion,
   type UIRubricData,
-  type Level
+  type Level,
 } from '@/utils/rubric-transform';
 
 // Utilities
@@ -34,7 +34,7 @@ const createCriterion = (name = '', description = ''): UICriterion => ({
   id: uuidv4(),
   name,
   description,
-  levels: DEFAULT_LEVELS.map(l => ({ ...l })),
+  levels: DEFAULT_LEVELS.map((l) => ({ ...l })),
 });
 
 const createCategory = (name = ''): UICategory => ({
@@ -69,7 +69,7 @@ export const action = async ({ request, params }: { request: Request; params: Re
     }
 
     const formData = await request.formData();
-    
+
     // 使用 Zod 驗證表單資料
     const { UpdateRubricRequestSchema } = await import('@/schemas/rubric');
     const validationResult = UpdateRubricRequestSchema.safeParse({
@@ -82,14 +82,14 @@ export const action = async ({ request, params }: { request: Request; params: Re
     if (!validationResult.success) {
       const firstError = validationResult.error.errors[0];
       console.error('Validation failed:', validationResult.error.errors);
-      return Response.json({ 
+      return Response.json({
         error: firstError.message || '表單資料驗證失敗',
-        field: firstError.path[0] // 提供錯誤欄位資訊
+        field: firstError.path[0], // 提供錯誤欄位資訊
       });
     }
 
     const { id, name, description, categoriesJson } = validationResult.data;
-    
+
     const { updateRubric } = await import('@/services/rubric.server');
 
     const rubricData = {
@@ -97,19 +97,19 @@ export const action = async ({ request, params }: { request: Request; params: Re
       description,
       categories: categoriesJson, // schema 已經處理過轉換
     };
-    
+
     const result = await updateRubric(id, rubricData);
     if (!result.success) {
       console.error('Update rubric failed:', result.error);
       return Response.json({ error: result.error || '更新評分標準失敗' });
     }
-    
+
     console.log('Rubric updated successfully:', id);
     return redirect(`/rubrics/${id}`);
   } catch (error) {
     console.error('Action error:', error);
-    return Response.json({ 
-      error: error instanceof Error ? error.message : '處理請求時發生錯誤'
+    return Response.json({
+      error: error instanceof Error ? error.message : '處理請求時發生錯誤',
     });
   }
 };
@@ -118,14 +118,14 @@ export default function EditRubricRoute() {
   const { rubric: initialRubric } = useLoaderData<typeof loader>();
   const actionData = useActionData<{ error?: string }>();
   const navigate = useNavigate();
-  
+
   // State
   const [rubricData, setRubricData] = useState<UIRubricData>({
     name: '',
     description: '',
     categories: [],
   });
-  
+
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [selectedCriterionId, setSelectedCriterionId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -135,16 +135,16 @@ export default function EditRubricRoute() {
   useEffect(() => {
     if (initialRubric) {
       // 優先使用新的 categories 欄位，否則從 criteria 轉換
-      const categories = initialRubric.categories 
-        ? initialRubric.categories 
+      const categories = initialRubric.categories
+        ? initialRubric.categories
         : dbCriteriaToUICategories(initialRubric.criteria);
-      
+
       setRubricData({
         name: initialRubric.name,
         description: initialRubric.description,
         categories,
       });
-      
+
       // 預設選擇第一個類別
       if (categories.length > 0) {
         setSelectedCategoryId(categories[0].id);
@@ -160,12 +160,11 @@ export default function EditRubricRoute() {
   }, [actionData]);
 
   // Computed values
-  const selectedCategory = rubricData.categories.find(c => c.id === selectedCategoryId);
+  const selectedCategory = rubricData.categories.find((c) => c.id === selectedCategoryId);
   const totalCriteria = rubricData.categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
-  const completedCriteria = rubricData.categories.reduce((acc, cat) => 
-    acc + cat.criteria.filter(crit => 
-      crit.levels.some(level => level.description.trim())
-    ).length, 0
+  const completedCriteria = rubricData.categories.reduce(
+    (acc, cat) => acc + cat.criteria.filter((crit) => crit.levels.some((level) => level.description.trim())).length,
+    0
   );
 
   const progress = {
@@ -183,59 +182,56 @@ export default function EditRubricRoute() {
 
   // Validation
   const canSave = () => {
-    return rubricData.name.trim() && 
-           rubricData.description.trim() && 
-           rubricData.categories.length > 0; // 只要有類別就可以儲存，不強制要求標準
+    return rubricData.name.trim() && rubricData.description.trim() && rubricData.categories.length > 0; // 只要有類別就可以儲存，不強制要求標準
   };
 
   // Handlers
   const updateRubricForm = (formData: { name: string; description: string }) => {
-    setRubricData(prev => ({ ...prev, ...formData }));
+    setRubricData((prev) => ({ ...prev, ...formData }));
   };
 
   const addCategory = (name?: string): string => {
     const categoryName = name || `類別 ${rubricData.categories.length + 1}`;
     const newCategory = createCategory(categoryName);
-    
-    setRubricData(prev => ({
+
+    setRubricData((prev) => ({
       ...prev,
       categories: [...prev.categories, newCategory],
     }));
-    
+
     // 自動選擇新創建的類別
     setSelectedCategoryId(newCategory.id);
     setSelectedCriterionId(null);
-    
+
     return newCategory.id; // 返回新類別的 ID
   };
 
   const updateCategory = (categoryId: string, name: string) => {
-    setRubricData(prev => ({
+    setRubricData((prev) => ({
       ...prev,
-      categories: prev.categories.map(cat =>
-        cat.id === categoryId ? { ...cat, name } : cat
-      ),
+      categories: prev.categories.map((cat) => (cat.id === categoryId ? { ...cat, name } : cat)),
     }));
   };
 
   const deleteCategory = (categoryId: string) => {
-    const category = rubricData.categories.find(c => c.id === categoryId);
+    const category = rubricData.categories.find((c) => c.id === categoryId);
     if (!category) return;
-    
-    const message = category.criteria.length > 0 
-      ? `確定要刪除「${category.name}」類別嗎？這將同時刪除其下的 ${category.criteria.length} 個評分標準。`
-      : `確定要刪除「${category.name}」類別嗎？`;
-      
+
+    const message =
+      category.criteria.length > 0
+        ? `確定要刪除「${category.name}」類別嗎？這將同時刪除其下的 ${category.criteria.length} 個評分標準。`
+        : `確定要刪除「${category.name}」類別嗎？`;
+
     if (!confirm(message)) return;
-    
-    setRubricData(prev => ({
+
+    setRubricData((prev) => ({
       ...prev,
-      categories: prev.categories.filter(c => c.id !== categoryId),
+      categories: prev.categories.filter((c) => c.id !== categoryId),
     }));
-    
+
     // 智能選擇下一個類別
     if (selectedCategoryId === categoryId) {
-      const remainingCategories = rubricData.categories.filter(c => c.id !== categoryId);
+      const remainingCategories = rubricData.categories.filter((c) => c.id !== categoryId);
       setSelectedCategoryId(remainingCategories.length > 0 ? remainingCategories[0].id : null);
       setSelectedCriterionId(null);
     }
@@ -246,36 +242,32 @@ export default function EditRubricRoute() {
       console.warn('No category selected for adding criterion');
       return '';
     }
-    
+
     const criterionName = name || `標準 ${(selectedCategory?.criteria.length || 0) + 1}`;
     const newCriterion = createCriterion(criterionName);
-    
-    setRubricData(prev => ({
+
+    setRubricData((prev) => ({
       ...prev,
-      categories: prev.categories.map(category =>
-        category.id === selectedCategoryId
-          ? { ...category, criteria: [...category.criteria, newCriterion] }
-          : category
+      categories: prev.categories.map((category) =>
+        category.id === selectedCategoryId ? { ...category, criteria: [...category.criteria, newCriterion] } : category
       ),
     }));
-    
+
     // 自動選擇新創建的標準
     setSelectedCriterionId(newCriterion.id);
-    
+
     return newCriterion.id; // 返回新標準的 ID
   };
 
   const updateCriterion = (criterionId: string, updates: Partial<UICriterion>) => {
-    setRubricData(prev => ({
+    setRubricData((prev) => ({
       ...prev,
-      categories: prev.categories.map(category =>
+      categories: prev.categories.map((category) =>
         category.id === selectedCategoryId
           ? {
               ...category,
-              criteria: category.criteria.map(criterion =>
-                criterion.id === criterionId
-                  ? { ...criterion, ...updates }
-                  : criterion
+              criteria: category.criteria.map((criterion) =>
+                criterion.id === criterionId ? { ...criterion, ...updates } : criterion
               ),
             }
           : category
@@ -284,39 +276,39 @@ export default function EditRubricRoute() {
   };
 
   const deleteCriterion = (criterionId: string) => {
-    const criterion = selectedCategory?.criteria.find(c => c.id === criterionId);
+    const criterion = selectedCategory?.criteria.find((c) => c.id === criterionId);
     if (!criterion) return;
-    
+
     if (!confirm(`確定要刪除「${criterion.name}」評分標準嗎？`)) return;
-    
-    setRubricData(prev => ({
+
+    setRubricData((prev) => ({
       ...prev,
-      categories: prev.categories.map(category =>
+      categories: prev.categories.map((category) =>
         category.id === selectedCategoryId
-          ? { ...category, criteria: category.criteria.filter(c => c.id !== criterionId) }
+          ? { ...category, criteria: category.criteria.filter((c) => c.id !== criterionId) }
           : category
       ),
     }));
-    
+
     if (selectedCriterionId === criterionId) {
       setSelectedCriterionId(null);
     }
   };
 
   const updateLevel = (criterionId: string, score: number, description: string) => {
-    setRubricData(prev => ({
+    setRubricData((prev) => ({
       ...prev,
-      categories: prev.categories.map(category =>
+      categories: prev.categories.map((category) =>
         category.id === selectedCategoryId
           ? {
               ...category,
-              criteria: category.criteria.map(criterion =>
+              criteria: category.criteria.map((criterion) =>
                 criterion.id === criterionId
                   ? {
                       ...criterion,
-                      levels: criterion.levels.some(l => l.score === score)
-                        ? criterion.levels.map(l => l.score === score ? { ...l, description } : l)
-                        : [...criterion.levels, { score, description }]
+                      levels: criterion.levels.some((l) => l.score === score)
+                        ? criterion.levels.map((l) => (l.score === score ? { ...l, description } : l))
+                        : [...criterion.levels, { score, description }],
                     }
                   : criterion
               ),
@@ -331,7 +323,7 @@ export default function EditRubricRoute() {
       alert('請完成所有必填項目再儲存');
       return;
     }
-    
+
     setIsLoading(true);
     const form = document.getElementById('rubric-form') as HTMLFormElement;
     form?.requestSubmit();
@@ -365,7 +357,7 @@ export default function EditRubricRoute() {
                 data={{ name: rubricData.name, description: rubricData.description }}
                 onChange={updateRubricForm}
               />
-              
+
               <CategoryNav
                 categories={rubricData.categories}
                 selectedCategoryId={selectedCategoryId}
@@ -375,12 +367,12 @@ export default function EditRubricRoute() {
                 onDeleteCategory={deleteCategory}
               />
 
-              <QuickAdd
+              {/* <QuickAdd
                 onAddCategory={addCategory}
                 onAddCriterion={addCriterion}
                 canAddCriterion={!!selectedCategoryId}
                 selectedCategoryName={selectedCategory?.name}
-              />
+              /> */}
             </div>
 
             {/* Main Content - Criteria */}
@@ -394,9 +386,7 @@ export default function EditRubricRoute() {
                       <p className="text-muted-foreground mt-1">
                         {selectedCategory.criteria.length} 個評分標準
                         {selectedCategory.criteria.length > 0 && (
-                          <span className="ml-2">
-                            • 最高 {selectedCategory.criteria.length * 4} 分
-                          </span>
+                          <span className="ml-2">• 最高 {selectedCategory.criteria.length * 4} 分</span>
                         )}
                       </p>
                     </div>
@@ -417,21 +407,6 @@ export default function EditRubricRoute() {
                   ) : (
                     <div className="space-y-6">
                       {/* Enhancement tip */}
-                      {selectedCategory.criteria.length > 0 && completedCriteria < totalCriteria && (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                          <div className="flex items-start gap-3">
-                            <Sparkles className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <h4 className="font-medium text-amber-800">完善您的評分標準</h4>
-                              <p className="text-sm text-amber-700 mt-1">
-                                還有 {totalCriteria - completedCriteria} 個標準需要添加等級描述。
-                                完整的描述將有助於確保評分的一致性。
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
                       {selectedCategory.criteria.map((criterion) => (
                         <CriterionCard
                           key={criterion.id}
@@ -440,9 +415,7 @@ export default function EditRubricRoute() {
                           onSelect={() => setSelectedCriterionId(criterion.id)}
                           onUpdate={(updates) => updateCriterion(criterion.id, updates)}
                           onDelete={() => deleteCriterion(criterion.id)}
-                          onUpdateLevel={(score, description) => 
-                            updateLevel(criterion.id, score, description)
-                          }
+                          onUpdateLevel={(score, description) => updateLevel(criterion.id, score, description)}
                         />
                       ))}
                     </div>
@@ -462,11 +435,7 @@ export default function EditRubricRoute() {
       </div>
 
       {/* Preview Modal */}
-      <RubricPreview
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-        rubricData={rubricData}
-      />
+      <RubricPreview isOpen={showPreview} onClose={() => setShowPreview(false)} rubricData={rubricData} />
 
       {/* Error Toast */}
       {actionData?.error && (

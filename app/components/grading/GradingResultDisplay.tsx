@@ -47,7 +47,7 @@ const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdo
   return (
     <div className="space-y-6 mt-4">
       {breakdown.map((criteria, index) => (
-        <div key={criteria.criteriaId || index} className="border-l-4 border-slate-200 pl-4 py-3">
+        <div key={criteria.criteriaId || index} className="border border-black rounded-md p-4">
           <div className="flex justify-between items-center mb-3">
             <h4 className="font-semibold text-slate-900">{criteria.name || `評分項目 ${index + 1}`}</h4>
             <span className="text-lg font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
