@@ -74,12 +74,12 @@ export const CriterionCard = ({
           </div>
           
           <div className="flex items-center gap-2">
-            <Badge 
+            {/* <Badge 
               variant={completionRate === 100 ? "default" : "secondary"}
               className="text-xs"
             >
               {completionRate}%
-            </Badge>
+            </Badge> */}
             <Button
               variant="ghost"
               size="icon"

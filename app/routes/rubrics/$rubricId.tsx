@@ -188,9 +188,9 @@ export default function RubricDetailRoute() {
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="outline">{stats.totalCategories} 類別</Badge>
                 <Badge variant="outline">{stats.totalCriteria} 標準</Badge>
-                <Badge variant={stats.completionRate === 100 ? "default" : "secondary"}>
+                {/* <Badge variant={stats.completionRate === 100 ? "default" : "secondary"}>
                   {stats.completionRate}% 完成
-                </Badge>
+                </Badge> */}
               </div>
             </div>
           </div>
