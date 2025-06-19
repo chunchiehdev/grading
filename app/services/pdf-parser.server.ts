@@ -107,12 +107,14 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
     pollForResult(taskId)
       .then(async (content) => {
         console.log(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
+        const sanitizedContent = content.replace(/\0/g, '');
+
         
         await db.uploadedFile.update({
           where: { id: fileId },
           data: {
             parseStatus: FileParseStatus.COMPLETED,
-            parsedContent: content,
+            parsedContent: sanitizedContent,
           },
         });
       })
