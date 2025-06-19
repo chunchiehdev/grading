@@ -67,11 +67,10 @@ export async function createGradingSession(
       return { success: false, error: 'Some files not found or not ready for grading' };
     }
 
-    // Validate rubrics exist and belong to user
+    // Validate rubrics exist and are active (can be from any user - shared access)
     const rubrics = await db.rubric.findMany({
       where: {
         id: { in: uniqueRubricIds },
-        userId,
         isActive: true
       }
     });
@@ -86,7 +85,7 @@ export async function createGradingSession(
       const foundRubricIds = rubrics.map(r => r.id);
       const missingRubricIds = uniqueRubricIds.filter(id => !foundRubricIds.includes(id));
       
-      // Check if missing rubrics exist but are inactive or belong to other users
+      // Check if missing rubrics exist but are inactive
       const allMatchingRubrics = await db.rubric.findMany({
         where: { id: { in: missingRubricIds } },
         select: { id: true, userId: true, isActive: true, name: true }
