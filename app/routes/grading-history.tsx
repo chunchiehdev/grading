@@ -15,7 +15,10 @@ import {
   Loader2,
   Eye,
   Calendar,
-  BarChart3
+  BarChart3,
+  Users,
+  User,
+  Filter
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
@@ -23,8 +26,13 @@ import { type GradingSession, type GradingResult } from '@/types/database';
 
 type SessionStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 type GradingStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+type ViewMode = 'my' | 'all';
 
 interface GradingSessionWithResults extends GradingSession {
+  user?: {
+    id: string;
+    email: string;
+  };
   gradingResults: (GradingResult & {
     uploadedFile: {
       fileName: string;
@@ -43,12 +51,13 @@ export default function GradingHistoryPage() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [limit] = useState(20);
+  const [viewMode, setViewMode] = useState<ViewMode>('my');
 
   // Load grading sessions
-  const loadSessions = useCallback(async (currentOffset = 0) => {
+  const loadSessions = useCallback(async (currentOffset = 0, mode: ViewMode = viewMode) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/grading/session?limit=${limit}&offset=${currentOffset}`, {
+      const response = await fetch(`/api/grading/session?view=${mode}&limit=${limit}&offset=${currentOffset}`, {
         credentials: 'include',
       });
       const data = await response.json();
@@ -67,7 +76,14 @@ export default function GradingHistoryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [limit]);
+  }, [limit, viewMode]);
+
+  // Handle view mode change
+  const handleViewModeChange = useCallback((newMode: ViewMode) => {
+    setViewMode(newMode);
+    setOffset(0);
+    loadSessions(0, newMode);
+  }, [loadSessions]);
 
   // Get session status display
   const getSessionStatusDisplay = (status: SessionStatus) => {
@@ -132,12 +148,12 @@ export default function GradingHistoryPage() {
     
     if (processingCount > 0) {
       const interval = setInterval(() => {
-        loadSessions(offset);
+        loadSessions(offset, viewMode);
       }, 5000);
 
       return () => clearInterval(interval);
     }
-  }, [sessions, offset, loadSessions]);
+  }, [sessions, offset, viewMode, loadSessions]);
 
   const hasNextPage = offset + limit < total;
   const hasPrevPage = offset > 0;
@@ -148,14 +164,37 @@ export default function GradingHistoryPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold">評分歷史</h1>
           <p className="text-muted-foreground">
-            查看您的評分會話記錄和結果
+            查看{viewMode === 'my' ? '您的' : '所有用戶的'}評分會話記錄和結果
           </p>
         </div>
-        <Button asChild>
-          <Link to="/grading-with-rubric">
-            開始新的評分
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex rounded-md border border-input bg-background">
+            <Button
+              variant={viewMode === 'my' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleViewModeChange('my')}
+              className="rounded-r-none"
+            >
+              <User className="h-3 w-3 mr-1" />
+              我的評分
+            </Button>
+            <Button
+              variant={viewMode === 'all' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handleViewModeChange('all')}
+              className="rounded-l-none"
+            >
+              <Users className="h-3 w-3 mr-1" />
+              所有評分
+            </Button>
+          </div>
+          <Button asChild>
+            <Link to="/grading-with-rubric">
+              開始新的評分
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -181,8 +220,8 @@ export default function GradingHistoryPage() {
         </div>
       ) : sessions.length === 0 ? (
         <EmptyState
-          title="還沒有評分記錄"
-          description="開始您的第一次評分，記錄將會出現在這裡。"
+          title={viewMode === 'my' ? "還沒有評分記錄" : "還沒有任何評分記錄"}
+          description={viewMode === 'my' ? "開始您的第一次評分，記錄將會出現在這裡。" : "目前系統中還沒有任何評分記錄。"}
           actionText="開始評分"
           actionLink="/grading-with-rubric"
           icon={<BarChart3 className="h-12 w-12" />}
@@ -209,6 +248,12 @@ export default function GradingHistoryPage() {
                           <Badge variant={statusDisplay.variant}>
                             {statusDisplay.text}
                           </Badge>
+                          {viewMode === 'all' && session.user && (
+                            <Badge variant="outline" className="text-xs">
+                              <User className="h-2 w-2 mr-1" />
+                              {session.user.email}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
@@ -302,7 +347,9 @@ export default function GradingHistoryPage() {
                       {/* Actions */}
                       <div className="flex justify-end">
                         <Button variant="outline" size="sm" asChild>
-                          <Link to={`/grading-history/${session.id}`}>
+                          <Link 
+                            to={`/grading-history/${session.id}${viewMode === 'all' ? '?access=any' : ''}`}
+                          >
                             <Eye className="h-3 w-3 mr-1" />
                             查看詳情
                           </Link>
@@ -327,6 +374,7 @@ export default function GradingHistoryPage() {
               </Button>
               <span className="text-sm text-muted-foreground">
                 顯示 {offset + 1} - {Math.min(offset + limit, total)} / {total} 個會話
+                {viewMode === 'all' && <span className="ml-1">(所有用戶)</span>}
               </span>
               <Button 
                 variant="outline" 

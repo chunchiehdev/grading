@@ -246,6 +246,109 @@ export async function listGradingSessions(
 }
 
 /**
+ * Lists ALL grading sessions from all users (shared/public view)
+ */
+export async function listAllGradingSessions(
+  limit: number = 20,
+  offset: number = 0
+): Promise<{ sessions: GradingSessionWithResults[]; total: number; error?: string }> {
+  try {
+    const [sessions, total] = await Promise.all([
+      db.gradingSession.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true
+            }
+          },
+          gradingResults: {
+            include: {
+              uploadedFile: {
+                select: {
+                  fileName: true,
+                  originalFileName: true
+                }
+              },
+              rubric: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset
+      }),
+      db.gradingSession.count()
+    ]);
+
+    return {
+      sessions: sessions as GradingSessionWithResults[],
+      total
+    };
+  } catch (error) {
+    logger.error('Failed to list all grading sessions:', error);
+    return {
+      sessions: [],
+      total: 0,
+      error: error instanceof Error ? error.message : 'Failed to list all grading sessions'
+    };
+  }
+}
+
+/**
+ * Gets any grading session by ID (shared/public access - no user restriction)
+ */
+export async function getAnyGradingSession(
+  sessionId: string
+): Promise<{ session?: GradingSessionWithResults; error?: string }> {
+  try {
+    const session = await db.gradingSession.findUnique({
+      where: {
+        id: sessionId
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true
+          }
+        },
+        gradingResults: {
+          include: {
+            uploadedFile: {
+              select: {
+                fileName: true,
+                originalFileName: true
+              }
+            },
+            rubric: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!session) {
+      return { error: 'Grading session not found' };
+    }
+
+    return { session: session as GradingSessionWithResults };
+  } catch (error) {
+    logger.error('Failed to get any grading session:', error);
+    return {
+      error: error instanceof Error ? error.message : 'Failed to get grading session'
+    };
+  }
+}
+
+/**
  * Updates grading session status and progress
  */
 export async function updateGradingSessionProgress(

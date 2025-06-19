@@ -3,12 +3,17 @@ import {
   createGradingSession,
   getGradingSession,
   listGradingSessions,
+  listAllGradingSessions,
   startGradingSession,
   cancelGradingSession
 } from '@/services/grading-session.server';
 
 /**
- * GET: List grading sessions for authenticated user
+ * GET: List grading sessions - supports both user-scoped and shared views
+ * Query params:
+ * - view: 'my' (default) for user's own sessions, 'all' for all users' sessions  
+ * - limit: pagination limit
+ * - offset: pagination offset
  */
 export async function loader({ request }: { request: Request }) {
   try {
@@ -18,10 +23,19 @@ export async function loader({ request }: { request: Request }) {
     }
 
     const url = new URL(request.url);
+    const view = url.searchParams.get('view') || 'my';
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const offset = parseInt(url.searchParams.get('offset') || '0');
 
-    const result = await listGradingSessions(userId, limit, offset);
+    let result;
+    
+    if (view === 'all') {
+      // List all grading sessions from all users
+      result = await listAllGradingSessions(limit, offset);
+    } else {
+      // List only current user's grading sessions (default behavior)
+      result = await listGradingSessions(userId, limit, offset);
+    }
 
     if (result.error) {
       return Response.json({ error: result.error }, { status: 500 });
@@ -30,7 +44,8 @@ export async function loader({ request }: { request: Request }) {
     return Response.json({
       success: true,
       sessions: result.sessions,
-      total: result.total
+      total: result.total,
+      view: view
     });
   } catch (error) {
     return Response.json({
