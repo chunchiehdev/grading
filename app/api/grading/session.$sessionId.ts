@@ -1,12 +1,15 @@
 import { getUserId } from '@/services/auth.server';
 import {
   getGradingSession,
+  getAnyGradingSession,
   startGradingSession,
   cancelGradingSession
 } from '@/services/grading-session.server';
 
 /**
  * GET: Get specific grading session
+ * Query params:
+ * - access: 'my' (default) for user's own session, 'any' for any user's session
  */
 export async function loader({ 
   request, 
@@ -21,8 +24,19 @@ export async function loader({
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const url = new URL(request.url);
+    const access = url.searchParams.get('access') || 'my';
     const { sessionId } = params;
-    const result = await getGradingSession(sessionId, userId);
+    
+    let result;
+    
+    if (access === 'any') {
+      // Get any grading session (shared access)
+      result = await getAnyGradingSession(sessionId);
+    } else {
+      // Get only user's own grading session (default behavior)
+      result = await getGradingSession(sessionId, userId);
+    }
 
     if (result.error) {
       return Response.json({ error: result.error }, { status: 404 });
@@ -30,7 +44,8 @@ export async function loader({
 
     return Response.json({
       success: true,
-      session: result.session
+      session: result.session,
+      access: access
     });
   } catch (error) {
     return Response.json({

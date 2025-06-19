@@ -17,7 +17,8 @@ import {
   Eye,
   Calendar,
   BarChart3,
-  Star
+  Star,
+  User
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
@@ -44,6 +45,10 @@ interface GradingResultWithRelations {
 }
 
 interface GradingSessionDetails extends GradingSession {
+  user?: {
+    id: string;
+    email: string;
+  };
   gradingResults: GradingResultWithRelations[];
 }
 
@@ -65,7 +70,11 @@ export default function GradingSessionDetailPage() {
       }
 
       try {
-        const response = await fetch(`/api/grading/session/${sessionId}`, {
+        // Check URL parameters to determine access mode
+        const urlParams = new URLSearchParams(window.location.search);
+        const accessMode = urlParams.get('access') || 'my';
+        
+        const response = await fetch(`/api/grading/session/${sessionId}?access=${accessMode}`, {
           credentials: 'include',
         });
         
@@ -207,6 +216,12 @@ export default function GradingSessionDetailPage() {
                 <Badge variant={statusDisplay.variant}>
                   {statusDisplay.text}
                 </Badge>
+                {session.user && (
+                  <Badge variant="outline" className="text-xs">
+                    <User className="h-3 w-3 mr-1" />
+                    {session.user.email}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
