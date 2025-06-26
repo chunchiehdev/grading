@@ -19,7 +19,7 @@ const HeroSection = () => {
   };
 
   return (
-    <section className="min-h-screen bg-white">
+    <section className="min-h-screen">
       <div className="w-full px-6 lg:px-12 xl:px-20 py-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center min-h-[80vh]">
           

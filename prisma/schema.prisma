@@ -23,7 +23,7 @@ model User {
   @@map("users")
 }
 
-// 評分標準表 - 支援版本控制
+// 評分標準表
 model Rubric {
   id          String   @id @default(uuid())
   userId      String
@@ -47,7 +47,7 @@ model Rubric {
   @@map("rubrics")
 }
 
-// 評分會話 - 一次評分請求可包含多個檔案
+// 評分對話 - 一次評分請求可包含多個檔案
 model GradingSession {
   id        String   @id @default(uuid())
   userId    String
@@ -120,7 +120,7 @@ model GradingResult {
   result            Json?    // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }
   errorMessage      String?  // 評分失敗時的錯誤訊息
   
-  // 評分元數據
+  // 評分原始數據
   gradingModel      String?  @db.VarChar(100) // 使用的模型名稱
   gradingTokens     Int?     // 消耗的tokens數量
   gradingDuration   Int?     // 評分耗時(毫秒)
