@@ -1,33 +1,39 @@
-import { createThemeSessionResolver } from "remix-themes";
-import { createCookieSessionStorage } from "@remix-run/node";
+import { createCookieSessionStorage } from 'react-router';
+import { AUTH_COOKIE_NAME, AUTH_COOKIE_MAX_AGE } from '@/constants/auth';
 
-const sessionStorage = createCookieSessionStorage({
+// Auth session storage
+export const sessionStorage = createCookieSessionStorage({
   cookie: {
-    name: "__theme",
-    path: "/",
+    name: AUTH_COOKIE_NAME,
     httpOnly: true,
-    sameSite: "lax",
-    secrets: [process.env.THEME_SECRET || "default"],
-    secure: false,
+    path: '/',
+    sameSite: 'lax',
+    secrets: [process.env.AUTH_SECRET || 'default-dev-secret-change-in-production'],
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: AUTH_COOKIE_MAX_AGE,
+    domain: process.env.COOKIE_DOMAIN || undefined,
   },
 });
 
-const authSessionStorage = createCookieSessionStorage({
-  cookie: {
-    name: "__auth",
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secrets: [process.env.AUTH_SECRET || "default"],
-    secure: false,
-  },
-});
-
-const themeSessionResolver = createThemeSessionResolver(sessionStorage);
-
-async function getSession(request: Request) {
-  const cookie = request.headers.get("Cookie");
-  return authSessionStorage.getSession(cookie);
+// Helper to get auth session
+export async function getSession(request: Request) {
+  const cookie = request.headers.get('Cookie');
+  const session = await sessionStorage.getSession(cookie);
+  return session;
 }
 
-export { authSessionStorage, themeSessionResolver, getSession };
+export async function commitSession(session: any) {
+  console.error('💾 Committing session with userId:', session.get('userId'));
+  const cookieHeader = await sessionStorage.commitSession(session, {
+    expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000)
+  });
+  console.error('💾 Generated Set-Cookie header:', cookieHeader);
+  return cookieHeader;
+}
+
+export async function destroySession(session: any) {
+  return sessionStorage.destroySession(session, {
+    expires: new Date(0),
+    maxAge: 0,
+  });
+}

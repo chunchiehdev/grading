@@ -1,4 +1,4 @@
-node_modules
+node_modules/
 npm-debug.log
 .git
 .gitignore
@@ -11,4 +11,4 @@ npm-debug.log
 build
 .vscode
 .idea
-*.md 
+.md 

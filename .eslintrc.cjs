@@ -22,13 +22,13 @@ module.exports = {
   ignorePatterns: ["!**/.server", "!**/.client"],
 
   // Base config
-  extends: ["eslint:recommended"],
+  extends: ["eslint:recommended", "plugin:prettier/recommended" ],
 
   overrides: [
     // React
     {
       files: ["**/*.{js,jsx,ts,tsx}"],
-      plugins: ["react", "jsx-a11y"],
+      plugins: ["react", "jsx-a11y", "unused-imports"],
       extends: [
         "plugin:react/recommended",
         "plugin:react/jsx-runtime",
@@ -47,6 +47,20 @@ module.exports = {
         "import/resolver": {
           typescript: {},
         },
+      },
+      rules: {
+        "no-unused-vars": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+        "unused-imports/no-unused-imports": "error",
+        "unused-imports/no-unused-vars": [
+          "warn",
+          {
+            vars: "all",
+            varsIgnorePattern: "^_",
+            args: "after-used",
+            argsIgnorePattern: "^_",
+          },
+        ],
       },
     },
 
@@ -71,6 +85,13 @@ module.exports = {
         "plugin:import/recommended",
         "plugin:import/typescript",
       ],
+      rules: {
+        "@typescript-eslint/no-unused-vars": ["error", { 
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_",
+          "caughtErrorsIgnorePattern": "^_"
+        }],
+      },
     },
 
     // Node

@@ -1,146 +1,74 @@
-import { db } from "@/lib/db.server";
-import bcrypt from "bcryptjs";
-import { redirect } from "@remix-run/node";
-import { getSession, authSessionStorage } from "@/sessions.server";
-import { OAuth2Client } from "google-auth-library";
-
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
+import { db } from '@/lib/db.server';
+import { redirect } from 'react-router';
+import { getSession, commitSession, destroySession } from '@/sessions.server';
+import { OAuth2Client } from 'google-auth-library';
 
 let oauth2Client: OAuth2Client | null = null;
+
 console.log(
-  "Using Google redirect URI:",
-  process.env.GOOGLE_REDIRECT_URI ||
-    "http://localhost:3000/auth/google/callback"
+  'Using Google redirect URI:',
+  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback'
 );
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   oauth2Client = new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI ||
-      "http://localhost:3000/auth/google/callback"
+    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback'
   );
 }
 
 /**
- * API 金鑰驗證結果
+ * Extracts user ID from session in the request
+ * @param {Request} request - The HTTP request with session data
+ * @returns {Promise<string|null>} The user ID if found, null otherwise
  */
-export interface ApiAuthResult {
-  isAuthenticated: boolean;
-  apiKey?: string;
-  error?: string;
-  scopes?: string[];
-}
-
-/**
- * 驗證 API 請求
- * 支援 API 金鑰驗證 (Authorization: Bearer YOUR_API_KEY)
- */
-export async function authenticateApiRequest(
-  request: Request
-): Promise<ApiAuthResult> {
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return { isAuthenticated: false, error: "缺少授權標頭" };
-    }
-
-    const [authType, apiKey] = authHeader.split(" ");
-    if (authType.toLowerCase() !== "bearer" || !apiKey) {
-      return { isAuthenticated: false, error: "無效的授權格式" };
-    }
-
-    const isValid = await validateApiKey(apiKey);
-    if (!isValid) {
-      return { isAuthenticated: false, error: "無效的 API 金鑰" };
-    }
-
-    const scopes = await getApiKeyScopes(apiKey);
-
-    return {
-      isAuthenticated: true,
-      apiKey,
-      scopes,
-    };
-  } catch (error) {
-    console.error("API 授權錯誤:", error);
-    return {
-      isAuthenticated: false,
-      error: error instanceof Error ? error.message : "授權處理過程中發生錯誤",
-    };
-  }
-}
-
-/**
- * 驗證 API 金鑰
- * 這裡應該根據實際情況實現與資料庫的整合
- */
-async function validateApiKey(apiKey: string): Promise<boolean> {
-  const validKeys = process.env.API_KEYS?.split(",") || [
-    "test_api_key_1",
-    "test_api_key_2",
-  ];
-  return validKeys.includes(apiKey);
-}
-
-/**
- * 獲取 API 金鑰的權限範圍
- * 這裡應該根據實際情況實現與資料庫的整合
- */
-async function getApiKeyScopes(apiKey: string): Promise<string[]> {
-  return ["grading:read", "grading:write"];
-}
-
 export async function getUserId(request: Request) {
   const session = await getSession(request);
-  const userId = session.get("userId");
-  if (!userId || typeof userId !== "string") return null;
+  const userId = session.get('userId');
+  if (!userId || typeof userId !== 'string') return null;
   return userId;
 }
 
-export async function requireUserId(
-  request: Request,
-  redirectTo: string = new URL(request.url).pathname
-) {
-  const userId = await getUserId(request);
-  if (!userId) {
-    const searchParams = new URLSearchParams([["redirectTo", redirectTo]]);
-    throw redirect(`/login?${searchParams}`);
-  }
-  return userId;
-}
-
+/**
+ * Initiates Google OAuth login flow
+ * @returns {Promise<Response>} Redirect response to Google OAuth URL
+ * @throws {Response} Redirect to login with error if OAuth not configured
+ */
 export async function googleLogin() {
   if (!oauth2Client) {
-    console.warn("Google OAuth credentials not configured");
-    return redirect("/login?error=google-auth-unavailable");
+    console.warn('Google OAuth credentials not configured');
+    return redirect('/auth/login?error=google-auth-unavailable');
   }
 
   const url = oauth2Client.generateAuthUrl({
-    access_type: "offline",
-    scope: [
-      "https://www.googleapis.com/auth/userinfo.profile",
-      "https://www.googleapis.com/auth/userinfo.email",
-    ],
+    access_type: 'offline',
+    scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
   });
-  console.log(url);
+
   return redirect(url);
 }
 
+/**
+ * Handles Google OAuth callback and creates user session
+ * @param {Request} request - The callback request from Google OAuth
+ * @returns {Promise<Response>} Redirect response to dashboard or login with error
+ * @throws {Error} If authorization code is missing or invalid
+ */
 export async function handleGoogleCallback(request: Request) {
   if (!oauth2Client) {
-    console.warn("Google OAuth credentials not configured");
-    return redirect("/login?error=google-auth-unavailable");
+    console.warn('Google OAuth credentials not configured');
+    return redirect('/login?error=google-auth-unavailable');
   }
 
   const url = new URL(request.url);
-  const code = url.searchParams.get("code");
+  const code = url.searchParams.get('code');
+
+  console.error('🔍 Google callback - URL:', url.toString());
+  console.error('🔍 Google callback - Code present:', !!code);
 
   if (!code) {
-    throw new Error("Missing authorization code");
+    throw new Error('Missing authorization code');
   }
 
   try {
@@ -153,95 +81,90 @@ export async function handleGoogleCallback(request: Request) {
     });
 
     const payload = ticket.getPayload();
-    if (!payload || !payload.email) throw new Error("No user payload");
+    if (!payload || !payload.email) throw new Error('No user payload');
+
+    console.error('✅ Google auth successful for:', payload.email);
 
     let user = await db.user.findUnique({
       where: { email: payload.email },
     });
 
     if (!user) {
+      console.error('📝 Creating new user:', payload.email);
       user = await db.user.create({
         data: {
           email: payload.email,
-          password: await bcrypt.hash(Math.random().toString(36), 10),
         },
       });
     }
 
-    return createUserSession(user.id, "/");
+    console.error('🍪 Creating session for user:', user.id);
+    const session = await createUserSession(user.id, request);
+    const response = redirect('/dashboard');
+    response.headers.set('Set-Cookie', session);
+
+    console.error('🔄 Redirecting to dashboard with session cookie');
+    return response;
   } catch (error) {
-    console.error("Google authentication error:", error);
-    return redirect("/login?error=google-auth-failed");
+    console.error('❌ Google authentication error:', error);
+    return redirect('/login?error=google-auth-failed');
   }
 }
 
-export async function register({ email, password }: LoginCredentials) {
-  const existingUser = await db.user.findUnique({ where: { email } });
-
-  if (existingUser) {
-    return Response.json(
-      { errors: { email: "A user already exists with this email" } },
-      { status: 400 }
-    );
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await db.user.create({
-    data: {
-      email,
-      password: hashedPassword,
-    },
-  });
-
-  return createUserSession(user.id, "/");
+/**
+ * Creates a new user session and returns session cookie
+ * @param {string} userId - The user ID to create session for
+ * @param {Request} request - The original request to maintain session continuity
+ * @returns {Promise<string>} Session cookie string for Set-Cookie header
+ */
+export async function createUserSession(userId: string, request: Request) {
+  const session = await getSession(request);
+  session.set('userId', userId);
+  return commitSession(session);
 }
 
-export async function login({ email, password }: LoginCredentials) {
-  const user = await db.user.findUnique({ where: { email } });
-  if (!user) {
-    return Response.json({ errors: { email: "沒這信箱" } }, { status: 400 });
-  }
-
-  const isValidPassword = await bcrypt.compare(password, user.password);
-  if (!isValidPassword) {
-    return Response.json({ errors: { password: "密碼錯了" } }, { status: 400 });
-  }
-
-  return createUserSession(user.id, "/");
-}
-
-export async function createUserSession(userId: string, redirectTo: string) {
-  const session = await authSessionStorage.getSession();
-
-  session.set("userId", userId);
-  return redirect(redirectTo, {
-    headers: {
-      "Set-Cookie": await authSessionStorage.commitSession(session),
-    },
-  });
-}
-
+/**
+ * Retrieves user data from session in request
+ * @param {Request} request - The HTTP request with session data
+ * @returns {Promise<Object|null>} User object with id and email, or null if not found
+ */
 export async function getUser(request: Request) {
-  const userId = await getUserId(request);
-  if (typeof userId !== "string") {
+  const session = await getSession(request);
+  const userId = session.get('userId');
+
+  console.error('👤 getUser - userId from session:', userId);
+
+  if (!userId || typeof userId !== 'string') {
+    console.error('❌ getUser - No valid userId in session');
     return null;
   }
 
   try {
-    return await db.user.findUnique({
+    const user = await db.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true },
     });
-  } catch {
-    throw logout(request);
+
+    console.error('👤 getUser - Found user in DB:', user ? user.email : 'null');
+
+    if (!user) {
+      console.error('❌ getUser - User not found in database with id:', userId);
+      return null;
+    }
+
+    return user;
+  } catch (error) {
+    console.error('❌ getUser - Database error:', error);
+    return null;
   }
 }
 
+/**
+ * Logs out user by destroying their session
+ * @param {Request} request - The HTTP request with session to destroy
+ * @returns {Promise<string>} Session destruction cookie for Set-Cookie header
+ */
 export async function logout(request: Request) {
   const session = await getSession(request);
-  return redirect("/login", {
-    headers: {
-      "Set-Cookie": await authSessionStorage.destroySession(session),
-    },
-  });
+  return destroySession(session);
 }
