@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
 import { UploadProgressService } from '@/services/progress.server';
 import { getUserId } from '@/services/auth.server';
+import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 import logger from '@/utils/logger';
 
 /**
@@ -53,10 +54,7 @@ export async function action({ request }: { request: Request }) {
  */
 export async function loader() {
   return Response.json(
-    {
-      success: false,
-      error: 'use POST to upload ID',
-    },
+    createErrorResponse('use POST to upload ID', ApiErrorCode.VALIDATION_ERROR),
     { status: 405 }
   );
 }

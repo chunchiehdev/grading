@@ -1,11 +1,12 @@
 import { logout } from '@/services/auth.server';
+import { createSuccessResponse } from '@/types/api';
 
 /**
  * API endpoint to handle logout status check
  * @returns {Promise<Response>} JSON response indicating success
  */
 export async function loader() {
-  return Response.json({ success: true });
+  return Response.json(createSuccessResponse({}));
 }
 
 /**
@@ -18,7 +19,7 @@ export async function action({ request }: { request: Request }) {
   const cookie = await logout(request);
 
   return Response.json(
-    { success: true },
+    createSuccessResponse({}),
     {
       headers: {
         'Set-Cookie': cookie,

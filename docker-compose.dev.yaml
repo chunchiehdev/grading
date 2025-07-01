@@ -41,9 +41,12 @@ services:
       - /app/node_modules
     command: npx react-router dev --host 0.0.0.0
     depends_on:
-      - redis
-      - db
-      - minio
+      db:
+        condition: service_healthy  
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
     networks:
       - app_network
 
@@ -59,6 +62,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-grading_db}
     networks:
       - app_network
+    healthcheck: 
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-grading_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7.4.1-alpine

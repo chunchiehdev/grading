@@ -9,6 +9,8 @@ COPY prisma ./prisma/
 # Install main app dependencies
 RUN npm install
 
+RUN npx prisma generate
+
 ENV NODE_ENV=development
 ENV PORT=3000
 

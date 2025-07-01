@@ -1,16 +1,16 @@
 import { getUserId } from '@/services/auth.server';
 import { uploadFile } from '@/services/uploaded-file.server';
 import { UploadProgressService } from '@/services/progress.server';
+import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
 /**
  * API endpoint loader that rejects GET requests for file uploads
  */
 export async function loader({ request }: { request: Request }) {
   return Response.json(
-    {
-      error: 'only for post',
-      message: 'use post request',
-    },
+    createErrorResponse('only for post', ApiErrorCode.VALIDATION_ERROR, {
+      message: 'use post request'
+    }),
     { status: 405 }
   );
 }
@@ -24,10 +24,7 @@ export async function action({ request }: { request: Request }) {
     const userId = await getUserId(request);
     if (!userId) {
       return Response.json(
-        {
-          success: false,
-          error: '用戶未認證',
-        },
+        createErrorResponse('用戶未認證', ApiErrorCode.UNAUTHORIZED),
         { status: 401 }
       );
     }
@@ -38,20 +35,14 @@ export async function action({ request }: { request: Request }) {
 
     if (!uploadId) {
       return Response.json(
-        {
-          success: false,
-          error: 'Missing uploadId',
-        },
+        createErrorResponse('Missing uploadId', ApiErrorCode.VALIDATION_ERROR),
         { status: 400 }
       );
     }
 
     if (!files || files.length === 0) {
       return Response.json(
-        {
-          success: false,
-          error: 'No files provided',
-        },
+        createErrorResponse('No files provided', ApiErrorCode.VALIDATION_ERROR),
         { status: 400 }
       );
     }
@@ -115,23 +106,24 @@ export async function action({ request }: { request: Request }) {
     // Log completion status
     console.log(`Upload completed for ${uploadId}: ${successfulUploads.length}/${files.length} successful`);
 
-    return Response.json({
-      success: true,
-      uploadId,
-      results: fileResults,
-      summary: {
-        total: files.length,
-        successful: successfulUploads.length,
-        failed: failedUploads.length,
-      },
-    });
+    return Response.json(
+      createSuccessResponse({
+        uploadId,
+        results: fileResults,
+        summary: {
+          total: files.length,
+          successful: successfulUploads.length,
+          failed: failedUploads.length,
+        },
+      })
+    );
   } catch (error) {
     console.error('Upload API error:', error);
     return Response.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : '上傳過程中發生錯誤',
-      },
+      createErrorResponse(
+        error instanceof Error ? error.message : '上傳過程中發生錯誤',
+        ApiErrorCode.INTERNAL_ERROR
+      ),
       { status: 500 }
     );
   }

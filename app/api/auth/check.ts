@@ -1,5 +1,6 @@
 import { getUser } from '@/services/auth.server';
 import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
+import { createSuccessResponse, ApiErrorCode } from '@/types/api';
 
 /**
  * API endpoint to check user authentication status
@@ -13,6 +14,6 @@ export async function loader({ request }: { request: Request }) {
     if (!user) {
       return Response.json(null, { status: 401 });
     }
-    return createApiResponse({ user });
+    return Response.json(createSuccessResponse({ user }));
   });
 }

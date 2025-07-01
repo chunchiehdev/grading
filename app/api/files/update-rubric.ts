@@ -1,6 +1,7 @@
 import { getUserId } from '@/services/auth.server';
 import { db } from '@/lib/db.server';
 import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
+import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
 /**
  * API endpoint to update file's selected rubric
@@ -12,13 +13,19 @@ export async function action({ request }: { request: Request }) {
   return withErrorHandler(async () => {
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json({ success: false, error: 'Authentication required' }, { status: 401 });
+      return Response.json(
+        createErrorResponse('Authentication required', ApiErrorCode.UNAUTHORIZED), 
+        { status: 401 }
+      );
     }
 
     const { fileId, rubricId } = await request.json();
 
     if (!fileId) {
-      return Response.json({ success: false, error: 'File ID is required' }, { status: 400 });
+      return Response.json(
+        createErrorResponse('File ID is required', ApiErrorCode.VALIDATION_ERROR), 
+        { status: 400 }
+      );
     }
 
     // Verify file belongs to user
@@ -30,23 +37,27 @@ export async function action({ request }: { request: Request }) {
     });
 
     if (!file) {
-      return Response.json({ success: false, error: 'File not found or access denied' }, { status: 404 });
+      return Response.json(
+        createErrorResponse('File not found or access denied', ApiErrorCode.NOT_FOUND), 
+        { status: 404 }
+      );
     }
 
     // 在新架構中，我們不直接關聯檔案與 rubric
     // 而是返回檔案資訊和建議使用評分會話 API
-    return Response.json({
-      success: true,
-      message: 'File found. Please use grading session API to associate files with rubrics.',
-      file: {
-        id: file.id,
-        fileName: file.fileName,
-        parseStatus: file.parseStatus,
-      },
-      suggestion: {
-        useNewAPI: '/api/grading-sessions',
-        rubricId: rubricId,
-      }
-    });
+    return Response.json(
+      createSuccessResponse({
+        message: 'File found. Please use grading session API to associate files with rubrics.',
+        file: {
+          id: file.id,
+          fileName: file.fileName,
+          parseStatus: file.parseStatus,
+        },
+        suggestion: {
+          useNewAPI: '/api/grading-sessions',
+          rubricId: rubricId,
+        }
+      })
+    );
   });
 } 

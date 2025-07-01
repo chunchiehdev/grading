@@ -1,25 +1,32 @@
 import type { Route } from './+types/delete-file';
 import { deleteFromStorage } from '@/services/storage.server';
+import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
 export async function action({ request }: Route.ActionArgs) {
   if (request.method !== 'DELETE') {
-    return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
+    return Response.json(
+      createErrorResponse('Method not allowed', ApiErrorCode.VALIDATION_ERROR), 
+      { status: 405 }
+    );
   }
 
   try {
     const { key } = await request.json();
     
     if (!key) {
-      return Response.json({ success: false, error: 'File key is required' }, { status: 400 });
+      return Response.json(
+        createErrorResponse('File key is required', ApiErrorCode.VALIDATION_ERROR), 
+        { status: 400 }
+      );
     }
 
     await deleteFromStorage(key);
     
-    return Response.json({ success: true });
+    return Response.json(createSuccessResponse({}));
   } catch (error) {
     console.error('Failed to delete file:', error);
     return Response.json(
-      { success: false, error: 'Failed to delete file' },
+      createErrorResponse('Failed to delete file', ApiErrorCode.INTERNAL_ERROR),
       { status: 500 }
     );
   }

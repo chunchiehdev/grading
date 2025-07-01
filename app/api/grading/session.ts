@@ -7,6 +7,12 @@ import {
   startGradingSession,
   cancelGradingSession
 } from '@/services/grading-session.server';
+import { 
+  createSuccessResponse, 
+  createErrorResponse, 
+  createPaginatedResponse,
+  ApiErrorCode 
+} from '@/types/api';
 
 /**
  * GET: List grading sessions - supports both user-scoped and shared views
@@ -19,7 +25,10 @@ export async function loader({ request }: { request: Request }) {
   try {
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json(
+        createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), 
+        { status: 401 }
+      );
     }
 
     const url = new URL(request.url);
@@ -38,19 +47,33 @@ export async function loader({ request }: { request: Request }) {
     }
 
     if (result.error) {
-      return Response.json({ error: result.error }, { status: 500 });
+      return Response.json(
+        createErrorResponse(result.error, ApiErrorCode.INTERNAL_ERROR), 
+        { status: 500 }
+      );
     }
 
-    return Response.json({
-      success: true,
-      sessions: result.sessions,
-      total: result.total,
-      view: view
-    });
+    const page = Math.floor(offset / limit) + 1;
+    return Response.json(
+      createSuccessResponse(
+        result.sessions || [],
+        {
+          total: result.total || 0,
+          page,
+          limit,
+          totalPages: Math.ceil((result.total || 0) / limit),
+          view
+        }
+      )
+    );
   } catch (error) {
-    return Response.json({
-      error: error instanceof Error ? error.message : 'Failed to list sessions'
-    }, { status: 500 });
+    return Response.json(
+      createErrorResponse(
+        error instanceof Error ? error.message : 'Failed to list sessions',
+        ApiErrorCode.INTERNAL_ERROR
+      ), 
+      { status: 500 }
+    );
   }
 }
 
@@ -61,7 +84,10 @@ export async function action({ request }: { request: Request }) {
   try {
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json(
+        createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), 
+        { status: 401 }
+      );
     }
 
     const method = request.method;
@@ -72,22 +98,28 @@ export async function action({ request }: { request: Request }) {
       const rubricIds = JSON.parse(formData.get('rubricIds') as string || '[]');
 
       if (!Array.isArray(fileIds) || fileIds.length === 0) {
-        return Response.json({
-          error: 'At least one file is required'
-        }, { status: 400 });
+        return Response.json(
+          createErrorResponse('At least one file is required', ApiErrorCode.VALIDATION_ERROR),
+          { status: 400 }
+        );
       }
 
       if (!Array.isArray(rubricIds) || rubricIds.length === 0) {
-        return Response.json({
-          error: 'At least one rubric is required'
-        }, { status: 400 });
+        return Response.json(
+          createErrorResponse('At least one rubric is required', ApiErrorCode.VALIDATION_ERROR),
+          { status: 400 }
+        );
       }
 
       // Validate that fileIds and rubricIds have the same length for one-to-one pairing
       if (fileIds.length !== rubricIds.length) {
-        return Response.json({
-          error: 'File and rubric arrays must have the same length for one-to-one pairing'
-        }, { status: 400 });
+        return Response.json(
+          createErrorResponse(
+            'File and rubric arrays must have the same length for one-to-one pairing', 
+            ApiErrorCode.VALIDATION_ERROR
+          ),
+          { status: 400 }
+        );
       }
 
       // Create file-rubric pairs
@@ -102,21 +134,28 @@ export async function action({ request }: { request: Request }) {
       });
 
       if (!result.success) {
-        return Response.json({
-          error: result.error
-        }, { status: 400 });
+        return Response.json(
+          createErrorResponse(result.error || 'Failed to create session', ApiErrorCode.INTERNAL_ERROR),
+          { status: 400 }
+        );
       }
 
-      return Response.json({
-        success: true,
-        sessionId: result.sessionId
-      });
+      return Response.json(
+        createSuccessResponse({ sessionId: result.sessionId })
+      );
     }
 
-    return Response.json({ error: 'Method not allowed' }, { status: 405 });
+    return Response.json(
+      createErrorResponse('Method not allowed', ApiErrorCode.VALIDATION_ERROR), 
+      { status: 405 }
+    );
   } catch (error) {
-    return Response.json({
-      error: error instanceof Error ? error.message : 'Failed to create session'
-    }, { status: 500 });
+    return Response.json(
+      createErrorResponse(
+        error instanceof Error ? error.message : 'Failed to create session',
+        ApiErrorCode.INTERNAL_ERROR
+      ), 
+      { status: 500 }
+    );
   }
 }
