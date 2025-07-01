@@ -1,4 +1,5 @@
 import { listRubrics } from '@/services/rubric.server';
+import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
 /**
  * API endpoint to get all rubrics
@@ -12,19 +13,18 @@ export async function loader({ request }: { request: Request }) {
 
     if (error) {
       return Response.json(
-        { success: false, error },
+        createErrorResponse(error, ApiErrorCode.INTERNAL_ERROR),
         { status: 500 }
       );
     }
 
-    return Response.json({
-      success: true,
-      rubrics: rubrics || [],
-    });
+    return Response.json(
+      createSuccessResponse(rubrics || [])
+    );
   } catch (error) {
     console.error('Failed to load rubrics:', error);
     return Response.json(
-      { success: false, error: 'Failed to load rubrics' },
+      createErrorResponse('Failed to load rubrics', ApiErrorCode.INTERNAL_ERROR),
       { status: 500 }
     );
   }

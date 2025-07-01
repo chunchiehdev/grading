@@ -66,7 +66,6 @@ export default [
   route('/grading-history/:sessionId', './routes/grading-history/$sessionId.tsx'),
   route('/health', './routes/health.tsx'),
   route('/test-markdown', './routes/test-markdown.tsx'),
-  // route('/test-result-layouts', './routes/test-result-layouts.tsx'),
 
   // 404 route
   route('*', './routes/_404.tsx'),

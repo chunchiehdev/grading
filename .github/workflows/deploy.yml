@@ -41,32 +41,52 @@ jobs:
           export KUBECONFIG=~/.kube/config
           echo "Starting application deployment for ${{ github.ref_name }} "
           
+          # Set variables based on branch
           if [ "${{ github.ref_name }}" = "master" ]; then
-            cd ~/gradsystem
-            if [ -f deployment.yaml ]; then
-              
-              echo "Running database migrations ..."
-              kubectl run migrate-$(date +%s) \
-                --rm \
-                --attach \
-                --restart=Never \
-                --image=chunchiehdev/gradsystem:master \
-                --env="DATABASE_URL=$(kubectl get secret gradsystem-secret -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
-                --env="NODE_ENV=production" \
-                -- npx prisma migrate deploy --schema=/app/prisma/schema.prisma
+            DEPLOYMENT_FILE="prod/deployment.yaml"
+            SECRET_NAME="gradsystem-secret"
+            NAMESPACE="default"
+            DEPLOYMENT_NAME="gradsystem"
+          else
+            DEPLOYMENT_FILE="dev/deployment-dev.yaml"
+            SECRET_NAME="gradsystem-secret-dev"
+            NAMESPACE="dev"
+            DEPLOYMENT_NAME="gradsystem-dev"
+          fi
+          
+          echo "Using deployment file: $DEPLOYMENT_FILE"
+          echo "Target namespace: $NAMESPACE"
+          echo "Secret name: $SECRET_NAME"
+          
+          cd ~/gradsystem
+          if [ -f $DEPLOYMENT_FILE ]; then
+            
+            echo "Running database migrations ..."
+            kubectl run migrate-$(date +%s) \
+              --rm \
+              --attach \
+              --restart=Never \
+              --namespace=$NAMESPACE \
+              --image=chunchiehdev/gradsystem:${{ github.ref_name }} \
+              --env="DATABASE_URL=$(kubectl get secret $SECRET_NAME -n $NAMESPACE -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
+              --env="NODE_ENV=${{ github.ref_name == 'master' && 'production' || 'development' }}" \
+              -- npx prisma migrate deploy --schema=/app/prisma/schema.prisma
 
-              if [ $? -eq 0 ]; then
-                echo "Migration successful, deploying application..."
-                kubectl apply -f deployment.yaml
-                kubectl rollout status deployment gradsystem
-              else
-                echo "Migration failed!"
-                exit 1
-              fi
+            if [ $? -eq 0 ]; then
+              echo "Migration successful, deploying application..."
+              kubectl apply -f $DEPLOYMENT_FILE
+              
+              echo "Triggering rollout restart to pull latest image..."
+              kubectl rollout restart deployment $DEPLOYMENT_NAME -n $NAMESPACE
+              kubectl rollout status deployment $DEPLOYMENT_NAME -n $NAMESPACE
+              echo "Deployment completed successfully!"
             else
-              echo "Error: deployment.yaml file not found"
+              echo "Migration failed!"
               exit 1
             fi
+          else
+            echo "Error: $DEPLOYMENT_FILE file not found"
+            exit 1
           fi
           
     - name: Deployment Summary

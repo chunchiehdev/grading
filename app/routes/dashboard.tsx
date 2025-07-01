@@ -24,7 +24,6 @@ function formatRelativeTime(date: Date): string {
 }
 
 export const loader = async ({ request }: { request: Request }) => {
-  console.log('Fetching dashboard data in loader...');
   
   try {
     // Get user ID from session
@@ -59,13 +58,6 @@ export const loader = async ({ request }: { request: Request }) => {
         }
       })
     ]);
-
-    console.log('Dashboard data response:', {
-      sessionsCount: allSessions?.length,
-      rubricsCount: allRubrics?.length,
-      recentFilesCount: recentFiles?.length,
-      pendingCount
-    });
 
     // Check for errors
     if (sessionsError || rubricsError || filesError) {
@@ -127,14 +119,6 @@ export default function Dashboard() {
     recentUploadedFiles,
     error
   } = useLoaderData<typeof loader>();
-
-  console.log('Dashboard component state:', {
-    completedGradingSessionsCount,
-    activeRubricsCount,
-    pendingAssignmentsCount,
-    recentUploadedFiles,
-    error
-  });
 
   if (error) {
     console.error('Error in dashboard component:', error);

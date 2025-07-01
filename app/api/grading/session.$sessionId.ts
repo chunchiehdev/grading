@@ -5,6 +5,7 @@ import {
   startGradingSession,
   cancelGradingSession
 } from '@/services/grading-session.server';
+import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
 /**
  * GET: Get specific grading session
@@ -21,7 +22,10 @@ export async function loader({
   try {
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json(
+        createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), 
+        { status: 401 }
+      );
     }
 
     const url = new URL(request.url);
@@ -39,18 +43,23 @@ export async function loader({
     }
 
     if (result.error) {
-      return Response.json({ error: result.error }, { status: 404 });
+      return Response.json(
+        createErrorResponse(result.error, ApiErrorCode.NOT_FOUND), 
+        { status: 404 }
+      );
     }
 
-    return Response.json({
-      success: true,
-      session: result.session,
-      access: access
-    });
+    return Response.json(
+      createSuccessResponse(result.session, { access })
+    );
   } catch (error) {
-    return Response.json({
-      error: error instanceof Error ? error.message : 'Failed to get session'
-    }, { status: 500 });
+    return Response.json(
+      createErrorResponse(
+        error instanceof Error ? error.message : 'Failed to get session',
+        ApiErrorCode.INTERNAL_ERROR
+      ), 
+      { status: 500 }
+    );
   }
 }
 
@@ -67,7 +76,10 @@ export async function action({
   try {
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json(
+        createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), 
+        { status: 401 }
+      );
     }
 
     const { sessionId } = params;
@@ -78,25 +90,38 @@ export async function action({
       case 'start': {
         const result = await startGradingSession(sessionId, userId);
         if (!result.success) {
-          return Response.json({ error: result.error }, { status: 400 });
+          return Response.json(
+            createErrorResponse(result.error || 'Failed to start session', ApiErrorCode.INTERNAL_ERROR), 
+            { status: 400 }
+          );
         }
-        return Response.json({ success: true, action: 'started' });
+        return Response.json(createSuccessResponse({ action: 'started' }));
       }
 
       case 'cancel': {
         const result = await cancelGradingSession(sessionId, userId);
         if (!result.success) {
-          return Response.json({ error: result.error }, { status: 400 });
+          return Response.json(
+            createErrorResponse(result.error || 'Failed to cancel session', ApiErrorCode.INTERNAL_ERROR), 
+            { status: 400 }
+          );
         }
-        return Response.json({ success: true, action: 'cancelled' });
+        return Response.json(createSuccessResponse({ action: 'cancelled' }));
       }
 
       default:
-        return Response.json({ error: 'Invalid action' }, { status: 400 });
+        return Response.json(
+          createErrorResponse('Invalid action', ApiErrorCode.VALIDATION_ERROR), 
+          { status: 400 }
+        );
     }
   } catch (error) {
-    return Response.json({
-      error: error instanceof Error ? error.message : 'Failed to update session'
-    }, { status: 500 });
+    return Response.json(
+      createErrorResponse(
+        error instanceof Error ? error.message : 'Failed to update session',
+        ApiErrorCode.INTERNAL_ERROR
+      ), 
+      { status: 500 }
+    );
   }
 }
