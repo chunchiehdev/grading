@@ -17,6 +17,16 @@ interface UploadedFileResult {
 }
 
 /**
+ * Enhanced error information for better user feedback
+ */
+interface UploadError {
+  message: string;
+  type: 'network' | 'auth' | 'validation' | 'storage' | 'quota' | 'unknown';
+  retryable: boolean;
+  originalError?: Error;
+}
+
+/**
  * Custom hook for file upload functionality with progress tracking
  * Updated to work with new database-backed file storage system
  * @param {Object} [options] - Configuration options
@@ -66,7 +76,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       const { results } = uploadResponse;
       const successfulFiles: UploadedFileResult[] = [];
 
-      // Process each upload result
+      // Process each upload result with safety checks
       if (Array.isArray(results)) {
         results.forEach((result: UploadedFileResult) => {
         if (result.success) {
@@ -89,7 +99,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
         onUploadComplete(successfulFiles);
       }
 
-      console.log(`✅ Upload completed: ${successfulFiles.length}/${results.length} files successful`);
+      console.log(`✅ Upload completed: ${successfulFiles.length}/${results?.length || 0} files successful`);
     },
   });
 
@@ -117,8 +127,9 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       return data;
     },
     onSuccess: (_, fileId) => {
-      // Remove from local state
-      const fileEntry = Object.entries(files).find(([_, file]) => file.key === fileId);
+      // Remove from local state with safety check
+      const fileEntries = Object.entries(files || {});
+      const fileEntry = fileEntries.find(([_, file]) => file.key === fileId);
       if (fileEntry) {
         removeFile(fileEntry[0]);
       }
@@ -127,6 +138,12 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
 
   // Enhanced upload function with better error handling
   const handleUpload = async (newFiles: File[]) => {
+    // Safety check for input
+    if (!Array.isArray(newFiles) || newFiles.length === 0) {
+      console.warn('handleUpload called with invalid files array:', newFiles);
+      return;
+    }
+    
     console.log('🚀 Starting handleUpload for files:', newFiles.map(f => f.name));
     
     // Clean up existing subscription before starting a new one
@@ -148,8 +165,22 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       // Start SSE subscription for progress tracking
       console.log('📡 Starting SSE subscription for:', newUploadId);
       const newUnsubscribe = uploadApi.subscribeToProgress(newUploadId, (progressData) => {
+        // Safety check for progress data
+        if (!progressData || typeof progressData !== 'object') {
+          console.warn('Invalid progress data received:', progressData);
+          return;
+        }
+        
         Object.entries(progressData).forEach(([filename, data]: [string, any]) => {
-          updateProgress(filename, data.progress);
+          // Safety check for data
+          if (!data || typeof data !== 'object') {
+            console.warn('Invalid file progress data:', filename, data);
+            return;
+          }
+          
+          if (typeof data.progress === 'number') {
+            updateProgress(filename, data.progress);
+          }
           if (data.status === 'success' || data.status === 'error') {
             setFileStatus(filename, data.status, data);
           }
@@ -172,7 +203,23 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
         unsubscribe();
         progressSubscriptionRef.current = null;
       }
-      throw error;
+      
+      // Enhanced error categorization and user feedback
+      const uploadError = categorizeUploadError(error);
+      
+      // Update file statuses with categorized error (with safety check)
+      if (Array.isArray(newFiles)) {
+        newFiles.forEach(file => {
+          setFileStatus(file.name, 'error', {
+            error: uploadError.message,
+            errorType: uploadError.type,
+            retryable: uploadError.retryable,
+            progress: 0,
+          });
+        });
+      }
+      
+      throw uploadError;
     }
   };
 
@@ -185,8 +232,11 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
     };
   }, []);
 
+  // Safety guard for files state
+  const safeFiles = files ? Object.values(files) : [];
+
   return {
-    files: Object.values(files),
+    files: safeFiles,
     isCreatingId: createUploadIdMutation.isPending,
     isUploading: uploadFilesMutation.isPending,
     isDeleting: deleteFileMutation.isPending,
@@ -195,5 +245,96 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
     uploadError: uploadFilesMutation.error instanceof Error ? uploadFilesMutation.error.message : undefined,
     // Additional state for the new architecture
     uploadResults: uploadFilesMutation.data?.results || [],
+    // Enhanced error information
+    lastError: categorizeUploadError(uploadFilesMutation.error),
+    canRetry: uploadFilesMutation.error ? categorizeUploadError(uploadFilesMutation.error).retryable : false,
+  };
+}
+
+/**
+ * Categorizes upload errors and provides user-friendly messages
+ */
+function categorizeUploadError(error: any): UploadError {
+  if (!error) {
+    return {
+      message: '',
+      type: 'unknown',
+      retryable: false
+    };
+  }
+
+  const errorMessage = error.message || error.toString();
+  const statusCode = error.status || error.statusCode;
+
+  // Network/connection errors
+  if (errorMessage.includes('網絡連接') || 
+      errorMessage.includes('network') || 
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('Failed to fetch') ||
+      statusCode >= 500) {
+    return {
+      message: '網絡連接問題，請檢查網絡後重試',
+      type: 'network',
+      retryable: true,
+      originalError: error
+    };
+  }
+
+  // Authentication errors
+  if (errorMessage.includes('認證失敗') ||
+      errorMessage.includes('用戶未認證') ||
+      statusCode === 401 || statusCode === 403) {
+    return {
+      message: '登錄已過期，請重新登錄後重試',
+      type: 'auth',
+      retryable: false,
+      originalError: error
+    };
+  }
+
+  // File size/quota errors
+  if (errorMessage.includes('文件太大') ||
+      errorMessage.includes('存儲空間') ||
+      errorMessage.includes('100MB') ||
+      statusCode === 413) {
+    return {
+      message: '文件太大或存儲空間不足，請選擇較小的文件',
+      type: 'quota',
+      retryable: false,
+      originalError: error
+    };
+  }
+
+  // Validation errors
+  if (errorMessage.includes('無效') ||
+      errorMessage.includes('格式') ||
+      errorMessage.includes('validation') ||
+      statusCode === 400) {
+    return {
+      message: '文件格式無效或參數錯誤，請檢查文件後重試',
+      type: 'validation',
+      retryable: false,
+      originalError: error
+    };
+  }
+
+  // Storage errors (usually retryable)
+  if (errorMessage.includes('存儲') ||
+      errorMessage.includes('storage') ||
+      errorMessage.includes('S3')) {
+    return {
+      message: '存儲服務暫時不可用，請稍後重試',
+      type: 'storage',
+      retryable: true,
+      originalError: error
+    };
+  }
+
+  // Default case
+  return {
+    message: errorMessage || '上傳失敗，請稍後重試',
+    type: 'unknown',
+    retryable: true,
+    originalError: error
   };
 }

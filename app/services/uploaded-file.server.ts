@@ -1,5 +1,5 @@
 import { db, FileParseStatus, type UploadedFile } from '@/types/database';
-import { uploadToStorage } from './storage.server';
+import { uploadToStorage, type StorageError, StorageErrorType, getStorageErrorMessage } from './storage.server';
 import { triggerPdfParsing } from './pdf-parser.server';
 import logger from '@/utils/logger';
 
@@ -13,14 +13,37 @@ export interface UploadFileResult {
   success: boolean;
   fileId?: string;
   error?: string;
+  errorType?: 'storage' | 'database' | 'validation' | 'network' | 'auth' | 'quota';
+  retryable?: boolean;
 }
 
 /**
- * Uploads a file and creates a database record
+ * Uploads a file and creates a database record with comprehensive error handling
  */
 export async function uploadFile(request: UploadFileRequest): Promise<UploadFileResult> {
+  const startTime = Date.now();
+  
   try {
     const { userId, file, originalFileName } = request;
+    
+    // Validate file
+    if (!file || file.size === 0) {
+      return {
+        success: false,
+        error: '無效的文件或文件為空',
+        errorType: 'validation',
+        retryable: false
+      };
+    }
+
+    if (file.size > 100 * 1024 * 1024) { // 100MB limit
+      return {
+        success: false,
+        error: '文件大小超過 100MB 限制',
+        errorType: 'quota',
+        retryable: false
+      };
+    }
     
     // Generate unique file key
     const timestamp = Date.now();
@@ -32,33 +55,111 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
     
     const fileKey = `uploads/${userId}/${timestamp}-${sanitizedName}`;
     
+    logger.info(`Starting file upload: ${file.name} (${file.size} bytes) for user ${userId}`);
+    
     // Convert file to buffer
-    const buffer = Buffer.from(await file.arrayBuffer());
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(await file.arrayBuffer());
+    } catch (error) {
+      logger.error('Failed to read file data:', error);
+      return {
+        success: false,
+        error: '無法讀取文件數據，請檢查文件是否損壞',
+        errorType: 'validation',
+        retryable: false
+      };
+    }
     
-    // Upload to storage
-    const storageResult = await uploadToStorage(buffer, fileKey, file.type);
+    // Upload to storage with enhanced error handling
+    let storageResult;
+    try {
+      storageResult = await uploadToStorage(buffer, fileKey, file.type);
+    } catch (error) {
+      const storageError = error as StorageError;
+      
+      logger.error('Storage upload failed:', {
+        error: storageError.message,
+        type: storageError.type,
+        retryable: storageError.retryable,
+        fileName: file.name,
+        fileSize: file.size,
+        userId
+      });
+      
+      // Map storage error types to user-friendly messages
+      let errorType: UploadFileResult['errorType'] = 'storage';
+      let userMessage = getStorageErrorMessage(storageError);
+      
+      switch (storageError.type) {
+        case StorageErrorType.AUTH:
+          errorType = 'auth';
+          break;
+        case StorageErrorType.NETWORK:
+          errorType = 'network';
+          break;
+        case StorageErrorType.QUOTA:
+          errorType = 'quota';
+          break;
+        case StorageErrorType.VALIDATION:
+          errorType = 'validation';
+          break;
+        default:
+          errorType = 'storage';
+      }
+      
+      return {
+        success: false,
+        error: userMessage,
+        errorType,
+        retryable: storageError.retryable
+      };
+    }
     
-    // Check if upload was successful (assuming success means we got a result)
+    // Validate storage result
     if (!storageResult || !storageResult.key) {
       return {
         success: false,
-        error: 'Failed to upload file to storage'
+        error: '存儲服務返回無效結果',
+        errorType: 'storage',
+        retryable: true
       };
     }
     
     // Create database record
-    const uploadedFile = await db.uploadedFile.create({
-      data: {
-        userId,
-        fileName: sanitizedName,
-        originalFileName: originalFileName || file.name,
-        fileKey,
-        fileSize: file.size,
-        mimeType: file.type,
-        parseStatus: FileParseStatus.PENDING,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+    let uploadedFile: UploadedFile;
+    try {
+      uploadedFile = await db.uploadedFile.create({
+        data: {
+          userId,
+          fileName: sanitizedName,
+          originalFileName: originalFileName || file.name,
+          fileKey,
+          fileSize: file.size,
+          mimeType: file.type,
+          parseStatus: FileParseStatus.PENDING,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
+        }
+      });
+    } catch (error) {
+      logger.error('Database record creation failed:', error);
+      
+      // Try to clean up the uploaded file from storage
+      try {
+        const { deleteFromStorage } = await import('./storage.server');
+        await deleteFromStorage(fileKey);
+        logger.info(`Cleaned up orphaned file from storage: ${fileKey}`);
+      } catch (cleanupError) {
+        logger.error(`Failed to cleanup orphaned file ${fileKey}:`, cleanupError);
       }
-    });
+      
+      return {
+        success: false,
+        error: '無法創建文件記錄，請稍後重試',
+        errorType: 'database',
+        retryable: true
+      };
+    }
     
     // Trigger file parsing if it's a supported format
     if (file.type === 'application/pdf' || 
@@ -71,20 +172,33 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
       });
     } else {
       // Mark as completed for unsupported formats (we'll just use the file as-is)
-      await updateFileParseStatus(uploadedFile.id, FileParseStatus.COMPLETED, 'File uploaded successfully');
+      updateFileParseStatus(uploadedFile.id, FileParseStatus.COMPLETED, 'File uploaded successfully').catch(error => {
+        logger.error(`Failed to update parse status for ${uploadedFile.id}:`, error);
+      });
     }
     
-    logger.info(`File uploaded successfully: ${uploadedFile.id} (${file.size} bytes)`);
+    const duration = Date.now() - startTime;
+    logger.info(`File uploaded successfully: ${uploadedFile.id} (${file.size} bytes) in ${duration}ms`);
     
     return {
       success: true,
       fileId: uploadedFile.id
     };
   } catch (error) {
-    logger.error('Failed to upload file:', error);
+    const duration = Date.now() - startTime;
+    logger.error('Unexpected error during file upload:', {
+      error: error instanceof Error ? error.message : error,
+      userId: request.userId,
+      fileName: request.file?.name,
+      fileSize: request.file?.size,
+      duration
+    });
+    
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to upload file'
+      error: '文件上傳過程中發生未預期錯誤，請稍後重試',
+      errorType: 'storage',
+      retryable: true
     };
   }
 }
