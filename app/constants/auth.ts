@@ -1,4 +1,5 @@
 export const PUBLIC_PATHS = [
+  '/',                    // Landing page
   '/auth/login', 
   '/auth/register', 
   '/auth/google', 

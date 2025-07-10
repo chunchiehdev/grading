@@ -63,9 +63,8 @@ export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  // Skip auth for static assets and public paths
+  // Skip auth for static assets (non-page routes)
   if (
-    PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath)) ||
     path.startsWith('/assets/') ||
     path.includes('.css') ||
     path.includes('.js') ||
@@ -78,6 +77,21 @@ export async function loader({ request }: { request: Request }) {
     return { user: null, isPublicPath: true };
   }
 
+  // Check if this is a public path (but still get user if available)
+  const isPublicPath = PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
+  
+  if (isPublicPath) {
+    // For public paths, try to get user but don't require auth
+    try {
+      const { getUser } = await import('@/services/auth.server');
+      const user = await getUser(request);
+      return { user, isPublicPath: true };
+    } catch (error) {
+      return { user: null, isPublicPath: true };
+    }
+  }
+
+  // For protected paths, require authentication
   try {
     const user = await requireAuth(request);
     return { user, isPublicPath: false };
@@ -113,16 +127,32 @@ function Layout() {
   const { user, isPublicPath } = useLoaderData() as LoaderData;
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
 
+  // Public paths without user - show minimal layout
   if (isPublicPath && !user) {
     return (
-      <main className="min-h-screen w-full ">
+      <main className="min-h-screen w-full">
         <Outlet />
       </main>
     );
   }
 
+  // Public paths with user - show layout with NavHeader
+  if (isPublicPath && user) {
+    return (
+      <div className="relative flex min-h-screen w-full">
+        <div className="flex-1">
+          <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
+          <main className="min-h-screen w-full">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  // Protected paths - show full layout
   return (
-    <div className="relative flex min-h-screen w-full ">
+    <div className="relative flex min-h-screen w-full">
       {/* <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} /> */}
       <div
         className={cn(
@@ -152,3 +182,4 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+

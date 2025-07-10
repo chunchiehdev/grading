@@ -67,7 +67,8 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       const successfulFiles: UploadedFileResult[] = [];
 
       // Process each upload result
-      results.forEach((result: UploadedFileResult) => {
+      if (Array.isArray(results)) {
+        results.forEach((result: UploadedFileResult) => {
         if (result.success) {
           setFileStatus(result.fileName, 'success', {
             fileId: result.fileId,
@@ -79,8 +80,9 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
             error: result.error,
             progress: 0,
           });
-        }
-      });
+          }
+        });
+      }
 
       // Notify completion via callback instead of auto-updating stores
       if (onUploadComplete && successfulFiles.length > 0) {

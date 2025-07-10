@@ -69,7 +69,7 @@ const store = create<UiState>()(
         state.sidebarCollapsed = collapsed;
       }),
 
-      theme: 'system',
+      theme: 'light',
       setTheme: (theme) => set((state) => {
         state.theme = theme;
         applyTheme(theme);
@@ -135,7 +135,7 @@ export const useUiStore = () => {
   if (!hydrated) {
     return {
       sidebarCollapsed: true,
-      theme: 'system' as Theme,
+      theme: 'light' as Theme,
       currentStep: 'upload' as GradingStep,
       canProceed: false,
       lastVisitedPage: null,
