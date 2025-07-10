@@ -388,7 +388,7 @@ export default function GradingWithRubricPage() {
   }, []);
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 py-8 space-y-6">
 
       {error && (
         <div className="p-4 border border-red-300 bg-red-50 rounded-md">
@@ -407,7 +407,7 @@ export default function GradingWithRubricPage() {
         </div>
       )}
 
-      <Tabs value={step} className="w-full">
+      <Tabs value={step} className="">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="upload" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" >1. 上傳文件</TabsTrigger>
           <TabsTrigger value="configure" disabled={uploadedFiles.length === 0} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
