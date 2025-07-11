@@ -1,15 +1,24 @@
+import { getUserId } from '@/services/auth.server';
 import { listRubrics } from '@/services/rubric.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
 /**
- * API endpoint to get all rubrics
+ * API endpoint to get user's rubrics
  * @param {Object} params - Route parameters
  * @param {Request} params.request - HTTP request object
- * @returns {Promise<Response>} JSON response with rubrics list
+ * @returns {Promise<Response>} JSON response with user's rubrics list
  */
 export async function loader({ request }: { request: Request }) {
   try {
-    const { rubrics, error } = await listRubrics();
+    const userId = await getUserId(request);
+    if (!userId) {
+      return Response.json(
+        createErrorResponse('Authentication required', ApiErrorCode.UNAUTHORIZED), 
+        { status: 401 }
+      );
+    }
+
+    const { rubrics, error } = await listRubrics(userId);
 
     if (error) {
       return Response.json(
@@ -18,9 +27,10 @@ export async function loader({ request }: { request: Request }) {
       );
     }
 
-    return Response.json(
-      createSuccessResponse(rubrics || [])
-    );
+    return Response.json({
+      success: true,
+      rubrics: rubrics || []
+    });
   } catch (error) {
     console.error('Failed to load rubrics:', error);
     return Response.json(
