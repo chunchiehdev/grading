@@ -77,15 +77,19 @@ export default function GradingWithRubricPage() {
       const data = await response.json();
       
       if (data.success) {
-        setUploadedFiles(data.files || []);
-        setFileSelections(data.files?.map((file: UploadedFile) => ({
+        setUploadedFiles(data.data || []);
+        setFileSelections(data.data?.map((file: UploadedFile) => ({
           fileId: file.id,
           fileName: file.originalFileName || file.fileName,
           parseStatus: file.parseStatus,
           selected: false
         })) || []);
       } else {
-        setError(data.error || 'Failed to load files');
+        // Handle error object or string
+        const errorMessage = typeof data.error === 'object' && data.error?.message
+          ? data.error.message
+          : data.error || 'Failed to load files';
+        setError(errorMessage);
         setUploadedFiles([]);
         setFileSelections([]);
       }
@@ -108,14 +112,20 @@ export default function GradingWithRubricPage() {
       const data = await response.json();
       
       if (data.success) {
-        setRubrics(data.rubrics || []);
-        setRubricSelections(data.rubrics?.map((rubric: Rubric) => ({
+        const rubricsData = data.rubrics || [];
+        
+        setRubrics(rubricsData);
+        setRubricSelections(rubricsData?.map((rubric: Rubric) => ({
           rubricId: rubric.id,
           rubricName: rubric.name,
           selected: false
         })) || []);
       } else {
-        setError(data.error || 'Failed to load rubrics');
+        // Handle error object or string
+        const errorMessage = typeof data.error === 'object' && data.error?.message
+          ? data.error.message
+          : data.error || 'Failed to load rubrics';
+        setError(errorMessage);
         setRubrics([]);
         setRubricSelections([]);
       }
@@ -143,27 +153,31 @@ export default function GradingWithRubricPage() {
           const data = await response.json();
           
           if (data.success) {
-            const allParsed = data.files.every((file: any) => 
-              file.parseStatus === 'COMPLETED' || file.parseStatus === 'FAILED'
-            );
-            
-            if (allParsed) {
-              clearInterval(pollInterval);
-              loadUserFiles(); // Final reload
-              setStep('configure'); // Auto advance to next step
+            if (data.data && data.data.length > 0) {
+              const allParsed = data.data.every((file: any) => 
+                file.parseStatus === 'COMPLETED' || file.parseStatus === 'FAILED'
+              );
+              
+              if (allParsed) {
+                clearInterval(pollInterval);
+                loadUserFiles(); // Final reload
+                setStep('configure'); // Auto advance to next step
+              } else {
+                // Update state with current parsing status
+                setUploadedFiles(data.data || []);
+                setFileSelections(data.data?.map((file: any) => ({
+                  fileId: file.id,
+                  fileName: file.originalFileName || file.fileName,
+                  parseStatus: file.parseStatus,
+                  selected: false
+                })) || []);
+              }
             } else {
-              // Update state with current parsing status
-              setUploadedFiles(data.files || []);
-              setFileSelections(data.files?.map((file: any) => ({
-                fileId: file.id,
-                fileName: file.originalFileName || file.fileName,
-                parseStatus: file.parseStatus,
-                selected: false
-              })) || []);
+              // If no files returned, continue polling (files might not be ready yet)
             }
           }
         } catch (err) {
-          console.error('Polling error:', err);
+          // Continue polling despite errors
         }
       }, 2000); // Poll every 2 seconds
       
@@ -208,13 +222,19 @@ export default function GradingWithRubricPage() {
       const data = await response.json();
       
       if (data.success) {
-        setGradingSession(data.session);
+        // Handle different possible response formats
+        const session = data.session || data.data;
+        setGradingSession(session);
       } else {
-        setError(data.error || 'Failed to load grading session');
+        // Handle error object or string
+        const errorMessage = typeof data.error === 'object' && data.error?.message
+          ? data.error.message
+          : data.error || 'Failed to load grading session';
+        setError(errorMessage);
       }
-    } catch (err) {
-      setError('Failed to load grading session');
-    }
+          } catch (err) {
+        setError('Failed to load grading session');
+      }
   }, []);
 
   // Create grading session
@@ -245,15 +265,26 @@ export default function GradingWithRubricPage() {
       const data = await response.json();
       
       if (data.success) {
-        // Load the created session
-        await loadGradingSession(data.sessionId);
-        setStep('grading');
+        // Handle different possible response formats
+        const sessionId = data.sessionId || data.data?.sessionId || data.data;
+        
+        if (sessionId) {
+          // Load the created session
+          await loadGradingSession(sessionId);
+          setStep('grading');
+        } else {
+          setError('無法獲取會話 ID，請重試');
+        }
       } else {
-        setError(data.error || 'Failed to create grading session');
+        // Handle error object or string
+        const errorMessage = typeof data.error === 'object' && data.error?.message
+          ? data.error.message
+          : data.error || 'Failed to create grading session';
+        setError(errorMessage);
       }
-    } catch (err) {
-      setError('Failed to create grading session');
-    } finally {
+          } catch (err) {
+        setError('Failed to create grading session');
+      } finally {
       setIsLoading(false);
     }
   }, [filePairings, loadGradingSession]);
@@ -279,11 +310,15 @@ export default function GradingWithRubricPage() {
         // Reload session to get updated status
         await loadGradingSession(gradingSession.id);
       } else {
-        setError(data.error || 'Failed to start grading');
+        // Handle error object or string
+        const errorMessage = typeof data.error === 'object' && data.error?.message
+          ? data.error.message
+          : data.error || 'Failed to start grading';
+        setError(errorMessage);
       }
-    } catch (err) {
-      setError('Failed to start grading');
-    } finally {
+          } catch (err) {
+        setError('Failed to start grading');
+      } finally {
       setIsLoading(false);
     }
   }, [gradingSession, loadGradingSession]);
@@ -373,14 +408,13 @@ export default function GradingWithRubricPage() {
           return updated;
         });
         
-        // Show success message based on deletion type
-        if (data.deletionType === 'soft') {
-          console.log('✅ 檔案已隱藏（因為已用於評分，保留資料完整性）');
-        } else {
-          console.log('✅ 檔案已永久刪除');
-        }
+        // File deleted successfully
       } else {
-        setError(data.error || 'Failed to delete file');
+        // Handle error object or string
+        const errorMessage = typeof data.error === 'object' && data.error?.message
+          ? data.error.message
+          : data.error || 'Failed to delete file';
+        setError(errorMessage);
       }
     } catch (err) {
       setError('刪除檔案時發生網路錯誤');
@@ -503,6 +537,7 @@ export default function GradingWithRubricPage() {
               </p>
             </CardHeader>
             <CardContent>
+
               {rubrics.length === 0 ? (
                 <EmptyState
                   title="沒有評分標準"
@@ -630,55 +665,69 @@ export default function GradingWithRubricPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="font-medium">評分任務 ({gradingSession.gradingResults.length})</h3>
-                    {gradingSession.gradingResults.map((result) => {
-                      const statusDisplay = getGradingStatusDisplay(result.status);
-                      const StatusIcon = statusDisplay.icon;
-                      
-                      return (
-                        <div key={result.id} className="border rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-3">
-                              <File className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <p className="font-medium text-sm">
-                                  {result.uploadedFile.originalFileName}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  評分標準: {result.rubric.name}
-                                </p>
+                    <h3 className="font-medium">評分任務 ({gradingSession.gradingResults?.length || 0})</h3>
+                    {gradingSession.gradingResults && gradingSession.gradingResults.length > 0 ? (
+                      gradingSession.gradingResults.map((result) => {
+                        const statusDisplay = getGradingStatusDisplay(result.status);
+                        const StatusIcon = statusDisplay.icon;
+                        
+                        return (
+                          <div key={result.id} className="border rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <File className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="font-medium text-sm">
+                                    {result.uploadedFile.originalFileName}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    評分標準: {result.rubric.name}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <StatusIcon className={`h-4 w-4 ${statusDisplay.color} ${statusDisplay.icon === Loader2 ? 'animate-spin' : ''}`} />
+                                <Badge variant={result.status === 'COMPLETED' ? 'default' : 'secondary'}>
+                                  {statusDisplay.text}
+                                </Badge>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <StatusIcon className={`h-4 w-4 ${statusDisplay.color} ${statusDisplay.icon === Loader2 ? 'animate-spin' : ''}`} />
-                              <Badge variant={result.status === 'COMPLETED' ? 'default' : 'secondary'}>
-                                {statusDisplay.text}
-                              </Badge>
-                            </div>
+                            
+                            {result.progress > 0 && result.status === 'PROCESSING' && (
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-xs">
+                                  <span>進度</span>
+                                  <span>{result.progress}%</span>
+                                </div>
+                                <Progress value={result.progress} className="h-2" />
+                              </div>
+                            )}
+                            
+                            {result.errorMessage && (
+                              <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+                                錯誤: {result.errorMessage}
+                              </div>
+                            )}
                           </div>
-                          
-                          {result.progress > 0 && result.status === 'PROCESSING' && (
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-xs">
-                                <span>進度</span>
-                                <span>{result.progress}%</span>
-                              </div>
-                              <Progress value={result.progress} className="h-2" />
-                            </div>
-                          )}
-                          
-                          {result.errorMessage && (
-                            <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-                              錯誤: {result.errorMessage}
-                            </div>
-                          )}
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>載入評分任務中...</span>
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
-                <p className="text-muted-foreground">沒有評分對話</p>
+                <div className="text-center py-8">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>載入評分會話中...</span>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

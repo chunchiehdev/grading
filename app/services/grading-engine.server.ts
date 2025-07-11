@@ -52,10 +52,13 @@ export async function processGradingResult(
       return { success: false, error: 'File has no parsed content' };
     }
     
-    // Update status to processing
+    // Update status to processing and set initial progress
     await db.gradingResult.update({
       where: { id: resultId },
-      data: { status: 'PROCESSING' }
+      data: { 
+        status: 'PROCESSING',
+        progress: 10
+      }
     });
     
     // Parse rubric criteria from JSON
@@ -88,6 +91,7 @@ export async function processGradingResult(
         where: { id: resultId },
         data: {
           status: 'FAILED',
+          progress: 100,
           errorMessage: 'No grading criteria found in rubric',
           completedAt: new Date()
         }
@@ -97,6 +101,12 @@ export async function processGradingResult(
     
     // 記錄評分開始
     logger.info(`🎯 Starting grading for file: ${result.uploadedFile.originalFileName} with rubric: ${result.rubric.name}`);
+    
+    // Update progress - preparing for AI grading
+    await db.gradingResult.update({
+      where: { id: resultId },
+      data: { progress: 30 }
+    });
     
     // 嘗試從 storage 獲取檔案內容（用於檔案上傳評分）
     let fileBuffer: Buffer | null = null;
@@ -120,11 +130,17 @@ export async function processGradingResult(
     });
     
     if (gradingResponse.success && gradingResponse.result) {
+      // Update progress - AI grading completed, saving results
+      await db.gradingResult.update({
+        where: { id: resultId },
+        data: { progress: 80 }
+      });
       // Save successful grading result
       await db.gradingResult.update({
         where: { id: resultId },
         data: {
           status: 'COMPLETED',
+          progress: 100,
           result: gradingResponse.result as any,
           gradingModel: gradingResponse.metadata?.model,
           gradingTokens: gradingResponse.metadata?.tokens,
@@ -144,6 +160,7 @@ export async function processGradingResult(
         where: { id: resultId },
         data: {
           status: 'FAILED',
+          progress: 100,
           errorMessage: gradingResponse.error || 'Unknown grading error',
           completedAt: new Date()
         }
@@ -163,6 +180,7 @@ export async function processGradingResult(
         where: { id: resultId },
         data: {
           status: 'FAILED',
+          progress: 100,
           errorMessage: error instanceof Error ? error.message : 'Fatal processing error',
           completedAt: new Date()
         }
