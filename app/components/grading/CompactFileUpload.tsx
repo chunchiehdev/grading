@@ -35,10 +35,13 @@ export const CompactFileUpload = ({
     uploadFiles, 
     deleteFile, 
     isUploading,
-    uploadError 
+    uploadError,
+    lastError,
+    canRetry 
   } = useFileUpload();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const validateFile = useCallback((file: File): string | null => {
     if (file.size > maxFileSize) {
@@ -55,13 +58,18 @@ export const CompactFileUpload = ({
 
   const handleFiles = useCallback(async (newFiles: File[]) => {
     setError(null);
+    setRetryCount(0); // Reset retry count on new upload
     
-    if (uploadedFiles.length + newFiles.length > maxFiles) {
+    // Safety check for arrays
+    const safeUploadedFiles = Array.isArray(uploadedFiles) ? uploadedFiles : [];
+    const safeNewFiles = Array.isArray(newFiles) ? newFiles : [];
+    
+    if (safeUploadedFiles.length + safeNewFiles.length > maxFiles) {
       setError(`最多只能上傳 ${maxFiles} 個檔案`);
       return;
     }
     
-    for (const file of newFiles) {
+    for (const file of safeNewFiles) {
       const validationError = validateFile(file);
       if (validationError) {
         setError(validationError);
@@ -70,14 +78,27 @@ export const CompactFileUpload = ({
     }
     
     try {
-      await uploadFiles(newFiles);
-      onFilesChange?.(newFiles);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Upload failed';
+      await uploadFiles(safeNewFiles);
+      onFilesChange?.(safeNewFiles);
+    } catch (err: any) {
+      // Use the enhanced error information
+      const errorMsg = err?.message || '上傳失敗';
       setError(errorMsg);
       onError?.(errorMsg);
     }
-  }, [validateFile, uploadFiles, onFilesChange, onError, uploadedFiles.length, maxFiles]);
+  }, [validateFile, uploadFiles, onFilesChange, onError, uploadedFiles, maxFiles]);
+
+  // Retry function for retryable errors
+  const handleRetry = useCallback(async () => {
+    if (!canRetry) return;
+    
+    setRetryCount(prev => prev + 1);
+    setError(null);
+    
+    // Get the last set of files that failed (this would need to be tracked)
+    // For now, we'll just clear the error and let user re-select files
+    console.log('Retrying upload...');
+  }, [canRetry]);
 
   // Handle drag events
   const handleDrag = (e: React.DragEvent) => {
@@ -107,6 +128,72 @@ export const CompactFileUpload = ({
     }
   }, [uploadError, onError]);
 
+  // Enhanced error display
+  const renderError = () => {
+    if (!error && !lastError?.message) return null;
+
+    const displayError = error || lastError?.message || '';
+    const errorType = lastError?.type || 'unknown';
+    const isRetryable = lastError?.retryable || false;
+
+    const getErrorIcon = () => {
+      switch (errorType) {
+        case 'network': return '🌐';
+        case 'auth': return '🔐';
+        case 'quota': return '📏';
+        case 'validation': return '⚠️';
+        case 'storage': return '💾';
+        default: return '❌';
+      }
+    };
+
+    const getErrorColor = () => {
+      switch (errorType) {
+        case 'network': return 'border-orange-200 bg-orange-50 text-orange-800';
+        case 'auth': return 'border-red-200 bg-red-50 text-red-800';
+        case 'quota': return 'border-yellow-200 bg-yellow-50 text-yellow-800';
+        case 'validation': return 'border-blue-200 bg-blue-50 text-blue-800';
+        case 'storage': return 'border-purple-200 bg-purple-50 text-purple-800';
+        default: return 'border-red-200 bg-red-50 text-red-800';
+      }
+    };
+
+    return (
+      <div className={`rounded-md border p-3 ${getErrorColor()}`}>
+        <div className="flex items-start">
+          <span className="text-lg mr-2" role="img" aria-label="error-icon">
+            {getErrorIcon()}
+          </span>
+          <div className="flex-1">
+            <p className="text-sm font-medium">{displayError}</p>
+            {isRetryable && retryCount < 3 && (
+              <button
+                onClick={handleRetry}
+                className="mt-2 text-xs underline hover:no-underline"
+                disabled={isUploading}
+              >
+                重試上傳 {retryCount > 0 && `(第 ${retryCount + 1} 次嘗試)`}
+              </button>
+            )}
+            {errorType === 'auth' && (
+              <p className="mt-1 text-xs opacity-75">
+                請刷新頁面重新登錄
+              </p>
+            )}
+            {errorType === 'network' && (
+              <p className="mt-1 text-xs opacity-75">
+                請檢查網絡連接狀態
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Safe array check for uploadedFiles
+  const safeUploadedFiles = Array.isArray(uploadedFiles) ? uploadedFiles : [];
+
   return (
     <div className="border-b border-border">
       <Accordion type="single" collapsible className="w-full">
@@ -115,20 +202,14 @@ export const CompactFileUpload = ({
             <div className="flex items-center gap-2">
               <Paperclip className="h-4 w-4" />
               <span className="font-medium">
-                請上傳您的作業 {uploadedFiles.length > 0 && `(${uploadedFiles.length})`}
+                請上傳您的作業 {safeUploadedFiles.length > 0 && `(${safeUploadedFiles.length})`}
               </span>
             </div>
           </AccordionTrigger>
           <AccordionContent>
             <div className="px-4 pb-3 space-y-3">
-              {error && (
-                <div className="py-2 px-3 border border-red-300 bg-red-50 rounded-md">
-                  <div className="flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-2 text-red-600" />
-                    <p className="text-red-800 text-sm">{error}</p>
-                  </div>
-                </div>
-              )}
+              {/* Enhanced error display */}
+              {renderError()}
 
               <div
                 onDragEnter={() => setIsDragging(true)}
@@ -179,10 +260,10 @@ export const CompactFileUpload = ({
                 />
               </div>
 
-              {uploadedFiles.length > 0 && (
+              {safeUploadedFiles.length > 0 && (
                 <ScrollArea className="h-[120px] w-full rounded-md border border-border">
                   <div className="p-2 space-y-2">
-                    {uploadedFiles.map((fileData) => (
+                    {safeUploadedFiles.map((fileData) => (
                       <div
                         key={fileData.file.name}
                         className={cn(

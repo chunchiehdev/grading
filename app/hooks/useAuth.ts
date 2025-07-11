@@ -131,7 +131,8 @@ export function useLogout() {
 
       queryClient.clear();
 
-      window.location.href = '/auth/login';
+      // Redirect to home page instead of login page
+      window.location.href = '/?logout=success';
     },
   });
 }

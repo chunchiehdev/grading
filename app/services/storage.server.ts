@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 import { storageConfig } from '@/config/storage';
+import logger from '@/utils/logger';
 
 /**
  * AWS S3 client instance configured with storage settings
@@ -8,66 +9,232 @@ import { storageConfig } from '@/config/storage';
 export const s3Client = new S3Client(storageConfig.s3Config);
 
 /**
- * Gets file buffer from S3 storage
- * @param {string} fileKey - Storage key/path of the file
- * @returns {Promise<Buffer>} File content as Buffer
+ * Error types for better error handling and user feedback
  */
-export async function getFileFromStorage(fileKey: string): Promise<Buffer> {
-  const command = new GetObjectCommand({
-    Bucket: storageConfig.bucket,
-    Key: fileKey,
-  });
+export enum StorageErrorType {
+  NETWORK = 'NETWORK',
+  AUTH = 'AUTH', 
+  NOT_FOUND = 'NOT_FOUND',
+  QUOTA = 'QUOTA',
+  VALIDATION = 'VALIDATION',
+  UNKNOWN = 'UNKNOWN'
+}
 
-  const response = await s3Client.send(command);
-  const chunks: Uint8Array[] = [];
-  
-  if (response.Body) {
-    // @ts-ignore
-    for await (const chunk of response.Body) {
-      chunks.push(chunk);
-    }
-  }
-  
-  return Buffer.concat(chunks);
+export interface StorageError extends Error {
+  type: StorageErrorType;
+  retryable: boolean;
+  statusCode?: number;
+  originalError?: Error;
 }
 
 /**
- * Uploads file data to S3-compatible storage
+ * Creates a categorized storage error with additional metadata
+ */
+function createStorageError(error: any, operation: string): StorageError {
+  const statusCode = error.$metadata?.httpStatusCode || error.statusCode;
+  const errorCode = error.Code || error.name;
+  const message = error.message || 'Storage operation failed';
+
+  let type = StorageErrorType.UNKNOWN;
+  let retryable = false;
+
+  // Categorize error based on AWS error codes and status codes
+  if (statusCode === 403 || errorCode === 'AccessDenied' || errorCode === 'InvalidAccessKeyId') {
+    type = StorageErrorType.AUTH;
+    retryable = false;
+  } else if (statusCode === 404 || errorCode === 'NoSuchBucket' || errorCode === 'NoSuchKey') {
+    type = StorageErrorType.NOT_FOUND;
+    retryable = false;
+  } else if (statusCode === 413 || errorCode === 'EntityTooLarge') {
+    type = StorageErrorType.QUOTA;
+    retryable = false;
+  } else if (statusCode >= 500 || errorCode === 'InternalError' || errorCode === 'ServiceUnavailable') {
+    type = StorageErrorType.NETWORK;
+    retryable = true;
+  } else if (statusCode === 429 || errorCode === 'SlowDown') {
+    type = StorageErrorType.QUOTA;
+    retryable = true;
+  } else if (message.includes('network') || message.includes('timeout') || message.includes('ECONNRESET')) {
+    type = StorageErrorType.NETWORK;
+    retryable = true;
+  } else if (statusCode >= 400 && statusCode < 500) {
+    type = StorageErrorType.VALIDATION;
+    retryable = false;
+  }
+
+  const storageError = new Error(`${operation} failed: ${message}`) as StorageError;
+  storageError.type = type;
+  storageError.retryable = retryable;
+  storageError.statusCode = statusCode;
+  storageError.originalError = error;
+
+  return storageError;
+}
+
+/**
+ * Retry function with exponential backoff
+ */
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000,
+  operationName: string = 'operation'
+): Promise<T> {
+  let lastError: any;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 1) {
+        const delay = baseDelay * Math.pow(2, attempt - 2) + Math.random() * 1000;
+        logger.info(`Retrying ${operationName} (attempt ${attempt}/${maxRetries}) after ${Math.round(delay)}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const storageError = createStorageError(error, operationName);
+      
+      logger.warn(`${operationName} attempt ${attempt}/${maxRetries} failed:`, {
+        error: storageError.message,
+        type: storageError.type,
+        retryable: storageError.retryable,
+        statusCode: storageError.statusCode
+      });
+
+      // Don't retry if error is not retryable or this is the last attempt
+      if (!storageError.retryable || attempt === maxRetries) {
+        throw storageError;
+      }
+    }
+  }
+
+  throw createStorageError(lastError, operationName);
+}
+
+/**
+ * Gets file buffer from S3 storage with error handling and retry logic
+ * @param {string} fileKey - Storage key/path of the file
+ * @returns {Promise<Buffer>} File content as Buffer
+ * @throws {StorageError} Categorized error with retry information
+ */
+export async function getFileFromStorage(fileKey: string): Promise<Buffer> {
+  return retryWithBackoff(async () => {
+    const command = new GetObjectCommand({
+      Bucket: storageConfig.bucket,
+      Key: fileKey,
+    });
+
+    const response = await s3Client.send(command);
+    const chunks: Uint8Array[] = [];
+    
+    if (response.Body) {
+      // @ts-ignore
+      for await (const chunk of response.Body) {
+        chunks.push(chunk);
+      }
+    }
+    
+    const buffer = Buffer.concat(chunks);
+    logger.info(`Successfully retrieved file from storage: ${fileKey} (${buffer.length} bytes)`);
+    return buffer;
+  }, 3, 1000, `Get file ${fileKey}`);
+}
+
+/**
+ * Uploads file data to S3-compatible storage with comprehensive error handling
  * @param {Buffer|Readable} fileData - File content as Buffer or Readable stream
  * @param {string} key - Storage key/path for the file
  * @param {string} contentType - MIME type of the file
  * @returns {Promise<Object>} Upload result with success status, key, URL, and ETag
+ * @throws {StorageError} Categorized error with retry information
  */
 export async function uploadToStorage(fileData: Buffer | Readable, key: string, contentType: string) {
-  const command = new PutObjectCommand({
-    Bucket: storageConfig.bucket,
-    Key: key,
-    Body: fileData,
-    ContentType: contentType,
-  });
+  // Validate inputs
+  if (!fileData) {
+    const error = new Error('File data is required') as StorageError;
+    error.type = StorageErrorType.VALIDATION;
+    error.retryable = false;
+    throw error;
+  }
 
-  const response = await s3Client.send(command);
+  if (!key || key.trim() === '') {
+    const error = new Error('Storage key is required') as StorageError;
+    error.type = StorageErrorType.VALIDATION;
+    error.retryable = false;
+    throw error;
+  }
 
-  return {
-    success: true,
-    key,
-    url: storageConfig.getFileUrl(key),
-    etag: response.ETag,
-  };
+  const fileSize = Buffer.isBuffer(fileData) ? fileData.length : 'unknown';
+  logger.info(`Starting upload to storage: ${key} (${fileSize} bytes, ${contentType})`);
+
+  return retryWithBackoff(async () => {
+    const command = new PutObjectCommand({
+      Bucket: storageConfig.bucket,
+      Key: key,
+      Body: fileData,
+      ContentType: contentType,
+    });
+
+    const response = await s3Client.send(command);
+
+    const result = {
+      success: true,
+      key,
+      url: storageConfig.getFileUrl(key),
+      etag: response.ETag,
+    };
+
+    logger.info(`Successfully uploaded file to storage: ${key} (ETag: ${response.ETag})`);
+    return result;
+  }, 3, 1500, `Upload file ${key}`);
 }
 
 /**
- * Deletes a file from storage using its key
+ * Deletes a file from storage using its key with error handling
  * @param {string} key - Storage key/path of the file to delete
  * @returns {Promise<Object>} Deletion result with success status
+ * @throws {StorageError} Categorized error with retry information
  */
 export async function deleteFromStorage(key: string) {
-  const command = new DeleteObjectCommand({
-    Bucket: storageConfig.bucket,
-    Key: key,
-  });
+  if (!key || key.trim() === '') {
+    const error = new Error('Storage key is required for deletion') as StorageError;
+    error.type = StorageErrorType.VALIDATION;
+    error.retryable = false;
+    throw error;
+  }
 
-  await s3Client.send(command);
+  logger.info(`Starting deletion from storage: ${key}`);
 
-  return { success: true };
+  return retryWithBackoff(async () => {
+    const command = new DeleteObjectCommand({
+      Bucket: storageConfig.bucket,
+      Key: key,
+    });
+
+    await s3Client.send(command);
+
+    logger.info(`Successfully deleted file from storage: ${key}`);
+    return { success: true };
+  }, 3, 1000, `Delete file ${key}`);
+}
+
+/**
+ * Gets user-friendly error message based on storage error type
+ */
+export function getStorageErrorMessage(error: StorageError): string {
+  switch (error.type) {
+    case StorageErrorType.AUTH:
+      return '存儲服務認證失敗，請聯繫系統管理員';
+    case StorageErrorType.NOT_FOUND:
+      return '找不到指定的文件或存儲位置';
+    case StorageErrorType.QUOTA:
+      return '文件太大或存儲空間不足，請嘗試較小的文件';
+    case StorageErrorType.NETWORK:
+      return '網絡連接問題，請稍後重試';
+    case StorageErrorType.VALIDATION:
+      return '文件格式或參數無效';
+    default:
+      return '文件上傳失敗，請稍後重試';
+  }
 }

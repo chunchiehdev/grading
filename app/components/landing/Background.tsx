@@ -1,7 +1,7 @@
 export default function Background() {
   return (
     <div className="fixed inset-0 -z-10">
-      {/* Gradient Background - Using our theme colors */}
+      {/* Gradient Background - Force light colors regardless of theme */}
       <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-stone-50 to-amber-50/30" />
       
       {/* Geometric Patterns - Updated to match theme */}
