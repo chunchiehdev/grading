@@ -141,7 +141,7 @@ export default function RubricsIndexRoute() {
   console.log('Rendering rubrics:', rubrics);
   
   return (
-    <div className="container py-8">
+    <div className="container mx-auto py-8">
       {/* 頁面標題和操作 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>

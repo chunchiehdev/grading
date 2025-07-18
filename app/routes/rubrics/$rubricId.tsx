@@ -144,7 +144,7 @@ export default function RubricDetailRoute() {
   };
 
   return (
-    <div className="container py-8">
+    <div className="container mx-auto py-8">
       {/* 錯誤提示 */}
       {actionData?.error && (
         <div className="mb-6 bg-destructive/15 border border-destructive/20 rounded-lg p-4">

@@ -154,15 +154,9 @@ function Layout() {
   return (
     <div className="relative flex min-h-screen w-full">
       {/* <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} /> */}
-      <div
-        className={cn(
-          'flex-1 transition-all duration-300 ease-in-out',
-          'md:ml-[260px]',
-          sidebarCollapsed && 'md:ml-[20px]'
-        )}
-      >
+      <div className="flex-1">
         <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
-        <main className="p-8 flex justify-center items-center">
+        <main className="p-8">
           <Outlet />
         </main>
       </div>
