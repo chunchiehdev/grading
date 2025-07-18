@@ -63,8 +63,8 @@ export default function GradingHistoryPage() {
       const data = await response.json();
       
       if (data.success) {
-        setSessions(data.sessions || []);
-        setTotal(data.total || 0);
+        setSessions(data.data || []);
+        setTotal(data.meta?.total || 0);
         setOffset(currentOffset);
       } else {
         setError(data.error || 'Failed to load grading sessions');
