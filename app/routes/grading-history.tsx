@@ -266,14 +266,14 @@ export default function GradingHistoryPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
+                      {/* <div className="text-right">
                         <div className="text-2xl font-bold text-primary">
                           {session.progress}%
                         </div>
                         <div className="text-xs text-muted-foreground">
                           完成進度
                         </div>
-                      </div>
+                      </div> */}
                     </div>
                     
                     {/* Progress Bar */}
@@ -283,7 +283,7 @@ export default function GradingHistoryPage() {
                   <CardContent>
                     <div className="space-y-4">
                       {/* Statistics */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="text-center p-3 bg-muted/30 rounded-lg">
                           <div className="text-lg font-semibold text-green-600">
                             {stats.completedTasks}
@@ -302,12 +302,12 @@ export default function GradingHistoryPage() {
                           </div>
                           <div className="text-xs text-muted-foreground">失敗</div>
                         </div>
-                        <div className="text-center p-3 bg-muted/30 rounded-lg">
+                        {/* <div className="text-center p-3 bg-muted/30 rounded-lg">
                           <div className="text-lg font-semibold text-primary">
                             {stats.successRate}%
                           </div>
                           <div className="text-xs text-muted-foreground">成功率</div>
-                        </div>
+                        </div> */}
                       </div>
 
                       {/* Recent Results Preview */}
