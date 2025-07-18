@@ -54,6 +54,27 @@ export const loader = async () => {
 export default function RubricsIndexRoute() {
   const { rubrics, error } = useLoaderData<typeof loader>();
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  // 快捷鍵功能
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        // 確保不在輸入框中
+        if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+          event.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      }
+      if (event.key === 'Escape' && searchQuery) {
+        setSearchQuery('');
+        searchInputRef.current?.blur();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [searchQuery]);
   
   const filteredRubrics = rubrics.filter((rubric: Rubric) =>
     rubric.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -168,19 +189,31 @@ export default function RubricsIndexRoute() {
       <div className="flex flex-col lg:flex-row gap-6 mb-8">
         {/* 搜尋欄 */}
         <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
-              placeholder="搜尋評分標準名稱或描述..."
+              ref={searchInputRef}
+              placeholder="搜尋評分標準名稱或描述... (按 / 快速搜尋)"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-12 pr-12 h-12 text-base bg-muted/30 border-muted-foreground/20 focus:bg-background focus:border-primary/50 transition-all"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted p-0.5"
+                aria-label="清除搜尋"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 
         {/* 統計卡片 */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:w-96">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:w-96">
           <Card className="p-3">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">{rubrics.length}</div>
@@ -203,14 +236,14 @@ export default function RubricsIndexRoute() {
               <div className="text-xs text-muted-foreground">總分數</div>
             </div>
           </Card>
-          <Card className="p-3">
+          {/* <Card className="p-3">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary">
                 {Math.round(rubrics.filter((r: Rubric) => r.criteria && r.criteria.length > 0).length / rubrics.length * 100) || 0}%
               </div>
               <div className="text-xs text-muted-foreground">完整率</div>
             </div>
-          </Card>
+          </Card> */}
         </div>
       </div>
 

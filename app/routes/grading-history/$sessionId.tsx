@@ -234,14 +234,14 @@ export default function GradingSessionDetailPage() {
                 </div>
               </div>
             </div>
-            <div className="text-right">
+            {/* <div className="text-right">
               <div className="text-3xl font-bold text-primary">
                 {session.progress}%
               </div>
               <div className="text-sm text-muted-foreground">
                 完成進度
               </div>
-            </div>
+            </div> */}
           </div>
           
           {/* Progress Bar */}
@@ -250,7 +250,7 @@ export default function GradingSessionDetailPage() {
         
         <CardContent>
           {/* Statistics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-green-50 border border-green-200 rounded-lg">
               <div className="text-2xl font-bold text-green-600">
                 {stats.completedTasks}
@@ -269,12 +269,12 @@ export default function GradingSessionDetailPage() {
               </div>
               <div className="text-sm text-muted-foreground">失敗</div>
             </div>
-            <div className="text-center p-4 bg-primary/10 border border-primary/20 rounded-lg">
+            {/* <div className="text-center p-4 bg-primary/10 border border-primary/20 rounded-lg">
               <div className="text-2xl font-bold text-primary">
                 {stats.successRate}%
               </div>
               <div className="text-sm text-muted-foreground">成功率</div>
-            </div>
+            </div> */}
           </div>
         </CardContent>
       </Card>
