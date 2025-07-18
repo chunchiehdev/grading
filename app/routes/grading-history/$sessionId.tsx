@@ -81,11 +81,11 @@ export default function GradingSessionDetailPage() {
         const data = await response.json();
         
         if (!response.ok || !data.success) {
-          setError(data.error || 'Session not found');
+          setError(data.error?.message || data.error || 'Session not found');
           return;
         }
         
-        setSession(data.session);
+        setSession(data.data);
       } catch (err) {
         console.error('Failed to load session details:', err);
         setError('Failed to load session details');
