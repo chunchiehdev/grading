@@ -5,6 +5,10 @@ on:
       - "master" 
       - "development"
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -17,6 +21,9 @@ jobs:
         echo "Commit: ${GITHUB_SHA::7}" 
 
     - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
     
     - name: Auto-update version based on commit message
       id: version-update
