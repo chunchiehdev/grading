@@ -10,6 +10,7 @@ import { requireAuth } from '@/middleware/auth.server';
 import { PUBLIC_PATHS } from '@/constants/auth';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useUiStore } from '@/stores/uiStore';
+import { FooterVersion } from '@/components/VersionInfo';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -130,36 +131,41 @@ function Layout() {
   // Public paths without user - show minimal layout
   if (isPublicPath && !user) {
     return (
-      <main className="min-h-screen w-full">
-        <Outlet />
-      </main>
+      <div className="min-h-screen w-full flex flex-col">
+        <main className="flex-1">
+          <Outlet />
+        </main>
+        <FooterVersion />
+      </div>
     );
   }
 
   // Public paths with user - show layout with NavHeader
   if (isPublicPath && user) {
     return (
-      <div className="relative flex min-h-screen w-full">
+      <div className="relative flex flex-col min-h-screen w-full">
         <div className="flex-1">
           <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
-          <main className="min-h-screen w-full">
+          <main className="flex-1">
             <Outlet />
           </main>
         </div>
+        <FooterVersion />
       </div>
     );
   }
 
   // Protected paths - show full layout
   return (
-    <div className="relative flex min-h-screen w-full">
+    <div className="relative flex flex-col min-h-screen w-full">
       {/* <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} /> */}
       <div className="flex-1">
         <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
-        <main className="p-8">
+        <main className="p-8 flex-1">
           <Outlet />
         </main>
       </div>
+      <FooterVersion />
     </div>
   );
 }

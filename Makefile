@@ -24,4 +24,17 @@ tdd: test-db-setup test-db-check test-watch
 
 clean:
 	npm run test:coverage --silent
-	make test-db-down 
+	make test-db-down
+
+# Build commands with version info
+build-dev:
+	@./scripts/build-local.sh dev
+
+build-prod:
+	@./scripts/build-local.sh prod
+
+build-dev-simple:
+	docker-compose -f docker-compose.dev.yaml build
+
+build-prod-simple:
+	docker-compose -f docker-compose.prod.yaml build 

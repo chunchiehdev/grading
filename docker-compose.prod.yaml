@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        BUILD_BRANCH: ${BUILD_BRANCH:-local-prod}
+        BUILD_COMMIT: ${BUILD_COMMIT:-local}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
     ports:
       - "3000:3000"
     environment:

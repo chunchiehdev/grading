@@ -17,6 +17,66 @@ jobs:
         echo "Commit: ${GITHUB_SHA::7}" 
 
     - uses: actions/checkout@v4
+    
+    - name: Auto-update version based on commit message
+      id: version-update
+      run: |
+        COMMIT_MSG="${{ github.event.head_commit.message }}"
+        echo "Commit message: $COMMIT_MSG"
+        
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          echo "🏭 Processing master branch - production versioning"
+          # Check for version bump indicators in commit message
+          if [[ "$COMMIT_MSG" =~ ^feat(\(.+\))?!: ]] || [[ "$COMMIT_MSG" =~ BREAKING.CHANGE ]]; then
+            echo "🚀 BREAKING CHANGE detected - bumping major version"
+            npm run version:major
+            echo "BUMP_TYPE=major" >> $GITHUB_OUTPUT
+          elif [[ "$COMMIT_MSG" =~ ^feat(\(.+\))?: ]]; then
+            echo "✨ Feature detected - bumping minor version"
+            npm run version:minor
+            echo "BUMP_TYPE=minor" >> $GITHUB_OUTPUT
+          elif [[ "$COMMIT_MSG" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_MSG" =~ ^perf(\(.+\))?: ]]; then
+            echo "🐛 Fix/perf detected - bumping patch version"
+            npm run version:patch
+            echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
+          else
+            echo "📝 No version bump needed for this commit"
+            echo "BUMP_TYPE=none" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "🔧 Processing development branch - prerelease versioning"
+          # For development, always create a prerelease version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Remove any existing prerelease suffix and add new one
+          BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-dev\.[0-9]*$//')
+          TIMESTAMP=$(date +%Y%m%d%H%M)
+          NEW_VERSION="${BASE_VERSION}-dev.${TIMESTAMP}"
+          
+          echo "Creating development version: $NEW_VERSION"
+          npm version "$NEW_VERSION" --no-git-tag-version
+          echo "BUMP_TYPE=dev" >> $GITHUB_OUTPUT
+        fi
+      
+    - name: Get version from package.json
+      id: package-version
+      run: |
+        VERSION=$(node -p "require('./package.json').version")
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Package version: $VERSION"
+    
+    - name: Commit version bump
+      if: steps.version-update.outputs.BUMP_TYPE != 'none'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add package.json
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          git commit -m "chore: bump version to ${{ steps.package-version.outputs.VERSION }} [${{ steps.version-update.outputs.BUMP_TYPE }}]"
+        else
+          git commit -m "chore: bump dev version to ${{ steps.package-version.outputs.VERSION }} [development]"
+        fi
       
     - name: Login to Docker Hub
       uses: docker/login-action@v3
@@ -28,7 +88,14 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         push: true
-        tags: chunchiehdev/gradsystem:${{ github.ref_name }}
+        build-args: |
+          BUILD_BRANCH=${{ github.ref_name }}
+          BUILD_COMMIT=${{ github.sha }}
+          BUILD_TIME=${{ github.event.head_commit.timestamp }}
+        tags: |
+          chunchiehdev/gradsystem:${{ github.ref_name }}
+          chunchiehdev/gradsystem:${{ steps.package-version.outputs.VERSION }}-${{ github.ref_name }}
+          ${{ github.ref_name == 'master' && format('chunchiehdev/gradsystem:{0}', steps.package-version.outputs.VERSION) || '' }}
 
     - name: Deploy to K3s
       uses: appleboy/ssh-action@master
@@ -40,6 +107,7 @@ jobs:
           set +x  
           export KUBECONFIG=~/.kube/config
           echo "Starting application deployment for ${{ github.ref_name }} "
+          echo "Version: ${{ steps.package-version.outputs.VERSION }}"
           
           # Set variables based on branch
           if [ "${{ github.ref_name }}" = "master" ]; then
@@ -89,6 +157,31 @@ jobs:
             exit 1
           fi
           
+    - name: Push version bump and create tag
+      if: steps.version-update.outputs.BUMP_TYPE != 'none'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git push origin ${{ github.ref_name }}
+        
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          echo "🏷️ Creating production release tag"
+          git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Release v${{ steps.package-version.outputs.VERSION }}"
+          git push origin v${{ steps.package-version.outputs.VERSION }}
+        else
+          echo "🏷️ Creating development tag"
+          git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Development release v${{ steps.package-version.outputs.VERSION }}"
+          git push origin v${{ steps.package-version.outputs.VERSION }}
+        fi
+    
+    - name: Create tag for current version (master only, no version bump)
+      if: github.ref_name == 'master' && steps.version-update.outputs.BUMP_TYPE == 'none'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Release v${{ steps.package-version.outputs.VERSION }}"
+        git push origin v${{ steps.package-version.outputs.VERSION }}
+          
     - name: Deployment Summary
       run: |
         echo "📝 Deployment Summary"
@@ -96,6 +189,20 @@ jobs:
         echo "✅ Pipeline completed successfully"
         echo "Environment: ${{ github.ref_name == 'master' && 'production' || 'development' }}"
         echo "Branch: ${{ github.ref }}"
+        echo "Version: ${{ steps.package-version.outputs.VERSION }}"
+        echo "Version bump: ${{ steps.version-update.outputs.BUMP_TYPE }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "Build time: ${{ github.event.head_commit.timestamp }}"
+        
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          echo "🏷️  Production release tag: v${{ steps.package-version.outputs.VERSION }}"
+          echo "🎯 Versioning: Semantic versioning based on commit messages"
+        else
+          if [ "${{ steps.version-update.outputs.BUMP_TYPE }}" != "none" ]; then
+            echo "🏷️  Development tag: v${{ steps.package-version.outputs.VERSION }}"
+          fi
+          echo "🎯 Versioning: Prerelease with timestamp for development tracking"
+        fi
 
     - name: Handle Failure
       if: failure()

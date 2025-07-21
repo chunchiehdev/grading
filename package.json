@@ -16,7 +16,11 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "migrate:dev": "npx prisma migrate dev --name init && npx prisma generate",
-    "migrate:prod": "npx prisma migrate deploy && npx prisma generate"
+    "migrate:prod": "npx prisma migrate deploy && npx prisma generate",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
+    "version:get": "node -p \"require('./package.json').version\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.802.0",
