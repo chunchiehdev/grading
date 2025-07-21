@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        BUILD_VERSION: ${BUILD_VERSION:-1.0.0}
         BUILD_BRANCH: ${BUILD_BRANCH:-local-prod}
         BUILD_COMMIT: ${BUILD_COMMIT:-local}
         BUILD_TIME: ${BUILD_TIME:-unknown}
