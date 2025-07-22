@@ -55,6 +55,9 @@ export default [
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
 
+  // Version API route
+  route('/api/version', './routes/api.version.ts'),
+
   // AI API routes
   route('/api/ai/generate-rubric', './routes/api.ai.generate-rubric.ts'),
 
