@@ -11,6 +11,7 @@ import { PUBLIC_PATHS } from '@/constants/auth';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useUiStore } from '@/stores/uiStore';
 import { FooterVersion } from '@/components/VersionInfo';
+import type { VersionInfo } from '@/services/version.server';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +31,7 @@ type User = {
 type LoaderData = {
   user: User | null;
   isPublicPath: boolean;
+  versionInfo: VersionInfo | null;
 };
 
 export const links = () => [
@@ -73,10 +75,26 @@ export async function loader({ request }: { request: Request }) {
     path.includes('.png') ||
     path.includes('.jpg') ||
     path.includes('.svg') ||
-    path.startsWith('/__')  // React Router internal routes
+    path.startsWith('/__')  
   ) {
-    return { user: null, isPublicPath: true };
+    return { user: null, isPublicPath: true, versionInfo: null };
   }
+
+  const getVersionInfoLocal = async () => {
+    try {
+      const { getVersionInfo } = await import('@/services/version.server');
+      return getVersionInfo();
+    } catch (error) {
+      console.error('Failed to get version info:', error);
+      return {
+        version: '1.0.0',
+        branch: 'unknown',
+        commitHash: 'unknown',
+        buildTime: new Date().toISOString(),
+        environment: 'development'
+      };
+    }
+  };
 
   // Check if this is a public path (but still get user if available)
   const isPublicPath = PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
@@ -85,17 +103,24 @@ export async function loader({ request }: { request: Request }) {
     // For public paths, try to get user but don't require auth
     try {
       const { getUser } = await import('@/services/auth.server');
-      const user = await getUser(request);
-      return { user, isPublicPath: true };
+      const [user, versionInfo] = await Promise.all([
+        getUser(request),
+        getVersionInfoLocal()
+      ]);
+      return { user, isPublicPath: true, versionInfo };
     } catch (error) {
-      return { user: null, isPublicPath: true };
+      const versionInfo = await getVersionInfoLocal();
+      return { user: null, isPublicPath: true, versionInfo };
     }
   }
 
   // For protected paths, require authentication
   try {
-    const user = await requireAuth(request);
-    return { user, isPublicPath: false };
+    const [user, versionInfo] = await Promise.all([
+      requireAuth(request),
+      getVersionInfoLocal()
+    ]);
+    return { user, isPublicPath: false, versionInfo };
   } catch (error) {
     return redirect('/auth/login');
   }
@@ -125,7 +150,7 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const { user, isPublicPath } = useLoaderData() as LoaderData;
+  const { user, isPublicPath, versionInfo } = useLoaderData() as LoaderData;
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
 
   // Public paths without user - show minimal layout
@@ -135,7 +160,7 @@ function Layout() {
         <main className="flex-1">
           <Outlet />
         </main>
-        <FooterVersion />
+        <FooterVersion versionInfo={versionInfo} />
       </div>
     );
   }
@@ -150,7 +175,7 @@ function Layout() {
             <Outlet />
           </main>
         </div>
-        <FooterVersion />
+        <FooterVersion versionInfo={versionInfo} />
       </div>
     );
   }
@@ -165,7 +190,7 @@ function Layout() {
           <Outlet />
         </main>
       </div>
-      <FooterVersion />
+      <FooterVersion versionInfo={versionInfo} />
     </div>
   );
 }

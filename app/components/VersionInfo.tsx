@@ -1,12 +1,4 @@
-import { useState, useEffect } from 'react';
-
-interface VersionInfo {
-  version: string;
-  branch: string;
-  commitHash: string;
-  buildTime: string;
-  environment: string;
-}
+import type { VersionInfo } from '@/services/version.server';
 
 const Badge = ({ children, variant = 'default', className = '' }: { 
   children: React.ReactNode; 
@@ -27,39 +19,14 @@ const Badge = ({ children, variant = 'default', className = '' }: {
   );
 };
 
-export function VersionInfo() {
-  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
-
-  useEffect(() => {
-    // 從 package.json 或環境變數獲取版本信息
-    const getVersionInfo = async () => {
-      try {
-        const response = await fetch('/api/version');
-        const data = await response.json();
-        setVersionInfo(data);
-      } catch (error) {
-        console.error('Failed to fetch version info:', error);
-        // Fallback to static version
-        setVersionInfo({
-          version: '1.0.0',
-          branch: 'unknown',
-          commitHash: 'unknown',
-          buildTime: new Date().toISOString(),
-          environment: 'development'
-        });
-      }
-    };
-
-    getVersionInfo();
-  }, []);
-
+// Simple version for places that don't need their own route
+export function StaticVersionInfo({ versionInfo }: { versionInfo: VersionInfo }) {
   if (!versionInfo) return null;
 
   const isProduction = versionInfo.branch === 'master';
   const isDevelopment = versionInfo.branch === 'development';
   const isPrerelease = versionInfo.version.includes('-dev.');
   
-  // Extract version parts for prerelease
   const versionDisplay = isPrerelease 
     ? versionInfo.version.split('-dev.')[0] + '-DEV'
     : versionInfo.version;
@@ -100,7 +67,11 @@ export function VersionInfo() {
   );
 }
 
-export function FooterVersion() {
+export function FooterVersion({ 
+  versionInfo 
+}: { 
+  versionInfo: VersionInfo | null; 
+}) {
   return (
     <footer className="border-t bg-white">
       <div className="container mx-auto px-4 py-3">
@@ -108,7 +79,7 @@ export function FooterVersion() {
           <p className="text-sm text-gray-600">
             © 2025 GradSystem. All rights reserved.
           </p>
-          <VersionInfo />
+          {versionInfo && <StaticVersionInfo versionInfo={versionInfo} />}
         </div>
       </div>
     </footer>
