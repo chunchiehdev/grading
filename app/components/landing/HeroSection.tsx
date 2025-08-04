@@ -49,7 +49,7 @@ const HeroSection = () => {
               <div className="w-20 h-px bg-gray-300"></div>
               
               <p className="text-lg lg:text-xl text-gray-600 font-light leading-relaxed max-w-lg">
-                為現代教育工作者設計的直觀評分工具，讓評分過程更加高效且準確。
+                為現代教育工作者設計的直觀評分工具，讓評分過程更加高效且準確。aaa
               </p>
             </div>
 
