@@ -1,0 +1,61 @@
+---
+description: Component Standards for UI Components
+globs: ["app/components/**/*.tsx", "app/components/**/*.ts"]
+alwaysApply: true
+---
+
+# Frontend Component Standards
+
+## Component Structure
+Always follow this pattern from `app/components/VersionInfo.tsx`:
+
+```typescript
+// Props interface first
+interface ComponentProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'secondary';
+  className?: string;
+}
+
+// Functional component as named export
+export function ComponentName({ prop }: ComponentProps) {
+  // component logic
+  return <div>content</div>;
+}
+```
+
+## Styling Standards
+When working in components directory:
+- **Always use Tailwind CSS** for styling
+- Reference: `app/components/VersionInfo.tsx` Badge component
+- Use `clsx()` for conditional classes
+- Follow responsive design patterns
+
+```typescript
+// Example from VersionInfo Badge component
+const baseClasses = 'inline-flex items-center px-2 py-1 rounded text-xs font-medium';
+const variantClasses = {
+  default: 'bg-blue-100 text-blue-800 border border-blue-200',
+  outline: 'bg-white text-gray-700 border border-gray-300'
+};
+```
+
+## UI Component Integration
+- Use **Radix UI** components (@radix-ui/react-*)
+- Custom base components go in `app/components/ui/`
+- Reference existing patterns in codebase
+
+## State Management
+- Use `useState` for local component state only
+- Access global state via `useUiStore` (Zustand)
+- Server state comes from `useLoaderData<typeof loader>()`
+
+## Type Safety
+- Always define props interfaces
+- Export component types when reusable
+- Use TypeScript strict mode patterns
+
+## UI Library Usage
+- Use `shadcn/ui` component conventions, which wrap Radix UI with Tailwind-based styling
+- Prefer components like `Button`, `Input`, `Dialog` from `app/components/ui/`
+- Customize only via `className` and `variant` props, avoid direct DOM styling

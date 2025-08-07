@@ -22,10 +22,11 @@ const queryClient = new QueryClient({
   },
 });
 
-type User = {
+export type User = {
   id: string;
   email: string;
   name: string;
+  picture: string;
 };
 
 type LoaderData = {
@@ -96,6 +97,14 @@ export async function loader({ request }: { request: Request }) {
     }
   };
 
+  // Define public paths that don't require authentication
+  const PUBLIC_PATHS = [
+    '/auth',
+    '/login',
+    '/api',
+    '/health',
+  ];
+
   // Check if this is a public path (but still get user if available)
   const isPublicPath = PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
   
@@ -107,6 +116,13 @@ export async function loader({ request }: { request: Request }) {
         getUser(request),
         getVersionInfoLocal()
       ]);
+      
+      // If user is authenticated and on login page, redirect to appropriate dashboard
+      if (user && path === '/auth/login') {
+        const redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+        throw redirect(redirectPath);
+      }
+      
       return { user, isPublicPath: true, versionInfo };
     } catch (error) {
       const versionInfo = await getVersionInfoLocal();
@@ -116,13 +132,31 @@ export async function loader({ request }: { request: Request }) {
 
   // For protected paths, require authentication
   try {
+    const { requireAuth } = await import('@/services/auth.server');
     const [user, versionInfo] = await Promise.all([
       requireAuth(request),
       getVersionInfoLocal()
     ]);
+
+    // Role-based redirection for legacy routes
+    if (path === '/dashboard') {
+      const redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+      throw redirect(redirectPath);
+    }
+
+    // Check role-based access for protected routes
+    if (path.startsWith('/teacher/') && user.role !== 'TEACHER') {
+      throw redirect('/auth/unauthorized');
+    }
+    
+    if (path.startsWith('/student/') && user.role !== 'STUDENT') {
+      throw redirect('/auth/unauthorized');
+    }
+
     return { user, isPublicPath: false, versionInfo };
   } catch (error) {
-    return redirect('/auth/login');
+    // If auth fails, redirect to login
+    throw redirect('/auth/login');
   }
 }
 
@@ -153,44 +187,29 @@ function Layout() {
   const { user, isPublicPath, versionInfo } = useLoaderData() as LoaderData;
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
 
-  // Public paths without user - show minimal layout
-  if (isPublicPath && !user) {
-    return (
-      <div className="min-h-screen w-full flex flex-col">
-        <main className="flex-1">
-          <Outlet />
-        </main>
-        <FooterVersion versionInfo={versionInfo} />
-      </div>
-    );
-  }
-
-  // Public paths with user - show layout with NavHeader
-  if (isPublicPath && user) {
-    return (
-      <div className="relative flex flex-col min-h-screen w-full">
-        <div className="flex-1">
-          <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
-          <main className="flex-1">
-            <Outlet />
-          </main>
-        </div>
-        <FooterVersion versionInfo={versionInfo} />
-      </div>
-    );
-  }
-
-  // Protected paths - show full layout
+  // Unified layout structure for all route types
   return (
-    <div className="relative flex flex-col min-h-screen w-full">
-      {/* <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} /> */}
-      <div className="flex-1">
-        <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
-        <main className="p-8 flex-1">
+    <div className="h-screen w-full flex flex-col overflow-hidden">
+      {/* Conditional NavHeader - only show for authenticated users or protected paths */}
+      {(user || !isPublicPath) && (
+        <NavHeader className="flex-shrink-0" />
+      )}
+      
+      {/* Main content area with controlled overflow */}
+      <main className="flex-1 overflow-auto">
+        {!isPublicPath ? (
+          // Protected paths get padding
+          <div className="p-8">
+            <Outlet />
+          </div>
+        ) : (
+          // Public paths get no padding for full control
           <Outlet />
-        </main>
-      </div>
-      <FooterVersion versionInfo={versionInfo} />
+        )}
+      </main>
+      
+      {/* Footer - always present but flexible */}
+      {/* <FooterVersion versionInfo={versionInfo} className="flex-shrink-0" /> */}
     </div>
   );
 }

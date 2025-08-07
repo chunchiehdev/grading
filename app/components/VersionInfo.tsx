@@ -68,12 +68,14 @@ export function StaticVersionInfo({ versionInfo }: { versionInfo: VersionInfo })
 }
 
 export function FooterVersion({ 
-  versionInfo 
+  versionInfo,
+  className = ''
 }: { 
-  versionInfo: VersionInfo | null; 
+  versionInfo: VersionInfo | null;
+  className?: string;
 }) {
   return (
-    <footer className="border-t bg-white">
+    <footer className={`border-t bg-white ${className}`}>
       <div className="container mx-auto px-4 py-3">
         <div className="flex justify-between items-center">
           <p className="text-sm text-gray-600">

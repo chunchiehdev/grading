@@ -52,7 +52,7 @@ export async function googleLogin() {
 /**
  * Handles Google OAuth callback and creates user session
  * @param {Request} request - The callback request from Google OAuth
- * @returns {Promise<Response>} Redirect response to dashboard or login with error
+ * @returns {Promise<Response>} Redirect response to role selection, appropriate platform, or login with error
  * @throws {Error} If authorization code is missing or invalid
  */
 export async function handleGoogleCallback(request: Request) {
@@ -81,29 +81,41 @@ export async function handleGoogleCallback(request: Request) {
     });
 
     const payload = ticket.getPayload();
-    if (!payload || !payload.email) throw new Error('No user payload');
-
-    console.error('✅ Google auth successful for:', payload.email);
+    if (!payload || !payload.email || !payload.name || !payload.picture) throw new Error('No user payload');
 
     let user = await db.user.findUnique({
       where: { email: payload.email },
     });
+
+    const isFirstTimeUser = !user;
 
     if (!user) {
       console.error('📝 Creating new user:', payload.email);
       user = await db.user.create({
         data: {
           email: payload.email,
+          name: payload.name,
+          picture: payload.picture,          
         },
       });
     }
 
     console.error('🍪 Creating session for user:', user.id);
     const session = await createUserSession(user.id, request);
-    const response = redirect('/dashboard');
+    
+    let redirectPath;
+    if (isFirstTimeUser) {
+      // First-time user needs to select role
+      redirectPath = '/auth/select-role';
+    } else {
+      // Existing user - redirect based on their role
+      redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+    }
+    
+    const response = redirect(redirectPath);
     response.headers.set('Set-Cookie', session);
 
-    console.error('🔄 Redirecting to dashboard with session cookie');
+    console.error('🔄 Redirecting to:', redirectPath);
     return response;
   } catch (error) {
     console.error('❌ Google authentication error:', error);
@@ -142,7 +154,7 @@ export async function getUser(request: Request) {
   try {
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true },
+      select: { id: true, email: true, role: true, name: true, picture: true },
     });
 
     console.error('👤 getUser - Found user in DB:', user ? user.email : 'null');
@@ -167,4 +179,68 @@ export async function getUser(request: Request) {
 export async function logout(request: Request) {
   const session = await getSession(request);
   return destroySession(session);
+}
+
+/**
+ * Updates user role after role selection
+ * @param {string} userId - The user ID to update
+ * @param {string} role - The selected role ('TEACHER' or 'STUDENT')
+ * @returns {Promise<Object>} Updated user object
+ */
+export async function updateUserRole(userId: string, role: 'TEACHER' | 'STUDENT') {
+  try {
+    const user = await db.user.update({
+      where: { id: userId },
+      data: { role },
+      select: { id: true, email: true, role: true },
+    });
+
+    console.error('👤 Updated user role:', user.email, 'to', role);
+    return user;
+  } catch (error) {
+    console.error('❌ Error updating user role:', error);
+    throw error;
+  }
+}
+
+/**
+ * Requires user to be authenticated and returns user with role info
+ * @param {Request} request - The HTTP request with session data
+ * @returns {Promise<Object>} User object with role information
+ * @throws {Response} Redirect to login if not authenticated
+ */
+export async function requireAuth(request: Request) {
+  const user = await getUser(request);
+  if (!user) {
+    throw redirect('/auth/login');
+  }
+  return user;
+}
+
+/**
+ * Requires user to be a teacher
+ * @param {Request} request - The HTTP request with session data
+ * @returns {Promise<Object>} Teacher user object
+ * @throws {Response} Redirect to login or unauthorized if not a teacher
+ */
+export async function requireTeacher(request: Request) {
+  const user = await requireAuth(request);
+  if (user.role !== 'TEACHER') {
+    throw redirect('/auth/unauthorized');
+  }
+  return user;
+}
+
+/**
+ * Requires user to be a student
+ * @param {Request} request - The HTTP request with session data
+ * @returns {Promise<Object>} Student user object
+ * @throws {Response} Redirect to login or unauthorized if not a student
+ */
+export async function requireStudent(request: Request) {
+  const user = await requireAuth(request);
+  if (user.role !== 'STUDENT') {
+    throw redirect('/auth/unauthorized');
+  }
+  return user;
 }

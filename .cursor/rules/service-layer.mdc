@@ -1,0 +1,77 @@
+---
+description: Service Layer Patterns and Database Operations
+globs: ["app/services/**/*.server.ts", "app/lib/**/*.server.ts"]
+alwaysApply: true
+---
+
+# Service Layer Standards
+
+## File Naming Convention
+Server-only code MUST use `.server.ts` suffix:
+- `app/services/auth.server.ts`
+- `app/services/version.server.ts` 
+- `app/services/rubric.server.ts`
+
+## Service Function Pattern
+Follow this pattern from `app/services/version.server.ts`:
+
+```typescript
+export interface VersionInfo {
+  version: string;
+  branch: string;
+  commitHash: string;
+  buildTime: string;
+  environment: string;
+}
+
+export function getVersionInfo(): VersionInfo {
+  try {
+    // business logic
+    return result;
+  } catch (error) {
+    console.error('Service error:', error);
+    return fallbackValue;
+  }
+}
+```
+
+**Rules:**
+- Export interfaces for return types
+- Always handle errors gracefully
+- Return fallback values, don't throw
+- Use descriptive function names
+
+## Database Operations
+When working with Prisma in services:
+
+```typescript
+// app/services/user.server.ts pattern
+export async function getUser(id: string) {
+  try {
+    return await db.user.findUnique({ where: { id } });
+  } catch (error) {
+    console.error('Database error:', error);
+    return null;
+  }
+}
+```
+
+**Rules:**
+- Database operations ONLY in `.server.ts` files
+- Use Prisma client for type-safe queries
+- Handle database errors gracefully
+- Use transactions for multi-step operations
+
+## Import Patterns
+```typescript
+// Use dynamic imports for ES modules
+const { getVersionInfo } = await import('@/services/version.server');
+
+// NEVER use require() in this project
+// ❌ const { getVersionInfo } = require('@/services/version.server');
+```
+
+## Error Handling
+- Log errors for debugging
+- Return user-friendly fallback data
+- Don't expose internal error details to client

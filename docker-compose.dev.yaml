@@ -17,7 +17,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-dev_password}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@db:5432/${POSTGRES_DB:-grading_db}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@${POSTGRES_HOST}:5432/${POSTGRES_DB:-grading_db}
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}

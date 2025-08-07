@@ -10,9 +10,29 @@ export default [
     route('google', './routes/auth/google.tsx'),
     route('google/callback', './routes/auth/google.callback.tsx'),
     route('logout', './routes/auth/logout.tsx'),
+    route('select-role', './routes/auth/select-role.tsx'),
+    route('unauthorized', './routes/auth/unauthorized.tsx'),
   ]),
   
-  // Dashboard routes
+  // Teacher Platform routes
+  ...prefix('/teacher', [
+    route('dashboard', './routes/teacher/dashboard.tsx'),
+    route('courses/new', './routes/teacher/courses/new.tsx'),
+    route('courses/:courseId', './routes/teacher/courses/$courseId.tsx'),
+    route('rubrics', './routes/teacher/rubrics.tsx'),
+    // TODO: Add these routes when components are created:
+    // route('courses/:courseId/assignments/new', './routes/teacher/courses/$courseId/assignments/new.tsx'),
+  ]),
+
+  // Student Platform routes
+  ...prefix('/student', [
+    route('dashboard', './routes/student/dashboard.tsx'),
+    route('assignments', './routes/student/assignments.tsx'),
+    route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId/submit.tsx'),
+    route('submissions', './routes/student/submissions.tsx'),
+  ]),
+  
+  // Legacy Dashboard route (redirects based on role)
   route('/dashboard', './routes/dashboard.tsx'),
 
   // Assignment routes

@@ -55,9 +55,9 @@
 
     --destructive-foreground: 0 0% 90%;
 
-    --border: 0 0% 89.8%;
+    --border: 0 0% 60%;
 
-    --input: 0 0% 89.8%;
+    --input: 0 0% 70%; 
 
     --ring: 0 0% 3.9%;
 
@@ -129,6 +129,8 @@
   }
     * {
       @apply border-border;
+      scrollbar-width: thin;
+      scrollbar-color: hsl(var(--border)) hsl(var(--background));
     }
     body {
       @apply bg-background text-foreground;
@@ -138,4 +140,107 @@
       background-color: #2563eb !important; 
       color: white !important; 
     }
+
+    ::-webkit-scrollbar {
+      width: 100px;
+      height: 100px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: hsl(var(--background));
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: hsl(var(--border));
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--muted-foreground));
+    }
+}
+@keyframes float {
+  0%, 100% { 
+    transform: translateY(0px); 
+  }
+  50% { 
+    transform: translateY(-20px); 
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% { 
+    transform: translateY(0px); 
+  }
+  50% { 
+    transform: translateY(-15px); 
+  }
+}
+
+@keyframes spin-slow {
+  from { 
+    transform: rotate(0deg); 
+  }
+  to { 
+    transform: rotate(360deg); 
+  }
+}
+
+@keyframes fade-in {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes shake {
+  0%, 100% { 
+    transform: translateX(0); 
+  }
+  25% { 
+    transform: translateX(-5px); 
+  }
+  75% { 
+    transform: translateX(5px); 
+  }
+}
+
+@layer utilities {
+  /* Custom animation utility classes */
+  .animate-float { 
+    animation: float 3s ease-in-out infinite; 
+  }
+  
+  .animate-float-slow { 
+    animation: float-slow 4s ease-in-out infinite; 
+  }
+  
+  .animate-spin-slow { 
+    animation: spin-slow 20s linear infinite; 
+  }
+  
+  .animate-fade-in { 
+    animation: fade-in 0.8s ease-out forwards; 
+  }
+  
+  .animate-shake { 
+    animation: shake 0.5s ease-in-out; 
+  }
+
+  /* Animation delay utilities */
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 0.4s;
+  }
+
+  .animation-delay-600 {
+    animation-delay: 0.6s;
+  }
 }
