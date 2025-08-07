@@ -1,0 +1,60 @@
+---
+description: Standards and Best Practices for Defining Application Routes
+globs: ["app/routes/**/*.tsx", "app/routes/**/*.ts", "app/routes.ts"]
+alwaysApply: true
+---
+
+# Routing Standards
+
+## Route Configuration Management
+
+**Purpose:** This section outlines the critical process for defining and managing all application routes within `app/routes.ts`. Proper configuration ensures routes are discoverable and functional.
+
+**Rule:** All new route components **MUST** be immediately registered in `app/routes.ts` upon creation.
+
+### Process for New Routes
+
+1.  **Create Component:** Develop the new route component file (e.g., `dashboard.tsx`) in its designated directory under `app/routes/`.
+2.  **Register Route:** Add the corresponding route definition to `app/routes.ts`.
+3.  **Verify Functionality:** Confirm the route is accessible and functions correctly in the browser.
+
+## Route Structure & Naming Conventions
+
+**Purpose:** To maintain a consistent and logical organization for all application routes, enhancing readability and navigability for developers.
+
+**Rules:**
+
+* **Platform-Specific Routes:**
+    * **Teacher Platform:** Use the `...prefix('/teacher', [...])` pattern.
+    * **Student Platform:** Use the `...prefix('/student', [...])` pattern.
+* **Authentication Routes:** Integrate into the existing `/auth` route array.
+* **API Endpoints:** Prefix all API routes with `/api/`.
+* **Public Routes:** Define at the root level without specific prefixes.
+* **Dynamic Segments:** Use the `$` prefix in file names (e.g., `app/routes/courses/$courseId.tsx`) which translates to `:courseId` in the route definition.
+* **Nested Dynamic Routes:** Follow the pattern `courses/$courseId/assignments/$assignmentId.tsx`.
+
+### Examples of Route Definitions
+
+```typescript
+// Teacher Platform Routes
+...prefix('/teacher', [
+  route('dashboard', './routes/teacher/dashboard.tsx'),
+  route('courses/new', './routes/teacher/courses/new.tsx'),
+  route('courses/:courseId', './routes/teacher/courses/$courseId.tsx'),
+]),
+
+// Student Platform Routes
+...prefix('/student', [
+  route('dashboard', './routes/student/dashboard.tsx'),
+  route('assignments/:id/submit', './routes/student/assignments/$id/submit.tsx'),
+]),
+
+// Authentication Routes
+route('/auth', './routes/auth/layout.tsx', [
+  route('select-role', './routes/auth/select-role.tsx'),
+  route('unauthorized', './routes/auth/unauthorized.tsx'),
+]),
+
+// API Routes Example
+route('/api/users', './routes/api/users.server.ts'),
+route('/api/courses/:courseId/rubrics', './routes/api/courses/$courseId/rubrics.server.ts'),

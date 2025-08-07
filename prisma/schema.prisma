@@ -12,6 +12,9 @@ datasource db {
 model User {
   id         String   @id @default(uuid())
   email      String   @unique
+  role       UserRole @default(STUDENT) // New role field with default to STUDENT
+  name       String   @db.VarChar(255)
+  picture    String   @db.VarChar(500) 
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -19,8 +22,81 @@ model User {
   rubrics         Rubric[]
   gradingSessions GradingSession[]
   uploadedFiles   UploadedFile[]
+  
+  // Teacher-specific relations
+  courses         Course[]
+  teacherRubrics  Rubric[] @relation("TeacherRubrics")
+  
+  // Student-specific relations
+  submissions     Submission[]
 
   @@map("users")
+}
+
+// Course management for teachers
+model Course {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(255)
+  description String?  @db.Text
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  assignmentAreas AssignmentArea[]
+
+  @@index([teacherId])
+  @@map("courses")
+}
+
+// Assignment areas within courses
+model AssignmentArea {
+  id          String    @id @default(uuid())
+  name        String    @db.VarChar(255)
+  description String?   @db.Text
+  courseId    String
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  rubricId    String
+  rubric      Rubric    @relation("AssignmentAreaRubrics", fields: [rubricId], references: [id], onDelete: Restrict)
+  dueDate     DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  submissions Submission[]
+
+  @@index([courseId])
+  @@index([rubricId])
+  @@map("assignment_areas")
+}
+
+// Student submissions to assignment areas
+model Submission {
+  id               String        @id @default(uuid())
+  studentId        String
+  student          User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignmentAreaId String
+  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)
+  
+  filePath         String        @db.VarChar(500) // Path/URL of uploaded assignment
+  uploadedAt       DateTime      @default(now())
+  
+  // AI analysis and grading
+  aiAnalysisResult Json?         // AI analysis results
+  finalScore       Int?          // Final score
+  teacherFeedback  String?       @db.Text
+  status           SubmissionStatus @default(SUBMITTED)
+  
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([studentId])
+  @@index([assignmentAreaId])
+  @@index([status])
+  @@map("submissions")
 }
 
 // 評分標準表
@@ -28,11 +104,14 @@ model Rubric {
   id          String   @id @default(uuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teacherId   String?  // New field for teacher-created rubrics
+  teacher     User?    @relation("TeacherRubrics", fields: [teacherId], references: [id], onDelete: Cascade)
 
   name        String   @db.VarChar(255)
   description String   @db.Text
   version     Int      @default(1) // 版本號
   isActive    Boolean  @default(true) // 是否為當前版本
+  isTemplate  Boolean  @default(false) // Whether it's a reusable template
   
   // 評分標準結構 (JSON)
   criteria    Json     // [{ id, name, description, maxScore, levels: [{ score, description }] }]
@@ -41,9 +120,11 @@ model Rubric {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  gradingResults GradingResult[]
+  gradingResults   GradingResult[]
+  assignmentAreas  AssignmentArea[] @relation("AssignmentAreaRubrics")
 
   @@index([userId, isActive])
+  @@index([teacherId, isTemplate])
   @@map("rubrics")
 }
 
@@ -159,6 +240,19 @@ enum FileParseStatus {
   PROCESSING  // 解析中
   COMPLETED   // 解析完成
   FAILED      // 解析失敗
+}
+
+// User roles
+enum UserRole {
+  STUDENT
+  TEACHER
+}
+
+// Submission status
+enum SubmissionStatus {
+  SUBMITTED   // Just submitted
+  ANALYZED    // AI analysis complete
+  GRADED      // Teacher has provided feedback/grade
 }
 
 

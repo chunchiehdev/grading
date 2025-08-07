@@ -1,0 +1,63 @@
+# React Router v7 Framework Standards
+
+## Server-Side Data Loading
+When creating routes, always use loaders for server-side data fetching:
+
+```typescript
+// Follow this pattern from app/routes/dashboard.tsx
+export const loader = async ({ request }: { request: Request }) => {
+  const userId = await getUserId(request);
+  const [sessions, rubrics] = await Promise.all([
+    listGradingSessions(userId),
+    listRubrics(userId)
+  ]);
+  return { sessions, rubrics };
+};
+```
+
+**Rules:**
+- Use `export const loader = async ({ request }) => {}` 
+- Access data with `useLoaderData<typeof loader>()`
+- NO client-side data fetching for initial page loads
+- Use `Promise.all()` for parallel data fetching
+
+## Import Standards
+```typescript
+// Correct React Router v7 imports
+import { useLoaderData } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
+
+// NEVER use Remix imports
+// ❌ import { useLoaderData } from '@remix-run/react';
+```
+
+## Server-Only Code
+- Server utilities MUST use `.server.ts` suffix
+- Use `await import()` never `require()` (ES modules project)
+- Reference: `app/services/auth.server.ts`, `app/services/version.server.ts`
+
+## Error Handling in Loaders
+```typescript
+// Follow pattern from app/root.tsx
+try {
+  const user = await requireAuth(request);
+  return { user, error: null };
+} catch (error) {
+  return redirect('/auth/login');
+}
+```
+
+**Rules:**
+- Return structured data, don't throw from loaders
+- Use redirects for auth failures
+- Always handle errors gracefully
+
+## API Route Structure
+```typescript
+// app/routes/api.*.ts pattern
+export const loader = async ({ request }: { request: Request }) => {
+  // Validate inputs with Zod
+  // Business logic
+  return Response.json(result);
+};
+```

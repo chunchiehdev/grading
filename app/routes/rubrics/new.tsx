@@ -334,7 +334,7 @@ export default function NewRubricRoute() {
   // }, [rubricData]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div>
       <RubricHeader
         onBack={() => navigate(-1)}
         onSave={handleSave}

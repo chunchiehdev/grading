@@ -5,7 +5,7 @@ import { HeroSection } from '@/components/landing/HeroSection';
  */
 export default function WabiSabiLanding() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-white">
+    <div className="h-full w-full flex items-center justify-center bg-white">
       <div className="w-full">
         <HeroSection />
       </div>

@@ -4,13 +4,13 @@ export const PUBLIC_PATHS = [
   '/auth/register', 
   '/auth/google', 
   '/auth/google/callback',
-  '/health',              // Health check
-  '/tailwind.css',        // CSS file
-  '/__manifest',          // React Router manifest
-  '/api/health',          // API health check
-  '/assets',              // Static assets
-  '/favicon.ico',         // Favicon
-  '/rubber-duck.ico',     // Your icon
+  '/health',              
+  '/tailwind.css',        
+  '/__manifest',          
+  '/api/health',          
+  '/assets',              
+  '/favicon.ico',         
+  '/rubber-duck.ico',     
 ] as const;
 
 export const AUTH_COOKIE_NAME = '__auth';

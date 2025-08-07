@@ -334,7 +334,7 @@ export default function EditRubricRoute() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div>
       <RubricHeader
         onBack={() => navigate(`/rubrics/${initialRubric.id}`)}
         onSave={handleSave}

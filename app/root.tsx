@@ -10,6 +10,8 @@ import { requireAuth } from '@/middleware/auth.server';
 import { PUBLIC_PATHS } from '@/constants/auth';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useUiStore } from '@/stores/uiStore';
+import { FooterVersion } from '@/components/VersionInfo';
+import type { VersionInfo } from '@/services/version.server';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,15 +22,17 @@ const queryClient = new QueryClient({
   },
 });
 
-type User = {
+export type User = {
   id: string;
   email: string;
   name: string;
+  picture: string;
 };
 
 type LoaderData = {
   user: User | null;
   isPublicPath: boolean;
+  versionInfo: VersionInfo | null;
 };
 
 export const links = () => [
@@ -72,10 +76,34 @@ export async function loader({ request }: { request: Request }) {
     path.includes('.png') ||
     path.includes('.jpg') ||
     path.includes('.svg') ||
-    path.startsWith('/__')  // React Router internal routes
+    path.startsWith('/__')  
   ) {
-    return { user: null, isPublicPath: true };
+    return { user: null, isPublicPath: true, versionInfo: null };
   }
+
+  const getVersionInfoLocal = async () => {
+    try {
+      const { getVersionInfo } = await import('@/services/version.server');
+      return getVersionInfo();
+    } catch (error) {
+      console.error('Failed to get version info:', error);
+      return {
+        version: '1.0.0',
+        branch: 'unknown',
+        commitHash: 'unknown',
+        buildTime: new Date().toISOString(),
+        environment: 'development'
+      };
+    }
+  };
+
+  // Define public paths that don't require authentication
+  const PUBLIC_PATHS = [
+    '/auth',
+    '/login',
+    '/api',
+    '/health',
+  ];
 
   // Check if this is a public path (but still get user if available)
   const isPublicPath = PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
@@ -84,19 +112,51 @@ export async function loader({ request }: { request: Request }) {
     // For public paths, try to get user but don't require auth
     try {
       const { getUser } = await import('@/services/auth.server');
-      const user = await getUser(request);
-      return { user, isPublicPath: true };
+      const [user, versionInfo] = await Promise.all([
+        getUser(request),
+        getVersionInfoLocal()
+      ]);
+      
+      // If user is authenticated and on login page, redirect to appropriate dashboard
+      if (user && path === '/auth/login') {
+        const redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+        throw redirect(redirectPath);
+      }
+      
+      return { user, isPublicPath: true, versionInfo };
     } catch (error) {
-      return { user: null, isPublicPath: true };
+      const versionInfo = await getVersionInfoLocal();
+      return { user: null, isPublicPath: true, versionInfo };
     }
   }
 
   // For protected paths, require authentication
   try {
-    const user = await requireAuth(request);
-    return { user, isPublicPath: false };
+    const { requireAuth } = await import('@/services/auth.server');
+    const [user, versionInfo] = await Promise.all([
+      requireAuth(request),
+      getVersionInfoLocal()
+    ]);
+
+    // Role-based redirection for legacy routes
+    if (path === '/dashboard') {
+      const redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+      throw redirect(redirectPath);
+    }
+
+    // Check role-based access for protected routes
+    if (path.startsWith('/teacher/') && user.role !== 'TEACHER') {
+      throw redirect('/auth/unauthorized');
+    }
+    
+    if (path.startsWith('/student/') && user.role !== 'STUDENT') {
+      throw redirect('/auth/unauthorized');
+    }
+
+    return { user, isPublicPath: false, versionInfo };
   } catch (error) {
-    return redirect('/auth/login');
+    // If auth fails, redirect to login
+    throw redirect('/auth/login');
   }
 }
 
@@ -124,42 +184,32 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const { user, isPublicPath } = useLoaderData() as LoaderData;
+  const { user, isPublicPath, versionInfo } = useLoaderData() as LoaderData;
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
 
-  // Public paths without user - show minimal layout
-  if (isPublicPath && !user) {
-    return (
-      <main className="min-h-screen w-full">
-        <Outlet />
-      </main>
-    );
-  }
-
-  // Public paths with user - show layout with NavHeader
-  if (isPublicPath && user) {
-    return (
-      <div className="relative flex min-h-screen w-full">
-        <div className="flex-1">
-          <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
-          <main className="min-h-screen w-full">
-            <Outlet />
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  // Protected paths - show full layout
+  // Unified layout structure for all route types
   return (
-    <div className="relative flex min-h-screen w-full">
-      {/* <Sidebar isCollapsed={sidebarCollapsed} onToggle={toggleSidebar} /> */}
-      <div className="flex-1">
-        <NavHeader className="bg-background/80 backdrop-blur-sm border-b border-border" />
-        <main className="p-8">
+    <div className="h-screen w-full flex flex-col overflow-hidden">
+      {/* Conditional NavHeader - only show for authenticated users or protected paths */}
+      {(user || !isPublicPath) && (
+        <NavHeader className="flex-shrink-0" />
+      )}
+      
+      {/* Main content area with controlled overflow */}
+      <main className="flex-1 overflow-auto">
+        {!isPublicPath ? (
+          // Protected paths get padding
+          <div className="p-8">
+            <Outlet />
+          </div>
+        ) : (
+          // Public paths get no padding for full control
           <Outlet />
-        </main>
-      </div>
+        )}
+      </main>
+      
+      {/* Footer - always present but flexible */}
+      {/* <FooterVersion versionInfo={versionInfo} className="flex-shrink-0" /> */}
     </div>
   );
 }
