@@ -1,13 +1,18 @@
-import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, Link } from 'react-router';
-import { ArrowLeft, Plus, FileText, Users } from 'lucide-react';
+import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
+import { useLoaderData, useActionData, Form, Link } from 'react-router';
+import { ArrowLeft, Plus, FileText, Users, QrCode, Copy, RefreshCw, Share2 } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, type CourseInfo } from '@/services/course.server';
+import { getActiveCourseInvitation, createInvitationCode, generateInvitationQRCode } from '@/services/invitation.server';
+import { getCourseEnrollmentStats } from '@/services/enrollment.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatsCard } from '@/components/ui/stats-card';
 import { PageHeader } from '@/components/ui/page-header';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string };
@@ -23,6 +28,32 @@ interface LoaderData {
     }>;
   };
   formattedCreatedDate: string;
+  invitation?: {
+    id: string;
+    code: string;
+    expiresAt: Date;
+    qrCodeUrl: string;
+  };
+  enrollmentStats: {
+    totalEnrollments: number;
+    recentEnrollments: Array<{
+      student: {
+        id: string;
+        email: string;
+        name: string;
+      };
+      enrolledAt: Date;
+    }>;
+  };
+}
+
+interface ActionData {
+  success?: boolean;
+  error?: string;
+  newInvitation?: {
+    code: string;
+    qrCodeUrl: string;
+  };
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs): Promise<LoaderData> {
@@ -34,7 +65,12 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   }
 
   try {
-    const course = await getCourseById(courseId, teacher.id);
+    const [course, activeInvitation, enrollmentStats] = await Promise.all([
+      getCourseById(courseId, teacher.id),
+      getActiveCourseInvitation(courseId, teacher.id),
+      getCourseEnrollmentStats(courseId, teacher.id),
+    ]);
+
     if (!course) {
       throw new Response('Course not found', { status: 404 });
     }
@@ -46,25 +82,88 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     // Format assignment area due dates
     const courseWithFormattedDates = {
       ...course,
-      assignmentAreas: course.assignmentAreas?.map(area => ({
+      assignmentAreas: course.assignmentAreas?.map((area: any) => ({
         ...area,
         formattedDueDate: area.dueDate ? formatDateForDisplay(area.dueDate) : undefined,
       }))
     };
+
+    // Generate QR code for active invitation if exists
+    let invitation = undefined;
+    if (activeInvitation) {
+      const qrCodeUrl = await generateInvitationQRCode(activeInvitation.code);
+      invitation = {
+        id: activeInvitation.id,
+        code: activeInvitation.code,
+        expiresAt: activeInvitation.expiresAt,
+        qrCodeUrl,
+      };
+    }
     
-    return { teacher, course: courseWithFormattedDates, formattedCreatedDate };
+    return { 
+      teacher, 
+      course: courseWithFormattedDates, 
+      formattedCreatedDate,
+      invitation,
+      enrollmentStats,
+    };
   } catch (error) {
     console.error('Error loading course:', error);
     throw new Response('Course not found', { status: 404 });
   }
 }
 
+export async function action({ request, params }: ActionFunctionArgs): Promise<ActionData> {
+  const teacher = await requireTeacher(request);
+  const courseId = params.courseId;
+  const formData = await request.formData();
+  const intent = formData.get('intent') as string;
+
+  if (!courseId) {
+    return { success: false, error: 'Course ID is required' };
+  }
+
+  try {
+    if (intent === 'generate-invitation') {
+      const invitation = await createInvitationCode(courseId, teacher.id);
+      const qrCodeUrl = await generateInvitationQRCode(invitation.code);
+      
+      return {
+        success: true,
+        newInvitation: {
+          code: invitation.code,
+          qrCodeUrl,
+        },
+      };
+    }
+
+    return { success: false, error: 'Invalid action' };
+  } catch (error) {
+    console.error('Error in course action:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'An error occurred'
+    };
+  }
+}
+
 export default function CourseDetail() {
-  const { teacher, course, formattedCreatedDate } = useLoaderData<typeof loader>();
+  const { teacher, course, formattedCreatedDate, invitation, enrollmentStats } = useLoaderData<typeof loader>();
+  const actionData = useActionData<ActionData>();
 
   const totalSubmissions = course.assignmentAreas?.reduce((total, area) => 
     total + (area._count?.submissions || 0), 0
   ) || 0;
+
+  // Handle copy to clipboard
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      // You could add a toast notification here
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+    }
+  };
 
   const headerActions = (
     <>
@@ -93,7 +192,7 @@ export default function CourseDetail() {
 
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatsCard
             title="Assignment Areas"
             value={course.assignmentAreas?.length || 0}
@@ -107,12 +206,168 @@ export default function CourseDetail() {
             variant="success"
           />
           <StatsCard
+            title="Enrolled Students"
+            value={enrollmentStats.totalEnrollments}
+            icon={Users}
+            variant="secondary"
+          />
+          <StatsCard
             title="Created"
             value={formattedCreatedDate}
             icon={FileText}
             variant="secondary"
           />
         </div>
+
+        {/* Course Invitation Management */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Share2 className="h-5 w-5" />
+                Course Invitation
+              </CardTitle>
+              {!invitation && (
+                <Form method="post">
+                  <input type="hidden" name="intent" value="generate-invitation" />
+                  <Button type="submit" size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Generate Invitation Code
+                  </Button>
+                </Form>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {actionData?.error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{actionData.error}</AlertDescription>
+              </Alert>
+            )}
+
+            {!invitation && !actionData?.newInvitation ? (
+              <div className="text-center py-8">
+                <QrCode className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No Active Invitation Code
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Generate an invitation code to allow students to join this course. 
+                  The code will be valid for 7 days and include a QR code for easy sharing.
+                </p>
+                <Form method="post">
+                  <input type="hidden" name="intent" value="generate-invitation" />
+                  <Button type="submit">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Generate Invitation Code
+                  </Button>
+                </Form>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Display current or new invitation */}
+                {((invitation && !actionData?.newInvitation) || actionData?.newInvitation) && (
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Invitation Details */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-2 block">
+                          Invitation Code
+                        </label>
+                        <div className="flex items-center space-x-2">
+                          <code className="bg-gray-100 px-3 py-2 rounded-md font-mono text-lg tracking-wider flex-1">
+                            {actionData?.newInvitation?.code || invitation?.code}
+                          </code>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyToClipboard(actionData?.newInvitation?.code || invitation?.code || '')}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-2 block">
+                          Invitation URL
+                        </label>
+                        <div className="flex items-center space-x-2">
+                          <code className="bg-gray-100 px-3 py-2 rounded-md text-sm text-gray-600 flex-1 break-all">
+                            {typeof window !== 'undefined' 
+                              ? `${window.location.origin}/join?code=${actionData?.newInvitation?.code || invitation?.code}`
+                              : `[domain]/join?code=${actionData?.newInvitation?.code || invitation?.code}`
+                            }
+                          </code>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyToClipboard(
+                              typeof window !== 'undefined' 
+                                ? `${window.location.origin}/join?code=${actionData?.newInvitation?.code || invitation?.code}`
+                                : `[domain]/join?code=${actionData?.newInvitation?.code || invitation?.code}`
+                            )}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {invitation?.expiresAt && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">
+                            Expires At
+                          </label>
+                          <p className="text-sm text-gray-600">
+                            {new Date(invitation.expiresAt).toLocaleString()}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="pt-4">
+                        <Form method="post">
+                          <input type="hidden" name="intent" value="generate-invitation" />
+                          <Button variant="outline" size="sm" type="submit">
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Generate New Code
+                          </Button>
+                        </Form>
+                      </div>
+                    </div>
+
+                    {/* QR Code */}
+                    <div className="flex flex-col items-center">
+                      <label className="text-sm font-medium text-gray-700 mb-4 block">
+                        QR Code
+                      </label>
+                      <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                        <img
+                          src={actionData?.newInvitation?.qrCodeUrl || invitation?.qrCodeUrl}
+                          alt="Course invitation QR code"
+                          className="w-48 h-48"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        Students can scan this QR code to join the course
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Usage Instructions */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-2">How to Share</h4>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• Share the invitation code or URL directly with students</li>
+                    <li>• Students can scan the QR code with their phones</li>
+                    <li>• The code expires in 7 days and can only be used once per student</li>
+                    <li>• Students must be logged in to join the course</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Assignment Areas */}
         <Card>
@@ -149,7 +404,7 @@ export default function CourseDetail() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <Link
-                          to={`/teacher/assignments/${area.id}`}
+                          to={`/teacher/courses/${course.id}/assignments/${area.id}/manage`}
                           className="block hover:text-blue-600 transition-colors"
                         >
                           <h3 className="text-lg font-medium text-gray-900">{area.name}</h3>
@@ -175,12 +430,12 @@ export default function CourseDetail() {
                       </div>
                       <div className="flex items-center space-x-2">
                         <Button asChild variant="ghost" size="sm">
-                          <Link to={`/teacher/assignments/${area.id}/submissions`}>
+                          <Link to={`/teacher/courses/${course.id}/assignments/${area.id}/submissions`}>
                             View Submissions
                           </Link>
                         </Button>
                         <Button asChild variant="outline" size="sm">
-                          <Link to={`/teacher/assignments/${area.id}/manage`}>
+                          <Link to={`/teacher/courses/${course.id}/assignments/${area.id}/manage`}>
                             Manage
                           </Link>
                         </Button>

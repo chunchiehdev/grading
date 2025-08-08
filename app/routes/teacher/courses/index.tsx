@@ -1,0 +1,278 @@
+import { type LoaderFunctionArgs } from 'react-router';
+import { useLoaderData, Link } from 'react-router';
+import { Plus, BookOpen, Users, FileText, Calendar, Search } from 'lucide-react';
+
+import { requireTeacher } from '@/services/auth.server';
+import { getTeacherCourses, type CourseInfo } from '@/services/course.server';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-header';
+import { useState } from 'react';
+
+interface LoaderData {
+  teacher: { id: string; email: string; role: string; name: string };
+  courses: Array<CourseInfo & {
+    assignmentAreas?: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      dueDate: Date | null;
+      _count?: { submissions: number };
+    }>;
+    formattedCreatedDate: string;
+  }>;
+}
+
+export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
+  const teacher = await requireTeacher(request);
+
+  try {
+    const courses = await getTeacherCourses(teacher.id);
+    
+    // Import date formatter on server side only
+    const { formatDateForDisplay } = await import('@/lib/date.server');
+    
+    // Format creation dates
+    const coursesWithFormattedDates = courses.map(course => ({
+      ...course,
+      formattedCreatedDate: formatDateForDisplay(course.createdAt),
+    }));
+
+    return { teacher, courses: coursesWithFormattedDates };
+  } catch (error) {
+    console.error('Error loading teacher courses:', error);
+    return { teacher, courses: [] };
+  }
+}
+
+export default function TeacherCourses() {
+  const { teacher, courses } = useLoaderData<typeof loader>();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Filter courses based on search term
+  const filteredCourses = courses.filter(course =>
+    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const headerActions = (
+    <Button asChild>
+      <Link to="/teacher/courses/new">
+        <Plus className="w-4 h-4 mr-2" />
+        Create Course
+      </Link>
+    </Button>
+  );
+
+  return (
+    <div>
+      <PageHeader
+        title="My Courses"
+        subtitle={`Manage your ${courses.length} course${courses.length !== 1 ? 's' : ''} and assignment areas`}
+        actions={headerActions}
+      />
+
+      <main className="max-w-7xl mx-auto space-y-8">
+        {/* Search and filters */}
+        {courses.length > 0 && (
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search courses..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Course Grid */}
+        {filteredCourses.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-12">
+                <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                {courses.length === 0 ? (
+                  <>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No courses yet
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      Create your first course to start organizing assignments and managing students.
+                    </p>
+                    <Button asChild>
+                      <Link to="/teacher/courses/new">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Your First Course
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No courses found
+                    </h3>
+                    <p className="text-gray-600 mb-6">
+                      No courses match your search criteria. Try adjusting your search term.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setSearchTerm('')}
+                    >
+                      Clear Search
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredCourses.map((course) => (
+              <CourseCard key={course.id} course={course} />
+            ))}
+          </div>
+        )}
+
+        {/* Quick stats */}
+        {courses.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Courses</p>
+                    <p className="text-2xl font-bold text-gray-900">{courses.length}</p>
+                  </div>
+                  <BookOpen className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Assignment Areas</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {courses.reduce((total, course) => total + (course.assignmentAreas?.length || 0), 0)}
+                    </p>
+                  </div>
+                  <FileText className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Submissions</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {courses.reduce((total, course) => 
+                        total + (course.assignmentAreas?.reduce((areaTotal, area) => 
+                          areaTotal + (area._count?.submissions || 0), 0) || 0), 0
+                      )}
+                    </p>
+                  </div>
+                  <Users className="h-8 w-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function CourseCard({ course }: { course: any }) {
+  const totalSubmissions = course.assignmentAreas?.reduce((total: number, area: any) => 
+    total + (area._count?.submissions || 0), 0
+  ) || 0;
+
+  return (
+    <Card className="group hover:shadow-lg transition-all duration-200 hover:border-blue-300">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+              <Link to={`/teacher/courses/${course.id}`} className="block">
+                {course.name}
+              </Link>
+            </CardTitle>
+            {course.description && (
+              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                {course.description}
+              </p>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Course stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center p-3 bg-blue-50 rounded-lg">
+            <div className="text-xl font-bold text-blue-600">
+              {course.assignmentAreas?.length || 0}
+            </div>
+            <div className="text-xs text-blue-600 font-medium">Assignment Areas</div>
+          </div>
+          <div className="text-center p-3 bg-green-50 rounded-lg">
+            <div className="text-xl font-bold text-green-600">
+              {totalSubmissions}
+            </div>
+            <div className="text-xs text-green-600 font-medium">Submissions</div>
+          </div>
+        </div>
+
+        {/* Recent assignment areas */}
+        {course.assignmentAreas && course.assignmentAreas.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Assignment Areas</h4>
+            <div className="space-y-1">
+              {course.assignmentAreas.slice(0, 2).map((area: any) => (
+                <div key={area.id} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 truncate flex-1">{area.name}</span>
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    {area._count?.submissions || 0} submissions
+                  </Badge>
+                </div>
+              ))}
+              {course.assignmentAreas.length > 2 && (
+                <p className="text-xs text-gray-500">
+                  +{course.assignmentAreas.length - 2} more areas
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Created date */}
+        <div className="flex items-center text-xs text-gray-500 pt-2 border-t">
+          <Calendar className="h-3 w-3 mr-1" />
+          Created {course.formattedCreatedDate}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex space-x-2 pt-2">
+          <Button asChild variant="outline" size="sm" className="flex-1">
+            <Link to={`/teacher/courses/${course.id}`}>
+              View Details
+            </Link>
+          </Button>
+          <Button asChild size="sm" className="flex-1">
+            <Link to={`/teacher/courses/${course.id}/assignments/new`}>
+              Add Assignment
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

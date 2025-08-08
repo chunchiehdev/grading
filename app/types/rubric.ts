@@ -17,6 +17,7 @@ export interface Rubric {
   description: string;
   version: number;
   isActive: boolean;
+  isTemplate: boolean;
   criteria: RubricCriteria[];
   categories?: UICategory[]; // 新增 categories 欄位，向後兼容
   createdAt: Date;

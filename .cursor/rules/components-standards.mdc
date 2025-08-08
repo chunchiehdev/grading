@@ -59,3 +59,57 @@ const variantClasses = {
 - Use `shadcn/ui` component conventions, which wrap Radix UI with Tailwind-based styling
 - Prefer components like `Button`, `Input`, `Dialog` from `app/components/ui/`
 - Customize only via `className` and `variant` props, avoid direct DOM styling
+
+## Light & Dark Mode Standards
+All UI must support both light and dark modes. Tailwind is configured with `darkMode: ['class']` and the app toggles `document.documentElement` classes via `ThemeProvider`. Follow these rules:
+
+- Always use semantic Tailwind tokens (mapped to CSS variables) instead of hard-coded colors:
+  - Backgrounds: `bg-background`, `bg-card`, `bg-popover`
+  - Text: `text-foreground`, `text-muted-foreground`, `text-card-foreground`
+  - Borders: `border`, `border-border`
+  - State colors: `text-destructive`, `bg-accent`, `bg-secondary`, etc.
+- Prefer shadcn/ui components which already encode light/dark styles; extend only with semantic tokens.
+- Use `dark:` variants only when necessary (fine-tuning a specific contrast), e.g. `dark:hover:bg-accent/70`.
+- Do not use fixed gray scales like `text-gray-700` or literal hex codes for core surfaces; map to semantic tokens.
+- Ensure interactive states are visible in both modes: `hover`, `focus`, `active`, `disabled`, with sufficient contrast.
+- Cards and pages:
+  - Page container: `bg-background text-foreground`
+  - Card: `bg-card text-card-foreground border`
+  - Inputs: use shadcn `Input/Textarea` and avoid overriding base colors.
+- Icons/SVGs should inherit `currentColor` (via `text-*` classes) or use semantic tokens; avoid baked-in fills.
+- Skeletons should avoid pure grays; use theme-aware colors, e.g. `bg-muted`, `bg-foreground/10`, or `bg-primary/10` as already used, and keep dimensions identical to final content to avoid CLS.
+- Avoid layout shifts: when showing loading/Skeleton, mirror final layout spacing and sizes exactly (padding, gaps, heights).
+
+### Required checklist for each component/page
+Before marking complete, verify:
+- Uses semantic tokens (`bg-background`, `text-foreground`, `border-border`, etc.).
+- No hard-coded hex colors or fixed gray classes for core surfaces.
+- Hover/focus/active states are visible in both modes (check with a `dark` wrapper).
+- Skeletons and loading states match final layout sizing (no CLS).
+- Works when wrapped with `<div className="dark">` and with default light root.
+
+### Examples
+```tsx
+// Container
+<section className="bg-background text-foreground">
+  <Card className="bg-card text-card-foreground">
+    <CardHeader className="border-b border-border" />
+    <CardContent>
+      <p className="text-muted-foreground">Description</p>
+      <Button variant="default" className="focus:ring-ring">Action</Button>
+    </CardContent>
+  </Card>
+</section>
+
+// Skeleton matching final layout
+<div className="space-y-2">
+  <Skeleton className="h-6 w-48" />
+  <Skeleton className="h-4 w-80" />
+  <Skeleton className="h-10 w-full" />
+</div>
+```
+
+### Implementation notes
+- Tailwind config already sets `darkMode: ['class']`; ThemeProvider toggles `light`/`dark` on `<html>`.
+- Use existing CSS variables in `app/tailwind.css` (`--background`, `--foreground`, etc.).
+- If you must introduce a new color, add a CSS variable in `:root` and `.dark` and reference via `hsl(var(--your-token))` in Tailwind `theme.extend.colors`.

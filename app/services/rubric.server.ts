@@ -173,6 +173,7 @@ export async function listRubrics(userId?: string): Promise<{ rubrics: RubricRes
         description: dbRubric.description,
         version: dbRubric.version,
         isActive: dbRubric.isActive,
+        isTemplate: dbRubric.isTemplate,
         createdAt: dbRubric.createdAt,
         updatedAt: dbRubric.updatedAt,
         criteria: isNewFormat 
@@ -232,6 +233,7 @@ export async function getRubric(id: string): Promise<{ rubric?: RubricResponse; 
       description: dbRubric.description,
       version: dbRubric.version,
       isActive: dbRubric.isActive,
+      isTemplate: dbRubric.isTemplate,
       createdAt: dbRubric.createdAt,
       updatedAt: dbRubric.updatedAt,
       criteria: isNewFormat 
@@ -371,6 +373,7 @@ export async function getRubricVersions(id: string): Promise<{ versions: RubricR
       description: v.description,
       version: v.version,
       isActive: v.isActive,
+      isTemplate: v.isTemplate,
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
       criteria: parseCriteriaFromDB(v.criteria),

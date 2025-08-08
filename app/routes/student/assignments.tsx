@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link } from 'react-router';
-import { Calendar, Clock, CheckCircle, AlertCircle, BookOpen, User, FileText } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, AlertCircle, BookOpen, User, FileText, UserPlus } from 'lucide-react';
 
 import { requireStudent } from '@/services/auth.server';
 import { getStudentAssignments, type StudentAssignmentInfo } from '@/services/submission.server';
@@ -22,6 +22,77 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
 export default function StudentAssignments() {
   const { student, assignments } = useLoaderData<typeof loader>();
+
+  // If no assignments (not enrolled in any courses), show enrollment message
+  if (assignments.length === 0) {
+    return (
+      <div className="bg-background text-foreground">
+        <PageHeader 
+          title="No Assignments Available" 
+          subtitle="You need to join a course to access assignments"
+          actions={
+            <Button asChild variant="outline">
+              <Link to="/student/dashboard">
+                Back to Dashboard
+              </Link>
+            </Button>
+          }
+        />
+
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Card className="bg-card text-card-foreground border">
+            <CardContent className="pt-6">
+              <div className="text-center py-12">
+                <UserPlus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
+                  Join a Course to Get Started
+                </h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  You're not enrolled in any courses yet. Ask your teacher for an invitation code or QR code to join a course and access assignments.
+                </p>
+                
+                <div className="bg-muted border border-border rounded-lg p-4 mb-6 max-w-md mx-auto">
+                  <h4 className="font-medium text-foreground mb-2">How to Join a Course</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1 text-left">
+                    <li>• Get an invitation code from your teacher</li>
+                    <li>• Scan a QR code if provided</li>
+                    <li>• Visit the invitation link</li>
+                    <li>• Contact your teacher for assistance</li>
+                  </ul>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button asChild variant="outline">
+                    <Link to="/student/dashboard">
+                      Back to Dashboard
+                    </Link>
+                  </Button>
+                  <Button asChild>
+                    <Link to="/student/courses">
+                      View My Courses
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  // Group assignments by course
+  const assignmentsByCourse = assignments.reduce((acc, assignment) => {
+    const courseId = assignment.course.id;
+    if (!acc[courseId]) {
+      acc[courseId] = {
+        course: assignment.course,
+        assignments: []
+      };
+    }
+    acc[courseId].assignments.push(assignment);
+    return acc;
+  }, {} as Record<string, { course: StudentAssignmentInfo['course'], assignments: StudentAssignmentInfo[] }>);
 
   // Categorize assignments
   const categorizedAssignments = assignments.reduce((acc, assignment) => {
@@ -88,18 +159,18 @@ export default function StudentAssignments() {
     }
   };
 
-  const AssignmentCard = ({ assignment }: { assignment: StudentAssignmentInfo }) => {
+  const AssignmentCard = ({ assignment, showCourse = true }: { assignment: StudentAssignmentInfo, showCourse?: boolean }) => {
     const hasSubmission = assignment.submissions.some(sub => sub.studentId === student.id);
     const submission = assignment.submissions.find(sub => sub.studentId === student.id);
     
     return (
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-md transition-shadow bg-card text-card-foreground border">
         <CardContent className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{assignment.name}</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{assignment.name}</h3>
               {assignment.description && (
-                <p className="text-gray-600 text-sm mb-3">{assignment.description}</p>
+                <p className="text-muted-foreground text-sm mb-3">{assignment.description}</p>
               )}
             </div>
             <div className="ml-4">
@@ -108,29 +179,33 @@ export default function StudentAssignments() {
           </div>
           
           <div className="space-y-2 mb-4">
-            <div className="flex items-center text-sm text-gray-600">
-              <BookOpen className="w-4 h-4 mr-2" />
-              <span>{assignment.course.name}</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <User className="w-4 h-4 mr-2" />
-              <span>Instructor: {assignment.course.teacher.email}</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
+            {showCourse && (
+              <>
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  <span>{assignment.course.name}</span>
+                </div>
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <User className="w-4 h-4 mr-2" />
+                  <span>Instructor: {assignment.course.teacher.email}</span>
+                </div>
+              </>
+            )}
+            <div className="flex items-center text-sm text-muted-foreground">
               <Calendar className="w-4 h-4 mr-2" />
               <span>{formatDueDate(assignment.dueDate)}</span>
             </div>
-            <div className="flex items-center text-sm text-gray-600">
+            <div className="flex items-center text-sm text-muted-foreground">
               <FileText className="w-4 h-4 mr-2" />
               <span>Rubric: {assignment.rubric.name}</span>
             </div>
           </div>
 
           {submission && submission.finalScore !== null && (
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="mb-4 p-3 bg-accent rounded-lg border border-border">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-blue-900">Final Score</span>
-                <span className="text-lg font-bold text-blue-900">{submission.finalScore}</span>
+                <span className="text-sm font-medium text-accent-foreground">Final Score</span>
+                <span className="text-lg font-bold text-accent-foreground">{submission.finalScore}</span>
               </div>
             </div>
           )}
@@ -156,29 +231,90 @@ export default function StudentAssignments() {
   };
 
   return (
-    <div>
+    <div className="bg-background text-foreground">
       <PageHeader 
         title="All Assignments" 
         subtitle={`${assignments.length} assignments available`}
         actions={
-          <Button asChild variant="outline" >
-            <Link to="/student/dashboard">
-              Back to Dashboard
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link to="/student/courses">
+                My Courses
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/student/dashboard">
+                Back to Dashboard
+              </Link>
+            </Button>
+          </div>
         }
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {assignments.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <FileText className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No assignments available</h3>
-              <p className="mt-1 text-sm text-gray-500">Check back later for new assignments.</p>
-            </CardContent>
-          </Card>
-        ) : (
+        <div className="space-y-8">
+          {/* Course Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-card text-card-foreground border">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Enrolled Courses</p>
+                    <p className="text-2xl font-bold text-foreground">{Object.keys(assignmentsByCourse).length}</p>
+                  </div>
+                  <BookOpen className="h-8 w-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card text-card-foreground border">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Assignments</p>
+                    <p className="text-2xl font-bold text-foreground">{assignments.length}</p>
+                  </div>
+                  <FileText className="h-8 w-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card text-card-foreground border">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                    <p className="text-2xl font-bold text-foreground">{categorizedAssignments.pending.length}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Assignments by Course */}
+          {Object.entries(assignmentsByCourse).map(([courseId, { course, assignments: courseAssignments }]) => (
+            <Card key={courseId}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5" />
+                  {course.name}
+                </CardTitle>
+                <div className="text-sm text-gray-600">
+                  <p>Instructor: {course.teacher.email}</p>
+                  <p>{courseAssignments.length} assignment{courseAssignments.length !== 1 ? 's' : ''}</p>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {courseAssignments.map((assignment) => (
+                    <AssignmentCard key={assignment.id} assignment={assignment} showCourse={false} />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
           <div className="space-y-8">
             {/* Pending Assignments */}
             {categorizedAssignments.pending.length > 0 && (
@@ -248,7 +384,7 @@ export default function StudentAssignments() {
               </section>
             )}
           </div>
-        )}
+        </div>
       </main>
     </div>
   );

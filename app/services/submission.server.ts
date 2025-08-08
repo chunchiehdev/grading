@@ -12,6 +12,12 @@ export interface SubmissionInfo {
   status: string;
   createdAt: Date;
   updatedAt: Date;
+  student?: {
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+  };
   assignmentArea: {
     id: string;
     name: string;
@@ -120,14 +126,31 @@ export async function createSubmission(studentId: string, submissionData: Create
 
 /**
  * Gets all available assignments for a student (assignment areas they can submit to)
- * Note: In a real system, you'd typically have enrollment/access control
- * For now, we'll show all assignment areas from all courses
+ * Only shows assignments from courses the student is enrolled in
  * @param {string} studentId - The student's user ID
  * @returns {Promise<StudentAssignmentInfo[]>} List of available assignments
  */
 export async function getStudentAssignments(studentId: string): Promise<StudentAssignmentInfo[]> {
   try {
+    // First get all courses the student is enrolled in
+    const enrollments = await db.enrollment.findMany({
+      where: { studentId },
+      select: { courseId: true },
+    });
+
+    const enrolledCourseIds = enrollments.map(enrollment => enrollment.courseId);
+
+    if (enrolledCourseIds.length === 0) {
+      // Student is not enrolled in any courses
+      return [];
+    }
+
     const assignmentAreas = await db.assignmentArea.findMany({
+      where: {
+        courseId: {
+          in: enrolledCourseIds,
+        },
+      },
       include: {
         course: {
           include: {
@@ -171,6 +194,128 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
   } catch (error) {
     console.error('❌ Error fetching student assignments:', error);
     return [];
+  }
+}
+
+/**
+ * Lists submissions for an assignment area (teacher view)
+ * @param assignmentId - Assignment area ID
+ * @param teacherId - Teacher's user ID for authorization
+ * @returns List of submissions with student info
+ */
+export async function listSubmissionsByAssignment(
+  assignmentId: string, 
+  teacherId: string
+): Promise<SubmissionInfo[]> {
+  try {
+    // Verify teacher owns the assignment area through course
+    const assignmentArea = await db.assignmentArea.findFirst({
+      where: {
+        id: assignmentId,
+        course: {
+          teacherId,
+        },
+      },
+    });
+
+    if (!assignmentArea) {
+      throw new Error('Assignment area not found or unauthorized');
+    }
+
+    const submissions = await db.submission.findMany({
+      where: { assignmentAreaId: assignmentId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            picture: true,
+          },
+        },
+        assignmentArea: {
+          include: {
+            course: {
+              include: {
+                teacher: {
+                  select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                  },
+                },
+              },
+            },
+            rubric: true,
+          },
+        },
+      },
+      orderBy: { uploadedAt: 'desc' },
+    });
+
+    return submissions;
+  } catch (error) {
+    console.error('❌ Error fetching assignment submissions:', error);
+    return [];
+  }
+}
+
+/**
+ * Gets assignment area for submission with enrollment validation
+ * @param assignmentId - Assignment area ID
+ * @param studentId - Student's user ID (optional, for enrollment check)
+ * @returns Assignment area info or null
+ */
+export async function getAssignmentAreaForSubmission(assignmentId: string, studentId?: string) {
+  try {
+    const assignmentArea = await db.assignmentArea.findUnique({
+      where: { id: assignmentId },
+      include: {
+        course: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+        },
+        rubric: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+      },
+    });
+
+    if (!assignmentArea) {
+      return null;
+    }
+
+    // If studentId provided, check enrollment
+    if (studentId) {
+      const enrollment = await db.enrollment.findUnique({
+        where: {
+          studentId_courseId: {
+            studentId,
+            courseId: assignmentArea.courseId,
+          },
+        },
+      });
+
+      if (!enrollment) {
+        throw new Error('Student is not enrolled in this course');
+      }
+    }
+
+    return assignmentArea;
+  } catch (error) {
+    console.error('❌ Error fetching assignment area for submission:', error);
+    throw error;
   }
 }
 
@@ -290,41 +435,3 @@ export async function updateSubmission(
     return null;
   }
 }
-
-/**
- * Gets assignment area details for submission (public info)
- * @param {string} assignmentAreaId - Assignment area ID
- * @returns {Promise<StudentAssignmentInfo | null>} Assignment area information
- */
-export async function getAssignmentAreaForSubmission(assignmentAreaId: string): Promise<StudentAssignmentInfo | null> {
-  try {
-    const assignmentArea = await db.assignmentArea.findUnique({
-      where: { id: assignmentAreaId },
-      include: {
-        course: {
-          include: {
-            teacher: {
-              select: {
-                email: true,
-              },
-            },
-          },
-        },
-        rubric: true,
-      },
-    });
-
-    if (!assignmentArea) {
-      return null;
-    }
-
-    // Transform to match StudentAssignmentInfo interface
-    return {
-      ...assignmentArea,
-      submissions: [], // Empty array for this specific use case
-    };
-  } catch (error) {
-    console.error('❌ Error fetching assignment area:', error);
-    return null;
-  }
-} 

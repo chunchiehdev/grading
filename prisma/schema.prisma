@@ -29,6 +29,8 @@ model User {
   
   // Student-specific relations
   submissions     Submission[]
+  enrollments     Enrollment[]
+  usedInvitations InvitationCode[] @relation("InvitationCodeUsage")
 
   @@map("users")
 }
@@ -46,6 +48,8 @@ model Course {
 
   // Relations
   assignmentAreas AssignmentArea[]
+  enrollments     Enrollment[]
+  invitationCodes InvitationCode[]
 
   @@index([teacherId])
   @@map("courses")
@@ -253,6 +257,40 @@ enum SubmissionStatus {
   SUBMITTED   // Just submitted
   ANALYZED    // AI analysis complete
   GRADED      // Teacher has provided feedback/grade
+}
+
+// Course enrollment for students
+model Enrollment {
+  id        String   @id @default(uuid())
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime @default(now())
+  
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+// Course invitation codes
+model InvitationCode {
+  id        String   @id @default(uuid())
+  code      String   @unique @db.VarChar(50)
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  usedAt    DateTime?
+  usedById  String?
+  usedBy    User?    @relation("InvitationCodeUsage", fields: [usedById], references: [id])
+  
+  @@index([code])
+  @@index([courseId])
+  @@index([expiresAt])
+  @@map("invitation_codes")
 }
 
 

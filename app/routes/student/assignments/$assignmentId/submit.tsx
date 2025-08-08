@@ -16,7 +16,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response('Assignment not found', { status: 404 });
   }
 
-  const assignment = await getAssignmentAreaForSubmission(assignmentId);
+  const assignment = await getAssignmentAreaForSubmission(assignmentId, student.id);
   
   if (!assignment) {
     throw new Response('Assignment not found', { status: 404 });
@@ -38,6 +38,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   if (!filePath || filePath.trim().length === 0) {
     throw new Response(JSON.stringify({ error: 'Please upload a file for your submission' }), { 
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Check if assignment is past due date
+  const assignment = await getAssignmentAreaForSubmission(assignmentId, student.id);
+  if (assignment?.dueDate && new Date(assignment.dueDate) < new Date()) {
+    throw new Response(JSON.stringify({ error: 'This assignment is past the due date and can no longer accept submissions' }), { 
       status: 400,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -68,7 +77,7 @@ export default function SubmitAssignment() {
   const { student, assignment } = useLoaderData<typeof loader>();
   const actionData = useActionData() as ActionData | undefined;
 
-  const rubricCriteria = assignment.rubric.criteria || [];
+  const rubricCriteria = (assignment.rubric as any)?.criteria || [];
 
   return (
     <div>

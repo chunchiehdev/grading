@@ -4,6 +4,7 @@ import { route, index, layout, prefix, type RouteConfig } from "@react-router/de
 export default [
   // Public routes
   index('./routes/index.tsx'),
+  route('/join', './routes/join.tsx'),
 
   route('/auth', './routes/auth/layout.tsx', [  
     route('login', './routes/auth/login.tsx'), 
@@ -17,16 +18,20 @@ export default [
   // Teacher Platform routes
   ...prefix('/teacher', [
     route('dashboard', './routes/teacher/dashboard.tsx'),
+    route('courses', './routes/teacher/courses/index.tsx'),
     route('courses/new', './routes/teacher/courses/new.tsx'),
     route('courses/:courseId', './routes/teacher/courses/$courseId.tsx'),
+    route('courses/:courseId/assignments/new', './routes/teacher/courses/$courseId/assignments/new.tsx'),
+    route('courses/:courseId/assignments/:assignmentId/manage', './routes/teacher/courses/$courseId/assignments/$assignmentId.manage.tsx'),
+    route('courses/:courseId/assignments/:assignmentId/submissions', './routes/teacher/courses/$courseId/assignments/$assignmentId.submissions.tsx'),
     route('rubrics', './routes/teacher/rubrics.tsx'),
-    // TODO: Add these routes when components are created:
-    // route('courses/:courseId/assignments/new', './routes/teacher/courses/$courseId/assignments/new.tsx'),
+    route('rubrics/new', './routes/teacher/rubrics/new.tsx'),
   ]),
 
   // Student Platform routes
   ...prefix('/student', [
     route('dashboard', './routes/student/dashboard.tsx'),
+    route('courses', './routes/student/courses.tsx'),
     route('assignments', './routes/student/assignments.tsx'),
     route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId/submit.tsx'),
     route('submissions', './routes/student/submissions.tsx'),
