@@ -73,7 +73,7 @@ export function NavHeader({
         <nav className="relative mx-auto flex max-w-8xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
           {/* Left Section - Logo & Title */}
           <div className="flex items-center gap-3">
-            <Link to="/dashboard" className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3">
                <img 
                  src="/logo4.png" 
                  alt="GradeMaster Logo" 

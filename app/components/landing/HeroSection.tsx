@@ -39,9 +39,9 @@ const HeroSection = () => {
   };
 
   return (
-    <section className="min-h-screen">
+    <section className="h-full flex flex-col justify-center">
       <div className="w-full px-6 lg:px-12 xl:px-20 py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center min-h-[80vh]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center ">
           {/* Text Content */}
           <div className="lg:col-span-7 space-y-10 order-2 lg:order-1">
             <div className="space-y-8">
