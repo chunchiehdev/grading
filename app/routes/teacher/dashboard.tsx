@@ -10,6 +10,7 @@ import { StatsCard } from '@/components/ui/stats-card';
 import { PageHeader } from '@/components/ui/page-header';
 
 import { formatDateForDisplay } from '@/lib/date';
+import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   teacher: { id: string; email: string; name: string; role: string };
@@ -25,6 +26,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
 export default function TeacherDashboard() {
   const { teacher, courses } = useLoaderData<typeof loader>();
+  const { t } = useTranslation(['course'])
 
   const totalAssignmentAreas = courses.reduce((total, course) => 
     total + (course.assignmentAreas?.length || 0), 0
@@ -44,8 +46,7 @@ export default function TeacherDashboard() {
       </Button>
       <Button asChild>
         <Link to="/teacher/courses/new">
-          
-          建立課程
+          {t('course:new')}
         </Link>
       </Button>
     </>
