@@ -25,11 +25,13 @@ const queryClient = new QueryClient({
   },
 });
 
-export type User = {
+export type  User = {
   id: string;
   email: string;
   name: string;
   picture: string;
+  role: 'TEACHER' | 'STUDENT' | null;
+
 };
 
 type LoaderData = {
@@ -67,106 +69,110 @@ export const meta = () => [
   { name: 'description', content: 'A grading system application' },
 ];
 
+async function getVersionInfoSafe(): Promise<VersionInfo> {
+  try {
+    const { getVersionInfo } = await import('@/services/version.server');
+    return await getVersionInfo();
+  } catch (error) {
+    console.error('Failed to get version info:', error);
+    return {
+      version: '1.0.0',
+      branch: 'unknown',
+      commitHash: 'unknown',
+      buildTime: new Date().toISOString(),
+      environment: 'development'
+    };
+  }
+}
+
+async function getUserSafe(request: Request): Promise<User | null> {
+  try {
+    const { getUser } = await import('@/services/auth.server');
+    return await getUser(request);
+  } catch (error) {
+    return null;
+  }
+}
+
+async function requireAuthSafe(request: Request): Promise<User | null> {
+  try {
+    const { requireAuth } = await import('@/services/auth.server');
+    return await requireAuth(request);
+  } catch (error) {
+    return null;
+  }
+}
+
+function isStaticAsset(path: string) {
+  return (
+    path.startsWith('/assets/') ||
+    /\.(css|js|ico|png|jpg|svg)$/.test(path) ||
+    path.startsWith('/__')
+  );
+}
+
+function isPublicPath(path: string): boolean {
+  return PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
+}
+
+export function getRoleBasedDashboard(userRole: string): string {
+  return userRole === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+}
 // Not needed for our simple i18next setup
 
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
-
-  // Detect locale from request
   const locale = getServerLocale(request);
 
-  // Skip auth for static assets (non-page routes)
-  if (
-    path.startsWith('/assets/') ||
-    path.includes('.css') ||
-    path.includes('.js') ||
-    path.includes('.ico') ||
-    path.includes('.png') ||
-    path.includes('.jpg') ||
-    path.includes('.svg') ||
-    path.startsWith('/__')  
-  ) {
+  // Early return for static assets
+  if (isStaticAsset(path)) {
     return { user: null, isPublicPath: true, versionInfo: null, locale };
   }
 
-  const getVersionInfoLocal = async () => {
-    try {
-      const { getVersionInfo } = await import('@/services/version.server');
-      return getVersionInfo();
-    } catch (error) {
-      console.error('Failed to get version info:', error);
-      return {
-        version: '1.0.0',
-        branch: 'unknown',
-        commitHash: 'unknown',
-        buildTime: new Date().toISOString(),
-        environment: 'development'
-      };
-    }
-  };
+  const versionInfo = await getVersionInfoSafe();
 
-  // Define public paths that don't require authentication
-  const PUBLIC_PATHS = [
-    '/auth',
-    '/login',
-    '/api',
-    '/health',
-  ];
-
-  // Check if this is a public path (but still get user if available)
-  const isPublicPath = PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
-  
-  if (isPublicPath) {
-    // For public paths, try to get user but don't require auth
-    try {
-      const { getUser } = await import('@/services/auth.server');
-      const [user, versionInfo] = await Promise.all([
-        getUser(request),
-        getVersionInfoLocal()
-      ]);
-      
-      // If user is authenticated and on login page, redirect to appropriate dashboard
-      if (user && path === '/auth/login') {
-        const redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
-        throw redirect(redirectPath);
+  // Handle public paths
+  if (isPublicPath(path)) {
+    const user = await getUserSafe(request);
+    
+    if (user && path === '/auth/login') {
+      if (user.role) {
+        throw redirect(getRoleBasedDashboard(user.role));
       }
-      
-      return { user, isPublicPath: true, versionInfo, locale };
-    } catch (error) {
-      const versionInfo = await getVersionInfoLocal();
-      return { user: null, isPublicPath: true, versionInfo, locale };
-    }
-  }
-
-  // For protected paths, require authentication
-  try {
-    const { requireAuth } = await import('@/services/auth.server');
-    const [user, versionInfo] = await Promise.all([
-      requireAuth(request),
-      getVersionInfoLocal()
-    ]);
-
-    // Role-based redirection for legacy routes
-    if (path === '/dashboard') {
-      const redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
-      throw redirect(redirectPath);
-    }
-
-    // Check role-based access for protected routes
-    if (path.startsWith('/teacher/') && user.role !== 'TEACHER') {
-      throw redirect('/auth/unauthorized');
+        throw redirect('/auth/select-role');
     }
     
-    if (path.startsWith('/student/') && user.role !== 'STUDENT') {
-      throw redirect('/auth/unauthorized');
-    }
+    return { user, isPublicPath: true, versionInfo, locale };
+  }
 
-    return { user, isPublicPath: false, versionInfo, locale };
-  } catch (error) {
-    // If auth fails, redirect to login
+  // Handle protected paths - require authentication
+  const user = await requireAuthSafe(request);
+  
+  // If authentication failed, redirect to login
+  if (!user) {
     throw redirect('/auth/login');
   }
+
+  if (!user.role && path !== '/auth/select-role') {
+    throw redirect('/auth/select-role');
+  }
+
+  // Handle legacy dashboard route
+  if (path === '/dashboard') {
+    throw redirect(getRoleBasedDashboard(user.role as string));
+  }
+
+  // Role-based access control
+  if (path.startsWith('/teacher/') && user.role !== 'TEACHER') {
+    throw redirect('/auth/unauthorized');
+  }
+  
+  if (path.startsWith('/student/') && user.role !== 'STUDENT') {
+    throw redirect('/auth/unauthorized');
+  }
+
+  return { user, isPublicPath: false, versionInfo, locale };
 }
 
 function Document({ children }: { children: React.ReactNode }) {
