@@ -1,5 +1,7 @@
 import { HeroSection } from '@/components/landing/HeroSection';
 
+// Not needed for our simple i18next setup
+
 /**
  * Landing page
  */

@@ -354,16 +354,7 @@ export default function CourseDetail() {
                   </div>
                 )}
 
-                {/* Usage Instructions */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-medium text-blue-900 mb-2">How to Share</h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• Share the invitation code or URL directly with students</li>
-                    <li>• Students can scan the QR code with their phones</li>
-                    <li>• The code expires in 7 days and can only be used once per student</li>
-                    <li>• Students must be logged in to join the course</li>
-                  </ul>
-                </div>
+                
               </div>
             )}
           </CardContent>

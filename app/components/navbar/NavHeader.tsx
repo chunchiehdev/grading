@@ -14,7 +14,9 @@ import { useLoaderData } from 'react-router';
 import { useLogout } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useState } from 'react';
-import { User } from '@/root'; // 確保路徑是正確的
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { useTranslation } from 'react-i18next';
+import { User } from '@/root'; 
 
 interface NavHeaderProps {
   title?: string;
@@ -23,18 +25,39 @@ interface NavHeaderProps {
 }
 
 export function NavHeader({ 
-  title = '作業評分系統', 
+  title, 
   onShare, 
   className 
 }: NavHeaderProps) {
+  // Always call hooks in the same order - before any early returns
   const { user } = useLoaderData() as { user: User | null };
-  console.log('NavHeader user:', user);
   const logout = useLogout();
   const [langDialogOpen, setLangDialogOpen] = useState(false);
+  
+  // Use translation with error handling - always call this hook
+  const { t, ready, i18n } = useTranslation('navigation', { useSuspense: false });
 
+  // Early return after all hooks are called
   if (!user) {
-    return null;
+    return (
+      <div className="hidden">
+        {/* Empty component to maintain consistent hook calls */}
+      </div>
+    );
   }
+  
+  // Fallback function for when i18n isn't ready
+  const safeT = (key: string, fallback: string = key) => {
+    if (!ready || !t) {
+      return fallback;
+    }
+    try {
+      return t(key, fallback);
+    } catch (error) {
+      console.warn(`Translation error for key "${key}":`, error);
+      return fallback;
+    }
+  };
 
   const handleLogout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +81,7 @@ export function NavHeader({
                />
                
               <div className="hidden sm:block text-lg font-semibold text-foreground">
-                {title}
+                {title || safeT('title', 'Grading System')}
               </div>
             </Link>
           </div>
@@ -66,33 +89,19 @@ export function NavHeader({
           {/* Center Section - Mobile Title */}
           <div className="absolute left-1/2 -translate-x-1/2 sm:hidden">
             <div className="text-sm font-medium text-foreground/80 truncate max-w-32">
-              {title}
+              {title || safeT('title', 'Grading System')}
             </div>
           </div>
 
           {/* Right Section - Desktop Controls */}
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher variant="dropdown" />
             {onShare && (
               <Button variant="outline" size="sm" onClick={onShare} className="gap-2">
                 <Share2 className="w-4 h-4" />
-                <span>分享</span>
+                <span>{safeT('share', 'Share')}</span>
               </Button>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="px-2">
-                  <Globe className="w-5 h-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-32">
-                <DropdownMenuItem onClick={() => {/* 切換到繁中 */}}>
-                  繁體中文
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {/* 切換到英文 */}}>
-                  English
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
             <ModeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -116,7 +125,7 @@ export function NavHeader({
                   disabled={logout.isPending}
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  {logout.isPending ? '登出中...' : '登出'}
+                  {logout.isPending ? safeT('loggingOut', 'Logging out...') : safeT('logout', 'Logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -140,17 +149,16 @@ export function NavHeader({
                   <>
                     <DropdownMenuItem onClick={onShare}>
                       <Share2 className="w-4 h-4 mr-2" />
-                      分享
+{safeT('share', 'Share')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
                 )}
                 <DropdownMenuItem
-                  onClick={() => {/* 切換語言選單 */}}
+                  onClick={() => setLangDialogOpen(true)}
                 >
                   <Globe className="w-4 h-4 mr-2" />
-                  語言
-                  {/* 或者可以做子選單 */}
+{safeT('language', 'Language')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -159,7 +167,7 @@ export function NavHeader({
                   disabled={logout.isPending}
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  {logout.isPending ? '登出中...' : '登出'}
+                  {logout.isPending ? safeT('loggingOut', 'Logging out...') : safeT('logout', 'Logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -170,11 +178,10 @@ export function NavHeader({
       <Dialog open={langDialogOpen} onOpenChange={setLangDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>選擇語言</DialogTitle>
+            <DialogTitle>{safeT('selectLanguage', 'Select Language')}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-2 mt-4">
-            <Button variant="outline" onClick={() => {/* 切換語言 */}}>繁體中文</Button>
-            <Button variant="outline" onClick={() => {/* 切換語言 */}}>English</Button>
+            <LanguageSwitcher variant="tabs" className="w-full" />
           </div>
         </DialogContent>
       </Dialog>

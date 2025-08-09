@@ -1,0 +1,98 @@
+{
+  "title": "評分標準",
+  "new": "新增評分標準",
+  "create": "建立評分標準",
+  "edit": "編輯評分標準",
+  "delete": "刪除評分標準",
+  "save": "儲存評分標準",
+  "saving": "正在儲存評分標準...",
+  "name": "標準名稱",
+  "description": "標準描述",
+  "category": "類別",
+  "categories": "類別",
+  "criteria": "評分項目",
+  "criterion": "評分項目",
+  "levels": "等級",
+  "level": "等級",
+  "points": "分數",
+  "weight": "權重",
+  "total": "總分",
+  "addCategory": "新增類別",
+  "addCriterion": "新增評分項目",
+  "editCategory": "編輯類別",
+  "editCriterion": "編輯評分項目",
+  "deleteCategory": "刪除類別",
+  "deleteCriterion": "刪除評分項目",
+  "categoryName": "類別名稱",
+  "categoryDescription": "類別描述",
+  "criterionName": "項目名稱",
+  "criterionDescription": "項目描述",
+  "levelDescription": "等級描述",
+  "excellent": "優秀",
+  "good": "良好",
+  "satisfactory": "滿意",
+  "needsImprovement": "需要改進",
+  "levelNames": {
+    "4": "優秀",
+    "3": "良好", 
+    "2": "滿意",
+    "1": "需要改進"
+  },
+  "emptyState": {
+    "categoriesTitle": "開始建立您的評分標準",
+    "categoriesDescription": "評分標準讓您能夠客觀、一致地評估學生作業。讓我們從建立第一個評分類別開始。",
+    "categoriesAction": "建立第一個類別",
+    "criteriaTips": [
+      "常見類別：思維探究、溝通表達、創意發想",
+      "每個類別可以包含多個評分標準",
+      "建議先規劃好所有類別再添加詳細標準"
+    ],
+    "criteriaTitle": "為此類別添加評分標準",
+    "criteriaDescription": "評分標準為具體的評估項目，每個標準都有四個等級的詳細描述。",
+    "criteriaAction": "新增第一個標準",
+    "criteriaTips": [
+      "標準應該明確、可測量",
+      "避免主觀性太強的描述",
+      "每個標準都有 1-4 分的等級"
+    ],
+    "levelsTitle": "設定等級描述",
+    "levelsDescription": "為每個評分等級提供清楚的描述，這將幫助評分者做出一致的判斷。",
+    "levelsAction": "開始編輯等級",
+    "levelsTips": [
+      "4分：超越期望的優秀表現",
+      "3分：符合期望的良好表現", 
+      "2分：基本達到要求",
+      "1分：需要改進的表現"
+    ]
+  },
+  "aiAssistant": {
+    "title": "AI 評分標準助手",
+    "greeting": "您好！我是評分標準助手 ✨\n\n請告訴我您想要創建什麼類型的評分標準，我會為您自動生成詳細的評分項目和等級描述。\n\n您可以試試下面的快速開始選項，或者直接描述您的需求！",
+    "placeholder": "例如：個人簡述評分標準",
+    "examples": [
+      "個人簡述評分標準",
+      "程式設計作業評分標準", 
+      "簡報製作評分標準",
+      "學術論文評分標準"
+    ],
+    "generating": "正在生成評分標準...",
+    "apply": "套用此評分標準",
+    "regenerate": "重新生成",
+    "error": "生成評分標準時發生錯誤，請重試"
+  },
+  "validation": {
+    "nameRequired": "標準名稱為必填",
+    "categoryRequired": "至少需要一個類別",
+    "criterionRequired": "每個類別至少需要一個評分項目",
+    "levelRequired": "每個評分項目需要完整的等級描述",
+    "pointsInvalid": "分數必須為正數",
+    "weightInvalid": "權重必須為 0-100 之間的數字"
+  },
+  "messages": {
+    "saveSuccess": "評分標準已成功儲存",
+    "saveError": "儲存評分標準時發生錯誤",
+    "deleteSuccess": "評分標準已成功刪除",
+    "deleteError": "刪除評分標準時發生錯誤",
+    "deleteConfirm": "確定要刪除此評分標準嗎？此操作無法復原。"
+  }
+}

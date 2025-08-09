@@ -1,0 +1,19 @@
+{
+  "hero": {
+    "title": "Grading System",
+    "subtitle": "An intuitive grading tool designed for modern educators, making the grading process more efficient and accurate.",
+    "getStarted": "Get Started",
+    "enterSystem": "Enter System",
+    "learnMore": "Learn More",
+    "reLogin": "Re-login"
+  },
+  "features": {
+    "title": "Key Features",
+    "aiGrading": "AI-Powered Grading",
+    "aiGradingDesc": "Use advanced AI technology to provide objective and consistent grading results",
+    "rubricManagement": "Rubric Management",
+    "rubricManagementDesc": "Create and manage detailed rubrics to ensure grading transparency",
+    "realTimeResults": "Real-time Results",
+    "realTimeResultsDesc": "Get quick grading results with detailed feedback suggestions"
+  }
+}

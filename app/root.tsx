@@ -12,6 +12,9 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useUiStore } from '@/stores/uiStore';
 import { FooterVersion } from '@/components/VersionInfo';
 import type { VersionInfo } from '@/services/version.server';
+import { useTranslation } from 'react-i18next';
+import { getServerLocale } from './localization/i18n';
+import { useEffect } from 'react';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +36,7 @@ type LoaderData = {
   user: User | null;
   isPublicPath: boolean;
   versionInfo: VersionInfo | null;
+  locale: string;
 };
 
 export const links = () => [
@@ -63,9 +67,14 @@ export const meta = () => [
   { name: 'description', content: 'A grading system application' },
 ];
 
+// Not needed for our simple i18next setup
+
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
+
+  // Detect locale from request
+  const locale = getServerLocale(request);
 
   // Skip auth for static assets (non-page routes)
   if (
@@ -78,7 +87,7 @@ export async function loader({ request }: { request: Request }) {
     path.includes('.svg') ||
     path.startsWith('/__')  
   ) {
-    return { user: null, isPublicPath: true, versionInfo: null };
+    return { user: null, isPublicPath: true, versionInfo: null, locale };
   }
 
   const getVersionInfoLocal = async () => {
@@ -123,10 +132,10 @@ export async function loader({ request }: { request: Request }) {
         throw redirect(redirectPath);
       }
       
-      return { user, isPublicPath: true, versionInfo };
+      return { user, isPublicPath: true, versionInfo, locale };
     } catch (error) {
       const versionInfo = await getVersionInfoLocal();
-      return { user: null, isPublicPath: true, versionInfo };
+      return { user: null, isPublicPath: true, versionInfo, locale };
     }
   }
 
@@ -153,7 +162,7 @@ export async function loader({ request }: { request: Request }) {
       throw redirect('/auth/unauthorized');
     }
 
-    return { user, isPublicPath: false, versionInfo };
+    return { user, isPublicPath: false, versionInfo, locale };
   } catch (error) {
     // If auth fails, redirect to login
     throw redirect('/auth/login');
@@ -184,8 +193,16 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const { user, isPublicPath, versionInfo } = useLoaderData() as LoaderData;
+  const { user, isPublicPath, versionInfo, locale } = useLoaderData() as LoaderData;
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
+  const { i18n } = useTranslation();
+  
+  // Change language when locale from server changes
+  useEffect(() => {
+    if (i18n.language !== locale) {
+      i18n.changeLanguage(locale);
+    }
+  }, [locale, i18n]);
 
   // Unified layout structure for all route types
   return (

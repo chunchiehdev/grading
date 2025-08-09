@@ -1,11 +1,13 @@
 import { useNavigate, useSearchParams } from 'react-router';
 import { useUser } from '@/hooks/useAuth';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Modern Minimal Landing Page - Full screen width
  */
 const HeroSection = () => {
+  const { t } = useTranslation(['common', 'auth', 'landing']);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data: user, isLoading } = useUser();
@@ -43,13 +45,13 @@ const HeroSection = () => {
           <div className="lg:col-span-7 space-y-10 order-2 lg:order-1">
             <div className="space-y-8">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extralight text-gray-900 leading-[1.1] tracking-tight">
-                <span className="font-light">評分</span>系統
+{t('landing:hero.title')}
               </h1>
               
               <div className="w-20 h-px bg-gray-300"></div>
               
               <p className="text-lg lg:text-xl text-gray-600 font-light leading-relaxed max-w-lg">
-                為現代教育工作者設計的直觀評分工具，讓評分過程更加高效且準確。aaa
+{t('landing:hero.subtitle')}
               </p>
             </div>
 
@@ -60,7 +62,7 @@ const HeroSection = () => {
                 className="group bg-gray-900 text-white px-8 py-4 text-sm font-light tracking-wide transition-all duration-300 hover:bg-gray-800"
               >
                 <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">
-                  {isLoggedIn ? '進入系統' : '開始使用'}
+{isLoggedIn ? t('landing:hero.enterSystem') : t('landing:hero.getStarted')}
                 </span>
               </button>
               
@@ -68,7 +70,7 @@ const HeroSection = () => {
                 onClick={() => navigate('/auth/login')}
                 className="text-gray-700 hover:text-gray-900 px-8 py-4 text-sm font-light tracking-wide border border-gray-200 transition-all duration-300 hover:border-gray-300"
               >
-                {showLogoutMessage ? '重新登入' : '了解更多'}
+{showLogoutMessage ? t('landing:hero.reLogin') : t('landing:hero.learnMore')}
               </button>
             </div>
           </div>
