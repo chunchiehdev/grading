@@ -40,11 +40,11 @@ const HeroSection = () => {
 
   return (
     <section className="h-full flex flex-col justify-center">
-      <div className="w-full px-6 lg:px-12 xl:px-20 py-20">
+      <div className="w-full px-6 lg:px-12 xl:px-20 py-12 sm:py-16 lg:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center ">
           {/* Text Content */}
           <div className="lg:col-span-7 space-y-10 order-2 lg:order-1">
-            <div className="space-y-8">
+            <div className="space-y-8 min-h-[180px] sm:min-h-[200px] ">
               <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extralight text-gray-900 leading-[1.1] tracking-tight">
                 {t('landing:hero.title')}
               </h1>
@@ -60,7 +60,7 @@ const HeroSection = () => {
               <button
                 onClick={handleGetStarted}
                 disabled={isLoading}
-                className="group bg-gray-900 text-white px-8 py-4 text-sm font-light tracking-wide transition-all duration-300 hover:bg-gray-800"
+                className="group bg-gray-900 text-white px-8 py-4 text-sm font-light tracking-wide transition-all duration-300 hover:bg-gray-800 min-w-[180px] text-center"
               >
                 <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">
                   {isLoggedIn ? t('landing:hero.enterSystem') : t('landing:hero.getStarted')}

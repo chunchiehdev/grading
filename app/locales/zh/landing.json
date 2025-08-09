@@ -1,7 +1,7 @@
 {
   "hero": {
-    "title": "評分系統",
-    "subtitle": "為現代教育工作者設計的直觀評分工具，讓評分過程更加高效且準確。",
+    "title": "Lumos Grade",
+    "subtitle": "AI 幫老師輕鬆評分，學生即時收到回饋，加快學習速度。",
     "getStarted": "開始使用",
     "enterSystem": "進入系統",
     "learnMore": "了解更多",
@@ -9,7 +9,7 @@
   },
   "features": {
     "title": "主要功能",
-    "aiGrading": "AI 智能評分",
+    "aiGrading": "AI 智慧",
     "aiGradingDesc": "使用先進的 AI 技術提供客觀、一致的評分結果",
     "rubricManagement": "評分標準管理",
     "rubricManagementDesc": "建立和管理詳細的評分標準，確保評分的透明度",
