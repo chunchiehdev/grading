@@ -197,25 +197,25 @@ export default function CourseDetail() {
             title="Assignment Areas"
             value={course.assignmentAreas?.length || 0}
             icon={FileText}
-            variant="default"
+            variant="transparent"
           />
           <StatsCard
             title="Total Submissions"
             value={totalSubmissions}
             icon={Users}
-            variant="success"
+            variant="transparent"
           />
           <StatsCard
             title="Enrolled Students"
             value={enrollmentStats.totalEnrollments}
             icon={Users}
-            variant="secondary"
+            variant="transparent"
           />
           <StatsCard
             title="Created"
             value={formattedCreatedDate}
             icon={FileText}
-            variant="secondary"
+            variant="transparent"
           />
         </div>
 
@@ -318,9 +318,9 @@ export default function CourseDetail() {
                           <label className="text-sm font-medium text-gray-700 mb-2 block">
                             Expires At
                           </label>
-                          <p className="text-sm text-gray-600">
+                          {/* <p className="text-sm text-gray-600">
                             {new Date(invitation.expiresAt).toLocaleString()}
-                          </p>
+                          </p> */}
                         </div>
                       )}
 

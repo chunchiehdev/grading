@@ -67,19 +67,19 @@ export default function TeacherDashboard() {
             title="Total Courses"
             value={courses.length}
             icon={GraduationCap}
-            variant="default"
+            variant="transparent"
           />
           <StatsCard
             title="Assignment Areas"
             value={totalAssignmentAreas}
             icon={FileText}
-            variant="success"
+            variant="transparent"
           />
           <StatsCard
             title="Total Submissions"
             value={totalSubmissions}
             icon={Users}
-            variant="warning"
+            variant="transparent"
           />
         </div>
 
