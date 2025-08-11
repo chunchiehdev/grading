@@ -125,6 +125,75 @@ export async function createSubmission(studentId: string, submissionData: Create
 }
 
 /**
+ * Creates a submission and attempts to start AI grading automatically.
+ * Tries to link to an existing UploadedFile belonging to the student using the provided filePath
+ * (interpreted as either an uploaded file ID or storage key). If found and parsed, creates a
+ * GradingSession with a single GradingResult using the assignment's rubric, and starts processing.
+ * Returns identifiers for client-side polling.
+ */
+export async function createSubmissionAndGrade(
+  studentId: string,
+  assignmentAreaId: string,
+  filePathOrId: string
+): Promise<{ submissionId: string; gradingSessionId?: string }> {
+  // 1) Create the submission record first
+  const submission = await createSubmission(studentId, {
+    assignmentAreaId,
+    filePath: filePathOrId,
+  });
+
+  // 2) Retrieve rubricId from assignment area
+  const assignmentArea = await db.assignmentArea.findUnique({
+    where: { id: assignmentAreaId },
+    select: { rubricId: true },
+  });
+
+  if (!assignmentArea?.rubricId) {
+    return { submissionId: submission.id };
+  }
+
+  // 3) Try to resolve an UploadedFile for this student based on the provided file token
+  // We accept either an explicit uploaded file ID or the storage key
+  const uploadedFile = await db.uploadedFile.findFirst({
+    where: {
+      userId: studentId,
+      parseStatus: 'COMPLETED',
+      OR: [
+        { id: filePathOrId },
+        { fileKey: filePathOrId },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (!uploadedFile) {
+    // Could not link to a parsed upload; grading session not started
+    return { submissionId: submission.id };
+  }
+
+  // 4) Create a grading session + result for this single file/rubric pair
+  const { createGradingSession, startGradingSession } = await import('./grading-session.server');
+  const sessionRes = await createGradingSession({
+    userId: studentId,
+    filePairs: [
+      {
+        fileId: uploadedFile.id,
+        rubricId: assignmentArea.rubricId,
+      },
+    ],
+  });
+
+  if (!sessionRes.success || !sessionRes.sessionId) {
+    return { submissionId: submission.id };
+  }
+
+  // 5) Kick off background grading for this session
+  await startGradingSession(sessionRes.sessionId, studentId);
+
+  return { submissionId: submission.id, gradingSessionId: sessionRes.sessionId };
+}
+
+/**
  * Gets all available assignments for a student (assignment areas they can submit to)
  * Only shows assignments from courses the student is enrolled in
  * @param {string} studentId - The student's user ID
@@ -350,6 +419,38 @@ export async function getStudentSubmissions(studentId: string): Promise<Submissi
     return submissions;
   } catch (error) {
     console.error('❌ Error fetching student submissions:', error);
+    return [];
+  }
+}
+
+/**
+ * Gets all submissions by a specific student (alias with clearer name)
+ * @param studentId - The student's user ID
+ * @returns List of submissions including assignment area and course
+ */
+export async function getSubmissionsByStudentId(studentId: string): Promise<SubmissionInfo[]> {
+  try {
+    const submissions = await db.submission.findMany({
+      where: { studentId },
+      include: {
+        assignmentArea: {
+          include: {
+            course: {
+              include: {
+                teacher: {
+                  select: { email: true },
+                },
+              },
+            },
+            rubric: true,
+          },
+        },
+      },
+      orderBy: { uploadedAt: 'desc' },
+    });
+    return submissions;
+  } catch (error) {
+    console.error('❌ Error fetching submissions by student:', error);
     return [];
   }
 }

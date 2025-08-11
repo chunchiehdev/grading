@@ -189,7 +189,7 @@ function Document({ children }: { children: React.ReactNode }) {
           type="module"
         ></script>
       </head>
-      <body className="min-h-screen w-full font-sans antialiased">
+      <body className="bg-background min-h-screen w-full font-sans antialiased">
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -212,7 +212,7 @@ function Layout() {
 
   // Unified layout structure for all route types
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden">
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-background">
       {/* Conditional NavHeader - only show for authenticated users or protected paths */}
       {(user || !isPublicPath) && (
         <NavHeader className="flex-shrink-0" />
