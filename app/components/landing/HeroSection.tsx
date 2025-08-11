@@ -9,24 +9,9 @@ import { getRoleBasedDashboard } from '@/root';
 const HeroSection = () => {
   const { t } = useTranslation(['common', 'auth', 'landing']);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { data: user, isLoading } = useUser();
+  const { data, isLoading } = useUser();
+  const user = data?.user;
   const isLoggedIn = Boolean(user);
-  const [showLogoutMessage, setShowLogoutMessage] = useState(false);
-
-  // Check for logout success parameter
-  useEffect(() => {
-    if (searchParams.get('logout') === 'success') {
-      setShowLogoutMessage(true);
-      // Auto-hide after 5 seconds
-      const timer = setTimeout(() => {
-        setShowLogoutMessage(false);
-        // Clean up URL parameter
-        navigate('/', { replace: true });
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [searchParams, navigate]);
 
   const handleGetStarted = () => {
     if (user && user.role) {
@@ -71,7 +56,7 @@ const HeroSection = () => {
                 onClick={() => navigate('/auth/login')}
                 className="text-gray-700 hover:text-gray-900 px-8 py-4 text-sm font-light tracking-wide border border-gray-200 transition-all duration-300 hover:border-gray-300"
               >
-                {showLogoutMessage ? t('landing:hero.reLogin') : t('landing:hero.learnMore')}
+                {t('landing:hero.learnMore')}
               </button>
             </div>
           </div>
@@ -81,7 +66,7 @@ const HeroSection = () => {
             <div className="relative w-full max-w-lg">
               {/* Main Image */}
               <div className="relative overflow-hidden">
-                <img src="/writing_rm_background.png" alt="評分系統示意圖" className="w-full h-auto object-cover" />
+                <img src="/writing_rm_background.png" alt="grading_picture" className="w-full h-auto object-cover" />
               </div>
             </div>
           </div>

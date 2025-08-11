@@ -15,6 +15,7 @@ const statsCardVariants = cva(
         warning: 'bg-orange-100 text-orange-600',
         destructive: 'bg-red-100 text-red-600',
         secondary: 'bg-purple-100 text-purple-600',
+        transparent: 'bg-transparent text-foreground',
       },
     },
     defaultVariants: {

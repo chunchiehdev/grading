@@ -78,25 +78,25 @@ export default function StudentDashboard() {
             title="Pending"
             value={pendingAssignments.length}
             icon={Clock}
-            variant="warning"
+            variant="transparent"
           />
           <StatsCard
             title="Submitted"
             value={submissions.length}
             icon={CheckCircle}
-            variant="success"
+            variant="transparent"
           />
           <StatsCard
             title="Graded"
             value={submissions.filter(sub => sub.status === 'GRADED').length}
             icon={BarChart3}
-            variant="default"
+            variant="transparent"
           />
           <StatsCard
             title="Avg Score"
             value={averageScore !== null ? averageScore : '--'}
             icon={Zap}
-            variant="secondary"
+            variant="transparent"
           />
         </div>
 

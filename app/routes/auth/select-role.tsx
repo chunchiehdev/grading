@@ -1,14 +1,17 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
-import { useLoaderData, useActionData, Form } from 'react-router';
-import { GraduationCap, UserCheck } from 'lucide-react';
+import { useLoaderData, useActionData, Form, useNavigation } from 'react-router';
+import { GraduationCap, User } from 'lucide-react';
 
 import { requireAuth, updateUserRole } from '@/services/auth.server';
+import { PageHeader } from '@/components/ui/page-header';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RoleCard } from '@/components/ui/role-card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface LoaderData {
-  user: { id: string; email: string; role: string };
+  user: { id: string; name: string, email: string; role: string };
 }
 
 interface ActionData {
@@ -17,7 +20,7 @@ interface ActionData {
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
   const user = await requireAuth(request);
-  
+
   // If user already has a role assigned (not default STUDENT), redirect them
   if (user.role && user.role !== 'STUDENT') {
     const redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
@@ -33,9 +36,9 @@ export async function action({ request }: ActionFunctionArgs) {
   const selectedRole = formData.get('role') as string;
 
   if (!selectedRole || (selectedRole !== 'TEACHER' && selectedRole !== 'STUDENT')) {
-    throw new Response(JSON.stringify({ error: 'Please select a valid role' }), { 
+    throw new Response(JSON.stringify({ error: 'Please select a valid role' }), {
       status: 400,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
@@ -43,9 +46,9 @@ export async function action({ request }: ActionFunctionArgs) {
     await updateUserRole(user.id, selectedRole as 'TEACHER' | 'STUDENT');
   } catch (error) {
     console.error('Error updating user role:', error);
-    throw new Response(JSON.stringify({ error: 'Failed to update role. Please try again.' }), { 
+    throw new Response(JSON.stringify({ error: 'Failed to update role. Please try again.' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 
@@ -54,62 +57,74 @@ export async function action({ request }: ActionFunctionArgs) {
   throw redirect(redirectPath);
 }
 
-export default function SelectRole() {
+export interface SelectRoleProps {}
+
+export function SelectRolePage(_: SelectRoleProps) {
   const { user } = useLoaderData<typeof loader>();
   const actionData = useActionData() as ActionData | undefined;
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === 'submitting';
 
   return (
-    <div className="h-full flex items-center justify-center">
-      <div className="w-full max-w-md bg-stone-50 rounded-lg border border-stone-200 p-8 m-6 overflow-y-auto max-h-[calc(100%-3rem)]">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-medium text-stone-800 mb-3">Welcome!</h1>
-          <p className="text-stone-600 leading-relaxed">
-            Hi {user.email.split('@')[0]}, please select your role to get started.
-          </p>
-        </div>
+    <div className="flex flex-col h-full">
+      
+      <div className="flex-1 flex items-center justify-center">
+        <main className="max-w-3xl px-4 pb-10 w-full">
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle>Welcome! {user.name}, choose how you'll use the app.</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form method="post" className="space-y-6" aria-busy={isSubmitting}>
+                <div className="space-y-4">
+                  {isSubmitting ? (
+                    <div className="space-y-4">
+                      <Skeleton className="h-24 w-full" />
+                      <Skeleton className="h-24 w-full" />
+                    </div>
+                  ) : (
+                    <>
+                      <RoleCard
+                        title="Teacher"
+                        description="Create courses, manage assignments, and grade student work"
+                        icon={GraduationCap}
+                        value="TEACHER"
+                        name="role"
+                        variant="teacher"
+                      />
 
-        <Form method="post" className="space-y-6">
-          <div className="space-y-4">
-            <RoleCard
-              title="Teacher"
-              description="Create courses, manage assignments, and grade student work"
-              icon={GraduationCap}
-              value="TEACHER"
-              name="role"
-              variant="teacher"
-            />
+                      <RoleCard
+                        title="Student"
+                        description="Submit assignments and receive feedback from teachers"
+                        icon={User}
+                        value="STUDENT"
+                        name="role"
+                        variant="student"
+                      />
+                    </>
+                  )}
+                </div>
 
-            <RoleCard
-              title="Student"
-              description="Submit assignments and receive feedback from teachers"
-              icon={UserCheck}
-              value="STUDENT"
-              name="role"
-              variant="student"
-            />
-          </div>
+                {actionData?.error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{actionData.error}</AlertDescription>
+                  </Alert>
+                )}
 
-          {actionData?.error && (
-            <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-800">
-              <AlertDescription className="text-red-700">{actionData.error}</AlertDescription>
-            </Alert>
-          )}
+                <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : 'Continue'}
+                </Button>
+              </Form>
 
-          <Button
-            type="submit"
-            className="w-full bg-teal-600 hover:bg-teal-700 text-white border-0 shadow-sm hover:shadow-md transition-all duration-200"
-            size="lg"
-          >
-            Continue
-          </Button>
-        </Form>
-
-        <div className="mt-8 text-center">
-          <p className="text-xs text-stone-500">
-            You can change your role later in account settings
-          </p>
-        </div>
+              <div className="mt-8 text-center">
+                <p className="text-xs text-muted-foreground">You can change your role later in account settings</p>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
       </div>
     </div>
   );
-} 
+}
+
+export default SelectRolePage;

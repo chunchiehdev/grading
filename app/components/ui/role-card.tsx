@@ -4,48 +4,30 @@ import { LucideIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
-const roleCardVariants = cva(
-  'relative flex items-center p-6 border-2 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm',
+// Semantic, theme-aware variants using design tokens only
+const containerVariants = cva(
+  'relative flex items-center justify-between rounded-lg border transition-all duration-200 cursor-pointer p-4 md:p-6',
   {
     variants: {
-      variant: {
-        teacher: 'bg-teal-50 border-teal-200 hover:border-teal-300 peer-checked:border-teal-500 peer-checked:bg-teal-100',
-        student: 'bg-emerald-50 border-emerald-200 hover:border-emerald-300 peer-checked:border-emerald-500 peer-checked:bg-emerald-100',
+      intent: {
+        teacher: 'hover:bg-muted peer-checked:outline  peer-checked:outline-2 peer-checked:shadow-lg peer-checked:outline-primary',
+        student: 'hover:bg-muted peer-checked:outline  peer-checked:outline-2 peer-checked:shadow-lg peer-checked:outline-primary',
       },
     },
-    defaultVariants: {
-      variant: 'teacher',
-    },
+    defaultVariants: { intent: 'teacher' },
   }
 );
 
-const roleIconVariants = cva(
-  'w-10 h-10 rounded-full flex items-center justify-center mr-4 shadow-sm',
+const iconVariants = cva(
+  'w-10 h-10 rounded-full flex items-center justify-center',
   {
     variants: {
-      variant: {
-        teacher: 'bg-teal-500',
-        student: 'bg-emerald-500',
+      intent: {
+        teacher: 'bg-primary text-primary-foreground',
+        student: 'bg-primary text-primary-foreground',
       },
     },
-    defaultVariants: {
-      variant: 'teacher',
-    },
-  }
-);
-
-const roleIndicatorVariants = cva(
-  'w-5 h-5 border-2 rounded-full flex items-center justify-center transition-colors',
-  {
-    variants: {
-      variant: {
-        teacher: 'border-stone-300 peer-checked:border-teal-500 peer-checked:bg-teal-500',
-        student: 'border-stone-300 peer-checked:border-emerald-500 peer-checked:bg-emerald-500',
-      },
-    },
-    defaultVariants: {
-      variant: 'teacher',
-    },
+    defaultVariants: { intent: 'teacher' },
   }
 );
 
@@ -55,43 +37,42 @@ export interface RoleCardProps extends React.LabelHTMLAttributes<HTMLLabelElemen
   icon: LucideIcon;
   value: string;
   name: string;
-  variant?: VariantProps<typeof roleCardVariants>['variant'];
+  variant?: 'teacher' | 'student';
 }
 
-export function RoleCard({ 
-  title, 
-  description, 
-  icon: Icon, 
-  value, 
-  name, 
-  variant = 'teacher', 
-  className, 
-  ...props 
+export function RoleCard({
+  title,
+  description,
+  icon: Icon,
+  value,
+  name,
+  variant = 'teacher',
+  className,
+  ...props
 }: RoleCardProps) {
   return (
     <label className="block" {...props}>
-      <input
-        type="radio"
-        name={name}
-        value={value}
-        className="sr-only peer"
-      />
-      <div className={cn(roleCardVariants({ variant }), className)}>
-        <div className="flex-1">
-          <div className="flex items-center">
-            <div className={cn(roleIconVariants({ variant }))}>
-              <Icon className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-lg font-medium text-stone-800">{title}</h3>
-              <p className="text-sm text-stone-600 leading-relaxed">{description}</p>
-            </div>
+      <input type="radio" name={name} value={value} className="sr-only peer" />
+      <div
+        className={cn(
+          'bg-background border-border focus-within:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2',
+          containerVariants({ intent: variant }),
+          className
+        )}
+      >
+        <div className="flex items-center flex-1 min-w-0">
+          <div className={cn('flex-shrink-0', iconVariants({ intent: variant }))}>
+            <Icon className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 ml-4">
+            <h3 className="text-base md:text-lg font-medium text-foreground truncate">{title}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 md:line-clamp-none">
+              {description}
+            </p>
           </div>
         </div>
-        <div className={cn(roleIndicatorVariants({ variant }))}>
-          <div className="w-2 h-2 bg-white rounded-full opacity-0 peer-checked:opacity-100 transition-opacity" />
-        </div>
+        
       </div>
     </label>
   );
-} 
+}

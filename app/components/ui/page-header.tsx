@@ -4,7 +4,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const pageHeaderVariants = cva(
-  'bg-background ',
+  ' ',
   {
     variants: {
       size: {
