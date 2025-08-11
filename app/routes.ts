@@ -1,4 +1,4 @@
-import { route, index, layout, prefix, type RouteConfig } from "@react-router/dev/routes";
+import { route, index, prefix, type RouteConfig } from "@react-router/dev/routes";
 
 
 export default [
@@ -26,6 +26,8 @@ export default [
     route('courses/:courseId/assignments/:assignmentId/submissions', './routes/teacher/courses/$courseId/assignments/$assignmentId.submissions.tsx'),
     route('rubrics', './routes/teacher/rubrics.tsx'),
     route('rubrics/new', './routes/teacher/rubrics/new.tsx'),
+    route('rubrics/:rubricId', './routes/teacher/rubrics/$rubricId.tsx'),
+    route('rubrics/:rubricId/edit', './routes/teacher/rubrics/$rubricId.edit.tsx'),
   ]),
 
   // Student Platform routes
@@ -34,21 +36,10 @@ export default [
     route('courses', './routes/student/courses.tsx'),
     route('assignments', './routes/student/assignments.tsx'),
     route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId/submit.tsx'),
-    route('submissions', './routes/student/submissions.tsx'),
+    route('submissions', './routes/student/submissions/index.tsx'),
+    route('submissions/:submissionId', './routes/student/submissions/$submissionId.tsx'),
   ]),
   
-  // Legacy Dashboard route (redirects based on role)
-  route('/dashboard', './routes/dashboard.tsx'),
-
-  // Assignment routes
-  route('/grading-with-rubric', './routes/grading-with-rubric.tsx'),
-
-  route('/rubrics', './routes/rubrics/layout.tsx', [
-    route('', './routes/rubrics/index.tsx'),
-    route('new', './routes/rubrics/new.tsx'),
-    route(':rubricId', './routes/rubrics/$rubricId.tsx'),
-    route(':rubricId/edit', './routes/rubrics/$rubricId.edit.tsx'),
-  ]),
 
   // API routes
   route('/api/grade-with-rubric', './api/grade/with-rubric.ts'),
@@ -88,6 +79,9 @@ export default [
 
   // Gemini API routes
   route('/api/gemini/test', './api/gemini/test.ts'),
+
+  // Student Submission API
+  route('/api/student/submit', './api/student/submit.ts'),
 
   // Grading history routes
   route('/grading-history', './routes/grading-history.tsx'),

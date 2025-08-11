@@ -105,7 +105,7 @@ export const action = async ({ request, params }: { request: Request; params: Re
     }
 
     console.log('Rubric updated successfully:', id);
-    return redirect(`/rubrics/${id}`);
+    return redirect(`/teacher/rubrics/${id}`);
   } catch (error) {
     console.error('Action error:', error);
     return Response.json({
@@ -336,7 +336,7 @@ export default function EditRubricRoute() {
   return (
     <div>
       <RubricHeader
-        onBack={() => navigate(`/rubrics/${initialRubric.id}`)}
+        onBack={() => navigate(`/teacher/rubrics/${initialRubric.id}`)}
         onSave={handleSave}
         onPreview={handlePreview}
         progress={progress}

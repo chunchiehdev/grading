@@ -1,4 +1,4 @@
-import { getUserId } from '@/services/auth.server';
+import { requireTeacher } from '@/services/auth.server';
 import { listRubrics } from '@/services/rubric.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
@@ -10,15 +10,9 @@ import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/type
  */
 export async function loader({ request }: { request: Request }) {
   try {
-    const userId = await getUserId(request);
-    if (!userId) {
-      return Response.json(
-        createErrorResponse('Authentication required', ApiErrorCode.UNAUTHORIZED), 
-        { status: 401 }
-      );
-    }
+    const teacher = await requireTeacher(request);
 
-    const { rubrics, error } = await listRubrics(userId);
+    const { rubrics, error } = await listRubrics(teacher.id);
 
     if (error) {
       return Response.json(

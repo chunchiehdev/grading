@@ -215,13 +215,8 @@ export async function validateInvitationCode(
       };
     }
 
-    if (invitationCode.isUsed) {
-      return {
-        isValid: false,
-        error: 'Invitation code has already been used',
-        course: invitationCode.course,
-      };
-    }
+    // For course-wide invite links, allow multiple uses.
+    // We no longer treat a single prior use as invalidation.
 
     if (invitationCode.expiresAt <= new Date()) {
       return {
@@ -303,16 +298,7 @@ export async function useInvitationCode(
         },
       });
 
-      // Mark invitation code as used
-      await tx.invitationCode.update({
-        where: { code: code },
-        data: {
-          isUsed: true,
-          usedAt: new Date(),
-          usedById: studentId,
-        },
-      });
-
+      // Do NOT mark the invitation code as used to allow multi-use
       return enrollment;
     });
 

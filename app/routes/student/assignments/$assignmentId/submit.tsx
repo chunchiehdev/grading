@@ -1,249 +1,333 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
-import { useLoaderData, useActionData, Form } from 'react-router';
+import { type LoaderFunctionArgs } from 'react-router';
+import { useLoaderData } from 'react-router';
+import { useState, useEffect } from 'react';
 import { requireStudent } from '@/services/auth.server';
-import { getAssignmentAreaForSubmission, createSubmission } from '@/services/submission.server';
-
-interface LoaderData {
-  student: { id: string; email: string; role: string };
-  assignment: any; // Assignment area with course and rubric info
-}
+import { getAssignmentAreaForSubmission } from '@/services/submission.server';
+import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
+import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, CheckCircle, RefreshCw, Loader2 } from 'lucide-react';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
-  const assignmentId = params.assignmentId;
-
-  if (!assignmentId) {
-    throw new Response('Assignment not found', { status: 404 });
-  }
-
-  const assignment = await getAssignmentAreaForSubmission(assignmentId, student.id);
+  const { assignmentId } = params;
   
-  if (!assignment) {
-    throw new Response('Assignment not found', { status: 404 });
-  }
-
+  if (!assignmentId) throw new Response('Assignment not found', { status: 404 });
+  
+  const assignment = await getAssignmentAreaForSubmission(assignmentId, student.id);
+  if (!assignment) throw new Response('Assignment not found', { status: 404 });
+  
   return { student, assignment };
 }
 
-export async function action({ request, params }: ActionFunctionArgs) {
-  const student = await requireStudent(request);
-  const assignmentId = params.assignmentId;
-  const formData = await request.formData();
-
-  if (!assignmentId) {
-    throw new Response('Assignment not found', { status: 404 });
-  }
-
-  const filePath = formData.get('filePath') as string;
-
-  if (!filePath || filePath.trim().length === 0) {
-    throw new Response(JSON.stringify({ error: 'Please upload a file for your submission' }), { 
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  // Check if assignment is past due date
-  const assignment = await getAssignmentAreaForSubmission(assignmentId, student.id);
-  if (assignment?.dueDate && new Date(assignment.dueDate) < new Date()) {
-    throw new Response(JSON.stringify({ error: 'This assignment is past the due date and can no longer accept submissions' }), { 
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  try {
-    const submission = await createSubmission(student.id, {
-      assignmentAreaId: assignmentId,
-      filePath: filePath.trim(),
-    });
-
-    // Redirect to student submissions page
-    throw redirect('/student/submissions');
-  } catch (error) {
-    console.error('Error creating submission:', error);
-    throw new Response(JSON.stringify({ error: 'Failed to submit assignment. Please try again.' }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-}
-
-interface ActionData {
-  error?: string;
-}
+type State = 'idle' | 'ready' | 'grading' | 'completed' | 'error';
 
 export default function SubmitAssignment() {
-  const { student, assignment } = useLoaderData<typeof loader>();
-  const actionData = useActionData() as ActionData | undefined;
+  const { assignment } = useLoaderData<typeof loader>();
+  
+  const [state, setState] = useState<State>('idle');
+  const [fileId, setFileId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const rubricCriteria = (assignment.rubric as any)?.criteria || [];
+  const criteria = (assignment.rubric as any)?.criteria || [];
+
+  const pollSession = async (id: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/grading/session/${id}`);
+      const data = await res.json();
+      
+      if (data.success && data.data) {
+        const { status, gradingResults } = data.data;
+        if (status === 'COMPLETED' && gradingResults?.[0]) {
+          setResult(gradingResults[0].result);
+          setState('completed');
+          return true;
+        }
+        if (status === 'FAILED') {
+          setError('Grading failed. Please try again.');
+          setState('error');
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      setError('Failed to check grading status.');
+      setState('error');
+      return true;
+    }
+  };
+
+  useEffect(() => {
+    if (state === 'grading' && sessionId) {
+      const interval = setInterval(async () => {
+        if (await pollSession(sessionId)) clearInterval(interval);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [state, sessionId]);
+
+  const onUploadComplete = (files: any[]) => {
+    if (files[0]) {
+      setFileId(files[0].fileId);
+      setState('ready');
+      setError(null);
+    }
+  };
+
+  const getAIFeedback = async (currentFileId?: string) => {
+    const fileToGrade = currentFileId || fileId;
+    if (!fileToGrade || !assignment.rubric?.id) return setError('No file or rubric found.');
+    
+    setState('grading');
+    setError(null);
+
+    try {
+      const form = new FormData();
+      form.append('fileIds', JSON.stringify([fileToGrade]));
+      form.append('rubricIds', JSON.stringify([assignment.rubric.id]));
+
+      const sessionRes = await fetch('/api/grading/session', { method: 'POST', body: form });
+      const sessionData = await sessionRes.json();
+      if (!sessionData.success) throw new Error(sessionData.error);
+
+      const id = sessionData.data.sessionId;
+      setSessionId(id);
+
+      const startForm = new FormData();
+      startForm.append('action', 'start');
+      const startRes = await fetch(`/api/grading/session/${id}`, { method: 'POST', body: startForm });
+      const startData = await startRes.json();
+      if (!startData.success) throw new Error(startData.error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start grading');
+      setState('error');
+    }
+  };
+
+  const submitFinal = async () => {
+    if (!fileId) return setError('No file uploaded.');
+    
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/student/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignmentId: assignment.id, uploadedFileId: fileId }),
+      });
+      
+      const data = await res.json();
+      if (data.success) window.location.href = '/student/submissions';
+      else throw new Error(data.error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const reset = () => {
+    setState('idle');
+    setFileId(null);
+    setSessionId(null);
+    setResult(null);
+    setError(null);
+  };
+
+  const stepClass = (current: State) => 
+    `transition-all duration-300 ${state === current ? 'ring-2 ring-primary/20 shadow-lg' : 'opacity-50'}`;
+  
+  const stepBadge = (num: number, current: State) => {
+    const isActive = state === current;
+    const isCompleted = ['ready', 'grading', 'completed'].includes(state) && current === 'ready';
+    return (
+      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+        isActive ? 'bg-primary/10 text-primary' : 
+        isCompleted ? 'bg-green-500/10 text-green-600' : 
+        'bg-muted text-muted-foreground'
+      }`}>
+        {state === 'grading' && current === 'grading' ? <Loader2 className="h-4 w-4 animate-spin" /> : num}
+      </div>
+    );
+  };
 
   return (
-    <div>
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{assignment.name}</h1>
-              <p className="text-gray-600">{assignment.course.name}</p>
-              <p className="text-sm text-gray-500">Teacher: {assignment.course.teacher.email}</p>
-            </div>
-            <div className="flex items-center space-x-4 border">
-              <a
-                href="/student/dashboard"
-                className="text-gray-600 hover:text-gray-900 font-medium"
-              >
-                ← Back to Dashboard
-              </a>
-            </div>
-          </div>
+    <div className="bg-background min-h-screen">
+      <header className="bg-card border-b">
+        <div className="max-w-4xl mx-auto px-6 py-6">
+          <h1 className="text-3xl font-bold">{assignment.name}</h1>
+          <p className="text-muted-foreground">{assignment.course.name} • {assignment.course.teacher.email}</p>
+          <a href="/student/dashboard" className="text-sm text-primary hover:underline">← Back to Dashboard</a>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Assignment Details */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">Assignment Details</h2>
-              </div>
-              <div className="px-6 py-4 space-y-4">
-                {assignment.description && (
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-2">Description</h3>
-                    <p className="text-gray-600">{assignment.description}</p>
-                  </div>
-                )}
-                
-                {assignment.dueDate && (
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-2">Due Date</h3>
-                    <p className="text-gray-600">
-                      {new Date(assignment.dueDate).toLocaleDateString()} at{' '}
-                      {new Date(assignment.dueDate).toLocaleTimeString()}
-                    </p>
-                  </div>
-                )}
-
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-2">Course</h3>
-                  <p className="text-gray-600">{assignment.course.name}</p>
-                </div>
-              </div>
+      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+        {/* Assignment Info */}
+        <Card className="border-l-4 border-l-primary">
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
+              <span>{assignment.course.name}</span>
+              <span>{assignment.course.teacher.email}</span>
+              {/* {assignment.dueDate && <span>Due: {new Date(assignment.dueDate).toLocaleString()}</span>} */}
             </div>
+            {assignment.description && <p className="text-muted-foreground">{assignment.description}</p>}
+          </CardContent>
+        </Card>
 
-            {/* Submission Form */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">Submit Your Work</h2>
-              </div>
-              <Form method="post" className="px-6 py-6">
-                <div className="space-y-6">
-                  <div>
-                    <label htmlFor="filePath" className="block text-sm font-medium text-gray-700 mb-2">
-                      File Upload <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="filePath"
-                      name="filePath"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                      placeholder="Enter file path or URL of your submission"
-                    />
-                    <p className="text-sm text-gray-500 mt-1">
-                      Note: In a real implementation, this would be a file upload component.
-                    </p>
-                  </div>
+        {/* 3-Step Workflow */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Step 1: Upload */}
+          <Card className={stepClass('ready')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {stepBadge(1, 'ready')}
+                Upload File
+                {state === 'ready' && <Badge variant="secondary">✓ Ready</Badge>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onError={setError} />
+            </CardContent>
+          </Card>
 
-                                     {actionData && 'error' in actionData && (
-                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                       <div className="flex">
-                         <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                         </svg>
-                         <div className="ml-3">
-                           <p className="text-sm text-red-600">{actionData.error}</p>
-                         </div>
-                       </div>
-                     </div>
-                   )}
-
-                  <div className="flex justify-end space-x-4">
-                    <a
-                      href="/student/dashboard"
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </a>
-                    <button
-                      type="submit"
-                      className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
-                    >
-                      Submit Assignment
-                    </button>
-                  </div>
-                </div>
-              </Form>
-            </div>
-          </div>
-
-          {/* Rubric Display */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Grading Rubric</h2>
-              <p className="text-sm text-gray-600 mt-1">{assignment.rubric.name}</p>
-            </div>
-            <div className="px-6 py-4">
-              <p className="text-gray-600 mb-4">{assignment.rubric.description}</p>
-              
-              {Array.isArray(rubricCriteria) && rubricCriteria.length > 0 ? (
-                <div className="space-y-4">
-                  {rubricCriteria.map((criterion: any, index: number) => (
-                    <div key={index} className="border border-gray-200 rounded-lg p-4">
-                      <h3 className="font-medium text-gray-900 mb-2">{criterion.name}</h3>
-                      <p className="text-sm text-gray-600 mb-3">{criterion.description}</p>
-                      
-                      {criterion.levels && Array.isArray(criterion.levels) && (
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-medium text-gray-700">Scoring Levels:</h4>
-                          {criterion.levels.map((level: any, levelIndex: number) => (
-                            <div key={levelIndex} className="flex justify-between items-start bg-gray-50 rounded p-2">
-                              <div className="flex-1">
-                                <p className="text-sm text-gray-700">{level.description}</p>
-                              </div>
-                              <span className="text-sm font-medium text-blue-600 ml-2">
-                                {level.score} pts
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      <div className="mt-2 pt-2 border-t border-gray-100">
-                        <p className="text-sm text-gray-600">
-                          Maximum Score: <span className="font-medium">{criterion.maxScore || 0} points</span>
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No criteria defined</h3>
-                  <p className="mt-1 text-sm text-gray-500">This rubric doesn't have detailed criteria yet.</p>
+          {/* Step 2: Grade */}
+          <Card className={stepClass('grading')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {stepBadge(2, 'grading')}
+                Get AI Feedback
+                {state === 'completed' && <Badge variant="secondary">✓ Complete</Badge>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {state === 'ready' && (
+                <Button onClick={() => getAIFeedback()} className="w-full">
+                  Get AI Feedback
+                </Button>
+              )}
+              {state === 'grading' && (
+                <div className="text-center py-6">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                  <p className="text-muted-foreground text-sm">AI is analyzing your work...</p>
                 </div>
               )}
-            </div>
-          </div>
+              {state === 'completed' && (
+                <div className="space-y-3">
+                  <div className="text-center p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <CheckCircle className="h-6 w-6 text-green-600 mx-auto mb-1" />
+                    <p className="text-sm text-green-700 font-medium">Feedback ready!</p>
+                  </div>
+                  <Button variant="outline" onClick={reset} className="w-full" size="sm">
+                    <RefreshCw className="h-4 w-4 mr-2" />Try Different File
+                  </Button>
+                </div>
+              )}
+              {!['ready', 'grading', 'completed'].includes(state) && (
+                <p className="text-center py-6 text-muted-foreground text-sm">Upload a file first</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Step 3: Submit */}
+          <Card className={stepClass('completed')}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {stepBadge(3, 'completed')}
+                Final Submit
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {state === 'completed' ? (
+                <div className="space-y-3">
+                  <Button onClick={submitFinal} disabled={isSubmitting} className="w-full bg-green-600 hover:bg-green-700">
+                    {isSubmitting ? (
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
+                    ) : (
+                      <><CheckCircle className="h-4 w-4 mr-2" />Submit Assignment</>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">Creates your official submission</p>
+                </div>
+              ) : (
+                <p className="text-center py-6 text-muted-foreground text-sm">Complete preview first</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
+
+        {/* Error */}
+        {error && (
+          <Card className="border-destructive/20 bg-destructive/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-destructive">Error</h4>
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Results */}
+        {state === 'completed' && result && (
+          <Card className="border-green-500/20 bg-green-500/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+                Your AI Feedback & Score
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GradingResultDisplay result={result} />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Rubric */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Grading Rubric
+              <Badge variant="outline">{assignment.rubric.name}</Badge>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">{assignment.rubric.description}</p>
+          </CardHeader>
+          <CardContent>
+            {criteria.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {criteria.map((criterion: any, i: number) => (
+                  <div key={i} className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
+                    <h3 className="font-medium mb-2">{criterion.name}</h3>
+                    <p className="text-sm text-muted-foreground mb-3">{criterion.description}</p>
+                    {criterion.levels?.map((level: any, j: number) => (
+                      <div key={j} className="flex justify-between items-start bg-muted rounded p-2 text-xs mb-1">
+                        <span className="flex-1">{level.description}</span>
+                        <span className="font-medium text-primary ml-2">{level.score} pts</span>
+                      </div>
+                    ))}
+                    <div className="mt-3 pt-2 border-t text-xs text-muted-foreground">
+                      Max: <span className="font-medium">{criterion.maxScore || 0} points</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <svg className="mx-auto h-12 w-12 text-muted-foreground mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 className="text-lg font-medium mb-2">No criteria defined</h3>
+                <p className="text-muted-foreground">This rubric doesn't have detailed criteria yet.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

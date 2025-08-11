@@ -84,7 +84,7 @@ export const action = async ({ request }: { request: Request }) => {
     }
 
     console.log('Rubric created successfully:', result.rubricId);
-    return redirect('/rubrics');
+    return redirect('/teacher/rubrics');
   } catch (error) {
     console.error('Action error:', error);
     return Response.json({ 

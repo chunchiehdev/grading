@@ -1,4 +1,5 @@
 import { db } from '@/lib/db.server';
+import type { AssignmentAreaInfo } from './assignment-area.server';
 
 export interface CourseInfo {
   id: string;
@@ -10,37 +11,12 @@ export interface CourseInfo {
   assignmentAreas?: AssignmentAreaInfo[];
 }
 
-export interface AssignmentAreaInfo {
-  id: string;
-  name: string;
-  description: string | null;
-  courseId: string;
-  rubricId: string;
-  dueDate: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  rubric: {
-    id: string;
-    name: string;
-    description: string;
-  };
-  _count?: {
-    submissions: number;
-  };
-}
 
 export interface CreateCourseData {
   name: string;
   description?: string;
 }
 
-export interface CreateAssignmentAreaData {
-  name: string;
-  description?: string;
-  courseId: string;
-  rubricId: string;
-  dueDate?: string; // ISO string
-}
 
 /**
  * Creates a new course for a teacher
@@ -150,66 +126,6 @@ export async function getCourseById(courseId: string, teacherId: string): Promis
  * @param {CreateAssignmentAreaData} assignmentData - Assignment area creation data
  * @returns {Promise<AssignmentAreaInfo>} Created assignment area information
  */
-export async function createAssignmentArea(teacherId: string, assignmentData: CreateAssignmentAreaData): Promise<AssignmentAreaInfo> {
-  try {
-    // First verify the teacher owns the course
-    const course = await db.course.findFirst({
-      where: {
-        id: assignmentData.courseId,
-        teacherId,
-      },
-    });
-
-    if (!course) {
-      throw new Error('Course not found or unauthorized');
-    }
-
-    // Verify the rubric exists and belongs to the teacher
-    const rubric = await db.rubric.findFirst({
-      where: {
-        id: assignmentData.rubricId,
-        OR: [
-          { userId: teacherId },
-          { teacherId: teacherId },
-        ],
-      },
-    });
-
-    if (!rubric) {
-      throw new Error('Rubric not found or unauthorized');
-    }
-
-    const assignmentArea = await db.assignmentArea.create({
-      data: {
-        name: assignmentData.name,
-        description: assignmentData.description || null,
-        courseId: assignmentData.courseId,
-        rubricId: assignmentData.rubricId,
-        dueDate: assignmentData.dueDate ? new Date(assignmentData.dueDate) : null,
-      },
-      include: {
-        rubric: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-        _count: {
-          select: {
-            submissions: true,
-          },
-        },
-      },
-    });
-
-    console.log('✅ Created assignment area:', assignmentArea.name, 'in course:', course.name);
-    return assignmentArea;
-  } catch (error) {
-    console.error('❌ Error creating assignment area:', error);
-    throw error;
-  }
-}
 
 /**
  * Updates a course (teacher authorization required)

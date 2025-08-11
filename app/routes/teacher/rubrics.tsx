@@ -153,15 +153,15 @@ function RubricsContent({
                     Create your first rubric to start grading assignments. Rubrics help ensure consistent and fair evaluation.
                   </p>
                   <Button asChild>
-                    <Link to="/teacher/rubrics/new">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Your First Rubric
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            <Link to="/teacher/rubrics/new">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Your First Rubric
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )}
 
           {/* Rubrics Grid */}
           {!error && rubrics.length > 0 && (
@@ -205,7 +205,7 @@ function RubricCard({
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
-              <Link to={`/rubrics/${rubric.id}`} className="block">
+              <Link to={`/teacher/rubrics/${rubric.id}`} className="block">
                 {rubric.name}
               </Link>
             </CardTitle>
@@ -253,13 +253,13 @@ function RubricCard({
         {/* Action Buttons */}
         <div className="flex space-x-2 pt-2 border-t border-border">
           <Button asChild variant="outline" size="sm" className="flex-1">
-            <Link to={`/rubrics/${rubric.id}`}>
+            <Link to={`/teacher/rubrics/${rubric.id}`}>
               <Eye className="w-4 h-4 mr-1" />
               View
             </Link>
           </Button>
           <Button asChild size="sm" className="flex-1">
-            <Link to={`/rubrics/${rubric.id}/edit`}>
+            <Link to={`/teacher/rubrics/${rubric.id}/edit`}>
               <Edit className="w-4 h-4 mr-1" />
               Edit
             </Link>

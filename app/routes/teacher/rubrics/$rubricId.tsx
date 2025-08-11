@@ -80,7 +80,7 @@ export const action = async ({ params, request }: {
       }
 
       console.log('Rubric deleted successfully:', id);
-      return redirect('/rubrics');
+      return redirect('/teacher/rubrics');
     }
     
     throw new Response('Invalid intent', { status: 400 });
@@ -172,7 +172,7 @@ export default function RubricDetailRoute() {
 
       {/* 導航和標題 */}
       <div className="mb-6">
-        <Button variant="outline" onClick={() => navigate('/rubrics')} className="mb-4">
+        <Button variant="outline" onClick={() => navigate('/teacher/rubrics')} className="mb-4">
           <ArrowLeft className="mr-2 h-4 w-4" /> 返回評分標準列表
         </Button>
       </div>
@@ -233,7 +233,7 @@ export default function RubricDetailRoute() {
           </Form>
           
           <Button asChild>
-            <Link to={`/rubrics/${rubric.id}/edit`}>
+            <Link to={`/teacher/rubrics/${rubric.id}/edit`}>
               <Edit className="mr-2 h-4 w-4" />
               編輯評分標準
             </Link>
@@ -325,7 +325,7 @@ export default function RubricDetailRoute() {
                   此評分標準尚未新增任何評分項目
                 </p>
                 <Button asChild>
-                  <Link to={`/rubrics/${rubric.id}/edit`}>
+                  <Link to={`/teacher/rubrics/${rubric.id}/edit`}>
                     <Edit className="mr-2 h-4 w-4" />
                     開始編輯
                   </Link>

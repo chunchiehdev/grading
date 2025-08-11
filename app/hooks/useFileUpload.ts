@@ -73,7 +73,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       return data;
     },
     onSuccess: (uploadResponse) => {
-      const { results } = uploadResponse;
+      const { results } = (uploadResponse?.data ?? uploadResponse) || {};
       const successfulFiles: UploadedFileResult[] = [];
 
       // Process each upload result with safety checks
@@ -94,9 +94,12 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
         });
       }
 
-      // Notify completion via callback instead of auto-updating stores
-      if (onUploadComplete && successfulFiles.length > 0) {
-        onUploadComplete(successfulFiles);
+      // Only notify if all files in this batch succeeded to align with parent expectations
+      if (onUploadComplete && Array.isArray(results) && results.length > 0) {
+        const allSucceeded = results.every((r: UploadedFileResult) => !!r && r.success === true);
+        if (allSucceeded) {
+          onUploadComplete(successfulFiles);
+        }
       }
 
       console.log(`✅ Upload completed: ${successfulFiles.length}/${results?.length || 0} files successful`);
@@ -244,7 +247,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
     deleteFile: (fileId: string) => deleteFileMutation.mutate(fileId),
     uploadError: uploadFilesMutation.error instanceof Error ? uploadFilesMutation.error.message : undefined,
     // Additional state for the new architecture
-    uploadResults: uploadFilesMutation.data?.results || [],
+    uploadResults: uploadFilesMutation.data?.data?.results || uploadFilesMutation.data?.results || [],
     // Enhanced error information
     lastError: categorizeUploadError(uploadFilesMutation.error),
     canRetry: uploadFilesMutation.error ? categorizeUploadError(uploadFilesMutation.error).retryable : false,

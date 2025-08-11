@@ -45,7 +45,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   }
 }
 
-export async function action({ request }: ActionFunctionArgs): Promise<ActionData> {
+export async function action({ request }: ActionFunctionArgs): Promise<ActionData | Response> {
   const user = await requireAuth(request);
   const formData = await request.formData();
   const code = formData.get('code') as string;
@@ -69,7 +69,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
 
     // Redirect to student dashboard after successful enrollment
     const redirectTo = user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard';
-    throw redirect(redirectTo);
+    return redirect(redirectTo);
   } catch (error) {
     console.error('Error using invitation code:', error);
     return {

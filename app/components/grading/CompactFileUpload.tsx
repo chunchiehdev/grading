@@ -21,6 +21,7 @@ interface FileUploadProps {
   acceptedFileTypes?: string[];
   onFilesChange?: (files: File[]) => void;
   onError?: (error: string) => void;
+  onUploadComplete?: (results: Array<{ fileId: string; fileName: string; fileSize: number; mimeType: string }>) => void;
 }
 
 export const CompactFileUpload = ({
@@ -29,7 +30,27 @@ export const CompactFileUpload = ({
   acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt'],
   onFilesChange,
   onError,
+  onUploadComplete,
 }: FileUploadProps) => {
+  // Track notification to avoid duplicate callbacks per upload
+  const [notified, setNotified] = useState<boolean>(false);
+
+  // Wrap the hook callback to dedupe and normalize payload shape
+  const hookOnComplete = useCallback(
+    (files: Array<{ fileId: string; fileName: string; fileSize: number; mimeType: string }>) => {
+      if (!onUploadComplete || notified) return;
+      const simplified = (Array.isArray(files) ? files : []).map((f: any) => ({
+        fileId: f.fileId,
+        fileName: f.fileName,
+        fileSize: f.fileSize,
+        mimeType: f.mimeType,
+      }));
+      setNotified(true);
+      onUploadComplete(simplified);
+    },
+    [onUploadComplete, notified]
+  );
+
   const { 
     files: uploadedFiles, 
     uploadFiles, 
@@ -38,7 +59,7 @@ export const CompactFileUpload = ({
     uploadError,
     lastError,
     canRetry 
-  } = useFileUpload();
+  } = useFileUpload({ onUploadComplete: hookOnComplete });
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -121,6 +142,13 @@ export const CompactFileUpload = ({
       deleteFile(fileData.key);
     }
   }, [deleteFile]);
+
+  // Reset notification guard when a new upload starts
+  useEffect(() => {
+    if (isUploading) {
+      setNotified(false);
+    }
+  }, [isUploading]);
 
   useEffect(() => {
     if (uploadError) {

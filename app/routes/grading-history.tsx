@@ -190,8 +190,8 @@ export default function GradingHistoryPage() {
             </Button>
           </div>
           <Button asChild>
-            <Link to="/grading-with-rubric">
-              開始新的評分
+            <Link to="/student/assignments">
+              前往作業
             </Link>
           </Button>
         </div>
