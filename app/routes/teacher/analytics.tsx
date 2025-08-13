@@ -1,0 +1,119 @@
+import { type LoaderFunctionArgs } from 'react-router';
+import { useLoaderData } from 'react-router';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
+import { StatsCard } from '@/components/ui/stats-card';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { requireTeacher } from '@/services/auth.server';
+import { getOverallTeacherStats, getCoursePerformance, getRubricUsage } from '@/services/analytics.server';
+
+interface LoaderData {
+  stats: Awaited<ReturnType<typeof getOverallTeacherStats>>;
+  courses: Awaited<ReturnType<typeof getCoursePerformance>>;
+  rubrics: Awaited<ReturnType<typeof getRubricUsage>>;
+  statusDistribution: { name: string; value: number }[];
+}
+
+export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
+  const teacher = await requireTeacher(request);
+
+  const [stats, courses, rubrics] = await Promise.all([
+    getOverallTeacherStats(teacher.id),
+    getCoursePerformance(teacher.id),
+    getRubricUsage(teacher.id),
+  ]);
+
+  const statusTotals: Record<string, number> = { PENDING: 0, PROCESSING: 0, COMPLETED: 0, FAILED: 0, SKIPPED: 0 };
+  courses.forEach((c) => {
+    Object.entries(c.statusCounts).forEach(([k, v]) => {
+      statusTotals[k] = (statusTotals[k] || 0) + (v as number);
+    });
+  });
+  const statusDistribution = Object.entries(statusTotals).map(([name, value]) => ({ name, value }));
+
+  return { stats, courses, rubrics, statusDistribution };
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  PENDING: '#93c5fd',
+  PROCESSING: '#fbbf24',
+  COMPLETED: '#34d399',
+  FAILED: '#f87171',
+  SKIPPED: '#a78bfa',
+};
+
+export default function TeacherAnalytics() {
+  const { stats, courses, rubrics, statusDistribution } = useLoaderData<typeof loader>();
+
+  return (
+    <div>
+      <PageHeader title="Analytics" subtitle="Overview of courses, submissions, and rubrics" />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* <StatsCard title="Total Courses" value={stats.totalCourses} variant="transparent" />
+          <StatsCard title="Total Students" value={stats.totalStudents} variant="transparent" />
+          <StatsCard title="Total Submissions" value={stats.totalSubmissions} variant="transparent" />
+          <StatsCard title="Average Score" value={Number(stats.averageScore.toFixed(1))} variant="transparent" /> */}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Average Score per Course</CardTitle>
+            </CardHeader>
+            <CardContent style={{ height: 320 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={courses.map((c) => ({ name: c.name, avg: Number(c.averageScore.toFixed(1)) }))}>
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} angle={-15} textAnchor="end" height={60} />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip />
+                  <Bar dataKey="avg" fill="#60a5fa" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Submission Status</CardTitle>
+            </CardHeader>
+            <CardContent style={{ height: 320 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={statusDistribution} dataKey="value" nameKey="name" outerRadius={100} label>
+                    {statusDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || '#93c5fd'} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Rubric Usage</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {rubrics.map((r) => (
+                <div key={r.id} className="rounded-lg border p-4">
+                  <div className="font-medium">{r.name}</div>
+                  <div className="text-sm text-gray-600 mt-1">Used in {r.usageCount} assignment area{r.usageCount !== 1 ? 's' : ''}</div>
+                  <div className="text-sm text-gray-600">Avg score: {Number(r.averageScore.toFixed(1))}</div>
+                </div>
+              ))}
+              {rubrics.length === 0 && (
+                <div className="text-gray-600">No rubrics to display.</div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+}
+

@@ -11,12 +11,16 @@ import { Button } from '@/components/ui/button';
 
 interface LoaderData {
   student: { id: string; email: string; role: string; name: string };
-  courses: CourseWithEnrollmentInfo[];
+  courses: (CourseWithEnrollmentInfo & { formattedEnrolledDate?: string })[];
 }
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
   const student = await requireStudent(request);
-  const courses = await getStudentEnrolledCourses(student.id);
+  const coursesRaw = await getStudentEnrolledCourses(student.id);
+  const courses = coursesRaw.map((c) => ({
+    ...c,
+    formattedEnrolledDate: c.enrolledAt ? new Date(c.enrolledAt).toLocaleDateString('en-CA') : undefined,
+  }));
   return { student, courses };
 }
 
@@ -36,24 +40,18 @@ export default function StudentCourses() {
   if (courses.length === 0) {
     return (
       <div className="bg-background text-foreground">
-        <PageHeader
-          title="My Courses"
-          subtitle="You haven't joined any courses yet"
-          actions={headerActions}
-        />
+        <PageHeader title="My Courses" subtitle="You haven't joined any courses yet" actions={headerActions} />
 
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Card className="bg-card text-card-foreground border">
             <CardContent className="pt-6">
               <div className="text-center py-12">
                 <UserPlus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  No Courses Yet
-                </h3>
+                <h3 className="text-lg font-medium text-foreground mb-2">No Courses Yet</h3>
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   Get started by joining your first course. Ask your teacher for an invitation code or QR code.
                 </p>
-                
+
                 <div className="bg-muted rounded-lg p-4 mb-6 max-w-md mx-auto">
                   <h4 className="font-medium text-foreground mb-2">How to Join a Course</h4>
                   <ul className="text-sm text-muted-foreground space-y-1 text-left">
@@ -65,9 +63,7 @@ export default function StudentCourses() {
                 </div>
 
                 <Button asChild>
-                  <Link to="/student/dashboard">
-                    Back to Dashboard
-                  </Link>
+                  <Link to="/student/dashboard">Back to Dashboard</Link>
                 </Button>
               </div>
             </CardContent>
@@ -120,12 +116,7 @@ export default function StudentCourses() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Recently Joined</p>
-                    <p className="text-sm text-foreground">
-                      {courses.length > 0 && courses[0].enrolledAt 
-                        ? new Date(courses[0].enrolledAt).toLocaleDateString()
-                        : 'N/A'
-                      }
-                    </p>
+                    <p className="text-sm text-foreground">{courses[0]?.formattedEnrolledDate || 'N/A'}</p>
                   </div>
                   <Clock className="h-8 w-8 text-primary" />
                 </div>
@@ -146,11 +137,11 @@ export default function StudentCourses() {
 }
 
 interface CourseCardProps {
-  course: CourseWithEnrollmentInfo;
+  course: CourseWithEnrollmentInfo & { formattedEnrolledDate?: string };
 }
 
 function CourseCard({ course }: CourseCardProps) {
-  const enrolledDate = course.enrolledAt ? new Date(course.enrolledAt) : null;
+  const enrolledDate = course.formattedEnrolledDate;
   const totalEnrollments = course._count?.enrollments || 0;
   const totalAssignments = course._count?.assignmentAreas || 0;
 
@@ -164,11 +155,11 @@ function CourseCard({ course }: CourseCardProps) {
                 {course.name}
               </Link>
             </CardTitle>
-            {course.description && (
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {course.description}
-              </p>
-            )}
+            <div className="mt-1 min-h-[2.5rem]">
+              {course.description && (
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{course.description}</p>
+              )}
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -177,15 +168,11 @@ function CourseCard({ course }: CourseCardProps) {
         {/* Course Stats */}
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-muted rounded-lg">
-            <div className="text-xl font-bold text-primary">
-              {totalAssignments}
-            </div>
+            <div className="text-xl font-bold text-primary">{totalAssignments}</div>
             <div className="text-xs text-muted-foreground font-medium">Assignments</div>
           </div>
           <div className="text-center p-3 bg-muted rounded-lg">
-            <div className="text-xl font-bold text-primary">
-              {totalEnrollments}
-            </div>
+            <div className="text-xl font-bold text-primary">{totalEnrollments}</div>
             <div className="text-xs text-muted-foreground font-medium">Students</div>
           </div>
         </div>
@@ -199,7 +186,7 @@ function CourseCard({ course }: CourseCardProps) {
           {enrolledDate && (
             <div className="flex items-center text-sm text-muted-foreground">
               <Calendar className="w-4 h-4 mr-2" />
-              <span>Joined {enrolledDate.toLocaleDateString()}</span>
+              <span>Joined {enrolledDate}</span>
             </div>
           )}
         </div>
@@ -209,22 +196,16 @@ function CourseCard({ course }: CourseCardProps) {
           <Badge variant="secondary" className="text-xs">
             Enrolled
           </Badge>
-          <span className="text-xs text-muted-foreground">
-            Active Course
-          </span>
+          <span className="text-xs text-muted-foreground">Active Course</span>
         </div>
 
         {/* Action Buttons */}
         <div className="flex space-x-2 pt-2">
           <Button asChild variant="outline" size="sm" className="flex-1">
-            <Link to={`/student/assignments`}>
-              View Assignments
-            </Link>
+            <Link to={`/student/assignments`}>View Assignments</Link>
           </Button>
           <Button asChild size="sm" className="flex-1">
-            <Link to={`/student/assignments`}>
-              Browse Content
-            </Link>
+            <Link to={`/student/assignments`}>Browse Content</Link>
           </Button>
         </div>
       </CardContent>

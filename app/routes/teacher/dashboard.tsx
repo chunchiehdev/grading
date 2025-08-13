@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link } from 'react-router';
-import { GraduationCap, FileText, Users, Plus } from 'lucide-react';
+import { GraduationCap, FileText, Users, Plus, BookOpen } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getTeacherCourses, type CourseInfo } from '@/services/course.server';
@@ -39,6 +39,12 @@ export default function TeacherDashboard() {
 
   const headerActions = (
     <>
+      <Button asChild variant="outline">
+        <Link to="/teacher/courses">
+          <BookOpen className="w-4 h-4 mr-2" />
+          Manage My Courses
+        </Link>
+      </Button>
       <Button asChild variant="outline">
         <Link to="/teacher/rubrics">
           管理評分標準

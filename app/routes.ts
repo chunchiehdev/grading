@@ -18,8 +18,12 @@ export default [
   // Teacher Platform routes
   ...prefix('/teacher', [
     route('dashboard', './routes/teacher/dashboard.tsx'),
+    route('analytics', './routes/teacher/analytics.tsx'),
     route('courses', './routes/teacher/courses/index.tsx'),
     route('courses/new', './routes/teacher/courses/new.tsx'),
+    route('courses/:courseId/edit', './routes/teacher/courses/$courseId/edit.tsx'),
+    route('courses/:courseId/settings', './routes/teacher/courses/$courseId/settings.tsx'),
+    route('courses/:courseId/students', './routes/teacher/courses/$courseId/students.tsx'),
     route('courses/:courseId', './routes/teacher/courses/$courseId.tsx'),
     route('courses/:courseId/assignments/new', './routes/teacher/courses/$courseId/assignments/new.tsx'),
     route('courses/:courseId/assignments/:assignmentId/manage', './routes/teacher/courses/$courseId/assignments/$assignmentId.manage.tsx'),

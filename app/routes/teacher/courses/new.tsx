@@ -25,7 +25,7 @@ interface ActionData {
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
   const teacherPromise = new Promise<{ id: string; email: string; role: string }>(async (resolve) => {
-    await new Promise((res) => setTimeout(res, 2000));
+    await new Promise((res) => setTimeout(res, 1000));
     const teacher = await requireTeacher(request);
     resolve(teacher);
   });

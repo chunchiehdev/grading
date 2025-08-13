@@ -167,17 +167,35 @@ export async function deleteCourse(courseId: string, teacherId: string): Promise
     const result = await db.course.deleteMany({
       where: {
         id: courseId,
-        teacherId, // Ensure teacher owns this course
+        teacherId,
       },
     });
 
     const success = result.count > 0;
     if (success) {
-      console.log('✅ Deleted course:', courseId);
+      console.log('Deleted course:', courseId);
     }
+
     return success;
   } catch (error) {
-    console.error('❌ Error deleting course:', error);
+    console.error('Error deleting course:', error);
     return false;
   }
-} 
+}
+
+/**
+ * Returns list of students enrolled in a course (teacher authorization required)
+ */
+export async function getEnrolledStudents(courseId: string, teacherId: string) {
+  const { getCourseEnrollments } = await import('./enrollment.server');
+  const enrollments = await getCourseEnrollments(courseId, teacherId);
+  return enrollments.map((e) => e.student);
+}
+
+/**
+ * Removes a student's enrollment from a course (teacher authorization required)
+ */
+export async function removeStudentFromCourse(courseId: string, studentId: string, teacherId: string) {
+  const { unenrollStudent } = await import('./enrollment.server');
+  return unenrollStudent(studentId, courseId, teacherId);
+}

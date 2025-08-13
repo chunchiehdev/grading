@@ -13,16 +13,18 @@ import { useState } from 'react';
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string; name: string };
-  courses: Array<CourseInfo & {
-    assignmentAreas?: Array<{
-      id: string;
-      name: string;
-      description: string | null;
-      dueDate: Date | null;
-      _count?: { submissions: number };
-    }>;
-    formattedCreatedDate: string;
-  }>;
+  courses: Array<
+    CourseInfo & {
+      assignmentAreas?: Array<{
+        id: string;
+        name: string;
+        description: string | null;
+        dueDate: Date | null;
+        _count?: { submissions: number };
+      }>;
+      formattedCreatedDate: string;
+    }
+  >;
 }
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
@@ -30,12 +32,12 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
   try {
     const courses = await getTeacherCourses(teacher.id);
-    
+
     // Import date formatter on server side only
     const { formatDateForDisplay } = await import('@/lib/date.server');
-    
+
     // Format creation dates
-    const coursesWithFormattedDates = courses.map(course => ({
+    const coursesWithFormattedDates = courses.map((course) => ({
       ...course,
       formattedCreatedDate: formatDateForDisplay(course.createdAt),
     }));
@@ -52,9 +54,10 @@ export default function TeacherCourses() {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Filter courses based on search term
-  const filteredCourses = courses.filter(course =>
-    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCourses = courses.filter(
+    (course) =>
+      course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const headerActions = (
@@ -98,9 +101,7 @@ export default function TeacherCourses() {
                 <BookOpen className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                 {courses.length === 0 ? (
                   <>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No courses yet
-                    </h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No courses yet</h3>
                     <p className="text-gray-600 mb-6">
                       Create your first course to start organizing assignments and managing students.
                     </p>
@@ -113,16 +114,11 @@ export default function TeacherCourses() {
                   </>
                 ) : (
                   <>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No courses found
-                    </h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No courses found</h3>
                     <p className="text-gray-600 mb-6">
                       No courses match your search criteria. Try adjusting your search term.
                     </p>
-                    <Button
-                      variant="outline"
-                      onClick={() => setSearchTerm('')}
-                    >
+                    <Button variant="outline" onClick={() => setSearchTerm('')}>
                       Clear Search
                     </Button>
                   </>
@@ -137,79 +133,28 @@ export default function TeacherCourses() {
             ))}
           </div>
         )}
-
-        {/* Quick stats */}
-        {courses.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Courses</p>
-                    <p className="text-2xl font-bold text-gray-900">{courses.length}</p>
-                  </div>
-                  <BookOpen className="h-8 w-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Assignment Areas</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {courses.reduce((total, course) => total + (course.assignmentAreas?.length || 0), 0)}
-                    </p>
-                  </div>
-                  <FileText className="h-8 w-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Submissions</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {courses.reduce((total, course) => 
-                        total + (course.assignmentAreas?.reduce((areaTotal, area) => 
-                          areaTotal + (area._count?.submissions || 0), 0) || 0), 0
-                      )}
-                    </p>
-                  </div>
-                  <Users className="h-8 w-8 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </main>
     </div>
   );
 }
 
 function CourseCard({ course }: { course: any }) {
-  const totalSubmissions = course.assignmentAreas?.reduce((total: number, area: any) => 
-    total + (area._count?.submissions || 0), 0
-  ) || 0;
+  const totalSubmissions =
+    course.assignmentAreas?.reduce((total: number, area: any) => total + (area._count?.submissions || 0), 0) || 0;
 
   return (
     <Card className="group hover:shadow-lg transition-all duration-200 hover:border-blue-300">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg font-semibold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+            <CardTitle className="text-lg text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
               <Link to={`/teacher/courses/${course.id}`} className="block">
                 {course.name}
               </Link>
             </CardTitle>
-            {course.description && (
-              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                {course.description}
-              </p>
-            )}
+            <div className='mt-1 min-h-[1rem]'>
+              {course.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{course.description}</p>}
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -218,15 +163,11 @@ function CourseCard({ course }: { course: any }) {
         {/* Course stats */}
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-blue-50 rounded-lg">
-            <div className="text-xl font-bold text-blue-600">
-              {course.assignmentAreas?.length || 0}
-            </div>
-            <div className="text-xs text-blue-600 font-medium">Assignment Areas</div>
+            <div className="text-xl font-bold">{course.assignmentAreas?.length || 0}</div>
+            <div className="text-xs font-medium">Assignment Areas</div>
           </div>
           <div className="text-center p-3 bg-green-50 rounded-lg">
-            <div className="text-xl font-bold text-green-600">
-              {totalSubmissions}
-            </div>
+            <div className="text-xl font-bold text-green-600">{totalSubmissions}</div>
             <div className="text-xs text-green-600 font-medium">Submissions</div>
           </div>
         </div>
@@ -245,9 +186,7 @@ function CourseCard({ course }: { course: any }) {
                 </div>
               ))}
               {course.assignmentAreas.length > 2 && (
-                <p className="text-xs text-gray-500">
-                  +{course.assignmentAreas.length - 2} more areas
-                </p>
+                <p className="text-xs text-gray-500">+{course.assignmentAreas.length - 2} more areas</p>
               )}
             </div>
           </div>
@@ -262,14 +201,10 @@ function CourseCard({ course }: { course: any }) {
         {/* Action buttons */}
         <div className="flex space-x-2 pt-2">
           <Button asChild variant="outline" size="sm" className="flex-1">
-            <Link to={`/teacher/courses/${course.id}`}>
-              View Details
-            </Link>
+            <Link to={`/teacher/courses/${course.id}`}>View Details</Link>
           </Button>
           <Button asChild size="sm" className="flex-1">
-            <Link to={`/teacher/courses/${course.id}/assignments/new`}>
-              Add Assignment
-            </Link>
+            <Link to={`/teacher/courses/${course.id}/assignments/new`}>Add Assignment</Link>
           </Button>
         </div>
       </CardContent>

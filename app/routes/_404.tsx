@@ -1,34 +1,20 @@
+import { Link } from 'react-router';
+
 export default function NotFound() {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '60vh',
-        textAlign: 'center',
-        padding: '2rem',
-      }}
-    >
-      <h1 style={{ fontSize: '8rem', marginBottom: '1rem', color: '#ccc' }}>404</h1>
-      <h2 style={{ fontSize: '2rem', marginBottom: '2rem', color: '#333' }}>頁面不存在</h2>
-      <p style={{ fontSize: '1.2rem', marginBottom: '2rem', color: '#666', maxWidth: '500px' }}>
-        您請求的頁面可能已被移除或暫時不可用。
-      </p>
-      <a
-        href="/dashboard"
-        style={{
-          padding: '0.75rem 1.5rem',
-          backgroundColor: '#4a6cf7',
-          color: 'white',
-          textDecoration: 'none',
-          borderRadius: '4px',
-          fontWeight: 'bold',
-        }}
-      >
-        返回首頁
-      </a>
+    <div className="flex w-full h-full justify-center items-center px-4 py-12 sm:px-6 md:px-8 lg:px-12 xl:px-16">
+      <div className="space-y-6 text-center">
+        <div className="space-y-3">
+          <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl animate-bounce">404</h1>
+          <p className="text-gray-500">Looks like you've ventured into the unknown digital realm.</p>
+        </div>
+        <Link
+          to="/"
+          className="inline-flex h-10 items-center rounded-md bg-gray-900 px-8 text-sm font-medium text-gray-50 shadow transition-colors hover:bg-gray-900/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50 dark:bg-gray-50 dark:text-gray-900 dark:hover:bg-gray-50/90 dark:focus-visible:ring-gray-300"
+        >
+          Return to website
+        </Link>
+      </div>
     </div>
   );
 }

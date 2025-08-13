@@ -12,16 +12,26 @@ import { PageHeader } from '@/components/ui/page-header';
 
 interface LoaderData {
   student: { id: string; email: string; role: string };
-  assignments: StudentAssignmentInfo[];
-  submissions: SubmissionInfo[];
+  assignments: (StudentAssignmentInfo & { formattedDueDate?: string })[];
+  submissions: (SubmissionInfo & { formattedUploadedDate: string })[];
 }
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
   const student = await requireStudent(request);
-  const [assignments, submissions] = await Promise.all([
+  const [assignmentsRaw, submissionsRaw] = await Promise.all([
     getStudentAssignments(student.id),
     getStudentSubmissions(student.id),
   ]);
+
+  const assignments = assignmentsRaw.map(a => ({
+    ...a,
+    formattedDueDate: a.dueDate ? new Date(a.dueDate).toLocaleDateString('en-CA') : undefined,
+  }));
+
+  const submissions = submissionsRaw.map(s => ({
+    ...s,
+    formattedUploadedDate: new Date(s.uploadedAt).toLocaleDateString('en-CA'),
+  }));
 
   return { student, assignments, submissions };
 }
@@ -123,9 +133,7 @@ export default function StudentDashboard() {
                         <p className="text-xs text-gray-500">Teacher: {assignment.course.teacher.email}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium text-red-600">
-                          Due {new Date(assignment.dueDate!).toLocaleDateString()}
-                        </p>
+                        <p className="text-sm font-medium text-red-600">Due {assignment.formattedDueDate}</p>
                         <Button asChild size="sm" variant="ghost" className="mt-1">
                           <Link to={`/student/assignments/${assignment.id}/submit`}>
                             Submit <ArrowRight className="w-3 h-3 ml-1" />
@@ -167,9 +175,7 @@ export default function StudentDashboard() {
                           {submission.assignmentArea.name}
                         </h3>
                         <p className="text-sm text-gray-600">{submission.assignmentArea.course.name}</p>
-                        <p className="text-xs text-gray-500">
-                          Submitted {new Date(submission.uploadedAt).toLocaleDateString()}
-                        </p>
+                        <p className="text-xs text-gray-500">Submitted {submission.formattedUploadedDate}</p>
                       </div>
                       <div className="text-right">
                         <Badge 

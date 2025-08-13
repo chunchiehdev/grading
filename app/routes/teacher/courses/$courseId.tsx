@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { ArrowLeft, Plus, FileText, Users, QrCode, Copy, RefreshCw, Share2 } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Users, QrCode, Copy, RefreshCw, Share2, Pencil, Settings as SettingsIcon } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, type CourseInfo } from '@/services/course.server';
@@ -173,6 +173,24 @@ export default function CourseDetail() {
           Back to Dashboard
         </Link>
       </Button>
+      <Button asChild variant="outline">
+        <Link to={`/teacher/courses/${course.id}/students`}>
+          <Users className="w-4 h-4 mr-2" />
+          Students
+        </Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={`/teacher/courses/${course.id}/edit`}>
+          <Pencil className="w-4 h-4 mr-2" />
+          Edit
+        </Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to={`/teacher/courses/${course.id}/settings`}>
+          <SettingsIcon className="w-4 h-4 mr-2" />
+          Settings
+        </Link>
+      </Button>
       <Button asChild>
         <Link to={`/teacher/courses/${course.id}/assignments/new`}>
           <Plus className="w-4 h-4 mr-2" />
@@ -190,7 +208,7 @@ export default function CourseDetail() {
         actions={headerActions}
       />
 
-      <div className="max-w-7xl mx-auto space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatsCard
@@ -438,7 +456,7 @@ export default function CourseDetail() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </main>
     </div>
   );
 } 

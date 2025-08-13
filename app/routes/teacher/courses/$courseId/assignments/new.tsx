@@ -1,7 +1,8 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Await, Link } from 'react-router';
-import { Suspense } from 'react';
-import { ArrowLeft, Plus, Calendar, FileText } from 'lucide-react';
+import { Suspense, useState } from 'react';
+import { ArrowLeft, Plus, Calendar as CalendarIcon, FileText } from 'lucide-react';
+import { format } from 'date-fns';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, type CourseInfo } from '@/services/course.server';
@@ -16,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as UICalendar } from '@/components/ui/calendar';
 
 interface LoaderData {
   teacher: Promise<{ id: string; email: string; role: string; name: string }>;
@@ -279,15 +282,10 @@ function AssignmentForm({
 
               <div className="space-y-2">
                 <Label htmlFor="dueDate" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
+                  
                   Due Date (Optional)
                 </Label>
-                <Input
-                  id="dueDate"
-                  name="dueDate"
-                  type="datetime-local"
-                  className="bg-background border-border focus:ring-ring"
-                />
+                <DatePicker name="dueDate" />
               </div>
 
               {actionData?.error && (
@@ -309,6 +307,45 @@ function AssignmentForm({
           </CardContent>
         </Card>
       </main>
+    </div>
+  );
+}
+
+function DatePicker({ name }: { name: string }) {
+  const [date, setDate] = useState<Date | undefined>(undefined);
+
+  return (
+    <div>
+      {/* Hidden input to submit ISO date back to the server */}
+      <input type="hidden" name={name} value={date ? date.toISOString() : ''} />
+      <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              data-empty={!date}
+              className="data-[empty=true]:text-muted-foreground w-[280px] justify-start text-left font-normal"
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {date ? format(date, 'PPP') : <span>Pick a date</span>}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <UICalendar
+              mode="single"
+              selected={date}
+              onSelect={(d) => setDate(d)}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+        {date && (
+          <Button type="button" variant="ghost" onClick={() => setDate(undefined)}>
+            Clear
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
