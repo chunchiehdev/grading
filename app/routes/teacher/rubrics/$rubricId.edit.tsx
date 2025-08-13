@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Form, useActionData, useNavigate, useLoaderData, redirect } from 'react-router';
+import { Form, useActionData, useLoaderData, redirect } from 'react-router';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Plus, Sparkles } from 'lucide-react';
+import { Plus, Eye, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 // Components
-import { RubricHeader } from '@/components/RubricHeader';
 import { RubricForm } from '@/components/RubricForm';
 import { CategoryNav } from '@/components/CategoryNav';
 import { CriterionCard } from '@/components/CriterionCard';
-// import { QuickAdd } from '@/components/QuickAdd';
-import { GuidedEmptyState } from '@/components/GuidedEmptyState';
 import { RubricPreview } from '@/components/RubricPreview';
+import { PageHeader } from '@/components/ui/page-header';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 // Utils
 import {
@@ -117,7 +116,6 @@ export const action = async ({ request, params }: { request: Request; params: Re
 export default function EditRubricRoute() {
   const { rubric: initialRubric } = useLoaderData<typeof loader>();
   const actionData = useActionData<{ error?: string }>();
-  const navigate = useNavigate();
 
   // State
   const [rubricData, setRubricData] = useState<UIRubricData>({
@@ -167,18 +165,7 @@ export default function EditRubricRoute() {
     0
   );
 
-  const progress = {
-    categories: rubricData.categories.length,
-    criteria: totalCriteria,
-    completed: completedCriteria,
-  };
-
-  // 判斷當前步驟
-  const getCurrentStep = (): number => {
-    if (rubricData.categories.length === 0) return 1;
-    if (totalCriteria === 0) return 2;
-    return 3;
-  };
+  // Removed legacy progress/step indicators for cleaner UI
 
   // Validation
   const canSave = () => {
@@ -334,105 +321,92 @@ export default function EditRubricRoute() {
   };
 
   return (
-    <div>
-      <RubricHeader
-        onBack={() => navigate(`/teacher/rubrics/${initialRubric.id}`)}
-        onSave={handleSave}
-        onPreview={handlePreview}
-        progress={progress}
-        rubricName={rubricData.name}
-        isEditing={true}
+    <div className="bg-background text-foreground">
+      <PageHeader
+        title="Edit Rubric"
+        subtitle={rubricData.name || initialRubric.name}
+        actions={(
+          <>
+            <Button type="button" variant="outline" onClick={handlePreview}>
+              <Eye className="w-4 h-4 mr-2" /> 預覽
+            </Button>
+            <Button type="button" onClick={handleSave}>
+              <Save className="w-4 h-4 mr-2" /> 更新
+            </Button>
+          </>
+        )}
       />
 
-      <div className="container mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Form method="post" id="rubric-form">
           <input type="hidden" name="name" value={rubricData.name} />
           <input type="hidden" name="description" value={rubricData.description} />
           <input type="hidden" name="categoriesJson" value={JSON.stringify(rubricData.categories)} />
 
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-            {/* Left Sidebar - Form & Navigation */}
-            <div className="xl:col-span-3 space-y-6">
-              <RubricForm
-                data={{ name: rubricData.name, description: rubricData.description }}
-                onChange={updateRubricForm}
-              />
+          <div className="space-y-6">
+            {/* Card 1: Basic Information */}
+            <RubricForm
+              data={{ name: rubricData.name, description: rubricData.description }}
+              onChange={updateRubricForm}
+              title="Rubric Details"
+            />
 
-              <CategoryNav
-                categories={rubricData.categories}
-                selectedCategoryId={selectedCategoryId}
-                onSelectCategory={setSelectedCategoryId}
-                onAddCategory={() => addCategory()}
-                onUpdateCategory={updateCategory}
-                onDeleteCategory={deleteCategory}
-              />
-
-              {/* <QuickAdd
-                onAddCategory={addCategory}
-                onAddCriterion={addCriterion}
-                canAddCriterion={!!selectedCategoryId}
-                selectedCategoryName={selectedCategory?.name}
-              /> */}
-            </div>
-
-            {/* Main Content - Criteria */}
-            <div className="xl:col-span-9">
-              {selectedCategory ? (
-                <div className="space-y-6">
-                  {/* Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div>
-                      <h2 className="text-2xl font-bold">{selectedCategory.name}</h2>
-                      <p className="text-muted-foreground mt-1">
-                        {selectedCategory.criteria.length} 個評分標準
-                        {selectedCategory.criteria.length > 0 && (
-                          <span className="ml-2">• 最高 {selectedCategory.criteria.length * 4} 分</span>
-                        )}
-                      </p>
-                    </div>
-                    <Button onClick={() => addCriterion()} disabled={isLoading}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      新增標準
-                    </Button>
-                  </div>
-
-                  {/* Criteria Grid */}
-                  {selectedCategory.criteria.length === 0 ? (
-                    <GuidedEmptyState
-                      type="criteria"
-                      onAction={() => addCriterion()}
-                      currentStep={getCurrentStep()}
-                      totalSteps={3}
-                    />
-                  ) : (
-                    <div className="space-y-6">
-                      {/* Enhancement tip */}
-                      {selectedCategory.criteria.map((criterion) => (
-                        <CriterionCard
-                          key={criterion.id}
-                          criterion={criterion}
-                          isSelected={selectedCriterionId === criterion.id}
-                          onSelect={() => setSelectedCriterionId(criterion.id)}
-                          onUpdate={(updates) => updateCriterion(criterion.id, updates)}
-                          onDelete={() => deleteCriterion(criterion.id)}
-                          onUpdateLevel={(score, description) => updateLevel(criterion.id, score, description)}
-                        />
-                      ))}
-                    </div>
-                  )}
+            {/* Card 2: Categories */}
+            <Card className="bg-card text-card-foreground border">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-semibold">Categories</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button type="button" onClick={() => addCategory()}>
+                    <Plus className="w-4 h-4 mr-2" /> 新增類別
+                  </Button>
                 </div>
-              ) : (
-                <GuidedEmptyState
-                  type="categories"
-                  onAction={() => addCategory()}
-                  currentStep={getCurrentStep()}
-                  totalSteps={3}
+              </CardHeader>
+              <CardContent className="p-0">
+                <CategoryNav
+                  categories={rubricData.categories}
+                  selectedCategoryId={selectedCategoryId}
+                  onSelectCategory={setSelectedCategoryId}
+                  onUpdateCategory={updateCategory}
+                  onDeleteCategory={deleteCategory}
                 />
-              )}
-            </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 3: Criteria */}
+            <Card className="bg-card text-card-foreground border">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-semibold">
+                  {selectedCategory ? selectedCategory.name : 'Criteria'}
+                </CardTitle>
+                <Button onClick={() => addCriterion()} disabled={isLoading} type="button">
+                  <Plus className="w-4 h-4 mr-2" /> 新增標準
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {!selectedCategory ? (
+                  <p className="text-muted-foreground">先選擇一個類別以檢視與新增評分標準。</p>
+                ) : selectedCategory.criteria.length === 0 ? (
+                  <p className="text-muted-foreground">尚未新增評分標準。點擊「新增標準」以新增第一個標準。</p>
+                ) : (
+                  <div className="space-y-6">
+                    {selectedCategory.criteria.map((criterion) => (
+                      <CriterionCard
+                        key={criterion.id}
+                        criterion={criterion}
+                        isSelected={selectedCriterionId === criterion.id}
+                        onSelect={() => setSelectedCriterionId(criterion.id)}
+                        onUpdate={(updates) => updateCriterion(criterion.id, updates)}
+                        onDelete={() => deleteCriterion(criterion.id)}
+                        onUpdateLevel={(score, description) => updateLevel(criterion.id, score, description)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </Form>
-      </div>
+      </main>
 
       {/* Preview Modal */}
       <RubricPreview isOpen={showPreview} onClose={() => setShowPreview(false)} rubricData={rubricData} />

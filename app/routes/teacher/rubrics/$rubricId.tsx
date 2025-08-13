@@ -1,28 +1,21 @@
-import { Link, useLoaderData, useNavigate, useActionData, Form, redirect } from 'react-router';
+import { Link, useLoaderData, useActionData, Form, redirect } from 'react-router';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { 
-  ArrowLeft, 
   Edit, 
-  Eye,
   Download,
   Share2,
   FileText,
-  BarChart3,
   Clock,
   Target,
   Trash2,
-  Calendar,
-  Users,
+  Folder,
   CheckCircle2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import type { RubricCriteria } from '@/types/rubric';
+import { PageHeader } from '@/components/ui/page-header';
 import { dbCriteriaToUICategories, calculateRubricStats } from '@/utils/rubric-transform';
 
 export const loader = async ({ params, request }: { params: Record<string, string | undefined>; request: Request }) => {
@@ -115,7 +108,6 @@ const LEVEL_LABELS = {
 export default function RubricDetailRoute() {
   const { rubric } = useLoaderData<typeof loader>();
   const actionData = useActionData<{ success: boolean; error?: string }>();
-  const navigate = useNavigate();
 
   // 轉換資料結構
       // 優先使用新的 categories 欄位，否則從 criteria 轉換
@@ -144,178 +136,110 @@ export default function RubricDetailRoute() {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      {/* 錯誤提示 */}
-      {actionData?.error && (
-        <div className="mb-6 bg-destructive/15 border border-destructive/20 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <div className="bg-destructive/20 rounded-full p-1">
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-medium text-destructive mb-1">無法刪除評分標準</h4>
-              <p className="text-sm text-destructive/80">{actionData.error}</p>
-              {actionData.error.includes('已被使用') && (
-                <div className="mt-3 text-sm text-muted-foreground">
-                  <p className="mb-2">您可以選擇以下替代方案：</p>
-                  <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>建立此評分標準的新版本</li>
-                    <li>先完成並刪除相關的評分作業</li>
-                    <li>將評分標準設為非活躍狀態</li>
-                  </ul>
+    <div className="bg-background text-foreground">
+      <PageHeader
+        title={rubric.name}
+        subtitle={rubric.description}
+        actions={(
+          <>
+            <Button variant="outline" onClick={handleShare}>
+              <Share2 className="mr-2 h-4 w-4" /> 分享
+            </Button>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" /> 導出
+            </Button>
+            <Form method="post" className="inline">
+              <input type="hidden" name="intent" value="delete" />
+              <Button
+                type="submit"
+                variant="outline"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (confirm(`確定要刪除「${rubric.name}」嗎？此操作無法復原。`)) {
+                    e.currentTarget.form?.requestSubmit();
+                  }
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" /> 刪除
+              </Button>
+            </Form>
+            <Button asChild>
+              <Link to={`/teacher/rubrics/${rubric.id}/edit`}>
+                <Edit className="mr-2 h-4 w-4" /> 編輯評分標準
+              </Link>
+            </Button>
+          </>
+        )}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error notice */}
+        {actionData?.error && (
+          <Card className="mb-6 bg-destructive/10 border-destructive/20">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <Trash2 className="h-4 w-4 text-destructive mt-1" />
+                <div>
+                  <div className="font-medium text-destructive mb-1">無法刪除評分標準</div>
+                  <p className="text-sm text-destructive/80">{actionData.error}</p>
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Top stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <Card className="bg-card text-card-foreground border">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">評分類別</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.totalCategories}</p>
+                </div>
+                <Folder className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-card text-card-foreground border">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">評分標準</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.totalCriteria}</p>
+                </div>
+                <FileText className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      )}
 
-      {/* 導航和標題 */}
-      <div className="mb-6">
-        <Button variant="outline" onClick={() => navigate('/teacher/rubrics')} className="mb-4">
-          <ArrowLeft className="mr-2 h-4 w-4" /> 返回評分標準列表
-        </Button>
-      </div>
-
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <FileText className="h-6 w-6 text-primary" />
+        {/* Meta details */}
+        <Card className="bg-card text-card-foreground border mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Clock className="h-4 w-4" /> 基本資訊
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <div className="text-sm text-muted-foreground">建立時間</div>
+              <div className="font-medium">
+                {format(new Date(rubric.createdAt), 'yyyy年MM月dd日 HH:mm', { locale: zhTW })}
+              </div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold">{rubric.name}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline">{stats.totalCategories} 類別</Badge>
-                <Badge variant="outline">{stats.totalCriteria} 標準</Badge>
-                {/* <Badge variant={stats.completionRate === 100 ? "default" : "secondary"}>
-                  {stats.completionRate}% 完成
-                </Badge> */}
+              <div className="text-sm text-muted-foreground">更新時間</div>
+              <div className="font-medium">
+                {format(new Date(rubric.updatedAt), 'yyyy年MM月dd日 HH:mm', { locale: zhTW })}
               </div>
             </div>
-          </div>
-          
-          {rubric.description && (
-            <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">
-              {rubric.description}
-            </p>
-          )}
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* 操作按鈕 */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleShare}>
-            <Share2 className="mr-2 h-4 w-4" />
-            分享
-          </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="mr-2 h-4 w-4" />
-            導出
-          </Button>
-          
-          {/* 刪除按鈕 */}
-          <Form method="post" className="inline">
-            <input type="hidden" name="intent" value="delete" />
-            <Button 
-              type="submit"
-              variant="outline"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={(e) => {
-                e.preventDefault();
-                if (confirm(`確定要刪除「${rubric.name}」嗎？此操作無法復原。`)) {
-                  e.currentTarget.form?.requestSubmit();
-                }
-              }}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              刪除
-            </Button>
-          </Form>
-          
-          <Button asChild>
-            <Link to={`/teacher/rubrics/${rubric.id}/edit`}>
-              <Edit className="mr-2 h-4 w-4" />
-              編輯評分標準
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-        {/* 側邊欄 - 基本資訊和統計 */}
-        <div className="xl:col-span-1 space-y-6">
-          {/* 基本資訊 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-4 w-4" />
-                基本資訊
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <div className="text-sm text-muted-foreground">建立時間</div>
-                <div className="font-medium">
-                  {format(new Date(rubric.createdAt), 'yyyy年MM月dd日 HH:mm', { locale: zhTW })}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">更新時間</div>
-                <div className="font-medium">
-                  {format(new Date(rubric.updatedAt), 'yyyy年MM月dd日 HH:mm', { locale: zhTW })}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 統計資訊 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <BarChart3 className="h-4 w-4" />
-                統計資訊
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">評分類別</span>
-                  <span className="font-medium">{stats.totalCategories}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">評分標準</span>
-                  <span className="font-medium">{stats.totalCriteria}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">已完成</span>
-                  <span className="font-medium">{stats.completedCriteria}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">總分數</span>
-                  <span className="font-medium">{stats.maxScore} 分</span>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">完成度</span>
-                  <span className="font-medium">{stats.completionRate}%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full transition-all"
-                    style={{ width: `${stats.completionRate}%` }}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* 主要內容 - 評分標準 */}
-        <div className="xl:col-span-3 space-y-8">
+        {/* Categories and criteria */}
+        <div className="space-y-8">
           {categories.length === 0 ? (
             <Card>
               <CardContent className="text-center py-12">
@@ -418,7 +342,7 @@ export default function RubricDetailRoute() {
             ))
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

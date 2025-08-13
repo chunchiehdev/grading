@@ -12,15 +12,16 @@ interface RubricFormData {
 interface RubricFormProps {
   data: RubricFormData;
   onChange: (data: RubricFormData) => void;
+  title?: string;
 }
 
-export const RubricForm = ({ data, onChange }: RubricFormProps) => {
+export const RubricForm = ({ data, onChange, title = '基本資訊' }: RubricFormProps) => {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <FileText className="h-4 w-4" />
-          基本資訊
+          {title}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

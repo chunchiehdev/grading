@@ -26,12 +26,6 @@ interface CriterionCardProps {
   onUpdateLevel: (score: number, description: string) => void;
 }
 
-const LEVEL_COLORS = {
-  4: "bg-emerald-500",
-  3: "bg-blue-500", 
-  2: "bg-amber-500",
-  1: "bg-red-500"
-};
 
 const LEVEL_LABELS = {
   4: "優秀",
@@ -49,12 +43,11 @@ export const CriterionCard = ({
   onUpdateLevel
 }: CriterionCardProps) => {
   const completedLevels = criterion.levels.filter(l => l.description.trim()).length;
-  const completionRate = Math.round((completedLevels / 4) * 100);
-
+  
   return (
-    <Card 
+    <Card
       className={cn(
-        "group hover:shadow-md transition-all duration-200 cursor-pointer",
+        "group hover:shadow-md transition-all duration-200 cursor-pointer bg-card text-card-foreground border",
         isSelected && "ring-2 ring-primary shadow-md"
       )}
       onClick={onSelect}
@@ -74,12 +67,6 @@ export const CriterionCard = ({
           </div>
           
           <div className="flex items-center gap-2">
-            {/* <Badge 
-              variant={completionRate === 100 ? "default" : "secondary"}
-              className="text-xs"
-            >
-              {completionRate}%
-            </Badge> */}
             <Button
               variant="ghost"
               size="icon"
@@ -115,16 +102,10 @@ export const CriterionCard = ({
           {/* Level Progress Bar */}
           <div className="grid grid-cols-4 gap-1 h-2 rounded-full overflow-hidden bg-muted">
             {[4, 3, 2, 1].map((score) => {
-              const level = criterion.levels.find(l => l.score === score);
-              const isCompleted = level?.description.trim();
+              const level = criterion.levels.find((l) => l.score === score);
+              const isCompleted = Boolean(level?.description.trim());
               return (
-                <div
-                  key={score}
-                  className={cn(
-                    "transition-all duration-300",
-                    isCompleted ? LEVEL_COLORS[score as keyof typeof LEVEL_COLORS] : "bg-muted"
-                  )}
-                />
+                <div key={score} className={cn("transition-all duration-300", isCompleted ? "bg-primary" : "bg-muted")} />
               );
             })}
           </div>
@@ -138,12 +119,7 @@ export const CriterionCard = ({
               return (
                 <div key={score} className="flex items-start gap-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div 
-                      className={cn(
-                        "w-3 h-3 rounded-full flex-shrink-0",
-                        description ? LEVEL_COLORS[score as keyof typeof LEVEL_COLORS] : "bg-muted"
-                      )}
-                    />
+                    <div className={cn("w-3 h-3 rounded-full flex-shrink-0", description ? "bg-primary" : "bg-muted")} />
                     <Badge variant="outline" className="text-xs whitespace-nowrap">
                       {score} - {LEVEL_LABELS[score as keyof typeof LEVEL_LABELS]}
                     </Badge>
@@ -165,4 +141,4 @@ export const CriterionCard = ({
       </CardContent>
     </Card>
   );
-}; 
+};
