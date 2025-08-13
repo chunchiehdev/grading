@@ -7,7 +7,8 @@ import { v4 as uuidv4 } from 'uuid';
 // Components
 import { RubricForm } from '@/components/RubricForm';
 import { CategoryNav } from '@/components/CategoryNav';
-import { CriterionCard } from '@/components/CriterionCard';
+import { Accordion } from '@/components/ui/accordion';
+import { CriterionItemAccordion } from '@/components/CriterionItemAccordion';
 import { RubricPreview } from '@/components/RubricPreview';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,7 +70,6 @@ export const action = async ({ request, params }: { request: Request; params: Re
 
     const formData = await request.formData();
 
-    // 使用 Zod 驗證表單資料
     const { UpdateRubricRequestSchema } = await import('@/schemas/rubric');
     const validationResult = UpdateRubricRequestSchema.safeParse({
       id: rubricId,
@@ -83,7 +83,7 @@ export const action = async ({ request, params }: { request: Request; params: Re
       console.error('Validation failed:', validationResult.error.errors);
       return Response.json({
         error: firstError.message || '表單資料驗證失敗',
-        field: firstError.path[0], // 提供錯誤欄位資訊
+        field: firstError.path[0],
       });
     }
 
@@ -94,7 +94,7 @@ export const action = async ({ request, params }: { request: Request; params: Re
     const rubricData = {
       name,
       description,
-      categories: categoriesJson, // schema 已經處理過轉換
+      categories: categoriesJson,
     };
 
     const result = await updateRubric(id, rubricData);
@@ -132,7 +132,6 @@ export default function EditRubricRoute() {
   // Initialize from loaded rubric
   useEffect(() => {
     if (initialRubric) {
-      // 優先使用新的 categories 欄位，否則從 criteria 轉換
       const categories = initialRubric.categories
         ? initialRubric.categories
         : dbCriteriaToUICategories(initialRubric.criteria);
@@ -143,7 +142,6 @@ export default function EditRubricRoute() {
         categories,
       });
 
-      // 預設選擇第一個類別
       if (categories.length > 0) {
         setSelectedCategoryId(categories[0].id);
       }
@@ -159,11 +157,6 @@ export default function EditRubricRoute() {
 
   // Computed values
   const selectedCategory = rubricData.categories.find((c) => c.id === selectedCategoryId);
-  const totalCriteria = rubricData.categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
-  const completedCriteria = rubricData.categories.reduce(
-    (acc, cat) => acc + cat.criteria.filter((crit) => crit.levels.some((level) => level.description.trim())).length,
-    0
-  );
 
   // Removed legacy progress/step indicators for cleaner UI
 
@@ -186,11 +179,10 @@ export default function EditRubricRoute() {
       categories: [...prev.categories, newCategory],
     }));
 
-    // 自動選擇新創建的類別
     setSelectedCategoryId(newCategory.id);
     setSelectedCriterionId(null);
 
-    return newCategory.id; // 返回新類別的 ID
+    return newCategory.id;
   };
 
   const updateCategory = (categoryId: string, name: string) => {
@@ -216,7 +208,6 @@ export default function EditRubricRoute() {
       categories: prev.categories.filter((c) => c.id !== categoryId),
     }));
 
-    // 智能選擇下一個類別
     if (selectedCategoryId === categoryId) {
       const remainingCategories = rubricData.categories.filter((c) => c.id !== categoryId);
       setSelectedCategoryId(remainingCategories.length > 0 ? remainingCategories[0].id : null);
@@ -240,10 +231,9 @@ export default function EditRubricRoute() {
       ),
     }));
 
-    // 自動選擇新創建的標準
     setSelectedCriterionId(newCriterion.id);
 
-    return newCriterion.id; // 返回新標準的 ID
+    return newCriterion.id;
   };
 
   const updateCriterion = (criterionId: string, updates: Partial<UICriterion>) => {
@@ -305,17 +295,6 @@ export default function EditRubricRoute() {
     }));
   };
 
-  const handleSave = async () => {
-    if (!canSave()) {
-      alert('請完成所有必填項目再儲存');
-      return;
-    }
-
-    setIsLoading(true);
-    const form = document.getElementById('rubric-form') as HTMLFormElement;
-    form?.requestSubmit();
-  };
-
   const handlePreview = () => {
     setShowPreview(true);
   };
@@ -325,20 +304,20 @@ export default function EditRubricRoute() {
       <PageHeader
         title="Edit Rubric"
         subtitle={rubricData.name || initialRubric.name}
-        actions={(
+        actions={
           <>
             <Button type="button" variant="outline" onClick={handlePreview}>
               <Eye className="w-4 h-4 mr-2" /> 預覽
             </Button>
-            <Button type="button" onClick={handleSave}>
+            <Button type="submit" form="rubric-form" disabled={!canSave() || isLoading}>
               <Save className="w-4 h-4 mr-2" /> 更新
             </Button>
           </>
-        )}
+        }
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Form method="post" id="rubric-form">
+        <Form method="post" id="rubric-form" onSubmit={() => setIsLoading(true)}>
           <input type="hidden" name="name" value={rubricData.name} />
           <input type="hidden" name="description" value={rubricData.description} />
           <input type="hidden" name="categoriesJson" value={JSON.stringify(rubricData.categories)} />
@@ -388,9 +367,9 @@ export default function EditRubricRoute() {
                 ) : selectedCategory.criteria.length === 0 ? (
                   <p className="text-muted-foreground">尚未新增評分標準。點擊「新增標準」以新增第一個標準。</p>
                 ) : (
-                  <div className="space-y-6">
+                  <Accordion type="single" collapsible>
                     {selectedCategory.criteria.map((criterion) => (
-                      <CriterionCard
+                      <CriterionItemAccordion
                         key={criterion.id}
                         criterion={criterion}
                         isSelected={selectedCriterionId === criterion.id}
@@ -400,7 +379,7 @@ export default function EditRubricRoute() {
                         onUpdateLevel={(score, description) => updateLevel(criterion.id, score, description)}
                       />
                     ))}
-                  </div>
+                  </Accordion>
                 )}
               </CardContent>
             </Card>

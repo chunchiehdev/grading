@@ -98,7 +98,6 @@ export async function action({ request }: { request: Request }) {
         })
       );
     } else if (method === 'PUT') {
-      // 恢復刪除的檔案
       const result = await restoreFile(fileId, userId);
 
       if (!result.success) {

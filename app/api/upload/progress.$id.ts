@@ -86,7 +86,7 @@ export async function loader({ params }: { params: { id: string } }) {
             const event = `event: upload-progress\ndata: ${JSON.stringify(updatedProgress)}\n\n`;
             if (!safeEnqueue(new TextEncoder().encode(event))) return;
 
-            // Check if all files are done (只檢查一次)
+            // Check if all files are done 
             const hasFiles = Object.keys(updatedProgress).length > 0;
             if (hasFiles && !isClosing) {
               const allDone = Object.values(updatedProgress).every(
@@ -95,7 +95,7 @@ export async function loader({ params }: { params: { id: string } }) {
 
               if (allDone) {
                 console.log(`🎉 All files uploaded for ${uploadId}, scheduling close`);
-                isClosing = true; // 立即設置關閉狀態
+                isClosing = true; 
                 setTimeout(closeController, 2000); // Give time for final update
                 return;
               }
@@ -110,7 +110,7 @@ export async function loader({ params }: { params: { id: string } }) {
         setTimeout(() => {
           console.log(`⏰ SSE connection timeout for ${uploadId}`);
           closeController();
-        }, 15 * 60 * 1000); // Max 15 minutes
+        }, 15 * 60 * 1000); 
       } catch (error) {
         console.error(`❌ Error in upload progress stream for ${uploadId}:`, error);
         closeController();

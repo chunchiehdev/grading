@@ -1,9 +1,6 @@
 import { ActionFunctionArgs } from 'react-router';
 
-// 模擬 Gemini API 回應的函數，實際應該接入真正的 Gemini API
 async function generateRubricWithAI(message: string, context?: any): Promise<string> {
-  // 這裡應該接入真正的 Gemini API
-  // 暫時使用模擬數據來展示功能
   
   const prompt = `
 你是一個專業的教育評分標準生成助手。請根據用戶的需求，生成詳細的評分標準。
@@ -55,7 +52,6 @@ ${context ? `現有評分標準內容：${JSON.stringify(context, null, 2)}` : '
 4. 適合實際教學場景使用
 `;
 
-  // 模擬不同類型的評分標準生成
   if (message.includes('個人簡述') || message.includes('自我介紹')) {
     return `我為您生成了一個個人簡述的評分標準，包含內容完整性、表達清晰度和創意性三個維度：
 
@@ -336,7 +332,7 @@ ${context ? `現有評分標準內容：${JSON.stringify(context, null, 2)}` : '
 這個評分標準專為程式設計作業設計，可以全面評估學生的編程能力和代碼品質。`;
   }
 
-  // 通用回應
+  
   return `根據您的需求，我為您生成了一個評分標準框架。請提供更具體的需求，我可以為您生成更詳細的評分標準。
 
 比如您可以告訴我：

@@ -40,9 +40,9 @@ export function PageHeader({
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+            <h1 className="text-3xl font-bold text-foreground">{title}</h1>
             {subtitle && (
-              <p className="text-gray-600 mt-3 px-1">{subtitle}</p>
+              <p className="text-muted-foreground mt-3 px-1">{subtitle}</p>
             )}
           </div>
           {actions && (

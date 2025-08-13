@@ -6,7 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { RubricForm } from '@/components/RubricForm';
 import { CategoryNav } from '@/components/CategoryNav';
-import { CriterionCard } from '@/components/CriterionCard';
+import { Accordion } from '@/components/ui/accordion';
+import { CriterionItemAccordion } from '@/components/CriterionItemAccordion';
 import { RubricPreview } from '@/components/RubricPreview';
 import { AIRubricAssistant } from '@/components/AIRubricAssistant';
 import { PageHeader } from '@/components/ui/page-header';
@@ -157,7 +158,6 @@ export default function NewRubricRoute() {
       categories: prev.categories.filter(c => c.id !== categoryId),
     }));
     
-    // 如果刪除的是當前選中的類別，重置選擇
     if (selectedCategoryId === categoryId) {
       const remainingCategories = rubricData.categories.filter(c => c.id !== categoryId);
       setSelectedCategoryId(remainingCategories.length > 0 ? remainingCategories[0].id : null);
@@ -183,10 +183,9 @@ export default function NewRubricRoute() {
       ),
     }));
     
-    // 自動選擇新創建的標準
     setSelectedCriterionId(newCriterion.id);
     
-    return newCriterion.id; // 返回新標準的 ID
+    return newCriterion.id;
   };
 
   const updateCriterion = (criterionId: string, updates: Partial<UICriterion>) => {
@@ -266,7 +265,6 @@ export default function NewRubricRoute() {
   };
 
   const handleApplyAIRubric = (aiRubric: UIRubricData) => {
-    // 確認是否要覆蓋現有內容
     if (rubricData.categories.length > 0 || rubricData.name || rubricData.description) {
       if (!confirm('套用 AI 生成的評分標準將會覆蓋現有內容，確定要繼續嗎？')) {
         return;
@@ -366,21 +364,19 @@ export default function NewRubricRoute() {
               ) : selectedCategory.criteria.length === 0 ? (
                 <p className="text-muted-foreground">尚未新增評分標準。點擊「新增標準」以新增第一個標準。</p>
               ) : (
-                <div className="space-y-6">
+                <Accordion type="single" collapsible>
                   {selectedCategory.criteria.map((criterion) => (
-                    <CriterionCard
+                    <CriterionItemAccordion
                       key={criterion.id}
                       criterion={criterion}
                       isSelected={selectedCriterionId === criterion.id}
                       onSelect={() => setSelectedCriterionId(criterion.id)}
                       onUpdate={(updates) => updateCriterion(criterion.id, updates)}
                       onDelete={() => deleteCriterion(criterion.id)}
-                      onUpdateLevel={(score, description) =>
-                        updateLevel(criterion.id, score, description)
-                      }
+                      onUpdateLevel={(score, description) => updateLevel(criterion.id, score, description)}
                     />
                   ))}
-                </div>
+                </Accordion>
               )}
             </CardContent>
           </Card>

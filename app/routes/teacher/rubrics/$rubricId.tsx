@@ -2,17 +2,7 @@ import { Link, useLoaderData, useActionData, Form, redirect } from 'react-router
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Edit, 
-  Download,
-  Share2,
-  FileText,
-  Clock,
-  Target,
-  Trash2,
-  Folder,
-  CheckCircle2
-} from 'lucide-react';
+import { Edit, Download, Share2, FileText, Clock, Target, Trash2, Folder, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import { PageHeader } from '@/components/ui/page-header';
@@ -36,19 +26,14 @@ export const loader = async ({ params, request }: { params: Record<string, strin
   return { rubric };
 };
 
-// 新增 action 來處理刪除請求
-export const action = async ({ params, request }: { 
-  params: Record<string, string | undefined>; 
-  request: Request 
-}) => {
+export const action = async ({ params, request }: { params: Record<string, string | undefined>; request: Request }) => {
   try {
     const formData = await request.formData();
     const intent = formData.get('intent');
-    
+
     if (intent === 'delete') {
       const rubricId = params.rubricId;
-      
-      // 使用 Zod 驗證 ID
+
       const { DeleteRubricRequestSchema } = await import('@/schemas/rubric');
       const validationResult = DeleteRubricRequestSchema.safeParse({ id: rubricId });
 
@@ -59,70 +44,64 @@ export const action = async ({ params, request }: {
       }
 
       const { id } = validationResult.data;
-      
+
       const { deleteRubric } = await import('@/services/rubric.server');
       const result = await deleteRubric(id);
 
       if (!result.success) {
         console.error('Delete rubric failed:', result.error);
-        // 返回 JSON 錯誤而不是拋出異常，讓前端可以處理
-        return Response.json({ 
-          success: false, 
-          error: result.error || '刪除評分標準失敗' 
-        }, { status: 409 }); // 409 Conflict - 資源被使用中
+
+        return Response.json(
+          {
+            success: false,
+            error: result.error || '刪除評分標準失敗',
+          },
+          { status: 409 }
+        );
       }
 
       console.log('Rubric deleted successfully:', id);
       return redirect('/teacher/rubrics');
     }
-    
+
     throw new Response('Invalid intent', { status: 400 });
   } catch (error) {
     console.error('Action error:', error);
-    
+
     if (error instanceof Response) {
       throw error;
     }
-    
-    throw new Response(
-      error instanceof Error ? error.message : '處理請求時發生錯誤',
-      { status: 500 }
-    );
+
+    throw new Response(error instanceof Error ? error.message : '處理請求時發生錯誤', { status: 500 });
   }
 };
 
 const LEVEL_COLORS = {
-  4: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  3: "bg-blue-100 text-blue-800 border-blue-200", 
-  2: "bg-amber-100 text-amber-800 border-amber-200",
-  1: "bg-red-100 text-red-800 border-red-200"
+  4: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  3: 'bg-blue-100 text-blue-800 border-blue-200',
+  2: 'bg-amber-100 text-amber-800 border-amber-200',
+  1: 'bg-red-100 text-red-800 border-red-200',
 };
 
 const LEVEL_LABELS = {
-  4: "優秀",
-  3: "良好", 
-  2: "及格",
-  1: "需改進"
+  4: '優秀',
+  3: '良好',
+  2: '及格',
+  1: '需改進',
 };
 
 export default function RubricDetailRoute() {
   const { rubric } = useLoaderData<typeof loader>();
   const actionData = useActionData<{ success: boolean; error?: string }>();
 
-  // 轉換資料結構
-      // 優先使用新的 categories 欄位，否則從 criteria 轉換
-    const categories = rubric.categories 
-      ? rubric.categories 
-      : dbCriteriaToUICategories(rubric.criteria);
+  const categories = rubric.categories ? rubric.categories : dbCriteriaToUICategories(rubric.criteria);
   const stats = calculateRubricStats(categories);
 
   const handleExport = () => {
-    // TODO: 實現導出功能
     console.log('Export rubric:', rubric);
   };
 
   const handleShare = () => {
-    // TODO: 實現分享功能
     if (navigator.share) {
       navigator.share({
         title: rubric.name,
@@ -140,7 +119,7 @@ export default function RubricDetailRoute() {
       <PageHeader
         title={rubric.name}
         subtitle={rubric.description}
-        actions={(
+        actions={
           <>
             <Button variant="outline" onClick={handleShare}>
               <Share2 className="mr-2 h-4 w-4" /> 分享
@@ -170,7 +149,7 @@ export default function RubricDetailRoute() {
               </Link>
             </Button>
           </>
-        )}
+        }
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -245,9 +224,7 @@ export default function RubricDetailRoute() {
               <CardContent className="text-center py-12">
                 <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">尚無評分標準</h3>
-                <p className="text-muted-foreground mb-4">
-                  此評分標準尚未新增任何評分項目
-                </p>
+                <p className="text-muted-foreground mb-4">此評分標準尚未新增任何評分項目</p>
                 <Button asChild>
                   <Link to={`/teacher/rubrics/${rubric.id}/edit`}>
                     <Edit className="mr-2 h-4 w-4" />
@@ -268,21 +245,15 @@ export default function RubricDetailRoute() {
                       {category.name}
                     </CardTitle>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">
-                        {category.criteria.length} 個標準
-                      </Badge>
-                      <Badge variant="outline">
-                        最高 {category.criteria.length * 4} 分
-                      </Badge>
+                      <Badge variant="outline">{category.criteria.length} 個標準</Badge>
+                      <Badge variant="outline">最高 {category.criteria.length * 4} 分</Badge>
                     </div>
                   </div>
                 </CardHeader>
 
                 <CardContent className="p-0">
                   {category.criteria.length === 0 ? (
-                    <div className="p-8 text-center text-muted-foreground">
-                      此類別尚無評分標準
-                    </div>
+                    <div className="p-8 text-center text-muted-foreground">此類別尚無評分標準</div>
                   ) : (
                     <div className="divide-y">
                       {category.criteria.map((criterion, criterionIndex) => (
@@ -293,9 +264,7 @@ export default function RubricDetailRoute() {
                                 {categoryIndex + 1}.{criterionIndex + 1} {criterion.name}
                               </h4>
                               {criterion.description && (
-                                <p className="text-muted-foreground mt-2 leading-relaxed">
-                                  {criterion.description}
-                                </p>
+                                <p className="text-muted-foreground mt-2 leading-relaxed">{criterion.description}</p>
                               )}
                             </div>
                             <Badge variant="outline" className="ml-4">
@@ -308,12 +277,12 @@ export default function RubricDetailRoute() {
                             <h5 className="font-medium text-sm text-muted-foreground">評分等級：</h5>
                             <div className="grid gap-3">
                               {[4, 3, 2, 1].map((score) => {
-                                const level = criterion.levels.find(l => l.score === score);
+                                const level = criterion.levels.find((l) => l.score === score);
                                 const description = level?.description || '';
-                                
+
                                 return (
                                   <div key={score} className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border">
-                                    <Badge 
+                                    <Badge
                                       className={`${LEVEL_COLORS[score as keyof typeof LEVEL_COLORS]} border shrink-0`}
                                       variant="outline"
                                     >
@@ -323,9 +292,7 @@ export default function RubricDetailRoute() {
                                       {description ? (
                                         <p className="text-sm leading-relaxed">{description}</p>
                                       ) : (
-                                        <p className="text-sm text-muted-foreground italic">
-                                          尚未設定此等級的描述
-                                        </p>
+                                        <p className="text-sm text-muted-foreground italic">尚未設定此等級的描述</p>
                                       )}
                                     </div>
                                   </div>

@@ -176,7 +176,6 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                           </Badge>
                         </div>
 
-                        {/* 等級標準 */}
                         <div className="grid gap-2">
                           <h5 className="text-sm font-medium text-muted-foreground">評分等級：</h5>
                           <div className="grid gap-2">

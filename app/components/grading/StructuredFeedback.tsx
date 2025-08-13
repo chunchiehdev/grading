@@ -11,11 +11,8 @@ interface StructuredFeedbackProps {
     className?: string;
 }
 
-/**
- * 智能回饋組件 - 根據資料類型自動選擇最佳呈現方式
- */
+
 export function StructuredFeedback({ feedback, className }: StructuredFeedbackProps) {
-    // 如果是字串，使用 Markdown 渲染
     if (typeof feedback === 'string') {
         return (
             <div className={className}>
@@ -24,12 +21,10 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
         );
     }
 
-    // 如果是結構化資料，使用專門的樣式
     const { documentStrengths, keyImprovements, nextSteps, summary } = feedback;
 
     return (
         <div className={`space-y-4 ${className || ''}`}>
-            {/* 總結 */}
             {summary && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
@@ -40,7 +35,6 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
                 </div>
             )}
 
-            {/* 優點 */}
             {documentStrengths && documentStrengths.length > 0 && (
                 <Card className="border-green-200 bg-green-50">
                     <CardHeader className="pb-3">
@@ -69,7 +63,6 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
                 </Card>
             )}
 
-            {/* 改進建議 */}
             {keyImprovements && keyImprovements.length > 0 && (
                 <Card className="border-orange-200 bg-orange-50">
                     <CardHeader className="pb-3">
@@ -98,7 +91,6 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
                 </Card>
             )}
 
-            {/* 下一步建議 */}
             {nextSteps && (
                 <Card className="border-blue-200 bg-blue-50">
                     <CardHeader className="pb-3">
@@ -118,9 +110,7 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
     );
 }
 
-/**
- * 簡化版的結構化回饋組件 - 用於緊湊空間
- */
+
 export function CompactStructuredFeedback({ feedback, className }: StructuredFeedbackProps) {
     if (typeof feedback === 'string') {
         return (

@@ -3,8 +3,7 @@ import { db } from '@/lib/db.server';
 import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
-/**
- * 
+/** 
  * 這功能已被重新設計
  * 檔案與評分標準的關聯現在透過 GradingSession/GradingResult 來處理
  * 此 API 保留作為向後相容，但建議使用新的評分會話 API
@@ -43,8 +42,6 @@ export async function action({ request }: { request: Request }) {
       );
     }
 
-    // 在新架構中，不直接關聯檔案與 rubric
-    // 而是返回檔案資訊和建議使用評分會話 API
     return Response.json(
       createSuccessResponse({
         message: 'File found. Please use grading session API to associate files with rubrics.',

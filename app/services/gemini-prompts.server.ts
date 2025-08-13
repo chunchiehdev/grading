@@ -5,12 +5,8 @@ import type { GeminiGradingRequest, GeminiFileGradingRequest } from './gemini.se
  * 集中管理所有評分相關的提示詞和系統指令
  */
 export class GeminiPrompts {
-
-    /**
-     * 生成系統指令
-     */
-    static generateSystemInstruction(): string {
-        return this.dedent(`
+  static generateSystemInstruction(): string {
+    return this.dedent(`
             你是一位專業評分員。你的任務是：
 
             1. **精確分析**：仔細閱讀文件，基於評分標準客觀評分
@@ -40,19 +36,16 @@ export class GeminiPrompts {
             ✅ 所有括號必須正確閉合
             ✅ 語法完全有效，可直接解析
         `);
-    }
+  }
 
-    /**
-     * 生成文件評分提示
-     */
-    static generateFileGradingPrompt(request: GeminiFileGradingRequest): string {
-        const { criteria, categories, fileName, rubricName } = request;
-        const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-        const criteriaDescription = categories 
-            ? this.formatCategorizedCriteriaDescription(categories)
-            : this.formatCriteriaDescription(criteria);
+  static generateFileGradingPrompt(request: GeminiFileGradingRequest): string {
+    const { criteria, categories, fileName, rubricName } = request;
+    const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
+    const criteriaDescription = categories
+      ? this.formatCategorizedCriteriaDescription(categories)
+      : this.formatCriteriaDescription(criteria);
 
-        return this.dedent(`
+    return this.dedent(`
             請對上傳的文件進行專業評分分析：
 
             **檔案名稱**：${fileName}
@@ -87,19 +80,16 @@ export class GeminiPrompts {
 
             請開始分析：
         `);
-    }
+  }
 
-    /**
-     * 生成文字內容評分提示
-     */
-    static generateTextGradingPrompt(request: GeminiGradingRequest): string {
-        const { content, criteria, categories, fileName, rubricName } = request;
-        const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-        const criteriaDescription = categories 
-            ? this.formatCategorizedCriteriaDescription(categories)
-            : this.formatCriteriaDescription(criteria);
+  static generateTextGradingPrompt(request: GeminiGradingRequest): string {
+    const { content, criteria, categories, fileName, rubricName } = request;
+    const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
+    const criteriaDescription = categories
+      ? this.formatCategorizedCriteriaDescription(categories)
+      : this.formatCriteriaDescription(criteria);
 
-        return this.dedent(`
+    return this.dedent(`
             請對以下內容進行專業評分：
 
             **檔案名稱**：${fileName}
@@ -130,78 +120,81 @@ export class GeminiPrompts {
             3. JSON 格式正確
             4. 使用繁體中文
         `);
-    }
+  }
 
-    /**
-     * 格式化評分標準描述，並明確列出 criteriaId
-     */
-    private static formatCriteriaDescription(criteria: any[]): string {
-        const criteriaList = criteria.map((criterion, index) => {
-            const levelsText = criterion.levels 
-                ? criterion.levels.map((level: any) => `${level.score}分 - ${level.description}`).join('；')
-                : '';
-            
-            return this.dedent(`
+  private static formatCriteriaDescription(criteria: any[]): string {
+    const criteriaList = criteria
+      .map((criterion, index) => {
+        const levelsText = criterion.levels
+          ? criterion.levels.map((level: any) => `${level.score}分 - ${level.description}`).join('；')
+          : '';
+
+        return this.dedent(
+          `
                 ${index + 1}. **${criterion.name}** (${criterion.maxScore || 0} 分)
                    ID: "${criterion.id}" ← 請在 JSON 中使用此 ID
                    說明：${criterion.description || '無說明'}
                    ${levelsText ? `評分等級：${levelsText}` : ''}
-            `).trim();
-        }).join('\n\n');
+            `
+        ).trim();
+      })
+      .join('\n\n');
 
-        const criteriaIds = criteria.map(c => `"${c.id}"`).join(', ');
-        
-        return `${criteriaList}
+    const criteriaIds = criteria.map((c) => `"${c.id}"`).join(', ');
+
+    return `${criteriaList}
 
 **重要：** 在 JSON 回應中，"criteriaId" 必須完全匹配上述 ID：${criteriaIds}`;
-    }
+  }
 
-    /**
-     * 格式化類別化評分標準描述，保持類別結構
-     */
-    private static formatCategorizedCriteriaDescription(categories: any[]): string {
-        const allCriteriaIds: string[] = [];
-        
-        const categoriesList = categories.map((category, categoryIndex) => {
-            const categoryNumber = categoryIndex + 1;
-            
-            const criteriaList = category.criteria.map((criterion: any, criterionIndex: number) => {
-                const criterionNumber = `${categoryNumber}.${criterionIndex + 1}`;
-                allCriteriaIds.push(criterion.id);
-                
-                const levelsText = criterion.levels 
-                    ? criterion.levels.map((level: any) => `${level.score}分 - ${level.description}`).join('；')
-                    : '';
-                
-                return this.dedent(`
+  private static formatCategorizedCriteriaDescription(categories: any[]): string {
+    const allCriteriaIds: string[] = [];
+
+    const categoriesList = categories
+      .map((category, categoryIndex) => {
+        const categoryNumber = categoryIndex + 1;
+
+        const criteriaList = category.criteria
+          .map((criterion: any, criterionIndex: number) => {
+            const criterionNumber = `${categoryNumber}.${criterionIndex + 1}`;
+            allCriteriaIds.push(criterion.id);
+
+            const levelsText = criterion.levels
+              ? criterion.levels.map((level: any) => `${level.score}分 - ${level.description}`).join('；')
+              : '';
+
+            return this.dedent(
+              `
                     ${criterionNumber} **${criterion.name}** (${criterion.maxScore || 0} 分)
                        ID: "${criterion.id}" ← 請在 JSON 中使用此 ID
                        說明：${criterion.description || '無說明'}
                        ${levelsText ? `評分等級：${levelsText}` : ''}
-                `).trim();
-            }).join('\n\n   ');
-            
-            return this.dedent(`
+                `
+            ).trim();
+          })
+          .join('\n\n   ');
+
+        return this.dedent(
+          `
                 ### ${categoryNumber}. ${category.name} 類別
                 
                 ${criteriaList}
-            `).trim();
-        }).join('\n\n');
+            `
+        ).trim();
+      })
+      .join('\n\n');
 
-        const criteriaIds = allCriteriaIds.map(id => `"${id}"`).join(', ');
-        
-        return `${categoriesList}
+    const criteriaIds = allCriteriaIds.map((id) => `"${id}"`).join(', ');
+
+    return `${categoriesList}
 
 **重要：** 在 JSON 回應中，"criteriaId" 必須完全匹配上述 ID：${criteriaIds}
 
 **評分要求：** 請按照類別結構理解評分標準的邏輯分組，這將有助於提供更有組織性的評分分析。`;
-    }
+  }
 
-    /**
-     * 生成詳細輸出格式（用於文件評分）
-     */
-    private static getDetailedOutputFormat(maxScore: number): string {
-        return this.dedent(`
+  private static getDetailedOutputFormat(maxScore: number): string {
+    return this.dedent(`
             **🚨 CRITICAL: 嚴格JSON格式要求**
             - 必須使用雙引號，不可使用單引號
             - 字串內的引號請用「」或『』替代
@@ -253,13 +246,10 @@ export class GeminiPrompts {
             4. 最後一項不加逗號
             5. 僅回應JSON，無其他說明
         `);
-    }
+  }
 
-    /**
-     * 獲取簡單輸出格式（用於文字評分）
-     */
-    private static getSimpleOutputFormat(maxScore: number): string {
-        return this.dedent(`
+  private static getSimpleOutputFormat(maxScore: number): string {
+    return this.dedent(`
             **⚠️ 重要：嚴格遵循JSON格式**
             - 所有字串必須用雙引號包圍
             - 不要在字串內使用未轉義的雙引號
@@ -290,33 +280,30 @@ export class GeminiPrompts {
             ✅ 數字不要加引號
             ✅ 最後一個項目後面不要逗號
         `);
+  }
+
+  private static dedent(text: string): string {
+    const lines = text.split('\n');
+
+    while (lines.length > 0 && lines[0].trim() === '') {
+      lines.shift();
+    }
+    while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+      lines.pop();
     }
 
-    /**
-     * 移除字串前導空白的工具函數
-     * 類似 Python 的 textwrap.dedent
-     */
-    private static dedent(text: string): string {
-        const lines = text.split('\n');
-        
-        // 移除開頭和結尾的空行
-        while (lines.length > 0 && lines[0].trim() === '') {
-            lines.shift();
-        }
-        while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
-            lines.pop();
-        }
-        
-        if (lines.length === 0) return '';
-        
-        const nonEmptyLines = lines.filter(line => line.trim() !== '');
-        if (nonEmptyLines.length === 0) return '';
-        
-        const minIndent = Math.min(...nonEmptyLines.map(line => {
-            const match = line.match(/^(\s*)/);
-            return match ? match[1].length : 0;
-        }));
-        
-        return lines.map(line => line.slice(minIndent)).join('\n');
-    }
-} 
+    if (lines.length === 0) return '';
+
+    const nonEmptyLines = lines.filter((line) => line.trim() !== '');
+    if (nonEmptyLines.length === 0) return '';
+
+    const minIndent = Math.min(
+      ...nonEmptyLines.map((line) => {
+        const match = line.match(/^(\s*)/);
+        return match ? match[1].length : 0;
+      })
+    );
+
+    return lines.map((line) => line.slice(minIndent)).join('\n');
+  }
+}
