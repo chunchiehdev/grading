@@ -134,25 +134,25 @@ export default function AssignmentSubmissions() {
               title="Total Submissions"
               value={stats.total}
               icon={FileText}
-              variant="default"
+              variant="transparent"
             />
             <StatsCard
               title="Graded"
               value={stats.graded}
               icon={CheckCircle}
-              variant="success"
+              variant="transparent"
             />
             <StatsCard
               title="Analyzed"
               value={stats.analyzed}
               icon={Eye}
-              variant="secondary"
+              variant="transparent"
             />
             <StatsCard
               title="Pending Review"
               value={stats.pending}
               icon={Clock}
-              variant="warning"
+              variant="transparent"
             />
           </div>
 
