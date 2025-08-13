@@ -1,9 +1,4 @@
-import { Star, File } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Markdown } from '@/components/ui/markdown';
 import { EmptyGradingState } from './EmptyGradingState';
 import { StructuredFeedback } from './StructuredFeedback';
@@ -19,27 +14,7 @@ interface GradingResultDisplayProps {
 
 // Removed unused helper functions for cleaner code
 
-const ScoreCard = ({ score, maxScore }: { score: number; maxScore: number }) => {
-  const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
-  
-  return (
-    <Card className="mb-4">
-      <CardContent className="pt-6 text-center">
-        <div className="flex items-center justify-center mb-2">
-          <Star className="w-8 h-8 text-yellow-500 fill-yellow-500 mr-2" />
-          <span className="text-5xl font-bold">{score}</span>
-          <span className="text-2xl text-muted-foreground ml-1">/{maxScore}</span>
-        </div>
-        <div className="text-sm text-muted-foreground mb-2">
-          得分率: {percentage}%
-        </div>
-        <p className="text-muted-foreground">
-          {percentage >= 90 ? '優異' : percentage >= 80 ? '優良' : percentage >= 70 ? '良好' : percentage >= 60 ? '尚可' : '需要改進'}
-        </p>
-      </CardContent>
-    </Card>
-  );
-};
+// Removed ScoreCard; score info will be integrated in a simple header.
 
 const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdown'] }) => {
   if (!breakdown || breakdown.length === 0) return null;
@@ -78,63 +53,32 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
   };
 
   const percentage = safeResult.maxScore > 0 ? Math.round((safeResult.totalScore / safeResult.maxScore) * 100) : 0;
-  const currentDate = new Date();
-  const formattedDate = currentDate.toLocaleDateString('zh-TW', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 
   return (
     <div className={cn('space-y-6', className)}>
-      <div className="flex justify-between items-center">
-        <div>
-          <div className="text-sm text-muted-foreground">
-            <span>評分時間: {formattedDate}</span>
-          </div>
-        </div>
+      {/* Integrated score header */}
+      <div className="flex items-baseline gap-2">
+        <span className="text-3xl font-bold">{safeResult.totalScore}</span>
+        <span className="text-lg text-muted-foreground">/ {safeResult.maxScore}</span>
+        <span className="ml-3 text-sm text-muted-foreground">{percentage}%</span>
       </div>
 
-      <div>
-        <div className="md:col-span-2">
-          <Tabs defaultValue="feedback" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="feedback">整體回饋</TabsTrigger>
-              <TabsTrigger value="breakdown">詳細評分</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="feedback" className="mt-4">
-              <div className="bg-white border border-slate-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">整體評分回饋</h3>
-                <div className="prose prose-sm max-w-none">
-                  <StructuredFeedback feedback={safeResult.overallFeedback} />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="breakdown" className="mt-4">
-              <div className="bg-white border border-slate-200 rounded-lg p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">評分項目詳情</h3>
-                
-                <CriteriaDetails breakdown={safeResult.breakdown} />
-
-                {safeResult.breakdown.length === 0 && (
-                  <div className="text-center py-12">
-                    <p className="text-xl text-slate-700 mb-2">
-                      總評分: {safeResult.totalScore} / {safeResult.maxScore} 分
-                    </p>
-                    <p className="text-sm text-slate-500">
-                      無詳細評分項目
-                    </p>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+      {/* Overall feedback */}
+      <section>
+        <h3 className="text-lg font-semibold mb-2">整體評分回饋</h3>
+        <div className="prose prose-sm max-w-none">
+          <StructuredFeedback feedback={safeResult.overallFeedback} />
         </div>
-      </div>
+      </section>
+
+      {/* Detailed breakdown */}
+      <section>
+        <h3 className="text-lg font-semibold mb-2">評分項目詳情</h3>
+        <CriteriaDetails breakdown={safeResult.breakdown} />
+        {safeResult.breakdown.length === 0 && (
+          <div className="text-sm text-muted-foreground">無詳細評分項目</div>
+        )}
+      </section>
     </div>
   );
 }

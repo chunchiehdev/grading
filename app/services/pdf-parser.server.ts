@@ -1,12 +1,29 @@
 import { db } from '@/lib/db.server';
 import { FileParseStatus } from '@/types/database';
 import fetch from 'node-fetch';
+import type { Response as FetchResponse } from 'node-fetch';
 import FormData from 'form-data';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '@/services/storage.server';
 import { storageConfig } from '@/config/storage';
 
 const PDF_PARSER_API_BASE = process.env.PDF_PARSER_API_URL || 'http://localhost:8000';
+const PDF_PARSER_TIMEOUT_MS = Number(process.env.PDF_PARSER_TIMEOUT_MS || 5000);
+const PDF_PARSER_RETRIES = Number(process.env.PDF_PARSER_RETRIES || 2);
+
+async function fetchWithTimeout(
+  url: string,
+  options: any = {},
+  timeoutMs = PDF_PARSER_TIMEOUT_MS
+): Promise<FetchResponse> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 interface ParseResult {
   status: string;
@@ -43,7 +60,7 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
   formData.append('user_id', userId);
   formData.append('file_id', fileName);
 
-  const response = await fetch(`${PDF_PARSER_API_BASE}/parse`, {
+  const response = await fetchWithTimeout(`${PDF_PARSER_API_BASE}/parse`, {
     method: 'POST',
     body: formData,
     headers: formData.getHeaders(),
@@ -59,27 +76,45 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
 }
 
 async function getParsingResult(taskId: string): Promise<ParseResult> {
-  const response = await fetch(`${PDF_PARSER_API_BASE}/task/${taskId}`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to check task status: ${response.status}`);
+  let lastErr: any;
+  for (let attempt = 0; attempt <= PDF_PARSER_RETRIES; attempt++) {
+    try {
+      const response = await fetchWithTimeout(`${PDF_PARSER_API_BASE}/task/${taskId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to check task status: ${response.status}`);
+      }
+      return (await response.json()) as ParseResult;
+    } catch (err) {
+      lastErr = err;
+      // transient network error, small backoff and retry
+      const backoff = 500 * (attempt + 1);
+      await new Promise((r) => setTimeout(r, backoff));
+    }
   }
-
-  return response.json() as Promise<ParseResult>;
+  throw lastErr ?? new Error('Failed to reach PDF parser');
 }
 
 
 async function pollForResult(taskId: string, maxAttempts: number = 60, intervalMs: number = 2000): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const result = await getParsingResult(taskId);
+    let result: ParseResult | null = null;
+    try {
+      result = await getParsingResult(taskId);
+    } catch (err) {
+      // treat as transient and continue polling
+      console.warn(`⚠️ PDF task ${taskId} status check failed (attempt ${attempt + 1}):`, err);
+      result = null;
+    }
     
-    if (result.status === 'success') {
+    if (result && result.status === 'success') {
       return result.content!;
-    } else if (result.status === 'failed') {
+    } else if (result && result.status === 'failed') {
       throw new Error(`PDF parsing failed: ${result.error}`);
     }
     
-    console.log(`📋 Task ${taskId} status: ${result.status}, attempt ${attempt + 1}/${maxAttempts}`);
+    if (result) {
+      console.log(`📋 Task ${taskId} status: ${result.status}, attempt ${attempt + 1}/${maxAttempts}`);
+    }
     
     if (attempt < maxAttempts - 1) {
       await new Promise(resolve => setTimeout(resolve, intervalMs));
