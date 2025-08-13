@@ -3,6 +3,8 @@ import { Markdown } from '@/components/ui/markdown';
 import { EmptyGradingState } from './EmptyGradingState';
 import { StructuredFeedback } from './StructuredFeedback';
 import { GradingResultData } from '@/types/grading';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 // Updated to work with new grading result format from database - types now imported from @/types/grading
 
@@ -20,19 +22,21 @@ const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdo
   if (!breakdown || breakdown.length === 0) return null;
 
   return (
-    <div className="space-y-6 mt-4">
+    <div className="space-y-4 mt-4">
       {breakdown.map((criteria, index) => (
-        <div key={criteria.criteriaId || index} className="border border-black rounded-md p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h4 className="font-semibold text-slate-900">{criteria.name || `評分項目 ${index + 1}`}</h4>
-            <span className="text-lg font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
-              {criteria.score} 分
-            </span>
-          </div>
-          <div className="text-sm text-slate-600 leading-relaxed">
-            <Markdown>{criteria.feedback}</Markdown>
-          </div>
-        </div>
+        <Card key={criteria.criteriaId || index}>
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-base font-semibold">
+              {criteria.name || `評分項目 ${index + 1}`}
+            </CardTitle>
+            <Badge variant="secondary">{criteria.score} 分</Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-muted-foreground leading-relaxed">
+              <Markdown>{criteria.feedback}</Markdown>
+            </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
@@ -56,24 +60,24 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
 
   return (
     <div className={cn('space-y-6', className)}>
-      {/* Integrated score header */}
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-bold">{safeResult.totalScore}</span>
-        <span className="text-lg text-muted-foreground">/ {safeResult.maxScore}</span>
-        <span className="ml-3 text-sm text-muted-foreground">{percentage}%</span>
+      {/* Score summary */}
+      <div className="flex items-center gap-3">
+        <span className="text-2xl font-semibold">{safeResult.totalScore}</span>
+        <span className="text-sm text-muted-foreground">/ {safeResult.maxScore}</span>
+        <Badge variant="secondary" className="ml-1">{percentage}%</Badge>
       </div>
 
       {/* Overall feedback */}
       <section>
-        <h3 className="text-lg font-semibold mb-2">整體評分回饋</h3>
-        <div className="prose prose-sm max-w-none">
+        <h3 className="text-sm font-medium mb-2">整體評分回饋</h3>
+        <div className="text-sm text-muted-foreground">
           <StructuredFeedback feedback={safeResult.overallFeedback} />
         </div>
       </section>
 
       {/* Detailed breakdown */}
       <section>
-        <h3 className="text-lg font-semibold mb-2">評分項目詳情</h3>
+        <h3 className="text-sm font-medium mb-2">評分項目詳情</h3>
         <CriteriaDetails breakdown={safeResult.breakdown} />
         {safeResult.breakdown.length === 0 && (
           <div className="text-sm text-muted-foreground">無詳細評分項目</div>

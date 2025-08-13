@@ -251,6 +251,8 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
     // Enhanced error information
     lastError: categorizeUploadError(uploadFilesMutation.error),
     canRetry: uploadFilesMutation.error ? categorizeUploadError(uploadFilesMutation.error).retryable : false,
+    // Local-only removal in cases where server key/fileId is unavailable
+    removeLocalFile: (filename: string) => removeFile(filename),
   };
 }
 

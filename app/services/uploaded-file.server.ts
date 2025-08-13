@@ -165,11 +165,18 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
     if (file.type === 'application/pdf' || 
         file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
         file.type === 'text/plain') {
-      
-      // Start parsing asynchronously - 使用 originalFileName 而非 sanitizedName
-      triggerPdfParsing(uploadedFile.id, fileKey, originalFileName || file.name, userId).catch(error => {
-        logger.error(`Failed to parse file ${uploadedFile.id}:`, error);
-      });
+      try {
+        // Wait for parse to fully complete so the client gets a definitive result
+        await triggerPdfParsing(uploadedFile.id, fileKey, originalFileName || file.name, userId);
+      } catch (error) {
+        // triggerPdfParsing already updated DB status to FAILED. Return failure to client.
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : '解析過程發生錯誤',
+          errorType: 'network',
+          retryable: true
+        };
+      }
     } else {
       // Mark as completed for unsupported formats (we'll just use the file as-is)
       updateFileParseStatus(uploadedFile.id, FileParseStatus.COMPLETED, 'File uploaded successfully').catch(error => {

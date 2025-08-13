@@ -50,7 +50,7 @@ export const CompactFileUpload = ({
     [onUploadComplete, notified]
   );
 
-  const { files: uploadedFiles, uploadFiles, deleteFile, isUploading, uploadError, lastError, canRetry } =
+  const { files: uploadedFiles, uploadFiles, deleteFile, isUploading, uploadError, lastError, canRetry, removeLocalFile } =
     useFileUpload({ onUploadComplete: hookOnComplete });
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +80,9 @@ export const CompactFileUpload = ({
       const safeUploadedFiles = Array.isArray(uploadedFiles) ? uploadedFiles : [];
       const safeNewFiles = Array.isArray(newFiles) ? newFiles : [];
 
-      if (safeUploadedFiles.length + safeNewFiles.length > maxFiles) {
+      // Only count active (non-error) files against the max to allow retrying after failure
+      const activeCount = safeUploadedFiles.filter((f: any) => f?.status !== 'error').length;
+      if (activeCount + safeNewFiles.length > maxFiles) {
         setError(`最多只能上傳 ${maxFiles} 個檔案`);
         return;
       }
@@ -130,11 +132,14 @@ export const CompactFileUpload = ({
 
   const handleRemoveFile = useCallback(
     (fileData: any) => {
-      if (fileData.key) {
+      // Prefer server-side delete when we have an id/key, otherwise clean up locally by filename
+      if (fileData?.key) {
         deleteFile(fileData.key);
+      } else if (fileData?.file?.name) {
+        removeLocalFile(fileData.file.name);
       }
     },
-    [deleteFile]
+    [deleteFile, removeLocalFile]
   );
 
   useEffect(() => {
@@ -216,8 +221,11 @@ export const CompactFileUpload = ({
           className="hidden"
           id="file-upload-input"
           onChange={async (e) => {
-            const files = e.target.files ? Array.from(e.target.files) : [];
+            const input = e.currentTarget;
+            const files = input.files ? Array.from(input.files) : [];
             await handleFiles(files);
+            // Reset input so selecting the same file again will trigger change
+            input.value = '';
           }}
         />
         <Button asChild variant="outline" size="sm" disabled={isUploading}>

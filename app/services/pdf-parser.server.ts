@@ -52,7 +52,7 @@ async function getFileFromStorage(fileKey: string): Promise<Buffer> {
 
 async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId: string): Promise<string> {
   const formData = new FormData();
-  
+
   formData.append('file', fileBuffer, {
     filename: fileName,
     contentType: 'application/pdf',
@@ -60,19 +60,34 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
   formData.append('user_id', userId);
   formData.append('file_id', fileName);
 
-  const response = await fetchWithTimeout(`${PDF_PARSER_API_BASE}/parse`, {
-    method: 'POST',
-    body: formData,
-    headers: formData.getHeaders(),
-  });
+  let lastErr: any;
+  for (let attempt = 0; attempt <= PDF_PARSER_RETRIES; attempt++) {
+    try {
+      const response = await fetchWithTimeout(`${PDF_PARSER_API_BASE}/parse`, {
+        method: 'POST',
+        body: formData,
+        headers: formData.getHeaders(),
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
-    throw new Error(`PDF Parser API error: ${response.status} - ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`PDF Parser API error: ${response.status} - ${errorText}`);
+      }
+
+      const result = (await response.json()) as any;
+      return result.task_id;
+    } catch (err) {
+      lastErr = err;
+      const backoff = 500 * (attempt + 1);
+      console.warn(`⚠️ PDF submit failed (attempt ${attempt + 1}/${PDF_PARSER_RETRIES + 1}):`, err);
+      if (attempt < PDF_PARSER_RETRIES) {
+        await new Promise((r) => setTimeout(r, backoff));
+        continue;
+      }
+      break;
+    }
   }
-
-  const result = await response.json() as any;
-  return result.task_id;
+  throw lastErr ?? new Error('Failed to submit PDF for parsing');
 }
 
 async function getParsingResult(taskId: string): Promise<ParseResult> {
@@ -124,10 +139,15 @@ async function pollForResult(taskId: string, maxAttempts: number = 60, intervalM
   throw new Error(`PDF parsing timed out after ${maxAttempts} attempts`);
 }
 
-export async function triggerPdfParsing(fileId: string, fileKey: string, fileName: string, userId: string): Promise<void> {
+export async function triggerPdfParsing(
+  fileId: string,
+  fileKey: string,
+  fileName: string,
+  userId: string
+): Promise<void> {
   try {
     console.log(`🔄 Starting PDF parsing for file: ${fileName} (${fileId})`);
-    
+
     await db.uploadedFile.update({
       where: { id: fileId },
       data: { parseStatus: FileParseStatus.PROCESSING },
@@ -139,35 +159,22 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
     const taskId = await submitPdfForParsing(fileBuffer, fileName, userId);
     console.log(`📤 PDF parsing task submitted: ${taskId} for file: ${fileName}`);
 
-    pollForResult(taskId)
-      .then(async (content) => {
-        console.log(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
-        const sanitizedContent = content.replace(/\0/g, '');
+    // Await the long-running polling so we only return when complete
+    const content = await pollForResult(taskId);
 
-        
-        await db.uploadedFile.update({
-          where: { id: fileId },
-          data: {
-            parseStatus: FileParseStatus.COMPLETED,
-            parsedContent: sanitizedContent,
-          },
-        });
-      })
-      .catch(async (error) => {
-        console.error(`❌ PDF parsing failed for ${fileName}:`, error);
-        
-        await db.uploadedFile.update({
-          where: { id: fileId },
-          data: {
-            parseStatus: FileParseStatus.FAILED,
-            parseError: error.message,
-          },
-        });
-      });
+    console.log(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
+    const sanitizedContent = content.replace(/\0/g, '');
 
+    await db.uploadedFile.update({
+      where: { id: fileId },
+      data: {
+        parseStatus: FileParseStatus.COMPLETED,
+        parsedContent: sanitizedContent,
+      },
+    });
   } catch (error) {
-    console.error(`❌ Failed to trigger PDF parsing for ${fileName}:`, error);
-    
+    console.error(`❌ PDF parsing failed for ${fileName}:`, error);
+
     await db.uploadedFile.update({
       where: { id: fileId },
       data: {
@@ -175,6 +182,9 @@ export async function triggerPdfParsing(fileId: string, fileKey: string, fileNam
         parseError: error instanceof Error ? error.message : 'Unknown error',
       },
     });
+
+    // Propagate to caller so API can return failure
+    throw (error instanceof Error ? error : new Error('Unknown error'));
   }
 }
 

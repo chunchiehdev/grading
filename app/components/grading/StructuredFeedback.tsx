@@ -1,4 +1,3 @@
-import * as React from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, Target, ArrowRight, FileText } from 'lucide-react'
@@ -26,36 +25,33 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
     return (
         <div className={`space-y-4 ${className || ''}`}>
             {summary && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                        <FileText className="h-4 w-4 text-blue-600" />
-                        <h4 className="font-medium text-blue-900">總體評價</h4>
-                    </div>
-                    <p className="text-blue-800 text-sm leading-relaxed">{summary}</p>
-                </div>
-            )}
-
-            {documentStrengths && documentStrengths.length > 0 && (
-                <Card className="border-green-200 bg-green-50">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-green-800 flex items-center gap-2 text-base">
-                            <CheckCircle className="h-4 w-4" />
-                            表現優點
-                            <Badge variant="secondary" className="bg-green-100 text-green-700">
-                                {documentStrengths.length} 項
-                            </Badge>
+                <Card>
+                    <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            總體評價
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ul className="space-y-2">
+                        <p className="text-sm text-muted-foreground leading-relaxed">{summary}</p>
+                    </CardContent>
+                </Card>
+            )}
+
+            {documentStrengths && documentStrengths.length > 0 && (
+                <Card>
+                    <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                            表現優點
+                        </CardTitle>
+                        <Badge variant="secondary">{documentStrengths.length} 項</Badge>
+                    </CardHeader>
+                    <CardContent>
+                        <ul className="space-y-2 pl-5 list-disc">
                             {documentStrengths.map((strength, index) => (
-                                <li key={index} className="flex items-start gap-3">
-                                    <span className="flex-shrink-0 w-5 h-5 bg-green-600 text-white text-xs font-medium rounded-full flex items-center justify-center mt-0.5">
-                                        {index + 1}
-                                    </span>
-                                    <span className="text-green-800 text-sm leading-relaxed">
-                                        {strength}
-                                    </span>
+                                <li key={index} className="text-sm text-muted-foreground leading-relaxed">
+                                    {strength}
                                 </li>
                             ))}
                         </ul>
@@ -64,26 +60,19 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
             )}
 
             {keyImprovements && keyImprovements.length > 0 && (
-                <Card className="border-orange-200 bg-orange-50">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-orange-800 flex items-center gap-2 text-base">
-                            <Target className="h-4 w-4" />
+                <Card>
+                    <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <Target className="h-4 w-4 text-muted-foreground" />
                             改進重點
-                            <Badge variant="secondary" className="bg-orange-100 text-orange-700">
-                                {keyImprovements.length} 項
-                            </Badge>
                         </CardTitle>
+                        <Badge variant="secondary">{keyImprovements.length} 項</Badge>
                     </CardHeader>
                     <CardContent>
-                        <ul className="space-y-2">
+                        <ul className="space-y-2 pl-5 list-disc">
                             {keyImprovements.map((improvement, index) => (
-                                <li key={index} className="flex items-start gap-3">
-                                    <span className="flex-shrink-0 w-5 h-5 bg-orange-600 text-white text-xs font-medium rounded-full flex items-center justify-center mt-0.5">
-                                        {index + 1}
-                                    </span>
-                                    <span className="text-orange-800 text-sm leading-relaxed">
-                                        {improvement}
-                                    </span>
+                                <li key={index} className="text-sm text-muted-foreground leading-relaxed">
+                                    {improvement}
                                 </li>
                             ))}
                         </ul>
@@ -92,15 +81,15 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
             )}
 
             {nextSteps && (
-                <Card className="border-blue-200 bg-blue-50">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-blue-800 flex items-center gap-2 text-base">
-                            <ArrowRight className="h-4 w-4" />
+                <Card>
+                    <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                        <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
                             下一步建議
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-blue-800 text-sm leading-relaxed">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
                             {nextSteps}
                         </p>
                     </CardContent>
@@ -132,13 +121,13 @@ export function CompactStructuredFeedback({ feedback, className }: StructuredFee
 
             {documentStrengths && documentStrengths.length > 0 && (
                 <div>
-                    <h5 className="text-sm font-medium text-green-700 mb-2 flex items-center gap-1">
-                        <CheckCircle className="h-3 w-3" />
+                    <h5 className="text-sm font-medium mb-2 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-muted-foreground" />
                         優點 ({documentStrengths.length})
                     </h5>
-                    <ul className="text-xs space-y-1 pl-4">
+                    <ul className="text-xs space-y-1 pl-5 list-disc">
                         {documentStrengths.map((strength, index) => (
-                            <li key={index} className="text-green-600 list-disc">
+                            <li key={index} className="text-muted-foreground">
                                 {strength}
                             </li>
                         ))}
@@ -148,13 +137,13 @@ export function CompactStructuredFeedback({ feedback, className }: StructuredFee
 
             {keyImprovements && keyImprovements.length > 0 && (
                 <div>
-                    <h5 className="text-sm font-medium text-orange-700 mb-2 flex items-center gap-1">
-                        <Target className="h-3 w-3" />
+                    <h5 className="text-sm font-medium mb-2 flex items-center gap-1">
+                        <Target className="h-3 w-3 text-muted-foreground" />
                         改進 ({keyImprovements.length})
                     </h5>
-                    <ul className="text-xs space-y-1 pl-4">
+                    <ul className="text-xs space-y-1 pl-5 list-disc">
                         {keyImprovements.map((improvement, index) => (
-                            <li key={index} className="text-orange-600 list-disc">
+                            <li key={index} className="text-muted-foreground">
                                 {improvement}
                             </li>
                         ))}
@@ -163,7 +152,7 @@ export function CompactStructuredFeedback({ feedback, className }: StructuredFee
             )}
 
             {nextSteps && (
-                <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded">
+                <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
                     <strong>建議：</strong> {nextSteps}
                 </div>
             )}
