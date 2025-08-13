@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import { Markdown } from '@/components/ui/markdown';
 import { EmptyGradingState } from './EmptyGradingState';
-import { StructuredFeedback } from './StructuredFeedback';
+import { CompactStructuredFeedback } from './StructuredFeedback';
 import { GradingResultData } from '@/types/grading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -60,28 +60,30 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
 
   return (
     <div className={cn('space-y-6', className)}>
-      {/* Score summary */}
-      <div className="flex items-center gap-3">
-        <span className="text-2xl font-semibold">{safeResult.totalScore}</span>
+      {/* Compact score header */}
+      <div className="flex items-center gap-3 h-10">
+        <span className="text-2xl font-semibold leading-none">{safeResult.totalScore}</span>
         <span className="text-sm text-muted-foreground">/ {safeResult.maxScore}</span>
         <Badge variant="secondary" className="ml-1">{percentage}%</Badge>
       </div>
 
-      {/* Overall feedback */}
-      <section>
-        <h3 className="text-sm font-medium mb-2">整體評分回饋</h3>
+      {/* Feedback (compact) */}
+      <section className="space-y-2">
+        <h3 className="text-sm font-medium">整體評分回饋</h3>
         <div className="text-sm text-muted-foreground">
-          <StructuredFeedback feedback={safeResult.overallFeedback} />
+          <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
         </div>
       </section>
 
-      {/* Detailed breakdown */}
+      {/* Detailed criteria: direct stack */}
       <section>
         <h3 className="text-sm font-medium mb-2">評分項目詳情</h3>
-        <CriteriaDetails breakdown={safeResult.breakdown} />
-        {safeResult.breakdown.length === 0 && (
-          <div className="text-sm text-muted-foreground">無詳細評分項目</div>
-        )}
+        <div className="space-y-3 max-h-[60vh] overflow-auto pr-1">
+          <CriteriaDetails breakdown={safeResult.breakdown} />
+          {safeResult.breakdown.length === 0 && (
+            <div className="text-sm text-muted-foreground">無詳細評分項目</div>
+          )}
+        </div>
       </section>
     </div>
   );

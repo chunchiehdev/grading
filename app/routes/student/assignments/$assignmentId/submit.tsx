@@ -3,13 +3,15 @@ import { useLoaderData } from 'react-router';
 import { useEffect, useState } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getAssignmentAreaForSubmission } from '@/services/submission.server';
-import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
+// import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
+import { CircularUpload } from '@/components/grading/CircularUpload';
+import { FilePreview } from '@/components/grading/FilePreview';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
-import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle, RefreshCw, Loader2, ArrowLeft, Maximize2, Minimize2 } from 'lucide-react';
+// import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, CheckCircle, Loader2, ArrowLeft, Maximize2, Minimize2 } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -32,6 +34,8 @@ export default function SubmitAssignment() {
   const [state, setState] = useState<State>('idle');
   const [fileId, setFileId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [uploadedMeta, setUploadedMeta] = useState<{ fileId: string; fileName: string; fileSize: number; mimeType: string } | null>(null);
+  const [localFile, setLocalFile] = useState<File | null>(null);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,6 +92,7 @@ export default function SubmitAssignment() {
   const onUploadComplete = (files: any[]) => {
     if (files[0]) {
       setFileId(files[0].fileId);
+      setUploadedMeta(files[0]);
       setState('ready');
       setError(null);
     }
@@ -209,198 +214,194 @@ export default function SubmitAssignment() {
         }
       />
 
-      <main className="max-w-6xl mx-auto px-6 py-8 flex-1 flex flex-col w-full">
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6 flex-1 flex flex-col w-full min-h-0">
+        {/* Desktop layout (>= lg): resizable two-panel */}
+        <div className="hidden lg:block flex-1 min-h-0">
         {focusMode ? (
-          <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Your Submission</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Step 1: Upload */}
-                  <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onError={setError} />
-
-                  {/* Step 2: AI Feedback */}
-                  {state === 'ready' && (
-                    <Button onClick={() => getAIFeedback()} className="w-full">
-                      Get AI Feedback
+          <div className="space-y-4 flex-1 min-h-0 flex flex-col">
+            <ResizablePanelGroup direction="horizontal">
+              {/* Left 35%: File preview + circular upload + actions */}
+              <ResizablePanel defaultSize={50}>
+                <div className="pr-4 md:pr-6 h-full flex flex-col min-h-0">
+                  <div className="flex justify-center mb-2">
+                    <CircularUpload diameter={56} onUploadComplete={onUploadComplete} onLocalFileSelected={setLocalFile} />
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+                  </div>
+                  <div className="mt-2 flex flex-col gap-2">
+                    <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
+                      {state === 'grading' ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...
+                        </>
+                      ) : (
+                        'Get AI Feedback'
+                      )}
                     </Button>
-                  )}
-                  {state === 'grading' && (
-                    <div className="text-center py-6">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                      <p className="text-muted-foreground text-sm">AI is analyzing your work...</p>
-                    </div>
-                  )}
-
-                  {/* Step 3: Results & Submit */}
-                  {state === 'completed' && (
-                    <div className="space-y-6">
+                    <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              {/* Right 65%: Results */}
+              <ResizablePanel defaultSize={50}>
+                <div className="pl-4 md:pl-6 h-full flex flex-col">
+                  <div className="flex-1 min-h-0 overflow-auto">
+                    {state === 'completed' ? (
                       <GradingResultDisplay result={result} />
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <Button variant="outline" onClick={reset} className="flex-1" size="sm">
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Try Different File
-                        </Button>
-                        <Button
-                          onClick={submitFinal}
-                          disabled={isSubmitting}
-                          className="flex-1 bg-green-600 hover:bg-green-700"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Submitting...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Submit Assignment
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground text-center">Creates your official submission</p>
-                    </div>
-                  )}
-
-                  {!['ready', 'grading', 'completed'].includes(state) && (
-                    <p className="text-center py-6 text-muted-foreground text-sm">Upload a file to get started</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Error display */}
-              {error && (
-                <Card className="border-destructive/30">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm text-destructive">{error}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-          </div>
-        ) : (
-          <ResizablePanelGroup direction="horizontal">
-            <ResizablePanel defaultSize={65}>
-              <div className="pr-6 space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Your Submission</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Step 1: Upload */}
-                    <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onError={setError} />
-
-                    {/* Step 2: AI Feedback */}
-                    {state === 'ready' && (
-                      <Button onClick={() => getAIFeedback()} className="w-full">
-                        Get AI Feedback
-                      </Button>
-                    )}
-                    {state === 'grading' && (
-                      <div className="text-center py-6">
+                    ) : state === 'grading' ? (
+                      <div className="text-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
                         <p className="text-muted-foreground text-sm">AI is analyzing your work...</p>
                       </div>
+                    ) : (
+                      <div className="text-sm text-muted-foreground p-4 border rounded-md">上傳檔案並點選「Get AI Feedback」以查看評分結果。</div>
                     )}
+                  </div>
+                </div>
+              </ResizablePanel>
+            </ResizablePanelGroup>
 
-                    {/* Step 3: Results & Submit */}
-                    {state === 'completed' && (
-                      <div className="space-y-6">
-                        <GradingResultDisplay result={result} />
-                        <div className="flex flex-col sm:flex-row gap-3">
-                          <Button variant="outline" onClick={reset} className="flex-1" size="sm">
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Try Different File
-                          </Button>
-                          <Button
-                            onClick={submitFinal}
-                            disabled={isSubmitting}
-                            className="flex-1 bg-green-600 hover:bg-green-700"
-                          >
-                            {isSubmitting ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Submitting...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Submit Assignment
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground text-center">Creates your official submission</p>
-                      </div>
+            {error && (
+              <Card className="border-destructive/30">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-destructive">{error}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        ) : (
+          <ResizablePanelGroup direction="horizontal">
+            {/* Left: Large preview + actions */}
+            <ResizablePanel defaultSize={50}>
+              <div className="pr-4 md:pr-6 h-full flex flex-col min-h-0">
+                <div className="flex justify-center mb-2">
+                  <CircularUpload diameter={56} onUploadComplete={onUploadComplete} onLocalFileSelected={setLocalFile} />
+                </div>
+                <div className="flex-1 min-h-0">
+                  <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+                </div>
+                <div className="mt-2 flex flex-col gap-2">
+                  <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
+                    {state === 'grading' ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...
+                      </>
+                    ) : (
+                      'Get AI Feedback'
                     )}
-
-                    {!['ready', 'grading', 'completed'].includes(state) && (
-                      <p className="text-center py-6 text-muted-foreground text-sm">Upload a file to get started</p>
+                  </Button>
+                  <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
+                      </>
                     )}
-                  </CardContent>
-                </Card>
-
-                {/* Error display */}
-                {error && (
-                  <Card className="border-destructive/30">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm text-destructive">{error}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                  </Button>
+                </div>
               </div>
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={35}>
-              <div className="pl-6 space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Assignment Info</CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-                      <span>{assignment.course.name}</span>
-                      <span>{assignment.course.teacher.email}</span>
+            {/* Right: Feedback */}
+            <ResizablePanel defaultSize={50}>
+              <div className="pl-4 md:pl-6 h-full flex flex-col">
+                <div className="flex-1 min-h-0 overflow-auto">
+                  {state === 'completed' ? (
+                    <GradingResultDisplay result={result} />
+                  ) : state === 'grading' ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                      <p className="text-muted-foreground text-sm">AI is analyzing your work...</p>
                     </div>
-                    {assignment.description && <p className="text-muted-foreground text-sm">{assignment.description}</p>}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Grading Rubric</CardTitle>
-                  </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm">{assignment.rubric?.name || 'No rubric name'}</p>
-                      {Array.isArray(criteria) && criteria.length > 0 ? (
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                          {criteria.map((c: any, idx: number) => (
-                            <li key={c.id || idx} className="flex items-center justify-between">
-                              <span className="truncate mr-2">{c.name || `Criteria ${idx + 1}`}</span>
-                              {typeof c.maxScore === 'number' && <Badge variant="secondary">{c.maxScore}</Badge>}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">This rubric doesn't have detailed criteria yet.</p>
-                      )}
-                    </CardContent>
-                </Card>
+                  ) : (
+                    <div className="text-sm text-muted-foreground p-4 border rounded-md">上傳檔案並點選「Get AI Feedback」以查看評分結果。</div>
+                  )}
+                </div>
               </div>
             </ResizablePanel>
           </ResizablePanelGroup>
         )}
+        </div>
+
+        {/* Mobile/Tablet layout (< lg): stacked sections */}
+        <div className="lg:hidden flex-1 min-h-0 flex flex-col gap-3">
+          {/* Upper: upload circle + compact preview area */}
+          <div className="h-[300px] flex flex-col min-h-0">
+            <div className="flex justify-center mb-2">
+              <CircularUpload diameter={48} onUploadComplete={onUploadComplete} onLocalFileSelected={setLocalFile} />
+            </div>
+            <div className="flex-1 min-h-0">
+              <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+            </div>
+          </div>
+          {/* Lower: actions + results */}
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
+              {state === 'grading' ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...
+                </>
+              ) : (
+                'Get AI Feedback'
+              )}
+            </Button>
+            <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
+                </>
+              )}
+            </Button>
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto">
+            {state === 'completed' ? (
+              <GradingResultDisplay result={result} />
+            ) : state === 'grading' ? (
+              <div className="text-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">AI is analyzing your work...</p>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground p-4 border rounded-md">上傳檔案並點選「Get AI Feedback」以查看評分結果。</div>
+            )}
+          </div>
+          {error && (
+            <Card className="border-destructive/30">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </main>
     </div>
   );

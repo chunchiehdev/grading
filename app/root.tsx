@@ -1,5 +1,5 @@
 // root.tsx
-import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, redirect } from 'react-router';
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, redirect, useLocation } from 'react-router';
 import { ThemeProvider } from '@/theme-provider';
 import './tailwind.css';
 import Sidebar from '@/components/sidebar/Sidebar';
@@ -202,6 +202,7 @@ function Layout() {
   const { user, isPublicPath, versionInfo, locale } = useLoaderData() as LoaderData;
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
   const { i18n } = useTranslation();
+  const location = useLocation();
   
   // Change language when locale from server changes
   useEffect(() => {
@@ -222,7 +223,12 @@ function Layout() {
       <main className="flex-1 overflow-auto">
         {!isPublicPath ? (
           // Protected paths get padding
-          <div className="p-8">
+          <div className={cn(
+            // Remove default padding for submit workspace route
+            location.pathname.startsWith('/student/assignments/') && location.pathname.endsWith('/submit')
+              ? 'p-0'
+              : 'p-8'
+          )}>
             <Outlet />
           </div>
         ) : (
@@ -249,4 +255,3 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
