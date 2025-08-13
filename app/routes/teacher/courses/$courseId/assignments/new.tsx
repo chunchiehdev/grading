@@ -1,8 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Await, Link } from 'react-router';
-import { Suspense, useState } from 'react';
-import { ArrowLeft, Plus, Calendar as CalendarIcon, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+import { Suspense } from 'react';
+import { ArrowLeft, Plus } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, type CourseInfo } from '@/services/course.server';
@@ -17,8 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as UICalendar } from '@/components/ui/calendar';
+import { DatePicker } from '@/components/DatePicker';
 
 interface LoaderData {
   teacher: Promise<{ id: string; email: string; role: string; name: string }>;
@@ -39,10 +37,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     throw new Response('Course ID is required', { status: 400 });
   }
 
-  const [course, rubricsResult] = await Promise.all([
-    getCourseById(courseId, teacher.id),
-    listRubrics(teacher.id),
-  ]);
+  const [course, rubricsResult] = await Promise.all([getCourseById(courseId, teacher.id), listRubrics(teacher.id)]);
 
   if (!course) {
     throw new Response('Course not found', { status: 404 });
@@ -54,10 +49,10 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     resolve(teacher);
   });
 
-  return { 
-    teacher: teacherPromise, 
-    course, 
-    rubrics: rubricsResult.rubrics?.filter((r: any) => r.isActive) || []
+  return {
+    teacher: teacherPromise,
+    course,
+    rubrics: rubricsResult.rubrics?.filter((r: any) => r.isActive) || [],
   };
 }
 
@@ -93,14 +88,14 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
     };
 
     const assignment = await createAssignmentArea(teacher.id, courseId, assignmentData);
-    
+
     // Redirect to the manage page for the newly created assignment
     throw redirect(`/teacher/courses/${courseId}/assignments/${assignment.id}/manage`);
   } catch (error) {
     console.error('Error creating assignment area:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to create assignment. Please try again.'
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create assignment. Please try again.',
     };
   }
 }
@@ -128,7 +123,7 @@ export default function NewAssignmentArea() {
           </div>
         </div>
       </header>
-      
+
       {/* Main Content Skeleton */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="rounded-xl border bg-card text-card-foreground shadow">
@@ -137,7 +132,7 @@ export default function NewAssignmentArea() {
             <Skeleton className="h-6 w-32" /> {/* CardTitle */}
             <Skeleton className="h-4 w-96" /> {/* CardDescription */}
           </div>
-          
+
           {/* CardContent */}
           <div className="p-6 pt-0">
             <div className="space-y-6">
@@ -184,12 +179,12 @@ export default function NewAssignmentArea() {
   );
 }
 
-function AssignmentForm({ 
-  teacher, 
-  course, 
-  rubrics, 
-  actionData 
-}: { 
+function AssignmentForm({
+  teacher,
+  course,
+  rubrics,
+  actionData,
+}: {
   teacher: { id: string; email: string; role: string; name: string };
   course: CourseInfo;
   rubrics: LoaderData['rubrics'];
@@ -260,7 +255,11 @@ function AssignmentForm({
                   <SelectContent className="bg-popover border-border">
                     {rubrics.length === 0 ? (
                       <div className="p-2 text-sm text-muted-foreground">
-                        No rubrics available. <Link to="/teacher/rubrics/new" className="text-primary hover:underline">Create one first</Link>.
+                        No rubrics available.{' '}
+                        <Link to="/teacher/rubrics/new" className="text-primary hover:underline">
+                          Create one first
+                        </Link>
+                        .
                       </div>
                     ) : (
                       rubrics.map((rubric) => (
@@ -268,9 +267,7 @@ function AssignmentForm({
                           <div>
                             <div className="font-medium">{rubric.name}</div>
                             {rubric.description && (
-                              <div className="text-xs text-muted-foreground line-clamp-1">
-                                {rubric.description}
-                              </div>
+                              <div className="text-xs text-muted-foreground line-clamp-1">{rubric.description}</div>
                             )}
                           </div>
                         </SelectItem>
@@ -282,7 +279,6 @@ function AssignmentForm({
 
               <div className="space-y-2">
                 <Label htmlFor="dueDate" className="flex items-center gap-2">
-                  
                   Due Date (Optional)
                 </Label>
                 <DatePicker name="dueDate" />
@@ -307,45 +303,6 @@ function AssignmentForm({
           </CardContent>
         </Card>
       </main>
-    </div>
-  );
-}
-
-function DatePicker({ name }: { name: string }) {
-  const [date, setDate] = useState<Date | undefined>(undefined);
-
-  return (
-    <div>
-      {/* Hidden input to submit ISO date back to the server */}
-      <input type="hidden" name={name} value={date ? date.toISOString() : ''} />
-      <div className="flex items-center gap-2">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              data-empty={!date}
-              className="data-[empty=true]:text-muted-foreground w-[280px] justify-start text-left font-normal"
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, 'PPP') : <span>Pick a date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <UICalendar
-              mode="single"
-              selected={date}
-              onSelect={(d) => setDate(d)}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-        {date && (
-          <Button type="button" variant="ghost" onClick={() => setDate(undefined)}>
-            Clear
-          </Button>
-        )}
-      </div>
     </div>
   );
 }

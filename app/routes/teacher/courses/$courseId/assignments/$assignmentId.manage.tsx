@@ -3,7 +3,12 @@ import { useLoaderData, useActionData, Form, Link } from 'react-router';
 import { ArrowLeft, Save, Trash2, Calendar, FileText, Users, Settings } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
-import { getAssignmentAreaById, updateAssignmentArea, deleteAssignmentArea, type UpdateAssignmentAreaData } from '@/services/assignment-area.server';
+import {
+  getAssignmentAreaById,
+  updateAssignmentArea,
+  deleteAssignmentArea,
+  type UpdateAssignmentAreaData,
+} from '@/services/assignment-area.server';
 import { listRubrics } from '@/services/rubric.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -15,13 +20,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { DatePicker } from '@/components/DatePicker';
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string; name: string };
   assignmentArea: any;
   rubrics: any[];
   formattedDueDate?: string;
+  formattedCreatedAt: string;
+  formattedUpdatedAt: string;
 }
 
 interface ActionData {
@@ -48,14 +55,18 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   }
 
   // Format due date for form input
-  const { formatDateForForm } = await import('@/lib/date.server');
+  const { formatDateForForm, formatDateForDisplay } = await import('@/lib/date.server');
   const formattedDueDate = assignmentArea.dueDate ? formatDateForForm(assignmentArea.dueDate) : undefined;
+  const formattedCreatedAt = formatDateForDisplay(new Date(assignmentArea.createdAt));
+  const formattedUpdatedAt = formatDateForDisplay(new Date(assignmentArea.updatedAt));
 
-  return { 
-    teacher, 
-    assignmentArea, 
+  return {
+    teacher,
+    assignmentArea,
     rubrics: rubricsResult.rubrics?.filter((r: any) => r.isActive) || [],
     formattedDueDate,
+    formattedCreatedAt,
+    formattedUpdatedAt,
   };
 }
 
@@ -102,7 +113,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       };
 
       const updatedArea = await updateAssignmentArea(assignmentId, teacher.id, updateData);
-      
+
       if (updatedArea) {
         return { success: true, action: 'update' };
       } else {
@@ -113,19 +124,19 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
     return { success: false, error: 'Invalid action' };
   } catch (error) {
     console.error('Error in assignment area action:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'An error occurred'
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An error occurred',
     };
   }
 }
 
 export default function ManageAssignmentArea() {
-  const { teacher, assignmentArea, rubrics, formattedDueDate } = useLoaderData<typeof loader>();
+  const { teacher, assignmentArea, rubrics, formattedDueDate, formattedCreatedAt, formattedUpdatedAt } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
 
   const isOverdue = assignmentArea.dueDate && new Date(assignmentArea.dueDate) < new Date();
-  const daysUntilDue = assignmentArea.dueDate 
+  const daysUntilDue = assignmentArea.dueDate
     ? Math.ceil((new Date(assignmentArea.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
@@ -162,26 +173,27 @@ export default function ManageAssignmentArea() {
               title="Submissions"
               value={assignmentArea._count.submissions}
               icon={FileText}
-              variant="default"
+              variant="transparent"
             />
             <StatsCard
               title="Status"
-              value={isOverdue ? "Overdue" : "Active"}
+              value={isOverdue ? 'Overdue' : 'Active'}
               icon={Calendar}
-              variant={isOverdue ? "destructive" : "success"}
+              variant="transparent"
             />
             <StatsCard
               title="Days Until Due"
-              value={daysUntilDue !== null ? (daysUntilDue < 0 ? `${Math.abs(daysUntilDue)} overdue` : daysUntilDue.toString()) : "No due date"}
+              value={
+                daysUntilDue !== null
+                  ? daysUntilDue < 0
+                    ? `${Math.abs(daysUntilDue)} overdue`
+                    : daysUntilDue.toString()
+                  : 'No due date'
+              }
               icon={Calendar}
-              variant="secondary"
+              variant="transparent"
             />
-            <StatsCard
-              title="Rubric"
-              value={assignmentArea.rubric.name}
-              icon={Settings}
-              variant="secondary"
-            />
+            <StatsCard title="Rubric" value={assignmentArea.rubric.name} icon={Settings} variant="transparent" />
           </div>
 
           {/* Management Form */}
@@ -191,14 +203,12 @@ export default function ManageAssignmentArea() {
                 <Settings className="h-5 w-5" />
                 Assignment Settings
               </CardTitle>
-              <CardDescription>
-                Update assignment details, due date, and grading rubric.
-              </CardDescription>
+              <CardDescription>Update assignment details, due date, and grading rubric.</CardDescription>
             </CardHeader>
             <CardContent>
               <Form method="post" className="space-y-6">
                 <input type="hidden" name="intent" value="update" />
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="name">
                     Assignment Name <span className="text-destructive">*</span>
@@ -238,12 +248,12 @@ export default function ManageAssignmentArea() {
                           <div>
                             <div className="font-medium">{rubric.name}</div>
                             {rubric.description && (
-                              <div className="text-xs text-muted-foreground line-clamp-1">
-                                {rubric.description}
-                              </div>
+                              <div className="text-xs text-muted-foreground line-clamp-1">{rubric.description}</div>
                             )}
                             {rubric.id === assignmentArea.rubricId && (
-                              <Badge variant="secondary" className="ml-2 text-xs">Current</Badge>
+                              <Badge variant="secondary" className="ml-2 text-xs">
+                                Current
+                              </Badge>
                             )}
                           </div>
                         </SelectItem>
@@ -251,7 +261,7 @@ export default function ManageAssignmentArea() {
                     </SelectContent>
                   </Select>
                 </div>
-
+{/* 
                 <div className="space-y-2">
                   <Label htmlFor="dueDate" className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
@@ -261,8 +271,18 @@ export default function ManageAssignmentArea() {
                     id="dueDate"
                     name="dueDate"
                     type="datetime-local"
-                    defaultValue={formattedDueDate}
+                    
                     className="bg-background border-border focus:ring-ring"
+                  />
+                </div> */}
+
+                <div className="space-y-2">
+                  <Label htmlFor="dueDate" className="flex items-center gap-2">
+                    Due Date (Optional)
+                  </Label>
+                  <DatePicker
+                    name="dueDate"
+                    defaultISOString={assignmentArea.dueDate ? new Date(assignmentArea.dueDate).toISOString() : undefined}
                   />
                 </div>
 
@@ -281,11 +301,15 @@ export default function ManageAssignmentArea() {
                 <div className="flex justify-between pt-4">
                   <Form method="post">
                     <input type="hidden" name="intent" value="delete" />
-                    <Button 
-                      type="submit" 
-                      variant="destructive" 
+                    <Button
+                      type="submit"
+                      variant="destructive"
                       onClick={(e) => {
-                        if (!confirm('Are you sure you want to delete this assignment area? This action cannot be undone.')) {
+                        if (
+                          !confirm(
+                            'Are you sure you want to delete this assignment area? This action cannot be undone.'
+                          )
+                        ) {
                           e.preventDefault();
                         }
                       }}
@@ -318,11 +342,11 @@ export default function ManageAssignmentArea() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h4 className="font-medium text-foreground">Created</h4>
-                  <p className="text-muted-foreground">{new Date(assignmentArea.createdAt).toLocaleString()}</p>
+                  <p className="text-muted-foreground">{formattedCreatedAt}</p>
                 </div>
                 <div>
                   <h4 className="font-medium text-foreground">Last Updated</h4>
-                  <p className="text-muted-foreground">{new Date(assignmentArea.updatedAt).toLocaleString()}</p>
+                  <p className="text-muted-foreground">{formattedUpdatedAt}</p>
                 </div>
                 <div>
                   <h4 className="font-medium text-foreground">Course</h4>
