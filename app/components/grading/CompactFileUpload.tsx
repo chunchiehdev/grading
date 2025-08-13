@@ -261,7 +261,7 @@ export const CompactFileUpload = ({
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-foreground truncate">{fileData.file.name}</p>
                       {fileData.status === 'success' && (
-                        <span className="text-xs bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">上傳完成</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium">上傳完成</span>
                       )}
                       {fileData.status === 'error' && (
                         <div className="flex items-center gap-1">
