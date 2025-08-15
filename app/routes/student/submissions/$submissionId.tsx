@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -83,9 +84,7 @@ export default function StudentSubmissionDetail() {
               </CardHeader>
               <CardContent>
                 {submission.aiAnalysisResult ? (
-                  <pre className="text-xs text-foreground bg-muted p-3 rounded-md overflow-auto max-h-64">
-                    {JSON.stringify(submission.aiAnalysisResult, null, 2)}
-                  </pre>
+                  <GradingResultDisplay result={submission.aiAnalysisResult as any} />
                 ) : (
                   <p className="text-sm text-muted-foreground">Grading is in progress.</p>
                 )}

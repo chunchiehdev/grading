@@ -165,18 +165,18 @@ export default function SubmitAssignment() {
   };
 
   const submitFinal = async () => {
-    if (!fileId) return setError('No file uploaded.');
+    if (!fileId || !sessionId) return setError('No file uploaded.');
 
     setIsSubmitting(true);
     try {
       const res = await fetch('/api/student/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignmentId: assignment.id, uploadedFileId: fileId }),
+        body: JSON.stringify({ assignmentId: assignment.id, uploadedFileId: fileId, sessionId: sessionId }),
       });
 
       const data = await res.json();
-      if (data.success) window.location.href = '/student/submissions';
+      if (data.success && data.submissionId) window.location.href = `/student/submissions/${data.submissionId}`;
       else throw new Error(data.error);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit');

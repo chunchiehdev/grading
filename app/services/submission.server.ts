@@ -125,73 +125,54 @@ export async function createSubmission(studentId: string, submissionData: Create
 }
 
 /**
- * Creates a submission and attempts to start AI grading automatically.
- * Tries to link to an existing UploadedFile belonging to the student using the provided filePath
- * (interpreted as either an uploaded file ID or storage key). If found and parsed, creates a
- * GradingSession with a single GradingResult using the assignment's rubric, and starts processing.
- * Returns identifiers for client-side polling.
+ * Creates a submission and links it to an existing AI grading result.
  */
-export async function createSubmissionAndGrade(
+export async function createSubmissionAndLinkGradingResult(
   studentId: string,
   assignmentAreaId: string,
-  filePathOrId: string
-): Promise<{ submissionId: string; gradingSessionId?: string }> {
-  // 1) Create the submission record first
+  filePathOrId: string,
+  sessionId: string 
+): Promise<{ submissionId: string }> {
   const submission = await createSubmission(studentId, {
     assignmentAreaId,
     filePath: filePathOrId,
   });
 
-  // 2) Retrieve rubricId from assignment area
-  const assignmentArea = await db.assignmentArea.findUnique({
-    where: { id: assignmentAreaId },
-    select: { rubricId: true },
-  });
-
-  if (!assignmentArea?.rubricId) {
+  if (!sessionId) {
+    console.warn(`Submission ${submission.id} created without a sessionId. AI result will not be linked.`);
     return { submissionId: submission.id };
   }
 
-  // 3) Try to resolve an UploadedFile for this student based on the provided file token
-  // We accept either an explicit uploaded file ID or the storage key
-  const uploadedFile = await db.uploadedFile.findFirst({
-    where: {
-      userId: studentId,
-      parseStatus: 'COMPLETED',
-      OR: [
-        { id: filePathOrId },
-        { fileKey: filePathOrId },
-      ],
-    },
-    select: { id: true },
-  });
-
-  if (!uploadedFile) {
-    // Could not link to a parsed upload; grading session not started
-    return { submissionId: submission.id };
-  }
-
-  // 4) Create a grading session + result for this single file/rubric pair
-  const { createGradingSession, startGradingSession } = await import('./grading-session.server');
-  const sessionRes = await createGradingSession({
-    userId: studentId,
-    filePairs: [
-      {
-        fileId: uploadedFile.id,
-        rubricId: assignmentArea.rubricId,
+  try {
+    const gradingResult = await db.gradingResult.findFirst({
+      where: {
+        gradingSessionId: sessionId,
+        status: 'COMPLETED',        
       },
-    ],
-  });
+      orderBy: { updatedAt: 'desc' },
+    });
 
-  if (!sessionRes.success || !sessionRes.sessionId) {
-    return { submissionId: submission.id };
+    if (gradingResult && gradingResult.result) {
+      const aiAnalysisResult = gradingResult.result as any;
+      const finalScore = typeof aiAnalysisResult.totalScore === 'number'
+        ? Math.round(aiAnalysisResult.totalScore)
+        : null;
+
+      await updateSubmission(submission.id, {
+        aiAnalysisResult: aiAnalysisResult,
+        finalScore: finalScore ?? undefined,
+        status: 'ANALYZED',
+      });
+    } else {
+      console.warn(`Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`);
+    }
+  } catch (error) {
+    console.error(`Error linking AI analysis for submission ${submission.id}:`, error);
   }
 
-  // 5) Kick off background grading for this session
-  await startGradingSession(sessionRes.sessionId, studentId);
-
-  return { submissionId: submission.id, gradingSessionId: sessionRes.sessionId };
+  return { submissionId: submission.id };
 }
+
 
 /**
  * Gets all available assignments for a student (assignment areas they can submit to)
