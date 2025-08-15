@@ -266,9 +266,7 @@ function AssignmentForm({
                         <SelectItem key={rubric.id} value={rubric.id}>
                           <div>
                             <div className="font-medium">{rubric.name}</div>
-                            {rubric.description && (
-                              <div className="text-xs text-muted-foreground line-clamp-1">{rubric.description}</div>
-                            )}
+                            
                           </div>
                         </SelectItem>
                       ))

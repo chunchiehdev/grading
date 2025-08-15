@@ -20,7 +20,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export default function StudentSubmissionDetail() {
   const { submission } = useLoaderData<typeof loader>();
   const a = submission.assignmentArea;
-
+  console.log("submission", submission)
   const renderStatus = (status?: string) => {
     const normalized = (status || '').toUpperCase();
     let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'outline';
@@ -77,6 +77,20 @@ export default function StudentSubmissionDetail() {
                 <div className="pt-2 text-sm">Submitted file: {submission.filePath}</div>
               </CardContent>
             </Card>
+            <Card className="border-border">
+              <CardHeader>
+                <CardTitle>AI Analysis Feedback</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {submission.aiAnalysisResult ? (
+                  <pre className="text-xs text-foreground bg-muted p-3 rounded-md overflow-auto max-h-64">
+                    {JSON.stringify(submission.aiAnalysisResult, null, 2)}
+                  </pre>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Grading is in progress.</p>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Right Column */}
@@ -114,20 +128,6 @@ export default function StudentSubmissionDetail() {
               </CardContent>
             </Card>
 
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>AI Analysis Feedback</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {submission.aiAnalysisResult ? (
-                  <pre className="text-xs text-foreground bg-muted p-3 rounded-md overflow-auto max-h-64">
-                    {JSON.stringify(submission.aiAnalysisResult, null, 2)}
-                  </pre>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Grading is in progress.</p>
-                )}
-              </CardContent>
-            </Card>
           </div>
         </div>
       </main>
