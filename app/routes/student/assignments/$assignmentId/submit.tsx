@@ -301,7 +301,7 @@ export default function SubmitAssignment() {
                 <motion.div key="empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                   {/* empty/instructions state */}
                   {/* Using EmptyGradingState via GradingResultDisplay when no result and no grading */}
-                  <GradingResultDisplay result={null} />
+                  <GradingResultDisplay />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -409,7 +409,7 @@ export default function SubmitAssignment() {
                 </motion.div>
               ) : (
                 <motion.div key="t-empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  <GradingResultDisplay result={null} />
+                  <GradingResultDisplay />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -508,7 +508,7 @@ export default function SubmitAssignment() {
               </motion.div>
             ) : (
               <motion.div key="m-empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <GradingResultDisplay result={null} />
+                <GradingResultDisplay />
               </motion.div>
             )}
           </AnimatePresence>
