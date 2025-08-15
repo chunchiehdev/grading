@@ -1,0 +1,133 @@
+Teacher Feature
+
+Done:
+Course & assignment data model (Prisma schema)
+Course creation and detail page
+Rubric management with CRUD, version control, AI-assisted generation
+AI grading engine (OpenAI & Gemini) with structured results and progress tracking
+Auth & role system (Google OAuth, Teacher/Student separation, permissions)
+File management (MinIO, chunk upload, PDF parsing)
+Grading UI and history view
+
+Not Done:
+Teacher course list view
+Course edit page
+Assignment management pages (list, create, edit, detail)
+Course CRUD API endpoints
+Assignment and student management API endpoints
+Real-time notifications for grading progress, deadlines, system alerts
+Analytics dashboards (course stats, rubric performance, student progress)
+Admin panel (user management, logs, performance monitoring)
+
+Student Feature
+
+Done:
+Assignment list page
+Assignment submission page (basic upload)
+Submission data model and service layer
+
+Not Done:
+Assignment requirements preview
+Submission history and status tracking
+View grading results
+Personal submission statistics
+Deadline reminders and grading progress notifications
+
+
+
+Please help me implement the following features for my grading application. I have broken down the request into several parts.
+
+1. Add "My Courses" Link to Teacher Dashboard
+Goal: Ensure there is a clear and prominent link or button on the main teacher dashboard that navigates to the course list page (/teacher/courses).
+
+File to Modify:
+
+dashboard.tsx (or the main teacher landing page if it's different)
+Implementation Details:
+
+In the main content area of the teacher dashboard, add a Button or a styled Link from @/components/ui/button.
+The button text should be "Manage My Courses" or similar.
+The link should navigate to /teacher/courses.
+Use an appropriate icon from lucide-react, like <BookOpen className="w-4 h-4 mr-2" />.
+2. Implement Full Course CRUD (Update and Delete)
+Goal: Create a dedicated course edit page and add the backend logic to update and delete courses.
+
+Implementation Details:
+
+A. Create the Course Edit Page:
+
+New File: Create a new route file at app/routes/teacher/courses/$courseId/edit.tsx.
+Structure: This file's structure should be very similar to the "new course" page (new.tsx).
+Loader Function:
+Fetch the specific course details using getCourseById(courseId, teacher.id).
+Pass the course data to the component.
+Action Function:
+Handle a POST request with an intent of update.
+Get form data (name, description).
+Call a new updateCourse function in the course service.
+On success, redirect to the course detail page (/teacher/courses/$courseId).
+Handle validation and errors.
+Component:
+Create a form that is pre-populated with the course data from the loader.
+The submit button should say "Save Changes".
+B. Add Update/Delete Backend Logic:
+
+File to Modify: course.server.ts
+updateCourse function:
+Create async function updateCourse(courseId: string, teacherId: string, data: { name: string; description?: string }).
+It should find the course, verify the teacherId owns it, and then update it with the new data.
+deleteCourse function:
+Create async function deleteCourse(courseId: string, teacherId: string).
+It should find the course, verify ownership, and then delete it. Ensure related data (like enrollments or assignment areas) is handled correctly based on your Prisma schema's cascade rules.
+C. Integrate Delete Functionality:
+
+File to Modify: app/routes/teacher/courses/$courseId/settings.tsx (or create this new route for managing course settings).
+UI: Add a "Danger Zone" section at the bottom of the page.
+Delete Button:
+Add a "Delete Course" button with variant="destructive".
+Wrap it in a <Form method="post">.
+Include <input type="hidden" name="intent" value="delete" />.
+Use an onClick event with if (!confirm(...)) e.preventDefault() to show a confirmation dialog before submitting.
+Action Function: Add logic to the action in this route to handle the delete intent, call the deleteCourse service, and redirect to /teacher/courses on success.
+3. Create Student Enrollment Management Page
+Goal: Build a UI for teachers to see and manage students enrolled in a specific course.
+
+Implementation Details:
+
+New File: Create a new route at app/routes/teacher/courses/$courseId/students.tsx.
+Backend Services:
+In a relevant service file (e.g., course.server.ts or user.server.ts), create:
+getEnrolledStudents(courseId: string): Returns a list of students (User objects) enrolled in the course.
+removeStudentFromCourse(courseId: string, studentId: string): Removes a student's enrollment record.
+Loader Function:
+Fetch the course details and the list of enrolled students using getEnrolledStudents.
+Pass the student list to the component.
+Action Function:
+Handle a POST request with an intent of removeStudent.
+Get studentId from the form data.
+Call removeStudentFromCourse and return success/error.
+Component UI:
+Display the list of students in a table or a list of Card components.
+Each student item should show their name, email, and maybe an avatar.
+Next to each student, add a "Remove" button (variant="destructive") inside a <Form> that triggers the removeStudent action for that specific student.
+4. Implement Analytics Dashboards
+Goal: Create a new dashboard to visualize course, rubric, and student analytics.
+
+Implementation Details:
+
+New Route: Create a new top-level route at app/routes/teacher/analytics.tsx.
+Backend Service (analytics.server.ts):
+Create a new service file app/services/analytics.server.ts.
+getOverallTeacherStats(teacherId): Calculate total courses, students, submissions, and average scores.
+getCoursePerformance(teacherId): Return data for each course (submission count, average score, grading status breakdown).
+getRubricUsage(teacherId): Return data for each rubric (how many assignments use it, average score across all uses).
+Loader Function (analytics.tsx):
+Call the new analytics service functions to fetch all necessary data.
+Pass the aggregated data to the component.
+Component UI:
+Use a charting library like recharts or chart.js to display the data.
+Overall Stats: Use StatsCard components for top-level numbers.
+Course Performance: Display a bar chart showing average scores per course.
+Submission Status: A pie chart showing the distribution of graded vs. pending submissions.
+Rubric Usage: A table listing rubrics and their usage counts.
+Please implement these features sequentially. Let me know if you have any questions.

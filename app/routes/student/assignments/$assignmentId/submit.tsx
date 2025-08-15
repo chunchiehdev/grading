@@ -3,15 +3,17 @@ import { useLoaderData } from 'react-router';
 import { useEffect, useState } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getAssignmentAreaForSubmission } from '@/services/submission.server';
-// import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
-import { CircularUpload } from '@/components/grading/CircularUpload';
+import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { FilePreview } from '@/components/grading/FilePreview';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FullScreenPdfViewer } from '@/components/grading/FullScreenPdfViewer';
+// Replaced resizable panels with Framer Motion animations
+import { AnimatePresence, motion } from 'framer-motion';
 // import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle, Loader2, ArrowLeft, Maximize2, Minimize2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Loader2, ArrowLeft, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -39,9 +41,9 @@ export default function SubmitAssignment() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [focusMode, setFocusMode] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-  const criteria = (assignment.rubric as any)?.criteria || [];
+  
 
   const pollSession = async (id: string): Promise<boolean> => {
     try {
@@ -95,6 +97,11 @@ export default function SubmitAssignment() {
       setUploadedMeta(files[0]);
       setState('ready');
       setError(null);
+    }
+  };
+  const onLocalFilesChange = (files: File[]) => {
+    if (files && files[0]) {
+      setLocalFile(files[0]);
     }
   };
 
@@ -199,210 +206,356 @@ export default function SubmitAssignment() {
                 Back to Dashboard
               </a>
             </Button>
-            <Button variant="secondary" onClick={() => setFocusMode((v) => !v)}>
-              {focusMode ? (
-                <>
-                  <Minimize2 className="w-4 h-4 mr-2" /> Exit Focus
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="w-4 h-4 mr-2" /> Focus Mode
-                </>
-              )}
-            </Button>
           </div>
         }
       />
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6 flex-1 flex flex-col w-full min-h-0">
-        {/* Desktop layout (>= lg): resizable two-panel */}
-        <div className="hidden lg:block flex-1 min-h-0">
-        {focusMode ? (
-          <div className="space-y-4 flex-1 min-h-0 flex flex-col">
-            <ResizablePanelGroup direction="horizontal">
-              {/* Left 35%: File preview + circular upload + actions */}
-              <ResizablePanel defaultSize={50}>
-                <div className="pr-4 md:pr-6 h-full flex flex-col min-h-0">
-                  <div className="flex justify-center mb-2">
-                    <CircularUpload diameter={56} onUploadComplete={onUploadComplete} onLocalFileSelected={setLocalFile} />
-                  </div>
-                  <div className="flex-1 min-h-0">
-                    <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
-                  </div>
-                  <div className="mt-2 flex flex-col gap-2">
-                    <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
-                      {state === 'grading' ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...
-                        </>
-                      ) : (
-                        'Get AI Feedback'
-                      )}
-                    </Button>
-                    <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </ResizablePanel>
-              <ResizableHandle withHandle />
-              {/* Right 65%: Results */}
-              <ResizablePanel defaultSize={50}>
-                <div className="pl-4 md:pl-6 h-full flex flex-col">
-                  <div className="flex-1 min-h-0 overflow-auto">
-                    {state === 'completed' ? (
-                      <GradingResultDisplay result={result} />
-                    ) : state === 'grading' ? (
-                      <div className="text-center py-8">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                        <p className="text-muted-foreground text-sm">AI is analyzing your work...</p>
+        {/* Desktop layout (>= xl): flexible two-panel */}
+        <div className="hidden xl:flex gap-6 flex-1 min-h-0">
+          {/* Left panel: file upload/preview, flexible width with min/max constraints */}
+          <div className="min-w-[400px] max-w-[600px] w-[45%] flex-shrink-0 flex flex-col min-h-0">
+            <AnimatePresence mode="wait" initial={false}>
+              {state === 'idle' ? (
+                <motion.div key="upload" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>上傳作業</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onFilesChange={onLocalFilesChange} />
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ) : (
+                <motion.div key="preview" className="h-full" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <Card className="h-full flex flex-col min-h-0">
+                    <CardHeader className="flex-row items-center justify-between space-y-0">
+                      <CardTitle className="truncate text-base">
+                        {uploadedMeta?.fileName || '預覽'}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
+                          <Eye className="w-4 h-4 mr-2" /> 預覽
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => reset()}>更換檔案</Button>
                       </div>
-                    ) : (
-                      <div className="text-sm text-muted-foreground p-4 border rounded-md">上傳檔案並點選「Get AI Feedback」以查看評分結果。</div>
-                    )}
-                  </div>
-                </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0">
+                      <div className="h-full">
+                        <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {error && (
-              <Card className="border-destructive/30">
-                <CardContent className="pt-6">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm text-destructive">{error}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Inline error under left panel */}
+            <AnimatePresence>
+              {error && (
+                <motion.div key="left-error" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-3">
+                  <Card className="border-destructive/30">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm text-destructive">{error}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        ) : (
-          <ResizablePanelGroup direction="horizontal">
-            {/* Left: Large preview + actions */}
-            <ResizablePanel defaultSize={50}>
-              <div className="pr-4 md:pr-6 h-full flex flex-col min-h-0">
-                <div className="flex justify-center mb-2">
-                  <CircularUpload diameter={56} onUploadComplete={onUploadComplete} onLocalFileSelected={setLocalFile} />
-                </div>
-                <div className="flex-1 min-h-0">
-                  <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
-                </div>
-                <div className="mt-2 flex flex-col gap-2">
-                  <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
-                    {state === 'grading' ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...
-                      </>
-                    ) : (
-                      'Get AI Feedback'
-                    )}
-                  </Button>
-                  <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            {/* Right: Feedback */}
-            <ResizablePanel defaultSize={50}>
-              <div className="pl-4 md:pl-6 h-full flex flex-col">
-                <div className="flex-1 min-h-0 overflow-auto">
-                  {state === 'completed' ? (
-                    <GradingResultDisplay result={result} />
-                  ) : state === 'grading' ? (
-                    <div className="text-center py-8">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                      <p className="text-muted-foreground text-sm">AI is analyzing your work...</p>
-                    </div>
+
+          {/* Right panel: instructions/progress/results */}
+          <div className="flex-1 min-w-0 min-h-0 overflow-auto">
+            <AnimatePresence mode="wait" initial={false}>
+              {state === 'error' ? (
+                <motion.div key="error" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  <Card className="border-destructive/30">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm text-destructive">{error}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ) : state === 'grading' ? (
+                <motion.div key="grading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  <div className="text-center py-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                    <p className="text-muted-foreground text-sm">AI 正在分析你的作業…</p>
+                  </div>
+                </motion.div>
+              ) : state === 'completed' ? (
+                <motion.div key="results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  <GradingResultDisplay result={result} />
+                </motion.div>
+              ) : (
+                <motion.div key="empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  {/* empty/instructions state */}
+                  {/* Using EmptyGradingState via GradingResultDisplay when no result and no grading */}
+                  <GradingResultDisplay result={null} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Actions under right panel content */}
+            <div className="mt-4 flex gap-2">
+              <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
+                {state === 'grading' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> 分析中...
+                  </>
+                ) : state === 'completed' || state === 'error' ? (
+                  'Re-run AI Feedback'
+                ) : (
+                  'Get AI Feedback'
+                )}
+              </Button>
+              {state === 'completed' && (
+                <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                    </>
                   ) : (
-                    <div className="text-sm text-muted-foreground p-4 border rounded-md">上傳檔案並點選「Get AI Feedback」以查看評分結果。</div>
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
+                    </>
                   )}
-                </div>
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        )}
+                </Button>
+              )}
+              {state !== 'idle' && (
+                <Button variant="outline" onClick={reset}>重新選擇檔案</Button>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Mobile/Tablet layout (< lg): stacked sections */}
-        <div className="lg:hidden flex-1 min-h-0 flex flex-col gap-3">
-          {/* Upper: upload circle + compact preview area */}
-          <div className="h-[300px] flex flex-col min-h-0">
-            <div className="flex justify-center mb-2">
-              <CircularUpload diameter={48} onUploadComplete={onUploadComplete} onLocalFileSelected={setLocalFile} />
-            </div>
-            <div className="flex-1 min-h-0">
-              <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+        {/* Tablet layout (lg-xl): side-by-side with adjusted proportions */}
+        <div className="hidden lg:xl:hidden lg:flex gap-4 flex-1 min-h-0">
+          {/* Left panel: file upload/preview */}
+          <div className="w-[50%] flex flex-col min-h-0">
+            <AnimatePresence mode="wait" initial={false}>
+              {state === 'idle' ? (
+                <motion.div key="t-upload" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>上傳作業</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onFilesChange={onLocalFilesChange} />
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ) : (
+                <motion.div key="t-preview" className="h-full" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                  <Card className="h-full flex flex-col min-h-0">
+                    <CardHeader className="flex-row items-center justify-between space-y-0">
+                      <CardTitle className="truncate text-base">
+                        {uploadedMeta?.fileName || '預覽'}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
+                          <Eye className="w-4 h-4 mr-2" /> 預覽
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => reset()}>更換檔案</Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex-1 min-h-0">
+                      <div className="h-full">
+                        <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Right panel: instructions/progress/results */}
+          <div className="flex-1 min-w-0 min-h-0 overflow-auto">
+            <AnimatePresence mode="wait" initial={false}>
+              {state === 'error' ? (
+                <motion.div key="t-error" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  <Card className="border-destructive/30">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-sm text-destructive">{error}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ) : state === 'grading' ? (
+                <motion.div key="t-grading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  <div className="text-center py-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                    <p className="text-muted-foreground text-sm">AI 正在分析你的作業…</p>
+                  </div>
+                </motion.div>
+              ) : state === 'completed' ? (
+                <motion.div key="t-results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  <GradingResultDisplay result={result} />
+                </motion.div>
+              ) : (
+                <motion.div key="t-empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                  <GradingResultDisplay result={null} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Actions under right panel content */}
+            <div className="mt-4 flex gap-2">
+              <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
+                {state === 'grading' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> 分析中...
+                  </>
+                ) : state === 'completed' || state === 'error' ? (
+                  'Re-run AI Feedback'
+                ) : (
+                  'Get AI Feedback'
+                )}
+              </Button>
+              {state === 'completed' && (
+                <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
+                    </>
+                  )}
+                </Button>
+              )}
+              {state !== 'idle' && (
+                <Button variant="outline" onClick={reset}>重新選擇檔案</Button>
+              )}
             </div>
           </div>
-          {/* Lower: actions + results */}
-          <div className="flex flex-col gap-2">
-            <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
+        </div>
+
+        {/* Mobile: stacked layout */}
+        <div className="lg:hidden flex-1 min-h-0 flex flex-col gap-3">
+          <AnimatePresence mode="wait" initial={false}>
+            {state === 'idle' ? (
+              <motion.div key="m-upload" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>上傳作業</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onFilesChange={onLocalFilesChange} />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : (
+              <motion.div key="m-preview" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                <Card>
+                  <CardHeader className="flex-row items-center justify-between space-y-0">
+                    <CardTitle className="truncate text-base">{uploadedMeta?.fileName || '預覽'}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
+                        <Eye className="w-4 h-4 mr-2" /> 預覽
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={reset}>更換檔案</Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait" initial={false}>
+            {state === 'error' ? (
+              <motion.div key="m-error-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <Card className="border-destructive/30">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm text-destructive">{error}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : state === 'grading' ? (
+              <motion.div key="m-grading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <div className="text-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
+                  <p className="text-muted-foreground text-sm">AI 正在分析你的作業…</p>
+                </div>
+              </motion.div>
+            ) : state === 'completed' ? (
+              <motion.div key="m-results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <GradingResultDisplay result={result} />
+              </motion.div>
+            ) : (
+              <motion.div key="m-empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <GradingResultDisplay result={null} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'} className="flex-1">
               {state === 'grading' ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> 分析中...
                 </>
+              ) : state === 'completed' || state === 'error' ? (
+                'Re-run AI Feedback'
               ) : (
                 'Get AI Feedback'
               )}
             </Button>
-            <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
-                </>
-              )}
-            </Button>
-          </div>
-          <div className="flex-1 min-h-0 overflow-auto">
-            {state === 'completed' ? (
-              <GradingResultDisplay result={result} />
-            ) : state === 'grading' ? (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">AI is analyzing your work...</p>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground p-4 border rounded-md">上傳檔案並點選「Get AI Feedback」以查看評分結果。</div>
+            {state === 'completed' && (
+              <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700 flex-1">
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
+                  </>
+                )}
+              </Button>
+            )}
+            {state !== 'idle' && (
+              <Button variant="outline" onClick={reset}>重新選擇檔案</Button>
             )}
           </div>
-          {error && (
-            <Card className="border-destructive/30">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm text-destructive">{error}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+
         </div>
+
       </main>
+
+      {/* Full-screen preview dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="w-screen h-screen max-w-none bg-background ">
+            <DialogTitle className="sr-only">PDF 預覽</DialogTitle>
+            <FullScreenPdfViewer file={localFile || undefined} fileName={uploadedMeta?.fileName} />
+          
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

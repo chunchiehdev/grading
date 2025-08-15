@@ -223,12 +223,7 @@ function Layout() {
       <main className="flex-1 overflow-auto">
         {!isPublicPath ? (
           // Protected paths get padding
-          <div className={cn(
-            // Remove default padding for submit workspace route
-            location.pathname.startsWith('/student/assignments/') && location.pathname.endsWith('/submit')
-              ? 'p-0'
-              : 'p-8'
-          )}>
+          <div className="p-8">
             <Outlet />
           </div>
         ) : (

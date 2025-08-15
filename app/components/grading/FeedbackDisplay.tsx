@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, ClipboardCheck, FileText, MessageCircle, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 type StrengthVariant = 'success' | 'info' | 'warning';
@@ -12,35 +11,6 @@ interface FeedbackDisplayProps {
   onClose?: () => void;
   className?: string;
 }
-
-interface StrengthBadgesProps {
-  strengths: string[];
-  variant: StrengthVariant;
-}
-
-const _StrengthBadges = ({ strengths, variant }: StrengthBadgesProps) => {
-  const variantStyles: Record<StrengthVariant, string> = {
-    success: 'bg-green-100 text-green-800 hover:bg-green-200',
-    info: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
-    warning: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200',
-  };
-
-  if (!strengths.length) return null;
-
-  return (
-    <div className="flex flex-wrap gap-2 mt-2">
-      {strengths.map((strength) => (
-        <Badge
-          key={strength}
-          variant="secondary"
-          className={cn(variantStyles[variant], 'transition-colors duration-200')}
-        >
-          {strength}
-        </Badge>
-      ))}
-    </div>
-  );
-};
 
 const EmptyFeedbackState = () => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
