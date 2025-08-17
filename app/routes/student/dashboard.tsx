@@ -15,8 +15,10 @@ import { Badge } from '@/components/ui/badge';
 import { StatsCard } from '@/components/ui/stats-card';
 import { PageHeader } from '@/components/ui/page-header';
 
+import { useTranslation } from 'react-i18next';
+
 interface LoaderData {
-  student: { id: string; email: string; role: string };
+  student: { id: string; email: string; role: string, name: string };
   assignments: (StudentAssignmentInfo & { formattedDueDate?: string })[];
   submissions: (SubmissionInfo & { formattedUploadedDate: string })[];
 }
@@ -43,7 +45,8 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
 export default function StudentDashboard() {
   const { student, assignments, submissions } = useLoaderData<typeof loader>();
-
+  const { t } = useTranslation(['course', 'dashboard'])
+  
   // Separate assignments into different categories
   const pendingAssignments = assignments.filter(
     (assignment) => !assignment.submissions.some((sub) => sub.studentId === student.id)
@@ -65,13 +68,13 @@ export default function StudentDashboard() {
   const headerActions = (
     <>
       <Button asChild variant="outline">
-        <Link to="/student/courses">My Courses</Link>
+        <Link to="/student/courses">{t('course:courses')}</Link>
       </Button>
       <Button asChild variant="outline">
-        <Link to="/student/assignments">View All Assignments</Link>
+        <Link to="/student/assignments">{t('course:assignments')}</Link>
       </Button>
       <Button asChild>
-        <Link to="/student/submissions">My Submissions</Link>
+        <Link to="/student/submissions">{t('course:assignment.submissions')}</Link>
       </Button>
     </>
   );
@@ -79,42 +82,31 @@ export default function StudentDashboard() {
   return (
     <div>
       <PageHeader
-        title="Student Dashboard"
-        subtitle={`Welcome back, ${student.email.split('@')[0]}`}
+        title={t('dashboard:title')}
+        subtitle={`${t('dashboard:welcome')}, ${student.name}`}
         actions={headerActions}
       />
 
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <StatsCard title="Pending" value={pendingAssignments.length} icon={Clock} variant="transparent" />
-          <StatsCard title="Submitted" value={submissions.length} icon={CheckCircle} variant="transparent" />
-          <StatsCard
-            title="Graded"
-            value={submissions.filter((sub) => sub.status === 'GRADED').length}
-            icon={BarChart3}
-            variant="transparent"
-          />
-          <StatsCard
-            title="Avg Score"
-            value={averageScore !== null ? averageScore : '--'}
-            icon={Zap}
-            variant="transparent"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <StatsCard title={t('dashboard:assignmentsPending')} value={pendingAssignments.length} icon={Clock} variant="transparent" />
+          <StatsCard title={t('dashboard:submitted')} value={submissions.length} icon={CheckCircle} variant="transparent" />
+
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Upcoming Deadlines */}
           <Card>
             <CardHeader>
-              <CardTitle>Upcoming Deadlines</CardTitle>
+              <CardTitle>{t('dashboard:upcomingDeadlines')}</CardTitle>
             </CardHeader>
             <CardContent>
               {upcomingDeadlines.length === 0 ? (
                 <div className="text-center py-8">
                   <CheckCircle className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No upcoming deadlines</h3>
-                  <p className="mt-1 text-sm text-gray-500">All caught up!</p>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">{t('dashboard:emptyState.noUpcomingDeadlines')}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t('dashboard:emptyState.allCaughtUp')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -147,9 +139,9 @@ export default function StudentDashboard() {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>Recent Submissions</CardTitle>
+                <CardTitle>{t('dashboard:recentSubmissions')}</CardTitle>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/student/submissions">View All</Link>
+                  <Link to="/student/submissions">{t('dashboard:viewSubmissions')}</Link>
                 </Button>
               </div>
             </CardHeader>

@@ -16,6 +16,9 @@
   "viewResults": "View Results",
   "manageClasses": "Manage Classes",
   "viewSubmissions": "View Submissions",
+  "upcomingDeadlines": "Upcoming Deadlines",
+  "assignmentsPending": "Unsubmitted Assignments",
+  "submitted": "Completed Assignments",
   "stats": {
     "totalRubrics": "Total Rubrics",
     "totalGradings": "Total Gradings",
@@ -61,7 +64,9 @@
     "noAssignments": "No assignments yet",
     "noAssignmentsDescription": "Teachers will post assignments here",
     "noSubmissions": "No submissions yet",
-    "noSubmissionsDescription": "Submissions will appear here after you submit assignments"
+    "noSubmissionsDescription": "Submissions will appear here after you submit assignments",
+    "noUpcomingDeadlines": "No upcoming deadlines",
+    "allCaughtUp": "All caught up!" 
   },
   "actions": {
     "view": "View",

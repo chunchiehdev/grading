@@ -16,6 +16,9 @@
   "viewResults": "查看結果",
   "manageClasses": "管理課程",
   "viewSubmissions": "查看提交",
+  "upcomingDeadlines":"即將截止",
+  "assignmentsPending": "還沒交的作業",
+  "submitted": "已交的作業",
   "stats": {
     "totalRubrics": "總評分標準數",
     "totalGradings": "總評分數",
@@ -61,7 +64,9 @@
     "noAssignments": "尚無作業",
     "noAssignmentsDescription": "教師會在這裡發布作業",
     "noSubmissions": "尚無提交",
-    "noSubmissionsDescription": "提交作業後會顯示在這裡"
+    "noSubmissionsDescription": "提交作業後會顯示在這裡",
+    "noUpcomingDeadlines": "沒有即將到期的作業",
+    "allCaughtUp": "全部完成"
   },
   "actions": {
     "view": "查看",

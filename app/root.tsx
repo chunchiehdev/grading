@@ -130,16 +130,14 @@ export async function loader({ request }: { request: Request }) {
   const locale = getServerLocale(request);
   const session = await getSession(request);
   const toast = session.get('toast') || null;
+  const setCookie = toast ? await commitSession(session) : null;
 
   // Early return for static assets
   if (isStaticAsset(path)) {
     const body = { user: null, isPublicPath: true, versionInfo: null, locale, toast };
-    return new Response(JSON.stringify(body), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Set-Cookie': await commitSession(session),
-      },
-    });
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (setCookie) headers['Set-Cookie'] = setCookie;
+    return new Response(JSON.stringify(body), { headers });
   }
 
   const versionInfo = await getVersionInfoSafe();
@@ -156,12 +154,9 @@ export async function loader({ request }: { request: Request }) {
     }
     
     const body = { user, isPublicPath: true, versionInfo, locale, toast };
-    return new Response(JSON.stringify(body), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Set-Cookie': await commitSession(session),
-      },
-    });
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (setCookie) headers['Set-Cookie'] = setCookie;
+    return new Response(JSON.stringify(body), { headers });
   }
 
   // Handle protected paths - require authentication
@@ -191,12 +186,9 @@ export async function loader({ request }: { request: Request }) {
   }
 
   const body = { user, isPublicPath: false, versionInfo, locale, toast };
-  return new Response(JSON.stringify(body), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Set-Cookie': await commitSession(session),
-    },
-  });
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (setCookie) headers['Set-Cookie'] = setCookie;
+  return new Response(JSON.stringify(body), { headers });
 }
 
 function Document({ children }: { children: React.ReactNode }) {

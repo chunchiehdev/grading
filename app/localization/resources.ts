@@ -7,6 +7,7 @@ import enGrading from '../locales/en/grading.json'
 import enCourse from '../locales/en/course.json'
 import enNavigation from '../locales/en/navigation.json'
 import enLanding from '../locales/en/landing.json'
+import ensubmissions from '../locales/en/submissions.json'
 
 import zhCommon from '../locales/zh/common.json'
 import zhAuth from '../locales/zh/auth.json'
@@ -16,6 +17,8 @@ import zhGrading from '../locales/zh/grading.json'
 import zhCourse from '../locales/zh/course.json'
 import zhNavigation from '../locales/zh/navigation.json'
 import zhLanding from '../locales/zh/landing.json'
+import zhsubmissions from '../locales/zh/submissions.json'
+
 
 // Create supported languages array
 export const supportedLanguages = ['en', 'zh']
@@ -31,6 +34,7 @@ export type Resource = {
   course: typeof enCourse
   navigation: typeof enNavigation
   landing: typeof enLanding
+  submissions: typeof ensubmissions
 }
 
 // Export resources in the format remix-i18next expects
@@ -44,6 +48,7 @@ export const resources: Record<SupportedLanguage, Resource> = {
     course: enCourse,
     navigation: enNavigation,
     landing: enLanding,
+    submissions: ensubmissions,
   },
   zh: {
     common: zhCommon,
@@ -54,5 +59,6 @@ export const resources: Record<SupportedLanguage, Resource> = {
     course: zhCourse,
     navigation: zhNavigation,
     landing: zhLanding,
+    submissions: zhsubmissions,
   },
 }

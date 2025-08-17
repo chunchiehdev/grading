@@ -20,7 +20,7 @@ const pageHeaderVariants = cva(
 );
 
 export interface PageHeaderProps extends React.HTMLAttributes<HTMLElement> {
-  title: string;
+  title?: string;
   subtitle?: string;
   actions?: React.ReactNode;
   size?: VariantProps<typeof pageHeaderVariants>['size'];
@@ -40,7 +40,7 @@ export function PageHeader({
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">{title}</h1>
+            {title && <h1 className="text-3xl font-bold text-foreground">{title}</h1>}
             {subtitle && (
               <p className="text-muted-foreground mt-3 px-1">{subtitle}</p>
             )}

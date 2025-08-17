@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
+
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -16,6 +18,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function StudentSubmissions() {
   const { submissions } = useLoaderData<typeof loader>();
+  const { t } = useTranslation(['common', "submissions"])
 
   const renderStatus = (status?: string) => {
     const normalized = (status || '').toUpperCase();
@@ -46,10 +49,10 @@ export default function StudentSubmissions() {
   return (
     <div className="min-h-screen bg-background">
       <PageHeader
-        title="My Submissions"
+        
         actions={
           <Button asChild variant="outline">
-            <Link to="/student/dashboard">Back to Dashboard</Link>
+            <Link to="/student/dashboard">{t('common:back')}</Link>
           </Button>
         }
       />
@@ -57,7 +60,7 @@ export default function StudentSubmissions() {
       <main className="max-w-7xl mx-auto px-4 pb-8">
         <Card className="border-border">
           <CardHeader>
-            <CardTitle>Submission History</CardTitle>
+            <CardTitle>{t('submissions:history')}</CardTitle>
           </CardHeader>
           <CardContent>
             {(!submissions || submissions.length === 0) ? (
