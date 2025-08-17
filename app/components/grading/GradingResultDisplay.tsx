@@ -78,7 +78,7 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
       {/* Detailed criteria: direct stack */}
       <section>
         <h3 className="text-sm font-medium mb-2">評分項目詳情</h3>
-        <div className="space-y-3 max-h-[60vh] overflow-auto pr-1">
+        <div className="space-y-3 overflow-auto pr-1">
           <CriteriaDetails breakdown={safeResult.breakdown} />
           {safeResult.breakdown.length === 0 && (
             <div className="text-sm text-muted-foreground">無詳細評分項目</div>

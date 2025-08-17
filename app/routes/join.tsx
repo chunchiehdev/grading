@@ -1,4 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
+import { getSession, commitSession } from '@/sessions.server';
 import { useLoaderData, useActionData, Form, useSearchParams, Link } from 'react-router';
 import { CheckCircle, AlertCircle, Users, User, Calendar, ArrowLeft } from 'lucide-react';
 
@@ -67,9 +68,14 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
       };
     }
 
-    // Redirect to student dashboard after successful enrollment
+    // Set a flash toast message in session and redirect to dashboard
+    const session = await getSession(request);
+    session.flash('toast', { type: 'success', message: 'Successfully joined the course!' });
+    const cookie = await commitSession(session);
     const redirectTo = user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard';
-    return redirect(redirectTo);
+    const res = redirect(redirectTo);
+    res.headers.set('Set-Cookie', cookie);
+    return res;
   } catch (error) {
     console.error('Error using invitation code:', error);
     return {

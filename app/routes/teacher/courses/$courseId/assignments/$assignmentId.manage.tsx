@@ -206,7 +206,7 @@ export default function ManageAssignmentArea() {
               <CardDescription>Update assignment details, due date, and grading rubric.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Form method="post" className="space-y-6">
+              <Form id="update-assignment-form" method="post" className="space-y-6">
                 <input type="hidden" name="intent" value="update" />
 
                 <div className="space-y-2">
@@ -248,7 +248,7 @@ export default function ManageAssignmentArea() {
                           <div>
                             <div className="font-medium">{rubric.name}</div>
                             {rubric.description && (
-                              <div className="text-xs text-muted-foreground line-clamp-1">{rubric.description}</div>
+                              <div className="text-xs text-muted-foreground">{rubric.description}</div>
                             )}
                             {rubric.id === assignmentArea.rubricId && (
                               <Badge variant="secondary" className="ml-2 text-xs">
@@ -261,20 +261,6 @@ export default function ManageAssignmentArea() {
                     </SelectContent>
                   </Select>
                 </div>
-{/* 
-                <div className="space-y-2">
-                  <Label htmlFor="dueDate" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Due Date (Optional)
-                  </Label>
-                  <Input
-                    id="dueDate"
-                    name="dueDate"
-                    type="datetime-local"
-                    
-                    className="bg-background border-border focus:ring-ring"
-                  />
-                </div> */}
 
                 <div className="space-y-2">
                   <Label htmlFor="dueDate" className="flex items-center gap-2">
@@ -297,39 +283,39 @@ export default function ManageAssignmentArea() {
                     <AlertDescription>Assignment area updated successfully!</AlertDescription>
                   </Alert>
                 )}
-
-                <div className="flex justify-between pt-4">
-                  <Form method="post">
-                    <input type="hidden" name="intent" value="delete" />
-                    <Button
-                      type="submit"
-                      variant="destructive"
-                      onClick={(e) => {
-                        if (
-                          !confirm(
-                            'Are you sure you want to delete this assignment area? This action cannot be undone.'
-                          )
-                        ) {
-                          e.preventDefault();
-                        }
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete Assignment
-                    </Button>
-                  </Form>
-
-                  <div className="flex gap-2">
-                    <Button asChild variant="outline">
-                      <Link to={`/teacher/courses/${assignmentArea.courseId}`}>Cancel</Link>
-                    </Button>
-                    <Button type="submit">
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Changes
-                    </Button>
-                  </div>
-                </div>
               </Form>
+
+              <div className="flex justify-between pt-4">
+                <Form method="post">
+                  <input type="hidden" name="intent" value="delete" />
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    onClick={(e) => {
+                      if (
+                        !confirm(
+                          'Are you sure you want to delete this assignment area? This action cannot be undone.'
+                        )
+                      ) {
+                        e.preventDefault();
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Assignment
+                  </Button>
+                </Form>
+
+                <div className="flex gap-2">
+                  <Button asChild variant="outline">
+                    <Link to={`/teacher/courses/${assignmentArea.courseId}`}>Cancel</Link>
+                  </Button>
+                  <Button type="submit" form="update-assignment-form">
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

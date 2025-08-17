@@ -336,9 +336,6 @@ export default function CourseDetail() {
                           <label className="text-sm font-medium text-gray-700 mb-2 block">
                             Expires At
                           </label>
-                          {/* <p className="text-sm text-gray-600">
-                            {new Date(invitation.expiresAt).toLocaleString()}
-                          </p> */}
                         </div>
                       )}
 

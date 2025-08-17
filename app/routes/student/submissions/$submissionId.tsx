@@ -75,7 +75,7 @@ export default function StudentSubmissionDetail() {
                 {a.description && (
                   <div className="text-sm text-muted-foreground">{a.description}</div>
                 )}
-                <div className="pt-2 text-sm">Submitted file: {submission.filePath}</div>
+                {/* <div className="pt-2 text-sm">Submitted file: {submission.filePath}</div> */}
               </CardContent>
             </Card>
             <Card className="border-border">

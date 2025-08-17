@@ -1,1 +1,1 @@
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/chunchiehdev/grading)T
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/chunchiehdev/grading)

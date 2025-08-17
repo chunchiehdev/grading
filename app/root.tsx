@@ -15,6 +15,9 @@ import type { VersionInfo } from '@/services/version.server';
 import { useTranslation } from 'react-i18next';
 import { getServerLocale } from './localization/i18n';
 import { useEffect } from 'react';
+import { Toaster } from '@/components/ui/sonner';
+import { getSession, commitSession } from '@/sessions.server';
+import { toast as sonnerToast } from 'sonner';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,6 +42,7 @@ type LoaderData = {
   isPublicPath: boolean;
   versionInfo: VersionInfo | null;
   locale: string;
+  toast?: { type: 'success' | 'error' | 'info' | 'warning'; message: string } | null;
 };
 
 export const links = () => [
@@ -124,10 +128,18 @@ export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
   const locale = getServerLocale(request);
+  const session = await getSession(request);
+  const toast = session.get('toast') || null;
 
   // Early return for static assets
   if (isStaticAsset(path)) {
-    return { user: null, isPublicPath: true, versionInfo: null, locale };
+    const body = { user: null, isPublicPath: true, versionInfo: null, locale, toast };
+    return new Response(JSON.stringify(body), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': await commitSession(session),
+      },
+    });
   }
 
   const versionInfo = await getVersionInfoSafe();
@@ -143,7 +155,13 @@ export async function loader({ request }: { request: Request }) {
         throw redirect('/auth/select-role');
     }
     
-    return { user, isPublicPath: true, versionInfo, locale };
+    const body = { user, isPublicPath: true, versionInfo, locale, toast };
+    return new Response(JSON.stringify(body), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Set-Cookie': await commitSession(session),
+      },
+    });
   }
 
   // Handle protected paths - require authentication
@@ -172,7 +190,13 @@ export async function loader({ request }: { request: Request }) {
     throw redirect('/auth/unauthorized');
   }
 
-  return { user, isPublicPath: false, versionInfo, locale };
+  const body = { user, isPublicPath: false, versionInfo, locale, toast };
+  return new Response(JSON.stringify(body), {
+    headers: {
+      'Content-Type': 'application/json',
+      'Set-Cookie': await commitSession(session),
+    },
+  });
 }
 
 function Document({ children }: { children: React.ReactNode }) {
@@ -191,6 +215,7 @@ function Document({ children }: { children: React.ReactNode }) {
       </head>
       <body className="bg-background min-h-screen w-full font-sans antialiased">
         {children}
+        <Toaster richColors />
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -199,7 +224,7 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const { user, isPublicPath, versionInfo, locale } = useLoaderData() as LoaderData;
+  const { user, isPublicPath, versionInfo, locale, toast } = useLoaderData() as LoaderData;
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
   const { i18n } = useTranslation();
   const location = useLocation();
@@ -210,6 +235,26 @@ function Layout() {
       i18n.changeLanguage(locale);
     }
   }, [locale, i18n]);
+
+  // Show one-time toast messages from session flash
+  useEffect(() => {
+    if (toast && toast.message) {
+      const t = toast as NonNullable<LoaderData['toast']>;
+      switch (t.type) {
+        case 'success':
+          sonnerToast.success(t.message);
+          break;
+        case 'error':
+          sonnerToast.error(t.message);
+          break;
+        case 'warning':
+          sonnerToast.warning ? sonnerToast.warning(t.message) : sonnerToast(t.message);
+          break;
+        default:
+          sonnerToast(t.message);
+      }
+    }
+  }, [toast]);
 
   // Unified layout structure for all route types
   return (
