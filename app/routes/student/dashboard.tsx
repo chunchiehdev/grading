@@ -3,7 +3,12 @@ import { useLoaderData, Link } from 'react-router';
 import { Clock, CheckCircle, BarChart3, Zap, FileText, ArrowRight } from 'lucide-react';
 
 import { requireStudent } from '@/services/auth.server';
-import { getStudentAssignments, getStudentSubmissions, type StudentAssignmentInfo, type SubmissionInfo } from '@/services/submission.server';
+import {
+  getStudentAssignments,
+  getStudentSubmissions,
+  type StudentAssignmentInfo,
+  type SubmissionInfo,
+} from '@/services/submission.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,12 +28,12 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
     getStudentSubmissions(student.id),
   ]);
 
-  const assignments = assignmentsRaw.map(a => ({
+  const assignments = assignmentsRaw.map((a) => ({
     ...a,
     formattedDueDate: a.dueDate ? new Date(a.dueDate).toLocaleDateString('en-CA') : undefined,
   }));
 
-  const submissions = submissionsRaw.map(s => ({
+  const submissions = submissionsRaw.map((s) => ({
     ...s,
     formattedUploadedDate: new Date(s.uploadedAt).toLocaleDateString('en-CA'),
   }));
@@ -40,35 +45,33 @@ export default function StudentDashboard() {
   const { student, assignments, submissions } = useLoaderData<typeof loader>();
 
   // Separate assignments into different categories
-  const pendingAssignments = assignments.filter(assignment => 
-    !assignment.submissions.some(sub => sub.studentId === student.id)
+  const pendingAssignments = assignments.filter(
+    (assignment) => !assignment.submissions.some((sub) => sub.studentId === student.id)
   );
 
   // Get upcoming deadlines
   const upcomingDeadlines = pendingAssignments
-    .filter(assignment => assignment.dueDate)
+    .filter((assignment) => assignment.dueDate)
     .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
     .slice(0, 3);
 
   // Calculate average score
-  const gradedSubmissions = submissions.filter(sub => sub.finalScore !== null);
-  const averageScore = gradedSubmissions.length > 0
-    ? Math.round(
-        gradedSubmissions.reduce((acc, sub) => acc + sub.finalScore!, 0) / gradedSubmissions.length
-      )
-    : null;
+  const gradedSubmissions = submissions.filter((sub) => sub.finalScore !== null);
+  const averageScore =
+    gradedSubmissions.length > 0
+      ? Math.round(gradedSubmissions.reduce((acc, sub) => acc + sub.finalScore!, 0) / gradedSubmissions.length)
+      : null;
 
   const headerActions = (
     <>
       <Button asChild variant="outline">
-        <Link to="/student/assignments">
-          View All Assignments
-        </Link>
+        <Link to="/student/courses">My Courses</Link>
+      </Button>
+      <Button asChild variant="outline">
+        <Link to="/student/assignments">View All Assignments</Link>
       </Button>
       <Button asChild>
-        <Link to="/student/submissions">
-          My Submissions
-        </Link>
+        <Link to="/student/submissions">My Submissions</Link>
       </Button>
     </>
   );
@@ -84,21 +87,11 @@ export default function StudentDashboard() {
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Pending"
-            value={pendingAssignments.length}
-            icon={Clock}
-            variant="transparent"
-          />
-          <StatsCard
-            title="Submitted"
-            value={submissions.length}
-            icon={CheckCircle}
-            variant="transparent"
-          />
+          <StatsCard title="Pending" value={pendingAssignments.length} icon={Clock} variant="transparent" />
+          <StatsCard title="Submitted" value={submissions.length} icon={CheckCircle} variant="transparent" />
           <StatsCard
             title="Graded"
-            value={submissions.filter(sub => sub.status === 'GRADED').length}
+            value={submissions.filter((sub) => sub.status === 'GRADED').length}
             icon={BarChart3}
             variant="transparent"
           />
@@ -126,7 +119,10 @@ export default function StudentDashboard() {
               ) : (
                 <div className="space-y-4">
                   {upcomingDeadlines.map((assignment) => (
-                    <div key={assignment.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div
+                      key={assignment.id}
+                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                    >
                       <div className="flex-1">
                         <h3 className="text-sm font-medium text-gray-900">{assignment.name}</h3>
                         <p className="text-sm text-gray-600">{assignment.course.name}</p>
@@ -153,9 +149,7 @@ export default function StudentDashboard() {
               <div className="flex justify-between items-center">
                 <CardTitle>Recent Submissions</CardTitle>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/student/submissions">
-                    View All
-                  </Link>
+                  <Link to="/student/submissions">View All</Link>
                 </Button>
               </div>
             </CardHeader>
@@ -169,30 +163,29 @@ export default function StudentDashboard() {
               ) : (
                 <div className="space-y-4">
                   {submissions.slice(0, 5).map((submission) => (
-                    <div key={submission.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div
+                      key={submission.id}
+                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                    >
                       <div className="flex-1">
-                        <h3 className="text-sm font-medium text-gray-900">
-                          {submission.assignmentArea.name}
-                        </h3>
+                        <h3 className="text-sm font-medium text-gray-900">{submission.assignmentArea.name}</h3>
                         <p className="text-sm text-gray-600">{submission.assignmentArea.course.name}</p>
                         <p className="text-xs text-gray-500">Submitted {submission.formattedUploadedDate}</p>
                       </div>
                       <div className="text-right">
-                        <Badge 
+                        <Badge
                           variant={
-                            submission.status === 'GRADED' 
+                            submission.status === 'GRADED'
                               ? 'default'
                               : submission.status === 'ANALYZED'
-                              ? 'secondary'
-                              : 'outline'
+                                ? 'secondary'
+                                : 'outline'
                           }
                         >
                           {submission.status.toLowerCase()}
                         </Badge>
                         {submission.finalScore !== null && (
-                          <p className="text-sm font-medium text-gray-900 mt-1">
-                            Score: {submission.finalScore}
-                          </p>
+                          <p className="text-sm font-medium text-gray-900 mt-1">Score: {submission.finalScore}</p>
                         )}
                       </div>
                     </div>
@@ -205,4 +198,4 @@ export default function StudentDashboard() {
       </div>
     </div>
   );
-} 
+}
