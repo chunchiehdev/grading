@@ -104,24 +104,24 @@ export default function StudentDashboard() {
             <CardContent>
               {upcomingDeadlines.length === 0 ? (
                 <div className="text-center py-8">
-                  <CheckCircle className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">{t('dashboard:emptyState.noUpcomingDeadlines')}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{t('dashboard:emptyState.allCaughtUp')}</p>
+                  <CheckCircle className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-2 text-sm font-medium text-foreground">{t('dashboard:emptyState.noUpcomingDeadlines')}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{t('dashboard:emptyState.allCaughtUp')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {upcomingDeadlines.map((assignment) => (
                     <div
                       key={assignment.id}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                      className="flex items-center justify-between p-4 border rounded-lg"
                     >
                       <div className="flex-1">
-                        <h3 className="text-sm font-medium text-gray-900">{assignment.name}</h3>
-                        <p className="text-sm text-gray-600">{assignment.course.name}</p>
-                        <p className="text-xs text-gray-500">Teacher: {assignment.course.teacher.email}</p>
+                        <h3 className="text-sm font-medium text-foreground">{assignment.name}</h3>
+                        <p className="text-sm text-muted-foreground">{assignment.course.name}</p>
+                        <p className="text-xs text-muted-foreground">Teacher: {assignment.course.teacher.email}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium text-red-600">Due {assignment.formattedDueDate}</p>
+                        <p className="text-sm font-medium text-destructive">Due {assignment.formattedDueDate}</p>
                         <Button asChild size="sm" variant="ghost" className="mt-1">
                           <Link to={`/student/assignments/${assignment.id}/submit`}>
                             Submit <ArrowRight className="w-3 h-3 ml-1" />
@@ -148,21 +148,21 @@ export default function StudentDashboard() {
             <CardContent>
               {submissions.length === 0 ? (
                 <div className="text-center py-8">
-                  <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No submissions yet</h3>
-                  <p className="mt-1 text-sm text-gray-500">Start by submitting your first assignment.</p>
+                  <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-2 text-sm font-medium text-foreground">No submissions yet</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Start by submitting your first assignment.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {submissions.slice(0, 5).map((submission) => (
                     <div
                       key={submission.id}
-                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                      className="flex items-center justify-between p-4 border rounded-lg"
                     >
                       <div className="flex-1">
-                        <h3 className="text-sm font-medium text-gray-900">{submission.assignmentArea.name}</h3>
-                        <p className="text-sm text-gray-600">{submission.assignmentArea.course.name}</p>
-                        <p className="text-xs text-gray-500">Submitted {submission.formattedUploadedDate}</p>
+                        <h3 className="text-sm font-medium text-foreground">{submission.assignmentArea.name}</h3>
+                        <p className="text-sm text-muted-foreground">{submission.assignmentArea.course.name}</p>
+                        <p className="text-xs text-muted-foreground">Submitted {submission.formattedUploadedDate}</p>
                       </div>
                       <div className="text-right">
                         <Badge
@@ -177,7 +177,7 @@ export default function StudentDashboard() {
                           {submission.status.toLowerCase()}
                         </Badge>
                         {submission.finalScore !== null && (
-                          <p className="text-sm font-medium text-gray-900 mt-1">Score: {submission.finalScore}</p>
+                          <p className="text-sm font-medium text-foreground mt-1">Score: {submission.finalScore}</p>
                         )}
                       </div>
                     </div>

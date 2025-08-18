@@ -4,7 +4,6 @@
   "courses": "課程",
   "new": "新增課程",
   "create": "建立課程",
-  "edit": "編輯課程",
   "delete": "刪除課程",
   "manage": "管理課程",
   "join": "加入課程",
@@ -27,7 +26,6 @@
   "inactive": "未開始",
   "completed": "已結束",
   "archived": "已封存",
-  "settings": "課程設定",
   "enrollment": "註冊管理",
   "materials": "課程資料",
   "announcements": "公告",
@@ -45,8 +43,8 @@
     "generateInvitationCode": "新增邀請碼"
   },
   "assignment": {
-    "title": "作業",
-    "new": "新增作業",
+    "title": "作業區",
+    "new": "建立作業",
     "create": "建立作業",
     "edit": "編輯作業",
     "delete": "刪除作業",
@@ -120,5 +118,30 @@
     "pendingGrading": "待評分",
     "enrolledStudents": "已註冊的學生",
     "createdDate": "建立於"
+  },
+  "edit": {
+    "title": "編輯課程",
+    "description": "修改課程的名稱和描述",
+    "courseName": "課程名稱",
+    "courseDescription": "課程描述",
+    "save": "儲存",
+    "cancel": "關閉"
+  },
+  "emptyState": {
+    "noInvitationCode": "還沒建立邀請碼",
+    "noInvitationCodeDescription": "建立邀請碼讓學生加入課程。邀請碼將有效期為 7 天，可透過 QRCode 進行加入。",
+    "noAssignments": "還沒有作業",
+    "noAssignmentsDescription": "請建立作業區以組織學生提交並應用評分標準。"
+  },
+  "settings": {
+    "title": "課程設定",
+    "description": "修改課程的設定",
+    "courseName": "課程名稱",
+    "courseDescription": "課程描述",
+    "save": "儲存",
+    "cancel": "關閉",
+    "dangerZone": "危險區域",
+    "deleteWarning": "刪除此課程將刪除所有相關數據。",
+    "deleteCourse": "刪除課程"
   }
 }

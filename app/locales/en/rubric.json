@@ -1,10 +1,15 @@
 {
   "title": "Rubrics",
+  "subtitle": "Create and manage rubrics for your assignments",
   "new": "New Rubric",
+  "active":"Active",
   "create": "Create Rubric",
+  "template": "Template",
   "edit": "Edit Rubric",
   "delete": "Delete Rubric",
   "save": "Save Rubric",
+  "update": "Updated",
+  "view": "View",
   "saving": "Saving rubric...",
   "name": "Rubric Name",
   "description": "Rubric Description",
@@ -42,11 +47,7 @@
     "categoriesTitle": "Start building your rubric",
     "categoriesDescription": "Rubrics allow you to objectively and consistently evaluate student work. Let's start by creating your first category.",
     "categoriesAction": "Create first category",
-    "criteriaTips": [
-      "Common categories: Critical Thinking, Communication, Creativity",
-      "Each category can contain multiple criteria",
-      "Plan all categories before adding detailed criteria"
-    ],
+    
     "criteriaTitle": "Add criteria to this category",
     "criteriaDescription": "Criteria are specific assessment items, each with four levels of detailed descriptions.",
     "criteriaAction": "Add first criterion",
@@ -93,6 +94,7 @@
     "saveError": "Error saving rubric",
     "deleteSuccess": "Rubric deleted successfully",
     "deleteError": "Error deleting rubric",
-    "deleteConfirm": "Are you sure you want to delete this rubric? This action cannot be undone."
+    "deleteConfirm": "Are you sure you want to delete this rubric? This action cannot be undone.",
+    "errorLoading": "Error loading rubrics: "
   }
 }

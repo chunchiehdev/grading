@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, Form, Link } from 'react-router';
-import { AlertTriangle, ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, deleteCourse } from '@/services/course.server';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
+import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string };
@@ -52,27 +53,25 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
 export default function CourseSettings() {
   const { course } = useLoaderData<typeof loader>();
-
-  const headerActions = (
-    <Button asChild variant="outline">
-      <Link to={`/teacher/courses/${course.id}`}>
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Course
-      </Link>
-    </Button>
-  );
-
+  const { t } = useTranslation(['course', 'common']);
+  
   return (
     <div>
-      <PageHeader title="Course Settings" subtitle={course.name} actions={headerActions} />
+      <PageHeader>
+        <div className="flex items-center justify-start pt-2">
+          <Button asChild variant="outline">
+            <Link to={`/teacher/courses/${course.id}`}>{t('common:back')}</Link>
+          </Button>
+        </div>
+      </PageHeader>
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <Card>
           <CardHeader>
-            <CardTitle>Danger Zone</CardTitle>
+            <CardTitle>{t('course:settings.dangerZone')}</CardTitle>
           </CardHeader>
           <CardContent>
             <Alert variant="destructive" className="mb-4">
-              <AlertDescription>Deleting this course will remove all data associated with it.</AlertDescription>
+              <AlertDescription>{t('course:settings.deleteWarning')}</AlertDescription>
             </Alert>
             <Form method="post">
               <input type="hidden" name="intent" value="delete" />
@@ -86,7 +85,7 @@ export default function CourseSettings() {
                 }}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete Course
+                {t('course:settings.deleteCourse')}
               </Button>
             </Form>
           </CardContent>

@@ -1,10 +1,15 @@
 {
   "title": "評分標準",
+  "subtitle": "建立和管理作業的評分標準",
   "new": "新增評分標準",
+  "active":"進行中",
   "create": "建立評分標準",
+  "template": "範本",
   "edit": "編輯評分標準",
   "delete": "刪除評分標準",
   "save": "儲存評分標準",
+  "update": "更新於",
+  "view": "查看",
   "saving": "正在儲存評分標準...",
   "name": "標準名稱",
   "description": "標準描述",
@@ -42,11 +47,7 @@
     "categoriesTitle": "開始建立您的評分標準",
     "categoriesDescription": "評分標準讓您能夠客觀、一致地評估學生作業。讓我們從建立第一個評分類別開始。",
     "categoriesAction": "建立第一個類別",
-    "criteriaTips": [
-      "常見類別：思維探究、溝通表達、創意發想",
-      "每個類別可以包含多個評分標準",
-      "建議先規劃好所有類別再添加詳細標準"
-    ],
+
     "criteriaTitle": "為此類別添加評分標準",
     "criteriaDescription": "評分標準為具體的評估項目，每個標準都有四個等級的詳細描述。",
     "criteriaAction": "新增第一個標準",
@@ -63,7 +64,8 @@
       "3分：符合期望的良好表現", 
       "2分：基本達到要求",
       "1分：需要改進的表現"
-    ]
+    ],
+    "action": "建立你的第一個評分標準"
   },
   "aiAssistant": {
     "title": "AI 評分標準助手",
@@ -93,6 +95,7 @@
     "saveError": "儲存評分標準時發生錯誤",
     "deleteSuccess": "評分標準已成功刪除",
     "deleteError": "刪除評分標準時發生錯誤",
-    "deleteConfirm": "確定要刪除此評分標準嗎？此操作無法復原。"
+    "deleteConfirm": "確定要刪除此評分標準嗎？此操作無法復原。",
+    "errorLoading": "載入評分標準時發生錯誤："
   }
 }

@@ -192,50 +192,24 @@ export default function CourseDetail() {
     }
   };
 
-  const headerActions = (
-    <>
-      <Button asChild variant="outline">
-        <Link to="/teacher/dashboard">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          {t('common:back')}
-        </Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={`/teacher/courses/${course.id}/students`}>
-          <Users className="w-4 h-4 mr-2" />
-          {t('course:students')}
-        </Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={`/teacher/courses/${course.id}/edit`}>
-          <Pencil className="w-4 h-4 mr-2" />
-          {t('course:edit')}
-        </Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={`/teacher/courses/${course.id}/settings`}>
-          <SettingsIcon className="w-4 h-4 mr-2" />
-          {t('course:settings')}
-        </Link>
-      </Button>
-      <Button asChild>
-        <Link to={`/teacher/courses/${course.id}/assignments/new`}>
-          <Plus className="w-4 h-4 mr-2" />
-          {t('course:assignment.create')}
-        </Link>
-      </Button>
-    </>
-  );
+  const headerMenuItems = [
+    { label: t('common:back'), to: '/teacher/dashboard', icon: ArrowLeft },
+    { label: t('course:students'), to: `/teacher/courses/${course.id}/students`, icon: Users },
+    { label: t('course:edit.title'), to: `/teacher/courses/${course.id}/edit`, icon: Pencil },
+    { label: t('course:settings.title'), to: `/teacher/courses/${course.id}/settings`, icon: SettingsIcon },
+    { label: t('course:assignment.create'), to: `/teacher/courses/${course.id}/assignments/new`, icon: Plus },
+  ];
 
   return (
     <div>
       <PageHeader
         title={course.name}
         subtitle={course.description || 'Course management and assignment areas'}
-        actions={headerActions}
+        menuItems={headerMenuItems}
+        showInlineActions={false}
       />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatsCard
@@ -291,11 +265,10 @@ export default function CourseDetail() {
 
             {!invitation && !actionData?.newInvitation ? (
               <div className="text-center py-8">
-                <QrCode className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Invitation Code</h3>
-                <p className="text-gray-600 mb-6">
-                  Generate an invitation code to allow students to join this course. The code will be valid for 7 days
-                  and include a QR code for easy sharing.
+                <QrCode className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">{t('course:emptyState.noInvitationCode')}</h3>
+                <p className="text-muted-foreground mb-6">
+                  {t('course:emptyState.noInvitationCodeDescription')}
                 </p>
                 <Form method="post">
                   <input type="hidden" name="intent" value="generate-invitation" />
@@ -313,9 +286,9 @@ export default function CourseDetail() {
                     {/* Invitation Details */}
                     <div className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">{t('course:courseInvitation.invitationCode')}</label>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('course:courseInvitation.invitationCode')}</label>
                         <div className="flex items-center space-x-2">
-                          <code className="bg-gray-100 px-3 py-2 rounded-md font-mono text-lg tracking-wider flex-1">
+                          <code className="bg-muted text-foreground px-3 py-2 rounded-md font-mono text-lg tracking-wider flex-1">
                             {actionData?.newInvitation?.code || invitation?.code}
                           </code>
                           <Button
@@ -327,15 +300,19 @@ export default function CourseDetail() {
                             aria-label={copiedCode ? 'Copied' : 'Copy code'}
                             title={copiedCode ? 'Copied' : 'Copy code'}
                           >
-                            {copiedCode ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            {copiedCode ? (
+                              <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">{t('course:courseInvitation.invitationUrl')}</label>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('course:courseInvitation.invitationUrl')}</label>
                         <div className="flex items-center space-x-2">
-                          <code className="bg-gray-100 px-3 py-2 rounded-md text-sm text-gray-600 flex-1 break-all">
+                          <code className="bg-muted px-3 py-2 rounded-md text-sm text-muted-foreground flex-1 break-all">
                             {typeof window !== 'undefined'
                               ? `${window.location.origin}/join?code=${actionData?.newInvitation?.code || invitation?.code}`
                               : `[domain]/join?code=${actionData?.newInvitation?.code || invitation?.code}`}
@@ -354,7 +331,11 @@ export default function CourseDetail() {
                             aria-label={copiedUrl ? 'Copied' : 'Copy URL'}
                             title={copiedUrl ? 'Copied' : 'Copy URL'}
                           >
-                            {copiedUrl ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            {copiedUrl ? (
+                              <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </div>
@@ -372,16 +353,15 @@ export default function CourseDetail() {
                     </div>
 
                     {/* QR Code */}
-                    <div className="flex flex-col items-center">
-                      <label className="text-sm font-medium text-gray-700 mb-4 block">QR Code</label>
-                      <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <div className="text-sm font-medium text-muted-foreground mb-3">QR Code</div>
+                      <div className="mx-auto bg-background p-4 rounded-lg border">
                         <img
                           src={actionData?.newInvitation?.qrCodeUrl || invitation?.qrCodeUrl}
                           alt="Course invitation QR code"
                           className="w-48 h-48"
                         />
                       </div>
-                      
                     </div>
                   </div>
                 )}
@@ -394,40 +374,40 @@ export default function CourseDetail() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle>Assignment Areas</CardTitle>
+              <CardTitle>{t('course:assignment.title')}</CardTitle>
               <Button asChild variant="ghost" size="sm">
-                <Link to={`/teacher/courses/${course.id}/assignments/new`}>+ Add Assignment Area</Link>
+                <Link to={`/teacher/courses/${course.id}/assignments/new`}>{t('course:assignment.new')}</Link>
               </Button>
             </div>
           </CardHeader>
           <CardContent className="p-0">
             {!course.assignmentAreas || course.assignmentAreas.length === 0 ? (
               <div className="px-6 py-12 text-center">
-                <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No assignment areas yet</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Create assignment areas to organize student submissions and apply rubrics.
+                <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-2 text-sm font-medium text-foreground">{t('course:emptyState.noAssignments')}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t('course:emptyState.noAssignmentsDescription')}
                 </p>
                 <div className="mt-6">
                   <Button asChild>
-                    <Link to={`/teacher/courses/${course.id}/assignments/new`}>Create Assignment Area</Link>
+                    <Link to={`/teacher/courses/${course.id}/assignments/new`}>{t('course:assignment.new')}</Link>
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
+              <div className="divide-y divide-border">
                 {course.assignmentAreas.map((area) => (
-                  <div key={area.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                  <div key={area.id} className="px-6 py-4 hover:bg-muted transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <Link
                           to={`/teacher/courses/${course.id}/assignments/${area.id}/manage`}
-                          className="block hover:text-blue-600 transition-colors"
+                          className="block hover:text-primary transition-colors"
                         >
-                          <h3 className="text-lg font-medium text-gray-900">{area.name}</h3>
-                          {area.description && <p className="text-sm text-gray-600 mt-1">{area.description}</p>}
+                          <h3 className="text-lg font-medium text-foreground">{area.name}</h3>
+                          {area.description && <p className="text-sm text-muted-foreground mt-1">{area.description}</p>}
                         </Link>
-                        <div className="flex items-center mt-2 text-sm text-gray-500">
+                        <div className="flex items-center mt-2 text-sm text-muted-foreground">
                           <span>{area._count?.submissions || 0} submissions</span>
                           {area.formattedDueDate && (
                             <>
@@ -438,7 +418,7 @@ export default function CourseDetail() {
                           {area.rubricId && (
                             <>
                               <span className="mx-2">•</span>
-                              <span className="text-green-600">Has rubric</span>
+                              <span className="text-green-600 dark:text-green-500">Has rubric</span>
                             </>
                           )}
                         </div>
@@ -460,7 +440,7 @@ export default function CourseDetail() {
             )}
           </CardContent>
         </Card>
-      </main>
+      </div>
     </div>
   );
 }

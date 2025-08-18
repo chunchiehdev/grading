@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
+import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string };
@@ -72,25 +73,23 @@ export async function action({ request, params }: ActionFunctionArgs) {
 export default function EditCourse() {
   const { course } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
-
-  const headerActions = (
-    <Button asChild variant="outline">
-      <Link to={`/teacher/courses/${course.id}`}>
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Course
-      </Link>
-    </Button>
-  );
+  const { t } = useTranslation(['course', 'common']);
 
   return (
     <div>
-      <PageHeader title="Edit Course" subtitle="Update course details" actions={headerActions} />
-
+      <PageHeader>
+        <div className="flex items-center justify-start pt-2">
+          <Button asChild variant="outline">
+            <Link to={`/teacher/courses/${course.id}`}>{t('common:back')}</Link>
+          </Button>
+        </div>
+        
+      </PageHeader>
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>
           <CardHeader>
-            <CardTitle>Course Information</CardTitle>
-            <CardDescription>Modify the name and description of this course.</CardDescription>
+            <CardTitle>{t('course:edit.title')}</CardTitle>
+            <CardDescription>{t('course:edit.description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <Form method="post" className="space-y-6">
@@ -98,13 +97,13 @@ export default function EditCourse() {
 
               <div className="space-y-2">
                 <Label htmlFor="name">
-                  Course Name <span className="text-red-500">*</span>
+                  {t('course:edit.courseName')} <span className="text-red-500">*</span>
                 </Label>
                 <Input id="name" name="name" required defaultValue={course.name} />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Course Description</Label>
+                <Label htmlFor="description">{t('course:edit.courseDescription')}</Label>
                 <Textarea id="description" name="description" rows={4} defaultValue={course.description || ''} />
               </div>
 
@@ -116,11 +115,11 @@ export default function EditCourse() {
 
               <div className="flex justify-end space-x-4">
                 <Button asChild variant="outline">
-                  <Link to={`/teacher/courses/${course.id}`}>Cancel</Link>
+                  <Link to={`/teacher/courses/${course.id}`}>{t('course:edit.cancel')}</Link>
                 </Button>
                 <Button type="submit">
                   <Save className="w-4 h-4 mr-2" />
-                  Save Changes
+                  {t('course:edit.save')}
                 </Button>
               </div>
             </Form>
@@ -130,4 +129,3 @@ export default function EditCourse() {
     </div>
   );
 }
-

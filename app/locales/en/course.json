@@ -4,7 +4,6 @@
   "courses": "Courses",
   "new": "Add Course",
   "create": "Create Course",
-  "edit": "Edit Course",
   "delete": "Delete Course",
   "manage": "Manage Course",
   "join": "Join Course",
@@ -27,7 +26,6 @@
   "inactive": "Inactive",
   "completed": "Completed",
   "archived": "Archived",
-  "settings": "Course Settings",
   "enrollment": "Enrollment",
   "materials": "Course Materials",
   "announcements": "Announcements",
@@ -121,5 +119,30 @@
     "pendingGrading": "Pending Grading",
     "enrolledStudents": "Enrolled Students",
     "createdDate": "Created At"
+  },
+  "edit": {
+    "title": "Edit Course",
+    "description": "Modify the course name and description",
+    "courseName": "Course Name",
+    "courseDescription": "Course Description",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "emptyState": {
+    "noInvitationCode": "No Active Invitation Code",
+    "noInvitationCodeDescription": "Generate an invitation code to allow students to join this course. The code will be valid for 7 days and include a QR code for easy sharing.",
+    "noAssignments": "No assignment areas yet",
+    "noAssignmentsDescription": "Create assignment areas to organize student submissions and apply rubrics."
+  },
+  "setting":{
+    "title": "Course Settings",
+    "description": "Modify the course settings",
+    "courseName": "Course Name",
+    "courseDescription": "Course Description",
+    "save": "Save",
+    "cancel": "Cancel",
+    "dangerZone": "Danger Zone",
+    "deleteWarning": "Deleting this course will remove all data associated with it.",
+    "deleteCourse": "Delete Course"
   }
 }

@@ -39,15 +39,15 @@ export function StatsCard({
   ...props
 }: StatsCardProps) {
   return (
-    <Card className={cn('shadow-sm border border-gray-200', className)} {...props}>
+    <Card className={cn('shadow-sm border', className)} {...props}>
       <CardContent className="p-6">
         <div className="flex items-center">
           <div className={cn(statsCardVariants({ variant }))}>
             <Icon className="w-6 h-6" />
           </div>
           <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">{title}</p>
-            <p className={cn(' font-bold text-gray-900', size === 'sm' ? 'text-sm' : 'text-xl')}>{value}</p>
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className={cn(' font-bold text-foreground', size === 'sm' ? 'text-sm' : 'text-xl')}>{value}</p>
           </div>
         </div>
       </CardContent>
