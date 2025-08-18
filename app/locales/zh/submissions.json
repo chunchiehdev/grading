@@ -1,4 +1,42 @@
 {
     "title": "我的提交",
-    "history": "提交歷史"
+    "history": "提交歷史",
+    "emptyState": {
+        "noSubmissions": "還沒提交任何作業"
+    },
+    "table": {
+        "assignment": "作業",
+        "course": "課程",
+        "submittedAt": "提交時間",
+        "status": "狀態",
+        "viewDetails": "查看詳情"
+    },
+    "backToSubmissions": "返回我的繳交",
+    "assignmentInfo": {
+        "title": "作業資訊",
+        "course": "課程",
+        "due": "截止時間",
+        "description": "作業說明"
+    },
+    "aiAnalysis": {
+        "title": "AI 批改結果",
+        "gradingInProgress": "批改進行中。"
+    },
+    "gradingSummary": {
+        "title": "成績",
+        "status": "狀態",
+        "score": "分數",
+        "submitted": "繳交時間"
+    },
+    "teacherComments": {
+        "title": "評語",
+        "empty": "目前沒有老師評語。"
+    },
+    "status": {
+        "graded": "已批改",
+        "pending": "處理中",
+        "submitted": "已繳交",
+        "failed": "失敗",
+        "unknown": "未知"
+    }
 }

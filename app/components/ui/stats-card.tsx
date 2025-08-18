@@ -5,39 +5,38 @@ import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 
-const statsCardVariants = cva(
-  'w-10 h-10 rounded-lg flex items-center justify-center',
-  {
-    variants: {
-      variant: {
-        default: 'bg-blue-100 text-blue-600',
-        success: 'bg-green-100 text-green-600',
-        warning: 'bg-orange-100 text-orange-600',
-        destructive: 'bg-red-100 text-red-600',
-        secondary: 'bg-purple-100 text-purple-600',
-        transparent: 'bg-transparent text-foreground',
-      },
+const statsCardVariants = cva('w-10 h-10 rounded-lg flex items-center justify-center', {
+  variants: {
+    variant: {
+      default: 'bg-blue-100 text-blue-600',
+      success: 'bg-green-100 text-green-600',
+      warning: 'bg-orange-100 text-orange-600',
+      destructive: 'bg-red-100 text-red-600',
+      secondary: 'bg-purple-100 text-purple-600',
+      transparent: 'bg-transparent text-foreground',
     },
-    defaultVariants: {
-      variant: 'default',
-    },
-  }
-);
+  },
+  defaultVariants: {
+    variant: 'default',
+  },
+});
 
 export interface StatsCardProps extends React.HTMLAttributes<HTMLDivElement> {
   title: string;
   value: string | number;
   icon: LucideIcon;
   variant?: VariantProps<typeof statsCardVariants>['variant'];
+  size?: 'sm' | 'lg';
 }
 
-export function StatsCard({ 
-  title, 
-  value, 
-  icon: Icon, 
-  variant = 'default', 
-  className, 
-  ...props 
+export function StatsCard({
+  title,
+  value,
+  icon: Icon,
+  variant = 'default',
+  size = 'lg',
+  className,
+  ...props
 }: StatsCardProps) {
   return (
     <Card className={cn('shadow-sm border border-gray-200', className)} {...props}>
@@ -48,10 +47,10 @@ export function StatsCard({
           </div>
           <div className="ml-4">
             <p className="text-sm font-medium text-gray-600">{title}</p>
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
+            <p className={cn(' font-bold text-gray-900', size === 'sm' ? 'text-sm' : 'text-xl')}>{value}</p>
           </div>
         </div>
       </CardContent>
     </Card>
   );
-} 
+}

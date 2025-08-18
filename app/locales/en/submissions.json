@@ -1,4 +1,42 @@
 {
-    "title": "My Submissions",
-    "history": "Submission History"
+  "title": "My Submissions",
+  "history": "Submission History",
+  "emptyState": {
+    "noSubmissions": "No submissions yet"
+  },
+  "table": {
+    "assignment": "Assignment",
+    "course": "Course",
+    "submittedAt": "Submitted At",
+    "status": "Status",
+    "viewDetails": "View Details"
+  },
+  "backToSubmissions": "Back to Submissions",
+  "assignmentInfo": {
+    "title": "Assignment Information",
+    "course": "Course",
+    "due": "Due",
+    "description": "Description"
+  },
+  "aiAnalysis": {
+    "title": "AI Grading Result",
+    "gradingInProgress": "Grading is in progress."
+  },
+  "gradingSummary": {
+    "title": "Grading Summary",
+    "status": "Status",
+    "score": "Score",
+    "submitted": "Submitted"
+  },
+  "teacherComments": {
+    "title": "Teacher Comments",
+    "empty": "No teacher comments yet."
+  },
+  "status": {
+    "graded": "Graded",
+    "pending": "Pending",
+    "submitted": "Submitted",
+    "failed": "Failed",
+    "unknown": "Unknown"
+  }
 }

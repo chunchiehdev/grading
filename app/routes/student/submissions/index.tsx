@@ -9,7 +9,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 
-
 export async function loader({ request }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
   const submissions = await getSubmissionsByStudentId(student.id);
@@ -18,7 +17,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function StudentSubmissions() {
   const { submissions } = useLoaderData<typeof loader>();
-  const { t } = useTranslation(['common', "submissions"])
+  const { t } = useTranslation(['common', 'submissions']);
 
   const renderStatus = (status?: string) => {
     const normalized = (status || '').toUpperCase();
@@ -48,14 +47,13 @@ export default function StudentSubmissions() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader
-        
-        actions={
+      <PageHeader>
+        <div className="flex items-center justify-start pt-2">
           <Button asChild variant="outline">
             <Link to="/student/dashboard">{t('common:back')}</Link>
           </Button>
-        }
-      />
+        </div>
+      </PageHeader>
 
       <main className="max-w-7xl mx-auto px-4 pb-8">
         <Card className="border-border">
@@ -63,17 +61,16 @@ export default function StudentSubmissions() {
             <CardTitle>{t('submissions:history')}</CardTitle>
           </CardHeader>
           <CardContent>
-            {(!submissions || submissions.length === 0) ? (
-              <p className="text-sm text-muted-foreground">You have not made any submissions yet.</p>
+            {!submissions || submissions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('submissions:teacherComments.noComments')}</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Assignment</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Submitted At</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t('submissions:table.assignment')}</TableHead>
+                    <TableHead>{t('submissions:table.course')}</TableHead>
+                    <TableHead>{t('submissions:table.submittedAt')}</TableHead>
+                    <TableHead>{t('submissions:table.status')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -85,7 +82,7 @@ export default function StudentSubmissions() {
                       <TableCell>{renderStatus(s.status)}</TableCell>
                       <TableCell className="text-right">
                         <Button asChild size="sm" variant="outline">
-                          <Link to={`/student/submissions/${s.id}`}>View Details</Link>
+                          <Link to={`/student/submissions/${s.id}`}>{t('submissions:table.viewDetails')}</Link>
                         </Button>
                       </TableCell>
                     </TableRow>

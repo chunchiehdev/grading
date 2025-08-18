@@ -38,6 +38,13 @@
   "generateCode": "Generate Code",
   "copyCode": "Copy Code",
   "enterCode": "Enter Code",
+  "courseInvitation": {
+    "title": "Course Invitation",
+    "invitationCode": "Invitation Code",
+    "invitationUrl": "Invitation URL",
+    "reGenerateCode": "Re-generate Code",
+    "generateInvitationCode": "Generate Invitation Code"
+  },
   "assignment": {
     "title": "Assignment",
     "new": "New Assignment",
@@ -102,5 +109,17 @@
     "leaveError": "Error leaving course",
     "deleteConfirm": "Are you sure you want to delete this course? This action cannot be undone.",
     "leaveConfirm": "Are you sure you want to leave this course?"
+  },
+  "stats": {
+    "totalRubrics": "Total Rubrics",
+    "totalGradings": "Total Gradings",
+    "totalSubmissions": "Total Submissions",
+    "assignmentAreas": "Assignment Areas",
+    "totalCourses": "Total Courses",
+    "avgScore": "Average Score",
+    "completionRate": "Completion Rate",
+    "pendingGrading": "Pending Grading",
+    "enrolledStudents": "Enrolled Students",
+    "createdDate": "Created At"
   }
 }

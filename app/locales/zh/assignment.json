@@ -1,0 +1,56 @@
+{
+    "pageHeader": {
+        "allAssignments": "All Assignments",
+        "subtitle": "{count} assignments available",
+        "myCourses": "My Courses",
+        "backToDashboard": "Back to Dashboard"
+    },
+    "emptyState": {
+        "title": "No Assignments Available",
+        "subtitle": "You need to join a course to access assignments",
+        "joinTitle": "Join a Course to Get Started",
+        "joinDescription": "You're not enrolled in any courses yet. Ask your teacher for an invitation code or QR code to join a course and access assignments.",
+        "howToJoin": "How to Join a Course",
+        "steps": {
+            "code": "Get an invitation code from your teacher",
+            "qr": "Scan a QR code if provided",
+            "link": "Visit the invitation link",
+            "contact": "Contact your teacher for assistance"
+        },
+        "buttons": {
+            "backToDashboard": "Back to Dashboard",
+            "viewCourses": "View My Courses"
+        }
+    },
+    "overview": {
+        "enrolledCourses": "Enrolled Courses",
+        "totalAssignments": "Total Assignments",
+        "pending": "Pending"
+    },
+    "assignmentCard": {
+        "instructor": "Instructor",
+        "rubric": "Rubric",
+        "finalScore": "Final Score",
+        "submit": "Submit Assignment",
+        "viewSubmission": "View Submission"
+    },
+    "status": {
+        "graded": "Graded",
+        "submitted": "Submitted",
+        "overdue": "Overdue",
+        "pending": "Pending"
+    },
+    "dueDate": {
+        "noDueDate": "No due date",
+        "overdue": "{days} days overdue",
+        "dueToday": "Due today",
+        "dueTomorrow": "Due tomorrow",
+        "dueInDays": "Due in {days} days"
+    },
+    "sections": {
+        "pending": "Pending ({count})",
+        "overdue": "Overdue ({count})",
+        "submitted": "Submitted ({count})",
+        "graded": "Graded ({count})"
+    }
+}

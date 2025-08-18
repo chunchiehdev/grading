@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'node_modules/react-i18next';
 
 interface LoaderData {
   student: { id: string; email: string; role: string };
@@ -22,6 +23,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
 export default function StudentAssignments() {
   const { student, assignments } = useLoaderData<typeof loader>();
+  const { t } = useTranslation();
 
   // If no assignments (not enrolled in any courses), show enrollment message
   if (assignments.length === 0) {

@@ -35,9 +35,15 @@
   "roster": "點名簿",
   "statistics": "統計資料",
   "joinCode": "加入代碼",
-  "generateCode": "產生代碼",
   "copyCode": "複製代碼",
   "enterCode": "輸入代碼",
+  "courseInvitation": {
+    "title": "課程邀請",
+    "invitationCode": "邀請碼",
+    "invitationUrl": "邀請連結",
+    "reGenerateCode": "重新生成代碼",
+    "generateInvitationCode": "新增邀請碼"
+  },
   "assignment": {
     "title": "作業",
     "new": "新增作業",
@@ -102,5 +108,17 @@
     "leaveError": "退出課程時發生錯誤",
     "deleteConfirm": "確定要刪除此課程嗎？此操作無法復原。",
     "leaveConfirm": "確定要退出此課程嗎？"
+  },
+  "stats": {
+    "totalRubrics": "總評分標準",
+    "totalGradings": "總評分次數",
+    "totalSubmissions": "總提交次數",
+    "assignmentAreas": "已派發的作業",
+    "totalCourses": "總課程數",
+    "avgScore": "平均分數",
+    "completionRate": "完成率",
+    "pendingGrading": "待評分",
+    "enrolledStudents": "已註冊的學生",
+    "createdDate": "建立於"
   }
 }

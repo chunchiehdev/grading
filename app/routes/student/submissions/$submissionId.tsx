@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
+import { useTranslation } from 'react-i18next';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -20,8 +21,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 export default function StudentSubmissionDetail() {
   const { submission } = useLoaderData<typeof loader>();
+  const { t } = useTranslation(['submissions']);
   const a = submission.assignmentArea;
-  console.log("submission", submission)
+  console.log('submission', submission);
   const renderStatus = (status?: string) => {
     const normalized = (status || '').toUpperCase();
     let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'outline';
@@ -50,14 +52,13 @@ export default function StudentSubmissionDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader
-        title={a.name}
-        actions={
+      <PageHeader>
+        <div className="flex items-center justify-start pt-2">
           <Button asChild variant="outline">
-            <Link to="/student/submissions">Back to Submissions</Link>
+            <Link to="/student/submissions">{t('submissions:backToSubmissions')}</Link>
           </Button>
-        }
-      />
+        </div>
+      </PageHeader>
 
       <main className="max-w-7xl mx-auto px-4 pb-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -65,28 +66,26 @@ export default function StudentSubmissionDetail() {
           <div className="md:col-span-2 space-y-6">
             <Card className="border-border">
               <CardHeader>
-                <CardTitle>Assignment Information</CardTitle>
+                <CardTitle>{t('submissions:assignmentInfo.title')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                <div className="text-sm text-muted-foreground">Course: {a.course.name}</div>
+                <div className="text-sm text-muted-foreground">{t('submissions:assignmentInfo.course')}: {a.course.name}</div>
                 {a.dueDate && (
-                  <div className="text-sm text-muted-foreground">Due: {new Date(a.dueDate).toLocaleString()}</div>
+                  <div className="text-sm text-muted-foreground">{t('submissions:assignmentInfo.due')}: {new Date(a.dueDate).toLocaleString()}</div>
                 )}
-                {a.description && (
-                  <div className="text-sm text-muted-foreground">{a.description}</div>
-                )}
+                {a.description && <div className="text-sm text-muted-foreground">{a.description}</div>}
                 {/* <div className="pt-2 text-sm">Submitted file: {submission.filePath}</div> */}
               </CardContent>
             </Card>
             <Card className="border-border">
               <CardHeader>
-                <CardTitle>AI Analysis Feedback</CardTitle>
+                <CardTitle>{t('submissions:aiAnalysis.title')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {submission.aiAnalysisResult ? (
                   <GradingResultDisplay result={submission.aiAnalysisResult as any} />
                 ) : (
-                  <p className="text-sm text-muted-foreground">Grading is in progress.</p>
+                  <p className="text-sm text-muted-foreground">{t('submissions:aiAnalysis.inProgress')}</p>
                 )}
               </CardContent>
             </Card>
@@ -96,19 +95,19 @@ export default function StudentSubmissionDetail() {
           <div className="md:col-span-1 space-y-6">
             <Card className="border-border">
               <CardHeader>
-                <CardTitle>Grading Summary</CardTitle>
+                <CardTitle>{t('submissions:gradingSummary.title')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Status</span>
+                  <span className="text-muted-foreground">{t('submissions:gradingSummary.status')}</span>
                   {renderStatus(submission.status)}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Score</span>
+                  <span className="text-muted-foreground">{t('submissions:gradingSummary.score')}</span>
                   <span>{submission.finalScore ?? '-'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Submitted</span>
+                  <span className="text-muted-foreground">{t('submissions:gradingSummary.submitted')}</span>
                   <span>{new Date(submission.uploadedAt).toLocaleString()}</span>
                 </div>
               </CardContent>
@@ -116,17 +115,16 @@ export default function StudentSubmissionDetail() {
 
             <Card className="border-border">
               <CardHeader>
-                <CardTitle>Teacher Comments</CardTitle>
+                <CardTitle>{t('submissions:teacherComments.title')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {submission.teacherFeedback ? (
                   <p className="text-sm text-foreground whitespace-pre-wrap">{submission.teacherFeedback}</p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No teacher comments yet.</p>
+                  <p className="text-sm text-muted-foreground">{t('submissions:teacherComments.empty')}</p>
                 )}
               </CardContent>
             </Card>
-
           </div>
         </div>
       </main>

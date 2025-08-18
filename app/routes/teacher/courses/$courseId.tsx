@@ -1,18 +1,35 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { ArrowLeft, Plus, FileText, Users, QrCode, Copy, RefreshCw, Share2, Pencil, Settings as SettingsIcon } from 'lucide-react';
+import {
+  ArrowLeft,
+  Plus,
+  FileText,
+  Users,
+  QrCode,
+  Copy,
+  RefreshCw,
+  Share2,
+  Pencil,
+  Settings as SettingsIcon,
+  Check,
+} from 'lucide-react';
+import { useState } from 'react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, type CourseInfo } from '@/services/course.server';
-import { getActiveCourseInvitation, createInvitationCode, generateInvitationQRCode } from '@/services/invitation.server';
+import {
+  getActiveCourseInvitation,
+  createInvitationCode,
+  generateInvitationQRCode,
+} from '@/services/invitation.server';
 import { getCourseEnrollmentStats } from '@/services/enrollment.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatsCard } from '@/components/ui/stats-card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string };
@@ -59,7 +76,7 @@ interface ActionData {
 export async function loader({ request, params }: LoaderFunctionArgs): Promise<LoaderData> {
   const teacher = await requireTeacher(request);
   const courseId = params.courseId;
-  
+
   if (!courseId) {
     throw new Response('Course ID is required', { status: 400 });
   }
@@ -74,18 +91,18 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     if (!course) {
       throw new Response('Course not found', { status: 404 });
     }
-    
+
     // Import date formatter on server side only
     const { formatDateForDisplay } = await import('@/lib/date.server');
     const formattedCreatedDate = formatDateForDisplay(course.createdAt);
-    
+
     // Format assignment area due dates
     const courseWithFormattedDates = {
       ...course,
       assignmentAreas: course.assignmentAreas?.map((area: any) => ({
         ...area,
         formattedDueDate: area.dueDate ? formatDateForDisplay(area.dueDate) : undefined,
-      }))
+      })),
     };
 
     // Generate QR code for active invitation if exists
@@ -99,10 +116,10 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
         qrCodeUrl,
       };
     }
-    
-    return { 
-      teacher, 
-      course: courseWithFormattedDates, 
+
+    return {
+      teacher,
+      course: courseWithFormattedDates,
       formattedCreatedDate,
       invitation,
       enrollmentStats,
@@ -127,7 +144,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
     if (intent === 'generate-invitation') {
       const invitation = await createInvitationCode(courseId, teacher.id);
       const qrCodeUrl = await generateInvitationQRCode(invitation.code);
-      
+
       return {
         success: true,
         newInvitation: {
@@ -140,9 +157,9 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
     return { success: false, error: 'Invalid action' };
   } catch (error) {
     console.error('Error in course action:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'An error occurred'
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An error occurred',
     };
   }
 }
@@ -150,17 +167,27 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 export default function CourseDetail() {
   const { teacher, course, formattedCreatedDate, invitation, enrollmentStats } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
+  const { t } = useTranslation(['course', 'common']);
 
-  const totalSubmissions = course.assignmentAreas?.reduce((total, area) => 
-    total + (area._count?.submissions || 0), 0
-  ) || 0;
+  const totalSubmissions =
+    course.assignmentAreas?.reduce((total, area) => total + (area._count?.submissions || 0), 0) || 0;
 
-  // Handle copy to clipboard
-  const copyToClipboard = async (text: string) => {
+  // Ephemeral copy-state for swapping icons after success
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  const handleCopy = async (text: string, type: 'code' | 'url') => {
     try {
       await navigator.clipboard.writeText(text);
-      // You could add a toast notification here
+      if (type === 'code') {
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 1500);
+      } else {
+        setCopiedUrl(true);
+        setTimeout(() => setCopiedUrl(false), 1500);
+      }
     } catch (err) {
+      toast.error('Failed to copy');
       console.error('Failed to copy: ', err);
     }
   };
@@ -170,31 +197,31 @@ export default function CourseDetail() {
       <Button asChild variant="outline">
         <Link to="/teacher/dashboard">
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
+          {t('common:back')}
         </Link>
       </Button>
       <Button asChild variant="outline">
         <Link to={`/teacher/courses/${course.id}/students`}>
           <Users className="w-4 h-4 mr-2" />
-          Students
+          {t('course:students')}
         </Link>
       </Button>
       <Button asChild variant="outline">
         <Link to={`/teacher/courses/${course.id}/edit`}>
           <Pencil className="w-4 h-4 mr-2" />
-          Edit
+          {t('course:edit')}
         </Link>
       </Button>
       <Button asChild variant="outline">
         <Link to={`/teacher/courses/${course.id}/settings`}>
           <SettingsIcon className="w-4 h-4 mr-2" />
-          Settings
+          {t('course:settings')}
         </Link>
       </Button>
       <Button asChild>
         <Link to={`/teacher/courses/${course.id}/assignments/new`}>
           <Plus className="w-4 h-4 mr-2" />
-          Add Assignment Area
+          {t('course:assignment.create')}
         </Link>
       </Button>
     </>
@@ -207,50 +234,49 @@ export default function CourseDetail() {
         subtitle={course.description || 'Course management and assignment areas'}
         actions={headerActions}
       />
-
+      
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatsCard
-            title="Assignment Areas"
+            title={t('course:stats.assignmentAreas')}
             value={course.assignmentAreas?.length || 0}
             icon={FileText}
             variant="transparent"
           />
           <StatsCard
-            title="Total Submissions"
+            title={t('course:stats.totalSubmissions')}
             value={totalSubmissions}
             icon={Users}
             variant="transparent"
           />
           <StatsCard
-            title="Enrolled Students"
+            title={t('course:stats.enrolledStudents')}
             value={enrollmentStats.totalEnrollments}
             icon={Users}
             variant="transparent"
           />
           <StatsCard
-            title="Created"
-            value={formattedCreatedDate}
-            icon={FileText}
-            variant="transparent"
-          />
+          title={t('course:stats.createdDate')}
+          value={formattedCreatedDate}
+          icon={FileText}
+          size='sm'
+          variant="transparent"
+        />
         </div>
-
-        {/* Course Invitation Management */}
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="flex items-center gap-2">
                 <Share2 className="h-5 w-5" />
-                Course Invitation
+                {t('course:courseInvitation.title')}
               </CardTitle>
               {!invitation && (
                 <Form method="post">
                   <input type="hidden" name="intent" value="generate-invitation" />
                   <Button type="submit" size="sm">
                     <Plus className="h-4 w-4 mr-2" />
-                    Generate Invitation Code
+                    {t('course:courseInvitation.generateInvitationCode')}
                   </Button>
                 </Form>
               )}
@@ -266,12 +292,10 @@ export default function CourseDetail() {
             {!invitation && !actionData?.newInvitation ? (
               <div className="text-center py-8">
                 <QrCode className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  No Active Invitation Code
-                </h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Invitation Code</h3>
                 <p className="text-gray-600 mb-6">
-                  Generate an invitation code to allow students to join this course. 
-                  The code will be valid for 7 days and include a QR code for easy sharing.
+                  Generate an invitation code to allow students to join this course. The code will be valid for 7 days
+                  and include a QR code for easy sharing.
                 </p>
                 <Form method="post">
                   <input type="hidden" name="intent" value="generate-invitation" />
@@ -289,9 +313,7 @@ export default function CourseDetail() {
                     {/* Invitation Details */}
                     <div className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">
-                          Invitation Code
-                        </label>
+                        <label className="text-sm font-medium text-gray-700 mb-2 block">{t('course:courseInvitation.invitationCode')}</label>
                         <div className="flex items-center space-x-2">
                           <code className="bg-gray-100 px-3 py-2 rounded-md font-mono text-lg tracking-wider flex-1">
                             {actionData?.newInvitation?.code || invitation?.code}
@@ -299,62 +321,59 @@ export default function CourseDetail() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => copyToClipboard(actionData?.newInvitation?.code || invitation?.code || '')}
+                            onClick={() =>
+                              handleCopy(actionData?.newInvitation?.code || invitation?.code || '', 'code')
+                            }
+                            aria-label={copiedCode ? 'Copied' : 'Copy code'}
+                            title={copiedCode ? 'Copied' : 'Copy code'}
                           >
-                            <Copy className="h-4 w-4" />
+                            {copiedCode ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                           </Button>
                         </div>
                       </div>
 
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">
-                          Invitation URL
-                        </label>
+                        <label className="text-sm font-medium text-gray-700 mb-2 block">{t('course:courseInvitation.invitationUrl')}</label>
                         <div className="flex items-center space-x-2">
                           <code className="bg-gray-100 px-3 py-2 rounded-md text-sm text-gray-600 flex-1 break-all">
-                            {typeof window !== 'undefined' 
+                            {typeof window !== 'undefined'
                               ? `${window.location.origin}/join?code=${actionData?.newInvitation?.code || invitation?.code}`
-                              : `[domain]/join?code=${actionData?.newInvitation?.code || invitation?.code}`
-                            }
+                              : `[domain]/join?code=${actionData?.newInvitation?.code || invitation?.code}`}
                           </code>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => copyToClipboard(
-                              typeof window !== 'undefined' 
-                                ? `${window.location.origin}/join?code=${actionData?.newInvitation?.code || invitation?.code}`
-                                : `[domain]/join?code=${actionData?.newInvitation?.code || invitation?.code}`
-                            )}
+                            onClick={() =>
+                              handleCopy(
+                                typeof window !== 'undefined'
+                                  ? `${window.location.origin}/join?code=${actionData?.newInvitation?.code || invitation?.code}`
+                                  : `[domain]/join?code=${actionData?.newInvitation?.code || invitation?.code}`,
+                                'url'
+                              )
+                            }
+                            aria-label={copiedUrl ? 'Copied' : 'Copy URL'}
+                            title={copiedUrl ? 'Copied' : 'Copy URL'}
                           >
-                            <Copy className="h-4 w-4" />
+                            {copiedUrl ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                           </Button>
                         </div>
                       </div>
 
-                      {invitation?.expiresAt && (
-                        <div>
-                          <label className="text-sm font-medium text-gray-700 mb-2 block">
-                            Expires At
-                          </label>
-                        </div>
-                      )}
-
-                      <div className="pt-4">
+                      
+                      {/* <div className="pt-4">
                         <Form method="post">
                           <input type="hidden" name="intent" value="generate-invitation" />
                           <Button variant="outline" size="sm" type="submit">
                             <RefreshCw className="h-4 w-4 mr-2" />
-                            Generate New Code
+                            {t('course:courseInvitation.generateCode')}
                           </Button>
                         </Form>
-                      </div>
+                      </div> */}
                     </div>
 
                     {/* QR Code */}
                     <div className="flex flex-col items-center">
-                      <label className="text-sm font-medium text-gray-700 mb-4 block">
-                        QR Code
-                      </label>
+                      <label className="text-sm font-medium text-gray-700 mb-4 block">QR Code</label>
                       <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
                         <img
                           src={actionData?.newInvitation?.qrCodeUrl || invitation?.qrCodeUrl}
@@ -362,14 +381,10 @@ export default function CourseDetail() {
                           className="w-48 h-48"
                         />
                       </div>
-                      <p className="text-xs text-gray-500 mt-2 text-center">
-                        Students can scan this QR code to join the course
-                      </p>
+                      
                     </div>
                   </div>
                 )}
-
-                
               </div>
             )}
           </CardContent>
@@ -381,9 +396,7 @@ export default function CourseDetail() {
             <div className="flex justify-between items-center">
               <CardTitle>Assignment Areas</CardTitle>
               <Button asChild variant="ghost" size="sm">
-                <Link to={`/teacher/courses/${course.id}/assignments/new`}>
-                  + Add Assignment Area
-                </Link>
+                <Link to={`/teacher/courses/${course.id}/assignments/new`}>+ Add Assignment Area</Link>
               </Button>
             </div>
           </CardHeader>
@@ -397,9 +410,7 @@ export default function CourseDetail() {
                 </p>
                 <div className="mt-6">
                   <Button asChild>
-                    <Link to={`/teacher/courses/${course.id}/assignments/new`}>
-                      Create Assignment Area
-                    </Link>
+                    <Link to={`/teacher/courses/${course.id}/assignments/new`}>Create Assignment Area</Link>
                   </Button>
                 </div>
               </div>
@@ -414,9 +425,7 @@ export default function CourseDetail() {
                           className="block hover:text-blue-600 transition-colors"
                         >
                           <h3 className="text-lg font-medium text-gray-900">{area.name}</h3>
-                          {area.description && (
-                            <p className="text-sm text-gray-600 mt-1">{area.description}</p>
-                          )}
+                          {area.description && <p className="text-sm text-gray-600 mt-1">{area.description}</p>}
                         </Link>
                         <div className="flex items-center mt-2 text-sm text-gray-500">
                           <span>{area._count?.submissions || 0} submissions</span>
@@ -441,9 +450,7 @@ export default function CourseDetail() {
                           </Link>
                         </Button>
                         <Button asChild variant="outline" size="sm">
-                          <Link to={`/teacher/courses/${course.id}/assignments/${area.id}/manage`}>
-                            Manage
-                          </Link>
+                          <Link to={`/teacher/courses/${course.id}/assignments/${area.id}/manage`}>Manage</Link>
                         </Button>
                       </div>
                     </div>
@@ -456,4 +463,4 @@ export default function CourseDetail() {
       </main>
     </div>
   );
-} 
+}

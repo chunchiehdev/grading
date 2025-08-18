@@ -22,9 +22,11 @@
   "stats": {
     "totalRubrics": "Total Rubrics",
     "totalGradings": "Total Gradings",
+    "totalSubmissions": "Total Submissions",
+    "assignmentAreas": "Assignment Areas",
+    "totalCourses": "Total Courses",
     "avgScore": "Average Score",
     "completionRate": "Completion Rate",
-    "totalSubmissions": "Total Submissions",
     "pendingGrading": "Pending Grading",
     "gradedToday": "Graded Today",
     "thisWeek": "This Week",
@@ -33,15 +35,20 @@
   },
   "teacher": {
     "dashboard": "Teacher Dashboard",
-    "courses": "My Courses",
+    "courses": "Courses",
     "assignments": "Assignments",
+    "submissions": "Submissions",
     "students": "Students",
     "rubrics": "Rubrics",
     "grading": "Grading",
     "analytics": "Analytics",
     "createCourse": "Create Course",
     "createAssignment": "Create Assignment",
-    "manageStudents": "Manage Students"
+    "manageStudents": "Manage Students",
+    "manageCourses": "Manage Courses",
+    "manageRubrics": "Manage Rubrics",
+    "manageAssignments": "Manage Assignments",
+    "createdDate": "Created"
   },
   "student": {
     "dashboard": "Student Dashboard",

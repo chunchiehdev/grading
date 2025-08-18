@@ -26,15 +26,15 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
 export default function TeacherDashboard() {
   const { teacher, courses } = useLoaderData<typeof loader>();
-  const { t } = useTranslation(['course'])
+  const { t } = useTranslation(['course', 'dashboard']);
 
-  const totalAssignmentAreas = courses.reduce((total, course) => 
-    total + (course.assignmentAreas?.length || 0), 0
-  );
+  const totalAssignmentAreas = courses.reduce((total, course) => total + (course.assignmentAreas?.length || 0), 0);
 
-  const totalSubmissions = courses.reduce((total, course) => 
-    total + (course.assignmentAreas?.reduce((areaTotal, area) => 
-      areaTotal + (area._count?.submissions || 0), 0) || 0), 0
+  const totalSubmissions = courses.reduce(
+    (total, course) =>
+      total +
+      (course.assignmentAreas?.reduce((areaTotal, area) => areaTotal + (area._count?.submissions || 0), 0) || 0),
+    0
   );
 
   const headerActions = (
@@ -42,47 +42,39 @@ export default function TeacherDashboard() {
       <Button asChild variant="outline">
         <Link to="/teacher/courses">
           <BookOpen className="w-4 h-4 mr-2" />
-          Manage My Courses
+          {t('dashboard:teacher.manageCourses')}
         </Link>
       </Button>
       <Button asChild variant="outline">
-        <Link to="/teacher/rubrics">
-          管理評分標準
-        </Link>
+        <Link to="/teacher/rubrics">{t('dashboard:teacher.manageRubrics')}</Link>
       </Button>
       <Button asChild>
-        <Link to="/teacher/courses/new">
-          {t('course:new')}
-        </Link>
+        <Link to="/teacher/courses/new">{t('course:new')}</Link>
       </Button>
     </>
   );
 
   return (
     <div>
-      <PageHeader
-        title="儀表板"
-        subtitle={`歡迎回來, ${teacher.name}`}
-        actions={headerActions}
-      />
+      <PageHeader title={t('dashboard:title')} subtitle={`${t('dashboard:welcome')}, ${teacher.name}`} actions={headerActions} />
 
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatsCard
-            title="Total Courses"
+            title={t('dashboard:stats.totalCourses')}
             value={courses.length}
             icon={GraduationCap}
             variant="transparent"
           />
           <StatsCard
-            title="Assignment Areas"
+            title={t('dashboard:stats.assignmentAreas')}
             value={totalAssignmentAreas}
             icon={FileText}
             variant="transparent"
           />
           <StatsCard
-            title="Total Submissions"
+            title={t('dashboard:stats.totalSubmissions')}
             value={totalSubmissions}
             icon={Users}
             variant="transparent"
@@ -93,11 +85,9 @@ export default function TeacherDashboard() {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle>My Courses</CardTitle>
+              <CardTitle>{t('dashboard:teacher.courses')}</CardTitle>
               <Button asChild variant="outline" size="sm">
-                <Link to="/teacher/courses/new">
-                  + Create New Course
-                </Link>
+                <Link to="/teacher/courses/new">+ {t('dashboard:teacher.createCourse')}</Link>
               </Button>
             </div>
           </CardHeader>
@@ -105,13 +95,11 @@ export default function TeacherDashboard() {
             {courses.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <GraduationCap className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No courses yet</h3>
-                <p className="mt-1 text-sm text-gray-500">Get started by creating your first course.</p>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">{t('dashboard:emptyState.noCourses')}</h3>
+                <p className="mt-1 text-sm text-gray-500">{t('dashboard:emptyState.noCoursesDescription')}</p>
                 <div className="mt-6">
                   <Button asChild>
-                    <Link to="/teacher/courses/new">
-                      Create Course
-                    </Link>
+                    <Link to="/teacher/courses/new">{t('dashboard:teacher.createCourse')}</Link>
                   </Button>
                 </div>
               </div>
@@ -126,31 +114,30 @@ export default function TeacherDashboard() {
                           className="block hover:text-blue-600 transition-colors"
                         >
                           <h3 className="text-lg font-medium text-gray-900">{course.name}</h3>
-                          {course.description && (
-                            <p className="text-sm text-gray-600 mt-1">{course.description}</p>
-                          )}
+                          {course.description && <p className="text-sm text-gray-600 mt-1">{course.description}</p>}
                         </Link>
                         <div className="flex items-center mt-2 text-sm text-gray-500">
-                          <span>{course.assignmentAreas?.length || 0} assignment areas</span>
+                          <span>{course.assignmentAreas?.length || 0} {t('dashboard:stats.assignmentAreas')}</span>
                           <span className="mx-2">•</span>
                           <span>
-                            {course.assignmentAreas?.reduce((total, area) => 
-                              total + (area._count?.submissions || 0), 0) || 0} submissions
+                            {course.assignmentAreas?.reduce(
+                              (total, area) => total + (area._count?.submissions || 0),
+                              0
+                            ) || 0}{' '}
+                            {t('dashboard:teacher.submissions')}
                           </span>
                           <span className="mx-2">•</span>
-                          <span>Created {formatDateForDisplay(course.createdAt)}</span>
+                          <span>{t('dashboard:teacher.createdDate')} {formatDateForDisplay(course.createdAt)}</span>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Button asChild variant="ghost" size="sm">
                           <Link to={`/teacher/courses/${course.id}/assignments/new`}>
-                            Add Assignment
+                            {t('dashboard:teacher.createAssignment')}
                           </Link>
                         </Button>
                         <Button asChild variant="outline" size="sm">
-                          <Link to={`/teacher/courses/${course.id}`}>
-                            Manage
-                          </Link>
+                          <Link to={`/teacher/courses/${course.id}`}>{t('dashboard:teacher.manageCourses')}</Link>
                         </Button>
                       </div>
                     </div>
@@ -163,4 +150,4 @@ export default function TeacherDashboard() {
       </div>
     </div>
   );
-} 
+}
