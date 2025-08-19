@@ -2,7 +2,7 @@ import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
 import { useEffect, useState } from 'react';
 import { requireStudent } from '@/services/auth.server';
-import { getAssignmentAreaForSubmission } from '@/services/submission.server';
+import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/submission.server';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { FilePreview } from '@/components/grading/FilePreview';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
@@ -25,25 +25,78 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const assignment = await getAssignmentAreaForSubmission(assignmentId, student.id);
   if (!assignment) throw new Response('Assignment not found', { status: 404 });
 
-  return { student, assignment };
+  // Check for existing draft/submission to restore state
+  const draftSubmission = await getDraftSubmission(assignmentId, student.id);
+
+  return { student, assignment, draftSubmission };
 }
 
 type State = 'idle' | 'ready' | 'grading' | 'completed' | 'error';
 
 export default function SubmitAssignment() {
-  const { assignment } = useLoaderData<typeof loader>();
+  const { assignment, draftSubmission } = useLoaderData<typeof loader>();
 
-  const [state, setState] = useState<State>('idle');
-  const [fileId, setFileId] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [uploadedMeta, setUploadedMeta] = useState<{ fileId: string; fileName: string; fileSize: number; mimeType: string } | null>(null);
+  // Initialize state from draft submission if available
+  const [state, setState] = useState<State>(() => {
+    if (draftSubmission?.lastState) return draftSubmission.lastState;
+    return 'idle';
+  });
+  
+  const [fileId, setFileId] = useState<string | null>(() => {
+    return draftSubmission?.fileMetadata?.fileId || null;
+  });
+  
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    return draftSubmission?.sessionId || null;
+  });
+  
+  const [uploadedMeta, setUploadedMeta] = useState<{ fileId: string; fileName: string; fileSize: number; mimeType: string } | null>(() => {
+    return draftSubmission?.fileMetadata || null;
+  });
+  
   const [localFile, setLocalFile] = useState<File | null>(null);
-  const [result, setResult] = useState<any>(null);
+  
+  const [result, setResult] = useState<any>(() => {
+    return draftSubmission?.aiAnalysisResult || null;
+  });
+  
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
-  
+  // Auto-save draft submission when important state changes
+  const saveDraftSubmission = async (updates: {
+    fileMetadata?: typeof uploadedMeta;
+    sessionId?: string | null;
+    aiAnalysisResult?: any;
+    lastState?: State;
+  }) => {
+    try {
+      await fetch(`/api/student/assignments/${assignment.id}/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileMetadata: updates.fileMetadata !== undefined ? updates.fileMetadata : uploadedMeta,
+          sessionId: updates.sessionId !== undefined ? updates.sessionId : sessionId,
+          aiAnalysisResult: updates.aiAnalysisResult !== undefined ? updates.aiAnalysisResult : result,
+          lastState: updates.lastState !== undefined ? updates.lastState : state,
+        }),
+      });
+    } catch (e) {
+      console.warn('Failed to save draft submission:', e);
+    }
+  };
+
+  // Resolve file URL for server-side files
+  const resolveFileUrl = async (fileId: string): Promise<string | null> => {
+    try {
+      // Return the download URL for server-side files
+      return `/api/files/${fileId}/download`;
+    } catch (e) {
+      console.warn('Failed to resolve file URL:', e);
+      return null;
+    }
+  };
 
   const pollSession = async (id: string): Promise<boolean> => {
     try {
@@ -55,8 +108,15 @@ export default function SubmitAssignment() {
         // Consider session completed if status is COMPLETED
         if (status === 'COMPLETED' && gradingResults?.length) {
           const first = gradingResults.find((r: any) => r.result) || gradingResults[0];
-          if (first?.result) setResult(first.result);
-          setState('completed');
+          if (first?.result) {
+            setResult(first.result);
+            setState('completed');
+            // Auto-save AI result
+            saveDraftSubmission({
+              aiAnalysisResult: first.result,
+              lastState: 'completed'
+            });
+          }
           return true;
         }
         // Fallback: if any result is completed with result payload, treat as done
@@ -66,6 +126,11 @@ export default function SubmitAssignment() {
         if (completed) {
           setResult(completed.result);
           setState('completed');
+          // Auto-save AI result
+          saveDraftSubmission({
+            aiAnalysisResult: completed.result,
+            lastState: 'completed'
+          });
           return true;
         }
         if (status === 'FAILED') {
@@ -92,11 +157,24 @@ export default function SubmitAssignment() {
   }, [state, sessionId]);
 
   const onUploadComplete = (files: any[]) => {
+    console.log('📁 Upload completed, received files:', files);
     if (files[0]) {
+      console.log('✅ Setting file metadata:', {
+        fileId: files[0].fileId,
+        fileName: files[0].fileName,
+        fileSize: files[0].fileSize,
+        mimeType: files[0].mimeType
+      });
       setFileId(files[0].fileId);
       setUploadedMeta(files[0]);
       setState('ready');
       setError(null);
+      
+      // Auto-save file upload
+      saveDraftSubmission({
+        fileMetadata: files[0],
+        lastState: 'ready'
+      });
     }
   };
   const onLocalFilesChange = (files: File[]) => {
@@ -152,6 +230,12 @@ export default function SubmitAssignment() {
 
       const id = sessionData.data.sessionId;
       setSessionId(id);
+      
+      // Auto-save session ID
+      saveDraftSubmission({
+        sessionId: id,
+        lastState: 'grading'
+      });
 
       const startForm = new FormData();
       startForm.append('action', 'start');
@@ -243,7 +327,21 @@ export default function SubmitAssignment() {
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0">
                       <div className="h-full">
-                        <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+                        {(() => {
+                          console.log('🔍 Submit page - FilePreview props:', {
+                            uploadedMeta,
+                            localFile: localFile ? { name: localFile.name, type: localFile.type } : null,
+                            fileId: uploadedMeta?.fileId,
+                            state
+                          });
+                          return null;
+                        })()}
+                        <FilePreview 
+                          file={uploadedMeta || undefined} 
+                          localFile={localFile} 
+                          fileId={uploadedMeta?.fileId}
+                          resolveFileUrl={resolveFileUrl}
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -371,7 +469,21 @@ export default function SubmitAssignment() {
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0">
                       <div className="h-full">
-                        <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+                        {(() => {
+                          console.log('🔍 Submit page - FilePreview props:', {
+                            uploadedMeta,
+                            localFile: localFile ? { name: localFile.name, type: localFile.type } : null,
+                            fileId: uploadedMeta?.fileId,
+                            state
+                          });
+                          return null;
+                        })()}
+                        <FilePreview 
+                          file={uploadedMeta || undefined} 
+                          localFile={localFile} 
+                          fileId={uploadedMeta?.fileId}
+                          resolveFileUrl={resolveFileUrl}
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -474,7 +586,7 @@ export default function SubmitAssignment() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <FilePreview file={uploadedMeta || undefined} localFile={localFile} />
+                    <FilePreview file={uploadedMeta || undefined} localFile={localFile} fileId={uploadedMeta?.fileId} resolveFileUrl={resolveFileUrl} />
                   </CardContent>
                 </Card>
               </motion.div>
@@ -552,7 +664,11 @@ export default function SubmitAssignment() {
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="w-screen h-screen max-w-none bg-background ">
             <DialogTitle className="sr-only">PDF 預覽</DialogTitle>
-            <FullScreenPdfViewer file={localFile || undefined} fileName={uploadedMeta?.fileName} />
+            <FullScreenPdfViewer 
+              file={localFile || undefined} 
+              fileUrl={uploadedMeta?.fileId ? `/api/files/${uploadedMeta.fileId}/download` : undefined}
+              fileName={uploadedMeta?.fileName} 
+            />
           
         </DialogContent>
       </Dialog>

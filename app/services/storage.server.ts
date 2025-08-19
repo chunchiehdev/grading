@@ -220,6 +220,76 @@ export async function deleteFromStorage(key: string) {
 }
 
 /**
+ * Streams a file from storage using its key
+ * @param {string} key - Storage key/path of the file to stream
+ * @returns {Promise<Object>} Stream object with content type and length
+ * @throws {StorageError} Categorized error with retry information
+ */
+export async function streamFromStorage(key: string) {
+  if (!key || key.trim() === '') {
+    const error = new Error('Storage key is required for streaming') as StorageError;
+    error.type = StorageErrorType.VALIDATION;
+    error.retryable = false;
+    throw error;
+  }
+
+  logger.info(`Starting file stream from storage: ${key}`);
+
+  return retryWithBackoff(async () => {
+    const command = new GetObjectCommand({
+      Bucket: storageConfig.bucket,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+
+    if (!response.Body) {
+      const error = new Error('File not found or no content') as StorageError;
+      error.type = StorageErrorType.NOT_FOUND;
+      error.retryable = false;
+      throw error;
+    }
+
+    // Convert the response body to a Node.js Readable stream
+    let stream: Readable;
+    if (response.Body instanceof Readable) {
+      stream = response.Body;
+    } else {
+      // Handle other types (Uint8Array, blob, etc.) by converting to stream
+      const chunks: Uint8Array[] = [];
+      const reader = (response.Body as any).getReader();
+      
+      try {
+        let done = false;
+        while (!done) {
+          const { value, done: streamDone } = await reader.read();
+          done = streamDone;
+          if (value) {
+            chunks.push(value);
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      const buffer = Buffer.concat(chunks);
+      stream = Readable.from(buffer);
+    }
+
+    const result = {
+      stream,
+      contentType: response.ContentType || 'application/octet-stream',
+      contentLength: response.ContentLength || 0,
+      lastModified: response.LastModified,
+      etag: response.ETag
+    };
+
+    logger.info(`Successfully started streaming file: ${key} (${result.contentLength} bytes)`);
+    return result;
+  }, 3, 1000, `Stream file ${key}`);
+}
+
+/**
  * Gets user-friendly error message based on storage error type
  */
 export function getStorageErrorMessage(error: StorageError): string {

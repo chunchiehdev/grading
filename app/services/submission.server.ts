@@ -517,3 +517,205 @@ export async function updateSubmission(
     return null;
   }
 }
+
+// Draft submission interfaces and types
+export interface DraftSubmissionData {
+  assignmentAreaId: string;
+  studentId: string;
+  fileMetadata?: {
+    fileId: string;
+    fileName: string;
+    fileSize: number;
+    mimeType: string;
+  } | null;
+  sessionId?: string | null;
+  aiAnalysisResult?: any | null;
+  lastState?: 'idle' | 'ready' | 'grading' | 'completed' | 'error';
+}
+
+export interface DraftSubmissionInfo extends DraftSubmissionData {
+  id?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/**
+ * Gets existing draft/submission for a student's assignment
+ * Checks for both DRAFT status submissions and completed submissions
+ * @param {string} assignmentAreaId - Assignment area ID
+ * @param {string} studentId - Student's user ID
+ * @returns {Promise<DraftSubmissionInfo | null>} Draft submission data or null
+ */
+export async function getDraftSubmission(
+  assignmentAreaId: string,
+  studentId: string
+): Promise<DraftSubmissionInfo | null> {
+  try {
+    // First check for existing submissions (including completed ones for this assignment)
+    const existingSubmission = await db.submission.findFirst({
+      where: {
+        assignmentAreaId,
+        studentId,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        assignmentArea: {
+          include: {
+            course: {
+              include: {
+                teacher: {
+                  select: {
+                    email: true,
+                  },
+                },
+              },
+            },
+            rubric: true,
+          },
+        },
+      },
+    });
+
+    if (existingSubmission) {
+      // Convert submission to draft format
+      let fileMetadata = null;
+      
+      // Try to parse file metadata from filePath (could be fileId or other format)
+      if (existingSubmission.filePath) {
+        // If filePath looks like a UUID, treat it as fileId and get file details
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidRegex.test(existingSubmission.filePath)) {
+          try {
+            const uploadedFile = await db.uploadedFile.findUnique({
+              where: { id: existingSubmission.filePath },
+              select: {
+                id: true,
+                fileName: true,
+                fileSize: true,
+                mimeType: true,
+              },
+            });
+            
+            if (uploadedFile) {
+              fileMetadata = {
+                fileId: uploadedFile.id,
+                fileName: uploadedFile.fileName,
+                fileSize: uploadedFile.fileSize,
+                mimeType: uploadedFile.mimeType,
+              };
+            }
+          } catch (e) {
+            console.warn('Could not resolve file metadata for submission:', e);
+          }
+        }
+      }
+
+      // Determine state based on submission status and AI result
+      let lastState: DraftSubmissionData['lastState'] = 'idle';
+      if (existingSubmission.status === 'ANALYZED' || existingSubmission.aiAnalysisResult) {
+        lastState = 'completed';
+      } else if (fileMetadata) {
+        lastState = 'ready';
+      }
+
+      return {
+        id: existingSubmission.id,
+        assignmentAreaId,
+        studentId,
+        fileMetadata,
+        sessionId: null, // We don't store sessionId in submissions currently
+        aiAnalysisResult: existingSubmission.aiAnalysisResult,
+        lastState,
+        createdAt: existingSubmission.createdAt,
+        updatedAt: existingSubmission.updatedAt,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('❌ Error getting draft submission:', error);
+    return null;
+  }
+}
+
+/**
+ * Saves or updates draft submission data
+ * Creates a new submission with DRAFT status or updates existing one
+ * @param {DraftSubmissionData} draftData - Draft submission data
+ * @returns {Promise<DraftSubmissionInfo | null>} Saved draft submission data
+ */
+export async function saveDraftSubmission(
+  draftData: DraftSubmissionData
+): Promise<DraftSubmissionInfo | null> {
+  try {
+    const { assignmentAreaId, studentId, fileMetadata, sessionId, aiAnalysisResult, lastState } = draftData;
+
+    // Check if submission already exists
+    const existingSubmission = await db.submission.findFirst({
+      where: {
+        assignmentAreaId,
+        studentId,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let submission;
+
+    if (existingSubmission) {
+      // Update existing submission
+      const updateData: any = {};
+      
+      // Update file path if new file metadata provided
+      if (fileMetadata?.fileId) {
+        updateData.filePath = fileMetadata.fileId;
+      }
+      
+      // Update AI analysis result if provided
+      if (aiAnalysisResult !== undefined) {
+        updateData.aiAnalysisResult = aiAnalysisResult;
+        // Update status based on AI result presence
+        updateData.status = aiAnalysisResult ? 'ANALYZED' : 'SUBMITTED';
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        submission = await db.submission.update({
+          where: { id: existingSubmission.id },
+          data: updateData,
+        });
+      } else {
+        submission = existingSubmission;
+      }
+    } else if (fileMetadata?.fileId) {
+      // Create new submission only if we have file metadata
+      submission = await db.submission.create({
+        data: {
+          studentId,
+          assignmentAreaId,
+          filePath: fileMetadata.fileId,
+          status: aiAnalysisResult ? 'ANALYZED' : 'SUBMITTED',
+          aiAnalysisResult: aiAnalysisResult || null,
+        },
+      });
+    } else {
+      // No file to save yet, return null
+      return null;
+    }
+
+    console.log('✅ Saved draft submission:', submission.id);
+    
+    return {
+      id: submission.id,
+      assignmentAreaId,
+      studentId,
+      fileMetadata,
+      sessionId,
+      aiAnalysisResult: submission.aiAnalysisResult,
+      lastState,
+      createdAt: submission.createdAt,
+      updatedAt: submission.updatedAt,
+    };
+  } catch (error) {
+    console.error('❌ Error saving draft submission:', error);
+    return null;
+  }
+}

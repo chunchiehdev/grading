@@ -58,6 +58,7 @@ export default [
   route('/api/files', './api/files/index.ts'),
   route('/api/files/user-files', './api/files/user-files.ts'),
   route('/api/files/update-rubric', './api/files/update-rubric.ts'),
+  route('/api/files/:fileId/download', './routes/api.files.$fileId.download.ts'),
   
   // Rubric API routes
   route('/api/rubrics', './api/rubrics/index.ts'),

@@ -1,44 +1,106 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { FileText, FileType, PanelLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 export interface FilePreviewInfo {
   fileId?: string;
   fileName?: string;
   fileSize?: number;
   mimeType?: string;
+  fileUrl?: string; // optional: direct URL if caller knows it
 }
 
 function formatSize(size?: number) {
-  if (!size && size !== 0) return '';
+  if (size == null) return '';
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function FilePreview({ file, localFile, isFullScreen = false }: { file?: FilePreviewInfo; localFile?: File | null; isFullScreen?: boolean }) {
-  const isPdf = (localFile?.type || file?.mimeType) === 'application/pdf';
+export function FilePreview({
+  file,
+  localFile,
+  isFullScreen = false,
+  resolveFileUrl,
+  fileId: fileIdProp,
+  fileUrl: fileUrlProp,
+}: {
+  file?: FilePreviewInfo;
+  localFile?: File | null;
+  isFullScreen?: boolean;
+  resolveFileUrl?: (fileId: string) => Promise<string | null>;
+  fileId?: string; // backward-compat convenience
+  fileUrl?: string; // backward-compat convenience
+}) {
+  const [src, setSrc] = useState<File | { url: string } | string | null>(null);
+  const [resolving, setResolving] = useState(false);
+
+  const isPdf = useMemo(() => {
+    const mt = localFile?.type || file?.mimeType || '';
+    const url = (typeof src === 'string' ? src : (src as any)?.url) as string | undefined;
+    return mt === 'application/pdf' || (url?.toLowerCase().endsWith('.pdf') ?? false);
+  }, [localFile?.type, file?.mimeType, src]);
+
+  // Resolve the display source: prefer in-memory File, then provided URLs, then resolve by fileId
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      if (localFile) {
+        setSrc(localFile);
+        return;
+      }
+      if (file?.fileUrl) {
+        setSrc(file.fileUrl);
+        return;
+      }
+      if (fileUrlProp) {
+        setSrc(fileUrlProp);
+        return;
+      }
+      const idToResolve = file?.fileId || fileIdProp;
+      if (idToResolve && resolveFileUrl) {
+        setResolving(true);
+        try {
+          const url = await resolveFileUrl(idToResolve);
+          if (!canceled && url) setSrc(url);
+        } finally {
+          if (!canceled) setResolving(false);
+        }
+        return;
+      }
+      setSrc(null);
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [localFile, file?.fileUrl, fileUrlProp, file?.fileId, fileIdProp, resolveFileUrl]);
 
   return (
     <div className="h-full flex flex-col">
-      {/* Filename above */}
       <div className="text-sm font-medium truncate mb-2 shrink-0" title={file?.fileName}>
         {file?.fileName || '尚未選擇檔案'}
       </div>
-      
-      {/* Preview area - flex-1 with min-h-0 for proper flex behavior */}
       <div className="flex-1 min-h-0 border rounded-md overflow-hidden bg-background">
-        {isPdf && localFile ? (
-          <ClientPdfViewer file={localFile} isFullScreen={isFullScreen} />
+        {isPdf && src ? (
+          <ClientPdfViewer src={src} isFullScreen={isFullScreen} />
         ) : (
           <div className="h-full w-full flex items-center justify-center text-muted-foreground gap-2">
-            {isPdf ? <FileText className="w-5 h-5" /> : <FileType className="w-5 h-5" />}
-            <span className="text-sm">{isPdf ? '選擇的 PDF 將顯示在此處' : '目前僅支援 PDF 預覽'}</span>
+            {resolving ? (
+              <span className="text-sm">Loading PDF…</span>
+            ) : isPdf ? (
+              <>
+                <FileText className="w-5 h-5" />
+                <span className="text-sm">選擇的 PDF 將顯示在此處</span>
+              </>
+            ) : (
+              <>
+                <FileType className="w-5 h-5" />
+                <span className="text-sm">目前僅支援 PDF 預覽</span>
+              </>
+            )}
           </div>
         )}
       </div>
-      
-      {/* File info - shrink-0 to prevent compression */}
       <div className="text-xs text-muted-foreground mt-2 shrink-0">
         {(file?.mimeType || '-')}{file?.fileSize ? ` • ${formatSize(file?.fileSize)}` : ''}
       </div>
@@ -46,24 +108,36 @@ export function FilePreview({ file, localFile, isFullScreen = false }: { file?: 
   );
 }
 
-function ClientPdfViewer({ file, isFullScreen = false }: { file: File; isFullScreen?: boolean }) {
+function ClientPdfViewer({
+  src,
+  isFullScreen = false,
+}: {
+  src: File | { url: string } | string;
+  isFullScreen?: boolean;
+}) {
   const [mod, setMod] = useState<any>(null);
   const [isClient, setIsClient] = useState(false);
-  const contentRef = useRef<HTMLDivElement | null>(null);
   const [numPages, setNumPages] = useState<number>(0);
-  const pagesRef = useRef<(HTMLDivElement | null)[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const rafRef = useRef<number | null>(null);
   const [showControls, setShowControls] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const pagesRef = useRef<(HTMLDivElement | null)[]>([]);
+  const rafRef = useRef<number | null>(null);
 
-  // Load react-pdf module
+  // Responsive width via ResizeObserver
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(500); // Start with a more conservative default
+
   useEffect(() => {
     setIsClient(true);
     (async () => {
       try {
         const m = await import('react-pdf');
-        m.pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+        m.pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url
+        ).toString();
         setMod(m);
       } catch (e) {
         console.error('Failed to load react-pdf:', e);
@@ -71,11 +145,23 @@ function ClientPdfViewer({ file, isFullScreen = false }: { file: File; isFullScr
     })();
   }, []);
 
-  // Track current page based on scroll position
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = Math.floor(entry.contentRect.width);
+        if (width > 0) setContainerWidth(width);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Track current page on scroll
   useEffect(() => {
     const container = contentRef.current;
     if (!container) return;
-
     const onScroll = () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
@@ -94,7 +180,6 @@ function ClientPdfViewer({ file, isFullScreen = false }: { file: File; isFullScr
         setCurrentPage(bestIdx + 1);
       });
     };
-
     container.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
     return () => {
@@ -103,7 +188,7 @@ function ClientPdfViewer({ file, isFullScreen = false }: { file: File; isFullScr
     };
   }, [numPages]);
 
-  // Keyboard navigation in full screen
+  // Full-screen arrow keys
   useEffect(() => {
     if (!isFullScreen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -120,81 +205,65 @@ function ClientPdfViewer({ file, isFullScreen = false }: { file: File; isFullScr
   }, [isFullScreen, currentPage, numPages]);
 
   if (!isClient || !mod) {
-    return <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">Loading PDF…</div>;
+    return (
+      <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+        Loading PDF…
+      </div>
+    );
   }
 
   const Document = mod.Document as any;
   const Page = mod.Page as any;
+  
+  // Calculate page width accounting for padding and sidebar
+  const sidebarWidth = isSidebarOpen ? 200 : 0;
+  const contentPadding = 32; // px-4 = 16px each side
+  const availableWidth = containerWidth - sidebarWidth - contentPadding;
+  const pageWidth = Math.max(300, Math.min(availableWidth * 0.95, 800)); // Use 95% to ensure no overflow
+  
+  // Debug logging to help troubleshoot
+  console.log('PDF width calculation:', {
+    containerWidth,
+    sidebarWidth,
+    contentPadding,
+    availableWidth,
+    pageWidth,
+    isSidebarOpen
+  });
 
-  const onLoadSuccess = ({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
-  };
+  const onLoadSuccess = ({ numPages }: { numPages: number }) => setNumPages(numPages);
+  const scrollToPage = (index: number) => pagesRef.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const goToPage = (page: number) => scrollToPage(Math.max(0, Math.min((numPages || 1) - 1, page - 1)));
 
-  const scrollToPage = (index: number) => {
-    const el = pagesRef.current[index];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
-  const goToPage = (page: number) => {
-    const clamped = Math.max(1, Math.min(page, numPages || 1));
-    scrollToPage(clamped - 1);
-  };
-
-  // Self-sizing page component with container width detection
   function LazyPage({ pageNumber }: { pageNumber: number }) {
     const [visible, setVisible] = useState(false);
-    const [containerWidth, setContainerWidth] = useState(0);
     const ref = useRef<HTMLDivElement | null>(null);
-    const pageRef = useRef<HTMLDivElement | null>(null);
-    
     useEffect(() => {
       const node = ref.current;
       if (!node) return;
-      const io = new IntersectionObserver((entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) setVisible(true);
-        }
-      }, { root: contentRef.current, threshold: 0.01 });
+      const io = new IntersectionObserver(
+        (entries) => entries.forEach((e) => e.isIntersecting && setVisible(true)),
+        { root: contentRef.current, threshold: 0.01 }
+      );
       io.observe(node);
       return () => io.disconnect();
     }, []);
-
-    // Measure container width
-    useEffect(() => {
-      if (!contentRef.current) return;
-      
-      const updateWidth = () => {
-        const rect = contentRef.current?.getBoundingClientRect();
-        if (rect) {
-          // 減去 padding (px-4 = 32px)
-          setContainerWidth(rect.width - 32);
-        }
-      };
-      
-      updateWidth();
-      const ro = new ResizeObserver(updateWidth);
-      ro.observe(contentRef.current);
-      return () => ro.disconnect();
-    }, []);
-
     return (
-      <div 
-        ref={(el) => { 
-          ref.current = el; 
-          pagesRef.current[pageNumber - 1] = el; 
-        }} 
+      <div
+        ref={(el) => {
+          ref.current = el;
+          pagesRef.current[pageNumber - 1] = el;
+        }}
         className="mb-4 last:mb-0 flex justify-center w-full"
       >
         {visible ? (
-          <div ref={pageRef} className="flex justify-center">
+          <div className="flex justify-center w-full">
             <Page
               pageNumber={pageNumber}
-              width={containerWidth > 0 ? Math.min(containerWidth, 800) : undefined}
+              width={pageWidth}
               renderTextLayer={false}
               renderAnnotationLayer={false}
-              className="shadow-md"
+              className="shadow max-w-full"
               loading={<div className="w-full h-40 flex items-center justify-center text-sm text-muted-foreground">Loading page…</div>}
             />
           </div>
@@ -205,10 +274,31 @@ function ClientPdfViewer({ file, isFullScreen = false }: { file: File; isFullScr
     );
   }
 
+  function Thumb({ pageNumber }: { pageNumber: number }) {
+    const [visible, setVisible] = useState(false);
+    const ref = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+      const node = ref.current;
+      if (!node) return;
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) if (e.isIntersecting) setVisible(true);
+      }, { threshold: 0.01 });
+      io.observe(node);
+      return () => io.disconnect();
+    }, []);
+    return (
+      <div ref={ref} className="w-full">
+        {visible ? (
+          <Page pageNumber={pageNumber} width={120} renderTextLayer={false} renderAnnotationLayer={false} />
+        ) : (
+          <div className="w-full aspect-[3/4] bg-muted/30 animate-pulse rounded" />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-full flex flex-col">
-
-      {/* Toolbar (hidden in full-screen) */}
       {!isFullScreen && (
         <div className="flex items-center justify-between border-b px-2 py-1 shrink-0">
           <button
@@ -223,49 +313,40 @@ function ClientPdfViewer({ file, isFullScreen = false }: { file: File; isFullScr
         </div>
       )}
 
-      <Document
-        file={file}
-        onLoadSuccess={onLoadSuccess}
-        loading={<div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">Loading…</div>}
-      >
-        {/* Main container with flex layout */}
-        <div className="flex-1 min-h-0 flex overflow-hidden">
-          {/* Sidebar (hidden in full-screen) */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <Document file={src} onLoadSuccess={onLoadSuccess} loading={<div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">Loading…</div>} className="w-full h-full">
+          <div ref={containerRef} className="relative w-full h-full">
+          {/* Sidebar */}
           {!isFullScreen && (
-            <AnimatePresence initial={false}>
+            <>
               {isSidebarOpen && (
-                <motion.div
-                  key="thumbs"
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: 160, opacity: 1 }}
-                  exit={{ width: 0, opacity: 0 }}
-                  transition={{ type: 'tween', duration: 0.2 }}
-                  className="h-full shrink-0 border-r overflow-y-auto bg-background"
-                >
+                <div className="absolute inset-0 bg-black/10 z-10 transition-opacity duration-200" onClick={() => setIsSidebarOpen(false)} />
+              )}
+              <div className={`absolute top-0 left-0 h-full w-40 bg-background border-r shadow-lg transform transition-transform duration-200 z-20 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className="w-full h-full overflow-y-auto">
                   <div className="p-2 space-y-2">
                     {numPages > 0 && (
                       Array.from({ length: numPages }, (_, i) => (
                         <button
                           key={i}
-                          onClick={() => scrollToPage(i)}
+                          onClick={() => goToPage(i + 1)}
                           className="w-full rounded border hover:bg-muted/50 p-1 text-xs text-muted-foreground text-left"
                           title={`第 ${i + 1} 頁`}
                         >
-                          <LazyThumbPage Page={Page} pageNumber={i + 1} />
+                          <Thumb pageNumber={i + 1} />
                           <div className="mt-1 text-center">{i + 1}</div>
                         </button>
                       ))
                     )}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+              </div>
+            </>
           )}
 
-          {/* Content area - flex-1 with proper overflow */}
           <div
             ref={contentRef}
-            className="relative flex-1 min-h-0 overflow-y-auto px-4 py-2"
+            className="absolute inset-0 overflow-y-auto px-4 py-2"
             onMouseMove={() => isFullScreen && setShowControls(true)}
           >
             {numPages > 0 ? (
@@ -278,7 +359,6 @@ function ClientPdfViewer({ file, isFullScreen = false }: { file: File; isFullScr
               <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
             )}
 
-            {/* Floating controls in full-screen */}
             {isFullScreen && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -287,62 +367,20 @@ function ClientPdfViewer({ file, isFullScreen = false }: { file: File; isFullScr
                 className="pointer-events-none fixed left-0 right-0 bottom-4 flex items-center justify-center z-10"
               >
                 <div className="pointer-events-auto inline-flex items-center gap-3 rounded-full bg-black/60 text-white px-4 py-2 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => goToPage(currentPage - 1)}
-                    disabled={currentPage <= 1}
-                    className="disabled:opacity-50 hover:bg-white/20 p-1 rounded"
-                  >
+                  <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="disabled:opacity-50 hover:bg-white/20 p-1 rounded">
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <span className="text-sm whitespace-nowrap">Page {currentPage} of {numPages || 1}</span>
-                  <button
-                    type="button"
-                    onClick={() => goToPage(currentPage + 1)}
-                    disabled={currentPage >= (numPages || 1)}
-                    className="disabled:opacity-50 hover:bg-white/20 p-1 rounded"
-                  >
+                  <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= (numPages || 1)} className="disabled:opacity-50 hover:bg-white/20 p-1 rounded">
                     <ChevronRight className="w-5 h-5" />
                   </button>
                 </div>
               </motion.div>
             )}
           </div>
-        </div>
-      </Document>
-    </div>
-  );
-}
-
-// Simplified thumbnail component
-function LazyThumbPage({ Page, pageNumber }: { Page: any; pageNumber: number }) {
-  const [visible, setVisible] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-  
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (e.isIntersecting) setVisible(true);
-      }
-    }, { threshold: 0.01 });
-    io.observe(node);
-    return () => io.disconnect();
-  }, []);
-
-  return (
-    <div ref={ref} className="w-full">
-      {visible ? (
-        <Page 
-          pageNumber={pageNumber} 
-          width={120} 
-          renderTextLayer={false} 
-          renderAnnotationLayer={false} 
-        />
-      ) : (
-        <div className="w-full aspect-[3/4] bg-muted/30 animate-pulse rounded" />
-      )}
+          </div>
+        </Document>
+      </div>
     </div>
   );
 }
