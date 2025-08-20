@@ -1,56 +1,67 @@
 {
     "pageHeader": {
-        "allAssignments": "所有作業",
-        "subtitle": "共有 {count} 個作業",
-        "myCourses": "我的課程",
-        "backToDashboard": "返回主頁"
+        "allAssignments": "All Assignments",
+        "subtitle": "{count} assignments available",
+        "myCourses": "My Courses",
+        "backToDashboard": "Back to Dashboard"
     },
     "emptyState": {
-        "title": "目前沒有作業",
-        "subtitle": "你需要先加入課程才能查看作業",
-        "joinTitle": "加入課程以開始",
-        "joinDescription": "你尚未加入任何課程。請向老師索取邀請碼或 QR code，以加入課程並查看作業。",
-        "howToJoin": "如何加入課程",
+        "title": "No Assignments Available",
+        "subtitle": "You need to join a course to access assignments",
+        "joinTitle": "Join a Course to Get Started",
+        "joinDescription": "You're not enrolled in any courses yet. Ask your teacher for an invitation code or QR code to join a course and access assignments.",
+        "howToJoin": "How to Join a Course",
         "steps": {
-            "code": "向老師索取邀請碼",
-            "qr": "掃描提供的 QR code",
-            "link": "透過邀請連結加入",
-            "contact": "需要幫助時，請聯絡老師"
+            "code": "Get an invitation code from your teacher",
+            "qr": "Scan a QR code if provided",
+            "link": "Visit the invitation link",
+            "contact": "Contact your teacher for assistance"
         },
         "buttons": {
-            "backToDashboard": "返回主頁",
-            "viewCourses": "查看我的課程"
+            "backToDashboard": "Back to Dashboard",
+            "viewCourses": "View My Courses"
         }
     },
     "overview": {
-        "enrolledCourses": "已加入課程",
-        "totalAssignments": "作業總數",
-        "pending": "待繳交"
+        "enrolledCourses": "Enrolled Courses",
+        "totalAssignments": "Total Assignments",
+        "pending": "Pending"
     },
     "assignmentCard": {
-        "instructor": "授課老師",
-        "rubric": "評分規準",
-        "finalScore": "最終分數",
-        "submit": "繳交作業",
-        "viewSubmission": "查看繳交內容"
+        "instructor": "Instructor",
+        "rubric": "Rubric",
+        "finalScore": "Final Score",
+        "submit": "Submit Assignment",
+        "viewSubmission": "View Submission",
+        "courseName": "Course",
+        "dueDate": "Due Date",
+        "details": "Details"
     },
     "status": {
-        "graded": "已批改",
-        "submitted": "已繳交",
-        "overdue": "已逾期",
-        "pending": "待繳交"
+        "graded": "Graded",
+        "submitted": "Submitted",
+        "overdue": "Overdue",
+        "pending": "Pending"
     },
     "dueDate": {
-        "noDueDate": "無截止日期",
-        "overdue": "已逾期 {days} 天",
-        "dueToday": "今天截止",
-        "dueTomorrow": "明天截止",
-        "dueInDays": "{days} 天後截止"
+        "noDueDate": "No due date",
+        "overdue": "{days} days overdue",
+        "dueToday": "Due today",
+        "dueTomorrow": "Due tomorrow",
+        "dueInDays": "Due in {days} days"
     },
     "sections": {
-        "pending": "待繳交 ({count})",
-        "overdue": "已逾期 ({count})",
-        "submitted": "已繳交 ({count})",
-        "graded": "已批改 ({count})"
+        "pending": "Pending ({count})",
+        "overdue": "Overdue ({count})",
+        "submitted": "Submitted ({count})",
+        "graded": "Graded ({count})"
+    },
+    "courseInfo": {
+        "instructorLabel": "Instructor: {email}",
+        "assignmentCount": "{count} assignment",
+        "assignmentCountPlural": "{count} assignments"
+    },
+    "labels": {
+        "rubricPrefix": "Rubric: "
     }
 }

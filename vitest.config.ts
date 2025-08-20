@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: ['./test/setup.ts'],
+    setupFiles: ['./test/setup.ts', './test/polyfills.ts'],
     env: {
       // Use dev database for testing with proper cleanup
       DATABASE_URL: process.env.TEST_DATABASE_URL || "postgresql://grading_admin:password@localhost:5432/grading_db",

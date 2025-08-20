@@ -143,5 +143,35 @@
     "dangerZone": "危險區域",
     "deleteWarning": "刪除此課程將刪除所有相關數據。",
     "deleteCourse": "刪除課程"
+  },
+  "pageHeader": {
+    "title": "我的課程",
+    "subtitle": "管理您的 {count} 個課程和作業區",
+    "subtitlePlural": "管理您的 {count} 個課程和作業區",
+    "createCourse": "建立課程"
+  },
+  "search": {
+    "placeholder": "搜尋課程...",
+    "clearSearch": "清除搜尋"
+  },
+  "emptyState": {
+    "noCoursesYet": {
+      "title": "還沒有課程",
+      "description": "建立您的第一個課程，開始組織作業和管理學生。",
+      "createFirstCourse": "建立您的第一個課程"
+    },
+    "noCoursesFound": {
+      "title": "找不到課程",
+      "description": "沒有符合您搜尋條件的課程。請嘗試調整搜尋詞。"
+    }
+  },
+  "courseCard": {
+    "assignmentAreas": "作業區",
+    "submissions": "提交",
+    "recentAssignmentAreas": "最近的作業區",
+    "moreAreas": "還有 {count} 個區域",
+    "created": "建立於 {date}",
+    "viewDetails": "查看詳情",
+    "addAssignment": "新增作業"
   }
 }

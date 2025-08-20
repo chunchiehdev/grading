@@ -82,9 +82,6 @@ export default [
   // AI API routes
   route('/api/ai/generate-rubric', './routes/api.ai.generate-rubric.ts'),
 
-  // Gemini API routes
-  route('/api/gemini/test', './api/gemini/test.ts'),
-
   // Student Submission API
   route('/api/student/submit', './api/student/submit.ts'),
 
@@ -92,7 +89,6 @@ export default [
   route('/grading-history', './routes/grading-history.tsx'),
   route('/grading-history/:sessionId', './routes/grading-history/$sessionId.tsx'),
   route('/health', './routes/health.tsx'),
-  route('/test-markdown', './routes/test-markdown.tsx'),
 
   // 404 route
   route('*', './routes/_404.tsx'),

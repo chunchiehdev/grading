@@ -144,5 +144,35 @@
     "dangerZone": "Danger Zone",
     "deleteWarning": "Deleting this course will remove all data associated with it.",
     "deleteCourse": "Delete Course"
+  },
+  "pageHeader": {
+    "title": "My Courses",
+    "subtitle": "Manage your {count} course and assignment areas",
+    "subtitlePlural": "Manage your {count} courses and assignment areas",
+    "createCourse": "Create Course"
+  },
+  "search": {
+    "placeholder": "Search courses...",
+    "clearSearch": "Clear Search"
+  },
+  "emptyState": {
+    "noCoursesYet": {
+      "title": "No courses yet",
+      "description": "Create your first course to start organizing assignments and managing students.",
+      "createFirstCourse": "Create Your First Course"
+    },
+    "noCoursesFound": {
+      "title": "No courses found",
+      "description": "No courses match your search criteria. Try adjusting your search term."
+    }
+  },
+  "courseCard": {
+    "assignmentAreas": "Assignment Areas",
+    "submissions": "Submissions",
+    "recentAssignmentAreas": "Recent Assignment Areas",
+    "moreAreas": "+{count} more areas",
+    "created": "Created {date}",
+    "viewDetails": "View Details",
+    "addAssignment": "Add Assignment"
   }
 }

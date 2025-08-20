@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link } from 'react-router';
 import { Plus, BookOpen, Users, FileText, Calendar, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getTeacherCourses, type CourseInfo } from '@/services/course.server';
@@ -51,6 +52,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
 export default function TeacherCourses() {
   const { teacher, courses } = useLoaderData<typeof loader>();
+  const { t } = useTranslation('course');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Filter courses based on search term
@@ -64,7 +66,7 @@ export default function TeacherCourses() {
     <Button asChild>
       <Link to="/teacher/courses/new">
         <Plus className="w-4 h-4 mr-2" />
-        Create Course
+        {t('pageHeader.createCourse')}
       </Link>
     </Button>
   );
@@ -72,8 +74,8 @@ export default function TeacherCourses() {
   return (
     <div>
       <PageHeader
-        title="My Courses"
-        subtitle={`Manage your ${courses.length} course${courses.length !== 1 ? 's' : ''} and assignment areas`}
+        title={t('pageHeader.title')}
+        subtitle={courses.length === 1 ? t('pageHeader.subtitle', { count: courses.length }) : t('pageHeader.subtitlePlural', { count: courses.length })}
         actions={headerActions}
       />
 
@@ -84,7 +86,7 @@ export default function TeacherCourses() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search courses..."
+                placeholder={t('search.placeholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -101,25 +103,25 @@ export default function TeacherCourses() {
                 <BookOpen className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 {courses.length === 0 ? (
                   <>
-                    <h3 className="text-lg font-medium text-foreground mb-2">No courses yet</h3>
+                    <h3 className="text-lg font-medium text-foreground mb-2">{t('emptyState.noCoursesYet.title')}</h3>
                     <p className="text-muted-foreground mb-6">
-                      Create your first course to start organizing assignments and managing students.
+                      {t('emptyState.noCoursesYet.description')}
                     </p>
                     <Button asChild>
                       <Link to="/teacher/courses/new">
                         <Plus className="w-4 h-4 mr-2" />
-                        Create Your First Course
+                        {t('emptyState.noCoursesYet.createFirstCourse')}
                       </Link>
                     </Button>
                   </>
                 ) : (
                   <>
-                    <h3 className="text-lg font-medium text-foreground mb-2">No courses found</h3>
+                    <h3 className="text-lg font-medium text-foreground mb-2">{t('emptyState.noCoursesFound.title')}</h3>
                     <p className="text-muted-foreground mb-6">
-                      No courses match your search criteria. Try adjusting your search term.
+                      {t('emptyState.noCoursesFound.description')}
                     </p>
                     <Button variant="outline" onClick={() => setSearchTerm('')}>
-                      Clear Search
+                      {t('search.clearSearch')}
                     </Button>
                   </>
                 )}
@@ -139,6 +141,7 @@ export default function TeacherCourses() {
 }
 
 function CourseCard({ course }: { course: any }) {
+  const { t } = useTranslation('course');
   const totalSubmissions =
     course.assignmentAreas?.reduce((total: number, area: any) => total + (area._count?.submissions || 0), 0) || 0;
 
@@ -164,29 +167,29 @@ function CourseCard({ course }: { course: any }) {
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-muted rounded-lg">
             <div className="text-xl font-bold text-foreground">{course.assignmentAreas?.length || 0}</div>
-            <div className="text-xs font-medium text-muted-foreground">Assignment Areas</div>
+            <div className="text-xs font-medium text-muted-foreground">{t('courseCard.assignmentAreas')}</div>
           </div>
           <div className="text-center p-3 bg-muted rounded-lg">
             <div className="text-xl font-bold text-foreground">{totalSubmissions}</div>
-            <div className="text-xs font-medium text-muted-foreground">Submissions</div>
+            <div className="text-xs font-medium text-muted-foreground">{t('courseCard.submissions')}</div>
           </div>
         </div>
 
         {/* Recent assignment areas */}
         {course.assignmentAreas && course.assignmentAreas.length > 0 && (
           <div>
-            <h4 className="text-sm font-medium text-muted-foreground mb-2">Recent Assignment Areas</h4>
+            <h4 className="text-sm font-medium text-muted-foreground mb-2">{t('courseCard.recentAssignmentAreas')}</h4>
             <div className="space-y-1">
               {course.assignmentAreas.slice(0, 2).map((area: any) => (
                 <div key={area.id} className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground truncate flex-1">{area.name}</span>
                   <Badge variant="outline" className="ml-2 text-xs">
-                    {area._count?.submissions || 0} submissions
+                    {area._count?.submissions || 0} {t('courseCard.submissions').toLowerCase()}
                   </Badge>
                 </div>
               ))}
               {course.assignmentAreas.length > 2 && (
-                <p className="text-xs text-muted-foreground">+{course.assignmentAreas.length - 2} more areas</p>
+                <p className="text-xs text-muted-foreground">{t('courseCard.moreAreas', { count: course.assignmentAreas.length - 2 })}</p>
               )}
             </div>
           </div>
@@ -195,16 +198,16 @@ function CourseCard({ course }: { course: any }) {
         {/* Created date */}
         <div className="flex items-center text-xs text-muted-foreground pt-2 border-t">
           <Calendar className="h-3 w-3 mr-1" />
-          Created {course.formattedCreatedDate}
+          {t('courseCard.created', { date: course.formattedCreatedDate })}
         </div>
 
         {/* Action buttons */}
         <div className="flex space-x-2 pt-2">
           <Button asChild variant="outline" size="sm" className="flex-1">
-            <Link to={`/teacher/courses/${course.id}`}>View Details</Link>
+            <Link to={`/teacher/courses/${course.id}`}>{t('courseCard.viewDetails')}</Link>
           </Button>
           <Button asChild size="sm" className="flex-1">
-            <Link to={`/teacher/courses/${course.id}/assignments/new`}>Add Assignment</Link>
+            <Link to={`/teacher/courses/${course.id}/assignments/new`}>{t('courseCard.addAssignment')}</Link>
           </Button>
         </div>
       </CardContent>
