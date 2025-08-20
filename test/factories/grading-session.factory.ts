@@ -1,70 +1,40 @@
-import { PrismaClient, GradingSession, GradingSessionStatus } from '@/types/database';
+import { db, GradingSessionStatus } from '@/types/database';
+import { v4 as uuidv4 } from 'uuid';
 
-export interface CreateGradingSessionData {
+export interface CreateGradingSessionOptions {
   userId: string;
   status?: GradingSessionStatus;
   progress?: number;
 }
 
 export class GradingSessionFactory {
-  constructor(private prisma: PrismaClient) {}
-
-  async create(data: CreateGradingSessionData): Promise<GradingSession> {
-    const sessionData = {
-      userId: data.userId,
-      status: data.status || GradingSessionStatus.PENDING,
-      progress: data.progress || 0,
-    };
-
-    return this.prisma.gradingSession.create({
-      data: sessionData
+  static async create(options: CreateGradingSessionOptions) {
+    const session = await db.gradingSession.create({
+      data: {
+        id: uuidv4(),
+        userId: options.userId,
+        status: options.status || GradingSessionStatus.PENDING,
+        progress: options.progress || 0,
+      }
     });
+    
+    console.log(`⚡ Created grading session: ${session.status} (${session.progress}%)`);
+    return session;
   }
-
-  async createMany(count: number, userId: string): Promise<GradingSession[]> {
-    const sessions: GradingSession[] = [];
-    for (let i = 0; i < count; i++) {
-      sessions.push(await this.create({
-        userId,
-        status: i % 2 === 0 ? GradingSessionStatus.PENDING : GradingSessionStatus.COMPLETED,
-        progress: i % 2 === 0 ? 0 : 100,
-      }));
-    }
-    return sessions;
-  }
-
-  async createWithStatus(userId: string, status: GradingSessionStatus): Promise<GradingSession> {
-    const progress = status === GradingSessionStatus.COMPLETED ? 100 :
-                    status === GradingSessionStatus.PROCESSING ? 50 : 0;
-
-    return this.create({
-      userId,
-      status,
-      progress,
-    });
-  }
-
-  async createProcessingSession(userId: string): Promise<GradingSession> {
-    return this.create({
-      userId,
-      status: GradingSessionStatus.PROCESSING,
-      progress: 25,
-    });
-  }
-
-  async createCompletedSession(userId: string): Promise<GradingSession> {
+  
+  static async createCompleted(userId: string) {
     return this.create({
       userId,
       status: GradingSessionStatus.COMPLETED,
-      progress: 100,
+      progress: 100
     });
   }
-
-  async createFailedSession(userId: string): Promise<GradingSession> {
+  
+  static async createProcessing(userId: string, progress: number = 50) {
     return this.create({
       userId,
-      status: GradingSessionStatus.FAILED,
-      progress: 0,
+      status: GradingSessionStatus.PROCESSING,
+      progress
     });
   }
-} 
+}

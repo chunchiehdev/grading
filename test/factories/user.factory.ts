@@ -1,29 +1,44 @@
-import { PrismaClient, User } from '@/types/database';
+import { db, UserRole } from '@/types/database';
+import { v4 as uuidv4 } from 'uuid';
 
-export interface CreateUserData {
+export interface CreateUserOptions {
   email?: string;
+  name?: string;
+  role?: UserRole;
+  picture?: string;
 }
 
 export class UserFactory {
-  constructor(private prisma: PrismaClient) {}
-
-  async create(data: CreateUserData = {}): Promise<User> {
-    const userData = {
-      email: data.email || `test-${Date.now()}@example.com`,
-    };
-
-    return this.prisma.user.create({
-      data: userData,
+  static async create(options: CreateUserOptions = {}) {
+    const user = await db.user.create({
+      data: {
+        id: uuidv4(),
+        email: options.email || `test-${uuidv4()}@example.com`,
+        name: options.name || `Test User ${Math.floor(Math.random() * 1000)}`,
+        role: options.role || UserRole.STUDENT,
+        picture: options.picture || 'https://example.com/avatar.jpg',
+      }
     });
+    
+    console.log(`👤 Created ${user.role.toLowerCase()}: ${user.email}`);
+    return user;
   }
-
-  async createMany(count: number, baseData: CreateUserData = {}): Promise<User[]> {
-    const users: User[] = [];
+  
+  static async createTeacher(options: Omit<CreateUserOptions, 'role'> = {}) {
+    return this.create({ ...options, role: UserRole.TEACHER });
+  }
+  
+  static async createStudent(options: Omit<CreateUserOptions, 'role'> = {}) {
+    return this.create({ ...options, role: UserRole.STUDENT });
+  }
+  
+  static async createMany(count: number, options: CreateUserOptions = {}) {
+    const users = [];
     for (let i = 0; i < count; i++) {
-      const email = baseData.email ? `${i}-${baseData.email}` : `test-${Date.now()}-${i}@example.com`;
       users.push(await this.create({
-        ...baseData,
-        email: email,
+        ...options,
+        email: options.email ? `${i}-${options.email}` : undefined,
+        name: options.name ? `${options.name} ${i + 1}` : undefined,
       }));
     }
     return users;

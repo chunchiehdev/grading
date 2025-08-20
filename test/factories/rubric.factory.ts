@@ -1,118 +1,103 @@
-import { PrismaClient, Rubric } from '@/types/database';
+import { db } from '@/types/database';
+import { v4 as uuidv4 } from 'uuid';
 
-export interface CreateRubricData {
+export interface CreateRubricOptions {
   userId: string;
   name?: string;
   description?: string;
+  isTemplate?: boolean;
   version?: number;
   isActive?: boolean;
-  criteria?: any[];
+  criteria?: any;
 }
 
 export class RubricFactory {
-  constructor(private prisma: PrismaClient) {}
-
-  async create(data: CreateRubricData): Promise<Rubric> {
-    // 先驗證原始輸入
-    if (data.name !== undefined && !data.name.trim()) {
-      throw new Error('Rubric name is required and cannot be empty');
+  static defaultCriteria = [
+    {
+      id: uuidv4(),
+      name: 'Content Quality',
+      description: 'Quality and depth of content',
+      maxScore: 40,
+      levels: [
+        { score: 40, description: 'Exceptional - Clear, comprehensive, and insightful' },
+        { score: 30, description: 'Good - Clear and adequate content' },
+        { score: 20, description: 'Fair - Basic content with some gaps' },
+        { score: 10, description: 'Poor - Minimal or unclear content' },
+        { score: 0, description: 'Missing - No relevant content' }
+      ]
+    },
+    {
+      id: uuidv4(),
+      name: 'Organization',
+      description: 'Structure and flow of ideas',
+      maxScore: 30,
+      levels: [
+        { score: 30, description: 'Excellent - Well-organized and logical flow' },
+        { score: 20, description: 'Good - Generally well-organized' },
+        { score: 15, description: 'Fair - Some organization issues' },
+        { score: 10, description: 'Poor - Disorganized or confusing' },
+        { score: 0, description: 'Missing - No clear organization' }
+      ]
+    },
+    {
+      id: uuidv4(),
+      name: 'Grammar & Style',
+      description: 'Language usage and writing quality',
+      maxScore: 30,
+      levels: [
+        { score: 30, description: 'Excellent - Professional writing with no errors' },
+        { score: 25, description: 'Good - Minor errors that don\'t impede understanding' },
+        { score: 20, description: 'Fair - Some errors that occasionally impede understanding' },
+        { score: 15, description: 'Poor - Frequent errors that impede understanding' },
+        { score: 0, description: 'Missing - Incomprehensible or missing content' }
+      ]
     }
-    if (data.description !== undefined && !data.description.trim()) {
-      throw new Error('Rubric description is required and cannot be empty');
-    }
+  ];
 
-    const defaultCriteria = [
+  static async create(options: CreateRubricOptions) {
+    const rubric = await db.rubric.create({
+      data: {
+        id: uuidv4(),
+        userId: options.userId,
+        name: options.name || `Test Rubric ${Math.floor(Math.random() * 1000)}`,
+        description: options.description || 'A test rubric for automated testing',
+        version: options.version || 1,
+        isActive: options.isActive ?? true,
+        isTemplate: options.isTemplate || false,
+        criteria: options.criteria || this.defaultCriteria,
+      }
+    });
+    
+    console.log(`📋 Created rubric: ${rubric.name} (${rubric.isTemplate ? 'template' : 'regular'})`);
+    return rubric;
+  }
+  
+  static async createWithCategories(options: CreateRubricOptions) {
+    const categorizedCriteria = [
       {
-        id: 'criteria-1',
-        name: 'Content Quality',
-        description: 'Quality of content and ideas',
-        maxScore: 4,
-        levels: [
-          { score: 1, description: 'Poor' },
-          { score: 2, description: 'Fair' },
-          { score: 3, description: 'Good' },
-          { score: 4, description: 'Excellent' }
+        id: uuidv4(),
+        name: 'Content',
+        criteria: [
+          this.defaultCriteria[0], // Content Quality
+        ]
+      },
+      {
+        id: uuidv4(),
+        name: 'Structure',
+        criteria: [
+          this.defaultCriteria[1], // Organization
+          this.defaultCriteria[2], // Grammar & Style
         ]
       }
     ];
-
-    const rubricData = {
-      userId: data.userId,
-      name: data.name || `Test Rubric ${Date.now()}`,
-      description: data.description || 'A test rubric for grading',
-      version: data.version || 1,
-      isActive: data.isActive !== undefined ? data.isActive : true,
-      criteria: data.criteria !== undefined ? data.criteria : defaultCriteria
-    };
-
-    return this.prisma.rubric.create({
-      data: rubricData
-    });
-  }
-
-  async createMany(count: number, userId: string): Promise<Rubric[]> {
-    const rubrics: Rubric[] = [];
-    for (let i = 0; i < count; i++) {
-      rubrics.push(await this.create({
-        userId,
-        name: `Test Rubric ${i}`,
-        description: `Description for rubric ${i}`,
-        criteria: []
-      }));
-    }
-    return rubrics;
-  }
-
-  async createWithVersions(userId: string, baseData: Partial<CreateRubricData> = {}): Promise<Rubric[]> {
-    const versions: Rubric[] = [];
     
-    // Create version 1 (inactive)
-    const v1 = await this.create({
-      userId,
-      name: baseData.name || 'Test Rubric',
-      description: baseData.description || 'Version 1',
-      version: 1,
-      isActive: false,
-      criteria: [
-        {
-          id: 'criteria-1',
-          name: 'Basic Criteria',
-          description: 'Basic evaluation criteria',
-          maxScore: 3,
-          levels: [
-            { score: 1, description: 'Poor' },
-            { score: 2, description: 'Good' },
-            { score: 3, description: 'Excellent' }
-          ]
-        }
-      ]
+    return this.create({
+      ...options,
+      criteria: categorizedCriteria
     });
-    versions.push(v1);
-
-    // Create version 2 (active)
-    const v2 = await this.create({
-      userId,
-      name: baseData.name || 'Test Rubric',
-      description: baseData.description || 'Version 2 - Updated',
-      version: 2,
-      isActive: true,
-      criteria: [
-        {
-          id: 'criteria-1',
-          name: 'Enhanced Criteria',
-          description: 'Enhanced evaluation criteria',
-          maxScore: 4,
-          levels: [
-            { score: 1, description: 'Poor' },
-            { score: 2, description: 'Fair' },
-            { score: 3, description: 'Good' },
-            { score: 4, description: 'Excellent' }
-          ]
-        }
-      ]
-    });
-    versions.push(v2);
-
-    return versions;
   }
-} 
+  
+  static async createTemplate(options: Omit<CreateRubricOptions, 'isTemplate'>) {
+    return this.create({ ...options, isTemplate: true });
+  }
+}

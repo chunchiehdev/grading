@@ -7,11 +7,15 @@ export {
   GradingSessionStatus,
   GradingStatus,
   FileParseStatus,
+  UserRole,
+  SubmissionStatus,
 } from '../generated/prisma/client';
 
 export type {
   User,
   Rubric,
+  Course,
+  InvitationCode,
   UploadedFile,
   GradingSession,
   GradingResult,

@@ -1,99 +1,73 @@
-import { PrismaClient, UploadedFile, FileParseStatus } from '@/types/database';
+import { db, FileParseStatus } from '@/types/database';
+import { v4 as uuidv4 } from 'uuid';
 
-export interface CreateUploadedFileData {
+export interface CreateUploadedFileOptions {
   userId: string;
   fileName?: string;
   originalFileName?: string;
-  fileKey?: string;
-  fileSize?: number;
   mimeType?: string;
+  fileSize?: number;
   parseStatus?: FileParseStatus;
-  parsedContent?: string;
-  parseError?: string;
-  expiresAt?: Date;
+  parsedContent?: string | null;
+  parseError?: string | null;
 }
 
 export class UploadedFileFactory {
-  constructor(private prisma: PrismaClient) {}
-
-  async create(data: CreateUploadedFileData): Promise<UploadedFile> {
-    const timestamp = Date.now();
-    const fileData = {
-      userId: data.userId,
-      fileName: data.fileName || `test-file-${timestamp}.pdf`,
-      originalFileName: data.originalFileName || `original-file-${timestamp}.pdf`,
-      fileKey: data.fileKey || `uploads/${timestamp}-test.pdf`,
-      fileSize: data.fileSize || 1024000, // 1MB default
-      mimeType: data.mimeType || 'application/pdf',
-      parseStatus: data.parseStatus || FileParseStatus.COMPLETED,
-      // Only set default parsedContent if not explicitly provided and status suggests content should exist
-      parsedContent: data.parsedContent !== undefined ? data.parsedContent : 
-        (data.parseStatus === FileParseStatus.COMPLETED || !data.parseStatus) ? 
-        'This is sample parsed content for testing.' : undefined,
-      parseError: data.parseError,
-      expiresAt: data.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days default
-    };
-
-    return this.prisma.uploadedFile.create({
-      data: fileData
+  static async create(options: CreateUploadedFileOptions) {
+    const file = await db.uploadedFile.create({
+      data: {
+        id: uuidv4(),
+        userId: options.userId,
+        fileName: options.fileName || `test-file-${Math.random().toString(36).substr(2, 8)}.pdf`,
+        originalFileName: options.originalFileName || 'test-document.pdf',
+        fileKey: `uploads/${uuidv4()}-${options.originalFileName || 'test-document.pdf'}`,
+        fileSize: options.fileSize || 1024 * 100, // 100KB default
+        mimeType: options.mimeType || 'application/pdf',
+        parseStatus: options.parseStatus || FileParseStatus.COMPLETED,
+        parsedContent: options.parsedContent !== undefined 
+          ? options.parsedContent 
+          : 'This is a sample PDF content for testing purposes. The document contains academic content that can be graded according to the rubric criteria.',
+        parseError: options.parseError || null,
+      }
     });
+    
+    console.log(`📄 Created uploaded file: ${file.originalFileName} (${file.parseStatus})`);
+    return file;
   }
-
-  async createMany(count: number, userId: string): Promise<UploadedFile[]> {
-    const files: UploadedFile[] = [];
-    for (let i = 0; i < count; i++) {
-      files.push(await this.create({
-        userId,
-        fileName: `test-file-${i}.pdf`,
-        originalFileName: `original-file-${i}.pdf`,
-      }));
-    }
-    return files;
-  }
-
-  async createWithParseStatus(userId: string, status: FileParseStatus): Promise<UploadedFile> {
-    const baseData: CreateUploadedFileData = {
-      userId,
-      parseStatus: status,
-    };
-
-    switch (status) {
-      case FileParseStatus.PENDING:
-        // Don't set any content or errors for pending files
-        break;
-      case FileParseStatus.PROCESSING:
-        // Don't set any content or errors for processing files
-        break;
-      case FileParseStatus.COMPLETED:
-        baseData.parsedContent = 'Successfully parsed content.';
-        break;
-      case FileParseStatus.FAILED:
-        baseData.parseError = 'Parse failed: Unsupported file format';
-        break;
-    }
-
-    return this.create(baseData);
-  }
-
-  async createPdfFile(userId: string): Promise<UploadedFile> {
+  
+  static async createPdf(userId: string, options: Omit<CreateUploadedFileOptions, 'userId' | 'mimeType'> = {}) {
     return this.create({
+      ...options,
       userId,
-      fileName: 'document.pdf',
-      originalFileName: 'My Document.pdf',
       mimeType: 'application/pdf',
-      fileSize: 2048000, // 2MB
-      parsedContent: 'This is a PDF document content for grading.'
+      originalFileName: options.originalFileName || 'assignment.pdf'
     });
   }
-
-  async createWordFile(userId: string): Promise<UploadedFile> {
+  
+  static async createWord(userId: string, options: Omit<CreateUploadedFileOptions, 'userId' | 'mimeType'> = {}) {
     return this.create({
+      ...options,
       userId,
-      fileName: 'essay.docx',
-      originalFileName: 'My Essay.docx',
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      fileSize: 512000, // 512KB
-      parsedContent: 'This is a Word document content for grading.'
+      originalFileName: options.originalFileName || 'assignment.docx'
     });
   }
-} 
+  
+  static async createWithParseStatus(userId: string, parseStatus: FileParseStatus, options: Omit<CreateUploadedFileOptions, 'userId' | 'parseStatus'> = {}) {
+    const parsedContent = parseStatus === FileParseStatus.COMPLETED 
+      ? 'Successfully parsed content for testing.'
+      : null;
+      
+    const parseError = parseStatus === FileParseStatus.FAILED
+      ? 'Failed to parse file: corrupted or unsupported format'
+      : null;
+    
+    return this.create({
+      ...options,
+      userId,
+      parseStatus,
+      parsedContent,
+      parseError
+    });
+  }
+}
