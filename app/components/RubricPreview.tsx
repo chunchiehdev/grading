@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Eye, Download, FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface Level {
   score: number;
@@ -42,14 +43,9 @@ const LEVEL_COLORS = {
   1: "bg-red-100 text-red-800 border-red-200"
 };
 
-const LEVEL_LABELS = {
-  4: "優秀",
-  3: "良好", 
-  2: "及格",
-  1: "需改進"
-};
 
 export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProps) => {
+  const { t } = useTranslation('rubric');
   const totalCriteria = rubricData.categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
   const completedCriteria = rubricData.categories.reduce((acc, cat) => 
     acc + cat.criteria.filter(crit => 
@@ -74,26 +70,26 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                 <FileText className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <DialogTitle className="text-xl">{rubricData.name || '評分標準預覽'}</DialogTitle>
+                <DialogTitle className="text-xl">{rubricData.name || t('preview.dialogTitle')}</DialogTitle>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant="outline" className="text-xs">
-                    {rubricData.categories.length} 類別
+                    {rubricData.categories.length} {t('categories')}
                   </Badge>
                   <Badge variant="outline" className="text-xs">
-                    {totalCriteria} 標準
+                    {totalCriteria} {t('preview.criteriaLabel')}
                   </Badge>
                   <Badge 
                     variant={completionRate === 100 ? "default" : "secondary"} 
                     className="text-xs"
                   >
-                    {completionRate}% 完成
+                    {completionRate}% {t('preview.completionRate')}
                   </Badge>
                 </div>
               </div>
             </div>
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
-              導出
+              {t('preview.exportButton')}
             </Button>
           </div>
         </DialogHeader>
@@ -103,7 +99,7 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
             {rubricData.description && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">評分標準說明</CardTitle>
+                  <CardTitle className="text-base">{t('preview.rubricDescription')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground leading-relaxed">
@@ -115,25 +111,25 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">評分概要</CardTitle>
+                <CardTitle className="text-base">{t('preview.gradingSummary')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                   <div className="p-3 rounded-lg bg-muted/50">
                     <div className="text-2xl font-bold text-primary">{totalCriteria}</div>
-                    <div className="text-xs text-muted-foreground">評分標準</div>
+                    <div className="text-xs text-muted-foreground">{t('preview.rubricStats')}</div>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/50">
                     <div className="text-2xl font-bold text-primary">{maxScore}</div>
-                    <div className="text-xs text-muted-foreground">總分</div>
+                    <div className="text-xs text-muted-foreground">{t('preview.totalScore')}</div>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/50">
                     <div className="text-2xl font-bold text-primary">4</div>
-                    <div className="text-xs text-muted-foreground">等級數</div>
+                    <div className="text-xs text-muted-foreground">{t('preview.levelCount')}</div>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/50">
                     <div className="text-2xl font-bold text-primary">{completionRate}%</div>
-                    <div className="text-xs text-muted-foreground">完成度</div>
+                    <div className="text-xs text-muted-foreground">{t('preview.completionRate')}</div>
                   </div>
                 </div>
               </CardContent>
@@ -148,14 +144,14 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                     </span>
                     {category.name}
                     <Badge variant="outline" className="ml-auto">
-                      {category.criteria.length} 個標準
+                      {category.criteria.length} {t('preview.criteriaLabel')}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {category.criteria.length === 0 ? (
                     <p className="text-sm text-muted-foreground italic text-center py-4">
-                      此類別尚無評分標準
+                      {t('preview.noCriteriaMessage')}
                     </p>
                   ) : (
                     category.criteria.map((criterion, criterionIndex) => (
@@ -172,12 +168,12 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                             )}
                           </div>
                           <Badge variant="outline" className="ml-2">
-                            最高 4 分
+                            {t('preview.maxScoreBadge')}
                           </Badge>
                         </div>
 
                         <div className="grid gap-2">
-                          <h5 className="text-sm font-medium text-muted-foreground">評分等級：</h5>
+                          <h5 className="text-sm font-medium text-muted-foreground">{t('preview.gradingLevels')}</h5>
                           <div className="grid gap-2">
                             {[4, 3, 2, 1].map((score) => {
                               const level = criterion.levels.find(l => l.score === score);
@@ -189,14 +185,14 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                                     className={`${LEVEL_COLORS[score as keyof typeof LEVEL_COLORS]} border`}
                                     variant="outline"
                                   >
-                                    {score}分 - {LEVEL_LABELS[score as keyof typeof LEVEL_LABELS]}
+                                    {score}{t('preview.scoreSeparator')}{t(`levelLabels.${score}`)}
                                   </Badge>
                                   <div className="flex-1 min-w-0">
                                     {description ? (
                                       <p className="text-sm">{description}</p>
                                     ) : (
                                       <p className="text-sm text-muted-foreground italic">
-                                        尚未設定此等級的描述
+                                        {t('preview.noLevelDescription')}
                                       </p>
                                     )}
                                   </div>
@@ -216,9 +212,9 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
               <Card>
                 <CardContent className="text-center py-12">
                   <Eye className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">尚無內容可預覽</h3>
+                  <h3 className="text-lg font-semibold mb-2">{t('preview.emptyPreviewTitle')}</h3>
                   <p className="text-muted-foreground">
-                    請先添加評分類別和標準來查看預覽
+                    {t('preview.emptyPreviewMessage')}
                   </p>
                 </CardContent>
               </Card>

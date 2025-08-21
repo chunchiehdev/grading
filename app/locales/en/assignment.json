@@ -63,5 +63,25 @@
     },
     "labels": {
         "rubricPrefix": "Rubric: "
+    },
+    "submit": {
+        "uploadAssignment": "Upload Assignment",
+        "replaceFile": "Replace File",
+        "reselectFile": "Reselect File",
+        "analyzing": "Analyzing...",
+        "getAiFeedback": "Get AI Feedback",
+        "rerunAiFeedback": "Re-run AI Feedback",
+        "submitting": "Submitting...",
+        "submitAssignment": "Submit Assignment",
+        "pdfPreview": "PDF Preview",
+        "errors": {
+            "failedToCheckStatus": "Failed to check grading status.",
+            "noFileOrRubric": "No file or rubric found.",
+            "parsingFailed": "File parsing failed. Please upload a different file or try again later.",
+            "parsingTimeout": "Parsing is taking longer than expected. Please try again shortly.",
+            "failedToStartGrading": "Failed to start grading",
+            "noFileUploaded": "No file uploaded.",
+            "failedToSubmit": "Failed to submit"
+        }
     }
 }

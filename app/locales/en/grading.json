@@ -38,6 +38,43 @@
   "gradedAt": "Graded At",
   "gradedBy": "Graded By",
   "duration": "Duration",
+  "pdfViewer": {
+    "noFile": "No file available for preview",
+    "loading": "Loading PDF...",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "rotate": "Rotate 90 degrees"
+  },
+  "result": {
+    "criteriaItem": "Criteria {{index}}",
+    "scorePoints": "{{score}} points",
+    "overallFeedback": "Overall Feedback",
+    "criteriaDetails": "Criteria Details",
+    "noCriteria": "No detailed criteria",
+    "noFeedback": "No additional feedback"
+  },
+  "resultCard": {
+    "noResults": "No grading results",
+    "rubric": "Rubric: {{name}}",
+    "grades": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "satisfactory": "Satisfactory",
+      "acceptable": "Acceptable",
+      "needsImprovement": "Needs Improvement"
+    }
+  },
+  "structuredFeedback": {
+    "overallEvaluation": "Overall Evaluation",
+    "strengths": "Strengths",
+    "improvements": "Areas for Improvement",
+    "nextSteps": "Next Steps",
+    "itemCount": "{{count}} items",
+    "summary": "Summary",
+    "strengthsCount": "Strengths ({{count}})",
+    "improvementsCount": "Improvements ({{count}})",
+    "suggestions": "Suggestions"
+  },
   "progress": {
     "uploading": "Uploading file...",
     "processing": "Processing document...",
@@ -85,5 +122,117 @@
     "saveError": "Error saving grading results",
     "exportSuccess": "Results exported",
     "exportError": "Error exporting results"
+  },
+  "feedbackUi": {
+    "empty": {
+      "title": "No Feedback Available",
+      "subtitle": "Your feedback will be available once the grading is complete."
+    },
+    "features": {
+      "detailedFeedback": "Detailed Feedback",
+      "detailedFeedbackDesc": "Get comprehensive feedback on your work",
+      "gradingCriteria": "Grading Criteria",
+      "gradingCriteriaDesc": "Understand how your work was evaluated",
+      "suggestions": "Suggestions",
+      "suggestionsDesc": "Receive actionable improvement suggestions"
+    }
+  },
+  "fileUpload": {
+    "dropAreaText": "Drop files here or click to upload",
+    "selectFiles": "Select Files",
+    "supportedFormats": "Supports {formats}, max {size}",
+    "uploadComplete": "Upload Complete",
+    "uploadFailed": "Upload Failed",
+    "retryUpload": "Retry Upload",
+    "retryAttempt": "(Attempt {count})",
+    "errors": {
+      "fileSizeExceeded": "File {fileName} exceeds size limit {maxSize}",
+      "unsupportedFileType": "Unsupported file type: {fileExt}",
+      "tooManyFiles": "Maximum {maxFiles} files allowed",
+      "uploadFailed": "Upload failed"
+    }
+  },
+  "emptyGradingState": {
+    "title": "Grading not started yet",
+    "restartGrading": "Restart Grading",
+    "steps": {
+      "check": {
+        "title": "Check document content",
+        "description": "System analyzes uploaded document content and images"
+      },
+      "grade": {
+        "title": "Apply grading criteria",
+        "description": "Grade based on selected rubric criteria"
+      },
+      "feedback": {
+        "title": "Generate evaluation feedback",
+        "description": "Provide detailed scoring and improvement suggestions"
+      }
+    }
+  },
+  "filePreview": {
+    "noFileSelected": "No file selected",
+    "loadingPdf": "Loading PDF…",
+    "pdfPlaceholder": "Selected PDF will be displayed here",
+    "pdfOnlySupported": "Currently only PDF preview is supported",
+    "hideThumbnails": "Hide Thumbnails",
+    "showThumbnails": "Show Thumbnails",
+    "loading": "Loading…",
+    "loadingPage": "Loading page…",
+    "pageTitle": "Page {page}",
+    "pageCounter": "Page {current} of {total}"
+  },
+  "fullScreenPdf": {
+    "noPreviewFile": "No file to preview",
+    "loadingPdf": "Loading PDF…",
+    "loading": "Loading…",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "rotate": "Rotate 90 degrees"
+  },
+  "gradingProgress": {
+    "phases": {
+      "check": {
+        "title": "Check Input",
+        "description": "Checking assignment format and content integrity...",
+        "status": "Checking..."
+      },
+      "grade": {
+        "title": "Grade Assignment",
+        "description": "Performing assignment evaluation and analysis...",
+        "status": "Grading..."
+      },
+      "verify": {
+        "title": "Check Process",
+        "description": "Verifying grading results...",
+        "status": "Verifying..."
+      }
+    },
+    "error": "An error occurred during grading, please try again later",
+    "defaultTitle": "Preparing",
+    "defaultDescription": "Initializing...",
+    "defaultStatus": "Processing...",
+    "timeRemaining": "Estimated time remaining: {seconds} seconds"
+  },
+  "resultDisplay": {
+    "noFeedback": "No additional feedback",
+    "overallFeedback": "Overall Grading Feedback",
+    "criteriaDetails": "Grading Criteria Details",
+    "defaultCriteriaName": "Grading Item {index}",
+    "scoreUnit": "points",
+    "noCriteriaDetails": "No detailed grading criteria"
+  },
+  "resultCardList": {
+    "noResults": "No grading results",
+    "expandAll": "Expand All",
+    "collapseAll": "Collapse All",
+    "rubricLabel": "Rubric: {rubricName}",
+    "gradeLabels": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "satisfactory": "Satisfactory",
+      "acceptable": "Acceptable",
+      "needsImprovement": "Needs Improvement"
+    }
   }
 }

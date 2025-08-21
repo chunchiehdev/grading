@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Star, ClipboardCheck, FileText, MessageCircle, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 type StrengthVariant = 'success' | 'info' | 'warning';
 interface FeedbackDisplayProps {
@@ -13,23 +14,24 @@ interface FeedbackDisplayProps {
 }
 
 const EmptyFeedbackState = () => {
+  const { t } = useTranslation('grading');
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const features = [
     {
       icon: ClipboardCheck,
-      title: 'Detailed Feedback',
-      description: 'Get comprehensive feedback on your work',
+      title: t('feedbackUi.features.detailedFeedback'),
+      description: t('feedbackUi.features.detailedFeedbackDesc'),
     },
     {
       icon: FileText,
-      title: 'Grading Criteria',
-      description: 'Understand how your work was evaluated',
+      title: t('feedbackUi.features.gradingCriteria'),
+      description: t('feedbackUi.features.gradingCriteriaDesc'),
     },
     {
       icon: MessageCircle,
-      title: 'Suggestions',
-      description: 'Receive actionable improvement suggestions',
+      title: t('feedbackUi.features.suggestions'),
+      description: t('feedbackUi.features.suggestionsDesc'),
     },
   ];
 
@@ -38,8 +40,8 @@ const EmptyFeedbackState = () => {
       <div className="mb-6">
         <Star className="w-12 h-12 text-gray-400" />
       </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Feedback Available</h3>
-      <p className="text-gray-600 mb-8">Your feedback will be available once the grading is complete.</p>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('feedbackUi.empty.title')}</h3>
+      <p className="text-gray-600 mb-8">{t('feedbackUi.empty.subtitle')}</p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl">
         {features.map((feature, index) => (
           <motion.div
@@ -79,6 +81,7 @@ const EmptyFeedbackState = () => {
 };
 
 export default function FeedbackDisplay({ feedback, onClose, className }: FeedbackDisplayProps) {
+  const { t } = useTranslation('common');
   if (!feedback) {
     return <EmptyFeedbackState />;
   }
@@ -91,7 +94,7 @@ export default function FeedbackDisplay({ feedback, onClose, className }: Feedba
           onClick={onClose}
           className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
-          Close
+          {t('close')}
         </button>
       )}
     </div>

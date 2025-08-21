@@ -1,7 +1,6 @@
 import { checkHealth } from '@/utils/healthCheck.server';
 export async function loader() {
   const health = await checkHealth();
-
   const response = {
     status: health.status,
     timestamp: health.timestamp,

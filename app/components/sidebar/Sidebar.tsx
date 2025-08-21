@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { PanelLeftOpen, PanelLeftClose, PlusCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useTranslation } from 'react-i18next';
 
 import PropTypes from 'prop-types';
 
@@ -12,6 +13,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ className, isCollapsed, onToggle }) => {
+  const { t } = useTranslation('common');
 
   return (
     <div
@@ -33,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className, isCollapsed, onToggle }) =
                   {!isCollapsed ? <PanelLeftClose /> : <PanelLeftOpen />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="right">{isCollapsed ? '開啟側邊欄' : '關閉側邊欄'}</TooltipContent>
+              <TooltipContent side="right">{isCollapsed ? t('openSidebar') : t('closeSidebar')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -46,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className, isCollapsed, onToggle }) =
                       <PlusCircle />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>新增</TooltipContent>
+                  <TooltipContent>{t('add')}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>

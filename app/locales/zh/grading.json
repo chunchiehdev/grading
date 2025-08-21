@@ -38,6 +38,43 @@
   "gradedAt": "評分時間",
   "gradedBy": "評分者",
   "duration": "評分時長",
+  "pdfViewer": {
+    "noFile": "無可預覽的檔案",
+    "loading": "正在載入 PDF...",
+    "previousPage": "上一頁",
+    "nextPage": "下一頁",
+    "rotate": "旋轉 90 度"
+  },
+  "result": {
+    "criteriaItem": "評分項目 {{index}}",
+    "scorePoints": "{{score}} 分",
+    "overallFeedback": "整體評分回饋",
+    "criteriaDetails": "評分項目詳情",
+    "noCriteria": "無詳細評分項目",
+    "noFeedback": "無額外回饋"
+  },
+  "resultCard": {
+    "noResults": "沒有評分結果",
+    "rubric": "評分標準：{{name}}",
+    "grades": {
+      "excellent": "優異",
+      "good": "優良",
+      "satisfactory": "良好",
+      "acceptable": "尚可",
+      "needsImprovement": "需改進"
+    }
+  },
+  "structuredFeedback": {
+    "overallEvaluation": "總體評價",
+    "strengths": "表現優點",
+    "improvements": "改進重點",
+    "nextSteps": "下一步建議",
+    "itemCount": "{{count}} 項",
+    "summary": "總評",
+    "strengthsCount": "優點 ({{count}})",
+    "improvementsCount": "改進 ({{count}})",
+    "suggestions": "建議"
+  },
   "progress": {
     "uploading": "正在上傳檔案...",
     "processing": "正在處理文件...",
@@ -85,5 +122,117 @@
     "saveError": "儲存評分結果時發生錯誤",
     "exportSuccess": "結果已匯出",
     "exportError": "匯出結果時發生錯誤"
+  },
+  "feedbackUi": {
+    "empty": {
+      "title": "尚無可用回饋",
+      "subtitle": "評分完成後將提供回饋內容。"
+    },
+    "features": {
+      "detailedFeedback": "詳細回饋",
+      "detailedFeedbackDesc": "取得針對作品的完整回饋",
+      "gradingCriteria": "評分標準",
+      "gradingCriteriaDesc": "了解作品的評估方式",
+      "suggestions": "建議",
+      "suggestionsDesc": "獲得可執行的改進建議"
+    }
+  },
+  "fileUpload": {
+    "dropAreaText": "拖放檔案至此或點擊上傳",
+    "selectFiles": "選擇檔案",
+    "supportedFormats": "支援 {formats}，最大 {size}",
+    "uploadComplete": "上傳完成",
+    "uploadFailed": "上傳失敗",
+    "retryUpload": "重試上傳",
+    "retryAttempt": "(第 {count} 次嘗試)",
+    "errors": {
+      "fileSizeExceeded": "檔案 {fileName} 超過大小限制 {maxSize}",
+      "unsupportedFileType": "不支援的檔案類型: {fileExt}",
+      "tooManyFiles": "最多只能上傳 {maxFiles} 個檔案",
+      "uploadFailed": "上傳失敗"
+    }
+  },
+  "emptyGradingState": {
+    "title": "尚未開始評分",
+    "restartGrading": "重新開始評分",
+    "steps": {
+      "check": {
+        "title": "檢查文件內容",
+        "description": "系統分析上傳文件的內容和圖片"
+      },
+      "grade": {
+        "title": "應用評分標準",
+        "description": "根據選擇的評分標準進行評分"
+      },
+      "feedback": {
+        "title": "生成評價回饋",
+        "description": "提供詳細評分和改進建議"
+      }
+    }
+  },
+  "filePreview": {
+    "noFileSelected": "尚未選擇檔案",
+    "loadingPdf": "Loading PDF…",
+    "pdfPlaceholder": "選擇的 PDF 將顯示在此處",
+    "pdfOnlySupported": "目前僅支援 PDF 預覽",
+    "hideThumbnails": "隱藏縮圖",
+    "showThumbnails": "顯示縮圖",
+    "loading": "Loading…",
+    "loadingPage": "Loading page…",
+    "pageTitle": "第 {page} 頁",
+    "pageCounter": "Page {current} of {total}"
+  },
+  "fullScreenPdf": {
+    "noPreviewFile": "無可預覽的檔案",
+    "loadingPdf": "Loading PDF…",
+    "loading": "Loading…",
+    "previousPage": "上一頁",
+    "nextPage": "下一頁",
+    "rotate": "旋轉 90 度"
+  },
+  "gradingProgress": {
+    "phases": {
+      "check": {
+        "title": "檢查輸入",
+        "description": "正在檢查作業格式與內容完整性...",
+        "status": "檢查中..."
+      },
+      "grade": {
+        "title": "批改作業",
+        "description": "正在進行作業評分與分析...",
+        "status": "批改中..."
+      },
+      "verify": {
+        "title": "檢查過程",
+        "description": "正在驗證評分結果...",
+        "status": "驗證中..."
+      }
+    },
+    "error": "評分過程發生錯誤，請稍後再試",
+    "defaultTitle": "準備中",
+    "defaultDescription": "正在初始化...",
+    "defaultStatus": "處理中...",
+    "timeRemaining": "預估剩餘時間: {seconds}秒"
+  },
+  "resultDisplay": {
+    "noFeedback": "無額外回饋",
+    "overallFeedback": "整體評分回饋",
+    "criteriaDetails": "評分項目詳情",
+    "defaultCriteriaName": "評分項目 {index}",
+    "scoreUnit": "分",
+    "noCriteriaDetails": "無詳細評分項目"
+  },
+  "resultCardList": {
+    "noResults": "沒有評分結果",
+    "expandAll": "展開全部",
+    "collapseAll": "摺疊全部",
+    "rubricLabel": "評分標準: {rubricName}",
+    "gradeLabels": {
+      "excellent": "優異",
+      "good": "優良",
+      "satisfactory": "良好",
+      "acceptable": "尚可",
+      "needsImprovement": "需改進"
+    }
   }
 }

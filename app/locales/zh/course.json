@@ -4,14 +4,17 @@
   "courses": "課程",
   "new": "新增課程",
   "create": "建立課程",
+  "createSubtitle": "為您的學生設立新課程",
+  "courseInfo": "課程資訊",
+  "createDescription": "提供您課程的基本資訊。您可以稍後新增作業區域。",
+  "namePlaceholder": "例如：計算機概論",
+  "descriptionPlaceholder": "描述此課程的內容以及對學生的重要資訊...",
   "delete": "刪除課程",
   "manage": "管理課程",
-  "join": "加入課程",
   "leave": "退出課程",
   "name": "課程名稱",
   "code": "課程代碼",
   "description": "課程描述",
-  "instructor": "授課教師",
   "students": "學生",
   "assignments": "作業",
   "schedule": "課程時間",
@@ -33,6 +36,7 @@
   "roster": "點名簿",
   "statistics": "統計資料",
   "joinCode": "加入代碼",
+  "generateCode": "產生代碼",
   "copyCode": "複製代碼",
   "enterCode": "輸入代碼",
   "courseInvitation": {
@@ -107,12 +111,49 @@
     "deleteConfirm": "確定要刪除此課程嗎？此操作無法復原。",
     "leaveConfirm": "確定要退出此課程嗎？"
   },
+  "myCourses": "我的課程",
+  "noCoursesJoined": "您還沒有加入任何課程",
+  "enrolledInCourses_one": "您已註冊 {{count}} 門課程",
+  "enrolledInCourses_other": "您已註冊 {{count}} 門課程",
+  "instructor": "授課教師：{{name}}",
+  "joined": "於 {{date}} 加入",
+  "activeCourse": "進行中的課程",
+  "viewAssignments": "查看作業",
+  "browseContent": "瀏覽內容",
+  "joinCourse": {
+    "title": "加入課程",
+    "subtitle": "您受邀加入課程",
+    "invalidTitle": "無效邀請",
+    "invalidSubtitle": "您嘗試使用的邀請碼無效",
+    "notValid": "邀請無效",
+    "courseInfo": "課程資訊",
+    "contactTeacher": "請聯繫您的老師獲取新的邀請碼。",
+    "returnToDashboard": "返回儀表板",
+    "alreadyEnrolledTitle": "已加入課程",
+    "alreadyEnrolledSubtitle": "您已經是此課程的成員",
+    "alreadyEnrolled": "您已加入課程！",
+    "alreadyMember": "您已經是此課程的成員，可以存取所有作業。",
+    "goToDashboard": "前往儀表板",
+    "invitation": "課程邀請",
+    "reviewDetails": "請查看下方課程詳情並點擊「加入課程」進行註冊。",
+    "roleNote": "您目前以{{role}}身份登入。課程註冊通常適用於學生，但如需要您仍可加入。",
+    "whatHappens": "加入後會發生什麼？",
+    "benefits": {
+      "enrolled": "您將註冊此課程",
+      "viewSubmit": "您可以查看和提交作業",
+      "aiGrading": "您將收到 AI 驅動的評分和回饋",
+      "codeUsed": "邀請碼將標記為已使用"
+    },
+    "joinCourse": "加入課程"
+  },
   "stats": {
     "totalRubrics": "總評分標準",
     "totalGradings": "總評分次數",
     "totalSubmissions": "總提交次數",
     "assignmentAreas": "已派發的作業",
     "totalCourses": "總課程數",
+    "totalAssignments": "總作業數",
+    "recentlyJoined": "最近加入",
     "avgScore": "平均分數",
     "completionRate": "完成率",
     "pendingGrading": "待評分",
@@ -127,13 +168,7 @@
     "save": "儲存",
     "cancel": "關閉"
   },
-  "emptyState": {
-    "noInvitationCode": "還沒建立邀請碼",
-    "noInvitationCodeDescription": "建立邀請碼讓學生加入課程。邀請碼將有效期為 7 天，可透過 QRCode 進行加入。",
-    "noAssignments": "還沒有作業",
-    "noAssignmentsDescription": "請建立作業區以組織學生提交並應用評分標準。"
-  },
-  "settings": {
+  "setting": {
     "title": "課程設定",
     "description": "修改課程的設定",
     "courseName": "課程名稱",
@@ -155,6 +190,19 @@
     "clearSearch": "清除搜尋"
   },
   "emptyState": {
+    "title": "還沒有課程",
+    "description": "開始加入您的第一門課程。請向老師索取邀請碼或 QR Code。",
+    "howToJoin": "如何加入課程",
+    "steps": {
+      "getCode": "向您的老師索取邀請碼",
+      "scanQR": "掃描提供的 QR Code",
+      "visitLink": "點擊邀請連結",
+      "contactTeacher": "聯繫您的老師尋求協助"
+    },
+    "noInvitationCodeDescription": "建立邀請碼讓學生加入課程。邀請碼將有效期為 7 天，可透過 QRCode 進行加入。",
+    "noInvitationCode": "還沒建立邀請碼",
+    "noAssignments": "還沒有作業",
+    "noAssignmentsDescription": "請建立作業區以組織學生提交並應用評分標準。",
     "noCoursesYet": {
       "title": "還沒有課程",
       "description": "建立您的第一個課程，開始組織作業和管理學生。",

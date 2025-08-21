@@ -6,6 +6,7 @@ import { Upload, X, File, AlertCircle, FileUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { useTranslation } from 'react-i18next';
 
 // Helper function to format file size
 const formatFileSize = (bytes: number): string => {
@@ -31,6 +32,7 @@ export const CompactFileUpload = ({
   onError,
   onUploadComplete,
 }: FileUploadProps) => {
+  const { t } = useTranslation('grading');
   // Track notification to avoid duplicate callbacks per upload
   const [notified, setNotified] = useState<boolean>(false);
 
@@ -59,12 +61,12 @@ export const CompactFileUpload = ({
   const validateFile = useCallback(
     (file: File): string | null => {
       if (file.size > maxFileSize) {
-        return `檔案 ${file.name} 超過大小限制 ${formatFileSize(maxFileSize)}`;
+        return t('fileUpload.errors.fileSizeExceeded', { fileName: file.name, maxSize: formatFileSize(maxFileSize) });
       }
 
       const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
       if (!acceptedFileTypes.includes(fileExt)) {
-        return `不支援的檔案類型: ${fileExt}`;
+        return t('fileUpload.errors.unsupportedFileType', { fileExt });
       }
 
       return null;
@@ -83,7 +85,7 @@ export const CompactFileUpload = ({
       // Only count active (non-error) files against the max to allow retrying after failure
       const activeCount = safeUploadedFiles.filter((f: any) => f?.status !== 'error').length;
       if (activeCount + safeNewFiles.length > maxFiles) {
-        setError(`最多只能上傳 ${maxFiles} 個檔案`);
+        setError(t('fileUpload.errors.tooManyFiles', { maxFiles }));
         return;
       }
 
@@ -99,7 +101,7 @@ export const CompactFileUpload = ({
         await uploadFiles(safeNewFiles);
         onFilesChange?.(safeNewFiles);
       } catch (err: any) {
-        const errorMsg = err?.message || '上傳失敗';
+        const errorMsg = err?.message || t('fileUpload.errors.uploadFailed');
         setError(errorMsg);
         onError?.(errorMsg);
       }
@@ -184,7 +186,7 @@ export const CompactFileUpload = ({
             <p className="text-sm font-medium">{displayError}</p>
             {isRetryable && retryCount < 3 && (
               <button onClick={handleRetry} className="mt-2 text-xs underline hover:no-underline" disabled={isUploading}>
-                重試上傳 {retryCount > 0 && `(第 ${retryCount + 1} 次嘗試)`}
+                {t('fileUpload.retryUpload')} {retryCount > 0 && t('fileUpload.retryAttempt', { count: retryCount + 1 })}
               </button>
             )}
           </div>
@@ -213,8 +215,8 @@ export const CompactFileUpload = ({
           <Upload className="h-6 w-6" />
         </div>
         <div className="text-center">
-          <p className="text-sm font-medium">拖放檔案至此或點擊上傳</p>
-          <p className="text-xs text-muted-foreground mt-1">支援 {acceptedFileTypes.join(', ')}，最大 {formatFileSize(maxFileSize)}</p>
+          <p className="text-sm font-medium">{t('fileUpload.dropAreaText')}</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('fileUpload.supportedFormats', { formats: acceptedFileTypes.join(', '), size: formatFileSize(maxFileSize) })}</p>
         </div>
         <input
           type="file"
@@ -230,7 +232,7 @@ export const CompactFileUpload = ({
         />
         <Button asChild variant="outline" size="sm" disabled={isUploading}>
           <label htmlFor="file-upload-input" className="cursor-pointer">
-            <FileUp className="h-4 w-4 mr-2" /> 選擇檔案
+            <FileUp className="h-4 w-4 mr-2" /> {t('fileUpload.selectFiles')}
           </label>
         </Button>
       </div>
@@ -261,12 +263,12 @@ export const CompactFileUpload = ({
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-foreground truncate">{fileData.file.name}</p>
                       {fileData.status === 'success' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-medium">上傳完成</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium">{t('fileUpload.uploadComplete')}</span>
                       )}
                       {fileData.status === 'error' && (
                         <div className="flex items-center gap-1">
                           <AlertCircle className="w-3 h-3 text-destructive" />
-                          <span className="text-xs text-destructive font-medium">{fileData.error || '上傳失敗'}</span>
+                          <span className="text-xs text-destructive font-medium">{fileData.error || t('fileUpload.uploadFailed')}</span>
                         </div>
                       )}
                     </div>

@@ -7,6 +7,7 @@ import { Search, PenLine, CheckCircle2, Loader2, AlertTriangle } from 'lucide-re
 import { Badge } from '@/components/ui/badge';
 import type { GradingStatus, GradingProgress as GradingProgressType } from '@/types/rubric';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface GradingProgressProps {
   phase: 'check' | 'grade' | 'verify' | 'completed' | 'error';
@@ -27,37 +28,42 @@ interface GradingStep {
   estimatedTime: number;
 }
 
-const GRADING_STEPS: GradingStep[] = [
-  {
-    id: 'check',
-    label: '檢查輸入',
-    icon: Search,
-    description: '正在檢查作業格式與內容完整性...',
-    progressText: '檢查中...',
-    estimatedTime: 3,
-  },
-  {
-    id: 'grade',
-    label: '批改作業',
-    icon: PenLine,
-    description: '正在進行作業評分與分析...',
-    progressText: '批改中...',
-    estimatedTime: 10,
-  },
-  {
-    id: 'verify',
-    label: '檢查過程',
-    icon: CheckCircle2,
-    description: '正在驗證評分結果...',
-    progressText: '驗證中...',
-    estimatedTime: 2,
-  },
-];
 
 export function GradingProgress({
   initialProgress = 0,
   phase = 'check',
   message,
+  // Add translation hook
+}) {
+  const { t } = useTranslation('grading');
+  
+  const GRADING_STEPS: GradingStep[] = [
+    {
+      id: 'check',
+      label: t('gradingProgress.phases.check.title'),
+      icon: Search,
+      description: t('gradingProgress.phases.check.description'),
+      progressText: t('gradingProgress.phases.check.status'),
+      estimatedTime: 3,
+    },
+    {
+      id: 'grade',
+      label: t('gradingProgress.phases.grade.title'),
+      icon: PenLine,
+      description: t('gradingProgress.phases.grade.description'),
+      progressText: t('gradingProgress.phases.grade.status'),
+      estimatedTime: 10,
+    },
+    {
+      id: 'verify',
+      label: t('gradingProgress.phases.verify.title'),
+      icon: CheckCircle2,
+      description: t('gradingProgress.phases.verify.description'),
+      progressText: t('gradingProgress.phases.verify.status'),
+      estimatedTime: 2,
+    },
+  ];
+
   className,
   onStepComplete,
   onProgressUpdate,
@@ -110,7 +116,7 @@ export function GradingProgress({
 
   useEffect(() => {
     if (phase === 'error') {
-      setError('評分過程發生錯誤，請稍後再試');
+      setError(t('gradingProgress.error'));
     } else {
       setError(null);
     }
@@ -161,12 +167,12 @@ export function GradingProgress({
                   animate={{ opacity: 1, x: 0 }}
                   key={GRADING_STEPS[currentStep]?.label}
                 >
-                  {GRADING_STEPS[currentStep]?.label || '準備中'}
+                  {GRADING_STEPS[currentStep]?.label || t('gradingProgress.defaultTitle')}
                 </motion.h3>
               </motion.div>
               {timeRemaining !== null && (
                 <motion.span className="text-sm text-gray-500" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                  預估剩餘時間: {timeRemaining}秒
+                  {t('gradingProgress.timeRemaining', { seconds: timeRemaining })}
                 </motion.span>
               )}
             </div>

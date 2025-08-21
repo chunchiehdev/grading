@@ -7,6 +7,7 @@
   "create": "Create",
   "confirm": "Confirm",
   "back": "Back",
+  "backToDashboard": "Back to Dashboard",
   "next": "Next",
   "previous": "Previous",
   "submit": "Submit",
@@ -73,5 +74,27 @@
   "mode": "Mode",
   "light": "Light",
   "dark": "Dark",
-  "auto": "Auto"
+  "auto": "Auto",
+  "add": "Add",
+  "clear": "Clear",
+  "pick": "Pick",
+  "clickToEdit": "Click to edit...",
+  "openSidebar": "Open sidebar",
+  "closeSidebar": "Close sidebar",
+  "thanks": "Thanks",
+  "pickDate": "Pick a date",
+  "noDate": "No date selected",
+  "score": "Score",
+  "points": "points",
+  "completed": "completed",
+  "item": "item",
+  "items": "items",
+  "expand": "Expand",
+  "collapse": "Collapse",
+  "expandAll": "Expand All",
+  "collapseAll": "Collapse All",
+  "notFound": {
+    "message": "Looks like you've ventured into the unknown digital realm."
+  },
+  "returnHome": "Return to website"
 }

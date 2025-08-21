@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, Target, ArrowRight, FileText } from 'lucide-react'
 import { Markdown } from '@/components/ui/markdown'
+import { useTranslation } from 'react-i18next'
 
 import { OverallFeedbackStructured } from '@/types/grading';
 
@@ -12,6 +13,8 @@ interface StructuredFeedbackProps {
 
 
 export function StructuredFeedback({ feedback, className }: StructuredFeedbackProps) {
+    const { t } = useTranslation('grading');
+    
     if (typeof feedback === 'string') {
         return (
             <div className={className}>
@@ -29,7 +32,7 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
                     <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
                             <FileText className="h-4 w-4 text-muted-foreground" />
-                            總體評價
+                            {t('structuredFeedback.overallEvaluation')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -43,9 +46,9 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
                     <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
                             <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                            表現優點
+                            {t('structuredFeedback.strengths')}
                         </CardTitle>
-                        <Badge variant="secondary">{documentStrengths.length} 項</Badge>
+                        <Badge variant="secondary">{t('structuredFeedback.itemCount', { count: documentStrengths.length })}</Badge>
                     </CardHeader>
                     <CardContent>
                         <ul className="space-y-2 pl-5 list-disc">
@@ -64,9 +67,9 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
                     <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
                             <Target className="h-4 w-4 text-muted-foreground" />
-                            改進重點
+                            {t('structuredFeedback.improvements')}
                         </CardTitle>
-                        <Badge variant="secondary">{keyImprovements.length} 項</Badge>
+                        <Badge variant="secondary">{t('structuredFeedback.itemCount', { count: keyImprovements.length })}</Badge>
                     </CardHeader>
                     <CardContent>
                         <ul className="space-y-2 pl-5 list-disc">
@@ -85,7 +88,7 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
                     <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
                         <CardTitle className="text-sm font-medium flex items-center gap-2">
                             <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                            下一步建議
+                            {t('structuredFeedback.nextSteps')}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -101,6 +104,8 @@ export function StructuredFeedback({ feedback, className }: StructuredFeedbackPr
 
 
 export function CompactStructuredFeedback({ feedback, className }: StructuredFeedbackProps) {
+    const { t } = useTranslation('grading');
+    
     if (typeof feedback === 'string') {
         return (
             <div className={className}>
@@ -115,7 +120,7 @@ export function CompactStructuredFeedback({ feedback, className }: StructuredFee
         <div className={`space-y-3 ${className || ''}`}>
             {summary && (
                 <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
-                    <strong>總評：</strong> {summary}
+                    <strong>{t('structuredFeedback.summary')}:</strong> {summary}
                 </div>
             )}
 
@@ -123,7 +128,7 @@ export function CompactStructuredFeedback({ feedback, className }: StructuredFee
                 <div>
                     <h5 className="text-sm font-medium mb-2 flex items-center gap-1">
                         <CheckCircle className="h-3 w-3 text-muted-foreground" />
-                        優點 ({documentStrengths.length})
+                        {t('structuredFeedback.strengthsCount', { count: documentStrengths.length })}
                     </h5>
                     <ul className="text-xs space-y-1 pl-5 list-disc">
                         {documentStrengths.map((strength, index) => (
@@ -139,7 +144,7 @@ export function CompactStructuredFeedback({ feedback, className }: StructuredFee
                 <div>
                     <h5 className="text-sm font-medium mb-2 flex items-center gap-1">
                         <Target className="h-3 w-3 text-muted-foreground" />
-                        改進 ({keyImprovements.length})
+                        {t('structuredFeedback.improvementsCount', { count: keyImprovements.length })}
                     </h5>
                     <ul className="text-xs space-y-1 pl-5 list-disc">
                         {keyImprovements.map((improvement, index) => (
@@ -153,7 +158,7 @@ export function CompactStructuredFeedback({ feedback, className }: StructuredFee
 
             {nextSteps && (
                 <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                    <strong>建議：</strong> {nextSteps}
+                    <strong>{t('structuredFeedback.suggestions')}:</strong> {nextSteps}
                 </div>
             )}
         </div>

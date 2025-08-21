@@ -1,31 +1,33 @@
 import React from 'react';
 import { FileText, ClipboardCheck, MessageCircle, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { useTranslation } from 'react-i18next';
 
 interface EmptyGradingStateProps {
   onRetry?: () => void;
 }
 
 export function EmptyGradingState({ onRetry }: EmptyGradingStateProps) {
+  const { t } = useTranslation('grading');
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
 
   const steps = [
     {
       icon: FileText,
-      title: '檢查文件內容',
-      description: '系統分析上傳文件的內容和圖片',
+      title: t('emptyGradingState.steps.check.title'),
+      description: t('emptyGradingState.steps.check.description'),
       color: 'group-hover:text-primary',
     },
     {
       icon: ClipboardCheck,
-      title: '應用評分標準',
-      description: '根據選擇的評分標準進行評分',
+      title: t('emptyGradingState.steps.grade.title'),
+      description: t('emptyGradingState.steps.grade.description'),
       color: 'group-hover:text-primary',
     },
     {
       icon: MessageCircle,
-      title: '生成評價回饋',
-      description: '提供詳細評分和改進建議',
+      title: t('emptyGradingState.steps.feedback.title'),
+      description: t('emptyGradingState.steps.feedback.description'),
       color: 'group-hover:text-primary',
     },
   ];
@@ -36,7 +38,7 @@ export function EmptyGradingState({ onRetry }: EmptyGradingStateProps) {
         <CardContent className="p-0">
           <div className="p-6 border-b border-border">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">尚未開始評分</h2>
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{t('emptyGradingState.title')}</h2>
               <div className="flex items-center gap-2">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
@@ -90,7 +92,7 @@ export function EmptyGradingState({ onRetry }: EmptyGradingStateProps) {
                   onClick={onRetry}
                   className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
-                  重新開始評分
+                  {t('emptyGradingState.restartGrading')}
                 </button>
               </div>
             )}

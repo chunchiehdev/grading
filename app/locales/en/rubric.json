@@ -64,7 +64,12 @@
       "3 points: Good performance meeting expectations", 
       "2 points: Satisfactory performance meeting basic requirements",
       "1 point: Performance needing improvement"
-    ]
+    ],
+    "selectCategory": "Select a category to view and add criteria.",
+    "noCriteria": "No criteria added yet. Click \"Add Criterion\" to add the first criterion.",
+    "noCriteriaTitle": "No criteria yet",
+    "noCriteriaDescription": "This rubric has not added any rating criteria yet",
+    "categoryNoCriteria": "This category has no criteria yet"
   },
   "aiAssistant": {
     "title": "AI Rubric Assistant",
@@ -79,7 +84,9 @@
     "generating": "Generating rubric...",
     "apply": "Apply this rubric",
     "regenerate": "Regenerate",
-    "error": "Error generating rubric, please try again"
+    "error": "Error generating rubric, please try again",
+    "generateStandards": "AI Generate Standards",
+    "confirmOverwrite": "Applying AI-generated rubric will overwrite existing content. Do you want to continue?"
   },
   "validation": {
     "nameRequired": "Rubric name is required",
@@ -87,7 +94,8 @@
     "criterionRequired": "Each category needs at least one criterion",
     "levelRequired": "Each criterion needs complete level descriptions",
     "pointsInvalid": "Points must be a positive number",
-    "weightInvalid": "Weight must be a number between 0-100"
+    "weightInvalid": "Weight must be a number between 0-100",
+    "completeRequired": "Please complete all required fields before saving"
   },
   "messages": {
     "saveSuccess": "Rubric saved successfully",
@@ -96,5 +104,82 @@
     "deleteError": "Error deleting rubric",
     "deleteConfirm": "Are you sure you want to delete this rubric? This action cannot be undone.",
     "errorLoading": "Error loading rubrics: "
-  }
+  },
+  "noCategories": "No categories yet",
+  "addCategoryDescription": "Add a new category to your rubric, for example: Content Quality, Communication, etc.",
+  "categoryNamePlaceholder": "e.g., Content Quality",
+  "form": {
+    "basicInfo": "Basic Information",
+    "rubricName": "Rubric Name",
+    "rubricNamePlaceholder": "e.g., Essay Grading Rubric",
+    "rubricDescription": "Description",
+    "rubricDescriptionPlaceholder": "Describe the purpose and scope of this rubric..."
+  },
+  "criterionCard": {
+    "criterionNamePlaceholder": "Criterion Name",
+    "criterionDescriptionPlaceholder": "Click to add criterion description...",
+    "levelStandards": "Level Standards",
+    "completedStatus": "{completed}/4 completed",
+    "levelDescriptionPlaceholder": "Describe Level {score} performance standards..."
+  },
+  "levelLabels": {
+    "4": "Excellent",
+    "3": "Good",
+    "2": "Satisfactory",
+    "1": "Needs Improvement"
+  },
+  "header": {
+    "backButton": "Back",
+    "editTitle": "Edit - {rubricName}",
+    "newRubricTitle": "New Rubric",
+    "previewButton": "Preview",
+    "updateButton": "Update",
+    "saveButton": "Save"
+  },
+  "preview": {
+    "dialogTitle": "Rubric Preview",
+    "exportButton": "Export",
+    "rubricDescription": "Rubric Description",
+    "gradingSummary": "Grading Summary",
+    "rubricStats": "Rubric Statistics",
+    "totalScore": "Total Score",
+    "levelCount": "Level Count",
+    "completionRate": "Completion Rate",
+    "criteriaLabel": "criteria",
+    "noCriteriaMessage": "This category has no criteria yet",
+    "maxScoreBadge": "Max 4 points",
+    "gradingLevels": "Grading Levels:",
+    "scoreSeparator": "points - ",
+    "noLevelDescription": "No description set for this level",
+    "emptyPreviewTitle": "Nothing to preview yet",
+    "emptyPreviewMessage": "Please add categories and criteria to see the preview"
+  },
+  "accordion": {
+    "levelLabel": "Level",
+    "criterionNamePlaceholder": "Criterion Name",
+    "criterionDescriptionPlaceholder": "Click to add criterion description...",
+    "levelDescriptionPlaceholder": "Describe Level {score} performance standards..."
+  },
+  "newRubricSubtitle": "Build a detailed rubric by defining categories and criteria.",
+  "newCategory": "Category {{number}}",
+  "newCriterion": "Criterion {{number}}",
+  "confirmDeleteCategoryWithCriteria": "Are you sure you want to delete the \"{{categoryName}}\" category? This will also delete its {{count}} criteria.",
+  "confirmDeleteCategory": "Are you sure you want to delete the \"{{categoryName}}\" category?",
+  "confirmDeleteCriterion": "Are you sure you want to delete the \"{{criterionName}}\" criterion?",
+  "confirmDeleteRubric": "Are you sure you want to delete \"{{rubricName}}\"? This action cannot be undone.",
+  "share": "Share",
+  "export": "Export",
+  "linkCopied": "Link copied to clipboard",
+  "cannotDeleteRubric": "Cannot delete rubric",
+  "totalCategories": "Rating Categories",
+  "totalCriteria": "Rating Criteria",
+  "basicInfo": "Basic Information",
+  "createdAt": "Created",
+  "updatedAt": "Updated",
+  "criteriaCount": "criteria",
+  "maxScore": "Max {{score}} points",
+  "maxPoints": "Max {{points}} points",
+  "gradingLevels": "Grading Levels:",
+  "noLevelDescription": "No description set for this level",
+  "startEditing": "Start Editing"
 }

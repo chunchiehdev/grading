@@ -1,0 +1,11 @@
+{
+  "title": "分析統計",
+  "subtitle": "課程、提交內容和評分標準概述",
+  "avgScorePerCourse": "每門課程平均分數",
+  "submissionStatus": "提交狀態",
+  "rubricUsage": "評分標準使用情況",
+  "usedInAssignments_one": "用於 {{count}} 個作業區",
+  "usedInAssignments_other": "用於 {{count}} 個作業區",
+  "avgScore": "平均分數：{{score}}",
+  "noRubrics": "沒有評分標準可顯示。"
+}

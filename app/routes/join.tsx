@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
+import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   user: { id: string; email: string; role: string; name: string };
@@ -89,12 +90,13 @@ export default function JoinCourse() {
   const { user, validation, invitationCode } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
   const [searchParams] = useSearchParams();
+  const { t } = useTranslation(['course', 'common']);
 
   const headerActions = (
     <Button asChild variant="outline">
       <Link to={user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard'}>
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Dashboard
+        {t('common:backToDashboard')}
       </Link>
     </Button>
   );
@@ -104,8 +106,8 @@ export default function JoinCourse() {
     return (
       <div>
         <PageHeader
-          title="Invalid Invitation"
-          subtitle="The invitation code you're trying to use is not valid"
+          title={t('course:joinCourse.invalidTitle')}
+          subtitle={t('course:joinCourse.invalidSubtitle')}
           actions={headerActions}
         />
 
@@ -115,7 +117,7 @@ export default function JoinCourse() {
               <div className="text-center py-8">
                 <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Invitation Not Valid
+                  {t('course:joinCourse.notValid')}
                 </h3>
                 <p className="text-gray-600 mb-6">
                   {validation.error}
@@ -124,13 +126,13 @@ export default function JoinCourse() {
                 {validation.course && (
                   <div className="bg-gray-50 rounded-lg p-4 mb-6">
                     <h4 className="font-medium text-gray-900 mb-2">
-                      Course Information
+                      {t('course:joinCourse.courseInfo')}
                     </h4>
                     <p className="text-sm text-gray-600">
-                      <strong>Course:</strong> {validation.course.name}
+                      <strong>{t('course:course')}:</strong> {validation.course.name}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <strong>Teacher:</strong> {validation.course.teacher.name} ({validation.course.teacher.email})
+                      <strong>{t('course:instructor')}:</strong> {validation.course.teacher.name} ({validation.course.teacher.email})
                     </p>
                     {validation.course.description && (
                       <p className="text-sm text-gray-600 mt-2">
@@ -142,12 +144,12 @@ export default function JoinCourse() {
 
                 <div className="space-y-3">
                   <p className="text-sm text-gray-500">
-                    Please contact your teacher to get a new invitation code.
+                    {t('course:joinCourse.contactTeacher')}
                   </p>
                   
                   <Button asChild className="w-full">
                     <Link to={user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard'}>
-                      Return to Dashboard
+                      {t('course:joinCourse.returnToDashboard')}
                     </Link>
                   </Button>
                 </div>
@@ -164,8 +166,8 @@ export default function JoinCourse() {
     return (
       <div>
         <PageHeader
-          title="Already Enrolled"
-          subtitle="You're already a member of this course"
+          title={t('course:joinCourse.alreadyEnrolledTitle')}
+          subtitle={t('course:joinCourse.alreadyEnrolledSubtitle')}
           actions={headerActions}
         />
 
@@ -175,10 +177,10 @@ export default function JoinCourse() {
               <div className="text-center py-8">
                 <CheckCircle className="mx-auto h-12 w-12 text-green-500 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  You're Already Enrolled!
+                  {t('course:joinCourse.alreadyEnrolled')}
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  You're already a member of this course and can access all assignments.
+                  {t('course:joinCourse.alreadyMember')}
                 </p>
 
                 {validation.course && (
@@ -190,7 +192,7 @@ export default function JoinCourse() {
                           {validation.course.name}
                         </h4>
                         <p className="text-sm text-green-700">
-                          <strong>Teacher:</strong> {validation.course.teacher.name}
+                          <strong>{t('course:instructor')}:</strong> {validation.course.teacher.name}
                         </p>
                         {validation.course.description && (
                           <p className="text-sm text-green-700 mt-1">
@@ -205,12 +207,12 @@ export default function JoinCourse() {
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button asChild className="flex-1">
                     <Link to="/student/assignments">
-                      View Assignments
+                      {t('course:viewAssignments')}
                     </Link>
                   </Button>
                   <Button asChild variant="outline" className="flex-1">
                     <Link to="/student/dashboard">
-                      Go to Dashboard
+                      {t('course:joinCourse.goToDashboard')}
                     </Link>
                   </Button>
                 </div>
@@ -226,8 +228,8 @@ export default function JoinCourse() {
   return (
     <div>
       <PageHeader
-        title="Join Course"
-        subtitle="You've been invited to join a course"
+        title={t('course:joinCourse.title')}
+        subtitle={t('course:joinCourse.subtitle')}
         actions={headerActions}
       />
 
@@ -236,10 +238,10 @@ export default function JoinCourse() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Course Invitation
+              {t('course:joinCourse.invitation')}
             </CardTitle>
             <CardDescription>
-              Review the course details below and click "Join Course" to enroll.
+              {t('course:joinCourse.reviewDetails')}
             </CardDescription>
           </CardHeader>
           
@@ -253,17 +255,17 @@ export default function JoinCourse() {
                 <div className="space-y-3">
                   <div className="flex items-center text-sm text-blue-700">
                     <User className="h-4 w-4 mr-2" />
-                    <span><strong>Teacher:</strong> {validation.course.teacher.name}</span>
+                    <span><strong>{t('course:instructor')}:</strong> {validation.course.teacher.name}</span>
                   </div>
                   
                   <div className="flex items-center text-sm text-blue-700">
-                    <span><strong>Email:</strong> {validation.course.teacher.email}</span>
+                    <span><strong>{t('course:student.email')}:</strong> {validation.course.teacher.email}</span>
                   </div>
                   
                   {validation.course.description && (
                     <div className="mt-4">
                       <p className="text-sm text-blue-700">
-                        <strong>Description:</strong>
+                        <strong>{t('course:description')}:</strong>
                       </p>
                       <p className="text-sm text-blue-600 mt-1 leading-relaxed">
                         {validation.course.description}
@@ -279,8 +281,7 @@ export default function JoinCourse() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Note:</strong> You're currently logged in as a {user.role.toLowerCase()}. 
-                  Course enrollment is typically for students, but you can still join if needed.
+                  <strong>{t('common:info')}:</strong> {t('course:joinCourse.roleNote', { role: user.role.toLowerCase() })}
                 </AlertDescription>
               </Alert>
             )}
@@ -299,24 +300,24 @@ export default function JoinCourse() {
               
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-2">
-                  What happens when you join?
+                  {t('course:joinCourse.whatHappens')}
                 </h4>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• You'll be enrolled in the course</li>
-                  <li>• You can view and submit assignments</li>
-                  <li>• You'll receive AI-powered grading and feedback</li>
-                  <li>• The invitation code will be marked as used</li>
+                  <li>• {t('course:joinCourse.benefits.enrolled')}</li>
+                  <li>• {t('course:joinCourse.benefits.viewSubmit')}</li>
+                  <li>• {t('course:joinCourse.benefits.aiGrading')}</li>
+                  <li>• {t('course:joinCourse.benefits.codeUsed')}</li>
                 </ul>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button asChild variant="outline" className="flex-1">
                   <Link to={user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard'}>
-                    Cancel
+                    {t('common:cancel')}
                   </Link>
                 </Button>
                 <Button type="submit" className="flex-1">
-                  Join Course
+                  {t('course:joinCourse.joinCourse')}
                 </Button>
               </div>
             </Form>

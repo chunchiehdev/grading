@@ -62,7 +62,7 @@ export default function StudentSubmissions() {
           </CardHeader>
           <CardContent>
             {!submissions || submissions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('submissions:teacherComments.noComments')}</p>
+              <p className="text-sm text-muted-foreground">{t('submissions:teacherComments.empty')}</p>
             ) : (
               <Table>
                 <TableHeader>

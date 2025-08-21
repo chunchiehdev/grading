@@ -63,5 +63,25 @@
     },
     "labels": {
         "rubricPrefix": "評分規準："
+    },
+    "submit": {
+        "uploadAssignment": "上傳作業",
+        "replaceFile": "更換檔案",
+        "reselectFile": "重新選擇檔案",
+        "analyzing": "分析中...",
+        "getAiFeedback": "取得 AI 回饋",
+        "rerunAiFeedback": "重新執行 AI 回饋",
+        "submitting": "提交中...",
+        "submitAssignment": "提交作業",
+        "pdfPreview": "PDF 預覽",
+        "errors": {
+            "failedToCheckStatus": "無法檢查批改狀態。",
+            "noFileOrRubric": "找不到檔案或評分規準。",
+            "parsingFailed": "檔案解析失敗。請上傳不同的檔案或稍後再試。",
+            "parsingTimeout": "解析時間超出預期。請稍後再試。",
+            "failedToStartGrading": "無法開始批改",
+            "noFileUploaded": "沒有上傳檔案。",
+            "failedToSubmit": "提交失敗"
+        }
     }
 }

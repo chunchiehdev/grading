@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Edit3, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface InlineEditProps {
   value: string;
@@ -17,13 +18,15 @@ interface InlineEditProps {
 
 export const InlineEdit = ({
   value,
-  placeholder = "點擊編輯...",
+  placeholder,
   multiline = false,
   className,
   onSave,
   onCancel,
   variant = 'body'
 }: InlineEditProps) => {
+  const { t } = useTranslation('common');
+  const defaultPlaceholder = placeholder || t('clickToEdit');
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
@@ -79,7 +82,7 @@ export const InlineEdit = ({
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleSave}
-          placeholder={placeholder}
+          placeholder={defaultPlaceholder}
           className={cn("flex-1", className)}
           rows={multiline ? 3 : undefined}
         />
@@ -111,7 +114,7 @@ export const InlineEdit = ({
       onClick={() => setIsEditing(true)}
     >
       <span className={cn("flex-1", !value && "text-muted-foreground italic")}>
-        {value || placeholder}
+        {value || defaultPlaceholder}
       </span>
       <Edit3 className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>

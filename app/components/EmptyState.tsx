@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Layout } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -17,6 +18,7 @@ export const EmptyState = ({
   actionLabel, 
   onAction 
 }: EmptyStateProps) => {
+  const { t } = useTranslation('common');
   return (
     <Card className="h-full">
       <CardContent className="flex flex-col items-center justify-center p-12 text-center">

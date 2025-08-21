@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Folder, Trash2 } from "lucide-react";
 import { InlineEdit } from "./InlineEdit";
 import { cn } from "@/lib/utils";
+import { useTranslation } from 'react-i18next';
 
 interface Category {
   id: string;
@@ -24,11 +25,12 @@ export const CategoryNav = ({
   onUpdateCategory,
   onDeleteCategory,
 }: CategoryNavProps) => {
+  const { t } = useTranslation('rubric');
   if (categories.length === 0) {
     return (
       <div className="p-6 text-center">
         <Folder className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-        <p className="text-sm text-muted-foreground">尚未新增類別</p>
+        <p className="text-sm text-muted-foreground">{t('noCategories')}</p>
       </div>
     );
   }
@@ -54,7 +56,7 @@ export const CategoryNav = ({
               <div className="break-words">
                 <InlineEdit
                   value={category.name}
-                  placeholder="類別名稱"
+                  placeholder={t('categoryName')}
                   variant="body"
                   onSave={(name) => onUpdateCategory(category.id, name)}
                 />

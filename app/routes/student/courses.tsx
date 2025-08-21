@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   student: { id: string; email: string; role: string; name: string };
@@ -26,12 +27,13 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
 export default function StudentCourses() {
   const { student, courses } = useLoaderData<typeof loader>();
+  const { t } = useTranslation(['course', 'common']);
 
   const headerActions = (
     <Button asChild variant="outline">
       <Link to="/student/dashboard">
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Dashboard
+        {t('common:backToDashboard')}
       </Link>
     </Button>
   );
@@ -40,30 +42,30 @@ export default function StudentCourses() {
   if (courses.length === 0) {
     return (
       <div className="bg-background text-foreground">
-        <PageHeader title="My Courses" subtitle="You haven't joined any courses yet" actions={headerActions} />
+        <PageHeader title={t('course:myCourses')} subtitle={t('course:noCoursesJoined')} actions={headerActions} />
 
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Card className="bg-card text-card-foreground border">
             <CardContent className="pt-6">
               <div className="text-center py-12">
                 <UserPlus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">No Courses Yet</h3>
+                <h3 className="text-lg font-medium text-foreground mb-2">{t('course:emptyState.title')}</h3>
                 <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  Get started by joining your first course. Ask your teacher for an invitation code or QR code.
+                  {t('course:emptyState.description')}
                 </p>
 
                 <div className="bg-muted rounded-lg p-4 mb-6 max-w-md mx-auto">
-                  <h4 className="font-medium text-foreground mb-2">How to Join a Course</h4>
+                  <h4 className="font-medium text-foreground mb-2">{t('course:emptyState.howToJoin')}</h4>
                   <ul className="text-sm text-muted-foreground space-y-1 text-left">
-                    <li>• Get an invitation code from your teacher</li>
-                    <li>• Scan a QR code if provided</li>
-                    <li>• Visit the invitation link</li>
-                    <li>• Contact your teacher for assistance</li>
+                    <li>• {t('course:emptyState.steps.getCode')}</li>
+                    <li>• {t('course:emptyState.steps.scanQR')}</li>
+                    <li>• {t('course:emptyState.steps.visitLink')}</li>
+                    <li>• {t('course:emptyState.steps.contactTeacher')}</li>
                   </ul>
                 </div>
 
                 <Button asChild>
-                  <Link to="/student/dashboard">Back to Dashboard</Link>
+                  <Link to="/student/dashboard">{t('common:backToDashboard')}</Link>
                 </Button>
               </div>
             </CardContent>
@@ -76,8 +78,8 @@ export default function StudentCourses() {
   return (
     <div className="bg-background text-foreground">
       <PageHeader
-        title="My Courses"
-        subtitle={`You're enrolled in ${courses.length} course${courses.length !== 1 ? 's' : ''}`}
+        title={t('course:myCourses')}
+        subtitle={t('course:enrolledInCourses', { count: courses.length })}
         actions={headerActions}
       />
 
@@ -89,7 +91,7 @@ export default function StudentCourses() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Courses</p>
+                    <p className="text-sm font-medium text-muted-foreground">{t('course:stats.totalCourses')}</p>
                     <p className="text-2xl font-bold text-foreground">{courses.length}</p>
                   </div>
                   <BookOpen className="h-8 w-8 text-primary" />
@@ -101,7 +103,7 @@ export default function StudentCourses() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Assignments</p>
+                    <p className="text-sm font-medium text-muted-foreground">{t('course:stats.totalAssignments')}</p>
                     <p className="text-2xl font-bold text-foreground">
                       {courses.reduce((total, course) => total + (course._count?.assignmentAreas || 0), 0)}
                     </p>
@@ -115,7 +117,7 @@ export default function StudentCourses() {
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Recently Joined</p>
+                    <p className="text-sm font-medium text-muted-foreground">{t('course:stats.recentlyJoined')}</p>
                     <p className="text-sm text-foreground">{courses[0]?.formattedEnrolledDate || 'N/A'}</p>
                   </div>
                   <Clock className="h-8 w-8 text-primary" />
@@ -141,6 +143,7 @@ interface CourseCardProps {
 }
 
 function CourseCard({ course }: CourseCardProps) {
+  const { t } = useTranslation(['course', 'common']);
   const enrolledDate = course.formattedEnrolledDate;
   const totalEnrollments = course._count?.enrollments || 0;
   const totalAssignments = course._count?.assignmentAreas || 0;
@@ -169,11 +172,11 @@ function CourseCard({ course }: CourseCardProps) {
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center p-3 bg-muted rounded-lg">
             <div className="text-xl font-bold text-primary">{totalAssignments}</div>
-            <div className="text-xs text-muted-foreground font-medium">Assignments</div>
+            <div className="text-xs text-muted-foreground font-medium">{t('course:assignments')}</div>
           </div>
           <div className="text-center p-3 bg-muted rounded-lg">
             <div className="text-xl font-bold text-primary">{totalEnrollments}</div>
-            <div className="text-xs text-muted-foreground font-medium">Students</div>
+            <div className="text-xs text-muted-foreground font-medium">{t('course:students')}</div>
           </div>
         </div>
 
@@ -181,12 +184,12 @@ function CourseCard({ course }: CourseCardProps) {
         <div className="space-y-2">
           <div className="flex items-center text-sm text-muted-foreground">
             <User className="w-4 h-4 mr-2" />
-            <span>Instructor: {course.teacher.name}</span>
+            <span>{t('course:instructor', { name: course.teacher.name })}</span>
           </div>
           {enrolledDate && (
             <div className="flex items-center text-sm text-muted-foreground">
               <Calendar className="w-4 h-4 mr-2" />
-              <span>Joined {enrolledDate}</span>
+              <span>{t('course:joined', { date: enrolledDate })}</span>
             </div>
           )}
         </div>
@@ -194,18 +197,18 @@ function CourseCard({ course }: CourseCardProps) {
         {/* Enrollment Status */}
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <Badge variant="secondary" className="text-xs">
-            Enrolled
+            {t('course:enrolled')}
           </Badge>
-          <span className="text-xs text-muted-foreground">Active Course</span>
+          <span className="text-xs text-muted-foreground">{t('course:activeCourse')}</span>
         </div>
 
         {/* Action Buttons */}
         <div className="flex space-x-2 pt-2">
           <Button asChild variant="outline" size="sm" className="flex-1">
-            <Link to={`/student/assignments`}>View Assignments</Link>
+            <Link to={`/student/assignments`}>{t('course:viewAssignments')}</Link>
           </Button>
           <Button asChild size="sm" className="flex-1">
-            <Link to={`/student/assignments`}>Browse Content</Link>
+            <Link to={`/student/assignments`}>{t('course:browseContent')}</Link>
           </Button>
         </div>
       </CardContent>

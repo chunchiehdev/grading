@@ -63,7 +63,7 @@ export default function StudentAssignments() {
                   </ul>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex justify-center gap-2">
                   <Button asChild variant="outline">
                     <Link to="/student/dashboard">
                       {t('emptyState.buttons.backToDashboard')}

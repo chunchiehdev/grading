@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Form, useActionData, redirect } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Plus, Sparkles, Eye, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -53,7 +54,7 @@ export const action = async ({ request }: { request: Request }) => {
 
     if (!validationResult.success) {
       console.error('Validation failed:', validationResult.error);
-      return Response.json({ error: '資料驗證失敗' });
+      return Response.json({ error: 'Validation failed' });
     }
 
     const { name, description, categoriesJson } = validationResult.data;
@@ -62,7 +63,7 @@ export const action = async ({ request }: { request: Request }) => {
     const userId = await getUserId(request);
     
     if (!userId) {
-      return Response.json({ error: '用戶未登入' });
+      return Response.json({ error: 'User not authenticated' });
     }
     
     const { createRubric } = await import('@/services/rubric.server');
@@ -77,20 +78,21 @@ export const action = async ({ request }: { request: Request }) => {
     
     if (!result.success) {
       console.error('Create rubric failed:', result.error);
-      return Response.json({ error: result.error || '創建評分標準失敗' });
+      return Response.json({ error: result.error || 'Failed to create rubric' });
     }
 
     return redirect('/teacher/rubrics');
   } catch (error) {
     console.error('Action error:', error);
     return Response.json({ 
-      error: error instanceof Error ? error.message : '處理請求時發生錯誤'
+      error: error instanceof Error ? error.message : 'Error processing request'
     });
   }
 };
 
 // Main Component
 export default function NewRubricRoute() {
+  const { t } = useTranslation(['rubric', 'common']);
   const actionData = useActionData<{ error?: string }>();
   
   const [rubricData, setRubricData] = useState<UIRubricData>({
@@ -120,7 +122,7 @@ export default function NewRubricRoute() {
   };
 
   const addCategory = (name?: string): string => {
-    const categoryName = name || `類別 ${rubricData.categories.length + 1}`;
+    const categoryName = name || t('rubric:newCategory', { number: rubricData.categories.length + 1 });
     const newCategory = createCategory(categoryName);
     
     setRubricData(prev => ({
@@ -148,8 +150,11 @@ export default function NewRubricRoute() {
     if (!category) return;
     
     const message = category.criteria.length > 0 
-      ? `確定要刪除「${category.name}」類別嗎？這將同時刪除其下的 ${category.criteria.length} 個評分標準。`
-      : `確定要刪除「${category.name}」類別嗎？`;
+      ? t('rubric:confirmDeleteCategoryWithCriteria', { 
+          categoryName: category.name, 
+          count: category.criteria.length 
+        })
+      : t('rubric:confirmDeleteCategory', { categoryName: category.name });
       
     if (!confirm(message)) return;
     
@@ -171,7 +176,7 @@ export default function NewRubricRoute() {
       return '';
     }
     
-    const criterionName = name || `標準 ${(selectedCategory?.criteria.length || 0) + 1}`;
+    const criterionName = name || t('rubric:newCriterion', { number: (selectedCategory?.criteria.length || 0) + 1 });
     const newCriterion = createCriterion(criterionName);
     
     setRubricData(prev => ({
@@ -210,7 +215,7 @@ export default function NewRubricRoute() {
     const criterion = selectedCategory?.criteria.find(c => c.id === criterionId);
     if (!criterion) return;
     
-    if (!confirm(`確定要刪除「${criterion.name}」評分標準嗎？`)) return;
+    if (!confirm(t('rubric:confirmDeleteCriterion', { criterionName: criterion.name }))) return;
     
     setRubricData(prev => ({
       ...prev,
@@ -251,7 +256,7 @@ export default function NewRubricRoute() {
 
   const handleSave = async () => {
     if (!canSave()) {
-      alert('請完成所有必填項目再儲存');
+      alert(t('rubric:validation.completeRequired'));
       return;
     }
     
@@ -266,7 +271,7 @@ export default function NewRubricRoute() {
 
   const handleApplyAIRubric = (aiRubric: UIRubricData) => {
     if (rubricData.categories.length > 0 || rubricData.name || rubricData.description) {
-      if (!confirm('套用 AI 生成的評分標準將會覆蓋現有內容，確定要繼續嗎？')) {
+      if (!confirm(t('rubric:aiAssistant.confirmOverwrite'))) {
         return;
       }
     }
@@ -293,17 +298,17 @@ export default function NewRubricRoute() {
   return (
     <div className="bg-background text-foreground">
       <PageHeader
-        title="Create New Rubric"
-        subtitle="Build a detailed rubric by defining categories and criteria."
+        title={t('rubric:header.newRubricTitle')}
+        subtitle={t('rubric:newRubricSubtitle')}
         actions={(
           <>
             <Button type="button" variant="outline" onClick={handlePreview}>
               <Eye className="w-4 h-4 mr-2" />
-              Preview
+              {t('common:preview')}
             </Button>
             <Button type="button" onClick={handleSave}>
               <Save className="w-4 h-4 mr-2" />
-              Save
+              {t('common:save')}
             </Button>
           </>
         )}
@@ -320,19 +325,19 @@ export default function NewRubricRoute() {
           <RubricForm
             data={{ name: rubricData.name, description: rubricData.description }}
             onChange={updateRubricForm}
-            title="Rubric Details"
+            title={t('rubric:form.basicInfo')}
           />
 
           {/* Card 2: Categories */}
           <Card className="bg-card text-card-foreground border">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg font-semibold">Categories</CardTitle>
+              <CardTitle className="text-lg font-semibold">{t('rubric:categories')}</CardTitle>
               <div className="flex items-center gap-2">
                 <Button type="button" variant="outline" onClick={() => setShowAIAssistant(true)}>
-                  <Sparkles className="w-4 h-4 mr-2" /> AI 生成標準
+                  <Sparkles className="w-4 h-4 mr-2" /> {t('rubric:aiAssistant.generateStandards')}
                 </Button>
                 <Button type="button" onClick={() => addCategory()}>
-                  <Plus className="w-4 h-4 mr-2" /> 新增類別
+                  <Plus className="w-4 h-4 mr-2" /> {t('rubric:addCategory')}
                 </Button>
               </div>
             </CardHeader>
@@ -351,18 +356,18 @@ export default function NewRubricRoute() {
           <Card className="bg-card text-card-foreground border">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-semibold">
-                {selectedCategory ? selectedCategory.name : 'Criteria'}
+                {selectedCategory ? selectedCategory.name : t('rubric:criteria')}
               </CardTitle>
               <Button onClick={() => addCriterion()} disabled={isLoading} type="button">
                 <Plus className="w-4 h-4 mr-2" />
-                新增標準
+                {t('rubric:addCriterion')}
               </Button>
             </CardHeader>
             <CardContent>
               {!selectedCategory ? (
-                <p className="text-muted-foreground">Select a category to view and add criteria.</p>
+                <p className="text-muted-foreground">{t('rubric:emptyState.selectCategory')}</p>
               ) : selectedCategory.criteria.length === 0 ? (
-                <p className="text-muted-foreground">尚未新增評分標準。點擊「新增標準」以新增第一個標準。</p>
+                <p className="text-muted-foreground">{t('rubric:emptyState.noCriteria')}</p>
               ) : (
                 <Accordion type="single" collapsible>
                   {selectedCategory.criteria.map((criterion) => (
@@ -402,7 +407,7 @@ export default function NewRubricRoute() {
       {/* Error Toast */}
       {actionData?.error && (
         <div className="fixed bottom-4 right-4 bg-destructive text-destructive-foreground px-6 py-3 rounded-lg shadow-lg z-50 max-w-md">
-          <div className="font-medium">儲存失敗</div>
+          <div className="font-medium">{t('rubric:messages.saveError')}</div>
           <div className="text-sm opacity-90 mt-1">{actionData.error}</div>
         </div>
       )}
@@ -413,7 +418,7 @@ export default function NewRubricRoute() {
           <div className="bg-background border rounded-lg p-6 shadow-lg">
             <div className="flex items-center gap-3">
               <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
-              <span>正在儲存評分標準...</span>
+              <span>{t('rubric:saving')}</span>
             </div>
           </div>
         </div>

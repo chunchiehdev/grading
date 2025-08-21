@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { FileText, FileType, PanelLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 export interface FilePreviewInfo {
   fileId?: string;
@@ -32,6 +33,7 @@ export function FilePreview({
   fileId?: string; // backward-compat convenience
   fileUrl?: string; // backward-compat convenience
 }) {
+  const { t } = useTranslation('grading');
   const [src, setSrc] = useState<File | { url: string } | string | null>(null);
   const [resolving, setResolving] = useState(false);
 
@@ -78,7 +80,7 @@ export function FilePreview({
   return (
     <div className="h-full flex flex-col">
       <div className="text-sm font-medium truncate mb-2 shrink-0" title={file?.fileName}>
-        {file?.fileName || '尚未選擇檔案'}
+        {file?.fileName || t('filePreview.noFileSelected')}
       </div>
       <div className="flex-1 min-h-0 border rounded-md overflow-hidden bg-background">
         {isPdf && src ? (
@@ -86,16 +88,16 @@ export function FilePreview({
         ) : (
           <div className="h-full w-full flex items-center justify-center text-muted-foreground gap-2">
             {resolving ? (
-              <span className="text-sm">Loading PDF…</span>
+              <span className="text-sm">{t('filePreview.loadingPdf')}</span>
             ) : isPdf ? (
               <>
                 <FileText className="w-5 h-5" />
-                <span className="text-sm">選擇的 PDF 將顯示在此處</span>
+                <span className="text-sm">{t('filePreview.pdfPlaceholder')}</span>
               </>
             ) : (
               <>
                 <FileType className="w-5 h-5" />
-                <span className="text-sm">目前僅支援 PDF 預覽</span>
+                <span className="text-sm">{t('filePreview.pdfOnlySupported')}</span>
               </>
             )}
           </div>
@@ -115,6 +117,7 @@ function ClientPdfViewer({
   src: File | { url: string } | string;
   isFullScreen?: boolean;
 }) {
+  const { t } = useTranslation('grading');
   const [mod, setMod] = useState<any>(null);
   const [isClient, setIsClient] = useState(false);
   const [numPages, setNumPages] = useState<number>(0);
@@ -207,7 +210,7 @@ function ClientPdfViewer({
   if (!isClient || !mod) {
     return (
       <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
-        Loading PDF…
+        {t('filePreview.loadingPdf')}
       </div>
     );
   }
@@ -264,7 +267,7 @@ function ClientPdfViewer({
               renderTextLayer={false}
               renderAnnotationLayer={false}
               className="shadow max-w-full"
-              loading={<div className="w-full h-40 flex items-center justify-center text-sm text-muted-foreground">Loading page…</div>}
+              loading={<div className="w-full h-40 flex items-center justify-center text-sm text-muted-foreground">{t('filePreview.loadingPage')}</div>}
             />
           </div>
         ) : (

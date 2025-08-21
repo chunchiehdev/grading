@@ -1,0 +1,11 @@
+{
+  "title": "Analytics",
+  "subtitle": "Overview of courses, submissions, and rubrics",
+  "avgScorePerCourse": "Average Score per Course",
+  "submissionStatus": "Submission Status",
+  "rubricUsage": "Rubric Usage",
+  "usedInAssignments_one": "Used in {{count}} assignment area",
+  "usedInAssignments_other": "Used in {{count}} assignment areas",
+  "avgScore": "Avg score: {{score}}",
+  "noRubrics": "No rubrics to display."
+}

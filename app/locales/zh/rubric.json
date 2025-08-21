@@ -65,7 +65,12 @@
       "2分：基本達到要求",
       "1分：需要改進的表現"
     ],
-    "action": "建立你的第一個評分標準"
+    "action": "建立你的第一個評分標準",
+    "selectCategory": "選擇一個類別來查看和新增評分標準。",
+    "noCriteria": "尚未新增評分標準。點擊「新增標準」以新增第一個標準。",
+    "noCriteriaTitle": "尚無評分標準",
+    "noCriteriaDescription": "此評分標準尚未新增任何評分項目",
+    "categoryNoCriteria": "此類別尚無評分標準"
   },
   "aiAssistant": {
     "title": "AI 評分標準助手",
@@ -80,7 +85,9 @@
     "generating": "正在生成評分標準...",
     "apply": "套用此評分標準",
     "regenerate": "重新生成",
-    "error": "生成評分標準時發生錯誤，請重試"
+    "error": "生成評分標準時發生錯誤，請重試",
+    "generateStandards": "AI 生成標準",
+    "confirmOverwrite": "套用 AI 生成的評分標準將會覆蓋現有內容，確定要繼續嗎？"
   },
   "validation": {
     "nameRequired": "標準名稱為必填",
@@ -88,7 +95,8 @@
     "criterionRequired": "每個類別至少需要一個評分項目",
     "levelRequired": "每個評分項目需要完整的等級描述",
     "pointsInvalid": "分數必須為正數",
-    "weightInvalid": "權重必須為 0-100 之間的數字"
+    "weightInvalid": "權重必須為 0-100 之間的數字",
+    "completeRequired": "請完成所有必填項目再儲存"
   },
   "messages": {
     "saveSuccess": "評分標準已成功儲存",
@@ -97,5 +105,82 @@
     "deleteError": "刪除評分標準時發生錯誤",
     "deleteConfirm": "確定要刪除此評分標準嗎？此操作無法復原。",
     "errorLoading": "載入評分標準時發生錯誤："
-  }
+  },
+  "noCategories": "尚未新增類別",
+  "addCategoryDescription": "為你的評分標準新增一個類別，例如：內容品質、表達能力等。",
+  "categoryNamePlaceholder": "例如：內容品質",
+  "form": {
+    "basicInfo": "基本資訊",
+    "rubricName": "評分標準名稱",
+    "rubricNamePlaceholder": "例如：流程圖評分標準",
+    "rubricDescription": "描述",
+    "rubricDescriptionPlaceholder": "描述這個評分標準的用途和適用場景..."
+  },
+  "criterionCard": {
+    "criterionNamePlaceholder": "標準名稱",
+    "criterionDescriptionPlaceholder": "點擊添加標準描述...",
+    "levelStandards": "等級標準",
+    "completedStatus": "{completed}/4 已完成",
+    "levelDescriptionPlaceholder": "描述 Level {score} 的表現標準..."
+  },
+  "levelLabels": {
+    "4": "優秀",
+    "3": "良好",
+    "2": "及格",
+    "1": "需改進"
+  },
+  "header": {
+    "backButton": "返回",
+    "editTitle": "編輯 - {rubricName}",
+    "newRubricTitle": "新評分標準",
+    "previewButton": "預覽",
+    "updateButton": "更新",
+    "saveButton": "儲存"
+  },
+  "preview": {
+    "dialogTitle": "評分標準預覽",
+    "exportButton": "導出",
+    "rubricDescription": "評分標準說明",
+    "gradingSummary": "評分概要",
+    "rubricStats": "評分標準",
+    "totalScore": "總分",
+    "levelCount": "等級數",
+    "completionRate": "完成度",
+    "criteriaLabel": "個標準",
+    "noCriteriaMessage": "此類別尚無評分標準",
+    "maxScoreBadge": "最高 4 分",
+    "gradingLevels": "評分等級：",
+    "scoreSeparator": "分 - ",
+    "noLevelDescription": "尚未設定此等級的描述",
+    "emptyPreviewTitle": "尚無內容可預覽",
+    "emptyPreviewMessage": "請先添加評分類別和標準來查看預覽"
+  },
+  "accordion": {
+    "levelLabel": "等級",
+    "criterionNamePlaceholder": "標準名稱",
+    "criterionDescriptionPlaceholder": "點擊添加標準描述...",
+    "levelDescriptionPlaceholder": "描述 Level {score} 的表現標準..."
+  },
+  "newRubricSubtitle": "透過定義類別和標準來建立詳細的評分標準。",
+  "newCategory": "類別 {{number}}",
+  "newCriterion": "標準 {{number}}",
+  "confirmDeleteCategoryWithCriteria": "確定要刪除「{{categoryName}}」類別嗎？這將同時刪除其下的 {{count}} 個評分標準。",
+  "confirmDeleteCategory": "確定要刪除「{{categoryName}}」類別嗎？",
+  "confirmDeleteCriterion": "確定要刪除「{{criterionName}}」評分標準嗎？",
+  "confirmDeleteRubric": "確定要刪除「{{rubricName}}」嗎？此操作無法復原。",
+  "share": "分享",
+  "export": "導出",
+  "linkCopied": "連結已複製到剪貼簿",
+  "cannotDeleteRubric": "無法刪除評分標準",
+  "totalCategories": "評分類別",
+  "totalCriteria": "評分標準",
+  "basicInfo": "基本資訊",
+  "createdAt": "建立時間",
+  "updatedAt": "更新時間",
+  "criteriaCount": "個標準",
+  "maxScore": "最高 {{score}} 分",
+  "maxPoints": "最高 {{points}} 分",
+  "gradingLevels": "評分等級：",
+  "noLevelDescription": "尚未設定此等級的描述",
+  "startEditing": "開始編輯"
 }

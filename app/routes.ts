@@ -85,9 +85,6 @@ export default [
   // Student Submission API
   route('/api/student/submit', './api/student/submit.ts'),
 
-  // Grading history routes
-  route('/grading-history', './routes/grading-history.tsx'),
-  route('/grading-history/:sessionId', './routes/grading-history/$sessionId.tsx'),
   route('/health', './routes/health.tsx'),
 
   // 404 route

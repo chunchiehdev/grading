@@ -274,7 +274,7 @@ export default function CourseDetail() {
                   <input type="hidden" name="intent" value="generate-invitation" />
                   <Button type="submit">
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Generate Invitation Code
+                    {t('course:courseInvitation.generateInvitationCode')}
                   </Button>
                 </Form>
               </div>

@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Trash2, ChevronDown } from 'lucide-react';
 import { InlineEdit } from './InlineEdit';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface Level {
   score: number;
@@ -28,12 +29,6 @@ interface CriterionItemAccordionProps {
   onUpdateLevel: (score: number, description: string) => void;
 }
 
-const LEVEL_LABELS: Record<number, string> = {
-  4: '優秀',
-  3: '良好',
-  2: '及格',
-  1: '需改進',
-};
 
 export function CriterionItemAccordion({
   criterion,
@@ -43,6 +38,7 @@ export function CriterionItemAccordion({
   onDelete,
   onUpdateLevel,
 }: CriterionItemAccordionProps) {
+  const { t } = useTranslation('rubric');
   const completedLevels = criterion.levels.filter((l) => l.description.trim()).length;
 
   return (
@@ -57,7 +53,7 @@ export function CriterionItemAccordion({
           <div className="min-w-0">
             <InlineEdit
               value={criterion.name}
-              placeholder="標準名稱"
+              placeholder={t('accordion.criterionNamePlaceholder')}
               variant="subtitle"
               onSave={(name) => onUpdate({ name })}
               className="truncate"
@@ -65,7 +61,7 @@ export function CriterionItemAccordion({
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="text-xs whitespace-nowrap">
-              {completedLevels}/4 等級
+              {completedLevels}/4 {t('accordion.levelLabel')}
             </Badge>
             <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
           </div>
@@ -86,7 +82,7 @@ export function CriterionItemAccordion({
         <div className="px-4 sm:px-6 pb-2">
           <InlineEdit
             value={criterion.description}
-            placeholder="點擊添加標準描述..."
+            placeholder={t('accordion.criterionDescriptionPlaceholder')}
             multiline
             onSave={(description) => onUpdate({ description })}
             className="mt-1.5"
@@ -103,13 +99,13 @@ export function CriterionItemAccordion({
                 <div className="flex items-center gap-2 w-40 shrink-0">
                   {/* <div className={cn('w-2.5 h-2.5 rounded-full', completed ? 'bg-primary' : 'bg-muted')} /> */}
                   <Badge variant="outline" className="text-xs whitespace-nowrap">
-                    {score} - {LEVEL_LABELS[score]}
+                    {score} - {t(`levelLabels.${score}`)}
                   </Badge>
                 </div>
                 <div className="flex-1 min-w-0">
                   <InlineEdit
                     value={description}
-                    placeholder={`描述 Level ${score} 的表現標準...`}
+                    placeholder={t('accordion.levelDescriptionPlaceholder', { score })}
                     multiline
                     onSave={(desc) => onUpdateLevel(score, desc)}
                   />

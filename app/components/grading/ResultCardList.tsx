@@ -7,6 +7,7 @@ import { GradingResultDisplay } from './GradingResultDisplay';
 import { type GradingResultData } from '@/types/grading';
 import { FileText, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface ResultCardItem {
   id: string;
@@ -21,6 +22,7 @@ interface ResultCardListProps {
 }
 
 export function ResultCardList({ results }: ResultCardListProps) {
+  const { t } = useTranslation(['grading', 'common']);
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
 
   const toggleExpand = (id: string) => {
@@ -45,7 +47,7 @@ export function ResultCardList({ results }: ResultCardListProps) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-        <p>沒有評分結果</p>
+        <p>{t('grading:resultCard.noResults')}</p>
       </div>
     );
   }
@@ -55,10 +57,10 @@ export function ResultCardList({ results }: ResultCardListProps) {
       <div className="flex items-center justify-between">
         <div className="flex space-x-2">
           <Button variant="outline" size="sm" onClick={expandAll}>
-            展開全部
+            {t('common:expandAll')}
           </Button>
           <Button variant="outline" size="sm" onClick={collapseAll}>
-            摺疊全部
+            {t('common:collapseAll')}
           </Button>
         </div>
       </div>
@@ -85,7 +87,7 @@ export function ResultCardList({ results }: ResultCardListProps) {
 
                     <div>
                       <CardTitle className="text-lg">{resultItem.fileName}</CardTitle>
-                      <p className="text-sm text-muted-foreground">評分標準: {resultItem.rubricName}</p>
+                      <p className="text-sm text-muted-foreground">{t('grading:resultCard.rubric', { name: resultItem.rubricName })}</p>
                     </div>
                   </div>
 
@@ -113,14 +115,14 @@ export function ResultCardList({ results }: ResultCardListProps) {
                       className="min-w-16 justify-center"
                     >
                       {percentage >= 90
-                        ? '優異'
+                        ? t('grading:resultCard.grades.excellent')
                         : percentage >= 80
-                          ? '優良'
+                          ? t('grading:resultCard.grades.good')
                           : percentage >= 70
-                            ? '良好'
+                            ? t('grading:resultCard.grades.satisfactory')
                             : percentage >= 60
-                              ? '尚可'
-                              : '需改進'}
+                              ? t('grading:resultCard.grades.acceptable')
+                              : t('grading:resultCard.grades.needsImprovement')}
                     </Badge>
 
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">

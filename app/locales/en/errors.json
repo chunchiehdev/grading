@@ -1,0 +1,25 @@
+{
+  "validation": {
+    "required": "This field is required",
+    "invalid": "Invalid value",
+    "tooShort": "Too short",
+    "tooLong": "Too long",
+    "invalidEmail": "Invalid email address",
+    "invalidUrl": "Invalid URL",
+    "invalidDate": "Invalid date"
+  },
+  "system": {
+    "unknownError": "An unknown error occurred",
+    "networkError": "Network connection error",
+    "serverError": "Server error",
+    "notFound": "Not found",
+    "forbidden": "Access forbidden",
+    "unauthorized": "Unauthorized access"
+  },
+  "course": {
+    "joinFailed": "Failed to join course",
+    "invalidCode": "Invalid invitation code",
+    "codeExpired": "Invitation code has expired",
+    "alreadyEnrolled": "Already enrolled in this course"
+  }
+}

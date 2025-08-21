@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type ReactPdf = typeof import('react-pdf');
 
@@ -10,6 +11,7 @@ interface FullScreenPdfViewerProps {
 }
 
 export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfViewerProps) {
+  const { t } = useTranslation('grading');
   const [pdf, setPdf] = useState<ReactPdf | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [numPages, setNumPages] = useState(0);
@@ -44,10 +46,10 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
   }, [isClient, numPages]);
 
   if (!file && !fileUrl) {
-    return <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">無可預覽的檔案</div>;
+    return <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">{t('pdfViewer.noFile')}</div>;
   }
   if (!pdf || !isClient) {
-    return <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">Loading PDF…</div>;
+    return <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">{t('pdfViewer.loading')}</div>;
   }
 
   const Document = pdf.Document as any;
@@ -63,7 +65,7 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
               setNumPages(numPages);
               setPageNumber(1);
             }}
-            loading={<div className="text-muted-foreground">Loading…</div>}
+            loading={<div className="text-muted-foreground">{t('pdfViewer.loading')}</div>}
           >
             <Page
               pageNumber={pageNumber}
@@ -89,7 +91,7 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
                 className="p-1.5 rounded hover:bg-muted disabled:opacity-50 transition-colors"
                 onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
                 disabled={pageNumber <= 1}
-                aria-label="Previous page"
+                aria-label={t('pdfViewer.previousPage')}
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -101,7 +103,7 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
                 className="p-1.5 rounded hover:bg-muted disabled:opacity-50 transition-colors"
                 onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
                 disabled={pageNumber >= numPages}
-                aria-label="Next page"
+                aria-label={t('pdfViewer.nextPage')}
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -113,7 +115,7 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
                 type="button"
                 className="p-1.5 rounded hover:bg-muted transition-colors"
                 onClick={() => setRotation(r => (r + 90) % 360)}
-                aria-label="Rotate 90 degrees"
+                aria-label={t('pdfViewer.rotate')}
               >
                 <RotateCcw className="w-4 h-4" />
               </button>

@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   teacher: Promise<{ id: string; email: string; role: string }>;
@@ -138,41 +139,42 @@ function CourseForm({
   teacher: { id: string; email: string; role: string };
   actionData: ActionData | undefined;
 }) {
+  const { t } = useTranslation(['course', 'common']);
   const headerActions = (
     <Button asChild variant="outline">
       <a href="/teacher/dashboard">
         <ArrowLeft className="w-4 h-4 mr-2" />
-        返回儀表板
+        {t('common:backToDashboard')}
       </a>
     </Button>
   );
 
   return (
     <div>
-      <PageHeader title="建立課程" subtitle="為您的學生設立新課程" actions={headerActions} />
+      <PageHeader title={t('course:create')} subtitle={t('course:createSubtitle')} actions={headerActions} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>
           <CardHeader>
-            <CardTitle>課程資訊</CardTitle>
-            <CardDescription>提供您課程的基本資訊。您可以稍後新增作業區域。</CardDescription>
+            <CardTitle>{t('course:courseInfo')}</CardTitle>
+            <CardDescription>{t('course:createDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <Form method="post" className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">
-                  課程名稱 <span className="text-red-500">*</span>
+                  {t('course:name')} <span className="text-red-500">*</span>
                 </Label>
-                <Input id="name" name="name" required placeholder="例如：計算機概論" />
+                <Input id="name" name="name" required placeholder={t('course:namePlaceholder')} />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">課程描述</Label>
+                <Label htmlFor="description">{t('course:description')}</Label>
                 <Textarea
                   id="description"
                   name="description"
                   rows={4}
-                  placeholder="描述此課程的內容以及對學生的重要資訊..."
+                  placeholder={t('course:descriptionPlaceholder')}
                 />
               </div>
 
@@ -184,9 +186,9 @@ function CourseForm({
 
               <div className="flex justify-end space-x-4">
                 <Button asChild variant="outline">
-                  <a href="/teacher/dashboard">取消</a>
+                  <a href="/teacher/dashboard">{t('common:cancel')}</a>
                 </Button>
-                <Button type="submit">建立課程</Button>
+                <Button type="submit">{t('course:create')}</Button>
               </div>
             </Form>
           </CardContent>

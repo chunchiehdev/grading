@@ -1,17 +1,19 @@
 import { useNavigate, useSearchParams } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { t } = useTranslation('auth');
 
   const error = searchParams.get('error');
   const googleError =
     error === 'google-auth-unavailable'
-      ? 'Google 登入服務暫時無法使用'
+      ? t('loginPage.errors.googleAuthUnavailable')
       : error === 'google-auth-failed'
-        ? 'Google 登入失敗，請稍後再試'
+        ? t('loginPage.errors.googleAuthFailed')
         : null;
 
   return (
@@ -320,7 +322,7 @@ export default function LoginPage() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                <span>使用 Google 登入</span>
+                <span>{t('loginPage.signInWithGoogle')}</span>
               </button>
 
               {/* Divider */}
@@ -329,7 +331,7 @@ export default function LoginPage() {
                   <div className="w-full border-t border-gray-200"></div>
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white text-gray-500">或</span>
+                  <span className="px-4 bg-white text-gray-500">{t('loginPage.orDivider')}</span>
                 </div>
               </div>
 
@@ -342,7 +344,7 @@ export default function LoginPage() {
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                   </svg>
-                  <span>Apple ID</span>
+                  <span>{t('loginPage.appleIdButton')}</span>
                 </button>
 
                 <button
@@ -352,7 +354,7 @@ export default function LoginPage() {
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                   </svg>
-                  <span>Microsoft </span>
+                  <span>{t('loginPage.microsoftButton')}</span>
                 </button>
               </div>
             </div>
@@ -361,13 +363,13 @@ export default function LoginPage() {
             <div className="mt-16 text-center">
               <div className="flex items-center justify-center space-x-6 text-xs text-gray-400">
                 <a href="#" className="hover:text-gray-600 transition-colors">
-                  隱私政策
+                  {t('loginPage.footer.privacyPolicy')}
                 </a>
                 <a href="#" className="hover:text-gray-600 transition-colors">
-                  服務條款
+                  {t('loginPage.footer.termsOfService')}
                 </a>
                 <a href="#" className="hover:text-gray-600 transition-colors">
-                  支援
+                  {t('loginPage.footer.support')}
                 </a>
               </div>
             </div>

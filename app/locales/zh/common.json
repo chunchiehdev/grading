@@ -7,6 +7,7 @@
   "create": "建立",
   "confirm": "確認",
   "back": "返回",
+  "backToDashboard": "返回儀表板",
   "next": "下一步",
   "previous": "上一步",
   "submit": "提交",
@@ -73,5 +74,27 @@
   "mode": "模式",
   "light": "淺色",
   "dark": "深色",
-  "auto": "自動"
+  "auto": "自動",
+  "add": "新增",
+  "clear": "清除",
+  "pick": "選擇",
+  "clickToEdit": "點擊編輯...",
+  "openSidebar": "開啟側邊欄",
+  "closeSidebar": "關閉側邊欄",
+  "thanks": "感謝",
+  "pickDate": "選擇日期",
+  "noDate": "未選擇日期",
+  "score": "分數",
+  "points": "分",
+  "completed": "已完成",
+  "item": "項",
+  "items": "項目",
+  "expand": "展開",
+  "collapse": "摺疊",
+  "expandAll": "展開全部",
+  "collapseAll": "摺疊全部",
+  "notFound": {
+    "message": "看起來你來到了未知的數位領域。"
+  },
+  "returnHome": "返回網站首頁"
 }

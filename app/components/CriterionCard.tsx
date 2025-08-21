@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Trash2, GripVertical } from "lucide-react";
 import { InlineEdit } from "./InlineEdit";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 interface Level {
   score: number;
@@ -27,12 +28,6 @@ interface CriterionCardProps {
 }
 
 
-const LEVEL_LABELS = {
-  4: "優秀",
-  3: "良好", 
-  2: "及格",
-  1: "需改進"
-};
 
 export const CriterionCard = ({
   criterion,
@@ -42,6 +37,7 @@ export const CriterionCard = ({
   onDelete,
   onUpdateLevel
 }: CriterionCardProps) => {
+  const { t } = useTranslation('rubric');
   const completedLevels = criterion.levels.filter(l => l.description.trim()).length;
   
   return (
@@ -59,7 +55,7 @@ export const CriterionCard = ({
             <div className="flex-1">
               <InlineEdit
                 value={criterion.name}
-                placeholder="標準名稱"
+                placeholder={t('criterionCard.criterionNamePlaceholder')}
                 variant="subtitle"
                 onSave={(name) => onUpdate({ name })}
               />
@@ -84,7 +80,7 @@ export const CriterionCard = ({
         
         <InlineEdit
           value={criterion.description}
-          placeholder="點擊添加標準描述..."
+          placeholder={t('criterionCard.criterionDescriptionPlaceholder')}
           multiline
           className="mt-2"
           onSave={(description) => onUpdate({ description })}
@@ -94,9 +90,9 @@ export const CriterionCard = ({
       <CardContent className="pt-0">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium text-muted-foreground">等級標準</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">{t('criterionCard.levelStandards')}</h4>
             <div className="text-xs text-muted-foreground">
-              {completedLevels}/4 已完成
+              {t('criterionCard.completedStatus', { completed: completedLevels })}
             </div>
           </div>
           
@@ -122,14 +118,14 @@ export const CriterionCard = ({
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={cn("w-3 h-3 rounded-full flex-shrink-0", description ? "bg-primary" : "bg-muted")} />
                     <Badge variant="outline" className="text-xs whitespace-nowrap">
-                      {score} - {LEVEL_LABELS[score as keyof typeof LEVEL_LABELS]}
+                      {score} - {t(`levelLabels.${score}`)}
                     </Badge>
                   </div>
                   
                   <div className="flex-1 min-w-0">
                     <InlineEdit
                       value={description}
-                      placeholder={`描述 Level ${score} 的表現標準...`}
+                      placeholder={t('criterionCard.levelDescriptionPlaceholder', { score })}
                       multiline
                       onSave={(desc) => onUpdateLevel(score, desc)}
                     />

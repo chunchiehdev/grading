@@ -6,6 +6,7 @@ import { StatsCard } from '@/components/ui/stats-card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { requireTeacher } from '@/services/auth.server';
 import { getOverallTeacherStats, getCoursePerformance, getRubricUsage } from '@/services/analytics.server';
+import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   stats: Awaited<ReturnType<typeof getOverallTeacherStats>>;
@@ -44,10 +45,11 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function TeacherAnalytics() {
   const { stats, courses, rubrics, statusDistribution } = useLoaderData<typeof loader>();
+  const { t } = useTranslation(['analytics', 'common']);
 
   return (
     <div>
-      <PageHeader title="Analytics" subtitle="Overview of courses, submissions, and rubrics" />
+      <PageHeader title={t('analytics:title')} subtitle={t('analytics:subtitle')} />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* <StatsCard title="Total Courses" value={stats.totalCourses} variant="transparent" />
@@ -59,7 +61,7 @@ export default function TeacherAnalytics() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Average Score per Course</CardTitle>
+              <CardTitle>{t('analytics:avgScorePerCourse')}</CardTitle>
             </CardHeader>
             <CardContent style={{ height: 320 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -75,7 +77,7 @@ export default function TeacherAnalytics() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Submission Status</CardTitle>
+              <CardTitle>{t('analytics:submissionStatus')}</CardTitle>
             </CardHeader>
             <CardContent style={{ height: 320 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -95,19 +97,19 @@ export default function TeacherAnalytics() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Rubric Usage</CardTitle>
+            <CardTitle>{t('analytics:rubricUsage')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {rubrics.map((r) => (
                 <div key={r.id} className="rounded-lg border p-4">
                   <div className="font-medium">{r.name}</div>
-                  <div className="text-sm text-gray-600 mt-1">Used in {r.usageCount} assignment area{r.usageCount !== 1 ? 's' : ''}</div>
-                  <div className="text-sm text-gray-600">Avg score: {Number(r.averageScore.toFixed(1))}</div>
+                  <div className="text-sm text-gray-600 mt-1">{t('analytics:usedInAssignments', { count: r.usageCount })}</div>
+                  <div className="text-sm text-gray-600">{t('analytics:avgScore', { score: Number(r.averageScore.toFixed(1)) })}</div>
                 </div>
               ))}
               {rubrics.length === 0 && (
-                <div className="text-gray-600">No rubrics to display.</div>
+                <div className="text-gray-600">{t('analytics:noRubrics')}</div>
               )}
             </div>
           </CardContent>

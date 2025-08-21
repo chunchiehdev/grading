@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 // import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle, Loader2, ArrowLeft, Eye } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
+import { useTranslation } from 'react-i18next';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -34,6 +35,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 type State = 'idle' | 'ready' | 'grading' | 'completed' | 'error';
 
 export default function SubmitAssignment() {
+  const { t } = useTranslation(['assignment', 'grading', 'common']);
   const { assignment, draftSubmission } = useLoaderData<typeof loader>();
 
   // Initialize state from draft submission if available
@@ -134,14 +136,14 @@ export default function SubmitAssignment() {
           return true;
         }
         if (status === 'FAILED') {
-          setError('Grading failed. Please try again.');
+          setError(t('grading:messages.gradingFailed'));
           setState('error');
           return true;
         }
       }
       return false;
     } catch {
-      setError('Failed to check grading status.');
+      setError(t('assignment:submit.errors.failedToCheckStatus'));
       setState('error');
       return true;
     }
@@ -205,7 +207,7 @@ export default function SubmitAssignment() {
 
   const getAIFeedback = async (currentFileId?: string) => {
     const fileToGrade = currentFileId || fileId;
-    if (!fileToGrade || !assignment.rubric?.id) return setError('No file or rubric found.');
+    if (!fileToGrade || !assignment.rubric?.id) return setError(t('assignment:submit.errors.noFileOrRubric'));
     
     setState('grading');
     setError(null);
@@ -214,10 +216,10 @@ export default function SubmitAssignment() {
       // Ensure server-side PDF/text parsing is done before grading
       const parseStatus = await waitForParse(fileToGrade);
       if (parseStatus === 'failed') {
-        throw new Error('File parsing failed. Please upload a different file or try again later.');
+        throw new Error(t('assignment:submit.errors.parsingFailed'));
       }
       if (parseStatus === 'timeout') {
-        throw new Error('Parsing is taking longer than expected. Please try again shortly.');
+        throw new Error(t('assignment:submit.errors.parsingTimeout'));
       }
 
       const form = new FormData();
@@ -243,13 +245,13 @@ export default function SubmitAssignment() {
       const startData = await startRes.json();
       if (!startData.success) throw new Error(startData.error);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start grading');
+      setError(err instanceof Error ? err.message : t('assignment:submit.errors.failedToStartGrading'));
       setState('error');
     }
   };
 
   const submitFinal = async () => {
-    if (!fileId || !sessionId) return setError('No file uploaded.');
+    if (!fileId || !sessionId) return setError(t('assignment:submit.errors.noFileUploaded'));
 
     setIsSubmitting(true);
     try {
@@ -263,7 +265,7 @@ export default function SubmitAssignment() {
       if (data.success && data.submissionId) window.location.href = `/student/submissions/${data.submissionId}`;
       else throw new Error(data.error);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit');
+      setError(err instanceof Error ? err.message : t('assignment:submit.errors.failedToSubmit'));
     } finally {
       setIsSubmitting(false);
     }
@@ -287,7 +289,7 @@ export default function SubmitAssignment() {
             <Button asChild variant="outline">
               <a href="/student/dashboard">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
+                {t('common:backToDashboard')}
               </a>
             </Button>
           </div>
@@ -304,7 +306,7 @@ export default function SubmitAssignment() {
                 <motion.div key="upload" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                   <Card>
                     <CardHeader>
-                      <CardTitle>上傳作業</CardTitle>
+                      <CardTitle>{t('assignment:submit.uploadAssignment')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onFilesChange={onLocalFilesChange} />
@@ -316,13 +318,13 @@ export default function SubmitAssignment() {
                   <Card className="h-full flex flex-col min-h-0">
                     <CardHeader className="flex-row items-center justify-between space-y-0">
                       <CardTitle className="truncate text-base">
-                        {uploadedMeta?.fileName || '預覽'}
+                        {uploadedMeta?.fileName || t('common:preview')}
                       </CardTitle>
                       <div className="flex items-center gap-2">
                         <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
-                          <Eye className="w-4 h-4 mr-2" /> 預覽
+                          <Eye className="w-4 h-4 mr-2" /> {t('common:preview')}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => reset()}>更換檔案</Button>
+                        <Button size="sm" variant="ghost" onClick={() => reset()}>{t('assignment:submit.replaceFile')}</Button>
                       </div>
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0">
@@ -388,7 +390,7 @@ export default function SubmitAssignment() {
                 <motion.div key="grading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                   <div className="text-center py-10">
                     <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                    <p className="text-muted-foreground text-sm">AI 正在分析你的作業…</p>
+                    <p className="text-muted-foreground text-sm">{t('grading:ai.analyzing')}</p>
                   </div>
                 </motion.div>
               ) : state === 'completed' ? (
@@ -409,29 +411,29 @@ export default function SubmitAssignment() {
               <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
                 {state === 'grading' ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> 分析中...
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.analyzing')}
                   </>
                 ) : state === 'completed' || state === 'error' ? (
-                  'Re-run AI Feedback'
+                  t('assignment:submit.rerunAiFeedback')
                 ) : (
-                  'Get AI Feedback'
+                  t('assignment:submit.getAiFeedback')
                 )}
               </Button>
               {state === 'completed' && (
                 <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
+                      <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
                     </>
                   )}
                 </Button>
               )}
               {state !== 'idle' && (
-                <Button variant="outline" onClick={reset}>重新選擇檔案</Button>
+                <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
               )}
             </div>
           </div>
@@ -446,7 +448,7 @@ export default function SubmitAssignment() {
                 <motion.div key="t-upload" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                   <Card>
                     <CardHeader>
-                      <CardTitle>上傳作業</CardTitle>
+                      <CardTitle>{t('assignment:submit.uploadAssignment')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onFilesChange={onLocalFilesChange} />
@@ -458,13 +460,13 @@ export default function SubmitAssignment() {
                   <Card className="h-full flex flex-col min-h-0">
                     <CardHeader className="flex-row items-center justify-between space-y-0">
                       <CardTitle className="truncate text-base">
-                        {uploadedMeta?.fileName || '預覽'}
+                        {uploadedMeta?.fileName || t('common:preview')}
                       </CardTitle>
                       <div className="flex items-center gap-2">
                         <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
-                          <Eye className="w-4 h-4 mr-2" /> 預覽
+                          <Eye className="w-4 h-4 mr-2" /> {t('common:preview')}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => reset()}>更換檔案</Button>
+                        <Button size="sm" variant="ghost" onClick={() => reset()}>{t('assignment:submit.replaceFile')}</Button>
                       </div>
                     </CardHeader>
                     <CardContent className="flex-1 min-h-0">
@@ -512,7 +514,7 @@ export default function SubmitAssignment() {
                 <motion.div key="t-grading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                   <div className="text-center py-10">
                     <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                    <p className="text-muted-foreground text-sm">AI 正在分析你的作業…</p>
+                    <p className="text-muted-foreground text-sm">{t('grading:ai.analyzing')}</p>
                   </div>
                 </motion.div>
               ) : state === 'completed' ? (
@@ -531,29 +533,29 @@ export default function SubmitAssignment() {
               <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
                 {state === 'grading' ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> 分析中...
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.analyzing')}
                   </>
                 ) : state === 'completed' || state === 'error' ? (
-                  'Re-run AI Feedback'
+                  t('assignment:submit.rerunAiFeedback')
                 ) : (
-                  'Get AI Feedback'
+                  t('assignment:submit.getAiFeedback')
                 )}
               </Button>
               {state === 'completed' && (
                 <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
+                      <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
                     </>
                   )}
                 </Button>
               )}
               {state !== 'idle' && (
-                <Button variant="outline" onClick={reset}>重新選擇檔案</Button>
+                <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
               )}
             </div>
           </div>
@@ -566,7 +568,7 @@ export default function SubmitAssignment() {
               <motion.div key="m-upload" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                 <Card>
                   <CardHeader>
-                    <CardTitle>上傳作業</CardTitle>
+                    <CardTitle>{t('assignment:submit.uploadAssignment')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onFilesChange={onLocalFilesChange} />
@@ -577,7 +579,7 @@ export default function SubmitAssignment() {
               <motion.div key="m-preview" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                 <Card>
                   <CardHeader className="flex-row items-center justify-between space-y-0">
-                    <CardTitle className="truncate text-base">{uploadedMeta?.fileName || '預覽'}</CardTitle>
+                    <CardTitle className="truncate text-base">{uploadedMeta?.fileName || t('common:preview')}</CardTitle>
                     <div className="flex items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
                         <Eye className="w-4 h-4 mr-2" /> 預覽
@@ -611,7 +613,7 @@ export default function SubmitAssignment() {
               <motion.div key="m-grading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
                 <div className="text-center py-10">
                   <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                  <p className="text-muted-foreground text-sm">AI 正在分析你的作業…</p>
+                  <p className="text-muted-foreground text-sm">{t('grading:ai.analyzing')}</p>
                 </div>
               </motion.div>
             ) : state === 'completed' ? (
@@ -630,29 +632,29 @@ export default function SubmitAssignment() {
             <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'} className="flex-1">
               {state === 'grading' ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> 分析中...
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.analyzing')}
                 </>
               ) : state === 'completed' || state === 'error' ? (
-                'Re-run AI Feedback'
+                t('assignment:submit.rerunAiFeedback')
               ) : (
-                'Get AI Feedback'
+                t('assignment:submit.getAiFeedback')
               )}
             </Button>
             {state === 'completed' && (
               <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700 flex-1">
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Submitting...
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="h-4 w-4 mr-2" /> Submit Assignment
+                    <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
                   </>
                 )}
               </Button>
             )}
             {state !== 'idle' && (
-              <Button variant="outline" onClick={reset}>重新選擇檔案</Button>
+              <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
             )}
           </div>
 
@@ -663,7 +665,7 @@ export default function SubmitAssignment() {
       {/* Full-screen preview dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="w-screen h-screen max-w-none bg-background ">
-            <DialogTitle className="sr-only">PDF 預覽</DialogTitle>
+            <DialogTitle className="sr-only">{t('assignment:submit.pdfPreview')}</DialogTitle>
             <FullScreenPdfViewer 
               file={localFile || undefined} 
               fileUrl={uploadedMeta?.fileId ? `/api/files/${uploadedMeta.fileId}/download` : undefined}
