@@ -146,9 +146,9 @@
     "retryUpload": "Retry Upload",
     "retryAttempt": "(Attempt {count})",
     "errors": {
-      "fileSizeExceeded": "File {fileName} exceeds size limit {maxSize}",
-      "unsupportedFileType": "Unsupported file type: {fileExt}",
-      "tooManyFiles": "Maximum {maxFiles} files allowed",
+      "fileSizeExceeded": "File {{fileName}} exceeds size limit {{maxSize}}",
+      "unsupportedFileType": "Unsupported file type: {{fileExt}}",
+      "tooManyFiles": "Maximum {{maxFiles}} files allowed",
       "uploadFailed": "Upload failed"
     }
   },
@@ -180,7 +180,7 @@
     "loading": "Loading…",
     "loadingPage": "Loading page…",
     "pageTitle": "Page {page}",
-    "pageCounter": "Page {current} of {total}"
+    "pageCounter": "Page {current} of {{total}}"
   },
   "fullScreenPdf": {
     "noPreviewFile": "No file to preview",
@@ -212,13 +212,13 @@
     "defaultTitle": "Preparing",
     "defaultDescription": "Initializing...",
     "defaultStatus": "Processing...",
-    "timeRemaining": "Estimated time remaining: {seconds} seconds"
+    "timeRemaining": "Estimated time remaining: {{seconds}} seconds"
   },
   "resultDisplay": {
     "noFeedback": "No additional feedback",
     "overallFeedback": "Overall Grading Feedback",
     "criteriaDetails": "Grading Criteria Details",
-    "defaultCriteriaName": "Grading Item {index}",
+    "defaultCriteriaName": "Grading Item {{index}}",
     "scoreUnit": "points",
     "noCriteriaDetails": "No detailed grading criteria"
   },
@@ -226,7 +226,7 @@
     "noResults": "No grading results",
     "expandAll": "Expand All",
     "collapseAll": "Collapse All",
-    "rubricLabel": "Rubric: {rubricName}",
+    "rubricLabel": "Rubric: {{rubricName}}",
     "gradeLabels": {
       "excellent": "Excellent",
       "good": "Good",

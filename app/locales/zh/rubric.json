@@ -120,8 +120,8 @@
     "criterionNamePlaceholder": "標準名稱",
     "criterionDescriptionPlaceholder": "點擊添加標準描述...",
     "levelStandards": "等級標準",
-    "completedStatus": "{completed}/4 已完成",
-    "levelDescriptionPlaceholder": "描述 Level {score} 的表現標準..."
+    "completedStatus": "{{completed}}/4 已完成",
+    "levelDescriptionPlaceholder": "描述 Level {{score}} 的表現標準..."
   },
   "levelLabels": {
     "4": "優秀",
@@ -131,7 +131,7 @@
   },
   "header": {
     "backButton": "返回",
-    "editTitle": "編輯 - {rubricName}",
+    "editTitle": "編輯 - {{rubricName}}",
     "newRubricTitle": "新評分標準",
     "previewButton": "預覽",
     "updateButton": "更新",
@@ -159,7 +159,7 @@
     "levelLabel": "等級",
     "criterionNamePlaceholder": "標準名稱",
     "criterionDescriptionPlaceholder": "點擊添加標準描述...",
-    "levelDescriptionPlaceholder": "描述 Level {score} 的表現標準..."
+    "levelDescriptionPlaceholder": "描述 Level {{score}} 的表現標準..."
   },
   "newRubricSubtitle": "透過定義類別和標準來建立詳細的評分標準。",
   "newCategory": "類別 {{number}}",

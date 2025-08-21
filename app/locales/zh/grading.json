@@ -140,15 +140,15 @@
   "fileUpload": {
     "dropAreaText": "拖放檔案至此或點擊上傳",
     "selectFiles": "選擇檔案",
-    "supportedFormats": "支援 {formats}，最大 {size}",
+    "supportedFormats": "支援 {{formats}}，最大 {{{size}}",
     "uploadComplete": "上傳完成",
     "uploadFailed": "上傳失敗",
     "retryUpload": "重試上傳",
-    "retryAttempt": "(第 {count} 次嘗試)",
+    "retryAttempt": "(第 {{count}} 次嘗試)",
     "errors": {
-      "fileSizeExceeded": "檔案 {fileName} 超過大小限制 {maxSize}",
-      "unsupportedFileType": "不支援的檔案類型: {fileExt}",
-      "tooManyFiles": "最多只能上傳 {maxFiles} 個檔案",
+      "fileSizeExceeded": "檔案 {{fileName}} 超過大小限制 {{maxSize}}",
+      "unsupportedFileType": "不支援的檔案類型: {{fileExt}}",
+      "tooManyFiles": "最多只能上傳 {{maxFiles}} 個檔案",
       "uploadFailed": "上傳失敗"
     }
   },
@@ -179,8 +179,8 @@
     "showThumbnails": "顯示縮圖",
     "loading": "Loading…",
     "loadingPage": "Loading page…",
-    "pageTitle": "第 {page} 頁",
-    "pageCounter": "Page {current} of {total}"
+    "pageTitle": "第 {{page}} 頁",
+    "pageCounter": "Page {{current}} of {{total}}"
   },
   "fullScreenPdf": {
     "noPreviewFile": "無可預覽的檔案",
@@ -212,13 +212,13 @@
     "defaultTitle": "準備中",
     "defaultDescription": "正在初始化...",
     "defaultStatus": "處理中...",
-    "timeRemaining": "預估剩餘時間: {seconds}秒"
+    "timeRemaining": "預估剩餘時間: {{seconds}}秒"
   },
   "resultDisplay": {
     "noFeedback": "無額外回饋",
     "overallFeedback": "整體評分回饋",
     "criteriaDetails": "評分項目詳情",
-    "defaultCriteriaName": "評分項目 {index}",
+    "defaultCriteriaName": "評分項目 {{index}}",
     "scoreUnit": "分",
     "noCriteriaDetails": "無詳細評分項目"
   },
@@ -226,7 +226,7 @@
     "noResults": "沒有評分結果",
     "expandAll": "展開全部",
     "collapseAll": "摺疊全部",
-    "rubricLabel": "評分標準: {rubricName}",
+    "rubricLabel": "評分標準: {{rubricName}}",
     "gradeLabels": {
       "excellent": "優異",
       "good": "優良",

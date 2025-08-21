@@ -36,6 +36,11 @@
   "optional": "Optional",
   "yes": "Yes",
   "no": "No",
+  "validation": {
+    "nameRequired": "Assignment name is required",
+    "rubricRequired": "Please select a rubric",
+    "createError": "Failed to create assignment. Please try again."
+  },
   "or": "or",
   "and": "and",
   "to": "to",

@@ -36,6 +36,11 @@
   "optional": "選填",
   "yes": "是",
   "no": "否",
+  "validation": {
+    "nameRequired": "作業名稱為必填",
+    "rubricRequired": "請選擇評分標準",
+    "createError": "建立作業失敗，請再試一次。"
+  },
   "or": "或",
   "and": "和",
   "to": "到",

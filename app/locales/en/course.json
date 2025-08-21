@@ -71,7 +71,25 @@
     "overdue": "Overdue",
     "submitted": "Submitted",
     "graded": "Graded",
-    "returned": "Returned"
+    "returned": "Returned",
+    "area": {
+      "createTitle": "Create Assignment Area",
+      "createSubtitle": "Add a new assignment area to {{courseName}}",
+      "details": "Assignment Details",
+      "detailsDescription": "Create a new assignment area where students can submit their work for grading.",
+      "nameLabel": "Assignment Name",
+      "namePlaceholder": "e.g., Essay on Data Structures",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Provide details about what students need to submit...",
+      "rubricLabel": "Grading Rubric",
+      "rubricPlaceholder": "Select a rubric for grading",
+      "dueDateLabel": "Due Date (Optional)",
+      "createButton": "Create Assignment",
+      "backToCourse": "Back to Course",
+      "cancel": "Cancel",
+      "noRubrics": "No rubrics available.",
+      "createRubricFirst": "Create one first"
+    }
   },
   "student": {
     "add": "Add Student",
@@ -146,8 +164,8 @@
   },
   "pageHeader": {
     "title": "My Courses",
-    "subtitle": "Manage your {count} course and assignment areas",
-    "subtitlePlural": "Manage your {count} courses and assignment areas",
+    "subtitle": "Manage your {{count}} course and assignment areas",
+    "subtitlePlural": "Manage your {{count}} courses and assignment areas",
     "createCourse": "Create Course"
   },
   "search": {
@@ -217,8 +235,8 @@
     "assignmentAreas": "Assignment Areas",
     "submissions": "Submissions",
     "recentAssignmentAreas": "Recent Assignment Areas",
-    "moreAreas": "+{count} more areas",
-    "created": "Created {date}",
+    "moreAreas": "+{{count}} more areas",
+    "created": "Created {{date}}",
     "viewDetails": "View Details",
     "addAssignment": "Add Assignment"
   }

@@ -119,8 +119,8 @@
     "criterionNamePlaceholder": "Criterion Name",
     "criterionDescriptionPlaceholder": "Click to add criterion description...",
     "levelStandards": "Level Standards",
-    "completedStatus": "{completed}/4 completed",
-    "levelDescriptionPlaceholder": "Describe Level {score} performance standards..."
+    "completedStatus": "{{completed}}/4 completed",
+    "levelDescriptionPlaceholder": "Describe Level {{score}} performance standards..."
   },
   "levelLabels": {
     "4": "Excellent",
@@ -130,7 +130,7 @@
   },
   "header": {
     "backButton": "Back",
-    "editTitle": "Edit - {rubricName}",
+    "editTitle": "Edit - {{rubricName}}",
     "newRubricTitle": "New Rubric",
     "previewButton": "Preview",
     "updateButton": "Update",

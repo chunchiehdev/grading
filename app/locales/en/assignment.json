@@ -1,7 +1,7 @@
 {
     "pageHeader": {
         "allAssignments": "All Assignments",
-        "subtitle": "{count} assignments available",
+        "subtitle": "{{count}} assignments available",
         "myCourses": "My Courses",
         "backToDashboard": "Back to Dashboard"
     },
@@ -45,10 +45,10 @@
     },
     "dueDate": {
         "noDueDate": "No due date",
-        "overdue": "{days} days overdue",
+        "overdue": "{{days}} days overdue",
         "dueToday": "Due today",
         "dueTomorrow": "Due tomorrow",
-        "dueInDays": "Due in {days} days"
+        "dueInDays": "Due in {{days}} days"
     },
     "sections": {
         "pending": "Pending ({count})",

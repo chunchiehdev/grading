@@ -6,14 +6,11 @@ import {
   FileText,
   Users,
   QrCode,
-  Copy,
   RefreshCw,
   Share2,
   Pencil,
   Settings as SettingsIcon,
-  Check,
 } from 'lucide-react';
-import { useState } from 'react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, type CourseInfo } from '@/services/course.server';
@@ -28,6 +25,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatsCard } from '@/components/ui/stats-card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { EmptyState } from '@/components/ui/empty-state';
+import { InvitationDisplay } from '@/components/ui/invitation-display';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
@@ -172,26 +171,6 @@ export default function CourseDetail() {
   const totalSubmissions =
     course.assignmentAreas?.reduce((total, area) => total + (area._count?.submissions || 0), 0) || 0;
 
-  // Ephemeral copy-state for swapping icons after success
-  const [copiedCode, setCopiedCode] = useState(false);
-  const [copiedUrl, setCopiedUrl] = useState(false);
-
-  const handleCopy = async (text: string, type: 'code' | 'url') => {
-    try {
-      await navigator.clipboard.writeText(text);
-      if (type === 'code') {
-        setCopiedCode(true);
-        setTimeout(() => setCopiedCode(false), 1500);
-      } else {
-        setCopiedUrl(true);
-        setTimeout(() => setCopiedUrl(false), 1500);
-      }
-    } catch (err) {
-      toast.error('Failed to copy');
-      console.error('Failed to copy: ', err);
-    }
-  };
-
   const headerMenuItems = [
     { label: t('common:back'), to: '/teacher/dashboard', icon: ArrowLeft },
     { label: t('course:students'), to: `/teacher/courses/${course.id}/students`, icon: Users },
@@ -264,108 +243,32 @@ export default function CourseDetail() {
             )}
 
             {!invitation && !actionData?.newInvitation ? (
-              <div className="text-center py-8">
-                <QrCode className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">{t('course:emptyState.noInvitationCode')}</h3>
-                <p className="text-muted-foreground mb-6">
-                  {t('course:emptyState.noInvitationCodeDescription')}
-                </p>
-                <Form method="post">
-                  <input type="hidden" name="intent" value="generate-invitation" />
-                  <Button type="submit">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    {t('course:courseInvitation.generateInvitationCode')}
-                  </Button>
-                </Form>
-              </div>
+              <EmptyState
+                title={t('course:emptyState.noInvitationCode')}
+                description={t('course:emptyState.noInvitationCodeDescription')}
+                icon={<QrCode className="h-12 w-12" />}
+                action={
+                  <Form method="post">
+                    <input type="hidden" name="intent" value="generate-invitation" />
+                    <Button type="submit">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      {t('course:courseInvitation.generateInvitationCode')}
+                    </Button>
+                  </Form>
+                }
+                showCard={false}
+              />
             ) : (
-              <div className="space-y-6">
-                {/* Display current or new invitation */}
-                {((invitation && !actionData?.newInvitation) || actionData?.newInvitation) && (
-                  <div className="grid md:grid-cols-2 gap-6">
-                    {/* Invitation Details */}
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('course:courseInvitation.invitationCode')}</label>
-                        <div className="flex items-center space-x-2">
-                          <code className="bg-muted text-foreground px-3 py-2 rounded-md font-mono text-lg tracking-wider flex-1">
-                            {actionData?.newInvitation?.code || invitation?.code}
-                          </code>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleCopy(actionData?.newInvitation?.code || invitation?.code || '', 'code')
-                            }
-                            aria-label={copiedCode ? 'Copied' : 'Copy code'}
-                            title={copiedCode ? 'Copied' : 'Copy code'}
-                          >
-                            {copiedCode ? (
-                              <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground mb-2 block">{t('course:courseInvitation.invitationUrl')}</label>
-                        <div className="flex items-center space-x-2">
-                          <code className="bg-muted px-3 py-2 rounded-md text-sm text-muted-foreground flex-1 break-all">
-                            {typeof window !== 'undefined'
-                              ? `${window.location.origin}/join?code=${actionData?.newInvitation?.code || invitation?.code}`
-                              : `[domain]/join?code=${actionData?.newInvitation?.code || invitation?.code}`}
-                          </code>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleCopy(
-                                typeof window !== 'undefined'
-                                  ? `${window.location.origin}/join?code=${actionData?.newInvitation?.code || invitation?.code}`
-                                  : `[domain]/join?code=${actionData?.newInvitation?.code || invitation?.code}`,
-                                'url'
-                              )
-                            }
-                            aria-label={copiedUrl ? 'Copied' : 'Copy URL'}
-                            title={copiedUrl ? 'Copied' : 'Copy URL'}
-                          >
-                            {copiedUrl ? (
-                              <Check className="h-4 w-4 text-green-600 dark:text-green-500" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-
-                      
-                      {/* <div className="pt-4">
-                        <Form method="post">
-                          <input type="hidden" name="intent" value="generate-invitation" />
-                          <Button variant="outline" size="sm" type="submit">
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            {t('course:courseInvitation.generateCode')}
-                          </Button>
-                        </Form>
-                      </div> */}
-                    </div>
-
-                    {/* QR Code */}
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <div className="text-sm font-medium text-muted-foreground mb-3">QR Code</div>
-                      <div className="mx-auto bg-background p-4 rounded-lg border">
-                        <img
-                          src={actionData?.newInvitation?.qrCodeUrl || invitation?.qrCodeUrl}
-                          alt="Course invitation QR code"
-                          className="w-48 h-48"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+              ((invitation && !actionData?.newInvitation) || actionData?.newInvitation) && (
+                <InvitationDisplay
+                  code={actionData?.newInvitation?.code || invitation?.code || ''}
+                  qrCodeUrl={actionData?.newInvitation?.qrCodeUrl || invitation?.qrCodeUrl || ''}
+                  baseUrl={typeof window !== 'undefined' ? window.location.origin : '[domain]'}
+                  codeLabel={t('course:courseInvitation.invitationCode')}
+                  urlLabel={t('course:courseInvitation.invitationUrl')}
+                  qrDescription="Students can scan this code to join"
+                />
+              )
             )}
           </CardContent>
         </Card>

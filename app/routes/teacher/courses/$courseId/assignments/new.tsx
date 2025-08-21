@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DatePicker } from '@/components/DatePicker';
+import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   teacher: Promise<{ id: string; email: string; role: string; name: string }>;
@@ -103,6 +104,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 export default function NewAssignmentArea() {
   const { teacher, course, rubrics } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
+  const { t } = useTranslation(['course', 'common']);
 
   // Complete Skeleton that matches final layout exactly
   const PageSkeleton = () => (
@@ -190,11 +192,13 @@ function AssignmentForm({
   rubrics: LoaderData['rubrics'];
   actionData: ActionData | undefined;
 }) {
+  const { t } = useTranslation(['course', 'common']);
+  console.log(course.name, 'Course Name');
   const headerActions = (
     <Button asChild variant="outline">
       <Link to={`/teacher/courses/${course.id}`}>
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Course
+        {t('course:assignment.area.backToCourse')}
       </Link>
     </Button>
   );
@@ -202,8 +206,8 @@ function AssignmentForm({
   return (
     <div className="bg-background text-foreground">
       <PageHeader
-        title="Create Assignment Area"
-        subtitle={`Add a new assignment area to ${course.name}`}
+        title={t('course:assignment.area.createTitle')}
+        subtitle={t('course:assignment.area.createSubtitle', { courseName: course.name })}
         actions={headerActions}
       />
 
@@ -212,52 +216,52 @@ function AssignmentForm({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" />
-              Assignment Details
+              {t('course:assignment.area.details')}
             </CardTitle>
             <CardDescription>
-              Create a new assignment area where students can submit their work for grading.
+              {t('course:assignment.area.detailsDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Form method="post" className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">
-                  Assignment Name <span className="text-destructive">*</span>
+                  {t('course:assignment.area.nameLabel')} <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="name"
                   name="name"
                   required
-                  placeholder="e.g., Essay on Data Structures"
+                  placeholder={t('course:assignment.area.namePlaceholder')}
                   className="bg-background border-border focus:ring-ring"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t('course:assignment.area.descriptionLabel')}</Label>
                 <Textarea
                   id="description"
                   name="description"
                   rows={4}
-                  placeholder="Provide details about what students need to submit..."
+                  placeholder={t('course:assignment.area.descriptionPlaceholder')}
                   className="bg-background border-border focus:ring-ring"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="rubricId">
-                  Grading Rubric <span className="text-destructive">*</span>
+                  {t('course:assignment.area.rubricLabel')} <span className="text-destructive">*</span>
                 </Label>
                 <Select name="rubricId" required>
                   <SelectTrigger className="bg-background border-border focus:ring-ring">
-                    <SelectValue placeholder="Select a rubric for grading" />
+                    <SelectValue placeholder={t('course:assignment.area.rubricPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent className="bg-popover border-border">
                     {rubrics.length === 0 ? (
                       <div className="p-2 text-sm text-muted-foreground">
-                        No rubrics available.{' '}
+                        {t('course:assignment.area.noRubrics')}{' '}
                         <Link to="/teacher/rubrics/new" className="text-primary hover:underline">
-                          Create one first
+                          {t('course:assignment.area.createRubricFirst')}
                         </Link>
                         .
                       </div>
@@ -277,7 +281,7 @@ function AssignmentForm({
 
               <div className="space-y-2">
                 <Label htmlFor="dueDate" className="flex items-center gap-2">
-                  Due Date (Optional)
+                  {t('course:assignment.area.dueDateLabel')}
                 </Label>
                 <DatePicker name="dueDate" />
               </div>
@@ -290,11 +294,11 @@ function AssignmentForm({
 
               <div className="flex justify-end space-x-4 pt-4">
                 <Button asChild variant="outline">
-                  <Link to={`/teacher/courses/${course.id}`}>Cancel</Link>
+                  <Link to={`/teacher/courses/${course.id}`}>{t('course:assignment.area.cancel')}</Link>
                 </Button>
                 <Button type="submit" disabled={rubrics.length === 0}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Create Assignment
+                  {t('course:assignment.area.createButton')}
                 </Button>
               </div>
             </Form>

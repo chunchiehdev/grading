@@ -71,7 +71,25 @@
     "overdue": "已逾期",
     "submitted": "已提交",
     "graded": "已評分",
-    "returned": "已發還"
+    "returned": "已發還",
+    "area": {
+      "createTitle": "建立作業區",
+      "createSubtitle": "為 {{courseName}} 新增作業區",
+      "details": "作業詳情",
+      "detailsDescription": "建立新的作業區，讓學生可以提交作業進行評分。",
+      "nameLabel": "作業名稱",
+      "namePlaceholder": "例如：資料結構論文",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "請說明學生需要提交的內容...",
+      "rubricLabel": "評分標準",
+      "rubricPlaceholder": "選擇評分標準",
+      "dueDateLabel": "截止日期（選填）",
+      "createButton": "建立作業",
+      "backToCourse": "返回課程",
+      "cancel": "取消",
+      "noRubrics": "沒有可用的評分標準。",
+      "createRubricFirst": "請先建立一個"
+    }
   },
   "student": {
     "add": "新增學生",
@@ -181,8 +199,8 @@
   },
   "pageHeader": {
     "title": "我的課程",
-    "subtitle": "管理您的 {count} 個課程和作業區",
-    "subtitlePlural": "管理您的 {count} 個課程和作業區",
+    "subtitle": "管理您的 {{count}} 個課程和作業區",
+    "subtitlePlural": "管理您的 {{count}} 個課程和作業區",
     "createCourse": "建立課程"
   },
   "search": {
@@ -217,8 +235,8 @@
     "assignmentAreas": "作業區",
     "submissions": "提交",
     "recentAssignmentAreas": "最近的作業區",
-    "moreAreas": "還有 {count} 個區域",
-    "created": "建立於 {date}",
+    "moreAreas": "還有 {{count}} 個區域",
+    "created": "建立於 {{date}}",
     "viewDetails": "查看詳情",
     "addAssignment": "新增作業"
   }
