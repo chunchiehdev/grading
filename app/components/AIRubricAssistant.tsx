@@ -135,6 +135,7 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
         body: JSON.stringify({
           message: currentInput,
           context: currentRubric,
+          conversationHistory: messages.slice(1), // 排除初始歡迎訊息
         }),
       });
 
@@ -185,77 +186,96 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] p-0 gap-0">
-        <DialogHeader className="px-6 py-4 border-b">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500">
-                <Sparkles className="h-4 w-4 text-white" />
+      <DialogContent className="max-w-4xl max-h-[85vh] p-0 gap-0 bg-background">
+        {/* Header */}
+        <DialogHeader className="border-b bg-card p-0">
+          <div className="px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10 border">
+                <Sparkles className="h-5 w-5 text-primary" />
               </div>
-              AI 評分標準助手
-            </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
+              <div>
+                <DialogTitle className="text-lg font-semibold text-foreground">AI 評分標準助手</DialogTitle>
+                <p className="text-sm text-muted-foreground">協助您快速生成專業的評分標準</p>
+              </div>
+            </div>
           </div>
         </DialogHeader>
 
-        <div className="flex flex-col h-[500px]">
+        {/* Content */}
+        <div className="flex flex-col h-[600px]">
+          {/* Quick Start (only show initially) */}
           {messages.length <= 1 && (
-            <div className="p-4 border-b bg-muted/20">
-              <p className="text-sm text-muted-foreground mb-3">快速開始：</p>
-              <div className="flex flex-wrap gap-2">
-                {EXAMPLE_PROMPTS.map((prompt) => (
-                  <Button
-                    key={prompt}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8"
-                    onClick={() => handlePromptClick(prompt)}
-                    disabled={isLoading}
-                  >
-                    {prompt}
-                  </Button>
-                ))}
+            <div className="border-b bg-muted/30">
+              <div className="p-6">
+                <p className="text-sm font-medium text-foreground mb-3">快速開始：</p>
+                <div className="flex flex-wrap gap-2">
+                  {EXAMPLE_PROMPTS.map((prompt) => (
+                    <Button
+                      key={prompt}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-8 rounded-lg border-primary/20 hover:border-primary/50 hover:bg-primary/5"
+                      onClick={() => handlePromptClick(prompt)}
+                      disabled={isLoading}
+                    >
+                      {prompt}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          <ScrollArea className="flex-1 p-4">
-            <div className="space-y-4">
+          {/* Messages */}
+          <ScrollArea className="flex-1 p-6">
+            <div className="space-y-6">
               {messages.map((message) => (
                 <div key={message.id} className="space-y-3">
-                  <div className={`flex items-start gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`flex items-start gap-4 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    {/* Avatar */}
                     <div
-                      className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                      className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm ${
                         message.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-gradient-to-br from-purple-500 to-pink-500 text-white'
+                          ? 'bg-primary text-primary-foreground border-primary/20'
+                          : 'bg-card text-card-foreground border-border'
                       }`}
                     >
-                      {message.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                      {message.role === 'user' ? (
+                        <User className="h-5 w-5" />
+                      ) : (
+                        <Sparkles className="h-5 w-5 text-primary" />
+                      )}
                     </div>
 
-                    <div className={`flex-1 space-y-2 ${message.role === 'user' ? 'text-right' : ''}`}>
+                    {/* Message Content */}
+                    <div className={`flex-1 space-y-3 ${message.role === 'user' ? 'text-right' : ''}`}>
                       <div
-                        className={`inline-block p-3 rounded-2xl max-w-[85%] ${
-                          message.role === 'user' ? 'bg-primary text-primary-foreground ml-auto' : 'bg-muted'
+                        className={`inline-block max-w-[85%] rounded-xl border shadow-sm ${
+                          message.role === 'user'
+                            ? 'bg-primary text-primary-foreground border-primary/20 ml-auto px-4 py-3'
+                            : 'bg-card text-card-foreground border-border p-4'
                         }`}
                       >
                         <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                       </div>
 
+                      {/* Generated Rubric Preview */}
                       {message.rubricData && (
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 space-y-3 shadow-sm">
+                        <div
+                          className={`border rounded-xl p-4 space-y-3 shadow-sm bg-primary/5 border-primary/20 ${
+                            message.role === 'user' ? 'mr-auto' : ''
+                          }`}
+                        >
                           <div className="flex items-center gap-2">
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                            <span className="font-medium text-green-800">評分標準已生成</span>
+                            <CheckCircle className="h-5 w-5 text-primary" />
+                            <span className="font-medium text-foreground">評分標準已生成</span>
                           </div>
 
                           <div className="space-y-2">
-                            <div className="text-sm text-green-700">
+                            <div className="text-sm text-foreground">
                               <div className="font-medium">{message.rubricData.name}</div>
-                              <div className="text-xs text-green-600 mt-1">
+                              <div className="text-xs text-muted-foreground mt-1">
                                 {message.rubricData.categories.length} 個類別 •
                                 {message.rubricData.categories.reduce((acc, cat) => acc + cat.criteria.length, 0)}{' '}
                                 個評分標準
@@ -265,7 +285,7 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
 
                           <Button
                             size="sm"
-                            className="w-full bg-green-600 hover:bg-green-700"
+                            className="w-full"
                             onClick={() => handleApplyRubric(message.rubricData!)}
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
@@ -279,31 +299,42 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
               ))}
 
               {isLoading && (
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                    <Loader2 className="h-4 w-4 text-white animate-spin" />
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center shadow-sm">
+                    <Loader2 className="h-5 w-5 text-primary animate-spin" />
                   </div>
-                  <div className="bg-muted p-3 rounded-2xl">
-                    <p className="text-sm text-muted-foreground">正在思考中...</p>
+                  <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+                    <p className="text-sm text-muted-foreground">AI 正在生成評分標準...</p>
                   </div>
                 </div>
               )}
             </div>
           </ScrollArea>
 
-          <div className="border-t p-4">
-            <div className="flex gap-2">
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="描述您需要的評分標準，例如：我需要一個個人簡述的評分標準..."
-                className="flex-1 min-h-[44px] max-h-[120px] resize-none"
-                disabled={isLoading}
-              />
-              <Button onClick={sendMessage} disabled={!input.trim() || isLoading} size="lg" className="px-4">
-                <Send className="h-4 w-4" />
-              </Button>
+          {/* Input Area */}
+          <div className="border-t bg-card">
+            <div className="p-6">
+              <div className="flex gap-3">
+                <Textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="描述您需要的評分標準，例如：我需要一個程式設計作業的評分標準，重點評估邏輯思維和程式碼品質..."
+                  className="flex-1 min-h-[60px] max-h-[120px] resize-none rounded-xl border-border focus:border-primary/50 focus:ring-primary/20"
+                  disabled={isLoading}
+                />
+                <Button 
+                  onClick={sendMessage} 
+                  disabled={!input.trim() || isLoading} 
+                  size="lg" 
+                  className="px-6 rounded-xl h-[60px]"
+                >
+                  <Send className="h-5 w-5" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2 px-1">
+                按 Enter 發送訊息，Shift + Enter 換行
+              </p>
             </div>
           </div>
         </div>
