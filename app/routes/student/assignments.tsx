@@ -1,9 +1,10 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link } from 'react-router';
-import { Clock, BookOpen, FileText, UserPlus } from 'lucide-react';
+import { Clock, BookOpen, FileText, UserPlus, CheckCircle, ArrowLeft } from 'lucide-react';
 
 import { requireStudent } from '@/services/auth.server';
 import { getStudentAssignments, type StudentAssignmentInfo } from '@/services/submission.server';
+import { getStudentEnrolledCourses, type CourseWithEnrollmentInfo } from '@/services/enrollment.server';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,72 +14,51 @@ import { useTranslation } from 'react-i18next';
 interface LoaderData {
   student: { id: string; email: string; role: string };
   assignments: StudentAssignmentInfo[];
+  enrolledCourses: CourseWithEnrollmentInfo[];
 }
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
   const student = await requireStudent(request);
-  const assignments = await getStudentAssignments(student.id);
-  return { student, assignments };
+  const [assignments, enrolledCourses] = await Promise.all([
+    getStudentAssignments(student.id),
+    getStudentEnrolledCourses(student.id)
+  ]);
+  return { student, assignments, enrolledCourses };
 }
 
 export default function StudentAssignments() {
-  const { student, assignments } = useLoaderData<typeof loader>();
+  const { student, assignments, enrolledCourses } = useLoaderData<typeof loader>();
   const { t } = useTranslation('assignment');
 
-  // If no assignments (not enrolled in any courses), show enrollment message
+  // Enhanced empty states with guidance while staying clean
   if (assignments.length === 0) {
+    const isNotEnrolled = enrolledCourses.length === 0;
+    
     return (
-      <div className="bg-background text-foreground">
-        <PageHeader 
-          title={t('emptyState.title')} 
-          subtitle={t('emptyState.subtitle')}
-          actions={
-            <Button asChild variant="outline">
-              <Link to="/student/dashboard">
-                {t('emptyState.buttons.backToDashboard')}
-              </Link>
-            </Button>
-          }
-        />
-
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card className="bg-card text-card-foreground border">
-            <CardContent className="pt-6">
-              <div className="text-center py-12">
-                <UserPlus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">
-                  {t('emptyState.joinTitle')}
-                </h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  {t('emptyState.joinDescription')}
-                </p>
-                
-                <div className="bg-muted border border-border rounded-lg p-4 mb-6 max-w-md mx-auto">
-                  <h4 className="font-medium text-foreground mb-2">{t('emptyState.howToJoin')}</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1 text-left">
-                    <li>• {t('emptyState.steps.code')}</li>
-                    <li>• {t('emptyState.steps.qr')}</li>
-                    <li>• {t('emptyState.steps.link')}</li>
-                    <li>• {t('emptyState.steps.contact')}</li>
-                  </ul>
-                </div>
-
-                <div className="flex justify-center gap-2">
-                  <Button asChild variant="outline">
-                    <Link to="/student/dashboard">
-                      {t('emptyState.buttons.backToDashboard')}
-                    </Link>
-                  </Button>
-                  <Button asChild>
-                    <Link to="/student/courses">
-                      {t('emptyState.buttons.viewCourses')}
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
+      <div className="h-full flex flex-col">
+        {/* Main Content - Takes remaining space */}
+        <div className="flex-1 flex flex-col items-center justify-center px-4">
+          <div className="text-center space-y-8 max-w-md">
+            {/* Icon */}
+            <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-muted/40 to-muted/20 flex items-center justify-center">
+              {isNotEnrolled ? (
+                <UserPlus className="w-12 h-12 text-muted-foreground" />
+              ) : (
+                <CheckCircle className="w-12 h-12 text-emerald-500" />
+              )}
+            </div>
+            
+            {/* Main Content */}
+            <div className="space-y-3">
+              <h1 className="text-2xl font-semibold text-foreground">
+                {isNotEnrolled ? t('emptyState.notEnrolled.title') : t('emptyState.noAssignments.title')}
+              </h1>
+              <p className="text-muted-foreground">
+                {isNotEnrolled ? t('emptyState.notEnrolled.description') : t('emptyState.noAssignments.description')}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -301,28 +281,11 @@ export default function StudentAssignments() {
         </div>
 
         {/* Assignment Grid */}
-        {assignments.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-12">
-                <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">{t('emptyState.title')}</h3>
-                <p className="text-muted-foreground mb-6">{t('emptyState.subtitle')}</p>
-                <Button asChild>
-                  <Link to="/student/courses">
-                    {t('emptyState.buttons.viewCourses')}
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {assignments.map((assignment) => (
-              <AssignmentCard key={assignment.id} assignment={assignment} />
-            ))}
-          </div>
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {assignments.map((assignment) => (
+            <AssignmentCard key={assignment.id} assignment={assignment} />
+          ))}
+        </div>
       </main>
     </div>
   );

@@ -13,13 +13,12 @@ import {
 } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
-import { getCourseById, type CourseInfo } from '@/services/course.server';
+import { type CourseInfo } from '@/services/course.server';
 import {
-  getActiveCourseInvitation,
   createInvitationCode,
   generateInvitationQRCode,
 } from '@/services/invitation.server';
-import { getCourseEnrollmentStats } from '@/services/enrollment.server';
+import { getCoursePageData, type CoursePageData } from '@/services/course-detail.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatsCard } from '@/components/ui/stats-card';
@@ -27,40 +26,10 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InvitationDisplay } from '@/components/ui/invitation-display';
-import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
-interface LoaderData {
+interface LoaderData extends CoursePageData {
   teacher: { id: string; email: string; role: string };
-  course: CourseInfo & {
-    assignmentAreas?: Array<{
-      id: string;
-      name: string;
-      description: string | null;
-      dueDate: Date | null;
-      rubricId: string;
-      formattedDueDate?: string;
-      _count?: { submissions: number };
-    }>;
-  };
-  formattedCreatedDate: string;
-  invitation?: {
-    id: string;
-    code: string;
-    expiresAt: Date;
-    qrCodeUrl: string;
-  };
-  enrollmentStats: {
-    totalEnrollments: number;
-    recentEnrollments: Array<{
-      student: {
-        id: string;
-        email: string;
-        name: string;
-      };
-      enrolledAt: Date;
-    }>;
-  };
 }
 
 interface ActionData {
@@ -81,47 +50,16 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   }
 
   try {
-    const [course, activeInvitation, enrollmentStats] = await Promise.all([
-      getCourseById(courseId, teacher.id),
-      getActiveCourseInvitation(courseId, teacher.id),
-      getCourseEnrollmentStats(courseId, teacher.id),
-    ]);
+    // Use optimized course page data service
+    const coursePageData = await getCoursePageData(courseId, teacher.id);
 
-    if (!course) {
+    if (!coursePageData) {
       throw new Response('Course not found', { status: 404 });
-    }
-
-    // Import date formatter on server side only
-    const { formatDateForDisplay } = await import('@/lib/date.server');
-    const formattedCreatedDate = formatDateForDisplay(course.createdAt);
-
-    // Format assignment area due dates
-    const courseWithFormattedDates = {
-      ...course,
-      assignmentAreas: course.assignmentAreas?.map((area: any) => ({
-        ...area,
-        formattedDueDate: area.dueDate ? formatDateForDisplay(area.dueDate) : undefined,
-      })),
-    };
-
-    // Generate QR code for active invitation if exists
-    let invitation = undefined;
-    if (activeInvitation) {
-      const qrCodeUrl = await generateInvitationQRCode(activeInvitation.code);
-      invitation = {
-        id: activeInvitation.id,
-        code: activeInvitation.code,
-        expiresAt: activeInvitation.expiresAt,
-        qrCodeUrl,
-      };
     }
 
     return {
       teacher,
-      course: courseWithFormattedDates,
-      formattedCreatedDate,
-      invitation,
-      enrollmentStats,
+      ...coursePageData,
     };
   } catch (error) {
     console.error('Error loading course:', error);
@@ -188,7 +126,7 @@ export default function CourseDetail() {
         showInlineActions={false}
       />
       
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8 pb-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <StatsCard

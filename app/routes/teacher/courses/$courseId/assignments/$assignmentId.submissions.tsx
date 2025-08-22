@@ -12,6 +12,8 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatsCard } from '@/components/ui/stats-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
+import { useTranslation } from 'react-i18next';
+
 interface LoaderData {
   teacher: { id: string; email: string; role: string; name: string };
   assignmentArea: {
@@ -71,17 +73,18 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
 
 export default function AssignmentSubmissions() {
   const { teacher, assignmentArea, submissions, stats } = useLoaderData<typeof loader>();
+  const { t } = useTranslation(['submissions']);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'GRADED':
-        return <Badge variant="default" className="text-xs">Graded</Badge>;
+        return <Badge variant="default" className="text-xs">{t('status.graded')}</Badge>;
       case 'ANALYZED':
-        return <Badge variant="secondary" className="text-xs">Analyzed</Badge>;
+        return <Badge variant="secondary" className="text-xs">{t('status.analyzed')}</Badge>;
       case 'SUBMITTED':
-        return <Badge variant="outline" className="text-xs">Pending</Badge>;
+        return <Badge variant="outline" className="text-xs">{t('status.pending')}</Badge>;
       default:
-        return <Badge variant="outline" className="text-xs">{status}</Badge>;
+        return <Badge variant="outline" className="text-xs">{t(`status.${status.toLowerCase()}`) || status}</Badge>;
     }
   };
 
@@ -106,13 +109,13 @@ export default function AssignmentSubmissions() {
     <div className="flex gap-2">
       <Button asChild variant="outline">
         <Link to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/manage`}>
-          Manage Assignment
+          {t('teacher.actions.manageAssignment')}
         </Link>
       </Button>
       <Button asChild variant="outline">
         <Link to={`/teacher/courses/${assignmentArea.courseId}`}>
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Course
+          {t('teacher.actions.backToCourse')}
         </Link>
       </Button>
     </div>
@@ -121,8 +124,8 @@ export default function AssignmentSubmissions() {
   return (
     <div className="bg-background text-foreground">
       <PageHeader
-        title={`${assignmentArea.name} - Submissions`}
-        subtitle={`Review and manage submissions for this assignment`}
+        title={`${assignmentArea.name} - ${t('teacher.title')}`}
+        subtitle={t('teacher.subtitle')}
         actions={headerActions}
       />
 
@@ -131,25 +134,25 @@ export default function AssignmentSubmissions() {
           {/* Submission Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <StatsCard
-              title="Total Submissions"
+              title={t('teacher.stats.totalSubmissions')}
               value={stats.total}
               icon={FileText}
               variant="transparent"
             />
             <StatsCard
-              title="Graded"
+              title={t('teacher.stats.graded')}
               value={stats.graded}
               icon={CheckCircle}
               variant="transparent"
             />
             <StatsCard
-              title="Analyzed"
+              title={t('teacher.stats.analyzed')}
               value={stats.analyzed}
               icon={Eye}
               variant="transparent"
             />
             <StatsCard
-              title="Pending Review"
+              title={t('teacher.stats.pendingReview')}
               value={stats.pending}
               icon={Clock}
               variant="transparent"
@@ -161,16 +164,16 @@ export default function AssignmentSubmissions() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
-                Student Submissions
+                {t('teacher.studentSubmissions')}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {submissions.length === 0 ? (
                 <div className="text-center py-12">
                   <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-2 text-sm font-medium text-foreground">No submissions yet</h3>
+                  <h3 className="mt-2 text-sm font-medium text-foreground">{t('teacher.emptyState.noSubmissions')}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Students haven't submitted any work for this assignment yet.
+                    {t('teacher.emptyState.noSubmissionsDescription')}
                   </p>
                 </div>
               ) : (
@@ -198,7 +201,7 @@ export default function AssignmentSubmissions() {
                             </p>
                             <div className="flex items-center mt-1 text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3 mr-1" />
-                              <span>Submitted {formatDate(submission.uploadedAt)}</span>
+                              <span>{t('teacher.submissionInfo.submitted')} {formatDate(submission.uploadedAt)}</span>
                             </div>
                           </div>
                         </div>
@@ -213,7 +216,7 @@ export default function AssignmentSubmissions() {
                           {submission.finalScore !== null && (
                             <div className="text-right">
                               <div className="text-sm font-medium text-foreground">
-                                Score: {submission.finalScore}
+                                {t('teacher.submissionInfo.score')}: {submission.finalScore}
                               </div>
                             </div>
                           )}
@@ -223,14 +226,14 @@ export default function AssignmentSubmissions() {
                             <Button asChild variant="outline" size="sm">
                               <Link to={`/student/assignments/${assignmentArea.id}/submit`}>
                                 <Eye className="h-4 w-4 mr-1" />
-                                View
+                                {t('teacher.actions.view')}
                               </Link>
                             </Button>
                             {submission.filePath && (
                               <Button asChild variant="ghost" size="sm">
                                 <a href={submission.filePath} target="_blank" rel="noopener noreferrer">
                                   <Download className="h-4 w-4 mr-1" />
-                                  Download
+                                  {t('teacher.actions.download')}
                                 </a>
                               </Button>
                             )}
@@ -241,7 +244,7 @@ export default function AssignmentSubmissions() {
                       {/* Teacher Feedback */}
                       {submission.teacherFeedback && (
                         <div className="mt-4 p-3 bg-muted rounded-lg">
-                          <h4 className="text-sm font-medium text-foreground mb-1">Teacher Feedback</h4>
+                          <h4 className="text-sm font-medium text-foreground mb-1">{t('teacher.feedback.teacherFeedback')}</h4>
                           <p className="text-sm text-muted-foreground">{submission.teacherFeedback}</p>
                         </div>
                       )}
@@ -249,9 +252,9 @@ export default function AssignmentSubmissions() {
                       {/* AI Analysis Summary */}
                       {submission.aiAnalysisResult && (
                         <div className="mt-4 p-3 bg-accent/50 rounded-lg">
-                          <h4 className="text-sm font-medium text-foreground mb-1">AI Analysis Available</h4>
+                          <h4 className="text-sm font-medium text-foreground mb-1">{t('teacher.feedback.aiAnalysisAvailable')}</h4>
                           <p className="text-sm text-muted-foreground">
-                            Automated grading and feedback has been generated for this submission.
+                            {t('teacher.feedback.aiAnalysisDescription')}
                           </p>
                         </div>
                       )}
@@ -265,33 +268,33 @@ export default function AssignmentSubmissions() {
           {/* Assignment Details */}
           <Card className="bg-card text-card-foreground border">
             <CardHeader>
-              <CardTitle>Assignment Details</CardTitle>
+              <CardTitle>{t('teacher.assignmentDetails.title')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h4 className="font-medium text-foreground">Assignment Name</h4>
+                  <h4 className="font-medium text-foreground">{t('teacher.assignmentDetails.assignmentName')}</h4>
                   <p className="text-muted-foreground">{assignmentArea.name}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-foreground">Course</h4>
+                  <h4 className="font-medium text-foreground">{t('teacher.assignmentDetails.course')}</h4>
                   <p className="text-muted-foreground">{assignmentArea.course?.name || 'N/A'}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-foreground">Grading Rubric</h4>
+                  <h4 className="font-medium text-foreground">{t('teacher.assignmentDetails.gradingRubric')}</h4>
                   <p className="text-muted-foreground">{assignmentArea.rubric?.name || 'N/A'}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-foreground">Due Date</h4>
+                  <h4 className="font-medium text-foreground">{t('teacher.assignmentDetails.dueDate')}</h4>
                   <p className="text-muted-foreground">
-                    {assignmentArea.dueDate ? formatDate(assignmentArea.dueDate) : 'No due date set'}
+                    {assignmentArea.dueDate ? formatDate(assignmentArea.dueDate) : t('teacher.assignmentDetails.noDueDate')}
                   </p>
                 </div>
               </div>
               
               {assignmentArea.description && (
                 <div>
-                  <h4 className="font-medium text-foreground">Description</h4>
+                  <h4 className="font-medium text-foreground">{t('teacher.assignmentDetails.description')}</h4>
                   <p className="text-muted-foreground">{assignmentArea.description}</p>
                 </div>
               )}

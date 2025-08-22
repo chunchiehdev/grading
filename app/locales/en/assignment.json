@@ -6,20 +6,29 @@
         "backToDashboard": "Back to Dashboard"
     },
     "emptyState": {
-        "title": "No Assignments Available",
-        "subtitle": "You need to join a course to access assignments",
-        "joinTitle": "Join a Course to Get Started",
-        "joinDescription": "You're not enrolled in any courses yet. Ask your teacher for an invitation code or QR code to join a course and access assignments.",
-        "howToJoin": "How to Join a Course",
-        "steps": {
-            "code": "Get an invitation code from your teacher",
-            "qr": "Scan a QR code if provided",
-            "link": "Visit the invitation link",
-            "contact": "Contact your teacher for assistance"
+        "notEnrolled": {
+            "title": "Join your first course",
+            "description": "Get started by joining a course with an invitation code from your teacher",
+            "helpText": "Ask your teacher for an invitation code or QR code to get started",
+            "actionText": "Join Course"
+        },
+        "noAssignments": {
+            "title": "All caught up!",
+            "description": "No assignments available right now",
+            "helpText": "Your teachers will post new assignments here. Check back later or visit your courses.",
+            "courseCount": "Enrolled in {{count}} course",
+            "courseCountPlural": "Enrolled in {{count}} courses",
+            "nextSteps": "What you can do:",
+            "suggestions": {
+                "checkCourses": "Browse your enrolled courses",
+                "contactTeacher": "Contact your teachers for updates",
+                "reviewMaterials": "Review course materials"
+            }
         },
         "buttons": {
-            "backToDashboard": "Back to Dashboard",
-            "viewCourses": "View My Courses"
+            "backToDashboard": "Dashboard",
+            "viewCourses": "My Courses",
+            "joinCourse": "Join Course"
         }
     },
     "overview": {

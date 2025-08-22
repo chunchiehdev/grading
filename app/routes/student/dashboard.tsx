@@ -118,13 +118,13 @@ export default function StudentDashboard() {
                       <div className="flex-1">
                         <h3 className="text-sm font-medium text-foreground">{assignment.name}</h3>
                         <p className="text-sm text-muted-foreground">{assignment.course.name}</p>
-                        <p className="text-xs text-muted-foreground">Teacher: {assignment.course.teacher.email}</p>
+                        <p className="text-xs text-muted-foreground">{t('course:teacher')}: {assignment.course.teacher.email}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium text-destructive">Due {assignment.formattedDueDate}</p>
+                        <p className="text-sm font-medium text-destructive">{t('course:assignment.due')} {assignment.formattedDueDate}</p>
                         <Button asChild size="sm" variant="ghost" className="mt-1">
                           <Link to={`/student/assignments/${assignment.id}/submit`}>
-                            Submit <ArrowRight className="w-3 h-3 ml-1" />
+                            {t('dashboard:actions.submit')} <ArrowRight className="w-3 h-3 ml-1" />
                           </Link>
                         </Button>
                       </div>
@@ -149,8 +149,8 @@ export default function StudentDashboard() {
               {submissions.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-2 text-sm font-medium text-foreground">No submissions yet</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">Start by submitting your first assignment.</p>
+                  <h3 className="mt-2 text-sm font-medium text-foreground">{t('dashboard:emptyState.noSubmissions')}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{t('dashboard:emptyState.noSubmissionsDescription')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -162,7 +162,7 @@ export default function StudentDashboard() {
                       <div className="flex-1">
                         <h3 className="text-sm font-medium text-foreground">{submission.assignmentArea.name}</h3>
                         <p className="text-sm text-muted-foreground">{submission.assignmentArea.course.name}</p>
-                        <p className="text-xs text-muted-foreground">Submitted {submission.formattedUploadedDate}</p>
+                        <p className="text-xs text-muted-foreground">{t('submissions:submissionInfo.submitted')} {submission.formattedUploadedDate}</p>
                       </div>
                       <div className="text-right">
                         <Badge
@@ -174,10 +174,10 @@ export default function StudentDashboard() {
                                 : 'outline'
                           }
                         >
-                          {submission.status.toLowerCase()}
+                          {t(`submissions:status.${submission.status.toLowerCase()}`)}
                         </Badge>
                         {submission.finalScore !== null && (
-                          <p className="text-sm font-medium text-foreground mt-1">Score: {submission.finalScore}</p>
+                          <p className="text-sm font-medium text-foreground mt-1">{t('submissions:submissionInfo.score')}: {submission.finalScore}</p>
                         )}
                       </div>
                     </div>

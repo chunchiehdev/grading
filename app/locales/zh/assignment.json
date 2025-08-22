@@ -6,20 +6,29 @@
         "backToDashboard": "返回主頁"
     },
     "emptyState": {
-        "title": "目前沒有作業",
-        "subtitle": "你需要先加入課程才能查看作業",
-        "joinTitle": "加入課程以開始",
-        "joinDescription": "你尚未加入任何課程。請向老師索取邀請碼或 QR code，以加入課程並查看作業。",
-        "howToJoin": "如何加入課程",
-        "steps": {
-            "code": "向老師索取邀請碼",
-            "qr": "掃描提供的 QR code",
-            "link": "透過邀請連結加入",
-            "contact": "需要幫助時，請聯絡老師"
+        "notEnrolled": {
+            "title": "加入您的第一門課程",
+            "description": "使用老師提供的邀請碼加入課程開始學習",
+            "helpText": "向老師索取邀請碼或 QR 碼即可開始",
+            "actionText": "加入課程"
+        },
+        "noAssignments": {
+            "title": "全部完成！",
+            "description": "目前沒有可用的作業",
+            "helpText": "老師將在這裡發布新作業。稍後再檢查或瀏覽您的課程。",
+            "courseCount": "已加入 {{count}} 門課程",
+            "courseCountPlural": "已加入 {{count}} 門課程",
+            "nextSteps": "您可以：",
+            "suggestions": {
+                "checkCourses": "瀏覽已加入的課程",
+                "contactTeacher": "聯絡老師獲取更新",
+                "reviewMaterials": "複習課程材料"
+            }
         },
         "buttons": {
-            "backToDashboard": "返回主頁",
-            "viewCourses": "查看我的課程"
+            "backToDashboard": "主頁",
+            "viewCourses": "我的課程",
+            "joinCourse": "加入課程"
         }
     },
     "overview": {

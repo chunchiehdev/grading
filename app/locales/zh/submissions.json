@@ -37,6 +37,46 @@
         "pending": "處理中",
         "submitted": "已繳交",
         "failed": "失敗",
-        "unknown": "未知"
+        "unknown": "未知",
+        "analyzed": "已分析"
+    },
+    "teacher": {
+        "title": "提交作業",
+        "subtitle": "檢視與管理此項作業的提交",
+        "stats": {
+            "totalSubmissions": "總提交數",
+            "graded": "已批改",
+            "analyzed": "已分析",
+            "pendingReview": "待審核"
+        },
+        "studentSubmissions": "學生提交",
+        "emptyState": {
+            "noSubmissions": "尚無提交",
+            "noSubmissionsDescription": "學生尚未提交此項作業的任何作品。"
+        },
+        "actions": {
+            "manageAssignment": "管理作業",
+            "backToCourse": "返回課程",
+            "view": "查看",
+            "download": "下載"
+        },
+        "feedback": {
+            "teacherFeedback": "教師回饋",
+            "aiAnalysisAvailable": "AI 分析可用",
+            "aiAnalysisDescription": "已為此提交生成自動批改和回饋。"
+        },
+        "assignmentDetails": {
+            "title": "作業詳情",
+            "assignmentName": "作業名稱",
+            "course": "課程",
+            "gradingRubric": "評分標準",
+            "dueDate": "截止日期",
+            "noDueDate": "未設定截止日期",
+            "description": "說明"
+        },
+        "submissionInfo": {
+            "submitted": "提交於",
+            "score": "分數"
+        }
     }
 }

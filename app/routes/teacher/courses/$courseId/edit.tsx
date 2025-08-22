@@ -76,16 +76,8 @@ export default function EditCourse() {
   const { t } = useTranslation(['course', 'common']);
 
   return (
-    <div>
-      <PageHeader>
-        <div className="flex items-center justify-start pt-2">
-          <Button asChild variant="outline">
-            <Link to={`/teacher/courses/${course.id}`}>{t('common:back')}</Link>
-          </Button>
-        </div>
-        
-      </PageHeader>
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-full flex items-center justify-center p-8">
+      <div className="w-full max-w-4xl">
         <Card>
           <CardHeader>
             <CardTitle>{t('course:edit.title')}</CardTitle>
@@ -125,7 +117,7 @@ export default function EditCourse() {
             </Form>
           </CardContent>
         </Card>
-      </main>
+      </div>
     </div>
   );
 }

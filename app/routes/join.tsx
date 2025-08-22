@@ -8,7 +8,6 @@ import { validateInvitationCode, useInvitationCode, type InvitationValidation } 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { useTranslation } from 'react-i18next';
 
@@ -89,7 +88,6 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
 export default function JoinCourse() {
   const { user, validation, invitationCode } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
-  const [searchParams] = useSearchParams();
   const { t } = useTranslation(['course', 'common']);
 
   const headerActions = (
@@ -132,7 +130,7 @@ export default function JoinCourse() {
                       <strong>{t('course:course')}:</strong> {validation.course.name}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <strong>{t('course:instructor')}:</strong> {validation.course.teacher.name} ({validation.course.teacher.email})
+                      <strong>{t('course:instructor', { name: validation.course.teacher.name })}:</strong> ({validation.course.teacher.email})
                     </p>
                     {validation.course.description && (
                       <p className="text-sm text-gray-600 mt-2">
@@ -192,7 +190,7 @@ export default function JoinCourse() {
                           {validation.course.name}
                         </h4>
                         <p className="text-sm text-green-700">
-                          <strong>{t('course:instructor')}:</strong> {validation.course.teacher.name}
+                          <strong>{t('course:instructor', { name: validation.course.teacher.name })}</strong>
                         </p>
                         {validation.course.description && (
                           <p className="text-sm text-green-700 mt-1">
@@ -255,7 +253,7 @@ export default function JoinCourse() {
                 <div className="space-y-3">
                   <div className="flex items-center text-sm text-blue-700">
                     <User className="h-4 w-4 mr-2" />
-                    <span><strong>{t('course:instructor')}:</strong> {validation.course.teacher.name}</span>
+                    <span><strong>{t('course:instructor' )}:</strong> {validation.course.teacher.name}</span>
                   </div>
                   
                   <div className="flex items-center text-sm text-blue-700">

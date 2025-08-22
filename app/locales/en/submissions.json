@@ -37,6 +37,46 @@
     "pending": "Pending",
     "submitted": "Submitted",
     "failed": "Failed",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "analyzed": "Analyzed"
+  },
+  "teacher": {
+    "title": "Submissions",
+    "subtitle": "Review and manage submissions for this assignment",
+    "stats": {
+      "totalSubmissions": "Total Submissions",
+      "graded": "Graded",
+      "analyzed": "Analyzed",
+      "pendingReview": "Pending Review"
+    },
+    "studentSubmissions": "Student Submissions",
+    "emptyState": {
+      "noSubmissions": "No submissions yet",
+      "noSubmissionsDescription": "Students haven't submitted any work for this assignment yet."
+    },
+    "actions": {
+      "manageAssignment": "Manage Assignment",
+      "backToCourse": "Back to Course",
+      "view": "View",
+      "download": "Download"
+    },
+    "feedback": {
+      "teacherFeedback": "Teacher Feedback",
+      "aiAnalysisAvailable": "AI Analysis Available",
+      "aiAnalysisDescription": "Automated grading and feedback has been generated for this submission."
+    },
+    "assignmentDetails": {
+      "title": "Assignment Details",
+      "assignmentName": "Assignment Name",
+      "course": "Course",
+      "gradingRubric": "Grading Rubric",
+      "dueDate": "Due Date",
+      "noDueDate": "No due date set",
+      "description": "Description"
+    },
+    "submissionInfo": {
+      "submitted": "Submitted",
+      "score": "Score"
+    }
   }
 }

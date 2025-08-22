@@ -133,7 +133,7 @@
   "noCoursesJoined": "您還沒有加入任何課程",
   "enrolledInCourses_one": "您已註冊 {{count}} 門課程",
   "enrolledInCourses_other": "您已註冊 {{count}} 門課程",
-  "instructor": "授課教師：{{name}}",
+  "instructor": "授課教師: {{ name }}",
   "joined": "於 {{date}} 加入",
   "activeCourse": "進行中的課程",
   "viewAssignments": "查看作業",
