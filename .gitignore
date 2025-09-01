@@ -15,3 +15,4 @@ k8s/gradsystem/prod/secret.yaml
 k8s/gradsystem/dev/secret-dev.yaml
 k8s
 logs/
+sec/
