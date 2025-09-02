@@ -43,6 +43,11 @@ type LoaderData = {
   versionInfo: VersionInfo | null;
   locale: string;
   toast?: { type: 'success' | 'error' | 'info' | 'warning'; message: string } | null;
+  podInfo: {
+    podName: string | undefined;
+    podIP: string | undefined;
+    nodeName: string | undefined;
+  };
 };
 
 export const links = () => [
@@ -134,13 +139,23 @@ export async function loader({ request }: { request: Request }) {
 
   // Early return for static assets
   if (isStaticAsset(path)) {
-    const body = { user: null, isPublicPath: true, versionInfo: null, locale, toast };
+    const podInfo = {
+      podName: process.env.POD_NAME,
+      podIP: process.env.POD_IP,
+      nodeName: process.env.NODE_NAME,
+    };
+    const body = { user: null, isPublicPath: true, versionInfo: null, locale, toast, podInfo };
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;
     return new Response(JSON.stringify(body), { headers });
   }
 
   const versionInfo = await getVersionInfoSafe();
+  const podInfo = {
+    podName: process.env.POD_NAME,
+    podIP: process.env.POD_IP,
+    nodeName: process.env.NODE_NAME,
+  };
 
   // Handle public paths
   if (isPublicPath(path)) {
@@ -153,7 +168,7 @@ export async function loader({ request }: { request: Request }) {
         throw redirect('/auth/select-role');
     }
     
-    const body = { user, isPublicPath: true, versionInfo, locale, toast };
+    const body = { user, isPublicPath: true, versionInfo, locale, toast, podInfo };
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;
     return new Response(JSON.stringify(body), { headers });
@@ -185,7 +200,7 @@ export async function loader({ request }: { request: Request }) {
     throw redirect('/auth/unauthorized');
   }
 
-  const body = { user, isPublicPath: false, versionInfo, locale, toast };
+  const body = { user, isPublicPath: false, versionInfo, locale, toast, podInfo };
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (setCookie) headers['Set-Cookie'] = setCookie;
   return new Response(JSON.stringify(body), { headers });
@@ -216,11 +231,11 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const { user, isPublicPath, versionInfo, locale, toast } = useLoaderData() as LoaderData;
+  const { user, isPublicPath, versionInfo, locale, toast, podInfo } = useLoaderData() as LoaderData;
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
   const { i18n } = useTranslation();
   const location = useLocation();
-  
+
   // Change language when locale from server changes
   useEffect(() => {
     if (i18n.language !== locale) {
@@ -267,6 +282,10 @@ function Layout() {
           // Public paths get no padding for full control
           <Outlet />
         )}
+        <div className="debug-info fixed bottom-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-50 hover:opacity-100 transition-opacity z-50">
+          Pod: {podInfo.podName} | IP: {podInfo.podIP} | Node: {podInfo.nodeName}
+        </div>
+  
       </main>
       
       {/* Footer - always present but flexible */}
