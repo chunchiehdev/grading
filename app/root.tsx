@@ -282,9 +282,9 @@ function Layout() {
           // Public paths get no padding for full control
           <Outlet />
         )}
-        <div className="debug-info fixed bottom-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-50 hover:opacity-100 transition-opacity z-50">
+        {/* <div className="debug-info fixed bottom-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-50 hover:opacity-100 transition-opacity z-50">
           Pod: {podInfo.podName} | IP: {podInfo.podIP} | Node: {podInfo.nodeName}
-        </div>
+        </div> */}
   
       </main>
       
