@@ -57,7 +57,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   };
 }
 
-export async function action({ request, params }: ActionFunctionArgs): Promise<ActionData> {
+export async function action({ request, params }: ActionFunctionArgs): Promise<ActionData | Response> {
   const teacher = await requireTeacher(request);
   const courseId = params.courseId;
   const formData = await request.formData();
@@ -91,7 +91,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
     const assignment = await createAssignmentArea(teacher.id, courseId, assignmentData);
 
     // Redirect to the manage page for the newly created assignment
-    throw redirect(`/teacher/courses/${courseId}/assignments/${assignment.id}/manage`);
+    return redirect(`/teacher/courses/${courseId}/assignments/${assignment.id}/manage`);
   } catch (error) {
     console.error('Error creating assignment area:', error);
     return {
