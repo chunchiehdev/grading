@@ -100,7 +100,7 @@
     "noResultsDescription": "完成評分後，結果會顯示在這裡。"
   },
   "ai": {
-    "analyzing": "AI 正在分析作業內容...",
+    "analyzing": "正在分析作業內容...",
     "grading": "AI 正在根據評分標準進行評分...",
     "generating": "AI 正在生成評分回饋...",
     "error": "AI 評分過程中發生錯誤",

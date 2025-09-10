@@ -407,35 +407,41 @@ export default function SubmitAssignment() {
             </AnimatePresence>
 
             {/* Actions under right panel content */}
-            <div className="mt-4 flex gap-2">
-              <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
-                {state === 'grading' ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.analyzing')}
-                  </>
-                ) : state === 'completed' || state === 'error' ? (
-                  t('assignment:submit.rerunAiFeedback')
-                ) : (
-                  t('assignment:submit.getAiFeedback')
-                )}
-              </Button>
-              {state === 'completed' && (
-                <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
-                    </>
+            <AnimatePresence>
+              {state !== 'grading' && (
+                <motion.div 
+                  key="desktop-actions"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mt-4 flex gap-2"
+                >
+                  <Button onClick={() => getAIFeedback()} disabled={!fileId}>
+                    {state === 'completed' || state === 'error' ? (
+                      t('assignment:submit.rerunAiFeedback')
+                    ) : (
+                      t('assignment:submit.getAiFeedback')
+                    )}
+                  </Button>
+                  {state === 'completed' && (
+                    <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
+                        </>
+                      )}
+                    </Button>
                   )}
-                </Button>
+                  {state !== 'idle' && (
+                    <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
+                  )}
+                </motion.div>
               )}
-              {state !== 'idle' && (
-                <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
-              )}
-            </div>
+            </AnimatePresence>
           </div>
         </div>
 
@@ -529,35 +535,41 @@ export default function SubmitAssignment() {
             </AnimatePresence>
 
             {/* Actions under right panel content */}
-            <div className="mt-4 flex gap-2">
-              <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'}>
-                {state === 'grading' ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.analyzing')}
-                  </>
-                ) : state === 'completed' || state === 'error' ? (
-                  t('assignment:submit.rerunAiFeedback')
-                ) : (
-                  t('assignment:submit.getAiFeedback')
-                )}
-              </Button>
-              {state === 'completed' && (
-                <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
-                    </>
+            <AnimatePresence>
+              {state !== 'grading' && (
+                <motion.div 
+                  key="tablet-actions"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="mt-4 flex gap-2"
+                >
+                  <Button onClick={() => getAIFeedback()} disabled={!fileId}>
+                    {state === 'completed' || state === 'error' ? (
+                      t('assignment:submit.rerunAiFeedback')
+                    ) : (
+                      t('assignment:submit.getAiFeedback')
+                    )}
+                  </Button>
+                  {state === 'completed' && (
+                    <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
+                        </>
+                      )}
+                    </Button>
                   )}
-                </Button>
+                  {state !== 'idle' && (
+                    <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
+                  )}
+                </motion.div>
               )}
-              {state !== 'idle' && (
-                <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
-              )}
-            </div>
+            </AnimatePresence>
           </div>
         </div>
 
@@ -628,35 +640,41 @@ export default function SubmitAssignment() {
           </AnimatePresence>
 
           {/* Actions */}
-          <div className="flex gap-2">
-            <Button onClick={() => getAIFeedback()} disabled={!fileId || state === 'grading'} className="flex-1">
-              {state === 'grading' ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.analyzing')}
-                </>
-              ) : state === 'completed' || state === 'error' ? (
-                t('assignment:submit.rerunAiFeedback')
-              ) : (
-                t('assignment:submit.getAiFeedback')
-              )}
-            </Button>
-            {state === 'completed' && (
-              <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700 flex-1">
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
-                  </>
+          <AnimatePresence>
+            {state !== 'grading' && (
+              <motion.div 
+                key="mobile-actions"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex gap-2"
+              >
+                <Button onClick={() => getAIFeedback()} disabled={!fileId} className="flex-1">
+                  {state === 'completed' || state === 'error' ? (
+                    t('assignment:submit.rerunAiFeedback')
+                  ) : (
+                    t('assignment:submit.getAiFeedback')
+                  )}
+                </Button>
+                {state === 'completed' && (
+                  <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700 flex-1">
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
+                      </>
+                    )}
+                  </Button>
                 )}
-              </Button>
+                {state !== 'idle' && (
+                  <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
+                )}
+              </motion.div>
             )}
-            {state !== 'idle' && (
-              <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
-            )}
-          </div>
+          </AnimatePresence>
 
         </div>
 

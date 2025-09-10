@@ -51,7 +51,7 @@ type LoaderData = {
 };
 
 export const links = () => [
-  { rel: 'icon', type: 'image/x-icon', href: '/rubber-duck.ico' },
+  { rel: 'icon', type: 'image/x-icon', href: '/site-icon.ico' },
   { rel: 'stylesheet', href: '/tailwind.css' },
   { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
   {
@@ -272,14 +272,14 @@ function Layout() {
       )}
       
       {/* Main content area with controlled overflow */}
-      <main className="flex-1 overflow-auto">
+      <main className={cn("flex-1", !isPublicPath ? "overflow-auto" : "overflow-hidden")}>
         {!isPublicPath ? (
           // Protected paths get padding
           <div className="p-8">
             <Outlet />
           </div>
         ) : (
-          // Public paths get no padding for full control
+          // Public paths get no padding for full control and no overflow
           <Outlet />
         )}
         {/* <div className="debug-info fixed bottom-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-50 hover:opacity-100 transition-opacity z-50">

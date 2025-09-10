@@ -66,15 +66,33 @@ export function SelectRolePage(_: SelectRoleProps) {
   const isSubmitting = navigation.state === 'submitting';
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="h-full w-full bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden flex items-center justify-center">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Floating Circles */}
+        <div className="absolute top-20 left-10 w-32 h-32 bg-primary/5 rounded-full animate-float opacity-60"></div>
+        <div className="absolute top-40 right-20 w-20 h-20 bg-secondary/10 rounded-full animate-float-slow opacity-40"></div>
+        <div className="absolute bottom-32 left-1/4 w-24 h-24 bg-accent/5 rounded-full animate-float opacity-50"></div>
+        
+        {/* Gradient Orbs */}
+        <div className="absolute top-1/4 right-1/3 w-40 h-40 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-full blur-xl animate-pulse opacity-30"></div>
+        <div className="absolute bottom-1/4 left-1/4 w-32 h-32 bg-gradient-to-r from-accent/10 to-primary/10 rounded-full blur-xl animate-pulse opacity-25"></div>
+      </div>
       
-      <div className="flex-1 flex items-center justify-center">
-        <main className="max-w-3xl px-4 pb-10 w-full">
-          <Card className="border-border">
-            <CardHeader>
-              <CardTitle>Welcome! {user.name}, choose how you'll use the app.</CardTitle>
+      <div className="relative z-10 w-full max-w-2xl px-6 max-h-full flex items-center">
+          <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-2xl w-full max-h-full overflow-hidden">
+            <CardHeader className="text-center pb-6">
+              <div className="mx-auto mb-6 p-4 rounded-full bg-gradient-to-r from-primary/10 to-secondary/10 w-fit">
+                <GraduationCap className="w-10 h-10 text-primary" />
+              </div>
+              <CardTitle className="text-3xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-3">
+                Welcome, {user.name}!
+              </CardTitle>
+              <p className="text-muted-foreground text-lg">
+                Choose how you'll use the app to get started
+              </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-y-auto max-h-96">
               <Form method="post" className="space-y-6" aria-busy={isSubmitting}>
                 <div className="space-y-4">
                   {isSubmitting ? (
@@ -116,12 +134,15 @@ export function SelectRolePage(_: SelectRoleProps) {
                 </Button>
               </Form>
 
-              <div className="mt-8 text-center">
-                <p className="text-xs text-muted-foreground">You can change your role later in account settings</p>
+              <div className="mt-6 text-center">
+                <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                  <span className="w-2 h-2 bg-primary/40 rounded-full animate-pulse"></span>
+                  You can change your role later in account settings
+                  <span className="w-2 h-2 bg-primary/40 rounded-full animate-pulse"></span>
+                </p>
               </div>
             </CardContent>
           </Card>
-        </main>
       </div>
     </div>
   );

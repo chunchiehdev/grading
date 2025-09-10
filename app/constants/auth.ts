@@ -2,6 +2,7 @@ export const PUBLIC_PATHS = [
   '/',                    // Landing page
   '/auth/login', 
   '/auth/register', 
+  '/auth/select-role',    // Role selection page
   '/auth/google', 
   '/auth/google/callback',
   '/health',              
