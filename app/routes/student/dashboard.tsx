@@ -45,7 +45,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
 export default function StudentDashboard() {
   const { student, assignments, submissions } = useLoaderData<typeof loader>();
-  const { t } = useTranslation(['course', 'dashboard'])
+  const { t } = useTranslation(['course', 'dashboard', 'submissions']);
   
   // Separate assignments into different categories
   const pendingAssignments = assignments.filter(
@@ -162,7 +162,7 @@ export default function StudentDashboard() {
                       <div className="flex-1">
                         <h3 className="text-sm font-medium text-foreground">{submission.assignmentArea.name}</h3>
                         <p className="text-sm text-muted-foreground">{submission.assignmentArea.course.name}</p>
-                        <p className="text-xs text-muted-foreground">{t('submissions:submissionInfo.submitted')} {submission.formattedUploadedDate}</p>
+                        <p className="text-xs text-muted-foreground">{t('submissions:teacher.submissionInfo.submitted')} {submission.formattedUploadedDate}</p>
                       </div>
                       <div className="text-right">
                         <Badge
@@ -177,7 +177,7 @@ export default function StudentDashboard() {
                           {t(`submissions:status.${submission.status.toLowerCase()}`)}
                         </Badge>
                         {submission.finalScore !== null && (
-                          <p className="text-sm font-medium text-foreground mt-1">{t('submissions:submissionInfo.score')}: {submission.finalScore}</p>
+                          <p className="text-sm font-medium text-foreground mt-1">{t('submissions:teacher.submissionInfo.score')}: {submission.finalScore}</p>
                         )}
                       </div>
                     </div>

@@ -1,7 +1,7 @@
 {
     "pageHeader": {
         "allAssignments": "所有作業",
-        "subtitle": "共有 {count} 個作業",
+        "subtitle": "共有 {{count}} 個作業",
         "myCourses": "我的課程",
         "backToDashboard": "返回主頁"
     },
@@ -54,7 +54,7 @@
     },
     "dueDate": {
         "noDueDate": "無截止日期",
-        "overdue": "已逾期 {days} 天",
+        "overdue": "已逾期 {{days}} 天",
         "dueToday": "今天截止",
         "dueTomorrow": "明天截止",
         "dueInDays": "{days} 天後截止"
@@ -66,7 +66,7 @@
         "graded": "已批改 ({count})"
     },
     "courseInfo": {
-        "instructorLabel": "授課老師：{email}",
+        "instructorLabel": "授課老師：{{email}}",
         "assignmentCount": "{count} 個作業",
         "assignmentCountPlural": "{count} 個作業"
     },

@@ -121,7 +121,14 @@ function isStaticAsset(path: string) {
 }
 
 function isPublicPath(path: string): boolean {
-  return PUBLIC_PATHS.some((publicPath) => path.startsWith(publicPath));
+  return PUBLIC_PATHS.some((publicPath) => {
+    // Exact match for root path '/'
+    if (publicPath === '/') {
+      return path === '/';
+    }
+    // For other paths, use startsWith
+    return path.startsWith(publicPath);
+  });
 }
 
 export function getRoleBasedDashboard(userRole: string): string {
@@ -265,25 +272,28 @@ function Layout() {
 
   // Unified layout structure for all route types
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden bg-background">
+    <div className="h-screen w-full flex flex-col bg-background">
       {/* Conditional NavHeader - only show for authenticated users or protected paths */}
       {(user || !isPublicPath) && (
         <NavHeader className="flex-shrink-0" />
       )}
       
-      {/* Main content area with controlled overflow */}
-      <main className={cn("flex-1", !isPublicPath ? "overflow-auto" : "overflow-hidden")}>
+      {/* Main content area with proper scrolling */}
+      <main className="flex-1 overflow-y-auto">
+        
         {!isPublicPath ? (
-          // Protected paths get padding
-          <div className="p-8">
+          // Protected paths get responsive horizontal padding and can scroll
+          <div className="px-4 sm:px-6 lg:px-8 py-4 ">
             <Outlet />
           </div>
         ) : (
-          // Public paths get no padding for full control and no overflow
-          <Outlet />
+          // Public paths get full control over their layout
+          <div className="h-full">
+            <Outlet />
+          </div>
         )}
         {/* <div className="debug-info fixed bottom-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-50 hover:opacity-100 transition-opacity z-50">
-          Pod: {podInfo.podName} | IP: {podInfo.podIP} | Node: {podInfo.nodeName}
+          Pod: {podInfo.podName} | IP: {podInfo.podIP} | Node: {nodeName}
         </div> */}
   
       </main>

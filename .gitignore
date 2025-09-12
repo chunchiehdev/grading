@@ -11,8 +11,10 @@ bundle-report.html
 node_modules/
 work/
 
-k8s/gradsystem/prod/secret.yaml
-k8s/gradsystem/dev/secret-dev.yaml
-k8s
+k8s/monitor/
+k8s/prod/
+
 logs/
 sec/
+
+k8s/

@@ -1,11 +1,10 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, Link } from 'react-router';
+import { useLoaderData, Link, useNavigate } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionsByStudentId } from '@/services/submission.server';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 
@@ -18,32 +17,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function StudentSubmissions() {
   const { submissions } = useLoaderData<typeof loader>();
   const { t } = useTranslation(['common', 'submissions']);
-
-  const renderStatus = (status?: string) => {
-    const normalized = (status || '').toUpperCase();
-    let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'outline';
-    let label = status || 'Unknown';
-    switch (normalized) {
-      case 'GRADED':
-        variant = 'default';
-        label = 'Graded';
-        break;
-      case 'ANALYZED':
-      case 'PENDING':
-        variant = 'secondary';
-        label = 'Pending';
-        break;
-      case 'SUBMITTED':
-        variant = 'outline';
-        label = 'Submitted';
-        break;
-      case 'FAILED':
-        variant = 'destructive';
-        label = 'Failed';
-        break;
-    }
-    return <Badge variant={variant}>{label}</Badge>;
-  };
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background">
@@ -70,21 +44,18 @@ export default function StudentSubmissions() {
                     <TableHead>{t('submissions:table.assignment')}</TableHead>
                     <TableHead>{t('submissions:table.course')}</TableHead>
                     <TableHead>{t('submissions:table.submittedAt')}</TableHead>
-                    <TableHead>{t('submissions:table.status')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {submissions.map((s) => (
-                    <TableRow key={s.id}>
+                    <TableRow 
+                      key={s.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => navigate(`/student/submissions/${s.id}`)}
+                    >
                       <TableCell className="font-medium">{s.assignmentArea?.name}</TableCell>
                       <TableCell>{s.assignmentArea?.course?.name}</TableCell>
                       <TableCell>{s.uploadedAt ? new Date(s.uploadedAt).toLocaleString() : '-'}</TableCell>
-                      <TableCell>{renderStatus(s.status)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild size="sm" variant="outline">
-                          <Link to={`/student/submissions/${s.id}`}>{t('submissions:table.viewDetails')}</Link>
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
