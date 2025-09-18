@@ -21,7 +21,6 @@ import {
 import { getCoursePageData, type CoursePageData } from '@/services/course-detail.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatsCard } from '@/components/ui/stats-card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -129,31 +128,50 @@ export default function CourseDetail() {
       <div className="max-w-7xl mx-auto space-y-8 pb-8">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <StatsCard
-            title={t('course:stats.assignmentAreas')}
-            value={course.assignmentAreas?.length || 0}
-            icon={FileText}
-            variant="transparent"
-          />
-          <StatsCard
-            title={t('course:stats.totalSubmissions')}
-            value={totalSubmissions}
-            icon={Users}
-            variant="transparent"
-          />
-          <StatsCard
-            title={t('course:stats.enrolledStudents')}
-            value={enrollmentStats.totalEnrollments}
-            icon={Users}
-            variant="transparent"
-          />
-          <StatsCard
-          title={t('course:stats.createdDate')}
-          value={formattedCreatedDate}
-          icon={FileText}
-          size='sm'
-          variant="transparent"
-        />
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{t('course:stats.assignmentAreas')}</p>
+                  <p className="text-2xl font-bold text-foreground">{course.assignmentAreas?.length || 0}</p>
+                </div>
+                <FileText className="w-8 h-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{t('course:stats.totalSubmissions')}</p>
+                  <p className="text-2xl font-bold text-foreground">{totalSubmissions}</p>
+                </div>
+                <Users className="w-8 h-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{t('course:stats.enrolledStudents')}</p>
+                  <p className="text-2xl font-bold text-foreground">{enrollmentStats.totalEnrollments}</p>
+                </div>
+                <Users className="w-8 h-8 text-orange-600" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{t('course:stats.createdDate')}</p>
+                  <p className="text-xl font-bold text-foreground">{formattedCreatedDate}</p>
+                </div>
+                <FileText className="w-8 h-8 text-purple-600" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
         <Card>
           <CardHeader>

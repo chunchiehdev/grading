@@ -92,8 +92,21 @@ export default function SubmitAssignment() {
   // Resolve file URL for server-side files
   const resolveFileUrl = async (fileId: string): Promise<string | null> => {
     try {
-      // Return the download URL for server-side files
-      return `/api/files/${fileId}/download`;
+      // Fetch file with credentials and convert to blob URL for PDF viewing
+      const response = await fetch(`/api/files/${fileId}/download`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        console.warn('Failed to fetch file:', response.status, response.statusText);
+        return null;
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Store blob URL for cleanup later
+      return blobUrl;
     } catch (e) {
       console.warn('Failed to resolve file URL:', e);
       return null;

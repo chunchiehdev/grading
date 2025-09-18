@@ -1,0 +1,17 @@
+{
+  "submissionReview": "作業審閱",
+  "studentInfo": "學生資訊",
+  "backToSubmissions": "返回提交列表",
+  "downloadFile": "下載檔案",
+  "provideFeedback": "提供回饋",
+  "feedbackLabel": "教師回饋",
+  "feedbackPlaceholder": "請為此次提交提供您的回饋和評語...",
+  "feedbackSaved": "回饋已成功儲存！",
+  "saveFeedback": "儲存回饋",
+  "points": "分",
+  "actions": {
+    "view": "查看",
+    "download": "下載",
+    "edit": "編輯"
+  }
+}

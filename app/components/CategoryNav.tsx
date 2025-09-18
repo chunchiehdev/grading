@@ -61,7 +61,6 @@ export const CategoryNav = ({
                   onSave={(name) => onUpdateCategory(category.id, name)}
                 />
               </div>
-              {/* <div className="text-xs text-muted-foreground mt-0.5">{criteriaCount} 個標準</div> */}
             </div>
 
             <div className="flex items-center gap-1">

@@ -28,6 +28,7 @@ export default [
     route('courses/:courseId/assignments/new', './routes/teacher/courses/$courseId/assignments/new.tsx'),
     route('courses/:courseId/assignments/:assignmentId/manage', './routes/teacher/courses/$courseId/assignments/$assignmentId.manage.tsx'),
     route('courses/:courseId/assignments/:assignmentId/submissions', './routes/teacher/courses/$courseId/assignments/$assignmentId.submissions.tsx'),
+    route('submissions/:submissionId/view', './routes/teacher/submissions/$submissionId.view.tsx'),
     route('rubrics', './routes/teacher/rubrics.tsx'),
     route('rubrics/new', './routes/teacher/rubrics/new.tsx'),
     route('rubrics/:rubricId', './routes/teacher/rubrics/$rubricId.tsx'),
@@ -52,7 +53,8 @@ export default [
   route('/api/upload', './api/upload/index.ts'),
   route('/api/upload/create-id', './api/upload/create-id.ts'),
   route('/api/upload/delete-file', './api/upload/delete-file.ts'),
-  route('/api/upload/progress/:id', './api/upload/progress.$id.ts'),
+  route('/api/upload/progress', './api/upload/progress.ts'),
+  
 
   // File management API routes
   route('/api/files', './api/files/index.ts'),
@@ -72,7 +74,6 @@ export default [
   route('/api/admin/queue-status', './api/admin/queue-status.ts'),
 
   // Auth API routes
-  route('/api/auth/login', './api/auth/login.ts'),
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
 
@@ -84,6 +85,7 @@ export default [
 
   // Student Submission API
   route('/api/student/submit', './api/student/submit.ts'),
+  route('/api/student/assignments/:assignmentId/draft', './api/student/assignments/$assignmentId/draft.ts'),
 
   route('/health', './routes/health.tsx'),
 

@@ -1,11 +1,9 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, Link, useNavigate } from 'react-router';
+import { useLoaderData, useNavigate } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionsByStudentId } from '@/services/submission.server';
-import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -20,16 +18,8 @@ export default function StudentSubmissions() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background">
-      <PageHeader>
-        <div className="flex items-center justify-start pt-2">
-          <Button asChild variant="outline">
-            <Link to="/student/dashboard">{t('common:back')}</Link>
-          </Button>
-        </div>
-      </PageHeader>
-
-      <main className="max-w-7xl mx-auto px-4 pb-8">
+    <div className="min-h-screen">
+      <div className="max-w-full lg:max-w-[95vw] xl:max-w-[90vw] 2xl:max-w-[85vw] mx-auto space-y-8">
         <Card className="border-border">
           <CardHeader>
             <CardTitle>{t('submissions:history')}</CardTitle>
@@ -63,7 +53,7 @@ export default function StudentSubmissions() {
             )}
           </CardContent>
         </Card>
-      </main>
+      </div>
     </div>
   );
 }

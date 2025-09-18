@@ -6,7 +6,6 @@ import { requireTeacher } from '@/services/auth.server';
 import { listRubrics } from '@/services/rubric.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatsCard } from '@/components/ui/stats-card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { useTranslation } from 'react-i18next';
@@ -90,9 +89,41 @@ function RubricsContent({
       <div className="max-w-7xl mx-auto space-y-8">
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatsCard title={t('rubric:total')} value={rubrics.length} icon={FileText} variant="transparent" />
-            <StatsCard title={t('rubric:active')} value={activeRubrics.length} icon={Clock} variant="transparent" />
-            <StatsCard title={t('rubric:template')} value={templateRubrics.length} icon={Calendar} variant="transparent" />
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{t('rubric:total')}</p>
+                    <p className="text-2xl font-bold text-foreground">{rubrics.length}</p>
+                  </div>
+                  <FileText className="w-8 h-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{t('rubric:active')}</p>
+                    <p className="text-2xl font-bold text-foreground">{activeRubrics.length}</p>
+                  </div>
+                  <Clock className="w-8 h-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{t('rubric:template')}</p>
+                    <p className="text-2xl font-bold text-foreground">{templateRubrics.length}</p>
+                  </div>
+                  <Calendar className="w-8 h-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Error State */}

@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
-import { StatsCard } from '@/components/ui/stats-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 import { useTranslation } from 'react-i18next';
@@ -133,30 +132,50 @@ export default function AssignmentSubmissions() {
         <div className="space-y-8">
           {/* Submission Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <StatsCard
-              title={t('teacher.stats.totalSubmissions')}
-              value={stats.total}
-              icon={FileText}
-              variant="transparent"
-            />
-            <StatsCard
-              title={t('teacher.stats.graded')}
-              value={stats.graded}
-              icon={CheckCircle}
-              variant="transparent"
-            />
-            <StatsCard
-              title={t('teacher.stats.analyzed')}
-              value={stats.analyzed}
-              icon={Eye}
-              variant="transparent"
-            />
-            <StatsCard
-              title={t('teacher.stats.pendingReview')}
-              value={stats.pending}
-              icon={Clock}
-              variant="transparent"
-            />
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{t('teacher.stats.totalSubmissions')}</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+                  </div>
+                  <FileText className="w-8 h-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{t('teacher.stats.graded')}</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.graded}</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{t('teacher.stats.analyzed')}</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.analyzed}</p>
+                  </div>
+                  <Eye className="w-8 h-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{t('teacher.stats.pendingReview')}</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.pending}</p>
+                  </div>
+                  <Clock className="w-8 h-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Submissions List */}
@@ -224,7 +243,7 @@ export default function AssignmentSubmissions() {
                           {/* Action Buttons */}
                           <div className="flex items-center space-x-2">
                             <Button asChild variant="outline" size="sm">
-                              <Link to={`/student/assignments/${assignmentArea.id}/submit`}>
+                              <Link to={`/teacher/submissions/${submission.id}/view`}>
                                 <Eye className="h-4 w-4 mr-1" />
                                 {t('teacher.actions.view')}
                               </Link>

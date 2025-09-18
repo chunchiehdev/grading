@@ -280,10 +280,9 @@ function Layout() {
       
       {/* Main content area with proper scrolling */}
       <main className="flex-1 overflow-y-auto">
-        
         {!isPublicPath ? (
           // Protected paths get responsive horizontal padding and can scroll
-          <div className="px-4 sm:px-6 lg:px-8 py-4 ">
+          <div className="px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">
             <Outlet />
           </div>
         ) : (

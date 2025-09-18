@@ -1,8 +1,7 @@
-import type { Route } from './+types/delete-file';
 import { deleteFromStorage } from '@/services/storage.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
-export async function action({ request }: Route.ActionArgs) {
+export async function action({ request }: { request: Request }) {
   if (request.method !== 'DELETE') {
     return Response.json(
       createErrorResponse('Method not allowed', ApiErrorCode.VALIDATION_ERROR), 

@@ -158,13 +158,22 @@ export async function createSubmissionAndLinkGradingResult(
         ? Math.round(aiAnalysisResult.totalScore)
         : null;
 
+      console.log(`🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult.totalScore}, finalScore=${finalScore}`);
+
       await updateSubmission(submission.id, {
         aiAnalysisResult: aiAnalysisResult,
         finalScore: finalScore ?? undefined,
         status: 'ANALYZED',
       });
+
+      console.log(`✅ Successfully linked AI result to submission ${submission.id}`);
     } else {
-      console.warn(`Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`);
+      console.warn(`⚠️ Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`);
+      console.warn(`   Session exists: ${sessionId ? 'Yes' : 'No'}`);
+      console.warn(`   Grading result found: ${gradingResult ? 'Yes' : 'No'}`);
+      if (gradingResult) {
+        console.warn(`   Result has data: ${gradingResult.result ? 'Yes' : 'No'}`);
+      }
     }
   } catch (error) {
     console.error(`Error linking AI analysis for submission ${submission.id}:`, error);
@@ -433,6 +442,53 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
   } catch (error) {
     console.error('❌ Error fetching submissions by student:', error);
     return [];
+  }
+}
+
+/**
+ * Gets a specific submission for teacher viewing (teacher authorization required)
+ * @param {string} submissionId - Submission ID
+ * @param {string} teacherId - Teacher's user ID for authorization
+ * @returns {Promise<SubmissionInfo | null>} Submission information or null if not found/unauthorized
+ */
+export async function getSubmissionByIdForTeacher(submissionId: string, teacherId: string): Promise<SubmissionInfo | null> {
+  try {
+    const submission = await db.submission.findFirst({
+      where: {
+        id: submissionId,
+        assignmentArea: {
+          course: {
+            teacherId: teacherId, // Ensure teacher owns the course
+          },
+        },
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            picture: true,
+          },
+        },
+        assignmentArea: {
+          include: {
+            course: {
+              include: {
+                teacher: {
+                  select: { email: true },
+                },
+              },
+            },
+            rubric: true,
+          },
+        },
+      },
+    });
+    return submission;
+  } catch (error) {
+    console.error('❌ Error fetching submission for teacher:', error);
+    return null;
   }
 }
 
@@ -719,3 +775,53 @@ export async function saveDraftSubmission(
     return null;
   }
 }
+
+/**
+ * Gets recent submissions for teacher dashboard (from teacher's courses)
+ * @param {string} teacherId - Teacher's user ID
+ * @param {number} limit - Maximum number of submissions to return (default: 10)
+ * @returns {Promise<SubmissionInfo[]>} List of recent submissions from teacher's courses
+ */
+export async function getRecentSubmissionsForTeacher(teacherId: string, limit: number = 10): Promise<SubmissionInfo[]> {
+  try {
+    const submissions = await db.submission.findMany({
+      where: {
+        assignmentArea: {
+          course: {
+            teacherId: teacherId,
+          },
+        },
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            picture: true,
+          },
+        },
+        assignmentArea: {
+          include: {
+            course: {
+              include: {
+                teacher: {
+                  select: { email: true },
+                },
+              },
+            },
+            rubric: true,
+          },
+        },
+      },
+      orderBy: { uploadedAt: 'desc' },
+      take: limit,
+    });
+
+    return submissions;
+  } catch (error) {
+    console.error('❌ Error fetching recent submissions for teacher:', error);
+    return [];
+  }
+}
+

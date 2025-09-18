@@ -5,6 +5,14 @@ export default {
   content: ['./app/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
+      screens: {
+        '3xl': '1920px',
+        '4xl': '2560px',
+      },
+      maxWidth: {
+        '8xl': '1440px',
+        '9xl': '1600px',
+      },
       fontFamily: {
         sans: ['Noto Serif TC', 'serif'],
         serif: ['Noto Serif TC', 'serif'],

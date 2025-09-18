@@ -67,20 +67,20 @@ export function NavHeader({
   return (
     <>
       <header className={cn(
-        'sticky top-0 z-50 bg-background shadow-sm border-b border-border',
+        'sticky top-0 z-50 bg-background ',
         className
       )}>
-        <nav className="relative mx-auto flex max-w-8xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <nav className="relative w-full flex items-center justify-between py-3 px-4 sm:px-6 lg:px-8">
           {/* Left Section - Logo & Title */}
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-3">
                <img 
-                 src="/logo4.png" 
+                 src="/home.png" 
                  alt="GradeMaster Logo" 
-                 className="w-8 h-8 rounded"
+                 className="w-8 h-8 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded"
                />
                
-              <div className="hidden sm:block text-lg font-semibold text-foreground">
+              <div className="hidden sm:block text-lg lg:text-xl 2xl:text-2xl font-semibold text-foreground">
                 {title || safeT('title', 'Grading System')}
               </div>
             </Link>
@@ -94,22 +94,22 @@ export function NavHeader({
           </div>
 
           {/* Right Section - Desktop Controls */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3 lg:gap-4 2xl:gap-5">
             <LanguageSwitcher variant="dropdown" />
             {onShare && (
-              <Button variant="outline" size="sm" onClick={onShare} className="gap-2">
-                <Share2 className="w-4 h-4" />
-                <span>{safeT('share', 'Share')}</span>
+              <Button variant="outline" size="sm" onClick={onShare} className="gap-2 lg:h-10 2xl:h-11 lg:px-4 2xl:px-5">
+                <Share2 className="w-4 h-4 lg:w-5 lg:h-5" />
+                <span className="lg:text-base">{safeT('share', 'Share')}</span>
               </Button>
             )}
             <ModeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2 px-3">
+                <Button variant="ghost" size="sm" className="gap-2 px-3 lg:h-10 2xl:h-11 lg:px-4 2xl:px-5">
                   {user.picture ? (
-                    <img src={user.picture} alt={user.email} className="w-6 h-6 rounded-full" />
+                    <img src={user.picture} alt={user.email} className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full" />
                   ) : (
-                    <UserIcon className="w-4 h-4" />
+                    <UserIcon className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />
                   )}
                   
                 </Button>

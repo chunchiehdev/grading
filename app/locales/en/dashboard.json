@@ -31,7 +31,11 @@
     "gradedToday": "Graded Today",
     "thisWeek": "This Week",
     "thisMonth": "This Month",
-    "total": "Total"
+    "total": "Total",
+    "pendingAssignments": "Pending Assignments",
+    "completedSubmissions": "Completed Submissions",
+    "averageScore": "Average Score",
+    "noScores": "No Scores"
   },
   "teacher": {
     "dashboard": "Teacher Dashboard",

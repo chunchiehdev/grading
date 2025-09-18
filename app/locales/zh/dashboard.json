@@ -31,7 +31,11 @@
     "gradedToday": "今日已評分",
     "thisWeek": "本週",
     "thisMonth": "本月",
-    "total": "總計"
+    "total": "總計",
+    "pendingAssignments": "待交作業",
+    "completedSubmissions": "已交作業",
+    "averageScore": "平均分數",
+    "noScores": "無評分"
   },
   "teacher": {
     "dashboard": "教師儀表板",

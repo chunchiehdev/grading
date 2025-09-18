@@ -73,12 +73,15 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       return data;
     },
     onSuccess: (uploadResponse) => {
+      console.log('🔍 Upload mutation onSuccess called with:', uploadResponse);
       const { results } = (uploadResponse?.data ?? uploadResponse) || {};
+      console.log('📋 Extracted results:', results);
       const successfulFiles: UploadedFileResult[] = [];
 
       // Process each upload result with safety checks
       if (Array.isArray(results)) {
         results.forEach((result: UploadedFileResult) => {
+        console.log('🔄 Processing result:', result);
         if (result.success) {
           setFileStatus(result.fileName, 'success', {
             fileId: result.fileId,
@@ -94,10 +97,14 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
         });
       }
 
+      console.log('✅ Successful files for callback:', successfulFiles);
+
       // Only notify if all files in this batch succeeded to align with parent expectations
       if (onUploadComplete && Array.isArray(results) && results.length > 0) {
         const allSucceeded = results.every((r: UploadedFileResult) => !!r && r.success === true);
+        console.log('🎯 All files succeeded?', allSucceeded);
         if (allSucceeded) {
+          console.log('📞 Calling onUploadComplete with:', successfulFiles);
           onUploadComplete(successfulFiles);
         }
       }

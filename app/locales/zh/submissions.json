@@ -20,7 +20,8 @@
     },
     "aiAnalysis": {
         "title": "AI 批改結果",
-        "gradingInProgress": "批改進行中。"
+        "gradingInProgress": "批改進行中。",
+        "inProgress": "AI 分析進行中..."
     },
     "gradingSummary": {
         "title": "成績",

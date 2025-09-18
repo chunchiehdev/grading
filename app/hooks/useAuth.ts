@@ -64,40 +64,6 @@ export function useUser() {
   });
 }
 
-/**
- * Custom hook for user login functionality
- * @returns {UseMutationResult} Mutation result with login function and states
- */
-export function useLogin() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (payload: { email: string; password: string }) => {
-      logger.info('[useLogin] Attempting login');
-
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        console.error('[useLogin] Login failed:', data);
-        throw data;
-      }
-
-      const userData = data.data || data.user || null;
-      logger.info('[useLogin] Login successful');
-
-      await queryClient.invalidateQueries({ queryKey: ['user'] });
-
-      return userData;
-    },
-  });
-}
 
 /**
  * Custom hook for user logout functionality with automatic cache clearing

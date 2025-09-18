@@ -2,11 +2,12 @@
 import { useCallback, useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, X, File, AlertCircle, FileUp } from 'lucide-react';
+import { Upload, X, File, AlertCircle, FileUp, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 
 // Helper function to format file size
 const formatFileSize = (bytes: number): string => {
@@ -241,24 +242,50 @@ export const CompactFileUpload = ({
         <ScrollArea className="h-40 border rounded-md">
           <div className="p-3 space-y-2">
             {safeUploadedFiles.map((fileData: any, index: number) => (
-              <div
+              <motion.div
                 key={fileData.key || index}
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ 
+                  opacity: 1, 
+                  y: 0, 
+                  scale: 1,
+                  borderColor: fileData.status === 'success' ? '#bbf7d0' : 
+                             fileData.status === 'error' ? '#fecaca' : 
+                             fileData.status === 'uploading' ? '#dbeafe' : '#e5e7eb'
+                }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ 
+                  duration: 0.3,
+                  ease: "easeOut",
+                  borderColor: { duration: 0.5 }
+                }}
                 className={cn(
-                  'flex items-center justify-between rounded-md border p-2',
+                  'flex items-center justify-between rounded-md border p-2 transition-colors duration-300',
                   fileData.status === 'success' && 'border-green-200 bg-green-50',
                   fileData.status === 'error' && 'border-destructive/30 bg-destructive/10',
                   fileData.status === 'uploading' && 'border-primary/30 bg-primary/5'
                 )}
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <File
-                    className={cn(
-                      'w-4 h-4 flex-shrink-0',
-                      fileData.status === 'success' && 'text-green-500',
-                      fileData.status === 'error' && 'text-destructive',
-                      fileData.status === 'uploading' && 'text-primary'
+                  <div className="relative flex-shrink-0">
+                    <File
+                      className={cn(
+                        'w-4 h-4 transition-colors duration-300',
+                        fileData.status === 'success' && 'text-green-500',
+                        fileData.status === 'error' && 'text-destructive',
+                        fileData.status === 'uploading' && 'text-primary'
+                      )}
+                    />
+                    {fileData.status === 'uploading' && (
+                      <motion.div
+                        className="absolute -top-0.5 -right-0.5"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      >
+                        <Loader2 className="w-3 h-3 text-primary opacity-60" />
+                      </motion.div>
                     )}
-                  />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-foreground truncate">{fileData.file.name}</p>
@@ -273,23 +300,33 @@ export const CompactFileUpload = ({
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <Progress
-                        value={fileData.progress}
-                        className={cn(
-                          'h-1 flex-1',
-                          fileData.status === 'success' && 'bg-green-500/20',
-                          fileData.status === 'error' && 'bg-destructive/20'
-                        )}
-                        style={{
-                          ['--progress-foreground' as any]:
-                            fileData.status === 'success'
-                              ? 'var(--green-500)'
-                              : fileData.status === 'error'
-                                ? 'var(--red-500)'
-                                : 'var(--blue-500)',
-                        }}
-                      />
-                      <span className="text-xs text-muted-foreground flex-shrink-0">{formatFileSize(fileData.file.size)}</span>
+                      <motion.div 
+                        className="flex-1"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Progress
+                          value={fileData.progress || 0}
+                          className={cn(
+                            'h-1.5 transition-all duration-500 ease-out',
+                            fileData.status === 'success' && 'bg-green-100',
+                            fileData.status === 'error' && 'bg-red-100',
+                            fileData.status === 'uploading' && 'bg-blue-50'
+                          )}
+                        />
+                      </motion.div>
+                      <motion.span 
+                        className="text-xs text-muted-foreground flex-shrink-0"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.1 }}
+                      >
+                        {fileData.status === 'uploading' && fileData.uploadedBytes && fileData.totalBytes ? 
+                          `${formatFileSize(fileData.uploadedBytes)} / ${formatFileSize(fileData.totalBytes)}` :
+                          formatFileSize(fileData.file.size)
+                        }
+                      </motion.span>
                     </div>
                   </div>
                 </div>
@@ -302,7 +339,7 @@ export const CompactFileUpload = ({
                 >
                   <X className="h-4 w-4" />
                 </Button>
-              </div>
+              </motion.div>
             ))}
           </div>
         </ScrollArea>

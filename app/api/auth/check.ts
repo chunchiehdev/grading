@@ -1,6 +1,6 @@
 import { getUser } from '@/services/auth.server';
-import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
-import { createSuccessResponse, ApiErrorCode } from '@/types/api';
+import { withErrorHandler } from '@/middleware/api.server';
+import { createSuccessResponse } from '@/types/api';
 
 /**
  * API endpoint to check user authentication status
