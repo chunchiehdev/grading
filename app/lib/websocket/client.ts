@@ -60,8 +60,9 @@ export class WebSocketClient {
       return 'http://localhost:3001';
     }
 
+    // 在生產環境中使用 Ingress 路由，開發環境直連 WebSocket 服務
     return process.env.NODE_ENV === 'production'
-      ? `${window.location.protocol}//${window.location.hostname}:3001`
+      ? `${window.location.protocol}//${window.location.host}`
       : 'http://localhost:3001';
   }
 
