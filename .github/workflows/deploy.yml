@@ -105,14 +105,25 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_TOKEN }}
 
-    - name: Build and push Docker image
+    - name: Build and push Main Application Docker image
       uses: docker/build-push-action@v5
       with:
+        context: .
         push: true
         tags: |
           chunchiehdev/gradsystem:${{ github.ref_name }}
           chunchiehdev/gradsystem:${{ steps.package-version.outputs.VERSION }}-${{ github.ref_name }}
           ${{ github.ref_name == 'master' && format('chunchiehdev/gradsystem:{0}', steps.package-version.outputs.VERSION) || '' }}
+
+    - name: Build and push WebSocket Server Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./websocket-server
+        push: true
+        tags: |
+          chunchiehdev/websocket-server:${{ github.ref_name }}
+          chunchiehdev/websocket-server:${{ steps.package-version.outputs.VERSION }}-${{ github.ref_name }}
+          ${{ github.ref_name == 'master' && format('chunchiehdev/websocket-server:{0}', steps.package-version.outputs.VERSION) || '' }}
 
     - name: Deploy to K3s
       uses: appleboy/ssh-action@master
@@ -178,10 +189,21 @@ jobs:
               # Remove the temporary file after deployment
               rm $TEMP_DEPLOYMENT_FILE
 
-              echo "Triggering rollout restart to pull latest image..."
+              echo "Triggering rollout restart to pull latest images..."
               kubectl rollout restart deployment $DEPLOYMENT_NAME -n $NAMESPACE
               kubectl rollout status deployment $DEPLOYMENT_NAME -n $NAMESPACE
-              echo "Deployment completed successfully!"
+
+              # Deploy WebSocket service if exists
+              if [ -f "${NAMESPACE}/websocket-deployment-dev.yaml" ]; then
+                echo "Deploying WebSocket service..."
+                kubectl apply -f ${NAMESPACE}/websocket-deployment-dev.yaml
+                kubectl apply -f ${NAMESPACE}/websocket-service-dev.yaml
+                kubectl rollout restart deployment websocket-dev -n $NAMESPACE
+                kubectl rollout status deployment websocket-dev -n $NAMESPACE
+                echo "WebSocket deployment completed!"
+              fi
+
+              echo "All deployments completed successfully!"
             else
               echo "Migration failed!"
               exit 1
