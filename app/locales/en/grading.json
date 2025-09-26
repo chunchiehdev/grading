@@ -140,11 +140,22 @@
   "fileUpload": {
     "dropAreaText": "Drop files here or click to upload",
     "selectFiles": "Select Files",
-    "supportedFormats": "Supports {formats}, max {size}",
+    "supportedFormats": "Supports {{formats}}, max {{maxSize}}",
     "uploadComplete": "Upload Complete",
     "uploadFailed": "Upload Failed",
     "retryUpload": "Retry Upload",
-    "retryAttempt": "(Attempt {count})",
+    "retryAttempt": "(Attempt {{count}})",
+    "dragDrop": {
+      "dragFilesHere": "Drag files here",
+      "releaseToUpload": "Release to upload files"
+    },
+    "status": {
+      "uploading": "Uploading...",
+      "uploadSuccess": "Upload successful"
+    },
+    "actions": {
+      "selectFiles": "Select Files"
+    },
     "errors": {
       "fileSizeExceeded": "File {{fileName}} exceeds size limit {{maxSize}}",
       "unsupportedFileType": "Unsupported file type: {{fileExt}}",

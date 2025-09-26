@@ -31,7 +31,11 @@
     "gradedToday": "今日已評分",
     "thisWeek": "本週",
     "thisMonth": "本月",
-    "total": "總計"
+    "total": "總計",
+    "pendingAssignments": "待交作業",
+    "completedSubmissions": "已交作業",
+    "averageScore": "平均分數",
+    "noScores": "無評分"
   },
   "teacher": {
     "dashboard": "教師儀表板",
@@ -70,7 +74,7 @@
     "noCoursesDescription": "建立或加入課程開始使用",
     "noAssignments": "尚無作業",
     "noAssignmentsDescription": "教師會在這裡發布作業",
-    "noSubmissions": "尚無提交",
+    "noSubmissions": "還沒有送出任何作業",
     "noSubmissionsDescription": "提交作業後會顯示在這裡",
     "noUpcomingDeadlines": "沒有即將到期的作業",
     "allCaughtUp": "全部完成"

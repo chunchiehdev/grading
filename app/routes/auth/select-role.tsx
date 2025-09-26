@@ -19,7 +19,14 @@ interface ActionData {
 }
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
-  const user = await requireAuth(request);
+  // 直接使用 getUser 而不是 requireAuth，避免重複調用
+  // root.tsx 已經處理了認證檢查
+  const { getUser } = await import('@/services/auth.server');
+  const user = await getUser(request);
+  
+  if (!user) {
+    throw redirect('/auth/login');
+  }
 
   // If user already has a role assigned (not default STUDENT), redirect them
   if (user.role && user.role !== 'STUDENT') {
@@ -31,7 +38,13 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const user = await requireAuth(request);
+  // 直接使用 getUser 而不是 requireAuth，避免重複調用
+  const { getUser } = await import('@/services/auth.server');
+  const user = await getUser(request);
+  
+  if (!user) {
+    throw redirect('/auth/login');
+  }
   const formData = await request.formData();
   const selectedRole = formData.get('role') as string;
 

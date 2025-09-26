@@ -18,9 +18,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
-import { StatsCard } from '@/components/ui/stats-card';
 import { Badge } from '@/components/ui/badge';
-import { DatePicker } from '@/components/DatePicker';
+import { DatePicker } from '@/components/ui/DatePicker';
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string; name: string };
@@ -169,31 +168,56 @@ export default function ManageAssignmentArea() {
         <div className="space-y-8">
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <StatsCard
-              title="Submissions"
-              value={assignmentArea._count.submissions}
-              icon={FileText}
-              variant="transparent"
-            />
-            <StatsCard
-              title="Status"
-              value={isOverdue ? 'Overdue' : 'Active'}
-              icon={Calendar}
-              variant="transparent"
-            />
-            <StatsCard
-              title="Days Until Due"
-              value={
-                daysUntilDue !== null
-                  ? daysUntilDue < 0
-                    ? `${Math.abs(daysUntilDue)} overdue`
-                    : daysUntilDue.toString()
-                  : 'No due date'
-              }
-              icon={Calendar}
-              variant="transparent"
-            />
-            <StatsCard title="Rubric" value={assignmentArea.rubric.name} icon={Settings} variant="transparent" />
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Submissions</p>
+                    <p className="text-2xl font-bold text-foreground">{assignmentArea._count.submissions}</p>
+                  </div>
+                  <FileText className="w-8 h-8 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Status</p>
+                    <p className="text-2xl font-bold text-foreground">{isOverdue ? 'Overdue' : 'Active'}</p>
+                  </div>
+                  <Calendar className="w-8 h-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Days Until Due</p>
+                    <p className="text-xl font-bold text-foreground">
+                      {daysUntilDue !== null
+                        ? daysUntilDue < 0
+                          ? `${Math.abs(daysUntilDue)} overdue`
+                          : daysUntilDue.toString()
+                        : 'No due date'}
+                    </p>
+                  </div>
+                  <Calendar className="w-8 h-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Rubric</p>
+                    <p className="text-xl font-bold text-foreground">{assignmentArea.rubric.name}</p>
+                  </div>
+                  <Settings className="w-8 h-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Management Form */}

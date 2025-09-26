@@ -1,16 +1,11 @@
-// src/components/grading/CompactFileUpload.tsx
-import { useCallback, useState, useEffect } from 'react';
-import { Progress } from '@/components/ui/progress';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, X, File, AlertCircle, FileUp } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Upload, FileUp, Check, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useTranslation } from 'react-i18next';
 
-// Helper function to format file size
 const formatFileSize = (bytes: number): string => {
-  if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
@@ -19,8 +14,6 @@ interface FileUploadProps {
   maxFiles: number;
   maxFileSize?: number;
   acceptedFileTypes?: string[];
-  onFilesChange?: (files: File[]) => void;
-  onError?: (error: string) => void;
   onUploadComplete?: (results: Array<{ fileId: string; fileName: string; fileSize: number; mimeType: string }>) => void;
 }
 
@@ -28,178 +21,88 @@ export const CompactFileUpload = ({
   maxFiles,
   maxFileSize = 100 * 1024 * 1024,
   acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt'],
-  onFilesChange,
-  onError,
   onUploadComplete,
 }: FileUploadProps) => {
   const { t } = useTranslation('grading');
-  // Track notification to avoid duplicate callbacks per upload
-  const [notified, setNotified] = useState<boolean>(false);
-
-  // Wrap the hook callback to dedupe and normalize payload shape
-  const hookOnComplete = useCallback(
-    (files: Array<{ fileId: string; fileName: string; fileSize: number; mimeType: string }>) => {
-      if (!onUploadComplete || notified) return;
-      const simplified = (Array.isArray(files) ? files : []).map((f: any) => ({
-        fileId: f.fileId,
-        fileName: f.fileName,
-        fileSize: f.fileSize,
-        mimeType: f.mimeType,
-      }));
-      setNotified(true);
-      onUploadComplete(simplified);
-    },
-    [onUploadComplete, notified]
-  );
-
-  const { files: uploadedFiles, uploadFiles, deleteFile, isUploading, uploadError, lastError, canRetry, removeLocalFile } =
-    useFileUpload({ onUploadComplete: hookOnComplete });
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
 
-  const validateFile = useCallback(
-    (file: File): string | null => {
-      if (file.size > maxFileSize) {
-        return t('fileUpload.errors.fileSizeExceeded', { fileName: file.name, maxSize: formatFileSize(maxFileSize) });
+  const { files: uploadedFiles, uploadFiles, isUploading } = useFileUpload({
+    onUploadComplete: (files) => {
+      if (onUploadComplete) {
+        const simplified = files.map((f: any) => ({
+          fileId: f.fileId,
+          fileName: f.fileName,
+          fileSize: f.fileSize,
+          mimeType: f.mimeType,
+        }));
+        onUploadComplete(simplified);
       }
+    }
+  });
 
-      const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
-      if (!acceptedFileTypes.includes(fileExt)) {
-        return t('fileUpload.errors.unsupportedFileType', { fileExt });
-      }
+  const validateFile = (file: File): string | null => {
+    if (file.size > maxFileSize) {
+      return t('grading:fileUpload.errors.fileSizeExceeded', {
+        fileName: file.name,
+        maxSize: formatFileSize(maxFileSize)
+      });
+    }
+    const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (!acceptedFileTypes.includes(fileExt)) {
+      return t('grading:fileUpload.errors.unsupportedFileType', { fileExt });
+    }
+    return null;
+  };
 
-      return null;
-    },
-    [maxFileSize, acceptedFileTypes]
-  );
+  const handleFiles = useCallback(async (newFiles: File[]) => {
+    setError(null);
 
-  const handleFiles = useCallback(
-    async (newFiles: File[]) => {
-      setError(null);
-      setRetryCount(0);
+    if (newFiles.length > maxFiles) {
+      setError(t('grading:fileUpload.errors.tooManyFiles', { maxFiles }));
+      return;
+    }
 
-      const safeUploadedFiles = Array.isArray(uploadedFiles) ? uploadedFiles : [];
-      const safeNewFiles = Array.isArray(newFiles) ? newFiles : [];
-
-      // Only count active (non-error) files against the max to allow retrying after failure
-      const activeCount = safeUploadedFiles.filter((f: any) => f?.status !== 'error').length;
-      if (activeCount + safeNewFiles.length > maxFiles) {
-        setError(t('fileUpload.errors.tooManyFiles', { maxFiles }));
+    for (const file of newFiles) {
+      const validationError = validateFile(file);
+      if (validationError) {
+        setError(validationError);
         return;
       }
+    }
 
-      for (const file of safeNewFiles) {
-        const validationError = validateFile(file);
-        if (validationError) {
-          setError(validationError);
-          return;
-        }
-      }
+    try {
+      await uploadFiles(newFiles);
+    } catch (err: any) {
+      setError(err?.message || t('grading:fileUpload.errors.uploadFailed'));
+    }
+  }, [uploadFiles, maxFiles, validateFile]);
 
-      try {
-        await uploadFiles(safeNewFiles);
-        onFilesChange?.(safeNewFiles);
-      } catch (err: any) {
-        const errorMsg = err?.message || t('fileUpload.errors.uploadFailed');
-        setError(errorMsg);
-        onError?.(errorMsg);
-      }
-    },
-    [validateFile, uploadFiles, onFilesChange, onError, uploadedFiles, maxFiles]
-  );
-
-  const handleRetry = useCallback(async () => {
-    if (!canRetry) return;
-    setRetryCount((prev) => prev + 1);
-    setError(null);
-  }, [canRetry]);
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    await handleFiles(droppedFiles);
+  }, [handleFiles]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
   };
 
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-
-      const droppedFiles = Array.from(e.dataTransfer.files);
-      await handleFiles(droppedFiles);
-    },
-    [handleFiles]
-  );
-
-  const handleRemoveFile = useCallback(
-    (fileData: any) => {
-      // Prefer server-side delete when we have an id/key, otherwise clean up locally by filename
-      if (fileData?.key) {
-        deleteFile(fileData.key);
-      } else if (fileData?.file?.name) {
-        removeLocalFile(fileData.file.name);
-      }
-    },
-    [deleteFile, removeLocalFile]
-  );
-
-  useEffect(() => {
-    if (isUploading) setNotified(false);
-  }, [isUploading]);
-
-  useEffect(() => {
-    if (uploadError) onError?.(uploadError);
-  }, [uploadError, onError]);
-
-  const renderError = () => {
-    if (!error && !lastError?.message) return null;
-
-    const displayError = error || lastError?.message || '';
-    const errorType = lastError?.type || 'unknown';
-    const isRetryable = lastError?.retryable || false;
-
-    const getErrorColor = () => {
-      switch (errorType) {
-        case 'network':
-          return 'border-orange-200 bg-orange-50 text-orange-800';
-        case 'auth':
-          return 'border-red-200 bg-red-50 text-red-800';
-        case 'quota':
-          return 'border-yellow-200 bg-yellow-50 text-yellow-800';
-        case 'validation':
-          return 'border-blue-200 bg-blue-50 text-blue-800';
-        case 'storage':
-          return 'border-purple-200 bg-purple-50 text-purple-800';
-        default:
-          return 'border-red-200 bg-red-50 text-red-800';
-      }
-    };
-
-    return (
-      <div className={`rounded-md border p-3 ${getErrorColor()}`}>
-        <div className="flex items-start">
-          <span className="text-lg mr-2" role="img" aria-label="error-icon">
-            ❌
-          </span>
-          <div className="flex-1">
-            <p className="text-sm font-medium">{displayError}</p>
-            {isRetryable && retryCount < 3 && (
-              <button onClick={handleRetry} className="mt-2 text-xs underline hover:no-underline" disabled={isUploading}>
-                {t('fileUpload.retryUpload')} {retryCount > 0 && t('fileUpload.retryAttempt', { count: retryCount + 1 })}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const safeUploadedFiles = Array.isArray(uploadedFiles) ? uploadedFiles : [];
+  const currentFile = uploadedFiles?.[0];
+  const isSuccess = currentFile?.status === 'success';
+  const hasError = currentFile?.status === 'error';
 
   return (
-    <div className="space-y-3">
-      {renderError()}
+    <div className="space-y-4">
+      {error && (
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md">
+          <AlertCircle className="w-4 h-4 text-red-500" />
+          <span className="text-sm text-red-700">{error}</span>
+        </div>
+      )}
 
       <div
         onDragEnter={() => setIsDragging(true)}
@@ -207,106 +110,64 @@ export const CompactFileUpload = ({
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         className={cn(
-          'border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center gap-3 transition-colors duration-200',
-          isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary'
+          'border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-all duration-200',
+          isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border hover:border-primary',
+          isSuccess && 'border-blue-300 bg-blue-50',
+          hasError && 'border-red-300 bg-red-50'
         )}
       >
-        <div className={cn('p-3 rounded-full transition-colors duration-200', isDragging ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
-          <Upload className="h-6 w-6" />
+        <div className={cn(
+          'p-4 rounded-full transition-all duration-200',
+          isDragging ? 'bg-primary/10 text-primary scale-110' : 'bg-muted text-muted-foreground',
+          isSuccess && 'bg-blue-100 text-blue-600',
+          hasError && 'bg-red-100 text-red-600'
+        )}>
+          {isSuccess ? (
+            <Check className="h-8 w-8" />
+          ) : (
+            <Upload className="h-8 w-8" />
+          )}
         </div>
-        <div className="text-center">
-          <p className="text-sm font-medium">{t('fileUpload.dropAreaText')}</p>
-          <p className="text-xs text-muted-foreground mt-1">{t('fileUpload.supportedFormats', { formats: acceptedFileTypes.join(', '), size: formatFileSize(maxFileSize) })}</p>
-        </div>
-        <input
-          type="file"
-          className="hidden"
-          id="file-upload-input"
-          onChange={async (e) => {
-            const input = e.currentTarget;
-            const files = input.files ? Array.from(input.files) : [];
-            await handleFiles(files);
-            // Reset input so selecting the same file again will trigger change
-            input.value = '';
-          }}
-        />
-        <Button asChild variant="outline" size="sm" disabled={isUploading}>
-          <label htmlFor="file-upload-input" className="cursor-pointer">
-            <FileUp className="h-4 w-4 mr-2" /> {t('fileUpload.selectFiles')}
-          </label>
-        </Button>
-      </div>
 
-      {safeUploadedFiles.length > 0 && (
-        <ScrollArea className="h-40 border rounded-md">
-          <div className="p-3 space-y-2">
-            {safeUploadedFiles.map((fileData: any, index: number) => (
-              <div
-                key={fileData.key || index}
-                className={cn(
-                  'flex items-center justify-between rounded-md border p-2',
-                  fileData.status === 'success' && 'border-green-200 bg-green-50',
-                  fileData.status === 'error' && 'border-destructive/30 bg-destructive/10',
-                  fileData.status === 'uploading' && 'border-primary/30 bg-primary/5'
-                )}
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <File
-                    className={cn(
-                      'w-4 h-4 flex-shrink-0',
-                      fileData.status === 'success' && 'text-green-500',
-                      fileData.status === 'error' && 'text-destructive',
-                      fileData.status === 'uploading' && 'text-primary'
-                    )}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-foreground truncate">{fileData.file.name}</p>
-                      {fileData.status === 'success' && (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-medium">{t('fileUpload.uploadComplete')}</span>
-                      )}
-                      {fileData.status === 'error' && (
-                        <div className="flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3 text-destructive" />
-                          <span className="text-xs text-destructive font-medium">{fileData.error || t('fileUpload.uploadFailed')}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Progress
-                        value={fileData.progress}
-                        className={cn(
-                          'h-1 flex-1',
-                          fileData.status === 'success' && 'bg-green-500/20',
-                          fileData.status === 'error' && 'bg-destructive/20'
-                        )}
-                        style={{
-                          ['--progress-foreground' as any]:
-                            fileData.status === 'success'
-                              ? 'var(--green-500)'
-                              : fileData.status === 'error'
-                                ? 'var(--red-500)'
-                                : 'var(--blue-500)',
-                        }}
-                      />
-                      <span className="text-xs text-muted-foreground flex-shrink-0">{formatFileSize(fileData.file.size)}</span>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  variant={fileData.status === 'error' ? 'destructive' : 'ghost'}
-                  size="sm"
-                  onClick={() => handleRemoveFile(fileData)}
-                  className="ml-2 h-8 w-8 p-0"
-                  disabled={fileData.status === 'uploading'}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
+        {isSuccess ? (
+          <div className="text-center">
+            <p className="text-lg font-medium text-blue-700">{currentFile.file.name}</p>
+            <p className="text-sm text-blue-600">{formatFileSize(currentFile.file.size)} • {t('grading:fileUpload.status.uploadSuccess')}</p>
           </div>
-        </ScrollArea>
-      )}
+        ) : (
+          <>
+            <div className="text-center">
+              <p className="text-lg font-medium">
+                {isDragging ? t('grading:fileUpload.dragDrop.releaseToUpload') : t('grading:fileUpload.dragDrop.dragFilesHere')}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t('grading:fileUpload.supportedFormats', {
+                  formats: acceptedFileTypes.join(', '),
+                  maxSize: formatFileSize(maxFileSize)
+                })}
+              </p>
+            </div>
+
+            <input
+              type="file"
+              className="hidden"
+              id="file-upload"
+              accept={acceptedFileTypes.join(',')}
+              onChange={async (e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
+                await handleFiles(files);
+                e.target.value = '';
+              }}
+            />
+            <Button asChild variant="outline" size="lg" disabled={isUploading}>
+              <label htmlFor="file-upload" className="cursor-pointer">
+                <FileUp className="h-4 w-4 mr-2" />
+                {isUploading ? t('grading:fileUpload.status.uploading') : t('grading:fileUpload.actions.selectFiles')}
+              </label>
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 };

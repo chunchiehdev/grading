@@ -5,11 +5,11 @@ import { Plus, Eye, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 // Components
-import { RubricForm } from '@/components/RubricForm';
-import { CategoryNav } from '@/components/CategoryNav';
+import { RubricForm } from '@/components/rubrics/RubricForm';
+import { CategoryNav } from '@/components/ui/CategoryNav';
 import { Accordion } from '@/components/ui/accordion';
-import { CriterionItemAccordion } from '@/components/CriterionItemAccordion';
-import { RubricPreview } from '@/components/RubricPreview';
+import { CriterionItemAccordion } from '@/components/rubrics/CriterionItemAccordion';
+import { RubricPreview } from '@/components/rubrics/RubricPreview';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 

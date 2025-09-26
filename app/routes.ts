@@ -28,6 +28,7 @@ export default [
     route('courses/:courseId/assignments/new', './routes/teacher/courses/$courseId/assignments/new.tsx'),
     route('courses/:courseId/assignments/:assignmentId/manage', './routes/teacher/courses/$courseId/assignments/$assignmentId.manage.tsx'),
     route('courses/:courseId/assignments/:assignmentId/submissions', './routes/teacher/courses/$courseId/assignments/$assignmentId.submissions.tsx'),
+    route('submissions/:submissionId/view', './routes/teacher/submissions/$submissionId.view.tsx'),
     route('rubrics', './routes/teacher/rubrics.tsx'),
     route('rubrics/new', './routes/teacher/rubrics/new.tsx'),
     route('rubrics/:rubricId', './routes/teacher/rubrics/$rubricId.tsx'),
@@ -52,12 +53,12 @@ export default [
   route('/api/upload', './api/upload/index.ts'),
   route('/api/upload/create-id', './api/upload/create-id.ts'),
   route('/api/upload/delete-file', './api/upload/delete-file.ts'),
-  route('/api/upload/progress/:id', './api/upload/progress.$id.ts'),
+  route('/api/upload/progress', './api/upload/progress.ts'),
+  
 
   // File management API routes
   route('/api/files', './api/files/index.ts'),
   route('/api/files/user-files', './api/files/user-files.ts'),
-  route('/api/files/update-rubric', './api/files/update-rubric.ts'),
   route('/api/files/:fileId/download', './routes/api.files.$fileId.download.ts'),
   
   // Rubric API routes
@@ -72,21 +73,32 @@ export default [
   route('/api/admin/queue-status', './api/admin/queue-status.ts'),
 
   // Auth API routes
-  route('/api/auth/login', './api/auth/login.ts'),
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
+
+  route('/api/chat', './api/chat/index.ts'),
+  route('/api/chat/messages', './api/chat/messages.ts'),
+  route('/api/chat/:id/messages-since', './routes/api.chat.$id.messages-since.ts'),
+  // Use :chatId to match $chatId route module param name
+  route('/api/chat/:chatId', './api/chat/$chatId.ts'),
+  
+  // Message API routes
+  route('/api/messages/:id', './routes/api.messages.$id.ts'),
 
   // Version API route
   route('/api/version', './routes/api.version.ts'),
 
   // AI API routes
   route('/api/ai/generate-rubric', './routes/api.ai.generate-rubric.ts'),
-
+  
   // Student Submission API
   route('/api/student/submit', './api/student/submit.ts'),
+  route('/api/student/assignments', './api/student/assignments/index.ts'),
+  route('/api/student/assignments/:assignmentId/draft', './api/student/assignments/$assignmentId/draft.ts'),
 
   route('/health', './routes/health.tsx'),
-
+  
+  
   // 404 route
   route('*', './routes/_404.tsx'),
 ] satisfies RouteConfig;

@@ -47,7 +47,7 @@
     "categoriesTitle": "Start building your rubric",
     "categoriesDescription": "Rubrics allow you to objectively and consistently evaluate student work. Let's start by creating your first category.",
     "categoriesAction": "Create first category",
-    
+
     "criteriaTitle": "Add criteria to this category",
     "criteriaDescription": "Criteria are specific assessment items, each with four levels of detailed descriptions.",
     "criteriaAction": "Add first criterion",
@@ -61,7 +61,7 @@
     "levelsAction": "Start editing levels",
     "levelsTips": [
       "4 points: Excellent performance exceeding expectations",
-      "3 points: Good performance meeting expectations", 
+      "3 points: Good performance meeting expectations",
       "2 points: Satisfactory performance meeting basic requirements",
       "1 point: Performance needing improvement"
     ],
@@ -69,7 +69,9 @@
     "noCriteria": "No criteria added yet. Click \"Add Criterion\" to add the first criterion.",
     "noCriteriaTitle": "No criteria yet",
     "noCriteriaDescription": "This rubric has not added any rating criteria yet",
-    "categoryNoCriteria": "This category has no criteria yet"
+    "categoryNoCriteria": "This category has no criteria yet",
+    "noRubrics": "No rubrics yet",
+    "noRubricsDescription": "Create your first rubric to get started with structured grading"
   },
   "aiAssistant": {
     "title": "AI Rubric Assistant",
@@ -181,5 +183,12 @@
   "maxPoints": "Max {{points}} points",
   "gradingLevels": "Grading Levels:",
   "noLevelDescription": "No description set for this level",
-  "startEditing": "Start Editing"
+  "startEditing": "Start Editing",
+  "createFirst": "Create First Rubric",
+  "duplicate": "Duplicate",
+  "saveAsTemplate": "Save as Template",
+  "removeFromTemplate": "Remove from Template",
+  "totalPoints": "Total Points",
+  "criteriaPreview": "Criteria Preview",
+  "moreCriteria": "more criteria"
 }

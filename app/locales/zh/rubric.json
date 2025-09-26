@@ -1,5 +1,5 @@
 {
-  "title": "評分標準",
+  "title": "評分",
   "subtitle": "建立和管理作業的評分標準",
   "new": "新增評分標準",
   "active":"進行中",
@@ -70,7 +70,9 @@
     "noCriteria": "尚未新增評分標準。點擊「新增標準」以新增第一個標準。",
     "noCriteriaTitle": "尚無評分標準",
     "noCriteriaDescription": "此評分標準尚未新增任何評分項目",
-    "categoryNoCriteria": "此類別尚無評分標準"
+    "categoryNoCriteria": "此類別尚無評分標準",
+    "noRubrics": "尚無評分標準",
+    "noRubricsDescription": "建立你的第一個評分標準以開始結構化評分"
   },
   "aiAssistant": {
     "title": "AI 評分標準助手",
@@ -182,5 +184,12 @@
   "maxPoints": "最高 {{points}} 分",
   "gradingLevels": "評分等級：",
   "noLevelDescription": "尚未設定此等級的描述",
-  "startEditing": "開始編輯"
+  "startEditing": "開始編輯",
+  "createFirst": "建立第一個評分標準",
+  "duplicate": "複製",
+  "saveAsTemplate": "儲存為範本",
+  "removeFromTemplate": "從範本移除",
+  "totalPoints": "總分",
+  "criteriaPreview": "評分項目預覽",
+  "moreCriteria": "更多項目"
 }

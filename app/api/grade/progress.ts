@@ -26,7 +26,14 @@ export async function loader({ request }: { request: Request }) {
           try {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(progress)}\n\n`));
           } catch (e) {
+            console.error('[grade/progress] Failed to enqueue progress data:', e);
             clearInterval(interval);
+            closed = true;
+            try {
+              controller.close();
+            } catch (closeError) {
+              console.error('[grade/progress] Failed to close controller:', closeError);
+            }
             return;
           }
           if (progress.phase === 'completed' || progress.phase === 'error') {
@@ -47,14 +54,19 @@ export async function loader({ request }: { request: Request }) {
               `data: ${JSON.stringify({ phase: 'error', error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`
             )
           );
-        } catch {}
+        } catch (encodingError) {
+          console.error('[grade/progress] Failed to encode error message:', encodingError);
+        }
         clearInterval(interval);
         closed = true;
         controller.close();
       }
     },
     cancel() {
-      if (interval) clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+        interval = undefined;
+      }
       closed = true;
     }
   });

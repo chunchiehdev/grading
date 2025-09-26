@@ -27,7 +27,6 @@ export async function commitSession(session: any) {
   const cookieHeader = await sessionStorage.commitSession(session, {
     expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000)
   });
-  console.error('💾 Generated Set-Cookie header:', cookieHeader);
   return cookieHeader;
 }
 

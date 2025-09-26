@@ -131,12 +131,29 @@ export async function createSubmissionAndLinkGradingResult(
   studentId: string,
   assignmentAreaId: string,
   filePathOrId: string,
-  sessionId: string 
+  sessionId: string
 ): Promise<{ submissionId: string }> {
-  const submission = await createSubmission(studentId, {
-    assignmentAreaId,
-    filePath: filePathOrId,
+  // Check if submission already exists to prevent duplicates
+  const existingSubmission = await db.submission.findFirst({
+    where: {
+      studentId,
+      assignmentAreaId,
+    },
+    orderBy: { createdAt: 'desc' },
   });
+
+  let submission: any;
+
+  if (existingSubmission) {
+    console.log(`📝 Found existing submission ${existingSubmission.id} for student ${studentId} and assignment ${assignmentAreaId}, returning existing submission`);
+    submission = existingSubmission;
+  } else {
+    submission = await createSubmission(studentId, {
+      assignmentAreaId,
+      filePath: filePathOrId,
+    });
+    console.log(`✅ Created new submission ${submission.id}`);
+  }
 
   if (!sessionId) {
     console.warn(`Submission ${submission.id} created without a sessionId. AI result will not be linked.`);
@@ -158,13 +175,22 @@ export async function createSubmissionAndLinkGradingResult(
         ? Math.round(aiAnalysisResult.totalScore)
         : null;
 
+      console.log(`🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult.totalScore}, finalScore=${finalScore}`);
+
       await updateSubmission(submission.id, {
         aiAnalysisResult: aiAnalysisResult,
         finalScore: finalScore ?? undefined,
         status: 'ANALYZED',
       });
+
+      console.log(`✅ Successfully linked AI result to submission ${submission.id}`);
     } else {
-      console.warn(`Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`);
+      console.warn(`⚠️ Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`);
+      console.warn(`   Session exists: ${sessionId ? 'Yes' : 'No'}`);
+      console.warn(`   Grading result found: ${gradingResult ? 'Yes' : 'No'}`);
+      if (gradingResult) {
+        console.warn(`   Result has data: ${gradingResult.result ? 'Yes' : 'No'}`);
+      }
     }
   } catch (error) {
     console.error(`Error linking AI analysis for submission ${submission.id}:`, error);
@@ -206,7 +232,10 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
           include: {
             teacher: {
               select: {
+                id: true,
                 email: true,
+                name: true,
+                picture: true,
               },
             },
           },
@@ -215,6 +244,7 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
         submissions: {
           where: {
             studentId,
+            status: { not: 'DRAFT' }  // Exclude draft submissions
           },
           include: {
             assignmentArea: {
@@ -223,7 +253,10 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
                   include: {
                     teacher: {
                       select: {
+                        id: true,
                         email: true,
+                        name: true,
+                        picture: true,
                       },
                     },
                   },
@@ -316,7 +349,7 @@ export async function listSubmissionsByAssignment(
  * @param studentId - Student's user ID (optional, for enrollment check)
  * @returns Assignment area info or null
  */
-export async function getAssignmentAreaForSubmission(assignmentId: string, studentId?: string) {
+export async function getAssignmentAreaForSubmission(assignmentId: string, studentId?: string, includeSubmissions: boolean = false) {
   try {
     const assignmentArea = await db.assignmentArea.findUnique({
       where: { id: assignmentId },
@@ -328,6 +361,7 @@ export async function getAssignmentAreaForSubmission(assignmentId: string, stude
                 id: true,
                 email: true,
                 name: true,
+                picture: true,
               },
             },
           },
@@ -339,6 +373,19 @@ export async function getAssignmentAreaForSubmission(assignmentId: string, stude
             description: true,
           },
         },
+        ...(includeSubmissions && studentId ? {
+          submissions: {
+            where: {
+              studentId,
+              status: { not: 'DRAFT' }
+            },
+            select: {
+              id: true,
+              status: true,
+              uploadedAt: true,
+            }
+          }
+        } : {}),
       },
     });
 
@@ -377,7 +424,10 @@ export async function getAssignmentAreaForSubmission(assignmentId: string, stude
 export async function getStudentSubmissions(studentId: string): Promise<SubmissionInfo[]> {
   try {
     const submissions = await db.submission.findMany({
-      where: { studentId },
+      where: {
+        studentId,
+        status: { not: 'DRAFT' }  // Exclude draft submissions from dashboard
+      },
       include: {
         assignmentArea: {
           include: {
@@ -412,7 +462,10 @@ export async function getStudentSubmissions(studentId: string): Promise<Submissi
 export async function getSubmissionsByStudentId(studentId: string): Promise<SubmissionInfo[]> {
   try {
     const submissions = await db.submission.findMany({
-      where: { studentId },
+      where: {
+        studentId,
+        status: { not: 'DRAFT' }  // Exclude draft submissions from dashboard
+      },
       include: {
         assignmentArea: {
           include: {
@@ -433,6 +486,53 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
   } catch (error) {
     console.error('❌ Error fetching submissions by student:', error);
     return [];
+  }
+}
+
+/**
+ * Gets a specific submission for teacher viewing (teacher authorization required)
+ * @param {string} submissionId - Submission ID
+ * @param {string} teacherId - Teacher's user ID for authorization
+ * @returns {Promise<SubmissionInfo | null>} Submission information or null if not found/unauthorized
+ */
+export async function getSubmissionByIdForTeacher(submissionId: string, teacherId: string): Promise<SubmissionInfo | null> {
+  try {
+    const submission = await db.submission.findFirst({
+      where: {
+        id: submissionId,
+        assignmentArea: {
+          course: {
+            teacherId: teacherId, // Ensure teacher owns the course
+          },
+        },
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            picture: true,
+          },
+        },
+        assignmentArea: {
+          include: {
+            course: {
+              include: {
+                teacher: {
+                  select: { email: true },
+                },
+              },
+            },
+            rubric: true,
+          },
+        },
+      },
+    });
+    return submission;
+  } catch (error) {
+    console.error('❌ Error fetching submission for teacher:', error);
+    return null;
   }
 }
 
@@ -674,7 +774,7 @@ export async function saveDraftSubmission(
       if (aiAnalysisResult !== undefined) {
         updateData.aiAnalysisResult = aiAnalysisResult;
         // Update status based on AI result presence
-        updateData.status = aiAnalysisResult ? 'ANALYZED' : 'SUBMITTED';
+        updateData.status = aiAnalysisResult ? 'ANALYZED' : 'DRAFT';
       }
 
       if (Object.keys(updateData).length > 0) {
@@ -692,7 +792,7 @@ export async function saveDraftSubmission(
           studentId,
           assignmentAreaId,
           filePath: fileMetadata.fileId,
-          status: aiAnalysisResult ? 'ANALYZED' : 'SUBMITTED',
+          status: aiAnalysisResult ? 'ANALYZED' : 'DRAFT',
           aiAnalysisResult: aiAnalysisResult || null,
         },
       });
@@ -719,3 +819,53 @@ export async function saveDraftSubmission(
     return null;
   }
 }
+
+/**
+ * Gets recent submissions for teacher dashboard (from teacher's courses)
+ * @param {string} teacherId - Teacher's user ID
+ * @param {number} limit - Maximum number of submissions to return (default: 10)
+ * @returns {Promise<SubmissionInfo[]>} List of recent submissions from teacher's courses
+ */
+export async function getRecentSubmissionsForTeacher(teacherId: string, limit: number = 10): Promise<SubmissionInfo[]> {
+  try {
+    const submissions = await db.submission.findMany({
+      where: {
+        assignmentArea: {
+          course: {
+            teacherId: teacherId,
+          },
+        },
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            picture: true,
+          },
+        },
+        assignmentArea: {
+          include: {
+            course: {
+              include: {
+                teacher: {
+                  select: { email: true },
+                },
+              },
+            },
+            rubric: true,
+          },
+        },
+      },
+      orderBy: { uploadedAt: 'desc' },
+      take: limit,
+    });
+
+    return submissions;
+  } catch (error) {
+    console.error('❌ Error fetching recent submissions for teacher:', error);
+    return [];
+  }
+}
+

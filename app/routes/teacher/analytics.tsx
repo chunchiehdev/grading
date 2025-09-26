@@ -2,7 +2,6 @@ import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
-import { StatsCard } from '@/components/ui/stats-card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { requireTeacher } from '@/services/auth.server';
 import { getOverallTeacherStats, getCoursePerformance, getRubricUsage } from '@/services/analytics.server';

@@ -140,11 +140,22 @@
   "fileUpload": {
     "dropAreaText": "拖放檔案至此或點擊上傳",
     "selectFiles": "選擇檔案",
-    "supportedFormats": "支援 {{formats}}，最大 {{{size}}",
+    "supportedFormats": "支援 {{formats}}，最大 {{maxSize}}",
     "uploadComplete": "上傳完成",
     "uploadFailed": "上傳失敗",
     "retryUpload": "重試上傳",
     "retryAttempt": "(第 {{count}} 次嘗試)",
+    "dragDrop": {
+      "dragFilesHere": "拖拽檔案到此處",
+      "releaseToUpload": "放開以上傳檔案"
+    },
+    "status": {
+      "uploading": "上傳中...",
+      "uploadSuccess": "上傳成功"
+    },
+    "actions": {
+      "selectFiles": "選擇檔案"
+    },
     "errors": {
       "fileSizeExceeded": "檔案 {{fileName}} 超過大小限制 {{maxSize}}",
       "unsupportedFileType": "不支援的檔案類型: {{fileExt}}",

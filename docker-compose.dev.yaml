@@ -41,6 +41,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       # Prisma
       - PRISMA_LOG_LEVEL=error
+      # Internal API Key
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
     volumes:
       - .:/app
       - /app/node_modules
@@ -51,6 +53,37 @@ services:
       redis:
         condition: service_started
       minio:
+        condition: service_started
+    networks:
+      - app_network
+
+  websocket:
+    build:
+      context: ./websocket-server
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=${WEBSOCKET_PORT:-3001}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-dev_password}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_API_KEY2=${GEMINI_API_KEY2}
+      - GEMINI_API_KEY3=${GEMINI_API_KEY3}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ALLOWED_ORIGINS=${WEBSOCKET_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      - MAIN_APP_URL=${MAIN_APP_URL}
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+    volumes:
+      - ./websocket-server:/app
+      - /app/node_modules
+    command: sh -c "npm ci || npm install && npm run dev"
+    depends_on:
+      app:
+        condition: service_started
+      redis:
         condition: service_started
     networks:
       - app_network

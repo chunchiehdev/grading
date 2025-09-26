@@ -1,21 +1,15 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData } from 'react-router';
-import { useEffect, useState } from 'react';
+import { useLoaderData, useNavigate } from 'react-router';
+import { useReducer, useEffect, useRef } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/submission.server';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
-import { FilePreview } from '@/components/grading/FilePreview';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { FullScreenPdfViewer } from '@/components/grading/FullScreenPdfViewer';
-// Replaced resizable panels with Framer Motion animations
-import { AnimatePresence, motion } from 'framer-motion';
-// import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle, Loader2, ArrowLeft, Eye } from 'lucide-react';
-import { PageHeader } from '@/components/ui/page-header';
 import { useTranslation } from 'react-i18next';
+import { gsap } from 'gsap';
+import { useGSAP } from '@gsap/react';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -32,666 +26,400 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   return { student, assignment, draftSubmission };
 }
 
-type State = 'idle' | 'ready' | 'grading' | 'completed' | 'error';
+// Simplified state machine - Linus style: one clear data structure
+interface SubmissionState {
+  phase: 'upload' | 'analyze' | 'submit' | 'done';
+  file: { id: string; name: string; size: number } | null;
+  session: { id: string; result: any } | null;
+  error: string | null;
+  loading: boolean;
+}
+
+type Action =
+  | { type: 'file_uploaded'; file: { id: string; name: string; size: number } }
+  | { type: 'analysis_started'; sessionId: string }
+  | { type: 'analysis_completed'; result: any }
+  | { type: 'submission_completed' }
+  | { type: 'error'; message: string }
+  | { type: 'reset' };
+
+function submissionReducer(state: SubmissionState, action: Action): SubmissionState {
+  switch (action.type) {
+    case 'file_uploaded':
+      return { ...state, phase: 'analyze', file: action.file, error: null };
+    case 'analysis_started':
+      return { ...state, loading: true, session: { id: action.sessionId, result: null } };
+    case 'analysis_completed':
+      return { ...state, phase: 'submit', loading: false, session: { ...state.session!, result: action.result } };
+    case 'submission_completed':
+      return { ...state, phase: 'done', loading: false };
+    case 'error':
+      return { ...state, error: action.message, loading: false };
+    case 'reset':
+      return { phase: 'upload', file: null, session: null, error: null, loading: false };
+    default:
+      return state;
+  }
+}
 
 export default function SubmitAssignment() {
   const { t } = useTranslation(['assignment', 'grading', 'common']);
   const { assignment, draftSubmission } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
 
-  // Initialize state from draft submission if available
-  const [state, setState] = useState<State>(() => {
-    if (draftSubmission?.lastState) return draftSubmission.lastState;
-    return 'idle';
-  });
-  
-  const [fileId, setFileId] = useState<string | null>(() => {
-    return draftSubmission?.fileMetadata?.fileId || null;
-  });
-  
-  const [sessionId, setSessionId] = useState<string | null>(() => {
-    return draftSubmission?.sessionId || null;
-  });
-  
-  const [uploadedMeta, setUploadedMeta] = useState<{ fileId: string; fileName: string; fileSize: number; mimeType: string } | null>(() => {
-    return draftSubmission?.fileMetadata || null;
-  });
-  
-  const [localFile, setLocalFile] = useState<File | null>(null);
-  
-  const [result, setResult] = useState<any>(() => {
-    return draftSubmission?.aiAnalysisResult || null;
-  });
-  
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  // Animation refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
+  const step1Ref = useRef<HTMLDivElement>(null);
+  const step2Ref = useRef<HTMLDivElement>(null);
+  const step3Ref = useRef<HTMLDivElement>(null);
 
-  // Auto-save draft submission when important state changes
-  const saveDraftSubmission = async (updates: {
-    fileMetadata?: typeof uploadedMeta;
-    sessionId?: string | null;
-    aiAnalysisResult?: any;
-    lastState?: State;
-  }) => {
-    try {
-      await fetch(`/api/student/assignments/${assignment.id}/draft`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileMetadata: updates.fileMetadata !== undefined ? updates.fileMetadata : uploadedMeta,
-          sessionId: updates.sessionId !== undefined ? updates.sessionId : sessionId,
-          aiAnalysisResult: updates.aiAnalysisResult !== undefined ? updates.aiAnalysisResult : result,
-          lastState: updates.lastState !== undefined ? updates.lastState : state,
-        }),
+  // Single state machine - "good taste" principle
+  const [state, dispatch] = useReducer(submissionReducer, {
+    phase: draftSubmission?.lastState === 'completed' ? 'submit' : 'upload',
+    file: draftSubmission?.fileMetadata ? {
+      id: draftSubmission.fileMetadata.fileId,
+      name: draftSubmission.fileMetadata.fileName,
+      size: draftSubmission.fileMetadata.fileSize
+    } : null,
+    session: draftSubmission?.sessionId ? {
+      id: draftSubmission.sessionId,
+      result: draftSubmission.aiAnalysisResult
+    } : null,
+    error: null,
+    loading: false
+  });
+
+  // GSAP animations
+  useGSAP(() => {
+    const tl = gsap.timeline();
+
+    // Initial page load animation
+    tl.fromTo(headerRef.current,
+      { y: -50, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.7)" }
+    )
+    .fromTo([leftPanelRef.current, rightPanelRef.current],
+      { y: 30, opacity: 0 },
+      { y: 0, opacity: 1, duration: 0.6, stagger: 0.2, ease: "power2.out" },
+      "-=0.4"
+    );
+
+    // Subtle entrance animations only
+    gsap.from(".ai-results-title", {
+      y: 20,
+      opacity: 0,
+      duration: 0.8,
+      ease: "power2.out",
+      delay: 0.5
+    });
+  }, []);
+
+  // File upload success animation
+  const triggerSuccessAnimation = () => {
+    if (!step1Ref.current) return;
+
+    // Create celebration particles
+    const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b'];
+
+    for (let i = 0; i < 12; i++) {
+      const particle = document.createElement('div');
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      particle.style.cssText = `
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 8px;
+        height: 8px;
+        background: ${color};
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 1000;
+      `;
+
+      step1Ref.current?.appendChild(particle);
+
+      const angle = (i * 30 * Math.PI) / 180;
+      const distance = 60 + Math.random() * 40;
+
+      gsap.fromTo(particle,
+        { scale: 0, rotation: 0 },
+        {
+          scale: 1,
+          x: Math.cos(angle) * distance,
+          y: Math.sin(angle) * distance,
+          rotation: 360,
+          opacity: 0,
+          duration: 1.2,
+          ease: "power2.out",
+          onComplete: () => particle.remove()
+        }
+      );
+    }
+
+    // Step animation
+    gsap.to(step1Ref.current, {
+      scale: 1.3,
+      duration: 0.3,
+      yoyo: true,
+      repeat: 1,
+      ease: "back.out(2)"
+    });
+  };
+
+  // Simple handlers - no over-engineering
+  const handleFileUpload = (files: any[]) => {
+    if (files[0]) {
+      dispatch({
+        type: 'file_uploaded',
+        file: { id: files[0].fileId, name: files[0].fileName, size: files[0].fileSize }
       });
-    } catch (e) {
-      console.warn('Failed to save draft submission:', e);
+
+      // Trigger success animation
+      setTimeout(triggerSuccessAnimation, 500);
     }
   };
 
-  // Resolve file URL for server-side files
-  const resolveFileUrl = async (fileId: string): Promise<string | null> => {
+  const pollSession = async (sessionId: string): Promise<boolean> => {
     try {
-      // Return the download URL for server-side files
-      return `/api/files/${fileId}/download`;
-    } catch (e) {
-      console.warn('Failed to resolve file URL:', e);
-      return null;
-    }
-  };
-
-  const pollSession = async (id: string): Promise<boolean> => {
-    try {
-      const res = await fetch(`/api/grading/session/${id}`);
+      const res = await fetch(`/api/grading/session/${sessionId}`);
       const data = await res.json();
-      
-      if (data.success && data.data) {
-        const { status, gradingResults } = data.data;
-        // Consider session completed if status is COMPLETED
-        if (status === 'COMPLETED' && gradingResults?.length) {
-          const first = gradingResults.find((r: any) => r.result) || gradingResults[0];
-          if (first?.result) {
-            setResult(first.result);
-            setState('completed');
-            // Auto-save AI result
-            saveDraftSubmission({
-              aiAnalysisResult: first.result,
-              lastState: 'completed'
-            });
-          }
-          return true;
-        }
-        // Fallback: if any result is completed with result payload, treat as done
-        const completed = Array.isArray(gradingResults)
-          ? gradingResults.find((r: any) => r.status === 'COMPLETED' && r.result)
-          : null;
-        if (completed) {
-          setResult(completed.result);
-          setState('completed');
-          // Auto-save AI result
-          saveDraftSubmission({
-            aiAnalysisResult: completed.result,
-            lastState: 'completed'
-          });
-          return true;
-        }
-        if (status === 'FAILED') {
-          setError(t('grading:messages.gradingFailed'));
-          setState('error');
+
+      if (data.success && data.data?.status === 'COMPLETED') {
+        const result = data.data.gradingResults?.find((r: any) => r.result);
+        if (result?.result) {
+          dispatch({ type: 'analysis_completed', result: result.result });
           return true;
         }
       }
+
+      if (data.data?.status === 'FAILED') {
+        dispatch({ type: 'error', message: t('grading:messages.gradingFailed') });
+        return true;
+      }
+
       return false;
     } catch {
-      setError(t('assignment:submit.errors.failedToCheckStatus'));
-      setState('error');
+      dispatch({ type: 'error', message: t('assignment:submit.errors.failedToCheckStatus') });
       return true;
     }
   };
 
   useEffect(() => {
-    if (state === 'grading' && sessionId) {
+    if (state.loading && state.session?.id) {
       const interval = setInterval(async () => {
-        if (await pollSession(sessionId)) clearInterval(interval);
+        if (await pollSession(state.session!.id)) clearInterval(interval);
       }, 2000);
       return () => clearInterval(interval);
     }
-  }, [state, sessionId]);
+  }, [state.loading, state.session?.id]);
 
-  const onUploadComplete = (files: any[]) => {
-    console.log('📁 Upload completed, received files:', files);
-    if (files[0]) {
-      console.log('✅ Setting file metadata:', {
-        fileId: files[0].fileId,
-        fileName: files[0].fileName,
-        fileSize: files[0].fileSize,
-        mimeType: files[0].mimeType
-      });
-      setFileId(files[0].fileId);
-      setUploadedMeta(files[0]);
-      setState('ready');
-      setError(null);
-      
-      // Auto-save file upload
-      saveDraftSubmission({
-        fileMetadata: files[0],
-        lastState: 'ready'
-      });
-    }
-  };
-  const onLocalFilesChange = (files: File[]) => {
-    if (files && files[0]) {
-      setLocalFile(files[0]);
-    }
-  };
 
-  const waitForParse = async (
-    fid: string,
-    maxAttempts = 60,
-    intervalMs = 2000
-  ): Promise<'completed' | 'failed' | 'timeout'> => {
-    for (let i = 0; i < maxAttempts; i++) {
+  const waitForParse = async (fileId: string): Promise<boolean> => {
+    for (let i = 0; i < 30; i++) {
       try {
         const res = await fetch('/api/files?limit=100');
         const payload = await res.json();
-        const files = Array.isArray(payload?.data) ? payload.data : [];
-        const file = files.find((f: any) => f.id === fid);
-        const status = file?.parseStatus;
-        if (status === 'COMPLETED') return 'completed';
-        if (status === 'FAILED') return 'failed';
+        const file = payload?.data?.find((f: any) => f.id === fileId);
+        if (file?.parseStatus === 'COMPLETED') return true;
+        if (file?.parseStatus === 'FAILED') return false;
       } catch {}
-      await new Promise((r) => setTimeout(r, intervalMs));
+      await new Promise(r => setTimeout(r, 2000));
     }
-    return 'timeout';
+    return false;
   };
 
-  const getAIFeedback = async (currentFileId?: string) => {
-    const fileToGrade = currentFileId || fileId;
-    if (!fileToGrade || !assignment.rubric?.id) return setError(t('assignment:submit.errors.noFileOrRubric'));
-    
-    setState('grading');
-    setError(null);
+  const startAnalysis = async () => {
+    if (!state.file?.id || !assignment.rubric?.id) {
+      dispatch({ type: 'error', message: t('assignment:submit.errors.noFileOrRubric') });
+      return;
+    }
 
     try {
-      // Ensure server-side PDF/text parsing is done before grading
-      const parseStatus = await waitForParse(fileToGrade);
-      if (parseStatus === 'failed') {
+      // Wait for file parsing
+      if (!(await waitForParse(state.file.id))) {
         throw new Error(t('assignment:submit.errors.parsingFailed'));
       }
-      if (parseStatus === 'timeout') {
-        throw new Error(t('assignment:submit.errors.parsingTimeout'));
-      }
 
+      // Create grading session
       const form = new FormData();
-      form.append('fileIds', JSON.stringify([fileToGrade]));
+      form.append('fileIds', JSON.stringify([state.file.id]));
       form.append('rubricIds', JSON.stringify([assignment.rubric.id]));
 
       const sessionRes = await fetch('/api/grading/session', { method: 'POST', body: form });
       const sessionData = await sessionRes.json();
       if (!sessionData.success) throw new Error(sessionData.error);
 
-      const id = sessionData.data.sessionId;
-      setSessionId(id);
-      
-      // Auto-save session ID
-      saveDraftSubmission({
-        sessionId: id,
-        lastState: 'grading'
-      });
+      dispatch({ type: 'analysis_started', sessionId: sessionData.data.sessionId });
 
+      // Start grading
       const startForm = new FormData();
       startForm.append('action', 'start');
-      const startRes = await fetch(`/api/grading/session/${id}`, { method: 'POST', body: startForm });
+      const startRes = await fetch(`/api/grading/session/${sessionData.data.sessionId}`, { method: 'POST', body: startForm });
       const startData = await startRes.json();
       if (!startData.success) throw new Error(startData.error);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('assignment:submit.errors.failedToStartGrading'));
-      setState('error');
+      dispatch({ type: 'error', message: err instanceof Error ? err.message : t('assignment:submit.errors.failedToStartGrading') });
     }
   };
 
   const submitFinal = async () => {
-    if (!fileId || !sessionId) return setError(t('assignment:submit.errors.noFileUploaded'));
+    if (!state.file?.id || !state.session?.id) {
+      dispatch({ type: 'error', message: t('assignment:submit.errors.noFileUploaded') });
+      return;
+    }
 
-    setIsSubmitting(true);
     try {
       const res = await fetch('/api/student/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignmentId: assignment.id, uploadedFileId: fileId, sessionId: sessionId }),
+        body: JSON.stringify({
+          assignmentId: assignment.id,
+          uploadedFileId: state.file.id,
+          sessionId: state.session.id
+        }),
       });
 
       const data = await res.json();
-      if (data.success && data.submissionId) window.location.href = `/student/submissions/${data.submissionId}`;
-      else throw new Error(data.error);
+      if (data.success && data.submissionId) {
+        dispatch({ type: 'submission_completed' });
+        navigate(`/student/submissions/${data.submissionId}`);
+      } else {
+        throw new Error(data.error);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('assignment:submit.errors.failedToSubmit'));
-    } finally {
-      setIsSubmitting(false);
+      dispatch({ type: 'error', message: err instanceof Error ? err.message : t('assignment:submit.errors.failedToSubmit') });
     }
   };
 
-  const reset = () => {
-    setState('idle');
-    setFileId(null);
-    setSessionId(null);
-    setResult(null);
-    setError(null);
+
+  // Simplified upload component without Card wrapper
+  const renderUploadPhase = () => (
+    <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-6 border border-primary/20">
+      <CompactFileUpload maxFiles={1} onUploadComplete={handleFileUpload} />
+    </div>
+  );
+
+  const renderActions = () => {
+    if (state.phase === 'upload') return null;
+
+    return (
+      <div className="space-y-3">
+        {/* Primary Action: AI Analysis */}
+        {(state.phase === 'analyze' || state.phase === 'submit') && (
+          <Button
+            onClick={startAnalysis}
+            disabled={state.loading}
+            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-semibold py-3"
+          >
+            {state.loading ? t('grading:ai.analyzing') : t('assignment:submit.analyzeWithAI')}
+          </Button>
+        )}
+
+        {/* Submit Assignment - Only show when analysis is complete */}
+        {state.phase === 'submit' && state.session?.result && (
+          <Button
+            onClick={submitFinal}
+            disabled={state.loading}
+            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3"
+          >
+            {t('assignment:submit.submitAssignment')}
+          </Button>
+        )}
+
+        {/* Secondary Actions */}
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            onClick={() => dispatch({ type: 'reset' })}
+            className="w-full text-sm"
+          >
+            {t('assignment:submit.reselectFile')}
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="bg-background min-h-screen flex flex-col">
-      <PageHeader
-        title={assignment.name}
-        subtitle={`${assignment.course.name} • ${assignment.course.teacher.email}`}
-        actions={
-          <div className="flex gap-2">
-            <Button asChild variant="outline">
-              <a href="/student/dashboard">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                {t('common:backToDashboard')}
-              </a>
-            </Button>
-          </div>
-        }
-      />
-
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6 flex-1 flex flex-col w-full min-h-0">
-        {/* Desktop layout (>= xl): flexible two-panel */}
-        <div className="hidden xl:flex gap-6 flex-1 min-h-0">
-          {/* Left panel: file upload/preview, flexible width with min/max constraints */}
-          <div className="min-w-[400px] max-w-[600px] w-[45%] flex-shrink-0 flex flex-col min-h-0">
-            <AnimatePresence mode="wait" initial={false}>
-              {state === 'idle' ? (
-                <motion.div key="upload" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{t('assignment:submit.uploadAssignment')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onFilesChange={onLocalFilesChange} />
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ) : (
-                <motion.div key="preview" className="h-full" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Card className="h-full flex flex-col min-h-0">
-                    <CardHeader className="flex-row items-center justify-between space-y-0">
-                      <CardTitle className="truncate text-base">
-                        {uploadedMeta?.fileName || t('common:preview')}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
-                          <Eye className="w-4 h-4 mr-2" /> {t('common:preview')}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => reset()}>{t('assignment:submit.replaceFile')}</Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex-1 min-h-0">
-                      <div className="h-full">
-                        {(() => {
-                          console.log('🔍 Submit page - FilePreview props:', {
-                            uploadedMeta,
-                            localFile: localFile ? { name: localFile.name, type: localFile.type } : null,
-                            fileId: uploadedMeta?.fileId,
-                            state
-                          });
-                          return null;
-                        })()}
-                        <FilePreview 
-                          file={uploadedMeta || undefined} 
-                          localFile={localFile} 
-                          fileId={uploadedMeta?.fileId}
-                          resolveFileUrl={resolveFileUrl}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Inline error under left panel */}
-            <AnimatePresence>
-              {error && (
-                <motion.div key="left-error" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="mt-3">
-                  <Card className="border-destructive/30">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm text-destructive">{error}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Right panel: instructions/progress/results */}
-          <div className="flex-1 min-w-0 min-h-0 overflow-auto">
-            <AnimatePresence mode="wait" initial={false}>
-              {state === 'error' ? (
-                <motion.div key="error" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  <Card className="border-destructive/30">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm text-destructive">{error}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ) : state === 'grading' ? (
-                <motion.div key="grading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  <div className="text-center py-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                    <p className="text-muted-foreground text-sm">{t('grading:ai.analyzing')}</p>
-                  </div>
-                </motion.div>
-              ) : state === 'completed' ? (
-                <motion.div key="results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  <GradingResultDisplay result={result} />
-                </motion.div>
-              ) : (
-                <motion.div key="empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  {/* empty/instructions state */}
-                  {/* Using EmptyGradingState via GradingResultDisplay when no result and no grading */}
-                  <GradingResultDisplay />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Actions under right panel content */}
-            <AnimatePresence>
-              {state !== 'grading' && (
-                <motion.div 
-                  key="desktop-actions"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="mt-4 flex gap-2"
-                >
-                  <Button onClick={() => getAIFeedback()} disabled={!fileId}>
-                    {state === 'completed' || state === 'error' ? (
-                      t('assignment:submit.rerunAiFeedback')
-                    ) : (
-                      t('assignment:submit.getAiFeedback')
-                    )}
-                  </Button>
-                  {state === 'completed' && (
-                    <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  {state !== 'idle' && (
-                    <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+    <div ref={containerRef} className="bg-background">
+      {/* Header */}
+      <div ref={headerRef} className="border-b bg-background sticky top-0 z-10">
+        <div className="px-6 md:px-8 lg:px-10 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold">{assignment.name}</h1>
+              <p className="text-muted-foreground mt-1">
+                {assignment.course.name} • {assignment.course.teacher.email}
+              </p>
+            </div>
+      
           </div>
         </div>
+      </div>
 
-        {/* Tablet layout (lg-xl): side-by-side with adjusted proportions */}
-        <div className="hidden lg:xl:hidden lg:flex gap-4 flex-1 min-h-0">
-          {/* Left panel: file upload/preview */}
-          <div className="w-[50%] flex flex-col min-h-0">
-            <AnimatePresence mode="wait" initial={false}>
-              {state === 'idle' ? (
-                <motion.div key="t-upload" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{t('assignment:submit.uploadAssignment')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onFilesChange={onLocalFilesChange} />
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ) : (
-                <motion.div key="t-preview" className="h-full" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <Card className="h-full flex flex-col min-h-0">
-                    <CardHeader className="flex-row items-center justify-between space-y-0">
-                      <CardTitle className="truncate text-base">
-                        {uploadedMeta?.fileName || t('common:preview')}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
-                          <Eye className="w-4 h-4 mr-2" /> {t('common:preview')}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => reset()}>{t('assignment:submit.replaceFile')}</Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex-1 min-h-0">
-                      <div className="h-full">
-                        {(() => {
-                          console.log('🔍 Submit page - FilePreview props:', {
-                            uploadedMeta,
-                            localFile: localFile ? { name: localFile.name, type: localFile.type } : null,
-                            fileId: uploadedMeta?.fileId,
-                            state
-                          });
-                          return null;
-                        })()}
-                        <FilePreview 
-                          file={uploadedMeta || undefined} 
-                          localFile={localFile} 
-                          fileId={uploadedMeta?.fileId}
-                          resolveFileUrl={resolveFileUrl}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+      {/* Main Content - AI Results First */}
+      <main className="px-6 md:px-8 lg:px-10 py-8 h-[calc(100vh-180px)] md:h-[calc(100vh-200px)] lg:h-[calc(100vh-230px)]">
+        <div className="grid lg:grid-cols-[1fr_320px] gap-8 lg:gap-10 h-full">
 
-          {/* Right panel: instructions/progress/results */}
-          <div className="flex-1 min-w-0 min-h-0 overflow-auto">
-            <AnimatePresence mode="wait" initial={false}>
-              {state === 'error' ? (
-                <motion.div key="t-error" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  <Card className="border-destructive/30">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm text-destructive">{error}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ) : state === 'grading' ? (
-                <motion.div key="t-grading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  <div className="text-center py-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                    <p className="text-muted-foreground text-sm">{t('grading:ai.analyzing')}</p>
-                  </div>
-                </motion.div>
-              ) : state === 'completed' ? (
-                <motion.div key="t-results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                  <GradingResultDisplay result={result} />
-                </motion.div>
-              ) : (
-                <motion.div key="t-empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          {/* Primary: AI Grading Results */}
+          <div ref={rightPanelRef} className="order-2 lg:order-1 flex flex-col">
+            <div className="h-full bg-gradient-to-br from-background to-muted/30 rounded-2xl border border-border/50 overflow-hidden">
+              <div className="h-full overflow-y-auto p-6">
+                {state.session?.result ? (
+                  <GradingResultDisplay result={state.session.result} />
+                ) : (
                   <GradingResultDisplay />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Actions under right panel content */}
-            <AnimatePresence>
-              {state !== 'grading' && (
-                <motion.div 
-                  key="tablet-actions"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="mt-4 flex gap-2"
-                >
-                  <Button onClick={() => getAIFeedback()} disabled={!fileId}>
-                    {state === 'completed' || state === 'error' ? (
-                      t('assignment:submit.rerunAiFeedback')
-                    ) : (
-                      t('assignment:submit.getAiFeedback')
-                    )}
-                  </Button>
-                  {state === 'completed' && (
-                    <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700">
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
-                        </>
-                      )}
-                    </Button>
-                  )}
-                  {state !== 'idle' && (
-                    <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Mobile: stacked layout */}
-        <div className="lg:hidden flex-1 min-h-0 flex flex-col gap-3">
-          <AnimatePresence mode="wait" initial={false}>
-            {state === 'idle' ? (
-              <motion.div key="m-upload" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{t('assignment:submit.uploadAssignment')}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <CompactFileUpload maxFiles={1} onUploadComplete={onUploadComplete} onFilesChange={onLocalFilesChange} />
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ) : (
-              <motion.div key="m-preview" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                <Card>
-                  <CardHeader className="flex-row items-center justify-between space-y-0">
-                    <CardTitle className="truncate text-base">{uploadedMeta?.fileName || t('common:preview')}</CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
-                        <Eye className="w-4 h-4 mr-2" /> 預覽
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={reset}>更換檔案</Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <FilePreview file={uploadedMeta || undefined} localFile={localFile} fileId={uploadedMeta?.fileId} resolveFileUrl={resolveFileUrl} />
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Secondary: Upload & Actions */}
+          <div ref={leftPanelRef} className="order-1 lg:order-2 flex flex-col">
+            <div className="h-full overflow-y-auto">
+              <div className="space-y-6 p-6">
+            {/* Compact Upload Section */}
+            <div>
+              {/* <h3 className="text-lg font-semibold mb-4">{t('assignment:submit.uploadDocument')}</h3> */}
 
-          <AnimatePresence mode="wait" initial={false}>
-            {state === 'error' ? (
-              <motion.div key="m-error-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <Card className="border-destructive/30">
-                  <CardContent className="pt-6">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm text-destructive">{error}</p>
-                      </div>
+              {state.phase === 'upload' ? renderUploadPhase() : (
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 text-lg font-bold">✓</span>
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ) : state === 'grading' ? (
-              <motion.div key="m-grading" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <div className="text-center py-10">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                  <p className="text-muted-foreground text-sm">{t('grading:ai.analyzing')}</p>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-blue-900 truncate">{state.file?.name}</h4>
+                      <p className="text-sm text-blue-700">
+                        {Math.round((state.file?.size || 0) / 1024)} KB
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </motion.div>
-            ) : state === 'completed' ? (
-              <motion.div key="m-results" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <GradingResultDisplay result={result} />
-              </motion.div>
-            ) : (
-              <motion.div key="m-empty" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <GradingResultDisplay />
-              </motion.div>
-            )}
-          </AnimatePresence>
+              )}
+            </div>
 
-          {/* Actions */}
-          <AnimatePresence>
-            {state !== 'grading' && (
-              <motion.div 
-                key="mobile-actions"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex gap-2"
-              >
-                <Button onClick={() => getAIFeedback()} disabled={!fileId} className="flex-1">
-                  {state === 'completed' || state === 'error' ? (
-                    t('assignment:submit.rerunAiFeedback')
-                  ) : (
-                    t('assignment:submit.getAiFeedback')
-                  )}
-                </Button>
-                {state === 'completed' && (
-                  <Button onClick={submitFinal} disabled={!fileId || isSubmitting} className="bg-green-600 hover:bg-green-700 flex-1">
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> {t('assignment:submit.submitting')}
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="h-4 w-4 mr-2" /> {t('assignment:submit.submitAssignment')}
-                      </>
-                    )}
-                  </Button>
-                )}
-                {state !== 'idle' && (
-                  <Button variant="outline" onClick={reset}>{t('assignment:submit.reselectFile')}</Button>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {/* Compact Actions */}
+            {renderActions()}
 
+            {/* Error Display */}
+            {state.error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-red-500 text-lg">⚠</span>
+                  <p className="text-sm text-red-700 font-medium">{state.error}</p>
+                </div>
+              </div>
+            )}
+              </div>
+            </div>
+          </div>
         </div>
-
       </main>
-
-      {/* Full-screen preview dialog */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="w-screen h-screen max-w-none bg-background ">
-            <DialogTitle className="sr-only">{t('assignment:submit.pdfPreview')}</DialogTitle>
-            <FullScreenPdfViewer 
-              file={localFile || undefined} 
-              fileUrl={uploadedMeta?.fileId ? `/api/files/${uploadedMeta.fileId}/download` : undefined}
-              fileName={uploadedMeta?.fileName} 
-            />
-          
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

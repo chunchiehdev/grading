@@ -2,6 +2,7 @@ import { db } from '@/lib/db.server';
 import { redirect } from 'react-router';
 import { getSession, commitSession, destroySession } from '@/sessions.server';
 import { OAuth2Client } from 'google-auth-library';
+import logger from '@/utils/logger';
 
 let oauth2Client: OAuth2Client | null = null;
 
@@ -144,10 +145,8 @@ export async function getUser(request: Request) {
   const session = await getSession(request);
   const userId = session.get('userId');
 
-  console.error('👤 getUser - userId from session:', userId);
-
   if (!userId || typeof userId !== 'string') {
-    console.error('❌ getUser - No valid userId in session');
+    logger.debug('getUser - No valid userId in session');
     return null;
   }
 
@@ -157,16 +156,14 @@ export async function getUser(request: Request) {
       select: { id: true, email: true, role: true, name: true, picture: true },
     });
 
-    console.error('👤 getUser - Found user in DB:', user ? user.email : 'null');
-
     if (!user) {
-      console.error('❌ getUser - User not found in database with id:', userId);
+      logger.warn('getUser - User not found in database with id:', userId);
       return null;
     }
 
     return user;
   } catch (error) {
-    console.error('❌ getUser - Database error:', error);
+    logger.error('getUser - Database error:', error);
     return null;
   }
 }
@@ -178,6 +175,10 @@ export async function getUser(request: Request) {
  */
 export async function logout(request: Request) {
   const session = await getSession(request);
+  const userId = session.get('userId');
+
+  console.log('🗑️ logout - Destroying session for userId:', userId);
+
   return destroySession(session);
 }
 
@@ -218,13 +219,29 @@ export async function requireAuth(request: Request) {
 }
 
 /**
+ * Requires user to be authenticated for API routes (returns null instead of redirect)
+ * @param {Request} request - The HTTP request with session data
+ * @returns {Promise<Object|null>} User object with role information, or null if not authenticated
+ */
+export async function requireAuthForApi(request: Request) {
+  const user = await getUser(request);
+  if (!user) {
+    return null;
+  }
+  return user;
+}
+
+/**
  * Requires user to be a teacher
  * @param {Request} request - The HTTP request with session data
  * @returns {Promise<Object>} Teacher user object
  * @throws {Response} Redirect to login or unauthorized if not a teacher
  */
 export async function requireTeacher(request: Request) {
-  const user = await requireAuth(request);
+  const user = await getUser(request);
+  if (!user) {
+    throw redirect('/auth/login');
+  }
   if (user.role !== 'TEACHER') {
     throw redirect('/auth/unauthorized');
   }
@@ -238,7 +255,10 @@ export async function requireTeacher(request: Request) {
  * @throws {Response} Redirect to login or unauthorized if not a student
  */
 export async function requireStudent(request: Request) {
-  const user = await requireAuth(request);
+  const user = await getUser(request);
+  if (!user) {
+    throw redirect('/auth/login');
+  }
   if (user.role !== 'STUDENT') {
     throw redirect('/auth/unauthorized');
   }

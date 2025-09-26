@@ -1,12 +1,13 @@
-import type { GeminiGradingRequest, GeminiFileGradingRequest } from './gemini.server';
+import type { GeminiGradingRequest, GeminiFileGradingRequest } from '@/types/gemini';
 
 /**
  * Gemini 評分 Prompt 管理
  * 集中管理所有評分相關的提示詞和系統指令
  */
 export class GeminiPrompts {
-  static generateSystemInstruction(): string {
-    return this.dedent(`
+  static generateSystemInstruction(language: 'zh' | 'en' = 'zh'): string {
+    console.log(`🎯 [GeminiPrompts] Generating system instruction for language: ${language}`);
+    const instruction = this.dedent(`
             你是一位專業評分員。你的任務是：
 
             1. **精確分析**：仔細閱讀文件，基於評分標準客觀評分
@@ -21,7 +22,7 @@ export class GeminiPrompts {
             - 提供具體的改進建議或方向
 
             **🔥 CRITICAL JSON 輸出規則：**
-            - 使用繁體中文撰寫所有內容
+            - ${language === 'zh' ? '使用繁體中文撰寫所有內容' : 'Write all content in English'}
             - 僅回應有效的JSON格式，不要添加解釋或註釋
             - 所有屬性名和字串值必須用雙引號 " 包圍
             - 字串內容的引用請用「」或『』，避免使用雙引號
@@ -36,6 +37,8 @@ export class GeminiPrompts {
             ✅ 所有括號必須正確閉合
             ✅ 語法完全有效，可直接解析
         `);
+    console.log(`🔍 [GeminiPrompts] Generated system instruction (first 200 chars): ${instruction.substring(0, 200)}...`);
+    return instruction;
   }
 
   static generateFileGradingPrompt(request: GeminiFileGradingRequest): string {

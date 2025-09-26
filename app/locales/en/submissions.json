@@ -20,7 +20,8 @@
   },
   "aiAnalysis": {
     "title": "AI Grading Result",
-    "gradingInProgress": "Grading is in progress."
+    "gradingInProgress": "Grading is in progress.",
+    "inProgress": "AI analysis in progress..."
   },
   "gradingSummary": {
     "title": "Grading Summary",

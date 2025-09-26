@@ -31,6 +31,7 @@ export interface CourseWithEnrollmentInfo {
     id: string;
     email: string;
     name: string;
+    picture: string;
   };
   _count: {
     enrollments: number;
@@ -157,6 +158,7 @@ export async function getStudentEnrolledCourses(studentId: string): Promise<Cour
                 id: true,
                 email: true,
                 name: true,
+                picture: true,
               },
             },
             _count: {

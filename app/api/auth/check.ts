@@ -1,6 +1,6 @@
 import { getUser } from '@/services/auth.server';
-import { withErrorHandler, createApiResponse } from '@/middleware/api.server';
-import { createSuccessResponse, ApiErrorCode } from '@/types/api';
+import { withErrorHandler } from '@/middleware/api.server';
+import { createSuccessResponse } from '@/types/api';
 
 /**
  * API endpoint to check user authentication status
@@ -9,6 +9,7 @@ import { createSuccessResponse, ApiErrorCode } from '@/types/api';
  * @returns {Promise<Response>} JSON response with user data or 401 if not authenticated
  */
 export async function loader({ request }: { request: Request }) {
+  console.log('🔍 API /api/auth/check called');
   return withErrorHandler(async () => {
     const user = await getUser(request);
     if (!user) {

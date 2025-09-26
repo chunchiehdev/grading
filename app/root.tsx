@@ -1,16 +1,14 @@
 // root.tsx
-import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, redirect, useLocation } from 'react-router';
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, redirect } from 'react-router';
 import { ThemeProvider } from '@/theme-provider';
 import './tailwind.css';
 import Sidebar from '@/components/sidebar/Sidebar';
 import { cn } from '@/lib/utils';
 import { NavHeader } from '@/components/navbar/NavHeader';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { requireAuth } from '@/middleware/auth.server';
 import { PUBLIC_PATHS } from '@/constants/auth';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useUiStore } from '@/stores/uiStore';
-import { FooterVersion } from '@/components/VersionInfo';
 import type { VersionInfo } from '@/services/version.server';
 import { useTranslation } from 'react-i18next';
 import { getServerLocale } from './localization/i18n';
@@ -99,18 +97,11 @@ async function getUserSafe(request: Request): Promise<User | null> {
     const { getUser } = await import('@/services/auth.server');
     return await getUser(request);
   } catch (error) {
+    console.error('❌ root.tsx getUserSafe error:', error);
     return null;
   }
 }
 
-async function requireAuthSafe(request: Request): Promise<User | null> {
-  try {
-    const { requireAuth } = await import('@/services/auth.server');
-    return await requireAuth(request);
-  } catch (error) {
-    return null;
-  }
-}
 
 function isStaticAsset(path: string) {
   return (
@@ -139,6 +130,12 @@ export function getRoleBasedDashboard(userRole: string): string {
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
+  
+  // 只記錄非靜態資源的請求
+  if (!isStaticAsset(path)) {
+    console.log('🚀 root.tsx loader called for path:', path);
+  }
+  
   const locale = getServerLocale(request);
   const session = await getSession(request);
   const toast = session.get('toast') || null;
@@ -164,10 +161,11 @@ export async function loader({ request }: { request: Request }) {
     nodeName: process.env.NODE_NAME,
   };
 
+  // Get user once for all paths
+  const user = await getUserSafe(request);
+  
   // Handle public paths
   if (isPublicPath(path)) {
-    const user = await getUserSafe(request);
-    
     if (user && path === '/auth/login') {
       if (user.role) {
         throw redirect(getRoleBasedDashboard(user.role));
@@ -182,8 +180,6 @@ export async function loader({ request }: { request: Request }) {
   }
 
   // Handle protected paths - require authentication
-  const user = await requireAuthSafe(request);
-  
   // If authentication failed, redirect to login
   if (!user) {
     throw redirect('/auth/login');
@@ -198,14 +194,8 @@ export async function loader({ request }: { request: Request }) {
     throw redirect(getRoleBasedDashboard(user.role as string));
   }
 
-  // Role-based access control
-  if (path.startsWith('/teacher/') && user.role !== 'TEACHER') {
-    throw redirect('/auth/unauthorized');
-  }
-  
-  if (path.startsWith('/student/') && user.role !== 'STUDENT') {
-    throw redirect('/auth/unauthorized');
-  }
+  // 移除角色檢查 - 讓子路由負責角色驗證
+  // 這樣可以避免重複的角色檢查，同時保持安全性
 
   const body = { user, isPublicPath: false, versionInfo, locale, toast, podInfo };
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -214,6 +204,7 @@ export async function loader({ request }: { request: Request }) {
 }
 
 function Document({ children }: { children: React.ReactNode }) {
+
   return (
     <html lang="zh-TW" suppressHydrationWarning>
       <head>
@@ -222,8 +213,8 @@ function Document({ children }: { children: React.ReactNode }) {
         <meta name="theme-color" content="#000000" />
         <Meta />
         <Links />
-        <script 
-          src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" 
+        <script
+          src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs"
           type="module"
         ></script>
       </head>
@@ -238,10 +229,9 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const { user, isPublicPath, versionInfo, locale, toast, podInfo } = useLoaderData() as LoaderData;
+  const { user, isPublicPath, locale, toast } = useLoaderData() as LoaderData;
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
   const { i18n } = useTranslation();
-  const location = useLocation();
 
   // Change language when locale from server changes
   useEffect(() => {
@@ -280,10 +270,9 @@ function Layout() {
       
       {/* Main content area with proper scrolling */}
       <main className="flex-1 overflow-y-auto">
-        
         {!isPublicPath ? (
           // Protected paths get responsive horizontal padding and can scroll
-          <div className="px-4 sm:px-6 lg:px-8 py-4 ">
+          <div className="px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">
             <Outlet />
           </div>
         ) : (

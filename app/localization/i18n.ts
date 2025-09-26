@@ -9,14 +9,28 @@ export function getServerLocale(request: Request): string {
   if (urlLang && ['en', 'zh'].includes(urlLang)) {
     return urlLang
   }
-  
+
+  // Check language cookie set by LanguageSwitcher
+  const cookieHeader = request.headers.get('cookie')
+  if (cookieHeader) {
+    const languageCookie = cookieHeader
+      .split(';')
+      .find(cookie => cookie.trim().startsWith('language='))
+    if (languageCookie) {
+      const lang = languageCookie.split('=')[1]?.trim()
+      if (lang && ['en', 'zh'].includes(lang)) {
+        return lang
+      }
+    }
+  }
+
   const acceptLanguage = request.headers.get('accept-language')
   if (acceptLanguage) {
     if (acceptLanguage.includes('zh')) return 'zh'
     if (acceptLanguage.includes('en')) return 'en'
   }
-  
-  return 'zh' 
+
+  return 'zh'
 }
 
 // Initialize i18n instance

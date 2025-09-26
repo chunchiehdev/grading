@@ -38,16 +38,19 @@
     },
     "assignmentCard": {
         "instructor": "授課老師",
-        "rubric": "評分規準",
+        "rubric": "評分標準",
         "finalScore": "最終分數",
         "submit": "繳交作業",
         "viewSubmission": "查看繳交內容",
         "courseName": "課程",
         "dueDate": "截止日期",
-        "details": "詳細資訊"
+        "details": "詳細資訊",
+        "submitted": "已繳交",
+        "awaitingGrading": "等待評分",
+        "noDueDate": "無截止日期"
     },
     "status": {
-        "graded": "已批改",
+        "graded": "已評分",
         "submitted": "已繳交",
         "overdue": "已逾期",
         "pending": "待繳交"
@@ -57,13 +60,13 @@
         "overdue": "已逾期 {{days}} 天",
         "dueToday": "今天截止",
         "dueTomorrow": "明天截止",
-        "dueInDays": "{days} 天後截止"
+        "dueInDays": "{{days}} 天後截止"
     },
     "sections": {
         "pending": "待繳交 ({count})",
         "overdue": "已逾期 ({count})",
         "submitted": "已繳交 ({count})",
-        "graded": "已批改 ({count})"
+        "graded": "已評分 ({count})"
     },
     "courseInfo": {
         "instructorLabel": "授課老師：{{email}}",
@@ -75,9 +78,15 @@
     },
     "submit": {
         "uploadAssignment": "上傳作業",
+        "uploadDocument": "上傳文件",
+        "uploadComplete": "上傳完成",
         "replaceFile": "更換檔案",
         "reselectFile": "重新選擇檔案",
         "analyzing": "分析中...",
+        "aiAnalysis": "AI 智能分析",
+        "analyzeWithAI": "AI 智能分析",
+        "gradingResults": "評分結果",
+        "aiAnalysisDescription": "AI 將根據評分標準分析您的作業並提供詳細回饋",
         "getAiFeedback": "取得 AI 回饋",
         "rerunAiFeedback": "重新執行 AI 回饋",
         "submitting": "提交中...",
@@ -85,7 +94,7 @@
         "pdfPreview": "PDF 預覽",
         "errors": {
             "failedToCheckStatus": "無法檢查批改狀態。",
-            "noFileOrRubric": "找不到檔案或評分規準。",
+            "noFileOrRubric": "找不到檔案或評分標準。",
             "parsingFailed": "檔案解析失敗。請上傳不同的檔案或稍後再試。",
             "parsingTimeout": "解析時間超出預期。請稍後再試。",
             "failedToStartGrading": "無法開始批改",

@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DatePicker } from '@/components/DatePicker';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { useTranslation } from 'react-i18next';
 
 interface LoaderData {

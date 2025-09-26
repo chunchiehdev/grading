@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { GeminiPrompts } from '@/services/gemini-prompts.server';
-import type { GeminiGradingRequest, GeminiFileGradingRequest } from '@/services/gemini.server';
+import type { GeminiGradingRequest, GeminiFileGradingRequest } from '@/types/gemini';
 
 /**
  * Unit Test #1: AI Prompt Generation Logic

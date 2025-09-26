@@ -3,7 +3,7 @@ import { getSession, commitSession } from '@/sessions.server';
 import { useLoaderData, useActionData, Form, useSearchParams, Link } from 'react-router';
 import { CheckCircle, AlertCircle, Users, User, Calendar, ArrowLeft } from 'lucide-react';
 
-import { requireAuth } from '@/services/auth.server';
+import { getUser } from '@/services/auth.server';
 import { validateInvitationCode, useInvitationCode, type InvitationValidation } from '@/services/invitation.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -24,7 +24,10 @@ interface ActionData {
 }
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
-  const user = await requireAuth(request);
+  const user = await getUser(request);
+  if (!user) {
+    throw redirect('/auth/login');
+  }
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
 
@@ -47,7 +50,10 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 }
 
 export async function action({ request }: ActionFunctionArgs): Promise<ActionData | Response> {
-  const user = await requireAuth(request);
+  const user = await getUser(request);
+  if (!user) {
+    throw redirect('/auth/login');
+  }
   const formData = await request.formData();
   const code = formData.get('code') as string;
 

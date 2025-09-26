@@ -44,7 +44,10 @@
         "viewSubmission": "View Submission",
         "courseName": "Course",
         "dueDate": "Due Date",
-        "details": "Details"
+        "details": "Details",
+        "submitted": "Submitted",
+        "awaitingGrading": "Awaiting Grading",
+        "noDueDate": "No Due Date"
     },
     "status": {
         "graded": "Graded",
@@ -75,9 +78,15 @@
     },
     "submit": {
         "uploadAssignment": "Upload Assignment",
+        "uploadDocument": "Upload Document",
+        "uploadComplete": "Upload Complete",
         "replaceFile": "Replace File",
         "reselectFile": "Reselect File",
         "analyzing": "Analyzing...",
+        "aiAnalysis": "AI Analysis",
+        "analyzeWithAI": "Analyze with AI",
+        "gradingResults": "Grading Results",
+        "aiAnalysisDescription": "AI will analyze your assignment based on grading criteria and provide detailed feedback",
         "getAiFeedback": "Get AI Feedback",
         "rerunAiFeedback": "Re-run AI Feedback",
         "submitting": "Submitting...",

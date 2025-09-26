@@ -11,12 +11,11 @@ import { Share2, LogOut, User as UserIcon, Menu, Globe } from 'lucide-react';
 import { Link } from 'react-router';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { useLoaderData } from 'react-router';
-import { useLogout } from '@/hooks/useAuth';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { useState } from 'react';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
-import { User } from '@/root'; 
+import { User } from '@/root';
+import type { VersionInfo } from '@/services/version.server';
+import { Badge } from '@/components/ui/badge'; 
 
 interface NavHeaderProps {
   title?: string;
@@ -24,18 +23,16 @@ interface NavHeaderProps {
   className?: string;
 }
 
-export function NavHeader({ 
-  title, 
-  onShare, 
-  className 
+export function NavHeader({
+  title,
+  onShare,
+  className
 }: NavHeaderProps) {
   // Always call hooks in the same order - before any early returns
-  const { user } = useLoaderData() as { user: User | null };
-  const logout = useLogout();
-  const [langDialogOpen, setLangDialogOpen] = useState(false);
+  const { user, versionInfo } = useLoaderData() as { user: User | null; versionInfo: VersionInfo | null };
   
   // Use translation with error handling - always call this hook
-  const { t, ready, i18n } = useTranslation('navigation', { useSuspense: false });
+  const { t, ready } = useTranslation('navigation', { useSuspense: false });
 
   // Early return after all hooks are called
   if (!user) {
@@ -61,26 +58,44 @@ export function NavHeader({
 
   const handleLogout = async (e: React.FormEvent) => {
     e.preventDefault();
-    await logout.mutateAsync();
+
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // 登出成功，重定向到首頁
+        window.location.href = '/?logout=success';
+      } else {
+        console.error('Logout failed');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
     <>
       <header className={cn(
-        'sticky top-0 z-50 bg-background shadow-sm border-b border-border',
+        'sticky top-0 z-50 bg-background ',
         className
       )}>
-        <nav className="relative mx-auto flex max-w-8xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+        <nav className="relative w-full flex items-center justify-between py-3 px-4 sm:px-6 lg:px-8">
           {/* Left Section - Logo & Title */}
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-3">
-               <img 
-                 src="/logo4.png" 
-                 alt="GradeMaster Logo" 
-                 className="w-8 h-8 rounded"
+               <img
+                 src="/home.png"
+                 alt="GradeMaster Logo"
+                 className="w-8 h-8 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded dark:invert"
                />
                
-              <div className="hidden sm:block text-lg font-semibold text-foreground">
+              <div className="hidden sm:block text-lg lg:text-xl 2xl:text-2xl font-semibold text-foreground">
                 {title || safeT('title', 'Grading System')}
               </div>
             </Link>
@@ -94,38 +109,58 @@ export function NavHeader({
           </div>
 
           {/* Right Section - Desktop Controls */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3 lg:gap-4 2xl:gap-5">
             <LanguageSwitcher variant="dropdown" />
             {onShare && (
-              <Button variant="outline" size="sm" onClick={onShare} className="gap-2">
-                <Share2 className="w-4 h-4" />
-                <span>{safeT('share', 'Share')}</span>
+              <Button variant="outline" size="sm" onClick={onShare} className="gap-2 lg:h-10 2xl:h-11 lg:px-4 2xl:px-5">
+                <Share2 className="w-4 h-4 lg:w-5 lg:h-5" />
+                <span className="lg:text-base">{safeT('share', 'Share')}</span>
               </Button>
             )}
             <ModeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2 px-3">
+                <Button variant="ghost" size="sm" className="gap-2 px-3 lg:h-10 2xl:h-11 lg:px-4 2xl:px-5">
                   {user.picture ? (
-                    <img src={user.picture} alt={user.email} className="w-6 h-6 rounded-full" />
+                    <img src={user.picture} alt={user.email} className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full" />
                   ) : (
-                    <UserIcon className="w-4 h-4" />
+                    <UserIcon className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />
                   )}
                   
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem disabled>
                   <span className="text-sm truncate">{user.email}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                {versionInfo && (
+                  <>
+                    <DropdownMenuItem disabled>
+                      <div className="flex items-center gap-2 text-xs">
+                        <Badge variant="outline" className="text-xs px-1 py-0">
+                          v{versionInfo.version}
+                        </Badge>
+                        <Badge
+                          variant={versionInfo.environment === 'production' ? 'default' : 'secondary'}
+                          className="text-xs px-1 py-0"
+                        >
+                          {versionInfo.environment === 'production' ? 'PROD' : 'DEV'}
+                        </Badge>
+                        <span className="text-muted-foreground" title={`Commit: ${versionInfo.commitHash}`}>
+                          {versionInfo.commitHash.substring(0, 7)}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   onClick={handleLogout}
                   className="text-red-600 focus:text-red-600 cursor-pointer"
-                  disabled={logout.isPending}
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  {logout.isPending ? safeT('loggingOut', 'Logging out...') : safeT('logout', 'Logout')}
+                  {safeT('logout', 'Logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -140,11 +175,32 @@ export function NavHeader({
                   <Menu className="w-5 h-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem disabled>
                   <span className="text-sm truncate">{user.email}</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                {versionInfo && (
+                  <>
+                    <DropdownMenuItem disabled>
+                      <div className="flex items-center gap-2 text-xs">
+                        <Badge variant="outline" className="text-xs px-1 py-0">
+                          v{versionInfo.version}
+                        </Badge>
+                        <Badge
+                          variant={versionInfo.environment === 'production' ? 'default' : 'secondary'}
+                          className="text-xs px-1 py-0"
+                        >
+                          {versionInfo.environment === 'production' ? 'PROD' : 'DEV'}
+                        </Badge>
+                        <span className="text-muted-foreground" title={`Commit: ${versionInfo.commitHash}`}>
+                          {versionInfo.commitHash.substring(0, 7)}
+                        </span>
+                      </div>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 {onShare && (
                   <>
                     <DropdownMenuItem onClick={onShare}>
@@ -154,20 +210,20 @@ export function NavHeader({
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem
-                  onClick={() => setLangDialogOpen(true)}
-                >
-                  <Globe className="w-4 h-4 mr-2" />
-{safeT('language', 'Language')}
-                </DropdownMenuItem>
+                <div className="px-2 py-1">
+                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
+                    <Globe className="w-3 h-3" />
+                    {safeT('language', 'Language')}
+                  </div>
+                  <LanguageSwitcher variant="tabs" className="w-full" />
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}
                   className="text-red-600 focus:text-red-600 cursor-pointer"
-                  disabled={logout.isPending}
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  {logout.isPending ? safeT('loggingOut', 'Logging out...') : safeT('logout', 'Logout')}
+                  {safeT('logout', 'Logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -175,16 +231,6 @@ export function NavHeader({
         </nav>
       </header>
 
-      <Dialog open={langDialogOpen} onOpenChange={setLangDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{safeT('selectLanguage', 'Select Language')}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-2 mt-4">
-            <LanguageSwitcher variant="tabs" className="w-full" />
-          </div>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

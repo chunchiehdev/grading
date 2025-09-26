@@ -1,6 +1,6 @@
 import { getUserId } from '@/services/auth.server';
 import { uploadFile } from '@/services/uploaded-file.server';
-import { UploadProgressService } from '@/services/progress.server';
+import { RedisProgressService } from '@/services/redis-progress.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 import logger from '@/utils/logger';
 
@@ -73,7 +73,7 @@ export async function action({ request }: { request: Request }) {
         const fileStartTime = Date.now();
         
         try {
-          await UploadProgressService.updateFileProgress(uploadId!, file.name, {
+          await RedisProgressService.updateFileProgress(uploadId!, file.name, {
             status: 'uploading',
             progress: 0,
           });
@@ -97,7 +97,7 @@ export async function action({ request }: { request: Request }) {
             throw new Error(result.error || 'Upload failed');
           }
 
-          await UploadProgressService.updateFileProgress(uploadId!, file.name, {
+          await RedisProgressService.updateFileProgress(uploadId!, file.name, {
             status: 'success',
             progress: 100,
           });
@@ -137,7 +137,7 @@ export async function action({ request }: { request: Request }) {
           // Enhanced error handling with detailed progress update
           const errorMessage = error instanceof Error ? error.message : '上傳失敗';
           
-          await UploadProgressService.updateFileProgress(uploadId!, file.name, {
+          await RedisProgressService.updateFileProgress(uploadId!, file.name, {
             status: 'error',
             progress: 0,
             error: errorMessage,

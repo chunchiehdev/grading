@@ -1,0 +1,27 @@
+FROM node:22-alpine
+
+# Dev image for the WebSocket server
+WORKDIR /app
+
+# Ensure dev mode
+ENV NODE_ENV=development
+
+# Install dependencies (including devDependencies)
+COPY package.json package-lock.json* ./
+# For dev, install all deps. If a volume mounts over /app/node_modules,
+# the CMD below also runs npm ci at container start to ensure binaries like `tsx` exist.
+RUN npm ci || npm install
+
+# Copy project files (bind mount will override in dev, but keeps image runnable)
+COPY tsconfig.json ./
+COPY src ./src
+
+EXPOSE 3001
+
+# Healthcheck for convenience (Node 18+ has global fetch)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://localhost:3001/health').then(() => process.exit(0)).catch(() => process.exit(1))"
+
+# Install deps again on start to populate the /app/node_modules volume, then run dev
+CMD ["sh", "-c", "npm ci || npm install && npm run dev"]
+

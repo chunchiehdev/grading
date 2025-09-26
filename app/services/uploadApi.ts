@@ -4,7 +4,7 @@ const API_ENDPOINTS = {
   CREATE_ID: '/api/upload/create-id',
   UPLOAD: '/api/upload',
   DELETE: '/api/upload/delete-file',
-  PROGRESS: (id: string) => `/api/upload/progress/${id}`,
+  PROGRESS: (id: string) => `/api/upload/progress?uploadId=${id}`,
 };
 
 const handleResponse = async (response: Response) => {
@@ -97,20 +97,22 @@ export const uploadApi = {
       }
     };
 
-    eventSource.addEventListener('upload-progress', (event) => {
+    eventSource.onmessage = (event) => {
       if (closed) {
         console.log('⚠️ SSE progress event on closed connection');
         return;
       }
       
       try {
-        const data = JSON.parse(event.data);
-        onProgress(data);
+        const response = JSON.parse(event.data);
+        const progressData = response.files || {};
+        
+        onProgress(progressData);
         
         // Check if all files are done
-        const hasFiles = Object.keys(data).length > 0;
+        const hasFiles = Object.keys(progressData).length > 0;
         if (hasFiles) {
-          const allDone = Object.values(data).every(
+          const allDone = Object.values(progressData).every(
             (file: any) => file.status === 'success' || file.status === 'error'
           );
           
@@ -122,6 +124,12 @@ export const uploadApi = {
       } catch (err) {
         console.error('❌ Error parsing progress data for:', uploadId, err);
       }
+    };
+
+    // Handle complete event
+    eventSource.addEventListener('complete', () => {
+      console.log('🎉 Upload session completed for:', uploadId);
+      cleanup();
     });
 
     // Auto cleanup after 15 minutes

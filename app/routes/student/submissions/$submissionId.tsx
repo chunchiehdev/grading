@@ -3,8 +3,6 @@ import { useLoaderData, Link } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionById } from '@/services/submission.server';
 import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { useTranslation } from 'react-i18next';
@@ -52,81 +50,66 @@ export default function StudentSubmissionDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader>
-        <div className="flex items-center justify-start pt-2">
-          <Button asChild variant="outline">
-            <Link to="/student/submissions">{t('submissions:backToSubmissions')}</Link>
-          </Button>
-        </div>
-      </PageHeader>
+      <main className="w-full px-6 lg:px-12 xl:px-16 2xl:px-20 pb-8 space-y-8">
 
-      <main className="max-w-7xl mx-auto px-4 pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left Column */}
-          <div className="md:col-span-2 space-y-6">
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>{t('submissions:assignmentInfo.title')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="text-sm text-muted-foreground">{t('submissions:assignmentInfo.course')}: {a.course.name}</div>
-                {a.dueDate && (
-                  <div className="text-sm text-muted-foreground">{t('submissions:assignmentInfo.due')}: {new Date(a.dueDate).toLocaleString()}</div>
-                )}
-                {a.description && <div className="text-sm text-muted-foreground">{a.description}</div>}
-                {/* <div className="pt-2 text-sm">Submitted file: {submission.filePath}</div> */}
-              </CardContent>
-            </Card>
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>{t('submissions:aiAnalysis.title')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {submission.aiAnalysisResult ? (
-                  <GradingResultDisplay result={submission.aiAnalysisResult as any} />
-                ) : (
-                  <p className="text-sm text-muted-foreground">{t('submissions:aiAnalysis.inProgress')}</p>
-                )}
-              </CardContent>
-            </Card>
+        {/* 頂部作業資訊 - 簡潔背景 */}
+        <div className="border-b border-border pb-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl xl:text-3xl font-bold mb-2">{a.name}</h1>
+              <p className="text-muted-foreground">{a.course.name}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                提交時間: {new Date(submission.uploadedAt).toLocaleString()}
+              </p>
+            </div>
+
+            {/* 分數 - 學生最關心的信息 */}
+            <div className="text-right">
+              {submission.finalScore !== null ? (
+                <div className="bg-muted text-muted-foreground rounded-full px-6 py-3">
+                  <span className="text-3xl font-bold">{submission.finalScore}</span>
+                  <span className="text-lg ml-1">分</span>
+                </div>
+              ) : (
+                <div className="text-muted-foreground text-right">
+                  <div className="text-lg">尚未評分</div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Right Column */}
-          <div className="md:col-span-1 space-y-6">
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>{t('submissions:gradingSummary.title')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t('submissions:gradingSummary.status')}</span>
-                  {renderStatus(submission.status)}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t('submissions:gradingSummary.score')}</span>
-                  <span>{submission.finalScore ?? '-'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t('submissions:gradingSummary.submitted')}</span>
-                  <span>{new Date(submission.uploadedAt).toLocaleString()}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>{t('submissions:teacherComments.title')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {submission.teacherFeedback ? (
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{submission.teacherFeedback}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">{t('submissions:teacherComments.empty')}</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          {/* 作業描述 */}
+          {a.description && (
+            <div className="mt-6 p-4 bg-muted/20 rounded-lg">
+              <h3 className="font-medium mb-2">作業說明</h3>
+              <p className="text-sm text-muted-foreground">{a.description}</p>
+            </div>
+          )}
         </div>
+
+        {/* AI分析結果 - 移除垂直線，更簡潔 */}
+        <section className="space-y-6">
+          <h2 className="text-xl font-semibold">{t('submissions:aiAnalysis.title')}</h2>
+          <div>
+            {submission.aiAnalysisResult ? (
+              <GradingResultDisplay result={submission.aiAnalysisResult as any} />
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">AI分析進行中...</p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* 教師評語 */}
+        {submission.teacherFeedback && (
+          <section className="space-y-4">
+            <h2 className="text-xl font-semibold">教師評語</h2>
+            <div className="bg-muted/30 rounded-lg p-6">
+              <p className="whitespace-pre-wrap leading-relaxed">{submission.teacherFeedback}</p>
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

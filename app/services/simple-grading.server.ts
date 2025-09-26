@@ -6,6 +6,7 @@ export interface SimpleGradingJob {
   resultId: string;
   userId: string;
   sessionId: string;
+  userLanguage?: 'zh' | 'en';
 }
 
 // Simple in-memory job tracking
@@ -89,7 +90,7 @@ async function processQueue() {
     try {
       logger.info(`🏃 Processing grading job for result ${job.resultId} (${jobQueue.length} remaining)`);
       
-      const result = await processGradingResult(job.resultId, job.userId, job.sessionId);
+      const result = await processGradingResult(job.resultId, job.userId, job.sessionId, job.userLanguage || 'zh');
       
       if (result.success) {
         logger.info(`✅ Completed grading job for result ${job.resultId}`);

@@ -1,4 +1,5 @@
 import { db } from '@/lib/db.server';
+import { publishAssignmentCreatedNotification } from '@/services/notification.server';
 
 export interface AssignmentAreaInfo {
   id: string;
@@ -119,6 +120,16 @@ export async function createAssignmentArea(
     });
 
     console.log('✅ Created assignment area:', assignmentArea.name, 'for course:', courseId);
+
+    // 發布作業通知事件
+    try {
+      await publishAssignmentCreatedNotification(assignmentArea);
+      console.log('✅ Assignment notification published for:', assignmentArea.name);
+    } catch (notificationError) {
+      console.error('⚠️ Failed to publish assignment notification:', notificationError);
+      // 不阻斷作業建立流程，僅記錄錯誤
+    }
+
     return assignmentArea;
   } catch (error) {
     console.error('❌ Error creating assignment area:', error);

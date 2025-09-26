@@ -6,6 +6,7 @@ import {
   cancelGradingSession
 } from '@/services/grading-session.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
+import { getServerLocale } from '@/localization/i18n';
 
 /**
  * GET: Get specific grading session
@@ -88,7 +89,9 @@ export async function action({
 
     switch (action) {
       case 'start': {
-        const result = await startGradingSession(sessionId, userId);
+        const userLanguage = getServerLocale(request) as 'zh' | 'en';
+        console.log(`🌐 [Session API] Detected user language: ${userLanguage}`);
+        const result = await startGradingSession(sessionId, userId, userLanguage);
         if (!result.success) {
           return Response.json(
             createErrorResponse(result.error || 'Failed to start session', ApiErrorCode.INTERNAL_ERROR), 

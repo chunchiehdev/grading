@@ -7,6 +7,7 @@ export interface UploadFileRequest {
   userId: string;
   file: File;
   originalFileName?: string;
+  onProgress?: (uploadedBytes: number, totalBytes: number) => void;
 }
 
 export interface UploadFileResult {
@@ -24,7 +25,7 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
   const startTime = Date.now();
   
   try {
-    const { userId, file, originalFileName } = request;
+    const { userId, file, originalFileName, onProgress } = request;
     
     // Validate file
     if (!file || file.size === 0) {
@@ -74,7 +75,7 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
     // Upload to storage with enhanced error handling
     let storageResult;
     try {
-      storageResult = await uploadToStorage(buffer, fileKey, file.type);
+      storageResult = await uploadToStorage(buffer, fileKey, file.type, onProgress);
     } catch (error) {
       const storageError = error as StorageError;
       

@@ -31,6 +31,12 @@ model User {
   submissions     Submission[]
   enrollments     Enrollment[]
   usedInvitations InvitationCode[] @relation("InvitationCodeUsage")
+  
+  // Chat relations
+  chats           Chat[]
+
+  // Notification relations
+  notifications   Notification[] @relation("UserNotifications")
 
   @@map("users")
 }
@@ -50,6 +56,7 @@ model Course {
   assignmentAreas AssignmentArea[]
   enrollments     Enrollment[]
   invitationCodes InvitationCode[]
+  notifications   Notification[] @relation("CourseNotifications")
 
   @@index([teacherId])
   @@map("courses")
@@ -70,7 +77,8 @@ model AssignmentArea {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  submissions Submission[]
+  submissions   Submission[]
+  notifications Notification[] @relation("AssignmentNotifications")
 
   @@index([courseId])
   @@index([rubricId])
@@ -254,6 +262,7 @@ enum UserRole {
 
 // Submission status
 enum SubmissionStatus {
+  DRAFT       // File uploaded but not yet submitted
   SUBMITTED   // Just submitted
   ANALYZED    // AI analysis complete
   GRADED      // Teacher has provided feedback/grade
@@ -291,6 +300,73 @@ model InvitationCode {
   @@index([courseId])
   @@index([expiresAt])
   @@map("invitation_codes")
+}
+
+// AI Chat system
+model Chat {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?  @db.VarChar(100)
+  context   Json?    // {courseId, assignmentId, type}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  msgs Msg[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("chats")
+}
+
+model Msg {
+  id      String   @id @default(uuid())
+  chatId  String
+  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  role    Role
+  content String   @db.Text
+  data    Json?    // Generated rubric data, error info, etc
+  time    DateTime @default(now())
+
+  @@index([chatId])
+  @@index([time])
+  @@map("messages")
+}
+
+enum Role {
+  USER
+  AI
+}
+
+// Real-time notifications for course activities
+model Notification {
+  id           String           @id @default(uuid())
+  type         NotificationType
+  userId       String
+  user         User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  courseId     String?
+  course       Course?          @relation("CourseNotifications", fields: [courseId], references: [id], onDelete: Cascade)
+  assignmentId String?
+  assignment   AssignmentArea?  @relation("AssignmentNotifications", fields: [assignmentId], references: [id], onDelete: Cascade)
+  title        String           @db.VarChar(255)
+  message      String           @db.Text
+  isRead       Boolean          @default(false)
+  readAt       DateTime?
+  data         Json?            // Additional notification data
+  createdAt    DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([courseId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  ASSIGNMENT_CREATED     // New assignment published
+  ASSIGNMENT_DUE_SOON    // Assignment due in 24 hours
+  SUBMISSION_GRADED      // Teacher graded submission
+  COURSE_ANNOUNCEMENT    // General course announcement
 }
 
 

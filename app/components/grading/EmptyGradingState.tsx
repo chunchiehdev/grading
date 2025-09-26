@@ -1,104 +1,58 @@
-import React from 'react';
-import { FileText, ClipboardCheck, MessageCircle, ChevronRight } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { gsap } from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { useRef } from 'react';
 
 interface EmptyGradingStateProps {
   onRetry?: () => void;
 }
 
-export function EmptyGradingState({ onRetry }: EmptyGradingStateProps) {
+export function EmptyGradingState({}: EmptyGradingStateProps) {
   const { t } = useTranslation('grading');
-  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mainIconRef = useRef<HTMLDivElement>(null);
+  const stepsRef = useRef<HTMLDivElement>(null);
 
-  const steps = [
-    {
-      icon: FileText,
-      title: t('emptyGradingState.steps.check.title'),
-      description: t('emptyGradingState.steps.check.description'),
-      color: 'group-hover:text-primary',
-    },
-    {
-      icon: ClipboardCheck,
-      title: t('emptyGradingState.steps.grade.title'),
-      description: t('emptyGradingState.steps.grade.description'),
-      color: 'group-hover:text-primary',
-    },
-    {
-      icon: MessageCircle,
-      title: t('emptyGradingState.steps.feedback.title'),
-      description: t('emptyGradingState.steps.feedback.description'),
-      color: 'group-hover:text-primary',
-    },
-  ];
+  // Simple entrance animation with accessibility support
+  useGSAP(() => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion) {
+      gsap.set([containerRef.current, mainIconRef.current], {
+        opacity: 1,
+        y: 0
+      });
+    } else {
+      gsap.fromTo(containerRef.current,
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }
+      );
+    }
+  }, []);
 
   return (
-    <div className="w-full max-w-4xl mx-auto transition-opacity opacity-100">
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          <div className="p-6 border-b border-border">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{t('emptyGradingState.title')}</h2>
-              <div className="flex items-center gap-2">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
-                ))}
-              </div>
-            </div>
-          </div>
+    <div
+      ref={containerRef}
+      className="flex flex-col items-center justify-center h-full text-center space-y-4 p-8"
+    >
+      {/* Main Icon */}
+      <div
+        ref={mainIconRef}
+        className="text-muted-foreground mb-2"
+      >
+        <Sparkles className="w-12 h-12" />
+      </div>
 
-          <div className="p-6 space-y-8">
-            <div className="grid gap-4">
-              {steps.map((step, index) => (
-                <div
-                  key={index}
-                  className="group relative"
-                  onMouseEnter={() => setHoveredIndex(index)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                >
-                  <div
-                    className={`
-                    relative p-4 rounded-lg border border-border
-                    transition-all duration-300 ease-in-out
-                    ${hoveredIndex === index ? 'transform translate-x-2' : ''}
-                  `}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 rounded-md bg-primary/5">
-                        <step.icon className={`w-6 h-6 transition-colors ${step.color}`} />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium mb-1">{step.title}</h3>
-                        <p className="text-sm text-muted-foreground">{step.description}</p>
-                      </div>
-                      <ChevronRight
-                        className={`w-5 h-5 text-gray-400 dark:text-gray-600 transition-opacity ${hoveredIndex === index ? 'opacity-100' : 'opacity-0'}`}
-                      />
-                    </div>
-
-                    {index < steps.length - 1 && <div className="absolute left-7 top-full h-16 w-px bg-border" />}
-                  </div>
-
-                  {hoveredIndex === index && (
-                    <div className="absolute inset-0 border-2 border-primary/50 rounded-lg pointer-events-none" />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {onRetry && (
-              <div className="flex justify-center pt-4">
-                <button
-                  onClick={onRetry}
-                  className="px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  {t('emptyGradingState.restartGrading')}
-                </button>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Title & Description */}
+      <div ref={stepsRef}>
+        <h3 className="text-lg font-medium text-foreground mb-2">
+          {t('grading:feedbackUi.empty.title')}
+        </h3>
+        <p className="text-muted-foreground">
+          {t('grading:feedbackUi.empty.subtitle')}
+        </p>
+      </div>
     </div>
   );
 }

@@ -416,7 +416,8 @@ export async function updateGradingSessionProgress(
  */
 export async function startGradingSession(
   sessionId: string,
-  userId: string
+  userId: string,
+  userLanguage: 'zh' | 'en' = 'zh'
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Update session status to processing
@@ -451,7 +452,8 @@ export async function startGradingSession(
     const gradingJobs = pendingResults.map(result => ({
       resultId: result.id,
       userId: userId,
-      sessionId: sessionId
+      sessionId: sessionId,
+      userLanguage: userLanguage
     }));
 
     const queueResult = await addGradingJobs(gradingJobs);

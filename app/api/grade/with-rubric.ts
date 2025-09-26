@@ -1,6 +1,7 @@
 import { getUserId } from '@/services/auth.server';
 import { createGradingSession, startGradingSession } from '@/services/grading-session.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
+import { getServerLocale } from '@/localization/i18n';
 
 /**
  * API endpoint to start grading using the new grading session system
@@ -54,8 +55,12 @@ export async function action({ request }: { request: Request }) {
       );
     }
 
+    // Get user language preference
+    const userLanguage = getServerLocale(request) as 'zh' | 'en';
+    console.log(`🌐 [API] Detected user language: ${userLanguage}`);
+
     // Start grading process
-    const startResult = await startGradingSession(sessionResult.sessionId!, userId);
+    const startResult = await startGradingSession(sessionResult.sessionId!, userId, userLanguage);
     
     if (!startResult.success) {
       return Response.json(

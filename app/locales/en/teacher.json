@@ -1,0 +1,17 @@
+{
+  "submissionReview": "Submission Review",
+  "studentInfo": "Student Information",
+  "backToSubmissions": "Back to Submissions",
+  "downloadFile": "Download File",
+  "provideFeedback": "Provide Feedback",
+  "feedbackLabel": "Teacher Feedback",
+  "feedbackPlaceholder": "Provide your feedback and comments for this submission...",
+  "feedbackSaved": "Feedback saved successfully!",
+  "saveFeedback": "Save Feedback",
+  "points": "points",
+  "actions": {
+    "view": "View",
+    "download": "Download",
+    "edit": "Edit"
+  }
+}

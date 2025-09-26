@@ -33,8 +33,10 @@ export function GradingProgress({
   initialProgress = 0,
   phase = 'check',
   message,
-  // Add translation hook
-}) {
+  className,
+  onStepComplete,
+  onProgressUpdate,
+}: GradingProgressProps) {
   const { t } = useTranslation('grading');
   
   const GRADING_STEPS: GradingStep[] = [
@@ -63,11 +65,6 @@ export function GradingProgress({
       estimatedTime: 2,
     },
   ];
-
-  className,
-  onStepComplete,
-  onProgressUpdate,
-}: GradingProgressProps) {
   const [currentStep, setCurrentStep] = useState(() => {
     return GRADING_STEPS.findIndex((step) => step.id === phase) || 0;
   });
