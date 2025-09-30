@@ -97,7 +97,7 @@ async function getUserSafe(request: Request): Promise<User | null> {
     const { getUser } = await import('@/services/auth.server');
     return await getUser(request);
   } catch (error) {
-    console.error('❌ root.tsx getUserSafe error:', error);
+    console.error(' root.tsx getUserSafe error:', error);
     return null;
   }
 }
@@ -193,9 +193,6 @@ export async function loader({ request }: { request: Request }) {
   if (path === '/dashboard') {
     throw redirect(getRoleBasedDashboard(user.role as string));
   }
-
-  // 移除角色檢查 - 讓子路由負責角色驗證
-  // 這樣可以避免重複的角色檢查，同時保持安全性
 
   const body = { user, isPublicPath: false, versionInfo, locale, toast, podInfo };
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };

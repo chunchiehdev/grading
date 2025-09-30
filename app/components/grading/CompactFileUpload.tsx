@@ -112,7 +112,7 @@ export const CompactFileUpload = ({
         className={cn(
           'border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-all duration-200',
           isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border hover:border-primary',
-          isSuccess && 'border-blue-300 bg-blue-50',
+          isSuccess && 'border-blue-300 bg-muted',
           hasError && 'border-red-300 bg-red-50'
         )}
       >

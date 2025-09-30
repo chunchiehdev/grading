@@ -18,7 +18,7 @@ export function WebSocketTest() {
   const user = loaderData?.user || null;
   const userId = user?.id;
 
-  // 調試信息
+
   console.log('WebSocketTest - loaderData:', loaderData);
   console.log('WebSocketTest - user:', user);
   console.log('WebSocketTest - userId:', userId);
@@ -35,13 +35,13 @@ export function WebSocketTest() {
   const [pingResult, setPingResult] = useState<string>('');
   const [testLogs, setTestLogs] = useState<string[]>([]);
 
-  // 添加日誌
+
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     setTestLogs(prev => [`[${timestamp}] ${message}`, ...prev.slice(0, 9)]);
   };
 
-  // 測試心跳
+
   const handlePing = async () => {
     try {
       const start = Date.now();
@@ -55,7 +55,6 @@ export function WebSocketTest() {
     }
   };
 
-  // 手動重連
   const handleReconnect = async () => {
     try {
       addLog('嘗試手動重連...');
@@ -66,7 +65,6 @@ export function WebSocketTest() {
     }
   };
 
-  // 監聽事件
   React.useEffect(() => {
     if (!userId) return;
 
@@ -201,7 +199,6 @@ export function WebSocketTest() {
   );
 }
 
-// 簡化版本 - 只顯示基本狀態 (唯一管理連接的組件)
 export function SimpleWebSocketStatus() {
   const loaderData = useLoaderData() as LoaderData | undefined;
   const user = loaderData?.user || null;

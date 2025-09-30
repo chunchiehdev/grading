@@ -54,7 +54,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   }));
 
   return { 
-    user: student, // 添加 user 字段，與 student 相同
+    user: student, 
     student, 
     assignments, 
     submissions, 

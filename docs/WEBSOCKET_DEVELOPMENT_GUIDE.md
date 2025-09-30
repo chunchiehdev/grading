@@ -8,10 +8,10 @@
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│  前端組件        │    │  WebSocket 服務器  │    │  Redis 集群      │
-│  (React Hook)   │◄──►│  (Socket.IO)      │◄──►│  (事件佇列)      │
+│  前端組件        │    │  WebSocket 服務器│  │  Redis 集群      │
+│  (React Hook)   │◄──►│  (Socket.IO)     │◄──►│  (事件佇列)     │
 │                 │    │                  │    │                 │
-│ app/lib/        │    │ websocket-server/ │    │ + Session Store │
+│ app/lib/        │    │ websocket-server/│   │ + Session Store │
 │ websocket/      │    │                  │    │ + Message Queue │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
                                 ▲

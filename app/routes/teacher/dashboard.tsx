@@ -13,7 +13,6 @@ import { ModernNavigation } from '@/components/ui/modern-navigation';
 import { TeacherDashboardContent } from '@/components/teacher/TeacherDashboardContent';
 import { TeacherCoursesContent } from '@/components/teacher/TeacherCoursesContent';
 import { TeacherRubricsContent } from '@/components/teacher/TeacherRubricsContent';
-import { WebSocketTest, SimpleWebSocketStatus } from '@/components/test/WebSocketTest';
 
 import { useTranslation } from 'react-i18next';
 
@@ -92,10 +91,10 @@ export default function TeacherDashboard() {
   return (
     <div>
       {/* WebSocket 狀態指示器 (固定在右上角) */}
-      <SimpleWebSocketStatus />
+      {/* <SimpleWebSocketStatus /> */}
 
-      {/* WebSocket 測試按鈕 (開發模式) */}
-      {process.env.NODE_ENV === 'development' && (
+      
+      {/* {process.env.NODE_ENV === 'development' && (
         <div style={{
           position: 'fixed',
           top: '60px',
@@ -111,7 +110,7 @@ export default function TeacherDashboard() {
             🔧 WebSocket Test
           </Button>
         </div>
-      )}
+      )} */}
 
       {/* Modern Navigation */}
       <ModernNavigation
@@ -135,12 +134,12 @@ export default function TeacherDashboard() {
       />
 
       <div className="w-[95%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto pt-6 md:pt-8 lg:pt-10 xl:pt-12 2xl:pt-16">
-        {/* WebSocket 測試組件 (可切換顯示) */}
-        {showWebSocketTest && (
+        {/* WebSocket Test Componment */}
+        {/* {showWebSocketTest && (
           <div className="mb-6">
             <WebSocketTest />
           </div>
-        )}
+        )} */}
 
         {renderContent()}
       </div>

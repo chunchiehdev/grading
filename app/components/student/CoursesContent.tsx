@@ -2,7 +2,6 @@ import { Users, FileText, Calendar, UserPlus } from 'lucide-react';
 import { Link } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 
 interface CourseWithEnrollmentInfo {
@@ -138,7 +137,7 @@ function CourseCard({ course }: CourseCardProps) {
 
         {/* Enrolled Date - 固定高度區域 */}
         {enrolledDate && (
-          <div className="mx-2 mb-2 px-4 py-3 bg-blue-50 rounded-lg">
+          <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
             <div className="flex items-center text-sm text-muted-foreground">
               <Calendar className="w-4 h-4 mr-2" />
               <span>{t('course:joined', { date: enrolledDate })}</span>

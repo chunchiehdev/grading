@@ -231,7 +231,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
           </div>
 
           {/* Due Date / Action - 固定高度區域 */}
-          <div className="mx-2 mb-2 px-4 py-3 bg-slate-50 rounded-lg">
+          <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
                 {assignment.dueDate ? formatDueDate(assignment.dueDate) : t('assignmentCard.noDueDate')}

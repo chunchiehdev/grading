@@ -251,7 +251,7 @@ export default function JoinCourse() {
           
           <CardContent className="space-y-6">
             {validation.course && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <div className="bg-muted border border-blue-200 rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-blue-900 mb-3">
                   {validation.course.name}
                 </h3>
