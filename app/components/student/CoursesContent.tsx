@@ -86,7 +86,7 @@ function CourseCard({ course }: CourseCardProps) {
   const totalAssignments = course._count?.assignmentAreas || 0;
 
   return (
-    <Link to="/student/assignments" className="block">
+    <Link to={`/student/courses/${course.id}`} className="block">
       <Card className="group hover:shadow-lg transition-all duration-200 hover:border-primary/20 bg-card text-card-foreground border hover:bg-muted/50 h-full grid grid-rows-[1fr_auto_auto_auto]">
         {/* Header - 可變高度但有最小高度 */}
         <CardHeader className="pb-3 min-h-[140px] flex flex-col justify-start">

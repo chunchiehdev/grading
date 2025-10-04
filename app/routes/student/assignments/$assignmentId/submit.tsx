@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslation } from 'react-i18next';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { useUploadStore } from '@/stores/uploadStore';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -22,6 +23,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   // Check for existing draft/submission to restore state
   const draftSubmission = await getDraftSubmission(assignmentId, student.id);
+  console.log('📋 [submit.tsx loader] Assignment:', assignmentId);
+  console.log('📋 [submit.tsx loader] DraftSubmission:', JSON.stringify(draftSubmission, null, 2));
 
   return { student, assignment, draftSubmission };
 }
@@ -67,6 +70,18 @@ export default function SubmitAssignment() {
   const { assignment, draftSubmission } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
+  // Clear upload store only if there's no draft submission to restore
+  const clearFiles = useUploadStore(state => state.clearFiles);
+
+  useEffect(() => {
+    // Only clear uploadStore if this is a fresh assignment (no existing draft)
+    // This prevents showing stale upload state from other assignments
+    // while preserving the ability to restore from draftSubmission
+    if (!draftSubmission) {
+      clearFiles();
+    }
+  }, [assignment.id, draftSubmission, clearFiles]);
+
   // Animation refs
   const containerRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -78,7 +93,12 @@ export default function SubmitAssignment() {
 
   // Single state machine - "good taste" principle
   const [state, dispatch] = useReducer(submissionReducer, {
-    phase: draftSubmission?.lastState === 'completed' ? 'submit' : 'upload',
+    // Determine phase based on draft state
+    phase: draftSubmission?.lastState === 'completed'
+      ? 'submit'
+      : draftSubmission?.fileMetadata
+        ? 'analyze'  // Has file, ready to analyze
+        : 'upload',  // No file, show upload
     file: draftSubmission?.fileMetadata ? {
       id: draftSubmission.fileMetadata.fileId,
       name: draftSubmission.fileMetadata.fileName,
@@ -171,12 +191,33 @@ export default function SubmitAssignment() {
   };
 
   // Simple handlers - no over-engineering
-  const handleFileUpload = (files: any[]) => {
+  const handleFileUpload = async (files: any[]) => {
     if (files[0]) {
+      const uploadedFile = files[0];
+
       dispatch({
         type: 'file_uploaded',
-        file: { id: files[0].fileId, name: files[0].fileName, size: files[0].fileSize }
+        file: { id: uploadedFile.fileId, name: uploadedFile.fileName, size: uploadedFile.fileSize }
       });
+
+      // Save draft submission to database for restoration
+      try {
+        await fetch(`/api/student/assignments/${assignment.id}/draft`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileMetadata: {
+              fileId: uploadedFile.fileId,
+              fileName: uploadedFile.fileName,
+              fileSize: uploadedFile.fileSize,
+            },
+            lastState: 'uploaded',
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to save draft submission:', err);
+        // Non-critical error, continue anyway
+      }
 
       // Trigger success animation
       setTimeout(triggerSuccessAnimation, 500);
@@ -192,6 +233,27 @@ export default function SubmitAssignment() {
         const result = data.data.gradingResults?.find((r: any) => r.result);
         if (result?.result) {
           dispatch({ type: 'analysis_completed', result: result.result });
+
+          // Save AI analysis result to draft
+          try {
+            await fetch(`/api/student/assignments/${assignment.id}/draft`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fileMetadata: state.file ? {
+                  fileId: state.file.id,
+                  fileName: state.file.name,
+                  fileSize: state.file.size,
+                } : null,
+                sessionId,
+                aiAnalysisResult: result.result,
+                lastState: 'completed',
+              }),
+            });
+          } catch (err) {
+            console.error('Failed to save draft with AI result:', err);
+          }
+
           return true;
         }
       }

@@ -22,6 +22,10 @@ interface StudentAssignmentInfo {
       picture: string;
     };
   };
+  class?: {
+    id: string;
+    name: string;
+  } | null;
   rubric: {
     name: string;
   };

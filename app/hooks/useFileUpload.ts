@@ -34,10 +34,24 @@ interface UploadError {
  * @returns {Object} Upload interface with files, states, and upload functions
  */
 export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files: UploadedFileResult[]) => void } = {}) {
-  const { files, uploadId, setUploadId, addFiles, updateProgress, setFileStatus, removeFile } = useUploadStore();
-  
+  const {
+    filesByUploadId,       // NEW: Get all files organized by uploadId
+    currentUploadId,       // NEW: Get current uploadId (renamed from uploadId)
+    setUploadId,
+    addFiles,
+    updateProgress,
+    setFileStatus,
+    removeFile,
+    cleanupOldSessions     // NEW: GC for old sessions
+  } = useUploadStore();
+
   const { setCanProceed, setStep } = useUiStore();
   const progressSubscriptionRef = useRef<(() => void) | null>(null);
+
+  // NEW: Compute current uploadId's files for isolated state
+  const currentFiles = currentUploadId && filesByUploadId[currentUploadId]
+    ? filesByUploadId[currentUploadId]
+    : {};
 
   // Create upload ID mutation
   const createUploadIdMutation = useMutation({
@@ -47,10 +61,10 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
   // Updated upload files mutation to work with new API response structure
   const uploadFilesMutation = useMutation({
     mutationFn: async (filesToUpload: File[]) => {
-      if (!uploadId) throw new Error('No upload ID available');
+      if (!currentUploadId) throw new Error('No upload ID available');
 
       const formData = new FormData();
-      formData.append('uploadId', uploadId);
+      formData.append('uploadId', currentUploadId);
       filesToUpload.forEach((file) => formData.append('files', file));
 
       const response = await fetch('/api/upload', {
@@ -138,7 +152,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
     },
     onSuccess: (_, fileId) => {
       // Remove from local state with safety check
-      const fileEntries = Object.entries(files || {});
+      const fileEntries = Object.entries(currentFiles || {});
       const fileEntry = fileEntries.find(([_, file]) => file.key === fileId);
       if (fileEntry) {
         removeFile(fileEntry[0]);
@@ -233,20 +247,23 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
     }
   };
 
-  // Cleanup effect
+  // Cleanup effect - GC old sessions instead of clearing all files
   useEffect(() => {
     return () => {
       if (progressSubscriptionRef.current) {
         progressSubscriptionRef.current();
       }
-    };
-  }, []);
 
-  // Safety guard for files state
-  const safeFiles = files ? Object.values(files) : [];
+      // NEW: Cleanup old upload sessions (keep recent 3) instead of clearing all
+      cleanupOldSessions(3);
+    };
+  }, [cleanupOldSessions]);
+
+  // NEW: Return only current uploadId's files for proper isolation
+  const safeFiles = Object.values(currentFiles);
 
   return {
-    files: safeFiles,
+    files: safeFiles,  // Only files from current uploadId session
     isCreatingId: createUploadIdMutation.isPending,
     isUploading: uploadFilesMutation.isPending,
     isDeleting: deleteFileMutation.isPending,

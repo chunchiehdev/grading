@@ -44,6 +44,7 @@ export default [
   ...prefix('/student', [
     route('dashboard', './routes/student/dashboard.tsx'),
     route('courses', './routes/student/courses.tsx'),
+    route('courses/:courseId', './routes/student/courses/$courseId.tsx'),
     route('assignments', './routes/student/assignments.tsx'),
     route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId/submit.tsx'),
     route('submissions', './routes/student/submissions/index.tsx'),

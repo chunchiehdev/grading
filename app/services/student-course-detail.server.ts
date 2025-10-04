@@ -1,0 +1,221 @@
+import { db } from '@/lib/db.server';
+import type { StudentAssignmentInfo } from './submission.server';
+
+export interface StudentCourseDetailData {
+  course: {
+    id: string;
+    name: string;
+    description: string | null;
+    teacher: {
+      id: string;
+      email: string;
+      name: string;
+      picture: string;
+    };
+    _count: {
+      assignmentAreas: number;
+    };
+  };
+  myClass: {
+    id: string;
+    name: string;
+    schedule: {
+      day: string;
+      startTime: string;
+      endTime: string;
+      room: string | null;
+    } | null;
+  } | null;
+  enrolledAt: Date;
+  assignments: StudentAssignmentInfo[];
+  stats: {
+    total: number;
+    completed: number;
+    pending: number;
+    averageScore: number | null;
+  };
+}
+
+/**
+ * Gets course detail data for a student
+ * @param courseId - Course ID
+ * @param studentId - Student's user ID
+ * @returns Student course detail data or null if not enrolled
+ */
+export async function getStudentCourseDetail(
+  courseId: string,
+  studentId: string
+): Promise<StudentCourseDetailData | null> {
+  try {
+    // Step 1: Verify enrollment and get course basic info
+    const enrollment = await db.enrollment.findFirst({
+      where: {
+        courseId,
+        studentId,
+      },
+      include: {
+        course: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                picture: true,
+              },
+            },
+            _count: {
+              select: {
+                assignmentAreas: true,
+              },
+            },
+          },
+        },
+        class: true,  // schedule is a JSON field on class, not a relation
+      },
+    });
+
+    if (!enrollment) {
+      return null; // Student not enrolled
+    }
+
+    // Step 2: Get all assignment areas for this course (class-specific + course-wide)
+    const assignmentAreas = await db.assignmentArea.findMany({
+      where: {
+        OR: [
+          // Class-specific assignments (if student has a class)
+          enrollment.classId
+            ? {
+                classId: enrollment.classId,
+              }
+            : {},
+          // Course-wide assignments
+          {
+            courseId,
+            classId: null,
+          },
+        ],
+      },
+      include: {
+        course: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                picture: true,
+              },
+            },
+          },
+        },
+        class: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        rubric: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            criteria: true,
+          },
+        },
+        submissions: {
+          where: {
+            studentId,
+            status: { not: 'DRAFT' },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    // Step 3: Transform to StudentAssignmentInfo format
+    const assignments: StudentAssignmentInfo[] = assignmentAreas.map((area) => ({
+      id: area.id,
+      name: area.name,
+      description: area.description,
+      dueDate: area.dueDate,
+      courseId: area.courseId,
+      course: {
+        id: area.course.id,
+        name: area.course.name,
+        teacher: {
+          email: area.course.teacher.email,
+        },
+      },
+      class: area.class
+        ? {
+            id: area.class.id,
+            name: area.class.name,
+          }
+        : null,
+      rubric: {
+        id: area.rubric.id,
+        name: area.rubric.name,
+        description: area.rubric.description,
+        criteria: area.rubric.criteria,
+      },
+      submissions: area.submissions.map((sub) => ({
+        id: sub.id,
+        studentId: sub.studentId,
+        assignmentAreaId: sub.assignmentAreaId,
+        filePath: sub.filePath,
+        uploadedAt: sub.uploadedAt,
+        aiAnalysisResult: sub.aiAnalysisResult,
+        finalScore: sub.finalScore,
+        teacherFeedback: sub.teacherFeedback,
+        status: sub.status,
+        createdAt: sub.createdAt,
+        updatedAt: sub.updatedAt,
+        assignmentArea: area as any, // Already included above
+      })),
+    }));
+
+    // Step 4: Calculate statistics
+    const total = assignments.length;
+    const completed = assignments.filter((a) =>
+      a.submissions.some((s) => s.status === 'GRADED')
+    ).length;
+    const pending = assignments.filter(
+      (a) => !a.submissions.some((s) => s.studentId === studentId)
+    ).length;
+
+    const gradedSubmissions = assignments.flatMap((a) =>
+      a.submissions.filter((s) => s.status === 'GRADED' && s.finalScore !== null)
+    );
+
+    const averageScore =
+      gradedSubmissions.length > 0
+        ? gradedSubmissions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
+          gradedSubmissions.length
+        : null;
+
+    return {
+      course: {
+        id: enrollment.course.id,
+        name: enrollment.course.name,
+        description: enrollment.course.description,
+        teacher: enrollment.course.teacher,
+        _count: enrollment.course._count,
+      },
+      myClass: enrollment.class || null,
+      enrolledAt: enrollment.enrolledAt,
+      assignments,
+      stats: {
+        total,
+        completed,
+        pending,
+        averageScore,
+      },
+    };
+  } catch (error) {
+    console.error('Error getting student course detail:', error);
+    return null;
+  }
+}

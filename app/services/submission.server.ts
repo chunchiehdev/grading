@@ -57,6 +57,10 @@ export interface StudentAssignmentInfo {
       email: string;
     };
   };
+  class?: {
+    id: string;
+    name: string;
+  } | null;
   rubric: {
     id: string;
     name: string;
