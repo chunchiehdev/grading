@@ -327,3 +327,218 @@ export async function getCourseEnrollmentStats(courseId: string, teacherId: stri
     };
   }
 }
+
+// ============================================================================
+// Class-based Enrollment Functions
+// ============================================================================
+
+/**
+ * Enrolls a student in a specific class
+ * @param studentId - Student's user ID
+ * @param classId - Class ID
+ * @returns Created enrollment information
+ */
+export async function enrollStudentInClass(studentId: string, classId: string): Promise<EnrollmentInfo> {
+  try {
+    // Verify class exists and get course info
+    const classInstance = await db.class.findUnique({
+      where: { id: classId },
+      include: {
+        course: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            enrollments: true,
+          },
+        },
+      },
+    });
+
+    if (!classInstance) {
+      throw new Error('Class not found');
+    }
+
+    // Check capacity
+    if (classInstance.capacity && classInstance._count.enrollments >= classInstance.capacity) {
+      throw new Error('Class is full');
+    }
+
+    // Check if already enrolled in this class
+    const existingEnrollment = await db.enrollment.findFirst({
+      where: {
+        studentId,
+        classId,
+      },
+    });
+
+    if (existingEnrollment) {
+      throw new Error('Student is already enrolled in this class');
+    }
+
+    // Create enrollment
+    const enrollment = await db.enrollment.create({
+      data: {
+        studentId,
+        courseId: classInstance.courseId,
+        classId,
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            picture: true,
+          },
+        },
+        course: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    console.log('✅ Student enrolled:', studentId, 'in class:', classId);
+    return enrollment;
+  } catch (error) {
+    console.error('❌ Error enrolling student in class:', error);
+    throw error;
+  }
+}
+
+/**
+ * Checks if a student is enrolled in a specific class
+ * @param studentId - Student's user ID
+ * @param classId - Class ID
+ * @returns True if enrolled, false otherwise
+ */
+export async function isStudentEnrolledInClass(studentId: string, classId: string): Promise<boolean> {
+  try {
+    const enrollment = await db.enrollment.findFirst({
+      where: {
+        studentId,
+        classId,
+      },
+    });
+
+    return !!enrollment;
+  } catch (error) {
+    console.error('❌ Error checking class enrollment:', error);
+    return false;
+  }
+}
+
+/**
+ * Gets all enrollments for a specific class (for teachers)
+ * @param classId - Class ID
+ * @param teacherId - Teacher's user ID for authorization
+ * @returns List of enrolled students
+ */
+export async function getClassEnrollments(classId: string, teacherId: string): Promise<EnrollmentInfo[]> {
+  try {
+    // Verify teacher owns the class through course
+    const classInstance = await db.class.findFirst({
+      where: {
+        id: classId,
+        course: {
+          teacherId,
+        },
+      },
+    });
+
+    if (!classInstance) {
+      throw new Error('Class not found or unauthorized');
+    }
+
+    const enrollments = await db.enrollment.findMany({
+      where: { classId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            picture: true,
+          },
+        },
+        course: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { enrolledAt: 'desc' },
+    });
+
+    return enrollments;
+  } catch (error) {
+    console.error('❌ Error fetching class enrollments:', error);
+    throw error;
+  }
+}
+
+/**
+ * Removes a student from a class
+ * @param studentId - Student's user ID
+ * @param classId - Class ID
+ * @param teacherId - Teacher's user ID for authorization (optional)
+ * @returns True if removed successfully
+ */
+export async function unenrollStudentFromClass(
+  studentId: string,
+  classId: string,
+  teacherId?: string
+): Promise<boolean> {
+  try {
+    // If teacherId provided, verify they own the class through course
+    if (teacherId) {
+      const classInstance = await db.class.findFirst({
+        where: {
+          id: classId,
+          course: {
+            teacherId,
+          },
+        },
+      });
+
+      if (!classInstance) {
+        throw new Error('Class not found or unauthorized');
+      }
+    }
+
+    const result = await db.enrollment.deleteMany({
+      where: {
+        studentId,
+        classId,
+      },
+    });
+
+    console.log('✅ Student unenrolled:', studentId, 'from class:', classId);
+    return result.count > 0;
+  } catch (error) {
+    console.error('❌ Error unenrolling student from class:', error);
+    return false;
+  }
+}

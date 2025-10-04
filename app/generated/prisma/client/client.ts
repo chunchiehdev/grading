@@ -25,6 +25,11 @@ export type User = runtime.Types.Result.DefaultSelection<Prisma.$UserPayload>
  */
 export type Course = runtime.Types.Result.DefaultSelection<Prisma.$CoursePayload>
 /**
+ * Model Class
+ * 
+ */
+export type Class = runtime.Types.Result.DefaultSelection<Prisma.$ClassPayload>
+/**
  * Model AssignmentArea
  * 
  */
@@ -231,8 +236,8 @@ const config: runtime.GetPrismaClientConfig = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id        String   @id @default(uuid())\n  email     String   @unique\n  role      UserRole @default(STUDENT) // New role field with default to STUDENT\n  name      String   @db.VarChar(255)\n  picture   String   @db.VarChar(500)\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  rubrics         Rubric[]\n  gradingSessions GradingSession[]\n  uploadedFiles   UploadedFile[]\n\n  // Teacher-specific relations\n  courses        Course[]\n  teacherRubrics Rubric[] @relation(\"TeacherRubrics\")\n\n  // Student-specific relations\n  submissions     Submission[]\n  enrollments     Enrollment[]\n  usedInvitations InvitationCode[] @relation(\"InvitationCodeUsage\")\n\n  // Chat relations\n  chats Chat[]\n\n  // Notification relations\n  notifications Notification[] @relation(\"UserNotifications\")\n\n  @@map(\"users\")\n}\n\n// Course management for teachers\nmodel Course {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  description String? @db.Text\n  teacherId   String\n  teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  assignmentAreas AssignmentArea[]\n  enrollments     Enrollment[]\n  invitationCodes InvitationCode[]\n  notifications   Notification[]   @relation(\"CourseNotifications\")\n\n  @@index([teacherId])\n  @@map(\"courses\")\n}\n\n// Assignment areas within courses\nmodel AssignmentArea {\n  id          String    @id @default(uuid())\n  name        String    @db.VarChar(255)\n  description String?   @db.Text\n  courseId    String\n  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)\n  rubricId    String\n  rubric      Rubric    @relation(\"AssignmentAreaRubrics\", fields: [rubricId], references: [id], onDelete: Restrict)\n  dueDate     DateTime?\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  submissions   Submission[]\n  notifications Notification[] @relation(\"AssignmentNotifications\")\n\n  @@index([courseId])\n  @@index([rubricId])\n  @@map(\"assignment_areas\")\n}\n\n// Student submissions to assignment areas\nmodel Submission {\n  id               String         @id @default(uuid())\n  studentId        String\n  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)\n  assignmentAreaId String\n  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)\n\n  filePath   String   @db.VarChar(500) // Path/URL of uploaded assignment\n  uploadedAt DateTime @default(now())\n\n  // AI analysis and grading\n  aiAnalysisResult Json? // AI analysis results\n  finalScore       Int? // Final score\n  teacherFeedback  String?          @db.Text\n  status           SubmissionStatus @default(SUBMITTED)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([studentId])\n  @@index([assignmentAreaId])\n  @@index([status])\n  @@map(\"submissions\")\n}\n\n// 評分標準表\nmodel Rubric {\n  id        String  @id @default(uuid())\n  userId    String\n  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  teacherId String? // New field for teacher-created rubrics\n  teacher   User?   @relation(\"TeacherRubrics\", fields: [teacherId], references: [id], onDelete: Cascade)\n\n  name        String  @db.VarChar(255)\n  description String  @db.Text\n  version     Int     @default(1) // 版本號\n  isActive    Boolean @default(true) // 是否為當前版本\n  isTemplate  Boolean @default(false) // Whether it's a reusable template\n\n  // 評分標準結構 (JSON)\n  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults  GradingResult[]\n  assignmentAreas AssignmentArea[] @relation(\"AssignmentAreaRubrics\")\n\n  @@index([userId, isActive])\n  @@index([teacherId, isTemplate])\n  @@map(\"rubrics\")\n}\n\n// 評分對話 - 一次評分請求可包含多個檔案\nmodel GradingSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  status   GradingSessionStatus @default(PENDING)\n  progress Int                  @default(0) // 整體進度 0-100\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, status])\n  @@map(\"grading_sessions\")\n}\n\n// 上傳的檔案記錄\nmodel UploadedFile {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  fileName         String @db.VarChar(500)\n  originalFileName String @db.VarChar(500)\n  fileKey          String @unique // S3 key\n  fileSize         Int\n  mimeType         String @db.VarChar(100)\n\n  // 檔案處理狀態\n  parseStatus   FileParseStatus @default(PENDING)\n  parsedContent String?         @db.Text // 解析後的文字內容\n  parseError    String? // 解析錯誤訊息\n\n  // 軟刪除標記\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime? // 刪除時間\n\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  expiresAt DateTime? // 檔案過期時間，用於自動清理\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, parseStatus])\n  @@index([userId, isDeleted]) // 用於過濾已刪除檔案\n  @@index([expiresAt]) // 用於清理過期檔案\n  @@map(\"uploaded_files\")\n}\n\n// 評分結果 - 每個檔案對應一個評分標準的結果\nmodel GradingResult {\n  id               String         @id @default(uuid())\n  gradingSessionId String\n  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)\n\n  uploadedFileId String\n  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // 評分狀態和結果\n  status   GradingStatus @default(PENDING)\n  progress Int           @default(0) // 此項評分進度 0-100\n\n  // LLM評分結果 (JSON結構)\n  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }\n  errorMessage String? // 評分失敗時的錯誤訊息\n\n  // 評分原始數據\n  gradingModel    String? @db.VarChar(100) // 使用的模型名稱\n  gradingTokens   Int? // 消耗的tokens數量\n  gradingDuration Int? // 評分耗時(毫秒)\n\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime? // 評分完成時間\n\n  @@index([gradingSessionId, status])\n  @@index([uploadedFileId])\n  @@index([rubricId])\n  @@map(\"grading_results\")\n}\n\n// 評分會話狀態\nenum GradingSessionStatus {\n  PENDING // 等待開始\n  PROCESSING // 評分中\n  COMPLETED // 全部完成\n  FAILED // 失敗\n  CANCELLED // 已取消\n}\n\n// 單項評分狀態\nenum GradingStatus {\n  PENDING // 等待評分\n  PROCESSING // 評分中\n  COMPLETED // 評分完成\n  FAILED // 評分失敗\n  SKIPPED // 跳過(檔案解析失敗等)\n}\n\n// 檔案解析狀態\nenum FileParseStatus {\n  PENDING // 等待解析\n  PROCESSING // 解析中\n  COMPLETED // 解析完成\n  FAILED // 解析失敗\n}\n\n// User roles\nenum UserRole {\n  STUDENT\n  TEACHER\n}\n\n// Submission status\nenum SubmissionStatus {\n  DRAFT // File uploaded but not yet submitted\n  SUBMITTED // Just submitted\n  ANALYZED // AI analysis complete\n  GRADED // Teacher has provided feedback/grade\n}\n\n// Course enrollment for students\nmodel Enrollment {\n  id         String   @id @default(uuid())\n  studentId  String\n  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)\n  courseId   String\n  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)\n  enrolledAt DateTime @default(now())\n\n  @@unique([studentId, courseId])\n  @@index([studentId])\n  @@index([courseId])\n  @@map(\"enrollments\")\n}\n\n// Course invitation codes\nmodel InvitationCode {\n  id        String    @id @default(uuid())\n  code      String    @unique @db.VarChar(50)\n  courseId  String\n  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)\n  createdAt DateTime  @default(now())\n  expiresAt DateTime\n  isUsed    Boolean   @default(false)\n  usedAt    DateTime?\n  usedById  String?\n  usedBy    User?     @relation(\"InvitationCodeUsage\", fields: [usedById], references: [id])\n\n  @@index([code])\n  @@index([courseId])\n  @@index([expiresAt])\n  @@map(\"invitation_codes\")\n}\n\n// AI Chat system\nmodel Chat {\n  id        String   @id @default(uuid())\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  title     String?  @db.VarChar(100)\n  context   Json? // {courseId, assignmentId, type}\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  msgs Msg[]\n\n  @@index([userId])\n  @@index([createdAt])\n  @@map(\"chats\")\n}\n\nmodel Msg {\n  id      String   @id @default(uuid())\n  chatId  String\n  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)\n  role    Role\n  content String   @db.Text\n  data    Json? // Generated rubric data, error info, etc\n  time    DateTime @default(now())\n\n  @@index([chatId])\n  @@index([time])\n  @@map(\"messages\")\n}\n\nenum Role {\n  USER\n  AI\n}\n\n// Real-time notifications for course activities\nmodel Notification {\n  id           String           @id @default(uuid())\n  type         NotificationType\n  userId       String\n  user         User             @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  courseId     String?\n  course       Course?          @relation(\"CourseNotifications\", fields: [courseId], references: [id], onDelete: Cascade)\n  assignmentId String?\n  assignment   AssignmentArea?  @relation(\"AssignmentNotifications\", fields: [assignmentId], references: [id], onDelete: Cascade)\n  title        String           @db.VarChar(255)\n  message      String           @db.Text\n  isRead       Boolean          @default(false)\n  readAt       DateTime?\n  data         Json? // Additional notification data\n  createdAt    DateTime         @default(now())\n\n  @@index([userId, isRead])\n  @@index([courseId])\n  @@index([type])\n  @@index([createdAt])\n  @@map(\"notifications\")\n}\n\nenum NotificationType {\n  ASSIGNMENT_CREATED // New assignment published\n  ASSIGNMENT_DUE_SOON // Assignment due in 24 hours\n  SUBMISSION_GRADED // Teacher graded submission\n  COURSE_ANNOUNCEMENT // General course announcement\n}\n",
-  "inlineSchemaHash": "592487dae9b966744f4da2aa5df30120205c7127f464f480751fb574008bf119",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id        String   @id @default(uuid())\n  email     String   @unique\n  role      UserRole @default(STUDENT) // New role field with default to STUDENT\n  name      String   @db.VarChar(255)\n  picture   String   @db.VarChar(500)\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  rubrics         Rubric[]\n  gradingSessions GradingSession[]\n  uploadedFiles   UploadedFile[]\n\n  // Teacher-specific relations\n  courses          Course[]\n  teacherRubrics   Rubric[] @relation(\"TeacherRubrics\")\n  assistantClasses Class[]  @relation(\"ClassAssistants\")\n\n  // Student-specific relations\n  submissions     Submission[]\n  enrollments     Enrollment[]\n  usedInvitations InvitationCode[] @relation(\"InvitationCodeUsage\")\n\n  // Chat relations\n  chats Chat[]\n\n  // Notification relations\n  notifications Notification[] @relation(\"UserNotifications\")\n\n  @@map(\"users\")\n}\n\n// Course management for teachers\nmodel Course {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  code        String? @db.VarChar(50) // Course code (e.g., \"CS 201\", \"MATH 101\")\n  description String? @db.Text\n  teacherId   String\n  teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)\n\n  // Course-level settings (shared across all classes)\n  syllabus String? @db.Text // Course syllabus\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  classes         Class[] // A course can have multiple classes/sections\n  assignmentAreas AssignmentArea[]\n  enrollments     Enrollment[] // Keep for backward compatibility\n  invitationCodes InvitationCode[]\n  notifications   Notification[]   @relation(\"CourseNotifications\")\n\n  @@index([teacherId])\n  @@index([code])\n  @@map(\"courses\")\n}\n\n// Class/Section within a course (班次/班級)\nmodel Class {\n  id       String @id @default(uuid())\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  name String @db.VarChar(100) // \"101班\", \"Section A\", \"週五下午班\"\n\n  // Schedule information (JSON structure for flexibility)\n  // Example: { day: \"Friday\", startTime: \"14:00\", endTime: \"17:00\", room: \"資訊館 301\", weekday: 5 }\n  schedule Json?\n\n  capacity Int? // Maximum number of students (null = unlimited)\n\n  // Optional: Teaching assistant for this class\n  assistantId String?\n  assistant   User?   @relation(\"ClassAssistants\", fields: [assistantId], references: [id], onDelete: SetNull)\n\n  isActive Boolean @default(true) // Whether this class is currently active\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  enrollments     Enrollment[] // Students enrolled in this class\n  assignmentAreas AssignmentArea[] // Assignments specific to this class\n  invitationCodes InvitationCode[] // Invitation codes for this class\n\n  @@index([courseId])\n  @@index([assistantId])\n  @@map(\"classes\")\n}\n\n// Assignment areas within courses\nmodel AssignmentArea {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  description String? @db.Text\n  courseId    String\n  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Assignment can be specific to a class (null = all classes)\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric    @relation(\"AssignmentAreaRubrics\", fields: [rubricId], references: [id], onDelete: Restrict)\n  dueDate  DateTime?\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  submissions   Submission[]\n  notifications Notification[] @relation(\"AssignmentNotifications\")\n\n  @@index([courseId])\n  @@index([classId])\n  @@index([rubricId])\n  @@map(\"assignment_areas\")\n}\n\n// Student submissions to assignment areas\nmodel Submission {\n  id               String         @id @default(uuid())\n  studentId        String\n  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)\n  assignmentAreaId String\n  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)\n\n  filePath   String   @db.VarChar(500) // Path/URL of uploaded assignment\n  uploadedAt DateTime @default(now())\n\n  // AI analysis and grading\n  aiAnalysisResult Json? // AI analysis results\n  finalScore       Int? // Final score\n  teacherFeedback  String?          @db.Text\n  status           SubmissionStatus @default(SUBMITTED)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([studentId])\n  @@index([assignmentAreaId])\n  @@index([status])\n  @@map(\"submissions\")\n}\n\n// 評分標準表\nmodel Rubric {\n  id        String  @id @default(uuid())\n  userId    String\n  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  teacherId String? // New field for teacher-created rubrics\n  teacher   User?   @relation(\"TeacherRubrics\", fields: [teacherId], references: [id], onDelete: Cascade)\n\n  name        String  @db.VarChar(255)\n  description String  @db.Text\n  version     Int     @default(1) // 版本號\n  isActive    Boolean @default(true) // 是否為當前版本\n  isTemplate  Boolean @default(false) // Whether it's a reusable template\n\n  // 評分標準結構 (JSON)\n  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults  GradingResult[]\n  assignmentAreas AssignmentArea[] @relation(\"AssignmentAreaRubrics\")\n\n  @@index([userId, isActive])\n  @@index([teacherId, isTemplate])\n  @@map(\"rubrics\")\n}\n\n// 評分對話 - 一次評分請求可包含多個檔案\nmodel GradingSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  status   GradingSessionStatus @default(PENDING)\n  progress Int                  @default(0) // 整體進度 0-100\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, status])\n  @@map(\"grading_sessions\")\n}\n\n// 上傳的檔案記錄\nmodel UploadedFile {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  fileName         String @db.VarChar(500)\n  originalFileName String @db.VarChar(500)\n  fileKey          String @unique // S3 key\n  fileSize         Int\n  mimeType         String @db.VarChar(100)\n\n  // 檔案處理狀態\n  parseStatus   FileParseStatus @default(PENDING)\n  parsedContent String?         @db.Text // 解析後的文字內容\n  parseError    String? // 解析錯誤訊息\n\n  // 軟刪除標記\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime? // 刪除時間\n\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  expiresAt DateTime? // 檔案過期時間，用於自動清理\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, parseStatus])\n  @@index([userId, isDeleted]) // 用於過濾已刪除檔案\n  @@index([expiresAt]) // 用於清理過期檔案\n  @@map(\"uploaded_files\")\n}\n\n// 評分結果 - 每個檔案對應一個評分標準的結果\nmodel GradingResult {\n  id               String         @id @default(uuid())\n  gradingSessionId String\n  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)\n\n  uploadedFileId String\n  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // 評分狀態和結果\n  status   GradingStatus @default(PENDING)\n  progress Int           @default(0) // 此項評分進度 0-100\n\n  // LLM評分結果 (JSON結構)\n  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }\n  errorMessage String? // 評分失敗時的錯誤訊息\n\n  // 評分原始數據\n  gradingModel    String? @db.VarChar(100) // 使用的模型名稱\n  gradingTokens   Int? // 消耗的tokens數量\n  gradingDuration Int? // 評分耗時(毫秒)\n\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime? // 評分完成時間\n\n  @@index([gradingSessionId, status])\n  @@index([uploadedFileId])\n  @@index([rubricId])\n  @@map(\"grading_results\")\n}\n\n// 評分會話狀態\nenum GradingSessionStatus {\n  PENDING // 等待開始\n  PROCESSING // 評分中\n  COMPLETED // 全部完成\n  FAILED // 失敗\n  CANCELLED // 已取消\n}\n\n// 單項評分狀態\nenum GradingStatus {\n  PENDING // 等待評分\n  PROCESSING // 評分中\n  COMPLETED // 評分完成\n  FAILED // 評分失敗\n  SKIPPED // 跳過(檔案解析失敗等)\n}\n\n// 檔案解析狀態\nenum FileParseStatus {\n  PENDING // 等待解析\n  PROCESSING // 解析中\n  COMPLETED // 解析完成\n  FAILED // 解析失敗\n}\n\n// User roles\nenum UserRole {\n  STUDENT\n  TEACHER\n}\n\n// Submission status\nenum SubmissionStatus {\n  DRAFT // File uploaded but not yet submitted\n  SUBMITTED // Just submitted\n  ANALYZED // AI analysis complete\n  GRADED // Teacher has provided feedback/grade\n}\n\n// Course enrollment for students\nmodel Enrollment {\n  id        String @id @default(uuid())\n  studentId String\n  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)\n\n  // Keep courseId for backward compatibility\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // New: Student enrolls in a specific class\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  enrolledAt DateTime @default(now())\n\n  // Optional: Track student performance in this enrollment\n  finalGrade Float?\n  attendance Json? // Attendance records\n\n  @@unique([studentId, courseId])\n  // Note: @@unique([studentId, classId]) removed because classId is nullable\n  // This would cause issues with existing NULL values and doesn't match business logic\n  // Application layer should prevent duplicate enrollments in the same class\n  @@index([studentId])\n  @@index([courseId])\n  @@index([classId])\n  @@map(\"enrollments\")\n}\n\n// Course invitation codes\nmodel InvitationCode {\n  id       String @id @default(uuid())\n  code     String @unique @db.VarChar(50)\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Invitation code can be specific to a class\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime  @default(now())\n  expiresAt DateTime\n  isUsed    Boolean   @default(false)\n  usedAt    DateTime?\n  usedById  String?\n  usedBy    User?     @relation(\"InvitationCodeUsage\", fields: [usedById], references: [id])\n\n  @@index([code])\n  @@index([courseId])\n  @@index([classId])\n  @@index([expiresAt])\n  @@map(\"invitation_codes\")\n}\n\n// AI Chat system\nmodel Chat {\n  id        String   @id @default(uuid())\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  title     String?  @db.VarChar(100)\n  context   Json? // {courseId, assignmentId, type}\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  msgs Msg[]\n\n  @@index([userId])\n  @@index([createdAt])\n  @@map(\"chats\")\n}\n\nmodel Msg {\n  id      String   @id @default(uuid())\n  chatId  String\n  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)\n  role    Role\n  content String   @db.Text\n  data    Json? // Generated rubric data, error info, etc\n  time    DateTime @default(now())\n\n  @@index([chatId])\n  @@index([time])\n  @@map(\"messages\")\n}\n\nenum Role {\n  USER\n  AI\n}\n\n// Real-time notifications for course activities\nmodel Notification {\n  id           String           @id @default(uuid())\n  type         NotificationType\n  userId       String\n  user         User             @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  courseId     String?\n  course       Course?          @relation(\"CourseNotifications\", fields: [courseId], references: [id], onDelete: Cascade)\n  assignmentId String?\n  assignment   AssignmentArea?  @relation(\"AssignmentNotifications\", fields: [assignmentId], references: [id], onDelete: Cascade)\n  title        String           @db.VarChar(255)\n  message      String           @db.Text\n  isRead       Boolean          @default(false)\n  readAt       DateTime?\n  data         Json? // Additional notification data\n  createdAt    DateTime         @default(now())\n\n  @@index([userId, isRead])\n  @@index([courseId])\n  @@index([type])\n  @@index([createdAt])\n  @@map(\"notifications\")\n}\n\nenum NotificationType {\n  ASSIGNMENT_CREATED // New assignment published\n  ASSIGNMENT_DUE_SOON // Assignment due in 24 hours\n  SUBMISSION_GRADED // Teacher graded submission\n  COURSE_ANNOUNCEMENT // General course announcement\n}\n",
+  "inlineSchemaHash": "c3c58e907c29231663d18791e434d3c7fc19202a3fa46132bd8a3a428485ed31",
   "copyEngine": true,
   "runtimeDataModel": {
     "models": {},
@@ -243,7 +248,7 @@ const config: runtime.GetPrismaClientConfig = {
 }
 config.dirname = __dirname
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UserRole\",\"nativeType\":null,\"default\":\"STUDENT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"picture\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFiles\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherRubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedInvitations\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chats\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Course\":{\"dbName\":\"courses\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"CourseToEnrollment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AssignmentArea\":{\"dbName\":\"assignment_areas\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Submission\":{\"dbName\":\"submissions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"filePath\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiAnalysisResult\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherFeedback\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"SubmissionStatus\",\"nativeType\":null,\"default\":\"SUBMITTED\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isTemplate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingSession\":{\"dbName\":\"grading_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingSessionStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"UploadedFile\":{\"dbName\":\"uploaded_files\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseStatus\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"FileParseStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContent\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseError\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingResult\":{\"dbName\":\"grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSession\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[\"gradingSessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFileId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFile\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[\"uploadedFileId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"errorMessage\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Enrollment\":{\"dbName\":\"enrollments\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToEnrollment\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrolledAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"studentId\",\"courseId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"studentId\",\"courseId\"]}],\"isGenerated\":false},\"InvitationCode\":{\"dbName\":\"invitation_codes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isUsed\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedById\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedBy\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[\"usedById\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Chat\":{\"dbName\":\"chats\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"context\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"msgs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Msg\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Msg\":{\"dbName\":\"messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chatId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chat\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[\"chatId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Role\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"time\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Notification\":{\"dbName\":\"notifications\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"type\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"NotificationType\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[\"assignmentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"message\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isRead\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"readAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"GradingSessionStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"CANCELLED\",\"dbName\":null}],\"dbName\":null},\"GradingStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"SKIPPED\",\"dbName\":null}],\"dbName\":null},\"FileParseStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null}],\"dbName\":null},\"UserRole\":{\"values\":[{\"name\":\"STUDENT\",\"dbName\":null},{\"name\":\"TEACHER\",\"dbName\":null}],\"dbName\":null},\"SubmissionStatus\":{\"values\":[{\"name\":\"DRAFT\",\"dbName\":null},{\"name\":\"SUBMITTED\",\"dbName\":null},{\"name\":\"ANALYZED\",\"dbName\":null},{\"name\":\"GRADED\",\"dbName\":null}],\"dbName\":null},\"Role\":{\"values\":[{\"name\":\"USER\",\"dbName\":null},{\"name\":\"AI\",\"dbName\":null}],\"dbName\":null},\"NotificationType\":{\"values\":[{\"name\":\"ASSIGNMENT_CREATED\",\"dbName\":null},{\"name\":\"ASSIGNMENT_DUE_SOON\",\"dbName\":null},{\"name\":\"SUBMISSION_GRADED\",\"dbName\":null},{\"name\":\"COURSE_ANNOUNCEMENT\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UserRole\",\"nativeType\":null,\"default\":\"STUDENT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"picture\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFiles\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherRubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantClasses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedInvitations\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chats\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Course\":{\"dbName\":\"courses\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"syllabus\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"classes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"CourseToEnrollment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Class\":{\"dbName\":\"classes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"schedule\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"capacity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistant\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[\"assistantId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AssignmentArea\":{\"dbName\":\"assignment_areas\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Submission\":{\"dbName\":\"submissions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"filePath\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiAnalysisResult\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherFeedback\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"SubmissionStatus\",\"nativeType\":null,\"default\":\"SUBMITTED\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isTemplate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingSession\":{\"dbName\":\"grading_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingSessionStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"UploadedFile\":{\"dbName\":\"uploaded_files\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseStatus\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"FileParseStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContent\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseError\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingResult\":{\"dbName\":\"grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSession\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[\"gradingSessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFileId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFile\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[\"uploadedFileId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"errorMessage\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Enrollment\":{\"dbName\":\"enrollments\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToEnrollment\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrolledAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalGrade\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"attendance\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"studentId\",\"courseId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"studentId\",\"courseId\"]}],\"isGenerated\":false},\"InvitationCode\":{\"dbName\":\"invitation_codes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isUsed\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedById\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedBy\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[\"usedById\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Chat\":{\"dbName\":\"chats\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"context\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"msgs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Msg\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Msg\":{\"dbName\":\"messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chatId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chat\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[\"chatId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Role\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"time\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Notification\":{\"dbName\":\"notifications\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"type\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"NotificationType\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[\"assignmentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"message\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isRead\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"readAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"GradingSessionStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"CANCELLED\",\"dbName\":null}],\"dbName\":null},\"GradingStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"SKIPPED\",\"dbName\":null}],\"dbName\":null},\"FileParseStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null}],\"dbName\":null},\"UserRole\":{\"values\":[{\"name\":\"STUDENT\",\"dbName\":null},{\"name\":\"TEACHER\",\"dbName\":null}],\"dbName\":null},\"SubmissionStatus\":{\"values\":[{\"name\":\"DRAFT\",\"dbName\":null},{\"name\":\"SUBMITTED\",\"dbName\":null},{\"name\":\"ANALYZED\",\"dbName\":null},{\"name\":\"GRADED\",\"dbName\":null}],\"dbName\":null},\"Role\":{\"values\":[{\"name\":\"USER\",\"dbName\":null},{\"name\":\"AI\",\"dbName\":null}],\"dbName\":null},\"NotificationType\":{\"values\":[{\"name\":\"ASSIGNMENT_CREATED\",\"dbName\":null},{\"name\":\"ASSIGNMENT_DUE_SOON\",\"dbName\":null},{\"name\":\"SUBMISSION_GRADED\",\"dbName\":null},{\"name\":\"COURSE_ANNOUNCEMENT\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
 config.engineWasm = undefined
 config.compilerWasm = undefined
 
@@ -409,6 +414,16 @@ export interface PrismaClient<
     * ```
     */
   get course(): Prisma.CourseDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.class`: Exposes CRUD operations for the **Class** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Classes
+    * const classes = await prisma.class.findMany()
+    * ```
+    */
+  get class(): Prisma.ClassDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.assignmentArea`: Exposes CRUD operations for the **AssignmentArea** model.
@@ -901,6 +916,7 @@ export namespace Prisma {
   export const ModelName = {
     User: 'User',
     Course: 'Course',
+    Class: 'Class',
     AssignmentArea: 'AssignmentArea',
     Submission: 'Submission',
     Rubric: 'Rubric',
@@ -930,7 +946,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "course" | "assignmentArea" | "submission" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification"
+      modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1079,6 +1095,80 @@ export namespace Prisma {
           count: {
             args: Prisma.CourseCountArgs<ExtArgs>
             result: runtime.Types.Utils.Optional<CourseCountAggregateOutputType> | number
+          }
+        }
+      }
+      Class: {
+        payload: Prisma.$ClassPayload<ExtArgs>
+        fields: Prisma.ClassFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ClassFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ClassFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload>
+          }
+          findFirst: {
+            args: Prisma.ClassFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ClassFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload>
+          }
+          findMany: {
+            args: Prisma.ClassFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload>[]
+          }
+          create: {
+            args: Prisma.ClassCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload>
+          }
+          createMany: {
+            args: Prisma.ClassCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ClassCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload>[]
+          }
+          delete: {
+            args: Prisma.ClassDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload>
+          }
+          update: {
+            args: Prisma.ClassUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload>
+          }
+          deleteMany: {
+            args: Prisma.ClassDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ClassUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ClassUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload>[]
+          }
+          upsert: {
+            args: Prisma.ClassUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$ClassPayload>
+          }
+          aggregate: {
+            args: Prisma.ClassAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateClass>
+          }
+          groupBy: {
+            args: Prisma.ClassGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<ClassGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ClassCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<ClassCountAggregateOutputType> | number
           }
         }
       }
@@ -1982,6 +2072,7 @@ export namespace Prisma {
   export type GlobalOmitConfig = {
     user?: UserOmit
     course?: CourseOmit
+    class?: ClassOmit
     assignmentArea?: AssignmentAreaOmit
     submission?: SubmissionOmit
     rubric?: RubricOmit
@@ -2089,6 +2180,7 @@ export namespace Prisma {
     uploadedFiles: number
     courses: number
     teacherRubrics: number
+    assistantClasses: number
     submissions: number
     enrollments: number
     usedInvitations: number
@@ -2102,6 +2194,7 @@ export namespace Prisma {
     uploadedFiles?: boolean | UserCountOutputTypeCountUploadedFilesArgs
     courses?: boolean | UserCountOutputTypeCountCoursesArgs
     teacherRubrics?: boolean | UserCountOutputTypeCountTeacherRubricsArgs
+    assistantClasses?: boolean | UserCountOutputTypeCountAssistantClassesArgs
     submissions?: boolean | UserCountOutputTypeCountSubmissionsArgs
     enrollments?: boolean | UserCountOutputTypeCountEnrollmentsArgs
     usedInvitations?: boolean | UserCountOutputTypeCountUsedInvitationsArgs
@@ -2158,6 +2251,13 @@ export namespace Prisma {
   /**
    * UserCountOutputType without action
    */
+  export type UserCountOutputTypeCountAssistantClassesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: ClassWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
   export type UserCountOutputTypeCountSubmissionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     where?: SubmissionWhereInput
   }
@@ -2196,6 +2296,7 @@ export namespace Prisma {
    */
 
   export type CourseCountOutputType = {
+    classes: number
     assignmentAreas: number
     enrollments: number
     invitationCodes: number
@@ -2203,6 +2304,7 @@ export namespace Prisma {
   }
 
   export type CourseCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    classes?: boolean | CourseCountOutputTypeCountClassesArgs
     assignmentAreas?: boolean | CourseCountOutputTypeCountAssignmentAreasArgs
     enrollments?: boolean | CourseCountOutputTypeCountEnrollmentsArgs
     invitationCodes?: boolean | CourseCountOutputTypeCountInvitationCodesArgs
@@ -2218,6 +2320,13 @@ export namespace Prisma {
      * Select specific fields to fetch from the CourseCountOutputType
      */
     select?: CourseCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * CourseCountOutputType without action
+   */
+  export type CourseCountOutputTypeCountClassesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: ClassWhereInput
   }
 
   /**
@@ -2246,6 +2355,55 @@ export namespace Prisma {
    */
   export type CourseCountOutputTypeCountNotificationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     where?: NotificationWhereInput
+  }
+
+
+  /**
+   * Count Type ClassCountOutputType
+   */
+
+  export type ClassCountOutputType = {
+    enrollments: number
+    assignmentAreas: number
+    invitationCodes: number
+  }
+
+  export type ClassCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    enrollments?: boolean | ClassCountOutputTypeCountEnrollmentsArgs
+    assignmentAreas?: boolean | ClassCountOutputTypeCountAssignmentAreasArgs
+    invitationCodes?: boolean | ClassCountOutputTypeCountInvitationCodesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * ClassCountOutputType without action
+   */
+  export type ClassCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ClassCountOutputType
+     */
+    select?: ClassCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * ClassCountOutputType without action
+   */
+  export type ClassCountOutputTypeCountEnrollmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: EnrollmentWhereInput
+  }
+
+  /**
+   * ClassCountOutputType without action
+   */
+  export type ClassCountOutputTypeCountAssignmentAreasArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: AssignmentAreaWhereInput
+  }
+
+  /**
+   * ClassCountOutputType without action
+   */
+  export type ClassCountOutputTypeCountInvitationCodesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: InvitationCodeWhereInput
   }
 
 
@@ -2611,6 +2769,7 @@ export namespace Prisma {
     uploadedFiles?: boolean | User$uploadedFilesArgs<ExtArgs>
     courses?: boolean | User$coursesArgs<ExtArgs>
     teacherRubrics?: boolean | User$teacherRubricsArgs<ExtArgs>
+    assistantClasses?: boolean | User$assistantClassesArgs<ExtArgs>
     submissions?: boolean | User$submissionsArgs<ExtArgs>
     enrollments?: boolean | User$enrollmentsArgs<ExtArgs>
     usedInvitations?: boolean | User$usedInvitationsArgs<ExtArgs>
@@ -2656,6 +2815,7 @@ export namespace Prisma {
     uploadedFiles?: boolean | User$uploadedFilesArgs<ExtArgs>
     courses?: boolean | User$coursesArgs<ExtArgs>
     teacherRubrics?: boolean | User$teacherRubricsArgs<ExtArgs>
+    assistantClasses?: boolean | User$assistantClassesArgs<ExtArgs>
     submissions?: boolean | User$submissionsArgs<ExtArgs>
     enrollments?: boolean | User$enrollmentsArgs<ExtArgs>
     usedInvitations?: boolean | User$usedInvitationsArgs<ExtArgs>
@@ -2674,6 +2834,7 @@ export namespace Prisma {
       uploadedFiles: Prisma.$UploadedFilePayload<ExtArgs>[]
       courses: Prisma.$CoursePayload<ExtArgs>[]
       teacherRubrics: Prisma.$RubricPayload<ExtArgs>[]
+      assistantClasses: Prisma.$ClassPayload<ExtArgs>[]
       submissions: Prisma.$SubmissionPayload<ExtArgs>[]
       enrollments: Prisma.$EnrollmentPayload<ExtArgs>[]
       usedInvitations: Prisma.$InvitationCodePayload<ExtArgs>[]
@@ -3087,6 +3248,7 @@ export namespace Prisma {
     uploadedFiles<T extends User$uploadedFilesArgs<ExtArgs> = {}>(args?: Subset<T, User$uploadedFilesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     courses<T extends User$coursesArgs<ExtArgs> = {}>(args?: Subset<T, User$coursesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     teacherRubrics<T extends User$teacherRubricsArgs<ExtArgs> = {}>(args?: Subset<T, User$teacherRubricsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    assistantClasses<T extends User$assistantClassesArgs<ExtArgs> = {}>(args?: Subset<T, User$assistantClassesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     submissions<T extends User$submissionsArgs<ExtArgs> = {}>(args?: Subset<T, User$submissionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     enrollments<T extends User$enrollmentsArgs<ExtArgs> = {}>(args?: Subset<T, User$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     usedInvitations<T extends User$usedInvitationsArgs<ExtArgs> = {}>(args?: Subset<T, User$usedInvitationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvitationCodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -3636,6 +3798,30 @@ export namespace Prisma {
   }
 
   /**
+   * User.assistantClasses
+   */
+  export type User$assistantClassesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    where?: ClassWhereInput
+    orderBy?: ClassOrderByWithRelationInput | ClassOrderByWithRelationInput[]
+    cursor?: ClassWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ClassScalarFieldEnum | ClassScalarFieldEnum[]
+  }
+
+  /**
    * User.submissions
    */
   export type User$submissionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -3787,8 +3973,10 @@ export namespace Prisma {
   export type CourseMinAggregateOutputType = {
     id: string | null
     name: string | null
+    code: string | null
     description: string | null
     teacherId: string | null
+    syllabus: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -3796,8 +3984,10 @@ export namespace Prisma {
   export type CourseMaxAggregateOutputType = {
     id: string | null
     name: string | null
+    code: string | null
     description: string | null
     teacherId: string | null
+    syllabus: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -3805,8 +3995,10 @@ export namespace Prisma {
   export type CourseCountAggregateOutputType = {
     id: number
     name: number
+    code: number
     description: number
     teacherId: number
+    syllabus: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -3816,8 +4008,10 @@ export namespace Prisma {
   export type CourseMinAggregateInputType = {
     id?: true
     name?: true
+    code?: true
     description?: true
     teacherId?: true
+    syllabus?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -3825,8 +4019,10 @@ export namespace Prisma {
   export type CourseMaxAggregateInputType = {
     id?: true
     name?: true
+    code?: true
     description?: true
     teacherId?: true
+    syllabus?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -3834,8 +4030,10 @@ export namespace Prisma {
   export type CourseCountAggregateInputType = {
     id?: true
     name?: true
+    code?: true
     description?: true
     teacherId?: true
+    syllabus?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -3916,8 +4114,10 @@ export namespace Prisma {
   export type CourseGroupByOutputType = {
     id: string
     name: string
+    code: string | null
     description: string | null
     teacherId: string
+    syllabus: string | null
     createdAt: Date
     updatedAt: Date
     _count: CourseCountAggregateOutputType | null
@@ -3942,11 +4142,14 @@ export namespace Prisma {
   export type CourseSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    code?: boolean
     description?: boolean
     teacherId?: boolean
+    syllabus?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     teacher?: boolean | UserDefaultArgs<ExtArgs>
+    classes?: boolean | Course$classesArgs<ExtArgs>
     assignmentAreas?: boolean | Course$assignmentAreasArgs<ExtArgs>
     enrollments?: boolean | Course$enrollmentsArgs<ExtArgs>
     invitationCodes?: boolean | Course$invitationCodesArgs<ExtArgs>
@@ -3957,8 +4160,10 @@ export namespace Prisma {
   export type CourseSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    code?: boolean
     description?: boolean
     teacherId?: boolean
+    syllabus?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     teacher?: boolean | UserDefaultArgs<ExtArgs>
@@ -3967,8 +4172,10 @@ export namespace Prisma {
   export type CourseSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    code?: boolean
     description?: boolean
     teacherId?: boolean
+    syllabus?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     teacher?: boolean | UserDefaultArgs<ExtArgs>
@@ -3977,15 +4184,18 @@ export namespace Prisma {
   export type CourseSelectScalar = {
     id?: boolean
     name?: boolean
+    code?: boolean
     description?: boolean
     teacherId?: boolean
+    syllabus?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type CourseOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "teacherId" | "createdAt" | "updatedAt", ExtArgs["result"]["course"]>
+  export type CourseOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "code" | "description" | "teacherId" | "syllabus" | "createdAt" | "updatedAt", ExtArgs["result"]["course"]>
   export type CourseInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     teacher?: boolean | UserDefaultArgs<ExtArgs>
+    classes?: boolean | Course$classesArgs<ExtArgs>
     assignmentAreas?: boolean | Course$assignmentAreasArgs<ExtArgs>
     enrollments?: boolean | Course$enrollmentsArgs<ExtArgs>
     invitationCodes?: boolean | Course$invitationCodesArgs<ExtArgs>
@@ -4003,6 +4213,7 @@ export namespace Prisma {
     name: "Course"
     objects: {
       teacher: Prisma.$UserPayload<ExtArgs>
+      classes: Prisma.$ClassPayload<ExtArgs>[]
       assignmentAreas: Prisma.$AssignmentAreaPayload<ExtArgs>[]
       enrollments: Prisma.$EnrollmentPayload<ExtArgs>[]
       invitationCodes: Prisma.$InvitationCodePayload<ExtArgs>[]
@@ -4011,8 +4222,10 @@ export namespace Prisma {
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
       name: string
+      code: string | null
       description: string | null
       teacherId: string
+      syllabus: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["course"]>
@@ -4410,6 +4623,7 @@ export namespace Prisma {
   export interface Prisma__CourseClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     teacher<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    classes<T extends Course$classesArgs<ExtArgs> = {}>(args?: Subset<T, Course$classesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     assignmentAreas<T extends Course$assignmentAreasArgs<ExtArgs> = {}>(args?: Subset<T, Course$assignmentAreasArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssignmentAreaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     enrollments<T extends Course$enrollmentsArgs<ExtArgs> = {}>(args?: Subset<T, Course$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     invitationCodes<T extends Course$invitationCodesArgs<ExtArgs> = {}>(args?: Subset<T, Course$invitationCodesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvitationCodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -4445,8 +4659,10 @@ export namespace Prisma {
   export interface CourseFieldRefs {
     readonly id: FieldRef<"Course", 'String'>
     readonly name: FieldRef<"Course", 'String'>
+    readonly code: FieldRef<"Course", 'String'>
     readonly description: FieldRef<"Course", 'String'>
     readonly teacherId: FieldRef<"Course", 'String'>
+    readonly syllabus: FieldRef<"Course", 'String'>
     readonly createdAt: FieldRef<"Course", 'DateTime'>
     readonly updatedAt: FieldRef<"Course", 'DateTime'>
   }
@@ -4845,6 +5061,30 @@ export namespace Prisma {
   }
 
   /**
+   * Course.classes
+   */
+  export type Course$classesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    where?: ClassWhereInput
+    orderBy?: ClassOrderByWithRelationInput | ClassOrderByWithRelationInput[]
+    cursor?: ClassWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ClassScalarFieldEnum | ClassScalarFieldEnum[]
+  }
+
+  /**
    * Course.assignmentAreas
    */
   export type Course$assignmentAreasArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -4960,6 +5200,1259 @@ export namespace Prisma {
 
 
   /**
+   * Model Class
+   */
+
+  export type AggregateClass = {
+    _count: ClassCountAggregateOutputType | null
+    _avg: ClassAvgAggregateOutputType | null
+    _sum: ClassSumAggregateOutputType | null
+    _min: ClassMinAggregateOutputType | null
+    _max: ClassMaxAggregateOutputType | null
+  }
+
+  export type ClassAvgAggregateOutputType = {
+    capacity: number | null
+  }
+
+  export type ClassSumAggregateOutputType = {
+    capacity: number | null
+  }
+
+  export type ClassMinAggregateOutputType = {
+    id: string | null
+    courseId: string | null
+    name: string | null
+    capacity: number | null
+    assistantId: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ClassMaxAggregateOutputType = {
+    id: string | null
+    courseId: string | null
+    name: string | null
+    capacity: number | null
+    assistantId: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ClassCountAggregateOutputType = {
+    id: number
+    courseId: number
+    name: number
+    schedule: number
+    capacity: number
+    assistantId: number
+    isActive: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ClassAvgAggregateInputType = {
+    capacity?: true
+  }
+
+  export type ClassSumAggregateInputType = {
+    capacity?: true
+  }
+
+  export type ClassMinAggregateInputType = {
+    id?: true
+    courseId?: true
+    name?: true
+    capacity?: true
+    assistantId?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ClassMaxAggregateInputType = {
+    id?: true
+    courseId?: true
+    name?: true
+    capacity?: true
+    assistantId?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ClassCountAggregateInputType = {
+    id?: true
+    courseId?: true
+    name?: true
+    schedule?: true
+    capacity?: true
+    assistantId?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ClassAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which Class to aggregate.
+     */
+    where?: ClassWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Classes to fetch.
+     */
+    orderBy?: ClassOrderByWithRelationInput | ClassOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ClassWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Classes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Classes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Classes
+    **/
+    _count?: true | ClassCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ClassAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ClassSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ClassMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ClassMaxAggregateInputType
+  }
+
+  export type GetClassAggregateType<T extends ClassAggregateArgs> = {
+        [P in keyof T & keyof AggregateClass]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateClass[P]>
+      : GetScalarType<T[P], AggregateClass[P]>
+  }
+
+
+
+
+  export type ClassGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: ClassWhereInput
+    orderBy?: ClassOrderByWithAggregationInput | ClassOrderByWithAggregationInput[]
+    by: ClassScalarFieldEnum[] | ClassScalarFieldEnum
+    having?: ClassScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ClassCountAggregateInputType | true
+    _avg?: ClassAvgAggregateInputType
+    _sum?: ClassSumAggregateInputType
+    _min?: ClassMinAggregateInputType
+    _max?: ClassMaxAggregateInputType
+  }
+
+  export type ClassGroupByOutputType = {
+    id: string
+    courseId: string
+    name: string
+    schedule: JsonValue | null
+    capacity: number | null
+    assistantId: string | null
+    isActive: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: ClassCountAggregateOutputType | null
+    _avg: ClassAvgAggregateOutputType | null
+    _sum: ClassSumAggregateOutputType | null
+    _min: ClassMinAggregateOutputType | null
+    _max: ClassMaxAggregateOutputType | null
+  }
+
+  type GetClassGroupByPayload<T extends ClassGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ClassGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ClassGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ClassGroupByOutputType[P]>
+            : GetScalarType<T[P], ClassGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ClassSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    courseId?: boolean
+    name?: boolean
+    schedule?: boolean
+    capacity?: boolean
+    assistantId?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    assistant?: boolean | Class$assistantArgs<ExtArgs>
+    enrollments?: boolean | Class$enrollmentsArgs<ExtArgs>
+    assignmentAreas?: boolean | Class$assignmentAreasArgs<ExtArgs>
+    invitationCodes?: boolean | Class$invitationCodesArgs<ExtArgs>
+    _count?: boolean | ClassCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["class"]>
+
+  export type ClassSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    courseId?: boolean
+    name?: boolean
+    schedule?: boolean
+    capacity?: boolean
+    assistantId?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    assistant?: boolean | Class$assistantArgs<ExtArgs>
+  }, ExtArgs["result"]["class"]>
+
+  export type ClassSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    courseId?: boolean
+    name?: boolean
+    schedule?: boolean
+    capacity?: boolean
+    assistantId?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    assistant?: boolean | Class$assistantArgs<ExtArgs>
+  }, ExtArgs["result"]["class"]>
+
+  export type ClassSelectScalar = {
+    id?: boolean
+    courseId?: boolean
+    name?: boolean
+    schedule?: boolean
+    capacity?: boolean
+    assistantId?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type ClassOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "courseId" | "name" | "schedule" | "capacity" | "assistantId" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["class"]>
+  export type ClassInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    assistant?: boolean | Class$assistantArgs<ExtArgs>
+    enrollments?: boolean | Class$enrollmentsArgs<ExtArgs>
+    assignmentAreas?: boolean | Class$assignmentAreasArgs<ExtArgs>
+    invitationCodes?: boolean | Class$invitationCodesArgs<ExtArgs>
+    _count?: boolean | ClassCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type ClassIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    assistant?: boolean | Class$assistantArgs<ExtArgs>
+  }
+  export type ClassIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    assistant?: boolean | Class$assistantArgs<ExtArgs>
+  }
+
+  export type $ClassPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "Class"
+    objects: {
+      course: Prisma.$CoursePayload<ExtArgs>
+      assistant: Prisma.$UserPayload<ExtArgs> | null
+      enrollments: Prisma.$EnrollmentPayload<ExtArgs>[]
+      assignmentAreas: Prisma.$AssignmentAreaPayload<ExtArgs>[]
+      invitationCodes: Prisma.$InvitationCodePayload<ExtArgs>[]
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      courseId: string
+      name: string
+      schedule: Prisma.JsonValue | null
+      capacity: number | null
+      assistantId: string | null
+      isActive: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["class"]>
+    composites: {}
+  }
+
+  export type ClassGetPayload<S extends boolean | null | undefined | ClassDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$ClassPayload, S>
+
+  export type ClassCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<ClassFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ClassCountAggregateInputType | true
+    }
+
+  export interface ClassDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Class'], meta: { name: 'Class' } }
+    /**
+     * Find zero or one Class that matches the filter.
+     * @param {ClassFindUniqueArgs} args - Arguments to find a Class
+     * @example
+     * // Get one Class
+     * const class = await prisma.class.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ClassFindUniqueArgs>(args: SelectSubset<T, ClassFindUniqueArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Class that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ClassFindUniqueOrThrowArgs} args - Arguments to find a Class
+     * @example
+     * // Get one Class
+     * const class = await prisma.class.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ClassFindUniqueOrThrowArgs>(args: SelectSubset<T, ClassFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Class that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClassFindFirstArgs} args - Arguments to find a Class
+     * @example
+     * // Get one Class
+     * const class = await prisma.class.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ClassFindFirstArgs>(args?: SelectSubset<T, ClassFindFirstArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Class that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClassFindFirstOrThrowArgs} args - Arguments to find a Class
+     * @example
+     * // Get one Class
+     * const class = await prisma.class.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ClassFindFirstOrThrowArgs>(args?: SelectSubset<T, ClassFindFirstOrThrowArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Classes that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClassFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Classes
+     * const classes = await prisma.class.findMany()
+     * 
+     * // Get first 10 Classes
+     * const classes = await prisma.class.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const classWithIdOnly = await prisma.class.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ClassFindManyArgs>(args?: SelectSubset<T, ClassFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Class.
+     * @param {ClassCreateArgs} args - Arguments to create a Class.
+     * @example
+     * // Create one Class
+     * const Class = await prisma.class.create({
+     *   data: {
+     *     // ... data to create a Class
+     *   }
+     * })
+     * 
+     */
+    create<T extends ClassCreateArgs>(args: SelectSubset<T, ClassCreateArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Classes.
+     * @param {ClassCreateManyArgs} args - Arguments to create many Classes.
+     * @example
+     * // Create many Classes
+     * const class = await prisma.class.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ClassCreateManyArgs>(args?: SelectSubset<T, ClassCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Classes and returns the data saved in the database.
+     * @param {ClassCreateManyAndReturnArgs} args - Arguments to create many Classes.
+     * @example
+     * // Create many Classes
+     * const class = await prisma.class.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Classes and only return the `id`
+     * const classWithIdOnly = await prisma.class.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ClassCreateManyAndReturnArgs>(args?: SelectSubset<T, ClassCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Class.
+     * @param {ClassDeleteArgs} args - Arguments to delete one Class.
+     * @example
+     * // Delete one Class
+     * const Class = await prisma.class.delete({
+     *   where: {
+     *     // ... filter to delete one Class
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ClassDeleteArgs>(args: SelectSubset<T, ClassDeleteArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Class.
+     * @param {ClassUpdateArgs} args - Arguments to update one Class.
+     * @example
+     * // Update one Class
+     * const class = await prisma.class.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ClassUpdateArgs>(args: SelectSubset<T, ClassUpdateArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Classes.
+     * @param {ClassDeleteManyArgs} args - Arguments to filter Classes to delete.
+     * @example
+     * // Delete a few Classes
+     * const { count } = await prisma.class.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ClassDeleteManyArgs>(args?: SelectSubset<T, ClassDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Classes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClassUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Classes
+     * const class = await prisma.class.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ClassUpdateManyArgs>(args: SelectSubset<T, ClassUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Classes and returns the data updated in the database.
+     * @param {ClassUpdateManyAndReturnArgs} args - Arguments to update many Classes.
+     * @example
+     * // Update many Classes
+     * const class = await prisma.class.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Classes and only return the `id`
+     * const classWithIdOnly = await prisma.class.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ClassUpdateManyAndReturnArgs>(args: SelectSubset<T, ClassUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Class.
+     * @param {ClassUpsertArgs} args - Arguments to update or create a Class.
+     * @example
+     * // Update or create a Class
+     * const class = await prisma.class.upsert({
+     *   create: {
+     *     // ... data to create a Class
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Class we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ClassUpsertArgs>(args: SelectSubset<T, ClassUpsertArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Classes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClassCountArgs} args - Arguments to filter Classes to count.
+     * @example
+     * // Count the number of Classes
+     * const count = await prisma.class.count({
+     *   where: {
+     *     // ... the filter for the Classes we want to count
+     *   }
+     * })
+    **/
+    count<T extends ClassCountArgs>(
+      args?: Subset<T, ClassCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ClassCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Class.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClassAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ClassAggregateArgs>(args: Subset<T, ClassAggregateArgs>): Prisma.PrismaPromise<GetClassAggregateType<T>>
+
+    /**
+     * Group by Class.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ClassGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ClassGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ClassGroupByArgs['orderBy'] }
+        : { orderBy?: ClassGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ClassGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetClassGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Class model
+   */
+  readonly fields: ClassFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Class.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ClassClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    course<T extends CourseDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CourseDefaultArgs<ExtArgs>>): Prisma__CourseClient<runtime.Types.Result.GetResult<Prisma.$CoursePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    assistant<T extends Class$assistantArgs<ExtArgs> = {}>(args?: Subset<T, Class$assistantArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    enrollments<T extends Class$enrollmentsArgs<ExtArgs> = {}>(args?: Subset<T, Class$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    assignmentAreas<T extends Class$assignmentAreasArgs<ExtArgs> = {}>(args?: Subset<T, Class$assignmentAreasArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssignmentAreaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    invitationCodes<T extends Class$invitationCodesArgs<ExtArgs> = {}>(args?: Subset<T, Class$invitationCodesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvitationCodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Class model
+   */
+  export interface ClassFieldRefs {
+    readonly id: FieldRef<"Class", 'String'>
+    readonly courseId: FieldRef<"Class", 'String'>
+    readonly name: FieldRef<"Class", 'String'>
+    readonly schedule: FieldRef<"Class", 'Json'>
+    readonly capacity: FieldRef<"Class", 'Int'>
+    readonly assistantId: FieldRef<"Class", 'String'>
+    readonly isActive: FieldRef<"Class", 'Boolean'>
+    readonly createdAt: FieldRef<"Class", 'DateTime'>
+    readonly updatedAt: FieldRef<"Class", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Class findUnique
+   */
+  export type ClassFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    /**
+     * Filter, which Class to fetch.
+     */
+    where: ClassWhereUniqueInput
+  }
+
+  /**
+   * Class findUniqueOrThrow
+   */
+  export type ClassFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    /**
+     * Filter, which Class to fetch.
+     */
+    where: ClassWhereUniqueInput
+  }
+
+  /**
+   * Class findFirst
+   */
+  export type ClassFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    /**
+     * Filter, which Class to fetch.
+     */
+    where?: ClassWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Classes to fetch.
+     */
+    orderBy?: ClassOrderByWithRelationInput | ClassOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Classes.
+     */
+    cursor?: ClassWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Classes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Classes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Classes.
+     */
+    distinct?: ClassScalarFieldEnum | ClassScalarFieldEnum[]
+  }
+
+  /**
+   * Class findFirstOrThrow
+   */
+  export type ClassFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    /**
+     * Filter, which Class to fetch.
+     */
+    where?: ClassWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Classes to fetch.
+     */
+    orderBy?: ClassOrderByWithRelationInput | ClassOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Classes.
+     */
+    cursor?: ClassWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Classes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Classes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Classes.
+     */
+    distinct?: ClassScalarFieldEnum | ClassScalarFieldEnum[]
+  }
+
+  /**
+   * Class findMany
+   */
+  export type ClassFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    /**
+     * Filter, which Classes to fetch.
+     */
+    where?: ClassWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Classes to fetch.
+     */
+    orderBy?: ClassOrderByWithRelationInput | ClassOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Classes.
+     */
+    cursor?: ClassWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Classes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Classes.
+     */
+    skip?: number
+    distinct?: ClassScalarFieldEnum | ClassScalarFieldEnum[]
+  }
+
+  /**
+   * Class create
+   */
+  export type ClassCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Class.
+     */
+    data: XOR<ClassCreateInput, ClassUncheckedCreateInput>
+  }
+
+  /**
+   * Class createMany
+   */
+  export type ClassCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Classes.
+     */
+    data: ClassCreateManyInput | ClassCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Class createManyAndReturn
+   */
+  export type ClassCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * The data used to create many Classes.
+     */
+    data: ClassCreateManyInput | ClassCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Class update
+   */
+  export type ClassUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Class.
+     */
+    data: XOR<ClassUpdateInput, ClassUncheckedUpdateInput>
+    /**
+     * Choose, which Class to update.
+     */
+    where: ClassWhereUniqueInput
+  }
+
+  /**
+   * Class updateMany
+   */
+  export type ClassUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Classes.
+     */
+    data: XOR<ClassUpdateManyMutationInput, ClassUncheckedUpdateManyInput>
+    /**
+     * Filter which Classes to update
+     */
+    where?: ClassWhereInput
+    /**
+     * Limit how many Classes to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * Class updateManyAndReturn
+   */
+  export type ClassUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * The data used to update Classes.
+     */
+    data: XOR<ClassUpdateManyMutationInput, ClassUncheckedUpdateManyInput>
+    /**
+     * Filter which Classes to update
+     */
+    where?: ClassWhereInput
+    /**
+     * Limit how many Classes to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Class upsert
+   */
+  export type ClassUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Class to update in case it exists.
+     */
+    where: ClassWhereUniqueInput
+    /**
+     * In case the Class found by the `where` argument doesn't exist, create a new Class with this data.
+     */
+    create: XOR<ClassCreateInput, ClassUncheckedCreateInput>
+    /**
+     * In case the Class was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ClassUpdateInput, ClassUncheckedUpdateInput>
+  }
+
+  /**
+   * Class delete
+   */
+  export type ClassDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    /**
+     * Filter which Class to delete.
+     */
+    where: ClassWhereUniqueInput
+  }
+
+  /**
+   * Class deleteMany
+   */
+  export type ClassDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which Classes to delete
+     */
+    where?: ClassWhereInput
+    /**
+     * Limit how many Classes to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * Class.assistant
+   */
+  export type Class$assistantArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the User
+     */
+    select?: UserSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the User
+     */
+    omit?: UserOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: UserInclude<ExtArgs> | null
+    where?: UserWhereInput
+  }
+
+  /**
+   * Class.enrollments
+   */
+  export type Class$enrollmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Enrollment
+     */
+    select?: EnrollmentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Enrollment
+     */
+    omit?: EnrollmentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: EnrollmentInclude<ExtArgs> | null
+    where?: EnrollmentWhereInput
+    orderBy?: EnrollmentOrderByWithRelationInput | EnrollmentOrderByWithRelationInput[]
+    cursor?: EnrollmentWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: EnrollmentScalarFieldEnum | EnrollmentScalarFieldEnum[]
+  }
+
+  /**
+   * Class.assignmentAreas
+   */
+  export type Class$assignmentAreasArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AssignmentArea
+     */
+    select?: AssignmentAreaSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AssignmentArea
+     */
+    omit?: AssignmentAreaOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AssignmentAreaInclude<ExtArgs> | null
+    where?: AssignmentAreaWhereInput
+    orderBy?: AssignmentAreaOrderByWithRelationInput | AssignmentAreaOrderByWithRelationInput[]
+    cursor?: AssignmentAreaWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AssignmentAreaScalarFieldEnum | AssignmentAreaScalarFieldEnum[]
+  }
+
+  /**
+   * Class.invitationCodes
+   */
+  export type Class$invitationCodesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the InvitationCode
+     */
+    select?: InvitationCodeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the InvitationCode
+     */
+    omit?: InvitationCodeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: InvitationCodeInclude<ExtArgs> | null
+    where?: InvitationCodeWhereInput
+    orderBy?: InvitationCodeOrderByWithRelationInput | InvitationCodeOrderByWithRelationInput[]
+    cursor?: InvitationCodeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: InvitationCodeScalarFieldEnum | InvitationCodeScalarFieldEnum[]
+  }
+
+  /**
+   * Class without action
+   */
+  export type ClassDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Model AssignmentArea
    */
 
@@ -4974,6 +6467,7 @@ export namespace Prisma {
     name: string | null
     description: string | null
     courseId: string | null
+    classId: string | null
     rubricId: string | null
     dueDate: Date | null
     createdAt: Date | null
@@ -4985,6 +6479,7 @@ export namespace Prisma {
     name: string | null
     description: string | null
     courseId: string | null
+    classId: string | null
     rubricId: string | null
     dueDate: Date | null
     createdAt: Date | null
@@ -4996,6 +6491,7 @@ export namespace Prisma {
     name: number
     description: number
     courseId: number
+    classId: number
     rubricId: number
     dueDate: number
     createdAt: number
@@ -5009,6 +6505,7 @@ export namespace Prisma {
     name?: true
     description?: true
     courseId?: true
+    classId?: true
     rubricId?: true
     dueDate?: true
     createdAt?: true
@@ -5020,6 +6517,7 @@ export namespace Prisma {
     name?: true
     description?: true
     courseId?: true
+    classId?: true
     rubricId?: true
     dueDate?: true
     createdAt?: true
@@ -5031,6 +6529,7 @@ export namespace Prisma {
     name?: true
     description?: true
     courseId?: true
+    classId?: true
     rubricId?: true
     dueDate?: true
     createdAt?: true
@@ -5115,6 +6614,7 @@ export namespace Prisma {
     name: string
     description: string | null
     courseId: string
+    classId: string | null
     rubricId: string
     dueDate: Date | null
     createdAt: Date
@@ -5143,11 +6643,13 @@ export namespace Prisma {
     name?: boolean
     description?: boolean
     courseId?: boolean
+    classId?: boolean
     rubricId?: boolean
     dueDate?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | AssignmentArea$classArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
     submissions?: boolean | AssignmentArea$submissionsArgs<ExtArgs>
     notifications?: boolean | AssignmentArea$notificationsArgs<ExtArgs>
@@ -5159,11 +6661,13 @@ export namespace Prisma {
     name?: boolean
     description?: boolean
     courseId?: boolean
+    classId?: boolean
     rubricId?: boolean
     dueDate?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | AssignmentArea$classArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["assignmentArea"]>
 
@@ -5172,11 +6676,13 @@ export namespace Prisma {
     name?: boolean
     description?: boolean
     courseId?: boolean
+    classId?: boolean
     rubricId?: boolean
     dueDate?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | AssignmentArea$classArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["assignmentArea"]>
 
@@ -5185,15 +6691,17 @@ export namespace Prisma {
     name?: boolean
     description?: boolean
     courseId?: boolean
+    classId?: boolean
     rubricId?: boolean
     dueDate?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type AssignmentAreaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "courseId" | "rubricId" | "dueDate" | "createdAt" | "updatedAt", ExtArgs["result"]["assignmentArea"]>
+  export type AssignmentAreaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "description" | "courseId" | "classId" | "rubricId" | "dueDate" | "createdAt" | "updatedAt", ExtArgs["result"]["assignmentArea"]>
   export type AssignmentAreaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | AssignmentArea$classArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
     submissions?: boolean | AssignmentArea$submissionsArgs<ExtArgs>
     notifications?: boolean | AssignmentArea$notificationsArgs<ExtArgs>
@@ -5201,10 +6709,12 @@ export namespace Prisma {
   }
   export type AssignmentAreaIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | AssignmentArea$classArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
   }
   export type AssignmentAreaIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | AssignmentArea$classArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
   }
 
@@ -5212,6 +6722,7 @@ export namespace Prisma {
     name: "AssignmentArea"
     objects: {
       course: Prisma.$CoursePayload<ExtArgs>
+      class: Prisma.$ClassPayload<ExtArgs> | null
       rubric: Prisma.$RubricPayload<ExtArgs>
       submissions: Prisma.$SubmissionPayload<ExtArgs>[]
       notifications: Prisma.$NotificationPayload<ExtArgs>[]
@@ -5221,6 +6732,7 @@ export namespace Prisma {
       name: string
       description: string | null
       courseId: string
+      classId: string | null
       rubricId: string
       dueDate: Date | null
       createdAt: Date
@@ -5620,6 +7132,7 @@ export namespace Prisma {
   export interface Prisma__AssignmentAreaClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     course<T extends CourseDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CourseDefaultArgs<ExtArgs>>): Prisma__CourseClient<runtime.Types.Result.GetResult<Prisma.$CoursePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    class<T extends AssignmentArea$classArgs<ExtArgs> = {}>(args?: Subset<T, AssignmentArea$classArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     rubric<T extends RubricDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RubricDefaultArgs<ExtArgs>>): Prisma__RubricClient<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     submissions<T extends AssignmentArea$submissionsArgs<ExtArgs> = {}>(args?: Subset<T, AssignmentArea$submissionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     notifications<T extends AssignmentArea$notificationsArgs<ExtArgs> = {}>(args?: Subset<T, AssignmentArea$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -5656,6 +7169,7 @@ export namespace Prisma {
     readonly name: FieldRef<"AssignmentArea", 'String'>
     readonly description: FieldRef<"AssignmentArea", 'String'>
     readonly courseId: FieldRef<"AssignmentArea", 'String'>
+    readonly classId: FieldRef<"AssignmentArea", 'String'>
     readonly rubricId: FieldRef<"AssignmentArea", 'String'>
     readonly dueDate: FieldRef<"AssignmentArea", 'DateTime'>
     readonly createdAt: FieldRef<"AssignmentArea", 'DateTime'>
@@ -6053,6 +7567,25 @@ export namespace Prisma {
      * Limit how many AssignmentAreas to delete.
      */
     limit?: number
+  }
+
+  /**
+   * AssignmentArea.class
+   */
+  export type AssignmentArea$classArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    where?: ClassWhereInput
   }
 
   /**
@@ -12169,52 +13702,84 @@ export namespace Prisma {
 
   export type AggregateEnrollment = {
     _count: EnrollmentCountAggregateOutputType | null
+    _avg: EnrollmentAvgAggregateOutputType | null
+    _sum: EnrollmentSumAggregateOutputType | null
     _min: EnrollmentMinAggregateOutputType | null
     _max: EnrollmentMaxAggregateOutputType | null
+  }
+
+  export type EnrollmentAvgAggregateOutputType = {
+    finalGrade: number | null
+  }
+
+  export type EnrollmentSumAggregateOutputType = {
+    finalGrade: number | null
   }
 
   export type EnrollmentMinAggregateOutputType = {
     id: string | null
     studentId: string | null
     courseId: string | null
+    classId: string | null
     enrolledAt: Date | null
+    finalGrade: number | null
   }
 
   export type EnrollmentMaxAggregateOutputType = {
     id: string | null
     studentId: string | null
     courseId: string | null
+    classId: string | null
     enrolledAt: Date | null
+    finalGrade: number | null
   }
 
   export type EnrollmentCountAggregateOutputType = {
     id: number
     studentId: number
     courseId: number
+    classId: number
     enrolledAt: number
+    finalGrade: number
+    attendance: number
     _all: number
   }
 
+
+  export type EnrollmentAvgAggregateInputType = {
+    finalGrade?: true
+  }
+
+  export type EnrollmentSumAggregateInputType = {
+    finalGrade?: true
+  }
 
   export type EnrollmentMinAggregateInputType = {
     id?: true
     studentId?: true
     courseId?: true
+    classId?: true
     enrolledAt?: true
+    finalGrade?: true
   }
 
   export type EnrollmentMaxAggregateInputType = {
     id?: true
     studentId?: true
     courseId?: true
+    classId?: true
     enrolledAt?: true
+    finalGrade?: true
   }
 
   export type EnrollmentCountAggregateInputType = {
     id?: true
     studentId?: true
     courseId?: true
+    classId?: true
     enrolledAt?: true
+    finalGrade?: true
+    attendance?: true
     _all?: true
   }
 
@@ -12256,6 +13821,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: EnrollmentAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: EnrollmentSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: EnrollmentMinAggregateInputType
@@ -12286,6 +13863,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: EnrollmentCountAggregateInputType | true
+    _avg?: EnrollmentAvgAggregateInputType
+    _sum?: EnrollmentSumAggregateInputType
     _min?: EnrollmentMinAggregateInputType
     _max?: EnrollmentMaxAggregateInputType
   }
@@ -12294,8 +13873,13 @@ export namespace Prisma {
     id: string
     studentId: string
     courseId: string
+    classId: string | null
     enrolledAt: Date
+    finalGrade: number | null
+    attendance: JsonValue | null
     _count: EnrollmentCountAggregateOutputType | null
+    _avg: EnrollmentAvgAggregateOutputType | null
+    _sum: EnrollmentSumAggregateOutputType | null
     _min: EnrollmentMinAggregateOutputType | null
     _max: EnrollmentMaxAggregateOutputType | null
   }
@@ -12318,48 +13902,66 @@ export namespace Prisma {
     id?: boolean
     studentId?: boolean
     courseId?: boolean
+    classId?: boolean
     enrolledAt?: boolean
+    finalGrade?: boolean
+    attendance?: boolean
     student?: boolean | UserDefaultArgs<ExtArgs>
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | Enrollment$classArgs<ExtArgs>
   }, ExtArgs["result"]["enrollment"]>
 
   export type EnrollmentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     studentId?: boolean
     courseId?: boolean
+    classId?: boolean
     enrolledAt?: boolean
+    finalGrade?: boolean
+    attendance?: boolean
     student?: boolean | UserDefaultArgs<ExtArgs>
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | Enrollment$classArgs<ExtArgs>
   }, ExtArgs["result"]["enrollment"]>
 
   export type EnrollmentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
     id?: boolean
     studentId?: boolean
     courseId?: boolean
+    classId?: boolean
     enrolledAt?: boolean
+    finalGrade?: boolean
+    attendance?: boolean
     student?: boolean | UserDefaultArgs<ExtArgs>
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | Enrollment$classArgs<ExtArgs>
   }, ExtArgs["result"]["enrollment"]>
 
   export type EnrollmentSelectScalar = {
     id?: boolean
     studentId?: boolean
     courseId?: boolean
+    classId?: boolean
     enrolledAt?: boolean
+    finalGrade?: boolean
+    attendance?: boolean
   }
 
-  export type EnrollmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "courseId" | "enrolledAt", ExtArgs["result"]["enrollment"]>
+  export type EnrollmentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "courseId" | "classId" | "enrolledAt" | "finalGrade" | "attendance", ExtArgs["result"]["enrollment"]>
   export type EnrollmentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     student?: boolean | UserDefaultArgs<ExtArgs>
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | Enrollment$classArgs<ExtArgs>
   }
   export type EnrollmentIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     student?: boolean | UserDefaultArgs<ExtArgs>
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | Enrollment$classArgs<ExtArgs>
   }
   export type EnrollmentIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     student?: boolean | UserDefaultArgs<ExtArgs>
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | Enrollment$classArgs<ExtArgs>
   }
 
   export type $EnrollmentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -12367,12 +13969,16 @@ export namespace Prisma {
     objects: {
       student: Prisma.$UserPayload<ExtArgs>
       course: Prisma.$CoursePayload<ExtArgs>
+      class: Prisma.$ClassPayload<ExtArgs> | null
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
       studentId: string
       courseId: string
+      classId: string | null
       enrolledAt: Date
+      finalGrade: number | null
+      attendance: Prisma.JsonValue | null
     }, ExtArgs["result"]["enrollment"]>
     composites: {}
   }
@@ -12769,6 +14375,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     student<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     course<T extends CourseDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CourseDefaultArgs<ExtArgs>>): Prisma__CourseClient<runtime.Types.Result.GetResult<Prisma.$CoursePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    class<T extends Enrollment$classArgs<ExtArgs> = {}>(args?: Subset<T, Enrollment$classArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -12801,7 +14408,10 @@ export namespace Prisma {
     readonly id: FieldRef<"Enrollment", 'String'>
     readonly studentId: FieldRef<"Enrollment", 'String'>
     readonly courseId: FieldRef<"Enrollment", 'String'>
+    readonly classId: FieldRef<"Enrollment", 'String'>
     readonly enrolledAt: FieldRef<"Enrollment", 'DateTime'>
+    readonly finalGrade: FieldRef<"Enrollment", 'Float'>
+    readonly attendance: FieldRef<"Enrollment", 'Json'>
   }
     
 
@@ -13198,6 +14808,25 @@ export namespace Prisma {
   }
 
   /**
+   * Enrollment.class
+   */
+  export type Enrollment$classArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    where?: ClassWhereInput
+  }
+
+  /**
    * Enrollment without action
    */
   export type EnrollmentDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -13230,6 +14859,7 @@ export namespace Prisma {
     id: string | null
     code: string | null
     courseId: string | null
+    classId: string | null
     createdAt: Date | null
     expiresAt: Date | null
     isUsed: boolean | null
@@ -13241,6 +14871,7 @@ export namespace Prisma {
     id: string | null
     code: string | null
     courseId: string | null
+    classId: string | null
     createdAt: Date | null
     expiresAt: Date | null
     isUsed: boolean | null
@@ -13252,6 +14883,7 @@ export namespace Prisma {
     id: number
     code: number
     courseId: number
+    classId: number
     createdAt: number
     expiresAt: number
     isUsed: number
@@ -13265,6 +14897,7 @@ export namespace Prisma {
     id?: true
     code?: true
     courseId?: true
+    classId?: true
     createdAt?: true
     expiresAt?: true
     isUsed?: true
@@ -13276,6 +14909,7 @@ export namespace Prisma {
     id?: true
     code?: true
     courseId?: true
+    classId?: true
     createdAt?: true
     expiresAt?: true
     isUsed?: true
@@ -13287,6 +14921,7 @@ export namespace Prisma {
     id?: true
     code?: true
     courseId?: true
+    classId?: true
     createdAt?: true
     expiresAt?: true
     isUsed?: true
@@ -13371,6 +15006,7 @@ export namespace Prisma {
     id: string
     code: string
     courseId: string
+    classId: string | null
     createdAt: Date
     expiresAt: Date
     isUsed: boolean
@@ -13399,12 +15035,14 @@ export namespace Prisma {
     id?: boolean
     code?: boolean
     courseId?: boolean
+    classId?: boolean
     createdAt?: boolean
     expiresAt?: boolean
     isUsed?: boolean
     usedAt?: boolean
     usedById?: boolean
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | InvitationCode$classArgs<ExtArgs>
     usedBy?: boolean | InvitationCode$usedByArgs<ExtArgs>
   }, ExtArgs["result"]["invitationCode"]>
 
@@ -13412,12 +15050,14 @@ export namespace Prisma {
     id?: boolean
     code?: boolean
     courseId?: boolean
+    classId?: boolean
     createdAt?: boolean
     expiresAt?: boolean
     isUsed?: boolean
     usedAt?: boolean
     usedById?: boolean
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | InvitationCode$classArgs<ExtArgs>
     usedBy?: boolean | InvitationCode$usedByArgs<ExtArgs>
   }, ExtArgs["result"]["invitationCode"]>
 
@@ -13425,12 +15065,14 @@ export namespace Prisma {
     id?: boolean
     code?: boolean
     courseId?: boolean
+    classId?: boolean
     createdAt?: boolean
     expiresAt?: boolean
     isUsed?: boolean
     usedAt?: boolean
     usedById?: boolean
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | InvitationCode$classArgs<ExtArgs>
     usedBy?: boolean | InvitationCode$usedByArgs<ExtArgs>
   }, ExtArgs["result"]["invitationCode"]>
 
@@ -13438,6 +15080,7 @@ export namespace Prisma {
     id?: boolean
     code?: boolean
     courseId?: boolean
+    classId?: boolean
     createdAt?: boolean
     expiresAt?: boolean
     isUsed?: boolean
@@ -13445,17 +15088,20 @@ export namespace Prisma {
     usedById?: boolean
   }
 
-  export type InvitationCodeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "code" | "courseId" | "createdAt" | "expiresAt" | "isUsed" | "usedAt" | "usedById", ExtArgs["result"]["invitationCode"]>
+  export type InvitationCodeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "code" | "courseId" | "classId" | "createdAt" | "expiresAt" | "isUsed" | "usedAt" | "usedById", ExtArgs["result"]["invitationCode"]>
   export type InvitationCodeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | InvitationCode$classArgs<ExtArgs>
     usedBy?: boolean | InvitationCode$usedByArgs<ExtArgs>
   }
   export type InvitationCodeIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | InvitationCode$classArgs<ExtArgs>
     usedBy?: boolean | InvitationCode$usedByArgs<ExtArgs>
   }
   export type InvitationCodeIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | InvitationCode$classArgs<ExtArgs>
     usedBy?: boolean | InvitationCode$usedByArgs<ExtArgs>
   }
 
@@ -13463,12 +15109,14 @@ export namespace Prisma {
     name: "InvitationCode"
     objects: {
       course: Prisma.$CoursePayload<ExtArgs>
+      class: Prisma.$ClassPayload<ExtArgs> | null
       usedBy: Prisma.$UserPayload<ExtArgs> | null
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
       code: string
       courseId: string
+      classId: string | null
       createdAt: Date
       expiresAt: Date
       isUsed: boolean
@@ -13869,6 +15517,7 @@ export namespace Prisma {
   export interface Prisma__InvitationCodeClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     course<T extends CourseDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CourseDefaultArgs<ExtArgs>>): Prisma__CourseClient<runtime.Types.Result.GetResult<Prisma.$CoursePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    class<T extends InvitationCode$classArgs<ExtArgs> = {}>(args?: Subset<T, InvitationCode$classArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     usedBy<T extends InvitationCode$usedByArgs<ExtArgs> = {}>(args?: Subset<T, InvitationCode$usedByArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -13902,6 +15551,7 @@ export namespace Prisma {
     readonly id: FieldRef<"InvitationCode", 'String'>
     readonly code: FieldRef<"InvitationCode", 'String'>
     readonly courseId: FieldRef<"InvitationCode", 'String'>
+    readonly classId: FieldRef<"InvitationCode", 'String'>
     readonly createdAt: FieldRef<"InvitationCode", 'DateTime'>
     readonly expiresAt: FieldRef<"InvitationCode", 'DateTime'>
     readonly isUsed: FieldRef<"InvitationCode", 'Boolean'>
@@ -14300,6 +15950,25 @@ export namespace Prisma {
      * Limit how many InvitationCodes to delete.
      */
     limit?: number
+  }
+
+  /**
+   * InvitationCode.class
+   */
+  export type InvitationCode$classArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    where?: ClassWhereInput
   }
 
   /**
@@ -17720,8 +19389,10 @@ export namespace Prisma {
   export const CourseScalarFieldEnum = {
     id: 'id',
     name: 'name',
+    code: 'code',
     description: 'description',
     teacherId: 'teacherId',
+    syllabus: 'syllabus',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   } as const
@@ -17729,11 +19400,27 @@ export namespace Prisma {
   export type CourseScalarFieldEnum = (typeof CourseScalarFieldEnum)[keyof typeof CourseScalarFieldEnum]
 
 
+  export const ClassScalarFieldEnum = {
+    id: 'id',
+    courseId: 'courseId',
+    name: 'name',
+    schedule: 'schedule',
+    capacity: 'capacity',
+    assistantId: 'assistantId',
+    isActive: 'isActive',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  } as const
+
+  export type ClassScalarFieldEnum = (typeof ClassScalarFieldEnum)[keyof typeof ClassScalarFieldEnum]
+
+
   export const AssignmentAreaScalarFieldEnum = {
     id: 'id',
     name: 'name',
     description: 'description',
     courseId: 'courseId',
+    classId: 'classId',
     rubricId: 'rubricId',
     dueDate: 'dueDate',
     createdAt: 'createdAt',
@@ -17834,7 +19521,10 @@ export namespace Prisma {
     id: 'id',
     studentId: 'studentId',
     courseId: 'courseId',
-    enrolledAt: 'enrolledAt'
+    classId: 'classId',
+    enrolledAt: 'enrolledAt',
+    finalGrade: 'finalGrade',
+    attendance: 'attendance'
   } as const
 
   export type EnrollmentScalarFieldEnum = (typeof EnrollmentScalarFieldEnum)[keyof typeof EnrollmentScalarFieldEnum]
@@ -17844,6 +19534,7 @@ export namespace Prisma {
     id: 'id',
     code: 'code',
     courseId: 'courseId',
+    classId: 'classId',
     createdAt: 'createdAt',
     expiresAt: 'expiresAt',
     isUsed: 'isUsed',
@@ -18019,6 +19710,13 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+  /**
    * Reference to a field of type 'SubmissionStatus'
    */
   export type EnumSubmissionStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionStatus'>
@@ -18029,13 +19727,6 @@ export namespace Prisma {
    * Reference to a field of type 'SubmissionStatus[]'
    */
   export type ListEnumSubmissionStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SubmissionStatus[]'>
-    
-
-
-  /**
-   * Reference to a field of type 'Boolean'
-   */
-  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
@@ -18082,6 +19773,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Float'
+   */
+  export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
+    
+
+
+  /**
+   * Reference to a field of type 'Float[]'
+   */
+  export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
+    
+
+
+  /**
    * Reference to a field of type 'Role'
    */
   export type EnumRoleFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Role'>
@@ -18107,20 +19812,6 @@ export namespace Prisma {
    */
   export type ListEnumNotificationTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'NotificationType[]'>
     
-
-
-  /**
-   * Reference to a field of type 'Float'
-   */
-  export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
-    
-
-
-  /**
-   * Reference to a field of type 'Float[]'
-   */
-  export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
-    
   /**
    * Deep Input Types
    */
@@ -18142,6 +19833,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileListRelationFilter
     courses?: CourseListRelationFilter
     teacherRubrics?: RubricListRelationFilter
+    assistantClasses?: ClassListRelationFilter
     submissions?: SubmissionListRelationFilter
     enrollments?: EnrollmentListRelationFilter
     usedInvitations?: InvitationCodeListRelationFilter
@@ -18162,6 +19854,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileOrderByRelationAggregateInput
     courses?: CourseOrderByRelationAggregateInput
     teacherRubrics?: RubricOrderByRelationAggregateInput
+    assistantClasses?: ClassOrderByRelationAggregateInput
     submissions?: SubmissionOrderByRelationAggregateInput
     enrollments?: EnrollmentOrderByRelationAggregateInput
     usedInvitations?: InvitationCodeOrderByRelationAggregateInput
@@ -18185,6 +19878,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileListRelationFilter
     courses?: CourseListRelationFilter
     teacherRubrics?: RubricListRelationFilter
+    assistantClasses?: ClassListRelationFilter
     submissions?: SubmissionListRelationFilter
     enrollments?: EnrollmentListRelationFilter
     usedInvitations?: InvitationCodeListRelationFilter
@@ -18224,11 +19918,14 @@ export namespace Prisma {
     NOT?: CourseWhereInput | CourseWhereInput[]
     id?: StringFilter<"Course"> | string
     name?: StringFilter<"Course"> | string
+    code?: StringNullableFilter<"Course"> | string | null
     description?: StringNullableFilter<"Course"> | string | null
     teacherId?: StringFilter<"Course"> | string
+    syllabus?: StringNullableFilter<"Course"> | string | null
     createdAt?: DateTimeFilter<"Course"> | Date | string
     updatedAt?: DateTimeFilter<"Course"> | Date | string
     teacher?: XOR<UserScalarRelationFilter, UserWhereInput>
+    classes?: ClassListRelationFilter
     assignmentAreas?: AssignmentAreaListRelationFilter
     enrollments?: EnrollmentListRelationFilter
     invitationCodes?: InvitationCodeListRelationFilter
@@ -18238,11 +19935,14 @@ export namespace Prisma {
   export type CourseOrderByWithRelationInput = {
     id?: SortOrder
     name?: SortOrder
+    code?: SortOrderInput | SortOrder
     description?: SortOrderInput | SortOrder
     teacherId?: SortOrder
+    syllabus?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     teacher?: UserOrderByWithRelationInput
+    classes?: ClassOrderByRelationAggregateInput
     assignmentAreas?: AssignmentAreaOrderByRelationAggregateInput
     enrollments?: EnrollmentOrderByRelationAggregateInput
     invitationCodes?: InvitationCodeOrderByRelationAggregateInput
@@ -18255,11 +19955,14 @@ export namespace Prisma {
     OR?: CourseWhereInput[]
     NOT?: CourseWhereInput | CourseWhereInput[]
     name?: StringFilter<"Course"> | string
+    code?: StringNullableFilter<"Course"> | string | null
     description?: StringNullableFilter<"Course"> | string | null
     teacherId?: StringFilter<"Course"> | string
+    syllabus?: StringNullableFilter<"Course"> | string | null
     createdAt?: DateTimeFilter<"Course"> | Date | string
     updatedAt?: DateTimeFilter<"Course"> | Date | string
     teacher?: XOR<UserScalarRelationFilter, UserWhereInput>
+    classes?: ClassListRelationFilter
     assignmentAreas?: AssignmentAreaListRelationFilter
     enrollments?: EnrollmentListRelationFilter
     invitationCodes?: InvitationCodeListRelationFilter
@@ -18269,8 +19972,10 @@ export namespace Prisma {
   export type CourseOrderByWithAggregationInput = {
     id?: SortOrder
     name?: SortOrder
+    code?: SortOrderInput | SortOrder
     description?: SortOrderInput | SortOrder
     teacherId?: SortOrder
+    syllabus?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: CourseCountOrderByAggregateInput
@@ -18284,10 +19989,101 @@ export namespace Prisma {
     NOT?: CourseScalarWhereWithAggregatesInput | CourseScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Course"> | string
     name?: StringWithAggregatesFilter<"Course"> | string
+    code?: StringNullableWithAggregatesFilter<"Course"> | string | null
     description?: StringNullableWithAggregatesFilter<"Course"> | string | null
     teacherId?: StringWithAggregatesFilter<"Course"> | string
+    syllabus?: StringNullableWithAggregatesFilter<"Course"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Course"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Course"> | Date | string
+  }
+
+  export type ClassWhereInput = {
+    AND?: ClassWhereInput | ClassWhereInput[]
+    OR?: ClassWhereInput[]
+    NOT?: ClassWhereInput | ClassWhereInput[]
+    id?: StringFilter<"Class"> | string
+    courseId?: StringFilter<"Class"> | string
+    name?: StringFilter<"Class"> | string
+    schedule?: JsonNullableFilter<"Class">
+    capacity?: IntNullableFilter<"Class"> | number | null
+    assistantId?: StringNullableFilter<"Class"> | string | null
+    isActive?: BoolFilter<"Class"> | boolean
+    createdAt?: DateTimeFilter<"Class"> | Date | string
+    updatedAt?: DateTimeFilter<"Class"> | Date | string
+    course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    assistant?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
+    enrollments?: EnrollmentListRelationFilter
+    assignmentAreas?: AssignmentAreaListRelationFilter
+    invitationCodes?: InvitationCodeListRelationFilter
+  }
+
+  export type ClassOrderByWithRelationInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    name?: SortOrder
+    schedule?: SortOrderInput | SortOrder
+    capacity?: SortOrderInput | SortOrder
+    assistantId?: SortOrderInput | SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    course?: CourseOrderByWithRelationInput
+    assistant?: UserOrderByWithRelationInput
+    enrollments?: EnrollmentOrderByRelationAggregateInput
+    assignmentAreas?: AssignmentAreaOrderByRelationAggregateInput
+    invitationCodes?: InvitationCodeOrderByRelationAggregateInput
+  }
+
+  export type ClassWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: ClassWhereInput | ClassWhereInput[]
+    OR?: ClassWhereInput[]
+    NOT?: ClassWhereInput | ClassWhereInput[]
+    courseId?: StringFilter<"Class"> | string
+    name?: StringFilter<"Class"> | string
+    schedule?: JsonNullableFilter<"Class">
+    capacity?: IntNullableFilter<"Class"> | number | null
+    assistantId?: StringNullableFilter<"Class"> | string | null
+    isActive?: BoolFilter<"Class"> | boolean
+    createdAt?: DateTimeFilter<"Class"> | Date | string
+    updatedAt?: DateTimeFilter<"Class"> | Date | string
+    course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    assistant?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
+    enrollments?: EnrollmentListRelationFilter
+    assignmentAreas?: AssignmentAreaListRelationFilter
+    invitationCodes?: InvitationCodeListRelationFilter
+  }, "id">
+
+  export type ClassOrderByWithAggregationInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    name?: SortOrder
+    schedule?: SortOrderInput | SortOrder
+    capacity?: SortOrderInput | SortOrder
+    assistantId?: SortOrderInput | SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ClassCountOrderByAggregateInput
+    _avg?: ClassAvgOrderByAggregateInput
+    _max?: ClassMaxOrderByAggregateInput
+    _min?: ClassMinOrderByAggregateInput
+    _sum?: ClassSumOrderByAggregateInput
+  }
+
+  export type ClassScalarWhereWithAggregatesInput = {
+    AND?: ClassScalarWhereWithAggregatesInput | ClassScalarWhereWithAggregatesInput[]
+    OR?: ClassScalarWhereWithAggregatesInput[]
+    NOT?: ClassScalarWhereWithAggregatesInput | ClassScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Class"> | string
+    courseId?: StringWithAggregatesFilter<"Class"> | string
+    name?: StringWithAggregatesFilter<"Class"> | string
+    schedule?: JsonNullableWithAggregatesFilter<"Class">
+    capacity?: IntNullableWithAggregatesFilter<"Class"> | number | null
+    assistantId?: StringNullableWithAggregatesFilter<"Class"> | string | null
+    isActive?: BoolWithAggregatesFilter<"Class"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"Class"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Class"> | Date | string
   }
 
   export type AssignmentAreaWhereInput = {
@@ -18298,11 +20094,13 @@ export namespace Prisma {
     name?: StringFilter<"AssignmentArea"> | string
     description?: StringNullableFilter<"AssignmentArea"> | string | null
     courseId?: StringFilter<"AssignmentArea"> | string
+    classId?: StringNullableFilter<"AssignmentArea"> | string | null
     rubricId?: StringFilter<"AssignmentArea"> | string
     dueDate?: DateTimeNullableFilter<"AssignmentArea"> | Date | string | null
     createdAt?: DateTimeFilter<"AssignmentArea"> | Date | string
     updatedAt?: DateTimeFilter<"AssignmentArea"> | Date | string
     course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    class?: XOR<ClassNullableScalarRelationFilter, ClassWhereInput> | null
     rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
     submissions?: SubmissionListRelationFilter
     notifications?: NotificationListRelationFilter
@@ -18313,11 +20111,13 @@ export namespace Prisma {
     name?: SortOrder
     description?: SortOrderInput | SortOrder
     courseId?: SortOrder
+    classId?: SortOrderInput | SortOrder
     rubricId?: SortOrder
     dueDate?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     course?: CourseOrderByWithRelationInput
+    class?: ClassOrderByWithRelationInput
     rubric?: RubricOrderByWithRelationInput
     submissions?: SubmissionOrderByRelationAggregateInput
     notifications?: NotificationOrderByRelationAggregateInput
@@ -18331,11 +20131,13 @@ export namespace Prisma {
     name?: StringFilter<"AssignmentArea"> | string
     description?: StringNullableFilter<"AssignmentArea"> | string | null
     courseId?: StringFilter<"AssignmentArea"> | string
+    classId?: StringNullableFilter<"AssignmentArea"> | string | null
     rubricId?: StringFilter<"AssignmentArea"> | string
     dueDate?: DateTimeNullableFilter<"AssignmentArea"> | Date | string | null
     createdAt?: DateTimeFilter<"AssignmentArea"> | Date | string
     updatedAt?: DateTimeFilter<"AssignmentArea"> | Date | string
     course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    class?: XOR<ClassNullableScalarRelationFilter, ClassWhereInput> | null
     rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
     submissions?: SubmissionListRelationFilter
     notifications?: NotificationListRelationFilter
@@ -18346,6 +20148,7 @@ export namespace Prisma {
     name?: SortOrder
     description?: SortOrderInput | SortOrder
     courseId?: SortOrder
+    classId?: SortOrderInput | SortOrder
     rubricId?: SortOrder
     dueDate?: SortOrderInput | SortOrder
     createdAt?: SortOrder
@@ -18363,6 +20166,7 @@ export namespace Prisma {
     name?: StringWithAggregatesFilter<"AssignmentArea"> | string
     description?: StringNullableWithAggregatesFilter<"AssignmentArea"> | string | null
     courseId?: StringWithAggregatesFilter<"AssignmentArea"> | string
+    classId?: StringNullableWithAggregatesFilter<"AssignmentArea"> | string | null
     rubricId?: StringWithAggregatesFilter<"AssignmentArea"> | string
     dueDate?: DateTimeNullableWithAggregatesFilter<"AssignmentArea"> | Date | string | null
     createdAt?: DateTimeWithAggregatesFilter<"AssignmentArea"> | Date | string
@@ -18845,18 +20649,26 @@ export namespace Prisma {
     id?: StringFilter<"Enrollment"> | string
     studentId?: StringFilter<"Enrollment"> | string
     courseId?: StringFilter<"Enrollment"> | string
+    classId?: StringNullableFilter<"Enrollment"> | string | null
     enrolledAt?: DateTimeFilter<"Enrollment"> | Date | string
+    finalGrade?: FloatNullableFilter<"Enrollment"> | number | null
+    attendance?: JsonNullableFilter<"Enrollment">
     student?: XOR<UserScalarRelationFilter, UserWhereInput>
     course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    class?: XOR<ClassNullableScalarRelationFilter, ClassWhereInput> | null
   }
 
   export type EnrollmentOrderByWithRelationInput = {
     id?: SortOrder
     studentId?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrderInput | SortOrder
     enrolledAt?: SortOrder
+    finalGrade?: SortOrderInput | SortOrder
+    attendance?: SortOrderInput | SortOrder
     student?: UserOrderByWithRelationInput
     course?: CourseOrderByWithRelationInput
+    class?: ClassOrderByWithRelationInput
   }
 
   export type EnrollmentWhereUniqueInput = Prisma.AtLeast<{
@@ -18867,19 +20679,28 @@ export namespace Prisma {
     NOT?: EnrollmentWhereInput | EnrollmentWhereInput[]
     studentId?: StringFilter<"Enrollment"> | string
     courseId?: StringFilter<"Enrollment"> | string
+    classId?: StringNullableFilter<"Enrollment"> | string | null
     enrolledAt?: DateTimeFilter<"Enrollment"> | Date | string
+    finalGrade?: FloatNullableFilter<"Enrollment"> | number | null
+    attendance?: JsonNullableFilter<"Enrollment">
     student?: XOR<UserScalarRelationFilter, UserWhereInput>
     course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    class?: XOR<ClassNullableScalarRelationFilter, ClassWhereInput> | null
   }, "id" | "studentId_courseId">
 
   export type EnrollmentOrderByWithAggregationInput = {
     id?: SortOrder
     studentId?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrderInput | SortOrder
     enrolledAt?: SortOrder
+    finalGrade?: SortOrderInput | SortOrder
+    attendance?: SortOrderInput | SortOrder
     _count?: EnrollmentCountOrderByAggregateInput
+    _avg?: EnrollmentAvgOrderByAggregateInput
     _max?: EnrollmentMaxOrderByAggregateInput
     _min?: EnrollmentMinOrderByAggregateInput
+    _sum?: EnrollmentSumOrderByAggregateInput
   }
 
   export type EnrollmentScalarWhereWithAggregatesInput = {
@@ -18889,7 +20710,10 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"Enrollment"> | string
     studentId?: StringWithAggregatesFilter<"Enrollment"> | string
     courseId?: StringWithAggregatesFilter<"Enrollment"> | string
+    classId?: StringNullableWithAggregatesFilter<"Enrollment"> | string | null
     enrolledAt?: DateTimeWithAggregatesFilter<"Enrollment"> | Date | string
+    finalGrade?: FloatNullableWithAggregatesFilter<"Enrollment"> | number | null
+    attendance?: JsonNullableWithAggregatesFilter<"Enrollment">
   }
 
   export type InvitationCodeWhereInput = {
@@ -18899,12 +20723,14 @@ export namespace Prisma {
     id?: StringFilter<"InvitationCode"> | string
     code?: StringFilter<"InvitationCode"> | string
     courseId?: StringFilter<"InvitationCode"> | string
+    classId?: StringNullableFilter<"InvitationCode"> | string | null
     createdAt?: DateTimeFilter<"InvitationCode"> | Date | string
     expiresAt?: DateTimeFilter<"InvitationCode"> | Date | string
     isUsed?: BoolFilter<"InvitationCode"> | boolean
     usedAt?: DateTimeNullableFilter<"InvitationCode"> | Date | string | null
     usedById?: StringNullableFilter<"InvitationCode"> | string | null
     course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    class?: XOR<ClassNullableScalarRelationFilter, ClassWhereInput> | null
     usedBy?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
   }
 
@@ -18912,12 +20738,14 @@ export namespace Prisma {
     id?: SortOrder
     code?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     expiresAt?: SortOrder
     isUsed?: SortOrder
     usedAt?: SortOrderInput | SortOrder
     usedById?: SortOrderInput | SortOrder
     course?: CourseOrderByWithRelationInput
+    class?: ClassOrderByWithRelationInput
     usedBy?: UserOrderByWithRelationInput
   }
 
@@ -18928,12 +20756,14 @@ export namespace Prisma {
     OR?: InvitationCodeWhereInput[]
     NOT?: InvitationCodeWhereInput | InvitationCodeWhereInput[]
     courseId?: StringFilter<"InvitationCode"> | string
+    classId?: StringNullableFilter<"InvitationCode"> | string | null
     createdAt?: DateTimeFilter<"InvitationCode"> | Date | string
     expiresAt?: DateTimeFilter<"InvitationCode"> | Date | string
     isUsed?: BoolFilter<"InvitationCode"> | boolean
     usedAt?: DateTimeNullableFilter<"InvitationCode"> | Date | string | null
     usedById?: StringNullableFilter<"InvitationCode"> | string | null
     course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    class?: XOR<ClassNullableScalarRelationFilter, ClassWhereInput> | null
     usedBy?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
   }, "id" | "code">
 
@@ -18941,6 +20771,7 @@ export namespace Prisma {
     id?: SortOrder
     code?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     expiresAt?: SortOrder
     isUsed?: SortOrder
@@ -18958,6 +20789,7 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"InvitationCode"> | string
     code?: StringWithAggregatesFilter<"InvitationCode"> | string
     courseId?: StringWithAggregatesFilter<"InvitationCode"> | string
+    classId?: StringNullableWithAggregatesFilter<"InvitationCode"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"InvitationCode"> | Date | string
     expiresAt?: DateTimeWithAggregatesFilter<"InvitationCode"> | Date | string
     isUsed?: BoolWithAggregatesFilter<"InvitationCode"> | boolean
@@ -19192,6 +21024,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
@@ -19212,6 +21045,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
@@ -19232,6 +21066,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
@@ -19252,6 +21087,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
@@ -19292,10 +21128,13 @@ export namespace Prisma {
   export type CourseCreateInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     teacher: UserCreateNestedOneWithoutCoursesInput
+    classes?: ClassCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
@@ -19305,10 +21144,13 @@ export namespace Prisma {
   export type CourseUncheckedCreateInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
     teacherId: string
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
@@ -19318,10 +21160,13 @@ export namespace Prisma {
   export type CourseUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     teacher?: UserUpdateOneRequiredWithoutCoursesNestedInput
+    classes?: ClassUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
@@ -19331,10 +21176,13 @@ export namespace Prisma {
   export type CourseUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     teacherId?: StringFieldUpdateOperationsInput | string
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
@@ -19344,8 +21192,10 @@ export namespace Prisma {
   export type CourseCreateManyInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
     teacherId: string
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -19353,7 +21203,9 @@ export namespace Prisma {
   export type CourseUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -19361,8 +21213,104 @@ export namespace Prisma {
   export type CourseUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     teacherId?: StringFieldUpdateOperationsInput | string
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ClassCreateInput = {
+    id?: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutClassesInput
+    assistant?: UserCreateNestedOneWithoutAssistantClassesInput
+    enrollments?: EnrollmentCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassUncheckedCreateInput = {
+    id?: string
+    courseId: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    assistantId?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutClassesNestedInput
+    assistant?: UserUpdateOneWithoutAssistantClassesNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    assistantId?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassCreateManyInput = {
+    id?: string
+    courseId: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    assistantId?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ClassUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ClassUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    assistantId?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -19375,6 +21323,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     course: CourseCreateNestedOneWithoutAssignmentAreasInput
+    class?: ClassCreateNestedOneWithoutAssignmentAreasInput
     rubric: RubricCreateNestedOneWithoutAssignmentAreasInput
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
@@ -19385,6 +21334,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     courseId: string
+    classId?: string | null
     rubricId: string
     dueDate?: Date | string | null
     createdAt?: Date | string
@@ -19401,6 +21351,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     course?: CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
+    class?: ClassUpdateOneWithoutAssignmentAreasNestedInput
     rubric?: RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
@@ -19411,6 +21362,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     rubricId?: StringFieldUpdateOperationsInput | string
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -19424,6 +21376,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     courseId: string
+    classId?: string | null
     rubricId: string
     dueDate?: Date | string | null
     createdAt?: Date | string
@@ -19444,6 +21397,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     rubricId?: StringFieldUpdateOperationsInput | string
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -19964,48 +21918,68 @@ export namespace Prisma {
   export type EnrollmentCreateInput = {
     id?: string
     enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
     student: UserCreateNestedOneWithoutEnrollmentsInput
     course: CourseCreateNestedOneWithoutEnrollmentsInput
+    class?: ClassCreateNestedOneWithoutEnrollmentsInput
   }
 
   export type EnrollmentUncheckedCreateInput = {
     id?: string
     studentId: string
     courseId: string
+    classId?: string | null
     enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type EnrollmentUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
     student?: UserUpdateOneRequiredWithoutEnrollmentsNestedInput
     course?: CourseUpdateOneRequiredWithoutEnrollmentsNestedInput
+    class?: ClassUpdateOneWithoutEnrollmentsNestedInput
   }
 
   export type EnrollmentUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     studentId?: StringFieldUpdateOperationsInput | string
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type EnrollmentCreateManyInput = {
     id?: string
     studentId: string
     courseId: string
+    classId?: string | null
     enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type EnrollmentUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type EnrollmentUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     studentId?: StringFieldUpdateOperationsInput | string
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type InvitationCodeCreateInput = {
@@ -20016,6 +21990,7 @@ export namespace Prisma {
     isUsed?: boolean
     usedAt?: Date | string | null
     course: CourseCreateNestedOneWithoutInvitationCodesInput
+    class?: ClassCreateNestedOneWithoutInvitationCodesInput
     usedBy?: UserCreateNestedOneWithoutUsedInvitationsInput
   }
 
@@ -20023,6 +21998,7 @@ export namespace Prisma {
     id?: string
     code: string
     courseId: string
+    classId?: string | null
     createdAt?: Date | string
     expiresAt: Date | string
     isUsed?: boolean
@@ -20038,6 +22014,7 @@ export namespace Prisma {
     isUsed?: BoolFieldUpdateOperationsInput | boolean
     usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     course?: CourseUpdateOneRequiredWithoutInvitationCodesNestedInput
+    class?: ClassUpdateOneWithoutInvitationCodesNestedInput
     usedBy?: UserUpdateOneWithoutUsedInvitationsNestedInput
   }
 
@@ -20045,6 +22022,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     code?: StringFieldUpdateOperationsInput | string
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isUsed?: BoolFieldUpdateOperationsInput | boolean
@@ -20056,6 +22034,7 @@ export namespace Prisma {
     id?: string
     code: string
     courseId: string
+    classId?: string | null
     createdAt?: Date | string
     expiresAt: Date | string
     isUsed?: boolean
@@ -20076,6 +22055,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     code?: StringFieldUpdateOperationsInput | string
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isUsed?: BoolFieldUpdateOperationsInput | boolean
@@ -20363,6 +22343,12 @@ export namespace Prisma {
     none?: CourseWhereInput
   }
 
+  export type ClassListRelationFilter = {
+    every?: ClassWhereInput
+    some?: ClassWhereInput
+    none?: ClassWhereInput
+  }
+
   export type SubmissionListRelationFilter = {
     every?: SubmissionWhereInput
     some?: SubmissionWhereInput
@@ -20406,6 +22392,10 @@ export namespace Prisma {
   }
 
   export type CourseOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type ClassOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -20539,8 +22529,10 @@ export namespace Prisma {
   export type CourseCountOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    code?: SortOrder
     description?: SortOrder
     teacherId?: SortOrder
+    syllabus?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -20548,8 +22540,10 @@ export namespace Prisma {
   export type CourseMaxOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    code?: SortOrder
     description?: SortOrder
     teacherId?: SortOrder
+    syllabus?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -20557,8 +22551,10 @@ export namespace Prisma {
   export type CourseMinOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    code?: SortOrder
     description?: SortOrder
     teacherId?: SortOrder
+    syllabus?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -20579,74 +22575,6 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedStringNullableFilter<$PrismaModel>
     _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type DateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
-  }
-
-  export type CourseScalarRelationFilter = {
-    is?: CourseWhereInput
-    isNot?: CourseWhereInput
-  }
-
-  export type RubricScalarRelationFilter = {
-    is?: RubricWhereInput
-    isNot?: RubricWhereInput
-  }
-
-  export type AssignmentAreaCountOrderByAggregateInput = {
-    id?: SortOrder
-    name?: SortOrder
-    description?: SortOrder
-    courseId?: SortOrder
-    rubricId?: SortOrder
-    dueDate?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type AssignmentAreaMaxOrderByAggregateInput = {
-    id?: SortOrder
-    name?: SortOrder
-    description?: SortOrder
-    courseId?: SortOrder
-    rubricId?: SortOrder
-    dueDate?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type AssignmentAreaMinOrderByAggregateInput = {
-    id?: SortOrder
-    name?: SortOrder
-    description?: SortOrder
-    courseId?: SortOrder
-    rubricId?: SortOrder
-    dueDate?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
   export type JsonNullableFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -20681,6 +22609,184 @@ export namespace Prisma {
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
+  export type CourseScalarRelationFilter = {
+    is?: CourseWhereInput
+    isNot?: CourseWhereInput
+  }
+
+  export type UserNullableScalarRelationFilter = {
+    is?: UserWhereInput | null
+    isNot?: UserWhereInput | null
+  }
+
+  export type ClassCountOrderByAggregateInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    name?: SortOrder
+    schedule?: SortOrder
+    capacity?: SortOrder
+    assistantId?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ClassAvgOrderByAggregateInput = {
+    capacity?: SortOrder
+  }
+
+  export type ClassMaxOrderByAggregateInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    name?: SortOrder
+    capacity?: SortOrder
+    assistantId?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ClassMinOrderByAggregateInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    name?: SortOrder
+    capacity?: SortOrder
+    assistantId?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ClassSumOrderByAggregateInput = {
+    capacity?: SortOrder
+  }
+  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedJsonNullableFilter<$PrismaModel>
+    _max?: NestedJsonNullableFilter<$PrismaModel>
+  }
+
+  export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedIntNullableFilter<$PrismaModel>
+    _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
+  export type DateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
+  export type ClassNullableScalarRelationFilter = {
+    is?: ClassWhereInput | null
+    isNot?: ClassWhereInput | null
+  }
+
+  export type RubricScalarRelationFilter = {
+    is?: RubricWhereInput
+    isNot?: RubricWhereInput
+  }
+
+  export type AssignmentAreaCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    description?: SortOrder
+    courseId?: SortOrder
+    classId?: SortOrder
+    rubricId?: SortOrder
+    dueDate?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type AssignmentAreaMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    description?: SortOrder
+    courseId?: SortOrder
+    classId?: SortOrder
+    rubricId?: SortOrder
+    dueDate?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type AssignmentAreaMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    description?: SortOrder
+    courseId?: SortOrder
+    classId?: SortOrder
+    rubricId?: SortOrder
+    dueDate?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
   export type EnumSubmissionStatusFilter<$PrismaModel = never> = {
@@ -20742,48 +22848,6 @@ export namespace Prisma {
   export type SubmissionSumOrderByAggregateInput = {
     finalScore?: SortOrder
   }
-  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
-    | PatchUndefined<
-        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
-        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
-
-  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedJsonNullableFilter<$PrismaModel>
-    _max?: NestedJsonNullableFilter<$PrismaModel>
-  }
-
-  export type IntNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableWithAggregatesFilter<$PrismaModel> | number | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _avg?: NestedFloatNullableFilter<$PrismaModel>
-    _sum?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedIntNullableFilter<$PrismaModel>
-    _max?: NestedIntNullableFilter<$PrismaModel>
-  }
 
   export type EnumSubmissionStatusWithAggregatesFilter<$PrismaModel = never> = {
     equals?: $Enums.SubmissionStatus | EnumSubmissionStatusFieldRefInput<$PrismaModel>
@@ -20804,11 +22868,6 @@ export namespace Prisma {
     gt?: number | IntFieldRefInput<$PrismaModel>
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntFilter<$PrismaModel> | number
-  }
-
-  export type BoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
   export type JsonFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -20832,11 +22891,6 @@ export namespace Prisma {
     gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
     gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
     not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-  }
-
-  export type UserNullableScalarRelationFilter = {
-    is?: UserWhereInput | null
-    isNot?: UserWhereInput | null
   }
 
   export type GradingResultListRelationFilter = {
@@ -20911,14 +22965,6 @@ export namespace Prisma {
     _sum?: NestedIntFilter<$PrismaModel>
     _min?: NestedIntFilter<$PrismaModel>
     _max?: NestedIntFilter<$PrismaModel>
-  }
-
-  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
   }
   export type JsonWithAggregatesFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -21166,6 +23212,17 @@ export namespace Prisma {
     _max?: NestedEnumGradingStatusFilter<$PrismaModel>
   }
 
+  export type FloatNullableFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableFilter<$PrismaModel> | number | null
+  }
+
   export type EnrollmentStudentIdCourseIdCompoundUniqueInput = {
     studentId: string
     courseId: string
@@ -21175,27 +23232,59 @@ export namespace Prisma {
     id?: SortOrder
     studentId?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrder
     enrolledAt?: SortOrder
+    finalGrade?: SortOrder
+    attendance?: SortOrder
+  }
+
+  export type EnrollmentAvgOrderByAggregateInput = {
+    finalGrade?: SortOrder
   }
 
   export type EnrollmentMaxOrderByAggregateInput = {
     id?: SortOrder
     studentId?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrder
     enrolledAt?: SortOrder
+    finalGrade?: SortOrder
   }
 
   export type EnrollmentMinOrderByAggregateInput = {
     id?: SortOrder
     studentId?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrder
     enrolledAt?: SortOrder
+    finalGrade?: SortOrder
+  }
+
+  export type EnrollmentSumOrderByAggregateInput = {
+    finalGrade?: SortOrder
+  }
+
+  export type FloatNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedFloatNullableFilter<$PrismaModel>
+    _min?: NestedFloatNullableFilter<$PrismaModel>
+    _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
   export type InvitationCodeCountOrderByAggregateInput = {
     id?: SortOrder
     code?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrder
     createdAt?: SortOrder
     expiresAt?: SortOrder
     isUsed?: SortOrder
@@ -21207,6 +23296,7 @@ export namespace Prisma {
     id?: SortOrder
     code?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrder
     createdAt?: SortOrder
     expiresAt?: SortOrder
     isUsed?: SortOrder
@@ -21218,6 +23308,7 @@ export namespace Prisma {
     id?: SortOrder
     code?: SortOrder
     courseId?: SortOrder
+    classId?: SortOrder
     createdAt?: SortOrder
     expiresAt?: SortOrder
     isUsed?: SortOrder
@@ -21409,6 +23500,13 @@ export namespace Prisma {
     connect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
   }
 
+  export type ClassCreateNestedManyWithoutAssistantInput = {
+    create?: XOR<ClassCreateWithoutAssistantInput, ClassUncheckedCreateWithoutAssistantInput> | ClassCreateWithoutAssistantInput[] | ClassUncheckedCreateWithoutAssistantInput[]
+    connectOrCreate?: ClassCreateOrConnectWithoutAssistantInput | ClassCreateOrConnectWithoutAssistantInput[]
+    createMany?: ClassCreateManyAssistantInputEnvelope
+    connect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+  }
+
   export type SubmissionCreateNestedManyWithoutStudentInput = {
     create?: XOR<SubmissionCreateWithoutStudentInput, SubmissionUncheckedCreateWithoutStudentInput> | SubmissionCreateWithoutStudentInput[] | SubmissionUncheckedCreateWithoutStudentInput[]
     connectOrCreate?: SubmissionCreateOrConnectWithoutStudentInput | SubmissionCreateOrConnectWithoutStudentInput[]
@@ -21477,6 +23575,13 @@ export namespace Prisma {
     connectOrCreate?: RubricCreateOrConnectWithoutTeacherInput | RubricCreateOrConnectWithoutTeacherInput[]
     createMany?: RubricCreateManyTeacherInputEnvelope
     connect?: RubricWhereUniqueInput | RubricWhereUniqueInput[]
+  }
+
+  export type ClassUncheckedCreateNestedManyWithoutAssistantInput = {
+    create?: XOR<ClassCreateWithoutAssistantInput, ClassUncheckedCreateWithoutAssistantInput> | ClassCreateWithoutAssistantInput[] | ClassUncheckedCreateWithoutAssistantInput[]
+    connectOrCreate?: ClassCreateOrConnectWithoutAssistantInput | ClassCreateOrConnectWithoutAssistantInput[]
+    createMany?: ClassCreateManyAssistantInputEnvelope
+    connect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
   }
 
   export type SubmissionUncheckedCreateNestedManyWithoutStudentInput = {
@@ -21594,6 +23699,20 @@ export namespace Prisma {
     update?: RubricUpdateWithWhereUniqueWithoutTeacherInput | RubricUpdateWithWhereUniqueWithoutTeacherInput[]
     updateMany?: RubricUpdateManyWithWhereWithoutTeacherInput | RubricUpdateManyWithWhereWithoutTeacherInput[]
     deleteMany?: RubricScalarWhereInput | RubricScalarWhereInput[]
+  }
+
+  export type ClassUpdateManyWithoutAssistantNestedInput = {
+    create?: XOR<ClassCreateWithoutAssistantInput, ClassUncheckedCreateWithoutAssistantInput> | ClassCreateWithoutAssistantInput[] | ClassUncheckedCreateWithoutAssistantInput[]
+    connectOrCreate?: ClassCreateOrConnectWithoutAssistantInput | ClassCreateOrConnectWithoutAssistantInput[]
+    upsert?: ClassUpsertWithWhereUniqueWithoutAssistantInput | ClassUpsertWithWhereUniqueWithoutAssistantInput[]
+    createMany?: ClassCreateManyAssistantInputEnvelope
+    set?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    disconnect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    delete?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    connect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    update?: ClassUpdateWithWhereUniqueWithoutAssistantInput | ClassUpdateWithWhereUniqueWithoutAssistantInput[]
+    updateMany?: ClassUpdateManyWithWhereWithoutAssistantInput | ClassUpdateManyWithWhereWithoutAssistantInput[]
+    deleteMany?: ClassScalarWhereInput | ClassScalarWhereInput[]
   }
 
   export type SubmissionUpdateManyWithoutStudentNestedInput = {
@@ -21736,6 +23855,20 @@ export namespace Prisma {
     deleteMany?: RubricScalarWhereInput | RubricScalarWhereInput[]
   }
 
+  export type ClassUncheckedUpdateManyWithoutAssistantNestedInput = {
+    create?: XOR<ClassCreateWithoutAssistantInput, ClassUncheckedCreateWithoutAssistantInput> | ClassCreateWithoutAssistantInput[] | ClassUncheckedCreateWithoutAssistantInput[]
+    connectOrCreate?: ClassCreateOrConnectWithoutAssistantInput | ClassCreateOrConnectWithoutAssistantInput[]
+    upsert?: ClassUpsertWithWhereUniqueWithoutAssistantInput | ClassUpsertWithWhereUniqueWithoutAssistantInput[]
+    createMany?: ClassCreateManyAssistantInputEnvelope
+    set?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    disconnect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    delete?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    connect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    update?: ClassUpdateWithWhereUniqueWithoutAssistantInput | ClassUpdateWithWhereUniqueWithoutAssistantInput[]
+    updateMany?: ClassUpdateManyWithWhereWithoutAssistantInput | ClassUpdateManyWithWhereWithoutAssistantInput[]
+    deleteMany?: ClassScalarWhereInput | ClassScalarWhereInput[]
+  }
+
   export type SubmissionUncheckedUpdateManyWithoutStudentNestedInput = {
     create?: XOR<SubmissionCreateWithoutStudentInput, SubmissionUncheckedCreateWithoutStudentInput> | SubmissionCreateWithoutStudentInput[] | SubmissionUncheckedCreateWithoutStudentInput[]
     connectOrCreate?: SubmissionCreateOrConnectWithoutStudentInput | SubmissionCreateOrConnectWithoutStudentInput[]
@@ -21812,6 +23945,13 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
+  export type ClassCreateNestedManyWithoutCourseInput = {
+    create?: XOR<ClassCreateWithoutCourseInput, ClassUncheckedCreateWithoutCourseInput> | ClassCreateWithoutCourseInput[] | ClassUncheckedCreateWithoutCourseInput[]
+    connectOrCreate?: ClassCreateOrConnectWithoutCourseInput | ClassCreateOrConnectWithoutCourseInput[]
+    createMany?: ClassCreateManyCourseInputEnvelope
+    connect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+  }
+
   export type AssignmentAreaCreateNestedManyWithoutCourseInput = {
     create?: XOR<AssignmentAreaCreateWithoutCourseInput, AssignmentAreaUncheckedCreateWithoutCourseInput> | AssignmentAreaCreateWithoutCourseInput[] | AssignmentAreaUncheckedCreateWithoutCourseInput[]
     connectOrCreate?: AssignmentAreaCreateOrConnectWithoutCourseInput | AssignmentAreaCreateOrConnectWithoutCourseInput[]
@@ -21838,6 +23978,13 @@ export namespace Prisma {
     connectOrCreate?: NotificationCreateOrConnectWithoutCourseInput | NotificationCreateOrConnectWithoutCourseInput[]
     createMany?: NotificationCreateManyCourseInputEnvelope
     connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+  }
+
+  export type ClassUncheckedCreateNestedManyWithoutCourseInput = {
+    create?: XOR<ClassCreateWithoutCourseInput, ClassUncheckedCreateWithoutCourseInput> | ClassCreateWithoutCourseInput[] | ClassUncheckedCreateWithoutCourseInput[]
+    connectOrCreate?: ClassCreateOrConnectWithoutCourseInput | ClassCreateOrConnectWithoutCourseInput[]
+    createMany?: ClassCreateManyCourseInputEnvelope
+    connect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
   }
 
   export type AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput = {
@@ -21878,6 +24025,20 @@ export namespace Prisma {
     upsert?: UserUpsertWithoutCoursesInput
     connect?: UserWhereUniqueInput
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutCoursesInput, UserUpdateWithoutCoursesInput>, UserUncheckedUpdateWithoutCoursesInput>
+  }
+
+  export type ClassUpdateManyWithoutCourseNestedInput = {
+    create?: XOR<ClassCreateWithoutCourseInput, ClassUncheckedCreateWithoutCourseInput> | ClassCreateWithoutCourseInput[] | ClassUncheckedCreateWithoutCourseInput[]
+    connectOrCreate?: ClassCreateOrConnectWithoutCourseInput | ClassCreateOrConnectWithoutCourseInput[]
+    upsert?: ClassUpsertWithWhereUniqueWithoutCourseInput | ClassUpsertWithWhereUniqueWithoutCourseInput[]
+    createMany?: ClassCreateManyCourseInputEnvelope
+    set?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    disconnect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    delete?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    connect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    update?: ClassUpdateWithWhereUniqueWithoutCourseInput | ClassUpdateWithWhereUniqueWithoutCourseInput[]
+    updateMany?: ClassUpdateManyWithWhereWithoutCourseInput | ClassUpdateManyWithWhereWithoutCourseInput[]
+    deleteMany?: ClassScalarWhereInput | ClassScalarWhereInput[]
   }
 
   export type AssignmentAreaUpdateManyWithoutCourseNestedInput = {
@@ -21936,6 +24097,20 @@ export namespace Prisma {
     deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
+  export type ClassUncheckedUpdateManyWithoutCourseNestedInput = {
+    create?: XOR<ClassCreateWithoutCourseInput, ClassUncheckedCreateWithoutCourseInput> | ClassCreateWithoutCourseInput[] | ClassUncheckedCreateWithoutCourseInput[]
+    connectOrCreate?: ClassCreateOrConnectWithoutCourseInput | ClassCreateOrConnectWithoutCourseInput[]
+    upsert?: ClassUpsertWithWhereUniqueWithoutCourseInput | ClassUpsertWithWhereUniqueWithoutCourseInput[]
+    createMany?: ClassCreateManyCourseInputEnvelope
+    set?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    disconnect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    delete?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    connect?: ClassWhereUniqueInput | ClassWhereUniqueInput[]
+    update?: ClassUpdateWithWhereUniqueWithoutCourseInput | ClassUpdateWithWhereUniqueWithoutCourseInput[]
+    updateMany?: ClassUpdateManyWithWhereWithoutCourseInput | ClassUpdateManyWithWhereWithoutCourseInput[]
+    deleteMany?: ClassScalarWhereInput | ClassScalarWhereInput[]
+  }
+
   export type AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput = {
     create?: XOR<AssignmentAreaCreateWithoutCourseInput, AssignmentAreaUncheckedCreateWithoutCourseInput> | AssignmentAreaCreateWithoutCourseInput[] | AssignmentAreaUncheckedCreateWithoutCourseInput[]
     connectOrCreate?: AssignmentAreaCreateOrConnectWithoutCourseInput | AssignmentAreaCreateOrConnectWithoutCourseInput[]
@@ -21992,10 +24167,184 @@ export namespace Prisma {
     deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
+  export type CourseCreateNestedOneWithoutClassesInput = {
+    create?: XOR<CourseCreateWithoutClassesInput, CourseUncheckedCreateWithoutClassesInput>
+    connectOrCreate?: CourseCreateOrConnectWithoutClassesInput
+    connect?: CourseWhereUniqueInput
+  }
+
+  export type UserCreateNestedOneWithoutAssistantClassesInput = {
+    create?: XOR<UserCreateWithoutAssistantClassesInput, UserUncheckedCreateWithoutAssistantClassesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAssistantClassesInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type EnrollmentCreateNestedManyWithoutClassInput = {
+    create?: XOR<EnrollmentCreateWithoutClassInput, EnrollmentUncheckedCreateWithoutClassInput> | EnrollmentCreateWithoutClassInput[] | EnrollmentUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: EnrollmentCreateOrConnectWithoutClassInput | EnrollmentCreateOrConnectWithoutClassInput[]
+    createMany?: EnrollmentCreateManyClassInputEnvelope
+    connect?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+  }
+
+  export type AssignmentAreaCreateNestedManyWithoutClassInput = {
+    create?: XOR<AssignmentAreaCreateWithoutClassInput, AssignmentAreaUncheckedCreateWithoutClassInput> | AssignmentAreaCreateWithoutClassInput[] | AssignmentAreaUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: AssignmentAreaCreateOrConnectWithoutClassInput | AssignmentAreaCreateOrConnectWithoutClassInput[]
+    createMany?: AssignmentAreaCreateManyClassInputEnvelope
+    connect?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+  }
+
+  export type InvitationCodeCreateNestedManyWithoutClassInput = {
+    create?: XOR<InvitationCodeCreateWithoutClassInput, InvitationCodeUncheckedCreateWithoutClassInput> | InvitationCodeCreateWithoutClassInput[] | InvitationCodeUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: InvitationCodeCreateOrConnectWithoutClassInput | InvitationCodeCreateOrConnectWithoutClassInput[]
+    createMany?: InvitationCodeCreateManyClassInputEnvelope
+    connect?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+  }
+
+  export type EnrollmentUncheckedCreateNestedManyWithoutClassInput = {
+    create?: XOR<EnrollmentCreateWithoutClassInput, EnrollmentUncheckedCreateWithoutClassInput> | EnrollmentCreateWithoutClassInput[] | EnrollmentUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: EnrollmentCreateOrConnectWithoutClassInput | EnrollmentCreateOrConnectWithoutClassInput[]
+    createMany?: EnrollmentCreateManyClassInputEnvelope
+    connect?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+  }
+
+  export type AssignmentAreaUncheckedCreateNestedManyWithoutClassInput = {
+    create?: XOR<AssignmentAreaCreateWithoutClassInput, AssignmentAreaUncheckedCreateWithoutClassInput> | AssignmentAreaCreateWithoutClassInput[] | AssignmentAreaUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: AssignmentAreaCreateOrConnectWithoutClassInput | AssignmentAreaCreateOrConnectWithoutClassInput[]
+    createMany?: AssignmentAreaCreateManyClassInputEnvelope
+    connect?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+  }
+
+  export type InvitationCodeUncheckedCreateNestedManyWithoutClassInput = {
+    create?: XOR<InvitationCodeCreateWithoutClassInput, InvitationCodeUncheckedCreateWithoutClassInput> | InvitationCodeCreateWithoutClassInput[] | InvitationCodeUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: InvitationCodeCreateOrConnectWithoutClassInput | InvitationCodeCreateOrConnectWithoutClassInput[]
+    createMany?: InvitationCodeCreateManyClassInputEnvelope
+    connect?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+  }
+
+  export type NullableIntFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
+  }
+
+  export type CourseUpdateOneRequiredWithoutClassesNestedInput = {
+    create?: XOR<CourseCreateWithoutClassesInput, CourseUncheckedCreateWithoutClassesInput>
+    connectOrCreate?: CourseCreateOrConnectWithoutClassesInput
+    upsert?: CourseUpsertWithoutClassesInput
+    connect?: CourseWhereUniqueInput
+    update?: XOR<XOR<CourseUpdateToOneWithWhereWithoutClassesInput, CourseUpdateWithoutClassesInput>, CourseUncheckedUpdateWithoutClassesInput>
+  }
+
+  export type UserUpdateOneWithoutAssistantClassesNestedInput = {
+    create?: XOR<UserCreateWithoutAssistantClassesInput, UserUncheckedCreateWithoutAssistantClassesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAssistantClassesInput
+    upsert?: UserUpsertWithoutAssistantClassesInput
+    disconnect?: UserWhereInput | boolean
+    delete?: UserWhereInput | boolean
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutAssistantClassesInput, UserUpdateWithoutAssistantClassesInput>, UserUncheckedUpdateWithoutAssistantClassesInput>
+  }
+
+  export type EnrollmentUpdateManyWithoutClassNestedInput = {
+    create?: XOR<EnrollmentCreateWithoutClassInput, EnrollmentUncheckedCreateWithoutClassInput> | EnrollmentCreateWithoutClassInput[] | EnrollmentUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: EnrollmentCreateOrConnectWithoutClassInput | EnrollmentCreateOrConnectWithoutClassInput[]
+    upsert?: EnrollmentUpsertWithWhereUniqueWithoutClassInput | EnrollmentUpsertWithWhereUniqueWithoutClassInput[]
+    createMany?: EnrollmentCreateManyClassInputEnvelope
+    set?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+    disconnect?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+    delete?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+    connect?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+    update?: EnrollmentUpdateWithWhereUniqueWithoutClassInput | EnrollmentUpdateWithWhereUniqueWithoutClassInput[]
+    updateMany?: EnrollmentUpdateManyWithWhereWithoutClassInput | EnrollmentUpdateManyWithWhereWithoutClassInput[]
+    deleteMany?: EnrollmentScalarWhereInput | EnrollmentScalarWhereInput[]
+  }
+
+  export type AssignmentAreaUpdateManyWithoutClassNestedInput = {
+    create?: XOR<AssignmentAreaCreateWithoutClassInput, AssignmentAreaUncheckedCreateWithoutClassInput> | AssignmentAreaCreateWithoutClassInput[] | AssignmentAreaUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: AssignmentAreaCreateOrConnectWithoutClassInput | AssignmentAreaCreateOrConnectWithoutClassInput[]
+    upsert?: AssignmentAreaUpsertWithWhereUniqueWithoutClassInput | AssignmentAreaUpsertWithWhereUniqueWithoutClassInput[]
+    createMany?: AssignmentAreaCreateManyClassInputEnvelope
+    set?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+    disconnect?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+    delete?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+    connect?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+    update?: AssignmentAreaUpdateWithWhereUniqueWithoutClassInput | AssignmentAreaUpdateWithWhereUniqueWithoutClassInput[]
+    updateMany?: AssignmentAreaUpdateManyWithWhereWithoutClassInput | AssignmentAreaUpdateManyWithWhereWithoutClassInput[]
+    deleteMany?: AssignmentAreaScalarWhereInput | AssignmentAreaScalarWhereInput[]
+  }
+
+  export type InvitationCodeUpdateManyWithoutClassNestedInput = {
+    create?: XOR<InvitationCodeCreateWithoutClassInput, InvitationCodeUncheckedCreateWithoutClassInput> | InvitationCodeCreateWithoutClassInput[] | InvitationCodeUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: InvitationCodeCreateOrConnectWithoutClassInput | InvitationCodeCreateOrConnectWithoutClassInput[]
+    upsert?: InvitationCodeUpsertWithWhereUniqueWithoutClassInput | InvitationCodeUpsertWithWhereUniqueWithoutClassInput[]
+    createMany?: InvitationCodeCreateManyClassInputEnvelope
+    set?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+    disconnect?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+    delete?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+    connect?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+    update?: InvitationCodeUpdateWithWhereUniqueWithoutClassInput | InvitationCodeUpdateWithWhereUniqueWithoutClassInput[]
+    updateMany?: InvitationCodeUpdateManyWithWhereWithoutClassInput | InvitationCodeUpdateManyWithWhereWithoutClassInput[]
+    deleteMany?: InvitationCodeScalarWhereInput | InvitationCodeScalarWhereInput[]
+  }
+
+  export type EnrollmentUncheckedUpdateManyWithoutClassNestedInput = {
+    create?: XOR<EnrollmentCreateWithoutClassInput, EnrollmentUncheckedCreateWithoutClassInput> | EnrollmentCreateWithoutClassInput[] | EnrollmentUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: EnrollmentCreateOrConnectWithoutClassInput | EnrollmentCreateOrConnectWithoutClassInput[]
+    upsert?: EnrollmentUpsertWithWhereUniqueWithoutClassInput | EnrollmentUpsertWithWhereUniqueWithoutClassInput[]
+    createMany?: EnrollmentCreateManyClassInputEnvelope
+    set?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+    disconnect?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+    delete?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+    connect?: EnrollmentWhereUniqueInput | EnrollmentWhereUniqueInput[]
+    update?: EnrollmentUpdateWithWhereUniqueWithoutClassInput | EnrollmentUpdateWithWhereUniqueWithoutClassInput[]
+    updateMany?: EnrollmentUpdateManyWithWhereWithoutClassInput | EnrollmentUpdateManyWithWhereWithoutClassInput[]
+    deleteMany?: EnrollmentScalarWhereInput | EnrollmentScalarWhereInput[]
+  }
+
+  export type AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput = {
+    create?: XOR<AssignmentAreaCreateWithoutClassInput, AssignmentAreaUncheckedCreateWithoutClassInput> | AssignmentAreaCreateWithoutClassInput[] | AssignmentAreaUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: AssignmentAreaCreateOrConnectWithoutClassInput | AssignmentAreaCreateOrConnectWithoutClassInput[]
+    upsert?: AssignmentAreaUpsertWithWhereUniqueWithoutClassInput | AssignmentAreaUpsertWithWhereUniqueWithoutClassInput[]
+    createMany?: AssignmentAreaCreateManyClassInputEnvelope
+    set?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+    disconnect?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+    delete?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+    connect?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+    update?: AssignmentAreaUpdateWithWhereUniqueWithoutClassInput | AssignmentAreaUpdateWithWhereUniqueWithoutClassInput[]
+    updateMany?: AssignmentAreaUpdateManyWithWhereWithoutClassInput | AssignmentAreaUpdateManyWithWhereWithoutClassInput[]
+    deleteMany?: AssignmentAreaScalarWhereInput | AssignmentAreaScalarWhereInput[]
+  }
+
+  export type InvitationCodeUncheckedUpdateManyWithoutClassNestedInput = {
+    create?: XOR<InvitationCodeCreateWithoutClassInput, InvitationCodeUncheckedCreateWithoutClassInput> | InvitationCodeCreateWithoutClassInput[] | InvitationCodeUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: InvitationCodeCreateOrConnectWithoutClassInput | InvitationCodeCreateOrConnectWithoutClassInput[]
+    upsert?: InvitationCodeUpsertWithWhereUniqueWithoutClassInput | InvitationCodeUpsertWithWhereUniqueWithoutClassInput[]
+    createMany?: InvitationCodeCreateManyClassInputEnvelope
+    set?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+    disconnect?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+    delete?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+    connect?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+    update?: InvitationCodeUpdateWithWhereUniqueWithoutClassInput | InvitationCodeUpdateWithWhereUniqueWithoutClassInput[]
+    updateMany?: InvitationCodeUpdateManyWithWhereWithoutClassInput | InvitationCodeUpdateManyWithWhereWithoutClassInput[]
+    deleteMany?: InvitationCodeScalarWhereInput | InvitationCodeScalarWhereInput[]
+  }
+
   export type CourseCreateNestedOneWithoutAssignmentAreasInput = {
     create?: XOR<CourseCreateWithoutAssignmentAreasInput, CourseUncheckedCreateWithoutAssignmentAreasInput>
     connectOrCreate?: CourseCreateOrConnectWithoutAssignmentAreasInput
     connect?: CourseWhereUniqueInput
+  }
+
+  export type ClassCreateNestedOneWithoutAssignmentAreasInput = {
+    create?: XOR<ClassCreateWithoutAssignmentAreasInput, ClassUncheckedCreateWithoutAssignmentAreasInput>
+    connectOrCreate?: ClassCreateOrConnectWithoutAssignmentAreasInput
+    connect?: ClassWhereUniqueInput
   }
 
   export type RubricCreateNestedOneWithoutAssignmentAreasInput = {
@@ -22042,6 +24391,16 @@ export namespace Prisma {
     upsert?: CourseUpsertWithoutAssignmentAreasInput
     connect?: CourseWhereUniqueInput
     update?: XOR<XOR<CourseUpdateToOneWithWhereWithoutAssignmentAreasInput, CourseUpdateWithoutAssignmentAreasInput>, CourseUncheckedUpdateWithoutAssignmentAreasInput>
+  }
+
+  export type ClassUpdateOneWithoutAssignmentAreasNestedInput = {
+    create?: XOR<ClassCreateWithoutAssignmentAreasInput, ClassUncheckedCreateWithoutAssignmentAreasInput>
+    connectOrCreate?: ClassCreateOrConnectWithoutAssignmentAreasInput
+    upsert?: ClassUpsertWithoutAssignmentAreasInput
+    disconnect?: ClassWhereInput | boolean
+    delete?: ClassWhereInput | boolean
+    connect?: ClassWhereUniqueInput
+    update?: XOR<XOR<ClassUpdateToOneWithWhereWithoutAssignmentAreasInput, ClassUpdateWithoutAssignmentAreasInput>, ClassUncheckedUpdateWithoutAssignmentAreasInput>
   }
 
   export type RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput = {
@@ -22120,14 +24479,6 @@ export namespace Prisma {
     connect?: AssignmentAreaWhereUniqueInput
   }
 
-  export type NullableIntFieldUpdateOperationsInput = {
-    set?: number | null
-    increment?: number
-    decrement?: number
-    multiply?: number
-    divide?: number
-  }
-
   export type EnumSubmissionStatusFieldUpdateOperationsInput = {
     set?: $Enums.SubmissionStatus
   }
@@ -22194,10 +24545,6 @@ export namespace Prisma {
     decrement?: number
     multiply?: number
     divide?: number
-  }
-
-  export type BoolFieldUpdateOperationsInput = {
-    set?: boolean
   }
 
   export type UserUpdateOneRequiredWithoutRubricsNestedInput = {
@@ -22452,6 +24799,20 @@ export namespace Prisma {
     connect?: CourseWhereUniqueInput
   }
 
+  export type ClassCreateNestedOneWithoutEnrollmentsInput = {
+    create?: XOR<ClassCreateWithoutEnrollmentsInput, ClassUncheckedCreateWithoutEnrollmentsInput>
+    connectOrCreate?: ClassCreateOrConnectWithoutEnrollmentsInput
+    connect?: ClassWhereUniqueInput
+  }
+
+  export type NullableFloatFieldUpdateOperationsInput = {
+    set?: number | null
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
   export type UserUpdateOneRequiredWithoutEnrollmentsNestedInput = {
     create?: XOR<UserCreateWithoutEnrollmentsInput, UserUncheckedCreateWithoutEnrollmentsInput>
     connectOrCreate?: UserCreateOrConnectWithoutEnrollmentsInput
@@ -22468,10 +24829,26 @@ export namespace Prisma {
     update?: XOR<XOR<CourseUpdateToOneWithWhereWithoutEnrollmentsInput, CourseUpdateWithoutEnrollmentsInput>, CourseUncheckedUpdateWithoutEnrollmentsInput>
   }
 
+  export type ClassUpdateOneWithoutEnrollmentsNestedInput = {
+    create?: XOR<ClassCreateWithoutEnrollmentsInput, ClassUncheckedCreateWithoutEnrollmentsInput>
+    connectOrCreate?: ClassCreateOrConnectWithoutEnrollmentsInput
+    upsert?: ClassUpsertWithoutEnrollmentsInput
+    disconnect?: ClassWhereInput | boolean
+    delete?: ClassWhereInput | boolean
+    connect?: ClassWhereUniqueInput
+    update?: XOR<XOR<ClassUpdateToOneWithWhereWithoutEnrollmentsInput, ClassUpdateWithoutEnrollmentsInput>, ClassUncheckedUpdateWithoutEnrollmentsInput>
+  }
+
   export type CourseCreateNestedOneWithoutInvitationCodesInput = {
     create?: XOR<CourseCreateWithoutInvitationCodesInput, CourseUncheckedCreateWithoutInvitationCodesInput>
     connectOrCreate?: CourseCreateOrConnectWithoutInvitationCodesInput
     connect?: CourseWhereUniqueInput
+  }
+
+  export type ClassCreateNestedOneWithoutInvitationCodesInput = {
+    create?: XOR<ClassCreateWithoutInvitationCodesInput, ClassUncheckedCreateWithoutInvitationCodesInput>
+    connectOrCreate?: ClassCreateOrConnectWithoutInvitationCodesInput
+    connect?: ClassWhereUniqueInput
   }
 
   export type UserCreateNestedOneWithoutUsedInvitationsInput = {
@@ -22486,6 +24863,16 @@ export namespace Prisma {
     upsert?: CourseUpsertWithoutInvitationCodesInput
     connect?: CourseWhereUniqueInput
     update?: XOR<XOR<CourseUpdateToOneWithWhereWithoutInvitationCodesInput, CourseUpdateWithoutInvitationCodesInput>, CourseUncheckedUpdateWithoutInvitationCodesInput>
+  }
+
+  export type ClassUpdateOneWithoutInvitationCodesNestedInput = {
+    create?: XOR<ClassCreateWithoutInvitationCodesInput, ClassUncheckedCreateWithoutInvitationCodesInput>
+    connectOrCreate?: ClassCreateOrConnectWithoutInvitationCodesInput
+    upsert?: ClassUpsertWithoutInvitationCodesInput
+    disconnect?: ClassWhereInput | boolean
+    delete?: ClassWhereInput | boolean
+    connect?: ClassWhereUniqueInput
+    update?: XOR<XOR<ClassUpdateToOneWithWhereWithoutInvitationCodesInput, ClassUpdateWithoutInvitationCodesInput>, ClassUncheckedUpdateWithoutInvitationCodesInput>
   }
 
   export type UserUpdateOneWithoutUsedInvitationsNestedInput = {
@@ -22748,36 +25135,9 @@ export namespace Prisma {
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
-  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
-  }
-
-  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
-  }
-
-  export type NestedEnumSubmissionStatusFilter<$PrismaModel = never> = {
-    equals?: $Enums.SubmissionStatus | EnumSubmissionStatusFieldRefInput<$PrismaModel>
-    in?: $Enums.SubmissionStatus[] | ListEnumSubmissionStatusFieldRefInput<$PrismaModel>
-    notIn?: $Enums.SubmissionStatus[] | ListEnumSubmissionStatusFieldRefInput<$PrismaModel>
-    not?: NestedEnumSubmissionStatusFilter<$PrismaModel> | $Enums.SubmissionStatus
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
   export type NestedJsonNullableFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -22830,6 +25190,46 @@ export namespace Prisma {
     not?: NestedFloatNullableFilter<$PrismaModel> | number | null
   }
 
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
+  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
+  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
+  export type NestedEnumSubmissionStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.SubmissionStatus | EnumSubmissionStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.SubmissionStatus[] | ListEnumSubmissionStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.SubmissionStatus[] | ListEnumSubmissionStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumSubmissionStatusFilter<$PrismaModel> | $Enums.SubmissionStatus
+  }
+
   export type NestedEnumSubmissionStatusWithAggregatesFilter<$PrismaModel = never> = {
     equals?: $Enums.SubmissionStatus | EnumSubmissionStatusFieldRefInput<$PrismaModel>
     in?: $Enums.SubmissionStatus[] | ListEnumSubmissionStatusFieldRefInput<$PrismaModel>
@@ -22838,11 +25238,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumSubmissionStatusFilter<$PrismaModel>
     _max?: NestedEnumSubmissionStatusFilter<$PrismaModel>
-  }
-
-  export type NestedBoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
@@ -22870,14 +25265,6 @@ export namespace Prisma {
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatFilter<$PrismaModel> | number
-  }
-
-  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
   }
   export type NestedJsonFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -22952,6 +25339,22 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumGradingStatusFilter<$PrismaModel>
     _max?: NestedEnumGradingStatusFilter<$PrismaModel>
+  }
+
+  export type NestedFloatNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel> | null
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatNullableWithAggregatesFilter<$PrismaModel> | number | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _avg?: NestedFloatNullableFilter<$PrismaModel>
+    _sum?: NestedFloatNullableFilter<$PrismaModel>
+    _min?: NestedFloatNullableFilter<$PrismaModel>
+    _max?: NestedFloatNullableFilter<$PrismaModel>
   }
 
   export type NestedEnumRoleFilter<$PrismaModel = never> = {
@@ -23105,9 +25508,12 @@ export namespace Prisma {
   export type CourseCreateWithoutTeacherInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    classes?: ClassCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
@@ -23117,9 +25523,12 @@ export namespace Prisma {
   export type CourseUncheckedCreateWithoutTeacherInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
@@ -23176,6 +25585,44 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type ClassCreateWithoutAssistantInput = {
+    id?: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutClassesInput
+    enrollments?: EnrollmentCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassUncheckedCreateWithoutAssistantInput = {
+    id?: string
+    courseId: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassCreateOrConnectWithoutAssistantInput = {
+    where: ClassWhereUniqueInput
+    create: XOR<ClassCreateWithoutAssistantInput, ClassUncheckedCreateWithoutAssistantInput>
+  }
+
+  export type ClassCreateManyAssistantInputEnvelope = {
+    data: ClassCreateManyAssistantInput | ClassCreateManyAssistantInput[]
+    skipDuplicates?: boolean
+  }
+
   export type SubmissionCreateWithoutStudentInput = {
     id?: string
     filePath: string
@@ -23215,13 +25662,19 @@ export namespace Prisma {
   export type EnrollmentCreateWithoutStudentInput = {
     id?: string
     enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
     course: CourseCreateNestedOneWithoutEnrollmentsInput
+    class?: ClassCreateNestedOneWithoutEnrollmentsInput
   }
 
   export type EnrollmentUncheckedCreateWithoutStudentInput = {
     id?: string
     courseId: string
+    classId?: string | null
     enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type EnrollmentCreateOrConnectWithoutStudentInput = {
@@ -23242,12 +25695,14 @@ export namespace Prisma {
     isUsed?: boolean
     usedAt?: Date | string | null
     course: CourseCreateNestedOneWithoutInvitationCodesInput
+    class?: ClassCreateNestedOneWithoutInvitationCodesInput
   }
 
   export type InvitationCodeUncheckedCreateWithoutUsedByInput = {
     id?: string
     code: string
     courseId: string
+    classId?: string | null
     createdAt?: Date | string
     expiresAt: Date | string
     isUsed?: boolean
@@ -23448,8 +25903,10 @@ export namespace Prisma {
     NOT?: CourseScalarWhereInput | CourseScalarWhereInput[]
     id?: StringFilter<"Course"> | string
     name?: StringFilter<"Course"> | string
+    code?: StringNullableFilter<"Course"> | string | null
     description?: StringNullableFilter<"Course"> | string | null
     teacherId?: StringFilter<"Course"> | string
+    syllabus?: StringNullableFilter<"Course"> | string | null
     createdAt?: DateTimeFilter<"Course"> | Date | string
     updatedAt?: DateTimeFilter<"Course"> | Date | string
   }
@@ -23468,6 +25925,37 @@ export namespace Prisma {
   export type RubricUpdateManyWithWhereWithoutTeacherInput = {
     where: RubricScalarWhereInput
     data: XOR<RubricUpdateManyMutationInput, RubricUncheckedUpdateManyWithoutTeacherInput>
+  }
+
+  export type ClassUpsertWithWhereUniqueWithoutAssistantInput = {
+    where: ClassWhereUniqueInput
+    update: XOR<ClassUpdateWithoutAssistantInput, ClassUncheckedUpdateWithoutAssistantInput>
+    create: XOR<ClassCreateWithoutAssistantInput, ClassUncheckedCreateWithoutAssistantInput>
+  }
+
+  export type ClassUpdateWithWhereUniqueWithoutAssistantInput = {
+    where: ClassWhereUniqueInput
+    data: XOR<ClassUpdateWithoutAssistantInput, ClassUncheckedUpdateWithoutAssistantInput>
+  }
+
+  export type ClassUpdateManyWithWhereWithoutAssistantInput = {
+    where: ClassScalarWhereInput
+    data: XOR<ClassUpdateManyMutationInput, ClassUncheckedUpdateManyWithoutAssistantInput>
+  }
+
+  export type ClassScalarWhereInput = {
+    AND?: ClassScalarWhereInput | ClassScalarWhereInput[]
+    OR?: ClassScalarWhereInput[]
+    NOT?: ClassScalarWhereInput | ClassScalarWhereInput[]
+    id?: StringFilter<"Class"> | string
+    courseId?: StringFilter<"Class"> | string
+    name?: StringFilter<"Class"> | string
+    schedule?: JsonNullableFilter<"Class">
+    capacity?: IntNullableFilter<"Class"> | number | null
+    assistantId?: StringNullableFilter<"Class"> | string | null
+    isActive?: BoolFilter<"Class"> | boolean
+    createdAt?: DateTimeFilter<"Class"> | Date | string
+    updatedAt?: DateTimeFilter<"Class"> | Date | string
   }
 
   export type SubmissionUpsertWithWhereUniqueWithoutStudentInput = {
@@ -23526,7 +26014,10 @@ export namespace Prisma {
     id?: StringFilter<"Enrollment"> | string
     studentId?: StringFilter<"Enrollment"> | string
     courseId?: StringFilter<"Enrollment"> | string
+    classId?: StringNullableFilter<"Enrollment"> | string | null
     enrolledAt?: DateTimeFilter<"Enrollment"> | Date | string
+    finalGrade?: FloatNullableFilter<"Enrollment"> | number | null
+    attendance?: JsonNullableFilter<"Enrollment">
   }
 
   export type InvitationCodeUpsertWithWhereUniqueWithoutUsedByInput = {
@@ -23552,6 +26043,7 @@ export namespace Prisma {
     id?: StringFilter<"InvitationCode"> | string
     code?: StringFilter<"InvitationCode"> | string
     courseId?: StringFilter<"InvitationCode"> | string
+    classId?: StringNullableFilter<"InvitationCode"> | string | null
     createdAt?: DateTimeFilter<"InvitationCode"> | Date | string
     expiresAt?: DateTimeFilter<"InvitationCode"> | Date | string
     isUsed?: BoolFilter<"InvitationCode"> | boolean
@@ -23632,6 +26124,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
@@ -23651,6 +26144,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
@@ -23663,6 +26157,44 @@ export namespace Prisma {
     create: XOR<UserCreateWithoutCoursesInput, UserUncheckedCreateWithoutCoursesInput>
   }
 
+  export type ClassCreateWithoutCourseInput = {
+    id?: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    assistant?: UserCreateNestedOneWithoutAssistantClassesInput
+    enrollments?: EnrollmentCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassUncheckedCreateWithoutCourseInput = {
+    id?: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    assistantId?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassCreateOrConnectWithoutCourseInput = {
+    where: ClassWhereUniqueInput
+    create: XOR<ClassCreateWithoutCourseInput, ClassUncheckedCreateWithoutCourseInput>
+  }
+
+  export type ClassCreateManyCourseInputEnvelope = {
+    data: ClassCreateManyCourseInput | ClassCreateManyCourseInput[]
+    skipDuplicates?: boolean
+  }
+
   export type AssignmentAreaCreateWithoutCourseInput = {
     id?: string
     name: string
@@ -23670,6 +26202,7 @@ export namespace Prisma {
     dueDate?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    class?: ClassCreateNestedOneWithoutAssignmentAreasInput
     rubric: RubricCreateNestedOneWithoutAssignmentAreasInput
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
@@ -23679,6 +26212,7 @@ export namespace Prisma {
     id?: string
     name: string
     description?: string | null
+    classId?: string | null
     rubricId: string
     dueDate?: Date | string | null
     createdAt?: Date | string
@@ -23700,13 +26234,19 @@ export namespace Prisma {
   export type EnrollmentCreateWithoutCourseInput = {
     id?: string
     enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
     student: UserCreateNestedOneWithoutEnrollmentsInput
+    class?: ClassCreateNestedOneWithoutEnrollmentsInput
   }
 
   export type EnrollmentUncheckedCreateWithoutCourseInput = {
     id?: string
     studentId: string
+    classId?: string | null
     enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type EnrollmentCreateOrConnectWithoutCourseInput = {
@@ -23726,12 +26266,14 @@ export namespace Prisma {
     expiresAt: Date | string
     isUsed?: boolean
     usedAt?: Date | string | null
+    class?: ClassCreateNestedOneWithoutInvitationCodesInput
     usedBy?: UserCreateNestedOneWithoutUsedInvitationsInput
   }
 
   export type InvitationCodeUncheckedCreateWithoutCourseInput = {
     id?: string
     code: string
+    classId?: string | null
     createdAt?: Date | string
     expiresAt: Date | string
     isUsed?: boolean
@@ -23808,6 +26350,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
@@ -23827,11 +26370,28 @@ export namespace Prisma {
     gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type ClassUpsertWithWhereUniqueWithoutCourseInput = {
+    where: ClassWhereUniqueInput
+    update: XOR<ClassUpdateWithoutCourseInput, ClassUncheckedUpdateWithoutCourseInput>
+    create: XOR<ClassCreateWithoutCourseInput, ClassUncheckedCreateWithoutCourseInput>
+  }
+
+  export type ClassUpdateWithWhereUniqueWithoutCourseInput = {
+    where: ClassWhereUniqueInput
+    data: XOR<ClassUpdateWithoutCourseInput, ClassUncheckedUpdateWithoutCourseInput>
+  }
+
+  export type ClassUpdateManyWithWhereWithoutCourseInput = {
+    where: ClassScalarWhereInput
+    data: XOR<ClassUpdateManyMutationInput, ClassUncheckedUpdateManyWithoutCourseInput>
   }
 
   export type AssignmentAreaUpsertWithWhereUniqueWithoutCourseInput = {
@@ -23858,6 +26418,7 @@ export namespace Prisma {
     name?: StringFilter<"AssignmentArea"> | string
     description?: StringNullableFilter<"AssignmentArea"> | string | null
     courseId?: StringFilter<"AssignmentArea"> | string
+    classId?: StringNullableFilter<"AssignmentArea"> | string | null
     rubricId?: StringFilter<"AssignmentArea"> | string
     dueDate?: DateTimeNullableFilter<"AssignmentArea"> | Date | string | null
     createdAt?: DateTimeFilter<"AssignmentArea"> | Date | string
@@ -23912,13 +26473,332 @@ export namespace Prisma {
     data: XOR<NotificationUpdateManyMutationInput, NotificationUncheckedUpdateManyWithoutCourseInput>
   }
 
-  export type CourseCreateWithoutAssignmentAreasInput = {
+  export type CourseCreateWithoutClassesInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     teacher: UserCreateNestedOneWithoutCoursesInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
+    enrollments?: EnrollmentCreateNestedManyWithoutCourseInput
+    invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
+    notifications?: NotificationCreateNestedManyWithoutCourseInput
+  }
+
+  export type CourseUncheckedCreateWithoutClassesInput = {
+    id?: string
+    name: string
+    code?: string | null
+    description?: string | null
+    teacherId: string
+    syllabus?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutCourseInput
+    invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
+  }
+
+  export type CourseCreateOrConnectWithoutClassesInput = {
+    where: CourseWhereUniqueInput
+    create: XOR<CourseCreateWithoutClassesInput, CourseUncheckedCreateWithoutClassesInput>
+  }
+
+  export type UserCreateWithoutAssistantClassesInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
+    courses?: CourseCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    submissions?: SubmissionCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
+    chats?: ChatCreateNestedManyWithoutUserInput
+    notifications?: NotificationCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutAssistantClassesInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
+    courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+    chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutAssistantClassesInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutAssistantClassesInput, UserUncheckedCreateWithoutAssistantClassesInput>
+  }
+
+  export type EnrollmentCreateWithoutClassInput = {
+    id?: string
+    enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
+    student: UserCreateNestedOneWithoutEnrollmentsInput
+    course: CourseCreateNestedOneWithoutEnrollmentsInput
+  }
+
+  export type EnrollmentUncheckedCreateWithoutClassInput = {
+    id?: string
+    studentId: string
+    courseId: string
+    enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
+  }
+
+  export type EnrollmentCreateOrConnectWithoutClassInput = {
+    where: EnrollmentWhereUniqueInput
+    create: XOR<EnrollmentCreateWithoutClassInput, EnrollmentUncheckedCreateWithoutClassInput>
+  }
+
+  export type EnrollmentCreateManyClassInputEnvelope = {
+    data: EnrollmentCreateManyClassInput | EnrollmentCreateManyClassInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type AssignmentAreaCreateWithoutClassInput = {
+    id?: string
+    name: string
+    description?: string | null
+    dueDate?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutAssignmentAreasInput
+    rubric: RubricCreateNestedOneWithoutAssignmentAreasInput
+    submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
+    notifications?: NotificationCreateNestedManyWithoutAssignmentInput
+  }
+
+  export type AssignmentAreaUncheckedCreateWithoutClassInput = {
+    id?: string
+    name: string
+    description?: string | null
+    courseId: string
+    rubricId: string
+    dueDate?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    submissions?: SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutAssignmentInput
+  }
+
+  export type AssignmentAreaCreateOrConnectWithoutClassInput = {
+    where: AssignmentAreaWhereUniqueInput
+    create: XOR<AssignmentAreaCreateWithoutClassInput, AssignmentAreaUncheckedCreateWithoutClassInput>
+  }
+
+  export type AssignmentAreaCreateManyClassInputEnvelope = {
+    data: AssignmentAreaCreateManyClassInput | AssignmentAreaCreateManyClassInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type InvitationCodeCreateWithoutClassInput = {
+    id?: string
+    code: string
+    createdAt?: Date | string
+    expiresAt: Date | string
+    isUsed?: boolean
+    usedAt?: Date | string | null
+    course: CourseCreateNestedOneWithoutInvitationCodesInput
+    usedBy?: UserCreateNestedOneWithoutUsedInvitationsInput
+  }
+
+  export type InvitationCodeUncheckedCreateWithoutClassInput = {
+    id?: string
+    code: string
+    courseId: string
+    createdAt?: Date | string
+    expiresAt: Date | string
+    isUsed?: boolean
+    usedAt?: Date | string | null
+    usedById?: string | null
+  }
+
+  export type InvitationCodeCreateOrConnectWithoutClassInput = {
+    where: InvitationCodeWhereUniqueInput
+    create: XOR<InvitationCodeCreateWithoutClassInput, InvitationCodeUncheckedCreateWithoutClassInput>
+  }
+
+  export type InvitationCodeCreateManyClassInputEnvelope = {
+    data: InvitationCodeCreateManyClassInput | InvitationCodeCreateManyClassInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CourseUpsertWithoutClassesInput = {
+    update: XOR<CourseUpdateWithoutClassesInput, CourseUncheckedUpdateWithoutClassesInput>
+    create: XOR<CourseCreateWithoutClassesInput, CourseUncheckedCreateWithoutClassesInput>
+    where?: CourseWhereInput
+  }
+
+  export type CourseUpdateToOneWithWhereWithoutClassesInput = {
+    where?: CourseWhereInput
+    data: XOR<CourseUpdateWithoutClassesInput, CourseUncheckedUpdateWithoutClassesInput>
+  }
+
+  export type CourseUpdateWithoutClassesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    teacher?: UserUpdateOneRequiredWithoutCoursesNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutCourseNestedInput
+    invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
+    notifications?: NotificationUpdateManyWithoutCourseNestedInput
+  }
+
+  export type CourseUncheckedUpdateWithoutClassesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    teacherId?: StringFieldUpdateOperationsInput | string
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutCourseNestedInput
+    invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
+  }
+
+  export type UserUpsertWithoutAssistantClassesInput = {
+    update: XOR<UserUpdateWithoutAssistantClassesInput, UserUncheckedUpdateWithoutAssistantClassesInput>
+    create: XOR<UserCreateWithoutAssistantClassesInput, UserUncheckedCreateWithoutAssistantClassesInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutAssistantClassesInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutAssistantClassesInput, UserUncheckedUpdateWithoutAssistantClassesInput>
+  }
+
+  export type UserUpdateWithoutAssistantClassesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
+    courses?: CourseUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    submissions?: SubmissionUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutAssistantClassesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
+    courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type EnrollmentUpsertWithWhereUniqueWithoutClassInput = {
+    where: EnrollmentWhereUniqueInput
+    update: XOR<EnrollmentUpdateWithoutClassInput, EnrollmentUncheckedUpdateWithoutClassInput>
+    create: XOR<EnrollmentCreateWithoutClassInput, EnrollmentUncheckedCreateWithoutClassInput>
+  }
+
+  export type EnrollmentUpdateWithWhereUniqueWithoutClassInput = {
+    where: EnrollmentWhereUniqueInput
+    data: XOR<EnrollmentUpdateWithoutClassInput, EnrollmentUncheckedUpdateWithoutClassInput>
+  }
+
+  export type EnrollmentUpdateManyWithWhereWithoutClassInput = {
+    where: EnrollmentScalarWhereInput
+    data: XOR<EnrollmentUpdateManyMutationInput, EnrollmentUncheckedUpdateManyWithoutClassInput>
+  }
+
+  export type AssignmentAreaUpsertWithWhereUniqueWithoutClassInput = {
+    where: AssignmentAreaWhereUniqueInput
+    update: XOR<AssignmentAreaUpdateWithoutClassInput, AssignmentAreaUncheckedUpdateWithoutClassInput>
+    create: XOR<AssignmentAreaCreateWithoutClassInput, AssignmentAreaUncheckedCreateWithoutClassInput>
+  }
+
+  export type AssignmentAreaUpdateWithWhereUniqueWithoutClassInput = {
+    where: AssignmentAreaWhereUniqueInput
+    data: XOR<AssignmentAreaUpdateWithoutClassInput, AssignmentAreaUncheckedUpdateWithoutClassInput>
+  }
+
+  export type AssignmentAreaUpdateManyWithWhereWithoutClassInput = {
+    where: AssignmentAreaScalarWhereInput
+    data: XOR<AssignmentAreaUpdateManyMutationInput, AssignmentAreaUncheckedUpdateManyWithoutClassInput>
+  }
+
+  export type InvitationCodeUpsertWithWhereUniqueWithoutClassInput = {
+    where: InvitationCodeWhereUniqueInput
+    update: XOR<InvitationCodeUpdateWithoutClassInput, InvitationCodeUncheckedUpdateWithoutClassInput>
+    create: XOR<InvitationCodeCreateWithoutClassInput, InvitationCodeUncheckedCreateWithoutClassInput>
+  }
+
+  export type InvitationCodeUpdateWithWhereUniqueWithoutClassInput = {
+    where: InvitationCodeWhereUniqueInput
+    data: XOR<InvitationCodeUpdateWithoutClassInput, InvitationCodeUncheckedUpdateWithoutClassInput>
+  }
+
+  export type InvitationCodeUpdateManyWithWhereWithoutClassInput = {
+    where: InvitationCodeScalarWhereInput
+    data: XOR<InvitationCodeUpdateManyMutationInput, InvitationCodeUncheckedUpdateManyWithoutClassInput>
+  }
+
+  export type CourseCreateWithoutAssignmentAreasInput = {
+    id?: string
+    name: string
+    code?: string | null
+    description?: string | null
+    syllabus?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    teacher: UserCreateNestedOneWithoutCoursesInput
+    classes?: ClassCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
     notifications?: NotificationCreateNestedManyWithoutCourseInput
@@ -23927,10 +26807,13 @@ export namespace Prisma {
   export type CourseUncheckedCreateWithoutAssignmentAreasInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
     teacherId: string
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
@@ -23939,6 +26822,39 @@ export namespace Prisma {
   export type CourseCreateOrConnectWithoutAssignmentAreasInput = {
     where: CourseWhereUniqueInput
     create: XOR<CourseCreateWithoutAssignmentAreasInput, CourseUncheckedCreateWithoutAssignmentAreasInput>
+  }
+
+  export type ClassCreateWithoutAssignmentAreasInput = {
+    id?: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutClassesInput
+    assistant?: UserCreateNestedOneWithoutAssistantClassesInput
+    enrollments?: EnrollmentCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassUncheckedCreateWithoutAssignmentAreasInput = {
+    id?: string
+    courseId: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    assistantId?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassCreateOrConnectWithoutAssignmentAreasInput = {
+    where: ClassWhereUniqueInput
+    create: XOR<ClassCreateWithoutAssignmentAreasInput, ClassUncheckedCreateWithoutAssignmentAreasInput>
   }
 
   export type RubricCreateWithoutAssignmentAreasInput = {
@@ -24062,10 +26978,13 @@ export namespace Prisma {
   export type CourseUpdateWithoutAssignmentAreasInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     teacher?: UserUpdateOneRequiredWithoutCoursesNestedInput
+    classes?: ClassUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUpdateManyWithoutCourseNestedInput
@@ -24074,13 +26993,55 @@ export namespace Prisma {
   export type CourseUncheckedUpdateWithoutAssignmentAreasInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     teacherId?: StringFieldUpdateOperationsInput | string
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
+  }
+
+  export type ClassUpsertWithoutAssignmentAreasInput = {
+    update: XOR<ClassUpdateWithoutAssignmentAreasInput, ClassUncheckedUpdateWithoutAssignmentAreasInput>
+    create: XOR<ClassCreateWithoutAssignmentAreasInput, ClassUncheckedCreateWithoutAssignmentAreasInput>
+    where?: ClassWhereInput
+  }
+
+  export type ClassUpdateToOneWithWhereWithoutAssignmentAreasInput = {
+    where?: ClassWhereInput
+    data: XOR<ClassUpdateWithoutAssignmentAreasInput, ClassUncheckedUpdateWithoutAssignmentAreasInput>
+  }
+
+  export type ClassUpdateWithoutAssignmentAreasInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutClassesNestedInput
+    assistant?: UserUpdateOneWithoutAssistantClassesNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassUncheckedUpdateWithoutAssignmentAreasInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    assistantId?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
   }
 
   export type RubricUpsertWithoutAssignmentAreasInput = {
@@ -24169,6 +27130,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
@@ -24188,6 +27150,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
@@ -24207,6 +27170,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     course: CourseCreateNestedOneWithoutAssignmentAreasInput
+    class?: ClassCreateNestedOneWithoutAssignmentAreasInput
     rubric: RubricCreateNestedOneWithoutAssignmentAreasInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
   }
@@ -24216,6 +27180,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     courseId: string
+    classId?: string | null
     rubricId: string
     dueDate?: Date | string | null
     createdAt?: Date | string
@@ -24252,6 +27217,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
@@ -24271,6 +27237,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
@@ -24296,6 +27263,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     course?: CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
+    class?: ClassUpdateOneWithoutAssignmentAreasNestedInput
     rubric?: RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
   }
@@ -24305,6 +27273,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     rubricId?: StringFieldUpdateOperationsInput | string
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -24324,6 +27293,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
@@ -24343,6 +27313,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
@@ -24367,6 +27338,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
@@ -24386,6 +27358,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
@@ -24448,6 +27421,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     course: CourseCreateNestedOneWithoutAssignmentAreasInput
+    class?: ClassCreateNestedOneWithoutAssignmentAreasInput
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
   }
@@ -24457,6 +27431,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     courseId: string
+    classId?: string | null
     dueDate?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -24497,6 +27472,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
@@ -24516,6 +27492,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
@@ -24546,6 +27523,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
@@ -24565,6 +27543,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
@@ -24636,6 +27615,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
@@ -24655,6 +27635,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
@@ -24732,6 +27713,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
@@ -24751,6 +27733,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
@@ -24786,6 +27769,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
@@ -24805,6 +27789,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
@@ -24882,6 +27867,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
@@ -24901,6 +27887,7 @@ export namespace Prisma {
     gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
@@ -25153,6 +28140,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
@@ -25172,6 +28160,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
@@ -25186,10 +28175,13 @@ export namespace Prisma {
   export type CourseCreateWithoutEnrollmentsInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     teacher: UserCreateNestedOneWithoutCoursesInput
+    classes?: ClassCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
     notifications?: NotificationCreateNestedManyWithoutCourseInput
@@ -25198,10 +28190,13 @@ export namespace Prisma {
   export type CourseUncheckedCreateWithoutEnrollmentsInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
     teacherId: string
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
@@ -25210,6 +28205,39 @@ export namespace Prisma {
   export type CourseCreateOrConnectWithoutEnrollmentsInput = {
     where: CourseWhereUniqueInput
     create: XOR<CourseCreateWithoutEnrollmentsInput, CourseUncheckedCreateWithoutEnrollmentsInput>
+  }
+
+  export type ClassCreateWithoutEnrollmentsInput = {
+    id?: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutClassesInput
+    assistant?: UserCreateNestedOneWithoutAssistantClassesInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassUncheckedCreateWithoutEnrollmentsInput = {
+    id?: string
+    courseId: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    assistantId?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassCreateOrConnectWithoutEnrollmentsInput = {
+    where: ClassWhereUniqueInput
+    create: XOR<ClassCreateWithoutEnrollmentsInput, ClassUncheckedCreateWithoutEnrollmentsInput>
   }
 
   export type UserUpsertWithoutEnrollmentsInput = {
@@ -25236,6 +28264,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
@@ -25255,6 +28284,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
@@ -25275,10 +28305,13 @@ export namespace Prisma {
   export type CourseUpdateWithoutEnrollmentsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     teacher?: UserUpdateOneRequiredWithoutCoursesNestedInput
+    classes?: ClassUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUpdateManyWithoutCourseNestedInput
@@ -25287,22 +28320,67 @@ export namespace Prisma {
   export type CourseUncheckedUpdateWithoutEnrollmentsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     teacherId?: StringFieldUpdateOperationsInput | string
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
   }
 
+  export type ClassUpsertWithoutEnrollmentsInput = {
+    update: XOR<ClassUpdateWithoutEnrollmentsInput, ClassUncheckedUpdateWithoutEnrollmentsInput>
+    create: XOR<ClassCreateWithoutEnrollmentsInput, ClassUncheckedCreateWithoutEnrollmentsInput>
+    where?: ClassWhereInput
+  }
+
+  export type ClassUpdateToOneWithWhereWithoutEnrollmentsInput = {
+    where?: ClassWhereInput
+    data: XOR<ClassUpdateWithoutEnrollmentsInput, ClassUncheckedUpdateWithoutEnrollmentsInput>
+  }
+
+  export type ClassUpdateWithoutEnrollmentsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutClassesNestedInput
+    assistant?: UserUpdateOneWithoutAssistantClassesNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassUncheckedUpdateWithoutEnrollmentsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    assistantId?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+  }
+
   export type CourseCreateWithoutInvitationCodesInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     teacher: UserCreateNestedOneWithoutCoursesInput
+    classes?: ClassCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentCreateNestedManyWithoutCourseInput
     notifications?: NotificationCreateNestedManyWithoutCourseInput
@@ -25311,10 +28389,13 @@ export namespace Prisma {
   export type CourseUncheckedCreateWithoutInvitationCodesInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
     teacherId: string
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutCourseInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
@@ -25323,6 +28404,39 @@ export namespace Prisma {
   export type CourseCreateOrConnectWithoutInvitationCodesInput = {
     where: CourseWhereUniqueInput
     create: XOR<CourseCreateWithoutInvitationCodesInput, CourseUncheckedCreateWithoutInvitationCodesInput>
+  }
+
+  export type ClassCreateWithoutInvitationCodesInput = {
+    id?: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutClassesInput
+    assistant?: UserCreateNestedOneWithoutAssistantClassesInput
+    enrollments?: EnrollmentCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassUncheckedCreateWithoutInvitationCodesInput = {
+    id?: string
+    courseId: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    assistantId?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassCreateOrConnectWithoutInvitationCodesInput = {
+    where: ClassWhereUniqueInput
+    create: XOR<ClassCreateWithoutInvitationCodesInput, ClassUncheckedCreateWithoutInvitationCodesInput>
   }
 
   export type UserCreateWithoutUsedInvitationsInput = {
@@ -25338,6 +28452,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     chats?: ChatCreateNestedManyWithoutUserInput
@@ -25357,6 +28472,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
@@ -25382,10 +28498,13 @@ export namespace Prisma {
   export type CourseUpdateWithoutInvitationCodesInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     teacher?: UserUpdateOneRequiredWithoutCoursesNestedInput
+    classes?: ClassUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUpdateManyWithoutCourseNestedInput
@@ -25394,13 +28513,55 @@ export namespace Prisma {
   export type CourseUncheckedUpdateWithoutInvitationCodesInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     teacherId?: StringFieldUpdateOperationsInput | string
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
+  }
+
+  export type ClassUpsertWithoutInvitationCodesInput = {
+    update: XOR<ClassUpdateWithoutInvitationCodesInput, ClassUncheckedUpdateWithoutInvitationCodesInput>
+    create: XOR<ClassCreateWithoutInvitationCodesInput, ClassUncheckedCreateWithoutInvitationCodesInput>
+    where?: ClassWhereInput
+  }
+
+  export type ClassUpdateToOneWithWhereWithoutInvitationCodesInput = {
+    where?: ClassWhereInput
+    data: XOR<ClassUpdateWithoutInvitationCodesInput, ClassUncheckedUpdateWithoutInvitationCodesInput>
+  }
+
+  export type ClassUpdateWithoutInvitationCodesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutClassesNestedInput
+    assistant?: UserUpdateOneWithoutAssistantClassesNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassUncheckedUpdateWithoutInvitationCodesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    assistantId?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
   }
 
   export type UserUpsertWithoutUsedInvitationsInput = {
@@ -25427,6 +28588,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
@@ -25446,6 +28608,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
@@ -25465,6 +28628,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
@@ -25484,6 +28648,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
@@ -25545,6 +28710,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
@@ -25564,6 +28730,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
@@ -25663,6 +28830,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
     courses?: CourseCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
@@ -25682,6 +28850,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
     courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
     teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
@@ -25696,10 +28865,13 @@ export namespace Prisma {
   export type CourseCreateWithoutNotificationsInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     teacher: UserCreateNestedOneWithoutCoursesInput
+    classes?: ClassCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
@@ -25708,10 +28880,13 @@ export namespace Prisma {
   export type CourseUncheckedCreateWithoutNotificationsInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
     teacherId: string
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
@@ -25730,6 +28905,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     course: CourseCreateNestedOneWithoutAssignmentAreasInput
+    class?: ClassCreateNestedOneWithoutAssignmentAreasInput
     rubric: RubricCreateNestedOneWithoutAssignmentAreasInput
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
   }
@@ -25739,6 +28915,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     courseId: string
+    classId?: string | null
     rubricId: string
     dueDate?: Date | string | null
     createdAt?: Date | string
@@ -25775,6 +28952,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
     courses?: CourseUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
@@ -25794,6 +28972,7 @@ export namespace Prisma {
     uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
     courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
     teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
@@ -25814,10 +28993,13 @@ export namespace Prisma {
   export type CourseUpdateWithoutNotificationsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     teacher?: UserUpdateOneRequiredWithoutCoursesNestedInput
+    classes?: ClassUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
@@ -25826,10 +29008,13 @@ export namespace Prisma {
   export type CourseUncheckedUpdateWithoutNotificationsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     teacherId?: StringFieldUpdateOperationsInput | string
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
@@ -25854,6 +29039,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     course?: CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
+    class?: ClassUpdateOneWithoutAssignmentAreasNestedInput
     rubric?: RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
   }
@@ -25863,6 +29049,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     rubricId?: StringFieldUpdateOperationsInput | string
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -25911,7 +29098,9 @@ export namespace Prisma {
   export type CourseCreateManyTeacherInput = {
     id?: string
     name: string
+    code?: string | null
     description?: string | null
+    syllabus?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -25925,6 +29114,17 @@ export namespace Prisma {
     isActive?: boolean
     isTemplate?: boolean
     criteria: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ClassCreateManyAssistantInput = {
+    id?: string
+    courseId: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -25945,13 +29145,17 @@ export namespace Prisma {
   export type EnrollmentCreateManyStudentInput = {
     id?: string
     courseId: string
+    classId?: string | null
     enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type InvitationCodeCreateManyUsedByInput = {
     id?: string
     code: string
     courseId: string
+    classId?: string | null
     createdAt?: Date | string
     expiresAt: Date | string
     isUsed?: boolean
@@ -26104,9 +29308,12 @@ export namespace Prisma {
   export type CourseUpdateWithoutTeacherInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    classes?: ClassUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
@@ -26116,9 +29323,12 @@ export namespace Prisma {
   export type CourseUncheckedUpdateWithoutTeacherInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
@@ -26128,7 +29338,9 @@ export namespace Prisma {
   export type CourseUncheckedUpdateManyWithoutTeacherInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -26176,6 +29388,45 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type ClassUpdateWithoutAssistantInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutClassesNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassUncheckedUpdateWithoutAssistantInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassUncheckedUpdateManyWithoutAssistantInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type SubmissionUpdateWithoutStudentInput = {
     id?: StringFieldUpdateOperationsInput | string
     filePath?: StringFieldUpdateOperationsInput | string
@@ -26218,19 +29469,28 @@ export namespace Prisma {
   export type EnrollmentUpdateWithoutStudentInput = {
     id?: StringFieldUpdateOperationsInput | string
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
     course?: CourseUpdateOneRequiredWithoutEnrollmentsNestedInput
+    class?: ClassUpdateOneWithoutEnrollmentsNestedInput
   }
 
   export type EnrollmentUncheckedUpdateWithoutStudentInput = {
     id?: StringFieldUpdateOperationsInput | string
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type EnrollmentUncheckedUpdateManyWithoutStudentInput = {
     id?: StringFieldUpdateOperationsInput | string
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type InvitationCodeUpdateWithoutUsedByInput = {
@@ -26241,12 +29501,14 @@ export namespace Prisma {
     isUsed?: BoolFieldUpdateOperationsInput | boolean
     usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     course?: CourseUpdateOneRequiredWithoutInvitationCodesNestedInput
+    class?: ClassUpdateOneWithoutInvitationCodesNestedInput
   }
 
   export type InvitationCodeUncheckedUpdateWithoutUsedByInput = {
     id?: StringFieldUpdateOperationsInput | string
     code?: StringFieldUpdateOperationsInput | string
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isUsed?: BoolFieldUpdateOperationsInput | boolean
@@ -26257,6 +29519,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     code?: StringFieldUpdateOperationsInput | string
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isUsed?: BoolFieldUpdateOperationsInput | boolean
@@ -26328,10 +29591,22 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type ClassCreateManyCourseInput = {
+    id?: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    assistantId?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type AssignmentAreaCreateManyCourseInput = {
     id?: string
     name: string
     description?: string | null
+    classId?: string | null
     rubricId: string
     dueDate?: Date | string | null
     createdAt?: Date | string
@@ -26341,12 +29616,16 @@ export namespace Prisma {
   export type EnrollmentCreateManyCourseInput = {
     id?: string
     studentId: string
+    classId?: string | null
     enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type InvitationCodeCreateManyCourseInput = {
     id?: string
     code: string
+    classId?: string | null
     createdAt?: Date | string
     expiresAt: Date | string
     isUsed?: boolean
@@ -26367,6 +29646,45 @@ export namespace Prisma {
     createdAt?: Date | string
   }
 
+  export type ClassUpdateWithoutCourseInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    assistant?: UserUpdateOneWithoutAssistantClassesNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassUncheckedUpdateWithoutCourseInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    assistantId?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassUncheckedUpdateManyWithoutCourseInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    assistantId?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type AssignmentAreaUpdateWithoutCourseInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
@@ -26374,6 +29692,7 @@ export namespace Prisma {
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    class?: ClassUpdateOneWithoutAssignmentAreasNestedInput
     rubric?: RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
@@ -26383,6 +29702,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     rubricId?: StringFieldUpdateOperationsInput | string
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -26395,6 +29715,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     rubricId?: StringFieldUpdateOperationsInput | string
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -26404,19 +29725,28 @@ export namespace Prisma {
   export type EnrollmentUpdateWithoutCourseInput = {
     id?: StringFieldUpdateOperationsInput | string
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
     student?: UserUpdateOneRequiredWithoutEnrollmentsNestedInput
+    class?: ClassUpdateOneWithoutEnrollmentsNestedInput
   }
 
   export type EnrollmentUncheckedUpdateWithoutCourseInput = {
     id?: StringFieldUpdateOperationsInput | string
     studentId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type EnrollmentUncheckedUpdateManyWithoutCourseInput = {
     id?: StringFieldUpdateOperationsInput | string
     studentId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type InvitationCodeUpdateWithoutCourseInput = {
@@ -26426,12 +29756,14 @@ export namespace Prisma {
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isUsed?: BoolFieldUpdateOperationsInput | boolean
     usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    class?: ClassUpdateOneWithoutInvitationCodesNestedInput
     usedBy?: UserUpdateOneWithoutUsedInvitationsNestedInput
   }
 
   export type InvitationCodeUncheckedUpdateWithoutCourseInput = {
     id?: StringFieldUpdateOperationsInput | string
     code?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isUsed?: BoolFieldUpdateOperationsInput | boolean
@@ -26442,6 +29774,7 @@ export namespace Prisma {
   export type InvitationCodeUncheckedUpdateManyWithoutCourseInput = {
     id?: StringFieldUpdateOperationsInput | string
     code?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     isUsed?: BoolFieldUpdateOperationsInput | boolean
@@ -26486,6 +29819,134 @@ export namespace Prisma {
     readAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     data?: NullableJsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type EnrollmentCreateManyClassInput = {
+    id?: string
+    studentId: string
+    courseId: string
+    enrolledAt?: Date | string
+    finalGrade?: number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
+  }
+
+  export type AssignmentAreaCreateManyClassInput = {
+    id?: string
+    name: string
+    description?: string | null
+    courseId: string
+    rubricId: string
+    dueDate?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type InvitationCodeCreateManyClassInput = {
+    id?: string
+    code: string
+    courseId: string
+    createdAt?: Date | string
+    expiresAt: Date | string
+    isUsed?: boolean
+    usedAt?: Date | string | null
+    usedById?: string | null
+  }
+
+  export type EnrollmentUpdateWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
+    student?: UserUpdateOneRequiredWithoutEnrollmentsNestedInput
+    course?: CourseUpdateOneRequiredWithoutEnrollmentsNestedInput
+  }
+
+  export type EnrollmentUncheckedUpdateWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    studentId?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
+  }
+
+  export type EnrollmentUncheckedUpdateManyWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    studentId?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    enrolledAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    finalGrade?: NullableFloatFieldUpdateOperationsInput | number | null
+    attendance?: NullableJsonNullValueInput | InputJsonValue
+  }
+
+  export type AssignmentAreaUpdateWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
+    submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
+    notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
+  }
+
+  export type AssignmentAreaUncheckedUpdateWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    courseId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    submissions?: SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
+  }
+
+  export type AssignmentAreaUncheckedUpdateManyWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    courseId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type InvitationCodeUpdateWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    isUsed?: BoolFieldUpdateOperationsInput | boolean
+    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    course?: CourseUpdateOneRequiredWithoutInvitationCodesNestedInput
+    usedBy?: UserUpdateOneWithoutUsedInvitationsNestedInput
+  }
+
+  export type InvitationCodeUncheckedUpdateWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    isUsed?: BoolFieldUpdateOperationsInput | boolean
+    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    usedById?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type InvitationCodeUncheckedUpdateManyWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    isUsed?: BoolFieldUpdateOperationsInput | boolean
+    usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    usedById?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type SubmissionCreateManyAssignmentAreaInput = {
@@ -26613,6 +30074,7 @@ export namespace Prisma {
     name: string
     description?: string | null
     courseId: string
+    classId?: string | null
     dueDate?: Date | string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -26674,6 +30136,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     course?: CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
+    class?: ClassUpdateOneWithoutAssignmentAreasNestedInput
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
   }
@@ -26683,6 +30146,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -26695,6 +30159,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string

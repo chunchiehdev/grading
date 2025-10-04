@@ -30,15 +30,6 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
 
   return (
     <div className="space-y-6 md:space-y-8 lg:space-y-10 xl:space-y-12">
-      {/* Add Rubric Button */}
-      <div className="flex justify-end">
-        <Button asChild variant="outline" size="icon" className="h-12 w-12 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors">
-          <Link to="/teacher/rubrics/new">
-            <Plus className="w-6 h-6" />
-          </Link>
-        </Button>
-      </div>
-
       {activeRubrics.length === 0 ? (
         /* Empty State */
         <Card>
@@ -158,11 +149,11 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                   </div>
 
                   {/* Meta Info - 固定高度區域 */}
-                  <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <div className="px-6 pb-6">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground bg-muted rounded-lg px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>{formatDateForDisplay(rubric.createdAt)}</span>
+                        <Calendar className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{formatDateForDisplay(rubric.createdAt)}</span>
                       </div>
                     </div>
                   </div>

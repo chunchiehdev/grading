@@ -192,10 +192,20 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
 
           {/* Statistics - 固定高度區域 */}
           <div className="px-6 py-4">
-            <div className="flex items-center justify-start gap-8">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-lg font-semibold text-muted-foreground">{assignment.course.name}</span>
-                <span className="text-sm text-muted-foreground">{t('assignmentCard.courseName')}</span>
+                {assignment.class && (
+                  <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                    {assignment.class.name}
+                  </span>
+                )}
+                {!assignment.class && (
+                  <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                    全課程
+                  </span>
+                )}
+
               </div>
               {hasSubmission && submission?.finalScore !== null ? (
                 <div className="flex items-center gap-2">
@@ -204,7 +214,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
                 </div>
               ) : hasSubmission ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-blue-600">{t('assignmentCard.submitted')}</span>
+                  <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">{t('assignmentCard.submitted')}</span>
                   <span className="text-sm text-muted-foreground">{t('assignmentCard.awaitingGrading')}</span>
                 </div>
               ) : (
@@ -232,7 +242,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
 
           {/* Due Date / Action - 固定高度區域 */}
           <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 text-sm">
               <span className="text-muted-foreground">
                 {assignment.dueDate ? formatDueDate(assignment.dueDate) : t('assignmentCard.noDueDate')}
               </span>
@@ -263,7 +273,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
   return (
     <div className="space-y-6">
       {/* Assignment Grid */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(400px,1fr))] gap-6">
         {getFilteredAssignments().map((assignment) => (
           <AssignmentCard key={assignment.id} assignment={assignment} />
         ))}

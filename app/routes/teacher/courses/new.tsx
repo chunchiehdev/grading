@@ -140,18 +140,10 @@ function CourseForm({
   actionData: ActionData | undefined;
 }) {
   const { t } = useTranslation(['course', 'common']);
-  const headerActions = (
-    <Button asChild variant="outline">
-      <a href="/teacher/dashboard">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        {t('common:backToDashboard')}
-      </a>
-    </Button>
-  );
 
   return (
     <div>
-      <PageHeader title={t('course:create')} subtitle={t('course:createSubtitle')} actions={headerActions} />
+      <PageHeader title={t('course:create')} subtitle={t('course:createSubtitle')} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>

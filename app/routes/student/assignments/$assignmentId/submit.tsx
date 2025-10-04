@@ -313,7 +313,7 @@ export default function SubmitAssignment() {
           <Button
             onClick={startAnalysis}
             disabled={state.loading}
-            className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-semibold py-3"
+            className="w-full font-semibold py-3"
           >
             {state.loading ? t('grading:ai.analyzing') : t('assignment:submit.analyzeWithAI')}
           </Button>
@@ -324,7 +324,8 @@ export default function SubmitAssignment() {
           <Button
             onClick={submitFinal}
             disabled={state.loading}
-            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold py-3"
+            variant="emphasis"
+            className="w-full font-semibold py-3"
           >
             {t('assignment:submit.submitAssignment')}
           </Button>
@@ -387,14 +388,14 @@ export default function SubmitAssignment() {
               {/* <h3 className="text-lg font-semibold mb-4">{t('assignment:submit.uploadDocument')}</h3> */}
 
               {state.phase === 'upload' ? renderUploadPhase() : (
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 text-lg font-bold">✓</span>
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 dark:text-blue-400 text-lg font-bold">✓</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-blue-900 truncate">{state.file?.name}</h4>
-                      <p className="text-sm text-blue-700">
+                      <h4 className="font-medium text-blue-900 dark:text-blue-100 truncate">{state.file?.name}</h4>
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
                         {Math.round((state.file?.size || 0) / 1024)} KB
                       </p>
                     </div>
@@ -408,10 +409,10 @@ export default function SubmitAssignment() {
 
             {/* Error Display */}
             {state.error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
                 <div className="flex items-start gap-3">
-                  <span className="text-red-500 text-lg">⚠</span>
-                  <p className="text-sm text-red-700 font-medium">{state.error}</p>
+                  <span className="text-red-500 dark:text-red-400 text-lg">⚠</span>
+                  <p className="text-sm text-red-700 dark:text-red-300 font-medium">{state.error}</p>
                 </div>
               </div>
             )}

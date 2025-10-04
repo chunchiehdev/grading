@@ -177,6 +177,7 @@
   "enrolledInCourses_one": "You're enrolled in {{count}} course",
   "enrolledInCourses_other": "You're enrolled in {{count}} courses", 
   "instructor": "Instructor: {{name}}",
+  "instructorLabel": "Instructor",
   "joined": "Joined {{date}}",
   "activeCourse": "Active Course",
   "viewAssignments": "View Assignments",

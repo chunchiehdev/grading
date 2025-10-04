@@ -9,10 +9,12 @@ import { listRubrics } from '@/services/rubric.server';
 import { getOverallTeacherStats, getCoursePerformance, getRubricUsage } from '@/services/analytics.server';
 import { Button } from '@/components/ui/button';
 import { ModernNavigation } from '@/components/ui/modern-navigation';
+import { Plus, FileText } from 'lucide-react';
 
 import { TeacherDashboardContent } from '@/components/teacher/TeacherDashboardContent';
 import { TeacherCoursesContent } from '@/components/teacher/TeacherCoursesContent';
 import { TeacherRubricsContent } from '@/components/teacher/TeacherRubricsContent';
+import { Link } from 'react-router';
 
 import { useTranslation } from 'react-i18next';
 
@@ -123,12 +125,40 @@ export default function TeacherDashboard() {
         onTabChange={setCurrentTab}
         actions={
           <>
-            <Button variant="outline" className="text-sm md:text-base lg:text-lg px-3 md:px-4 lg:px-6">
-              {t('course:import')}
-            </Button>
-            <Button className="text-sm md:text-base lg:text-lg px-3 md:px-4 lg:px-6">
-              + {t('course:new')}
-            </Button>
+            {currentTab === 'courses' && (
+              <>
+                {/* 手機版：只顯示圖示 */}
+                <Button asChild size="icon" className="md:hidden">
+                  <Link to="/teacher/courses/new">
+                    <Plus className="w-5 h-5" />
+                  </Link>
+                </Button>
+                {/* 桌面版：顯示圖示 + 文字 */}
+                <Button asChild className="hidden md:flex text-sm lg:text-base px-4 lg:px-6">
+                  <Link to="/teacher/courses/new">
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('course:new')}
+                  </Link>
+                </Button>
+              </>
+            )}
+            {currentTab === 'rubrics' && (
+              <>
+                {/* 手機版：只顯示圖示 */}
+                <Button asChild size="icon" className="md:hidden">
+                  <Link to="/teacher/rubrics/new">
+                    <Plus className="w-5 h-5" />
+                  </Link>
+                </Button>
+                {/* 桌面版：顯示圖示 + 文字 */}
+                <Button asChild className="hidden md:flex text-sm lg:text-base px-4 lg:px-6">
+                  <Link to="/teacher/rubrics/new">
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('rubric:create')}
+                  </Link>
+                </Button>
+              </>
+            )}
           </>
         }
       />

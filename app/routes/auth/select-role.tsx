@@ -3,7 +3,7 @@ import { useLoaderData, useActionData, Form, useNavigation } from 'react-router'
 import { GraduationCap, User } from 'lucide-react';
 
 import { requireAuth, updateUserRole } from '@/services/auth.server';
-import { PageHeader } from '@/components/ui/page-header';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RoleCard } from '@/components/ui/role-card';

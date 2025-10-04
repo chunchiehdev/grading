@@ -10,6 +10,9 @@ import {
   Share2,
   Pencil,
   Settings as SettingsIcon,
+  Clock,
+  MapPin,
+  Trash2,
 } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
@@ -19,16 +22,19 @@ import {
   generateInvitationQRCode,
 } from '@/services/invitation.server';
 import { getCoursePageData, type CoursePageData } from '@/services/course-detail.server';
+import { listClassesByCourse, type ClassInfo } from '@/services/class.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InvitationDisplay } from '@/components/ui/invitation-display';
+import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 
 interface LoaderData extends CoursePageData {
   teacher: { id: string; email: string; role: string };
+  classes: ClassInfo[];
 }
 
 interface ActionData {
@@ -50,7 +56,10 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
 
   try {
     // Use optimized course page data service
-    const coursePageData = await getCoursePageData(courseId, teacher.id);
+    const [coursePageData, classes] = await Promise.all([
+      getCoursePageData(courseId, teacher.id),
+      listClassesByCourse(courseId, teacher.id),
+    ]);
 
     if (!coursePageData) {
       throw new Response('Course not found', { status: 404 });
@@ -59,6 +68,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     return {
       teacher,
       ...coursePageData,
+      classes,
     };
   } catch (error) {
     console.error('Error loading course:', error);
@@ -101,7 +111,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 }
 
 export default function CourseDetail() {
-  const { teacher, course, formattedCreatedDate, invitation, enrollmentStats } = useLoaderData<typeof loader>();
+  const { teacher, course, formattedCreatedDate, invitation, enrollmentStats, classes } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
   const { t } = useTranslation(['course', 'common']);
 
@@ -173,6 +183,97 @@ export default function CourseDetail() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Class Management */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                班次管理
+              </CardTitle>
+              <Button asChild size="sm">
+                <Link to={`/teacher/courses/${course.id}/classes/new`}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  新增班次
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {classes.length === 0 ? (
+              <EmptyState
+                title="尚未建立班次"
+                description="請先建立至少一個班次，學生才能加入課程"
+                icon={<Users className="h-12 w-12" />}
+                action={
+                  <Button asChild>
+                    <Link to={`/teacher/courses/${course.id}/classes/new`}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      建立第一個班次
+                    </Link>
+                  </Button>
+                }
+                showCard={false}
+              />
+            ) : (
+              <div className="space-y-4">
+                {classes.map((cls) => {
+                  const isFull = cls.capacity && cls._count.enrollments >= cls.capacity;
+                  return (
+                    <div
+                      key={cls.id}
+                      className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold">{cls.name}</h3>
+                          {cls.schedule && (
+                            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {cls.schedule.day} {cls.schedule.startTime}-{cls.schedule.endTime}
+                              {cls.schedule.room && (
+                                <>
+                                  <MapPin className="w-3 h-3 ml-2" />
+                                  {cls.schedule.room}
+                                </>
+                              )}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-2">
+                            <Badge variant={isFull ? 'destructive' : 'secondary'}>
+                              <Users className="w-3 h-3 mr-1" />
+                              {cls._count.enrollments}
+                              {cls.capacity ? `/${cls.capacity}` : ''} 人
+                              {isFull && ' (已滿)'}
+                            </Badge>
+                            <Badge variant="outline">
+                              <FileText className="w-3 h-3 mr-1" />
+                              {cls._count.assignmentAreas} 個作業
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to={`/teacher/courses/${course.id}/classes/${cls.id}/students`}>
+                              查看學生
+                            </Link>
+                          </Button>
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to={`/teacher/courses/${course.id}/classes/${cls.id}/edit`}>
+                              <Pencil className="w-4 h-4" />
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">

@@ -72,8 +72,11 @@
     --chart-5: 27 87% 67%;
 
     --radius: 0.5rem;
-    
+
     --custom: 220, 13%, 91%;
+
+    --accent-emphasis: 38 92% 50%;
+    --accent-emphasis-foreground: 0 0% 100%;
   }
   .dark {
 
@@ -124,8 +127,11 @@
     --chart-4: 280 65% 60%;
 
     --chart-5: 340 75% 55%;
-  
+
     --custom: 217, 19.1%, 26.7%;
+
+    --accent-emphasis: 38 92% 55%;
+    --accent-emphasis-foreground: 0 0% 0%;
   }
     * {
       @apply border-border;

@@ -1,12 +1,13 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Await, Link } from 'react-router';
-import { Suspense } from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { Suspense, useState } from 'react';
+import { Plus } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, type CourseInfo } from '@/services/course.server';
 import { createAssignmentArea, type CreateAssignmentAreaData } from '@/services/assignment-area.server';
 import { listRubrics } from '@/services/rubric.server';
+import { listClassesByCourse, type ClassInfo } from '@/services/class.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,12 +18,14 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
   teacher: Promise<{ id: string; email: string; role: string; name: string }>;
   course: CourseInfo;
   rubrics: any[];
+  classes: ClassInfo[];
 }
 
 interface ActionData {
@@ -38,7 +41,11 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     throw new Response('Course ID is required', { status: 400 });
   }
 
-  const [course, rubricsResult] = await Promise.all([getCourseById(courseId, teacher.id), listRubrics(teacher.id)]);
+  const [course, rubricsResult, classes] = await Promise.all([
+    getCourseById(courseId, teacher.id),
+    listRubrics(teacher.id),
+    listClassesByCourse(courseId, teacher.id),
+  ]);
 
   if (!course) {
     throw new Response('Course not found', { status: 404 });
@@ -54,6 +61,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     teacher: teacherPromise,
     course,
     rubrics: rubricsResult.rubrics?.filter((r: any) => r.isActive) || [],
+    classes,
   };
 }
 
@@ -70,6 +78,8 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
   const description = formData.get('description') as string;
   const rubricId = formData.get('rubricId') as string;
   const dueDate = formData.get('dueDate') as string;
+  const classTarget = formData.get('classTarget') as string; // 'all' or 'specific'
+  const classId = formData.get('classId') as string;
 
   // Basic validation
   if (!name || name.trim().length === 0) {
@@ -86,6 +96,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       description: description?.trim() || undefined,
       rubricId,
       dueDate: dueDate ? new Date(dueDate) : undefined,
+      classId: classTarget === 'specific' ? classId : null,
     };
 
     const assignment = await createAssignmentArea(teacher.id, courseId, assignmentData);
@@ -102,7 +113,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 }
 
 export default function NewAssignmentArea() {
-  const { teacher, course, rubrics } = useLoaderData<typeof loader>();
+  const { teacher, course, rubrics, classes } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
   const { t } = useTranslation(['course', 'common']);
 
@@ -174,7 +185,7 @@ export default function NewAssignmentArea() {
     <Suspense fallback={<PageSkeleton />}>
       <Await resolve={teacher}>
         {(resolvedTeacher) => (
-          <AssignmentForm teacher={resolvedTeacher} course={course} rubrics={rubrics} actionData={actionData} />
+          <AssignmentForm teacher={resolvedTeacher} course={course} rubrics={rubrics} classes={classes} actionData={actionData} />
         )}
       </Await>
     </Suspense>
@@ -185,30 +196,24 @@ function AssignmentForm({
   teacher,
   course,
   rubrics,
+  classes,
   actionData,
 }: {
   teacher: { id: string; email: string; role: string; name: string };
   course: CourseInfo;
   rubrics: LoaderData['rubrics'];
+  classes: ClassInfo[];
   actionData: ActionData | undefined;
 }) {
   const { t } = useTranslation(['course', 'common']);
+  const [classTarget, setClassTarget] = useState<'all' | 'specific'>('all');
   console.log(course.name, 'Course Name');
-  const headerActions = (
-    <Button asChild variant="outline">
-      <Link to={`/teacher/courses/${course.id}`}>
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        {t('course:assignment.area.backToCourse')}
-      </Link>
-    </Button>
-  );
 
   return (
     <div className="bg-background text-foreground">
       <PageHeader
         title={t('course:assignment.area.createTitle')}
         subtitle={t('course:assignment.area.createSubtitle', { courseName: course.name })}
-        actions={headerActions}
       />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -246,6 +251,47 @@ function AssignmentForm({
                   placeholder={t('course:assignment.area.descriptionPlaceholder')}
                   className="bg-background border-border focus:ring-ring"
                 />
+              </div>
+
+              {/* Class Target Selection */}
+              <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+                <Label className="text-base font-medium">目標班次</Label>
+                <input type="hidden" name="classTarget" value={classTarget} />
+                <RadioGroup value={classTarget} onValueChange={(value) => setClassTarget(value as 'all' | 'specific')}>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="all" id="all-classes" />
+                    <Label htmlFor="all-classes" className="font-normal cursor-pointer">
+                      所有班次（此課程的所有班次都可以看到此作業）
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="specific" id="specific-class" />
+                    <Label htmlFor="specific-class" className="font-normal cursor-pointer">
+                      指定班次
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                {classTarget === 'specific' && (
+                  <div className="mt-3 space-y-2">
+                    <Label htmlFor="classId">選擇班次 <span className="text-destructive">*</span></Label>
+                    <Select name="classId" required={classTarget === 'specific'}>
+                      <SelectTrigger className="bg-background border-border">
+                        <SelectValue placeholder="選擇要派發作業的班次" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.map((cls) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name} ({cls._count.enrollments} 位學生)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      只有選定班次的學生可以看到並提交此作業
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

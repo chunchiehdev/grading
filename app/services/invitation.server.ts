@@ -40,6 +40,13 @@ export interface InvitationValidation {
       name: string;
     };
   };
+  invitationCode?: {
+    id: string;
+    code: string;
+    courseId: string;
+    classId: string | null;
+    expiresAt: Date;
+  };
   isAlreadyEnrolled?: boolean;
 }
 
@@ -242,6 +249,13 @@ export async function validateInvitationCode(
     return {
       isValid: true,
       course: invitationCode.course,
+      invitationCode: {
+        id: invitationCode.id,
+        code: invitationCode.code,
+        courseId: invitationCode.courseId,
+        classId: invitationCode.classId,
+        expiresAt: invitationCode.expiresAt,
+      },
       isAlreadyEnrolled,
     };
   } catch (error) {

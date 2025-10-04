@@ -26,7 +26,8 @@ model User {
   // Teacher-specific relations
   courses         Course[]
   teacherRubrics  Rubric[] @relation("TeacherRubrics")
-  
+  assistantClasses Class[] @relation("ClassAssistants")
+
   // Student-specific relations
   submissions     Submission[]
   enrollments     Enrollment[]
@@ -45,21 +46,60 @@ model User {
 model Course {
   id          String   @id @default(uuid())
   name        String   @db.VarChar(255)
+  code        String?  @db.VarChar(50)  // Course code (e.g., "CS 201", "MATH 101")
   description String?  @db.Text
   teacherId   String
   teacher     User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  
+
+  // Course-level settings (shared across all classes)
+  syllabus    String?  @db.Text  // Course syllabus
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
+  classes         Class[]          // A course can have multiple classes/sections
   assignmentAreas AssignmentArea[]
-  enrollments     Enrollment[]
+  enrollments     Enrollment[]     // Keep for backward compatibility
   invitationCodes InvitationCode[]
   notifications   Notification[] @relation("CourseNotifications")
 
   @@index([teacherId])
+  @@index([code])
   @@map("courses")
+}
+
+// Class/Section within a course (班次/班級)
+model Class {
+  id          String   @id @default(uuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  name        String   @db.VarChar(100)  // "101班", "Section A", "週五下午班"
+
+  // Schedule information (JSON structure for flexibility)
+  // Example: { day: "Friday", startTime: "14:00", endTime: "17:00", room: "資訊館 301", weekday: 5 }
+  schedule    Json?
+
+  capacity    Int?     // Maximum number of students (null = unlimited)
+
+  // Optional: Teaching assistant for this class
+  assistantId String?
+  assistant   User?    @relation("ClassAssistants", fields: [assistantId], references: [id], onDelete: SetNull)
+
+  isActive    Boolean  @default(true)  // Whether this class is currently active
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  enrollments     Enrollment[]        // Students enrolled in this class
+  assignmentAreas AssignmentArea[]    // Assignments specific to this class
+  invitationCodes InvitationCode[]    // Invitation codes for this class
+
+  @@index([courseId])
+  @@index([assistantId])
+  @@map("classes")
 }
 
 // Assignment areas within courses
@@ -69,10 +109,15 @@ model AssignmentArea {
   description String?   @db.Text
   courseId    String
   course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // Optional: Assignment can be specific to a class (null = all classes)
+  classId     String?
+  class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
+
   rubricId    String
   rubric      Rubric    @relation("AssignmentAreaRubrics", fields: [rubricId], references: [id], onDelete: Restrict)
   dueDate     DateTime?
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -81,6 +126,7 @@ model AssignmentArea {
   notifications Notification[] @relation("AssignmentNotifications")
 
   @@index([courseId])
+  @@index([classId])
   @@index([rubricId])
   @@map("assignment_areas")
 }
@@ -273,13 +319,28 @@ model Enrollment {
   id        String   @id @default(uuid())
   studentId String
   student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // Keep courseId for backward compatibility
   courseId  String
   course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // New: Student enrolls in a specific class
+  classId   String?
+  class     Class?   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
   enrolledAt DateTime @default(now())
-  
+
+  // Optional: Track student performance in this enrollment
+  finalGrade Float?
+  attendance Json?  // Attendance records
+
   @@unique([studentId, courseId])
+  // Note: @@unique([studentId, classId]) removed because classId is nullable
+  // This would cause issues with existing NULL values and doesn't match business logic
+  // Application layer should prevent duplicate enrollments in the same class
   @@index([studentId])
   @@index([courseId])
+  @@index([classId])
   @@map("enrollments")
 }
 
@@ -289,15 +350,21 @@ model InvitationCode {
   code      String   @unique @db.VarChar(50)
   courseId  String
   course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // Optional: Invitation code can be specific to a class
+  classId   String?
+  class     Class?   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   expiresAt DateTime
   isUsed    Boolean  @default(false)
   usedAt    DateTime?
   usedById  String?
   usedBy    User?    @relation("InvitationCodeUsage", fields: [usedById], references: [id])
-  
+
   @@index([code])
   @@index([courseId])
+  @@index([classId])
   @@index([expiresAt])
   @@map("invitation_codes")
 }

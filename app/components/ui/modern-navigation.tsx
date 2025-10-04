@@ -84,8 +84,8 @@ export function ModernNavigation({
           </Select>
         </div>
 
-        {/* 手機版右側操作 */}
-        <div className="flex md:hidden items-center gap-3 ml-auto">
+        {/* 右側操作 - 在所有螢幕尺寸顯示 */}
+        <div className="flex items-center gap-3 ml-auto">
           {actions && (
             <div className="flex items-center gap-2">
               {actions}

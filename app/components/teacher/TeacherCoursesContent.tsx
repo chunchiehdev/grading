@@ -27,15 +27,6 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
 
   return (
     <div className="space-y-6 md:space-y-8 lg:space-y-10 xl:space-y-12">
-      {/* Add Course Button */}
-      <div className="flex justify-end">
-        <Button asChild variant="outline" size="icon" className="h-12 w-12 rounded-full hover:bg-primary hover:text-primary-foreground transition-colors">
-          <Link to="/teacher/courses/new">
-            <Plus className="w-6 h-6" />
-          </Link>
-        </Button>
-      </div>
-
       {courses.length === 0 ? (
         /* Empty State */
         <Card>
@@ -57,7 +48,7 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
         </Card>
       ) : (
         /* Courses Grid */
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-6">
           {courses.map((course) => {
             const totalSubmissions = course.assignmentAreas?.reduce(
               (total: number, area: any) => total + (area._count?.submissions || 0),
@@ -67,7 +58,7 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
             return (
               <Link key={course.id} to={`/teacher/courses/${course.id}`} className="block">
                 <Card className="group hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20 h-full grid grid-rows-[1fr_auto_auto]">
-                  <CardHeader className="p-6 min-h-[140px] flex flex-col justify-start">
+                  <CardHeader className="p-4 sm:p-6 min-h-[140px] flex flex-col justify-start">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
@@ -107,34 +98,34 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
                     </div>
                   </CardHeader>
 
-                  <div className="px-6 py-4">
-                    <div className="flex items-center justify-start gap-8">
+                  <div className="px-4 sm:px-6 py-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-6">
                       <div className="flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-muted-foreground" />
-                        <span className="text-lg font-semibold text-muted-foreground">{course.assignmentAreas?.length || 0}</span>
-                        <span className="text-sm text-muted-foreground">{t('dashboard:stats.assignmentAreas')}</span>
+                        <FileText className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-base font-semibold text-foreground">{course.assignmentAreas?.length || 0}</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">{t('dashboard:stats.assignmentAreas')}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Users className="w-5 h-5 text-muted-foreground" />
-                        <span className="text-lg font-semibold text-muted-foreground">{totalSubmissions}</span>
-                        <span className="text-sm text-muted-foreground">{t('dashboard:teacher.submissions')}</span>
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-base font-semibold text-foreground">{totalSubmissions}</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">{t('dashboard:teacher.submissions')}</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Course Meta - 固定高度區域 */}
-                  <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      <span>{formatDateForDisplay(course.createdAt)}</span>
+                  {/* Course Meta */}
+                  <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+                    <div className="flex items-center text-xs sm:text-sm text-muted-foreground bg-muted rounded-lg px-3 py-2">
+                      <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">{formatDateForDisplay(course.createdAt)}</span>
                     </div>
                   </div>
-                  
+
                 </Card>
               </Link>
-              
+
             );
-            
+
           })}
           
         </div>

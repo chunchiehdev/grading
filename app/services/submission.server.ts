@@ -208,24 +208,43 @@ export async function createSubmissionAndLinkGradingResult(
  */
 export async function getStudentAssignments(studentId: string): Promise<StudentAssignmentInfo[]> {
   try {
-    // First get all courses the student is enrolled in
+    // Get all enrollments with class information
     const enrollments = await db.enrollment.findMany({
       where: { studentId },
-      select: { courseId: true },
+      select: {
+        courseId: true,
+        classId: true,
+      },
     });
 
     const enrolledCourseIds = enrollments.map(enrollment => enrollment.courseId);
+    const enrolledClassIds = enrollments.map(enrollment => enrollment.classId).filter(Boolean) as string[];
 
     if (enrolledCourseIds.length === 0) {
       // Student is not enrolled in any courses
       return [];
     }
 
+    // Query assignments that either:
+    // 1. Belong to student's classes (classId IN enrolledClassIds)
+    // 2. OR are course-wide (classId = NULL AND courseId IN enrolledCourseIds)
     const assignmentAreas = await db.assignmentArea.findMany({
       where: {
-        courseId: {
-          in: enrolledCourseIds,
-        },
+        OR: [
+          // Class-specific assignments
+          {
+            classId: {
+              in: enrolledClassIds,
+            },
+          },
+          // Course-wide assignments (for courses student is enrolled in)
+          {
+            classId: null,
+            courseId: {
+              in: enrolledCourseIds,
+            },
+          },
+        ],
       },
       include: {
         course: {
@@ -240,6 +259,7 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
             },
           },
         },
+        class: true, // Include class information
         rubric: true,
         submissions: {
           where: {
