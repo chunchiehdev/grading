@@ -28,8 +28,14 @@ jobs:
     - name: Auto-update version based on commit message
       id: version-update
       run: |
-        COMMIT_MSG="${{ github.event.head_commit.message }}"
-        echo "Commit message: $COMMIT_MSG"
+        # Use heredoc to safely handle multi-line commit messages
+        COMMIT_MSG=$(cat <<'EOF'
+        ${{ github.event.head_commit.message }}
+        EOF
+        )
+        # Extract only the first line for version bump detection (conventional commit format)
+        COMMIT_FIRST_LINE=$(echo "$COMMIT_MSG" | head -n 1)
+        echo "Commit message (first line): $COMMIT_FIRST_LINE"
         
         # Verify package.json exists
         if [ ! -f "package.json" ]; then
@@ -39,16 +45,16 @@ jobs:
         
         if [ "${{ github.ref_name }}" = "master" ]; then
           echo "🏭 Processing master branch - production versioning"
-          # Check for version bump indicators in commit message
-          if [[ "$COMMIT_MSG" =~ ^feat(\(.+\))?!: ]] || [[ "$COMMIT_MSG" =~ BREAKING.CHANGE ]]; then
+          # Check for version bump indicators in commit message (using first line only)
+          if [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?!: ]] || [[ "$COMMIT_FIRST_LINE" =~ BREAKING.CHANGE ]]; then
             echo "🚀 BREAKING CHANGE detected - bumping major version"
             npm run version:major
             echo "BUMP_TYPE=major" >> $GITHUB_OUTPUT
-          elif [[ "$COMMIT_MSG" =~ ^feat(\(.+\))?: ]]; then
+          elif [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?: ]]; then
             echo "✨ Feature detected - bumping minor version"
             npm run version:minor
             echo "BUMP_TYPE=minor" >> $GITHUB_OUTPUT
-          elif [[ "$COMMIT_MSG" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_MSG" =~ ^perf(\(.+\))?: ]]; then
+          elif [[ "$COMMIT_FIRST_LINE" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_FIRST_LINE" =~ ^perf(\(.+\))?: ]]; then
             echo "🐛 Fix/perf detected - bumping patch version"
             npm run version:patch
             echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
