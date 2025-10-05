@@ -1,6 +1,7 @@
 {
     "title": "我的提交",
     "history": "提交歷史",
+    "resubmit": "重新繳交",
     "emptyState": {
         "noSubmissions": "還沒提交任何作業"
     },

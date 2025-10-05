@@ -1,14 +1,15 @@
-import { FileText, CheckCircle, Clock, TrendingUp, Users, Calendar } from 'lucide-react';
+import { FileText, Clock, Users, Calendar } from 'lucide-react';
 import { Link } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslation } from 'react-i18next';
 import type { StudentCourseDetailData } from '@/services/student-course-detail.server';
+import type { StudentInfo, StudentAssignmentInfo } from '@/types/student';
 
 interface CourseDetailContentProps {
   data: StudentCourseDetailData & {
-    student: { id: string; email: string; role: string };
+    student: StudentInfo;
   };
 }
 
@@ -25,108 +26,47 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-8">
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">作業總數</p>
-                <p className="text-2xl font-bold text-foreground">{stats.total}</p>
-              </div>
-              <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">已完成</p>
-                <p className="text-2xl font-bold text-foreground">{stats.completed}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">待繳交</p>
-                <p className="text-2xl font-bold text-foreground">{stats.pending}</p>
-              </div>
-              <Clock className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">平均分數</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {stats.averageScore !== null ? Math.round(stats.averageScore) : 'N/A'}
-                </p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Course Info Card */}
+      {/* Compact Course Summary */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            課程資訊
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Teacher Info */}
-          <div className="flex items-center gap-4">
+        <CardContent className="p-6">
+          {/* Teacher & Class Info */}
+          <div className="flex items-center gap-4 mb-4">
             <img
               src={course.teacher.picture}
               alt={course.teacher.name}
               className="w-12 h-12 rounded-full object-cover bg-muted"
             />
-            <div>
+            <div className="flex-1">
+              <div className="text-sm text-muted-foreground">{t('course:detail.teacher')}</div>
               <div className="text-base font-medium text-foreground">{course.teacher.name}</div>
-              <div className="text-sm text-muted-foreground">{course.teacher.email}</div>
-            </div>
-            <Badge variant="secondary" className="ml-auto">教師</Badge>
-          </div>
-
-          {/* My Class */}
-          {myClass && (
-            <div className="border-t pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">我的班級</p>
-                  <p className="text-base font-semibold text-foreground">{myClass.name}</p>
-                  {myClass.schedule && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      <Clock className="w-3 h-3 inline mr-1" />
-                      {myClass.schedule.day} {myClass.schedule.startTime}-{myClass.schedule.endTime}
-                      {myClass.schedule.room && ` • ${myClass.schedule.room}`}
-                    </p>
-                  )}
-                </div>
-                <Badge variant="outline">班級成員</Badge>
+              <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                {myClass && (
+                  <>
+                    <span>{t('course:detail.class')}：{myClass.name}</span>
+                    {myClass.schedule && (
+                      <span className="text-xs">
+                        {myClass.schedule.day} {myClass.schedule.startTime}-{myClass.schedule.endTime}
+                        {myClass.schedule.room && ` • ${myClass.schedule.room}`}
+                      </span>
+                    )}
+                  </>
+                )}
+                {!myClass && <span>{t('course:detail.allCourse')}</span>}
+                <span className="text-xs">• {t('course:detail.joined')}：{formattedEnrolledDate}</span>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Enrolled Date */}
-          <div className="border-t pt-4">
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4 mr-2" />
-              <span>加入日期：{formattedEnrolledDate}</span>
-            </div>
+          {/* Compact Stats */}
+          <div className="flex items-center gap-4 text-sm pt-4 border-t">
+            <span className="text-muted-foreground">{t('course:detail.totalAssignments')}</span>
+            <span className="font-semibold text-foreground">{stats.total}</span>
+            <span className="text-muted-foreground">•</span>
+            <span className="text-muted-foreground">{t('course:detail.completed')}</span>
+            <span className="font-semibold text-foreground">{stats.completed}</span>
+            <span className="text-muted-foreground">•</span>
+            <span className="text-muted-foreground">{t('course:detail.pending')}</span>
+            <span className="font-semibold text-foreground">{stats.pending}</span>
           </div>
         </CardContent>
       </Card>
@@ -134,8 +74,8 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
       {/* Tabs: Assignments / Course Info */}
       <Tabs defaultValue="assignments" className="w-full">
         <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="assignments">作業列表</TabsTrigger>
-          <TabsTrigger value="info">課程資訊</TabsTrigger>
+          <TabsTrigger value="assignments">{t('course:detail.assignmentList')}</TabsTrigger>
+          <TabsTrigger value="info">{t('course:detail.courseInfo')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="assignments" className="mt-6">
@@ -143,8 +83,8 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
             <Card>
               <CardContent className="py-12 text-center">
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">尚無作業</h3>
-                <p className="text-muted-foreground">此課程尚未發布任何作業</p>
+                <h3 className="text-lg font-medium text-foreground mb-2">{t('course:detail.noAssignments')}</h3>
+                <p className="text-muted-foreground">{t('course:detail.noAssignmentsDescription')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -159,13 +99,13 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
         <TabsContent value="info" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>課程描述</CardTitle>
+              <CardTitle>{t('course:detail.courseDescription')}</CardTitle>
             </CardHeader>
             <CardContent>
               {course.description ? (
                 <p className="text-foreground whitespace-pre-wrap">{course.description}</p>
               ) : (
-                <p className="text-muted-foreground">教師尚未提供課程描述</p>
+                <p className="text-muted-foreground">{t('course:detail.noDescription')}</p>
               )}
             </CardContent>
           </Card>
@@ -177,7 +117,7 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
 
 // Assignment Card Component (reused from AssignmentsContent)
 interface AssignmentCardProps {
-  assignment: any; // StudentAssignmentInfo
+  assignment: StudentAssignmentInfo;
   studentId: string;
 }
 
@@ -226,8 +166,8 @@ function AssignmentCard({ assignment, studentId }: AssignmentCardProps) {
   };
 
   return (
-    <Link to={`/student/assignments/${assignment.id}/submit`} className="block">
-      <Card className="group hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20 h-full grid grid-rows-[1fr_auto_auto_auto]">
+    <Link to={`/student/assignments/${assignment.id}/submit`} className="block group">
+      <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
         <CardHeader className="p-6 min-h-[140px] flex flex-col justify-start">
           <div className="flex justify-between items-start">
             <div className="flex-1">

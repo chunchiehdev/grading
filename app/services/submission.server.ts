@@ -1,74 +1,13 @@
 import { db } from '@/lib/db.server';
-
-export interface SubmissionInfo {
-  id: string;
-  studentId: string;
-  assignmentAreaId: string;
-  filePath: string;
-  uploadedAt: Date;
-  aiAnalysisResult: any | null;
-  finalScore: number | null;
-  teacherFeedback: string | null;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-  student?: {
-    id: string;
-    email: string;
-    name: string;
-    picture?: string;
-  };
-  assignmentArea: {
-    id: string;
-    name: string;
-    description: string | null;
-    dueDate: Date | null;
-    course: {
-      id: string;
-      name: string;
-      teacher: {
-        email: string;
-      };
-    };
-    rubric: {
-      id: string;
-      name: string;
-      description: string;
-      criteria: any;
-    };
-  };
-}
+import type { SubmissionInfo, StudentAssignmentInfo } from '@/types/student';
 
 export interface CreateSubmissionData {
   assignmentAreaId: string;
   filePath: string;
 }
 
-export interface StudentAssignmentInfo {
-  id: string;
-  name: string;
-  description: string | null;
-  dueDate: Date | null;
-  courseId: string;
-  course: {
-    id: string;
-    name: string;
-    teacher: {
-      email: string;
-    };
-  };
-  class?: {
-    id: string;
-    name: string;
-  } | null;
-  rubric: {
-    id: string;
-    name: string;
-    description: string;
-    criteria: any;
-  };
-  submissions: SubmissionInfo[];
-}
+// Re-export types for backwards compatibility
+export type { SubmissionInfo, StudentAssignmentInfo };
 
 /**
  * Creates a new submission for a student
@@ -149,8 +88,47 @@ export async function createSubmissionAndLinkGradingResult(
   let submission: any;
 
   if (existingSubmission) {
-    console.log(`📝 Found existing submission ${existingSubmission.id} for student ${studentId} and assignment ${assignmentAreaId}, returning existing submission`);
-    submission = existingSubmission;
+    // Check if resubmission is allowed
+    // Prevent resubmission if already graded (regardless of teacher feedback)
+    if (existingSubmission.status === 'GRADED') {
+      throw new Error('Cannot resubmit: Assignment has already been graded');
+    }
+
+    // Allow resubmission - update existing submission with new file
+    console.log(`🔄 Resubmitting: Updating existing submission ${existingSubmission.id} with new file`);
+
+    submission = await updateSubmission(existingSubmission.id, {
+      // Update file path to new file
+      // Note: updateSubmission doesn't support filePath update, need to use direct db.update
+    });
+
+    // Update filePath directly since updateSubmission doesn't support it
+    submission = await db.submission.update({
+      where: { id: existingSubmission.id },
+      data: {
+        filePath: filePathOrId,
+        aiAnalysisResult: null,  // Clear old AI analysis
+        finalScore: null,         // Clear old score
+        teacherFeedback: null,    // Clear old feedback
+        status: 'SUBMITTED',      // Reset to SUBMITTED
+      },
+      include: {
+        assignmentArea: {
+          include: {
+            course: {
+              include: {
+                teacher: {
+                  select: { email: true },
+                },
+              },
+            },
+            rubric: true,
+          },
+        },
+      },
+    });
+
+    console.log(`✅ Resubmission successful: Updated submission ${submission.id}`);
   } else {
     submission = await createSubmission(studentId, {
       assignmentAreaId,

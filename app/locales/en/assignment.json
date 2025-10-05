@@ -92,6 +92,8 @@
         "submitting": "Submitting...",
         "submitAssignment": "Submit Assignment",
         "pdfPreview": "PDF Preview",
+        "resubmitWarningTitle": "Resubmitting Assignment",
+        "resubmitWarningDescription": "You have already submitted this assignment. Uploading a new file will overwrite your previous submission and AI analysis results.",
         "errors": {
             "failedToCheckStatus": "Failed to check grading status.",
             "noFileOrRubric": "No file or rubric found.",

@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getTeacherCourses, type CourseInfo } from '@/services/course.server';
@@ -15,6 +15,7 @@ import { TeacherDashboardContent } from '@/components/teacher/TeacherDashboardCo
 import { TeacherCoursesContent } from '@/components/teacher/TeacherCoursesContent';
 import { TeacherRubricsContent } from '@/components/teacher/TeacherRubricsContent';
 import { Link } from 'react-router';
+import type { TeacherInfo } from '@/types/teacher';
 
 import { useTranslation } from 'react-i18next';
 
@@ -68,24 +69,31 @@ export default function TeacherDashboard() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [showWebSocketTest, setShowWebSocketTest] = useState(false);
 
-  const renderContent = () => {
-    const data = {
-      teacher,
-      courses,
-      recentSubmissions,
-      rubrics,
-      analyticsStats,
-      analyticsCourses,
-      analyticsRubrics
-    };
+  // Memoize props to prevent unnecessary re-renders
+  const dashboardData = useMemo(() => ({
+    teacher,
+    courses,
+    recentSubmissions
+  }), [teacher.id, courses.length, recentSubmissions.length]);
 
+  const coursesData = useMemo(() => ({
+    teacher,
+    courses
+  }), [teacher.id, courses.length]);
+
+  const rubricsData = useMemo(() => ({
+    teacher,
+    rubrics
+  }), [teacher.id, rubrics?.length]);
+
+  const renderContent = () => {
     switch (currentTab) {
       case 'courses':
-        return <TeacherCoursesContent data={data} />;
+        return <TeacherCoursesContent data={coursesData} />;
       case 'rubrics':
-        return <TeacherRubricsContent data={data} />;
+        return <TeacherRubricsContent data={rubricsData} />;
       default:
-        return <TeacherDashboardContent data={data} />;
+        return <TeacherDashboardContent data={dashboardData} />;
     }
   };
 

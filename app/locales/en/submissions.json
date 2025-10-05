@@ -1,6 +1,7 @@
 {
   "title": "My Submissions",
   "history": "Submission History",
+  "resubmit": "Resubmit",
   "emptyState": {
     "noSubmissions": "No submissions yet"
   },

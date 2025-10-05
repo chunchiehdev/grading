@@ -1,4 +1,5 @@
 import { db } from '@/lib/db.server';
+import type { CourseWithEnrollmentInfo } from '@/types/student';
 
 export interface EnrollmentInfo {
   id: string;
@@ -23,22 +24,8 @@ export interface EnrollmentInfo {
   };
 }
 
-export interface CourseWithEnrollmentInfo {
-  id: string;
-  name: string;
-  description: string | null;
-  teacher: {
-    id: string;
-    email: string;
-    name: string;
-    picture: string;
-  };
-  _count: {
-    enrollments: number;
-    assignmentAreas: number;
-  };
-  enrolledAt?: Date;
-}
+// Re-export type for backwards compatibility
+export type { CourseWithEnrollmentInfo };
 
 /**
  * Enrolls a student in a course

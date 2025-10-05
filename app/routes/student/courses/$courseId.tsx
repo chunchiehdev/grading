@@ -1,6 +1,5 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, Link } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
+import { useLoaderData } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getStudentCourseDetail, type StudentCourseDetailData } from '@/services/student-course-detail.server';
 import { CourseDetailContent } from '@/components/student/CourseDetailContent';
@@ -38,16 +37,11 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
 export default function StudentCourseDetail() {
   const data = useLoaderData<typeof loader>();
 
-  const headerMenuItems = [
-    { label: '返回', to: '/student/dashboard', icon: ArrowLeft },
-  ];
-
   return (
     <div>
       <PageHeader
         title={data.course.name}
         subtitle={data.course.description || '課程詳情'}
-        menuItems={headerMenuItems}
         showInlineActions={false}
       />
 

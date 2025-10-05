@@ -3,31 +3,13 @@ import { Link } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
-
-interface CourseWithEnrollmentInfo {
-  id: string;
-  name: string;
-  description: string | null;
-  enrolledAt: Date | null;
-  teacher: {
-    id: string;
-    email: string;
-    name: string;
-    picture: string;
-  };
-  _count?: {
-    enrollments?: number;
-    assignmentAreas?: number;
-  };
-}
-
-interface CoursesData {
-  student: { id: string; email: string; role: string; name: string };
-  courses: (CourseWithEnrollmentInfo & { formattedEnrolledDate?: string })[];
-}
+import type { CourseWithEnrollmentInfo, StudentInfo } from '@/types/student';
 
 interface CoursesContentProps {
-  data: CoursesData;
+  data: {
+    student: StudentInfo;
+    courses: (CourseWithEnrollmentInfo & { formattedEnrolledDate?: string })[];
+  };
 }
 
 export function CoursesContent({ data }: CoursesContentProps) {
@@ -86,8 +68,8 @@ function CourseCard({ course }: CourseCardProps) {
   const totalAssignments = course._count?.assignmentAreas || 0;
 
   return (
-    <Link to={`/student/courses/${course.id}`} className="block">
-      <Card className="group hover:shadow-lg transition-all duration-200 hover:border-primary/20 bg-card text-card-foreground border hover:bg-muted/50 h-full grid grid-rows-[1fr_auto_auto_auto]">
+    <Link to={`/student/courses/${course.id}`} className="block group">
+      <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
         {/* Header - 可變高度但有最小高度 */}
         <CardHeader className="pb-3 min-h-[140px] flex flex-col justify-start">
           <div className="flex items-start justify-between">

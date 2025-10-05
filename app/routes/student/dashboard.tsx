@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 import { requireStudent } from '@/services/auth.server';
 import {
@@ -17,6 +17,8 @@ import { DashboardContent } from '@/components/student/DashboardContent';
 import { CoursesContent } from '@/components/student/CoursesContent';
 import { AssignmentsContent } from '@/components/student/AssignmentsContent';
 import { SubmissionsContent } from '@/components/student/SubmissionsContent';
+import { useAssignmentStore } from '@/stores/assignmentStore';
+import { useAssignmentWebSocket } from '@/hooks/useAssignmentWebSocket';
 
 import { useTranslation } from 'react-i18next';
 
@@ -69,19 +71,50 @@ export default function StudentDashboard() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [assignmentFilter, setAssignmentFilter] = useState('all');
 
+  // Initialize assignment store once on mount
+  const setAssignments = useAssignmentStore(state => state.setAssignments);
+  useEffect(() => {
+    setAssignments(assignments);
+  }, []);
+
+  // Initialize WebSocket connection once
+  useAssignmentWebSocket(student.id);
+
+  // Memoize props to prevent unnecessary re-renders
+  const assignmentsData = useMemo(() => ({
+    student,
+    enrolledCourses: courses
+  }), [student.id, courses.length]);
+
+  const coursesData = useMemo(() => ({
+    student,
+    courses
+  }), [student.id, courses.length]);
+
+  const submissionsData = useMemo(() => ({
+    student,
+    submissions: submissionHistory
+  }), [student.id, submissionHistory.length]);
+
+  const dashboardData = useMemo(() => ({
+    student,
+    assignments,
+    submissions
+  }), [student.id, assignments.length, submissions.length]);
+
   const renderContent = () => {
     switch (currentTab) {
       case 'courses':
-        return <CoursesContent data={{ student, courses }} />;
+        return <CoursesContent data={coursesData} />;
       case 'assignments':
         return <AssignmentsContent
-          data={{ student, assignments, enrolledCourses: courses }}
+          data={assignmentsData}
           externalFilter={assignmentFilter}
         />;
       case 'submissions':
-        return <SubmissionsContent data={{ student, submissions: submissionHistory }} />;
+        return <SubmissionsContent data={submissionsData} />;
       default:
-        return <DashboardContent data={{ student, assignments, submissions }} />;
+        return <DashboardContent data={dashboardData} />;
     }
   };
 

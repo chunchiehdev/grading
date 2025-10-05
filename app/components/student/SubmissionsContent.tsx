@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router';
 import { FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import type { StudentInfo } from '@/types/student';
 
 interface Submission {
   id: string;
@@ -13,13 +14,11 @@ interface Submission {
   };
 }
 
-interface SubmissionsData {
-  student: { id: string; email: string; role: string; name: string };
-  submissions: Submission[];
-}
-
 interface SubmissionsContentProps {
-  data: SubmissionsData;
+  data: {
+    student: StudentInfo;
+    submissions: Submission[];
+  };
 }
 
 export function SubmissionsContent({ data }: SubmissionsContentProps) {

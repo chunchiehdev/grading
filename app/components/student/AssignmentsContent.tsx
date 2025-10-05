@@ -3,70 +3,129 @@ import { Link } from 'react-router';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
-import { useEffect } from 'react';
 import { useAssignmentStore } from '@/stores/assignmentStore';
-import { useAssignmentWebSocket } from '@/hooks/useAssignmentWebSocket';
-
-interface StudentAssignmentInfo {
-  id: string;
-  name: string;
-  description: string | null;
-  dueDate: Date | null;
-  course: {
-    id: string;
-    name: string;
-    teacher: {
-      id: string;
-      email: string;
-      name: string;
-      picture: string;
-    };
-  };
-  class?: {
-    id: string;
-    name: string;
-  } | null;
-  rubric: {
-    name: string;
-  };
-  submissions: Array<{
-    studentId: string;
-    status: string;
-    finalScore: number | null;
-  }>;
-}
-
-interface CourseWithEnrollmentInfo {
-  id: string;
-  name: string;
-}
-
-interface AssignmentsData {
-  student: { id: string; email: string; role: string };
-  assignments: StudentAssignmentInfo[];
-  enrolledCourses: CourseWithEnrollmentInfo[];
-}
+import type { StudentAssignmentInfo, CourseWithEnrollmentInfo, StudentInfo } from '@/types/student';
 
 interface AssignmentsContentProps {
-  data: AssignmentsData;
+  data: {
+    student: StudentInfo;
+    enrolledCourses: CourseWithEnrollmentInfo[];
+  };
   externalFilter?: string;
 }
 
+interface AssignmentCardProps {
+  assignment: StudentAssignmentInfo;
+  student: { id: string };
+  getStatusBadge: (assignment: StudentAssignmentInfo) => any;
+  formatDueDate: (dueDate: Date | null) => string;
+  t: (key: string) => string;
+}
+
+function AssignmentCard({
+  assignment,
+  student,
+  getStatusBadge,
+  formatDueDate,
+  t
+}: AssignmentCardProps) {
+  const hasSubmission = assignment.submissions.some(sub => sub.studentId === student.id);
+  const submission = assignment.submissions.find(sub => sub.studentId === student.id);
+
+  return (
+    <Link to={`/student/assignments/${assignment.id}/submit`} className="block group">
+      <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
+        {/* Header*/}
+        <CardHeader className="p-6 min-h-[140px] flex flex-col justify-start">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                {assignment.name}
+              </CardTitle>
+              {assignment.description && (
+                <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
+                  {assignment.description}
+                </p>
+              )}
+            </div>
+            <div className="ml-2">
+              {getStatusBadge(assignment)}
+            </div>
+          </div>
+        </CardHeader>
+
+        {/* Statistics - 固定高度區域 */}
+        <div className="px-6 py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-lg font-semibold text-muted-foreground">{assignment.course.name}</span>
+              {assignment.class && (
+                <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                  {assignment.class.name}
+                </span>
+              )}
+              {!assignment.class && (
+                <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                  全課程
+                </span>
+              )}
+
+            </div>
+            {hasSubmission && submission?.finalScore !== null ? (
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-semibold text-accent-foreground">{submission?.finalScore}</span>
+                <span className="text-sm text-muted-foreground">{t('assignmentCard.finalScore')}</span>
+              </div>
+            ) : hasSubmission ? (
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">{t('assignmentCard.submitted')}</span>
+                <span className="text-sm text-muted-foreground">{t('assignmentCard.awaitingGrading')}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{formatDueDate(assignment.dueDate)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Teacher Info - 固定高度區域 */}
+        <div className="px-6 py-4">
+          <div className="flex items-center gap-3">
+            <img
+              src={assignment.course.teacher.picture}
+              alt={assignment.course.teacher.name}
+              className="w-10 h-10 rounded-full object-cover bg-muted"
+            />
+            <div className="flex-1">
+              <div className="text-base font-medium text-muted-foreground">{assignment.course.teacher.name}</div>
+              <div className="text-sm text-muted-foreground">{t('assignmentCard.rubric')}: {assignment.rubric.name}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Due Date / Action - 固定高度區域 */}
+        <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 text-sm">
+            <span className="text-muted-foreground">
+              {assignment.dueDate ? formatDueDate(assignment.dueDate) : t('assignmentCard.noDueDate')}
+            </span>
+            <span className="text-primary font-medium">
+              {!hasSubmission ? t('assignmentCard.submit') : t('assignmentCard.viewSubmission')}
+            </span>
+          </div>
+        </div>
+      </Card>
+    </Link>
+  );
+}
+
 export function AssignmentsContent({ data, externalFilter }: AssignmentsContentProps) {
-  const { student, assignments: initialAssignments, enrolledCourses } = data;
+  const { student, enrolledCourses } = data;
   const { t } = useTranslation('assignment');
 
-  // Zustand store
+  // Subscribe to assignment store (initialized by parent component)
   const assignments = useAssignmentStore(state => state.assignments);
-  const setAssignments = useAssignmentStore(state => state.setAssignments);
-
-  // WebSocket integration for real-time updates
-  useAssignmentWebSocket(student.id);
-
-  // Initialize store with server data
-  useEffect(() => {
-    setAssignments(initialAssignments);
-  }, [initialAssignments, setAssignments]);
 
   // Use external filter if provided, otherwise use 'all'
   const currentFilter = externalFilter || 'all';
@@ -145,7 +204,6 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
       return <Badge variant="destructive">{t('status.overdue')}</Badge>;
     }
 
-    // 待繳交使用警示色
     return <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">{t('status.pending')}</Badge>;
   };
 
@@ -168,97 +226,6 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
     }
   };
 
-  const AssignmentCard = ({ assignment }: { assignment: StudentAssignmentInfo }) => {
-    const hasSubmission = assignment.submissions.some(sub => sub.studentId === student.id);
-    const submission = assignment.submissions.find(sub => sub.studentId === student.id);
-
-    return (
-      <Link to={`/student/assignments/${assignment.id}/submit`} className="block">
-        <Card className="group hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20 h-full grid grid-rows-[1fr_auto_auto_auto]">
-          {/* Header - 可變高度但有最小高度 */}
-          <CardHeader className="p-6 min-h-[140px] flex flex-col justify-start">
-            <div className="flex justify-between items-start">
-              <div className="flex-1">
-                <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                  {assignment.name}
-                </CardTitle>
-                {assignment.description && (
-                  <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
-                    {assignment.description}
-                  </p>
-                )}
-              </div>
-              <div className="ml-2">
-                {getStatusBadge(assignment)}
-              </div>
-            </div>
-          </CardHeader>
-
-          {/* Statistics - 固定高度區域 */}
-          <div className="px-6 py-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-lg font-semibold text-muted-foreground">{assignment.course.name}</span>
-                {assignment.class && (
-                  <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
-                    {assignment.class.name}
-                  </span>
-                )}
-                {!assignment.class && (
-                  <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                    全課程
-                  </span>
-                )}
-
-              </div>
-              {hasSubmission && submission?.finalScore !== null ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-accent-foreground">{submission?.finalScore}</span>
-                  <span className="text-sm text-muted-foreground">{t('assignmentCard.finalScore')}</span>
-                </div>
-              ) : hasSubmission ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">{t('assignmentCard.submitted')}</span>
-                  <span className="text-sm text-muted-foreground">{t('assignmentCard.awaitingGrading')}</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{formatDueDate(assignment.dueDate)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Teacher Info - 固定高度區域 */}
-          <div className="px-6 py-4">
-            <div className="flex items-center gap-3">
-              <img
-                src={assignment.course.teacher.picture}
-                alt={assignment.course.teacher.name}
-                className="w-10 h-10 rounded-full object-cover bg-muted"
-              />
-              <div className="flex-1">
-                <div className="text-base font-medium text-muted-foreground">{assignment.course.teacher.name}</div>
-                <div className="text-sm text-muted-foreground">{t('assignmentCard.rubric')}: {assignment.rubric.name}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Due Date / Action - 固定高度區域 */}
-          <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 text-sm">
-              <span className="text-muted-foreground">
-                {assignment.dueDate ? formatDueDate(assignment.dueDate) : t('assignmentCard.noDueDate')}
-              </span>
-              <span className="text-primary font-medium">
-                {!hasSubmission ? t('assignmentCard.submit') : t('assignmentCard.viewSubmission')}
-              </span>
-            </div>
-          </div>
-        </Card>
-      </Link>
-    );
-  };
 
   // Filter assignments based on current filter
   const getFilteredAssignments = () => {
@@ -279,7 +246,14 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
       {/* Assignment Grid */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(400px,1fr))] gap-6">
         {getFilteredAssignments().map((assignment) => (
-          <AssignmentCard key={assignment.id} assignment={assignment} />
+          <AssignmentCard
+            key={assignment.id}
+            assignment={assignment}
+            student={student}
+            getStatusBadge={getStatusBadge}
+            formatDueDate={formatDueDate}
+            t={t}
+          />
         ))}
       </div>
     </div>

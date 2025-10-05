@@ -11,14 +11,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useTranslation } from 'react-i18next';
 import { formatDateForDisplay } from '@/lib/date';
-
-interface TeacherCoursesData {
-  teacher: { id: string; email: string; name: string; role: string };
-  courses: any[];
-}
+import type { TeacherInfo, CourseInfo } from '@/types/teacher';
 
 interface TeacherCoursesContentProps {
-  data: TeacherCoursesData;
+  data: {
+    teacher: TeacherInfo;
+    courses: CourseInfo[];
+  };
 }
 
 export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
@@ -56,8 +55,8 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
             ) || 0;
 
             return (
-              <Link key={course.id} to={`/teacher/courses/${course.id}`} className="block">
-                <Card className="group hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20 h-full grid grid-rows-[1fr_auto_auto]">
+              <Link key={course.id} to={`/teacher/courses/${course.id}`} className="block group">
+                <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
                   <CardHeader className="p-4 sm:p-6 min-h-[140px] flex flex-col justify-start">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">

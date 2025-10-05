@@ -1,14 +1,13 @@
 import { FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-
-interface TeacherDashboardData {
-  teacher: { id: string; email: string; name: string; role: string };
-  courses: any[];
-  recentSubmissions: any[];
-}
+import type { TeacherInfo, SubmissionInfo, CourseInfo } from '@/types/teacher';
 
 interface TeacherDashboardContentProps {
-  data: TeacherDashboardData;
+  data: {
+    teacher: TeacherInfo;
+    courses: CourseInfo[];
+    recentSubmissions: SubmissionInfo[];
+  };
 }
 
 export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) {
@@ -80,17 +79,17 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
                 {/* Student Column */}
                 <div className="col-span-4 flex items-center gap-3">
                   <Avatar className="h-8 w-8 flex-shrink-0">
-                    <AvatarImage src={submission.student.picture} alt={submission.student.name} />
+                    <AvatarImage src={submission.student?.picture} alt={submission.student?.name} />
                     <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                      {submission.student.name?.charAt(0) || 'U'}
+                      {submission.student?.name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">
-                      {submission.student.name}
+                      {submission.student?.name || 'Unknown'}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {submission.student.email}
+                      {submission.student?.email || ''}
                     </p>
                   </div>
                 </div>

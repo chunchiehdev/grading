@@ -240,5 +240,20 @@
     "created": "建立於 {{date}}",
     "viewDetails": "查看詳情",
     "addAssignment": "新增作業"
+  },
+  "detail": {
+    "teacher": "授課教師",
+    "class": "班級",
+    "allCourse": "全課程",
+    "joined": "加入",
+    "totalAssignments": "作業總數",
+    "completed": "已完成",
+    "pending": "待繳交",
+    "assignmentList": "作業列表",
+    "courseInfo": "課程資訊",
+    "noAssignments": "尚無作業",
+    "noAssignmentsDescription": "此課程尚未發布任何作業",
+    "courseDescription": "課程描述",
+    "noDescription": "教師尚未提供課程描述"
   }
 }

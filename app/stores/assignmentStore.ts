@@ -1,38 +1,11 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import type { StudentAssignmentInfo } from '@/types/student';
 
-export interface Assignment {
-  id: string;
-  name: string;
-  description: string | null;
-  dueDate: Date | null;
+// Use StudentAssignmentInfo as the base type
+export type Assignment = StudentAssignmentInfo & {
   formattedDueDate?: string;
-  courseId?: string; // Made optional to match existing data
-  course: {
-    id: string;
-    name: string;
-    teacher: {
-      id: string;
-      email: string;
-      name: string;
-      picture: string; // Required to match StudentAssignmentInfo
-    };
-  };
-  rubric: {
-    id?: string; // Made optional
-    name: string;
-    description?: string; // Made optional
-  };
-  submissions: Array<{
-    id?: string; // Made optional
-    studentId: string;
-    status: string;
-    finalScore: number | null;
-    uploadedAt?: Date; // Made optional
-  }>;
-  createdAt?: Date; // Made optional
-  updatedAt?: Date; // Made optional
-}
+};
 
 interface AssignmentState {
   // 狀態

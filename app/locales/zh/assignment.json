@@ -91,6 +91,8 @@
         "submitting": "提交中...",
         "submitAssignment": "提交作業",
         "pdfPreview": "PDF 預覽",
+        "resubmitWarningTitle": "重新繳交作業",
+        "resubmitWarningDescription": "你已經提交過此作業。重新上傳將覆蓋之前的內容和 AI 分析結果。",
         "errors": {
             "failedToCheckStatus": "無法檢查批改狀態。",
             "noFileOrRubric": "找不到檔案或評分標準。",

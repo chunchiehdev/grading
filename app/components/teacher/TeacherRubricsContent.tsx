@@ -12,14 +12,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useTranslation } from 'react-i18next';
 import { formatDateForDisplay } from '@/lib/date';
-
-interface TeacherRubricsData {
-  teacher: { id: string; email: string; name: string; role: string };
-  rubrics?: any[];
-}
+import type { TeacherInfo, RubricResponse } from '@/types/teacher';
 
 interface TeacherRubricsContentProps {
-  data: TeacherRubricsData;
+  data: {
+    teacher: TeacherInfo;
+    rubrics?: RubricResponse[];
+  };
 }
 
 export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {

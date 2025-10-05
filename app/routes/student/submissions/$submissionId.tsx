@@ -4,8 +4,10 @@ import { requireStudent } from '@/services/auth.server';
 import { getSubmissionById } from '@/services/submission.server';
 import { PageHeader } from '@/components/ui/page-header';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { useTranslation } from 'react-i18next';
+import { RotateCcw } from 'lucide-react';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -55,7 +57,7 @@ export default function StudentSubmissionDetail() {
         {/* 頂部作業資訊 - 簡潔背景 */}
         <div className="border-b border-border pb-6">
           <div className="flex items-start justify-between">
-            <div>
+            <div className="flex-1">
               <h1 className="text-2xl xl:text-3xl font-bold mb-2">{a.name}</h1>
               <p className="text-muted-foreground">{a.course.name}</p>
               <p className="text-sm text-muted-foreground mt-1">
@@ -63,17 +65,30 @@ export default function StudentSubmissionDetail() {
               </p>
             </div>
 
-            {/* 分數 - 學生最關心的信息 */}
-            <div className="text-right">
-              {submission.finalScore !== null ? (
-                <div className="bg-muted text-muted-foreground rounded-full px-6 py-3">
-                  <span className="text-3xl font-bold">{submission.finalScore}</span>
-                  <span className="text-lg ml-1">分</span>
-                </div>
-              ) : (
-                <div className="text-muted-foreground text-right">
-                  <div className="text-lg">尚未評分</div>
-                </div>
+            {/* 右側：分數 + 重新繳交按鈕 */}
+            <div className="flex items-start gap-4">
+              {/* 分數 - 學生最關心的信息 */}
+              <div className="text-right">
+                {submission.finalScore !== null ? (
+                  <div className="bg-muted text-muted-foreground rounded-full px-6 py-3">
+                    <span className="text-3xl font-bold">{submission.finalScore}</span>
+                    <span className="text-lg ml-1">分</span>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground text-right">
+                    <div className="text-lg">尚未評分</div>
+                  </div>
+                )}
+              </div>
+
+              {/* 重新繳交按鈕 - 僅未評分時顯示 */}
+              {submission.status !== 'GRADED' && submission.status !== 'ANALYZED' && (
+                <Link to={`/student/assignments/${submission.assignmentAreaId}/submit`}>
+                  <Button variant="outline" size="sm">
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    {t('submissions:resubmit')}
+                  </Button>
+                </Link>
               )}
             </div>
           </div>

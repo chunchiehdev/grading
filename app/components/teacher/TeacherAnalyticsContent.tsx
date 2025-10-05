@@ -3,17 +3,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useTranslation } from 'react-i18next';
-
-interface TeacherAnalyticsData {
-  teacher: { id: string; email: string; name: string; role: string };
-  courses: any[];
-  analyticsStats: any;
-  analyticsCourses: any[];
-  analyticsRubrics: any[];
-}
+import type { TeacherInfo, CourseInfo, OverallTeacherStats, CoursePerformance, RubricUsage } from '@/types/teacher';
 
 interface TeacherAnalyticsContentProps {
-  data: TeacherAnalyticsData;
+  data: {
+    teacher: TeacherInfo;
+    courses: CourseInfo[];
+    analyticsStats: OverallTeacherStats;
+    analyticsCourses: CoursePerformance;
+    analyticsRubrics: RubricUsage;
+  };
 }
 
 export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) {
@@ -157,9 +156,9 @@ export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) 
           <CardContent className="p-6 md:p-8 pt-0">
             <div className="space-y-4">
               {analyticsRubrics.map((rubric) => (
-                <div key={rubric.id} className="p-4 border rounded-lg">
+                <div key={rubric.rubricId} className="p-4 border rounded-lg">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">{rubric.name}</span>
+                    <span className="font-medium">{rubric.rubricName}</span>
                     <span className="text-sm text-muted-foreground">
                       {rubric.usageCount || 0} uses
                     </span>

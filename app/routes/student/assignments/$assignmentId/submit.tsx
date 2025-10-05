@@ -7,10 +7,12 @@ import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useTranslation } from 'react-i18next';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useUploadStore } from '@/stores/uploadStore';
+import { AlertCircle } from 'lucide-react';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -18,8 +20,26 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   if (!assignmentId) throw new Response('Assignment not found', { status: 404 });
 
-  const assignment = await getAssignmentAreaForSubmission(assignmentId, student.id);
+  const assignment = await getAssignmentAreaForSubmission(assignmentId, student.id, true);
   if (!assignment) throw new Response('Assignment not found', { status: 404 });
+
+  // Check if student already has a submitted (non-draft) submission for this assignment
+  if (assignment.submissions && assignment.submissions.length > 0) {
+    const latestSubmission = assignment.submissions[0];
+
+    // Redirect if submission is GRADED (regardless of teacher feedback)
+    // This prevents students from overwriting teacher-assigned scores
+    if (latestSubmission.status === 'GRADED') {
+      // Already graded - redirect to view only, no resubmission allowed
+      throw new Response(null, {
+        status: 302,
+        headers: { Location: `/student/submissions/${latestSubmission.id}` }
+      });
+    }
+
+    // For SUBMITTED or ANALYZED status - allow resubmission
+    // The existing submission will be updated with new file/analysis
+  }
 
   // Check for existing draft/submission to restore state
   const draftSubmission = await getDraftSubmission(assignmentId, student.id);
@@ -104,8 +124,10 @@ export default function SubmitAssignment() {
       name: draftSubmission.fileMetadata.fileName,
       size: draftSubmission.fileMetadata.fileSize
     } : null,
-    session: draftSubmission?.sessionId ? {
-      id: draftSubmission.sessionId,
+    // Initialize session if we have sessionId OR aiAnalysisResult
+    // This handles both new submissions (with sessionId) and existing submissions (with aiAnalysisResult but no sessionId)
+    session: (draftSubmission?.sessionId || draftSubmission?.aiAnalysisResult) ? {
+      id: draftSubmission.sessionId || '',
       result: draftSubmission.aiAnalysisResult
     } : null,
     error: null,
@@ -445,6 +467,18 @@ export default function SubmitAssignment() {
           <div ref={leftPanelRef} className="order-1 lg:order-2 flex flex-col">
             <div className="h-full overflow-y-auto">
               <div className="space-y-6 p-6">
+
+            {/* Resubmission Warning */}
+            {draftSubmission && draftSubmission.id && (
+              <Alert variant="default" className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30">
+                 <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                
+                <AlertDescription className="text-orange-700 dark:text-orange-300">
+                  {t('assignment:submit.resubmitWarningDescription')}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Compact Upload Section */}
             <div>
               {/* <h3 className="text-lg font-semibold mb-4">{t('assignment:submit.uploadDocument')}</h3> */}

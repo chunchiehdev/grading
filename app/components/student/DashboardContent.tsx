@@ -3,36 +3,23 @@ import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { AnimatedArrowButton } from '@/components/ui/animated-arrow-button';
 import { useTranslation } from 'react-i18next';
-import { useEffect } from 'react';
 import { useAssignmentStore } from '@/stores/assignmentStore';
-import { useAssignmentWebSocket } from '@/hooks/useAssignmentWebSocket';
-
-interface DashboardData {
-  student: { id: string; email: string; role: string; name: string };
-  assignments: any[];
-  submissions: any[];
-}
+import type { StudentInfo } from '@/types/student';
 
 interface DashboardContentProps {
-  data: DashboardData;
+  data: {
+    student: StudentInfo;
+    assignments: any[];
+    submissions: any[];
+  };
 }
 
 export function DashboardContent({ data }: DashboardContentProps) {
-  const { student, assignments: initialAssignments, submissions } = data;
+  const { student, submissions } = data;
   const { t } = useTranslation(['course', 'dashboard', 'submissions']);
 
-  // Zustand store
-  const setAssignments = useAssignmentStore(state => state.setAssignments);
+  // Subscribe to assignment store (initialized by parent component)
   const getUpcomingDeadlines = useAssignmentStore(state => state.getUpcomingDeadlines);
-
-  // WebSocket integration
-  useAssignmentWebSocket(student.id);
-
-  // Initialize store with server data on first load
-  useEffect(() => {
-    setAssignments(initialAssignments);
-  }, [initialAssignments, setAssignments]);
-
 
   // Get upcoming deadlines from store (includes sorting logic)
   const upcomingDeadlines = getUpcomingDeadlines(student.id);

@@ -240,5 +240,20 @@
     "created": "Created {{date}}",
     "viewDetails": "View Details",
     "addAssignment": "Add Assignment"
+  },
+  "detail": {
+    "teacher": "Instructor",
+    "class": "Class",
+    "allCourse": "All Course",
+    "joined": "Joined",
+    "totalAssignments": "Total Assignments",
+    "completed": "Completed",
+    "pending": "Pending",
+    "assignmentList": "Assignment List",
+    "courseInfo": "Course Information",
+    "noAssignments": "No Assignments Yet",
+    "noAssignmentsDescription": "This course has not published any assignments yet",
+    "courseDescription": "Course Description",
+    "noDescription": "No course description provided by instructor"
   }
 }
