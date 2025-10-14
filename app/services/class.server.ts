@@ -7,6 +7,24 @@ export interface ClassInfo {
   id: string;
   courseId: string;
   name: string;
+  /**
+   * Schedule data (JSON)
+   *
+   * New format (recommended):
+   * {
+   *   weekday: "一" | "二" | "三" | "四" | "五" | "六" | "日",
+   *   periodCode: "1" | "2" | ... | "9" | "Z" | "A" | "B" | "C" | "D",
+   *   room: string (optional)
+   * }
+   *
+   * Legacy format (for backward compatibility):
+   * {
+   *   day: "星期一" | "星期二" | ...,
+   *   startTime: "HH:mm",
+   *   endTime: "HH:mm",
+   *   room: string (optional)
+   * }
+   */
   schedule: any | null;
   capacity: number | null;
   assistantId: string | null;
@@ -36,6 +54,9 @@ export interface ClassInfo {
 
 /**
  * Data for creating a new class
+ *
+ * schedule should use the new format:
+ * { weekday: string, periodCode: string, room?: string }
  */
 export interface CreateClassData {
   courseId: string;
@@ -47,6 +68,9 @@ export interface CreateClassData {
 
 /**
  * Data for updating an existing class
+ *
+ * schedule should use the new format:
+ * { weekday: string, periodCode: string, room?: string }
  */
 export interface UpdateClassData {
   name?: string;
@@ -479,5 +503,48 @@ export async function getStudentClasses(studentId: string) {
   } catch (error) {
     console.error('❌ Error fetching student classes:', error);
     return [];
+  }
+}
+
+/**
+ * Gets all students enrolled in a specific class
+ * @param classId - Class ID
+ * @param teacherId - Teacher's user ID for authorization
+ * @returns List of enrolled students with their enrollment info
+ */
+export async function getClassStudents(classId: string, teacherId: string) {
+  try {
+    // Verify teacher owns the class through course
+    const classInstance = await getClassById(classId, teacherId);
+    if (!classInstance) {
+      throw new Error('Class not found or unauthorized');
+    }
+
+    const enrollments = await db.enrollment.findMany({
+      where: { classId },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            picture: true,
+          },
+        },
+      },
+      orderBy: { enrolledAt: 'desc' },
+    });
+
+    return {
+      class: classInstance,
+      students: enrollments.map((enrollment) => ({
+        enrollmentId: enrollment.id,
+        enrolledAt: enrollment.enrolledAt,
+        student: enrollment.student,
+      })),
+    };
+  } catch (error) {
+    console.error('❌ Error fetching class students:', error);
+    throw error;
   }
 }

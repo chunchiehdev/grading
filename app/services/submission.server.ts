@@ -107,10 +107,10 @@ export async function createSubmissionAndLinkGradingResult(
       where: { id: existingSubmission.id },
       data: {
         filePath: filePathOrId,
-        aiAnalysisResult: null,  // Clear old AI analysis
-        finalScore: null,         // Clear old score
-        teacherFeedback: null,    // Clear old feedback
-        status: 'SUBMITTED',      // Reset to SUBMITTED
+        aiAnalysisResult: null as any, 
+        finalScore: null,              
+        teacherFeedback: null,         
+        status: 'SUBMITTED',           
       },
       include: {
         assignmentArea: {
@@ -504,7 +504,7 @@ export async function getSubmissionByIdForTeacher(submissionId: string, teacherI
         id: submissionId,
         assignmentArea: {
           course: {
-            teacherId: teacherId, // Ensure teacher owns the course
+            teacherId: teacherId, 
           },
         },
       },

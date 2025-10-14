@@ -101,5 +101,9 @@
   "notFound": {
     "message": "看起來你來到了未知的數位領域。"
   },
-  "returnHome": "返回網站首頁"
+  "returnHome": "返回網站首頁",
+  "roles": {
+    "student": "學生",
+    "teacher": "教師"
+  }
 }

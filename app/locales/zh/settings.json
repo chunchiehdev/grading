@@ -1,0 +1,27 @@
+{
+  "title": "設定",
+  "subtitle": "管理您的個人資訊和偏好設定",
+  "personalInfo": {
+    "title": "個人資訊",
+    "name": "姓名",
+    "role": "角色"
+  },
+  "classes": {
+    "title": "我的課程與班級",
+    "description": "查看您已註冊的所有課程及其班級時間表",
+    "noClasses": "您尚未加入任何班級",
+    "courseLevelEnrollment": "課程級別註冊（未分配特定班級）",
+    "joinedAt": "加入時間",
+    "students": "學生人數",
+    "assignments": "作業數量"
+  },
+  "teacher": {
+    "overview": "課程總覽",
+    "description": "您所教授的所有課程摘要",
+    "totalCourses": "總課程數",
+    "totalStudents": "總學生數",
+    "totalAssignments": "總作業數",
+    "coursesList": "我的課程",
+    "noCourses": "尚未建立任何課程"
+  }
+}

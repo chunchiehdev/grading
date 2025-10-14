@@ -52,7 +52,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   const rubrics = rubricsData.rubrics || [];
 
   return {
-    user: teacher, // 添加 user 字段，與 teacher 相同
+    user: teacher,
     teacher,
     courses,
     recentSubmissions,
@@ -100,9 +100,6 @@ export default function TeacherDashboard() {
 
   return (
     <div>
-      {/* WebSocket 狀態指示器 (固定在右上角) */}
-      {/* <SimpleWebSocketStatus /> */}
-
       
       {/* {process.env.NODE_ENV === 'development' && (
         <div style={{
@@ -117,7 +114,7 @@ export default function TeacherDashboard() {
             onClick={() => setShowWebSocketTest(!showWebSocketTest)}
             className="text-xs"
           >
-            🔧 WebSocket Test
+            WebSocket Test
           </Button>
         </div>
       )} */}
@@ -172,13 +169,6 @@ export default function TeacherDashboard() {
       />
 
       <div className="w-[95%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto pt-6 md:pt-8 lg:pt-10 xl:pt-12 2xl:pt-16">
-        {/* WebSocket Test Componment */}
-        {/* {showWebSocketTest && (
-          <div className="mb-6">
-            <WebSocketTest />
-          </div>
-        )} */}
-
         {renderContent()}
       </div>
     </div>

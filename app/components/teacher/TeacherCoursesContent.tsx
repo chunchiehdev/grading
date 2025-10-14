@@ -49,10 +49,11 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
         /* Courses Grid */
         <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-6">
           {courses.map((course) => {
-            const totalSubmissions = course.assignmentAreas?.reduce(
-              (total: number, area: any) => total + (area._count?.submissions || 0),
-              0
-            ) || 0;
+            const totalSubmissions =
+              course.assignmentAreas?.reduce(
+                (total: number, area: any) => total + (area._count?.submissions || 0),
+                0
+              ) || 0;
 
             return (
               <Link key={course.id} to={`/teacher/courses/${course.id}`} className="block group">
@@ -64,9 +65,7 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
                           {course.name}
                         </CardTitle>
                         {course.description && (
-                          <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
-                            {course.description}
-                          </p>
+                          <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{course.description}</p>
                         )}
                       </div>
                       <DropdownMenu>
@@ -77,14 +76,10 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link to={`/teacher/courses/${course.id}/edit`}>
-                              {t('course:edit.title')}
-                            </Link>
+                            <Link to={`/teacher/courses/${course.id}/edit`}>{t('course:edit.title')}</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link to={`/teacher/courses/${course.id}/settings`}>
-                              {t('course:settings')}
-                            </Link>
+                            <Link to={`/teacher/courses/${course.id}/settings`}>{t('course:settings')}</Link>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
@@ -101,13 +96,19 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-6">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-base font-semibold text-foreground">{course.assignmentAreas?.length || 0}</span>
-                        <span className="text-xs sm:text-sm text-muted-foreground">{t('dashboard:stats.assignmentAreas')}</span>
+                        <span className="text-base font-semibold text-foreground">
+                          {course.assignmentAreas?.length || 0}
+                        </span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">
+                          {t('dashboard:stats.assignmentAreas')}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-muted-foreground" />
                         <span className="text-base font-semibold text-foreground">{totalSubmissions}</span>
-                        <span className="text-xs sm:text-sm text-muted-foreground">{t('dashboard:teacher.submissions')}</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">
+                          {t('dashboard:teacher.submissions')}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -119,14 +120,10 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
                       <span className="truncate">{formatDateForDisplay(course.createdAt)}</span>
                     </div>
                   </div>
-
                 </Card>
               </Link>
-
             );
-
           })}
-          
         </div>
       )}
     </div>

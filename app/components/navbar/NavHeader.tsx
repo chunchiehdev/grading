@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { Share2, LogOut, User as UserIcon, Menu, Globe } from 'lucide-react';
+import { Share2, LogOut, User as UserIcon, Menu, Globe, Settings } from 'lucide-react';
 import { Link } from 'react-router';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { useLoaderData } from 'react-router';
@@ -126,12 +126,19 @@ export function NavHeader({
                   ) : (
                     <UserIcon className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />
                   )}
-                  
+
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem disabled>
                   <span className="text-sm truncate">{user.email}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="cursor-pointer">
+                    <Settings className="w-4 h-4 mr-2" />
+                    {safeT('settings', 'Settings')}
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {versionInfo && (
@@ -178,6 +185,13 @@ export function NavHeader({
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem disabled>
                   <span className="text-sm truncate">{user.email}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="cursor-pointer">
+                    <Settings className="w-4 h-4 mr-2" />
+                    {safeT('settings', 'Settings')}
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {versionInfo && (

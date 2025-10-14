@@ -13,10 +13,10 @@ import {
   Clock,
   MapPin,
   Trash2,
+  AlertCircle,
 } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
-import { type CourseInfo } from '@/services/course.server';
 import {
   createInvitationCode,
   generateInvitationQRCode,
@@ -27,10 +27,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { EmptyState } from '@/components/ui/empty-state';
 import { InvitationDisplay } from '@/components/ui/invitation-display';
-import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
+import { formatScheduleDisplay, formatScheduleShort } from '@/constants/schedule';
 
 interface LoaderData extends CoursePageData {
   teacher: { id: string; email: string; role: string };
@@ -88,6 +87,15 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 
   try {
     if (intent === 'generate-invitation') {
+      // Verify at least one class exists before generating invitation code
+      const classes = await listClassesByCourse(courseId, teacher.id);
+      if (classes.length === 0) {
+        return {
+          success: false,
+          error: '請先建立至少一個時段，才能產生邀請碼',
+        };
+      }
+
       const invitation = await createInvitationCode(courseId, teacher.id);
       const qrCodeUrl = await generateInvitationQRCode(invitation.code);
 
@@ -111,111 +119,90 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 }
 
 export default function CourseDetail() {
-  const { teacher, course, formattedCreatedDate, invitation, enrollmentStats, classes } = useLoaderData<typeof loader>();
+  const { course, invitation, classes } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
   const { t } = useTranslation(['course', 'common']);
 
-  const totalSubmissions =
-    course.assignmentAreas?.reduce((total, area) => total + (area._count?.submissions || 0), 0) || 0;
+  /**
+   * 格式化時段顯示文字（支援新舊格式）
+   */
+  function formatClassSchedule(schedule: any): string {
+    if (!schedule) return '';
 
-  const headerMenuItems = [
-    { label: t('common:back'), to: '/teacher/dashboard', icon: ArrowLeft },
-    { label: t('course:students'), to: `/teacher/courses/${course.id}/students`, icon: Users },
-    { label: t('course:edit.title'), to: `/teacher/courses/${course.id}/edit`, icon: Pencil },
-    { label: t('course:settings.title'), to: `/teacher/courses/${course.id}/settings`, icon: SettingsIcon },
-    { label: t('course:assignment.create'), to: `/teacher/courses/${course.id}/assignments/new`, icon: Plus },
-  ];
+    // 新格式：使用 weekday + periodCode
+    if (schedule.weekday && schedule.periodCode) {
+      return formatScheduleDisplay(schedule.weekday, schedule.periodCode);
+    }
+
+    // 舊格式：使用 day + startTime + endTime
+    if (schedule.day && schedule.startTime && schedule.endTime) {
+      return `${schedule.day} ${schedule.startTime}-${schedule.endTime}`;
+    }
+
+    return '';
+  }
 
   return (
     <div>
       <PageHeader
         title={course.name}
-        subtitle={course.description || 'Course management and assignment areas'}
-        menuItems={headerMenuItems}
-        showInlineActions={false}
+        subtitle={undefined}
+        actions={
+          <Button asChild variant="outline">
+            <Link to={`/teacher/courses/${course.id}/edit`}>
+              <Pencil className="h-4 w-4 mr-2" />
+              {t('course:edit.title')}
+            </Link>
+          </Button>
+        }
+        showInlineActions={true}
       />
-      
-      <div className="max-w-7xl mx-auto space-y-8 pb-8">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{t('course:stats.assignmentAreas')}</p>
-                  <p className="text-2xl font-bold text-foreground">{course.assignmentAreas?.length || 0}</p>
-                </div>
-                <FileText className="w-8 h-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{t('course:stats.totalSubmissions')}</p>
-                  <p className="text-2xl font-bold text-foreground">{totalSubmissions}</p>
-                </div>
-                <Users className="w-8 h-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{t('course:stats.enrolledStudents')}</p>
-                  <p className="text-2xl font-bold text-foreground">{enrollmentStats.totalEnrollments}</p>
-                </div>
-                <Users className="w-8 h-8 text-orange-600" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">{t('course:stats.createdDate')}</p>
-                  <p className="text-xl font-bold text-foreground">{formattedCreatedDate}</p>
-                </div>
-                <FileText className="w-8 h-8 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
+      {/* Course Description */}
+      {course.description && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+          <p className="text-sm text-muted-foreground bg-muted/30 rounded-lg p-4 border">
+            {course.description}
+          </p>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto space-y-8 pb-8">
         {/* Class Management */}
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                班次管理
+                <Clock className="h-5 w-5 text-primary" />
+                時段管理
               </CardTitle>
-              <Button asChild size="sm">
-                <Link to={`/teacher/courses/${course.id}/classes/new`}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  新增班次
-                </Link>
-              </Button>
+              {classes.length > 0 && (
+                <Button asChild size="sm">
+                  <Link to={`/teacher/courses/${course.id}/classes/new`}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    新增時段
+                  </Link>
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
             {classes.length === 0 ? (
-              <EmptyState
-                title="尚未建立班次"
-                description="請先建立至少一個班次，學生才能加入課程"
-                icon={<Users className="h-12 w-12" />}
-                action={
-                  <Button asChild>
-                    <Link to={`/teacher/courses/${course.id}/classes/new`}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      建立第一個班次
-                    </Link>
-                  </Button>
-                }
-                showCard={false}
-              />
+              <div className="text-center py-12">
+                <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                  <Clock className="h-10 w-10 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">尚未建立時段</h3>
+                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                  課程需要至少一個時段，學生才能透過邀請碼選擇加入的時段
+                </p>
+                <Button asChild size="lg">
+                  <Link to={`/teacher/courses/${course.id}/classes/new`}>
+                    <Plus className="h-5 w-5 mr-2" />
+                    建立第一個時段
+                  </Link>
+                </Button>
+              </div>
             ) : (
               <div className="space-y-4">
                 {classes.map((cls) => {
@@ -230,28 +217,24 @@ export default function CourseDetail() {
                           <h3 className="text-lg font-semibold">{cls.name}</h3>
                           {cls.schedule && (
                             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {cls.schedule.day} {cls.schedule.startTime}-{cls.schedule.endTime}
+                              <Clock className="w-3 h-3 flex-shrink-0" />
+                              <span>{formatClassSchedule(cls.schedule)}</span>
                               {cls.schedule.room && (
                                 <>
-                                  <MapPin className="w-3 h-3 ml-2" />
-                                  {cls.schedule.room}
+                                  <MapPin className="w-3 h-3 ml-2 flex-shrink-0" />
+                                  <span>{cls.schedule.room}</span>
                                 </>
                               )}
                             </p>
                           )}
-                          <div className="flex items-center gap-3 mt-2">
-                            <Badge variant={isFull ? 'destructive' : 'secondary'}>
-                              <Users className="w-3 h-3 mr-1" />
+                          {/* <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Users className="w-4 h-4" />
                               {cls._count.enrollments}
-                              {cls.capacity ? `/${cls.capacity}` : ''} 人
+                              {cls.capacity ? `/${cls.capacity}` : ''} 位學生
                               {isFull && ' (已滿)'}
-                            </Badge>
-                            <Badge variant="outline">
-                              <FileText className="w-3 h-3 mr-1" />
-                              {cls._count.assignmentAreas} 個作業
-                            </Badge>
-                          </div>
+                            </span>
+                          </div> */}
                         </div>
                         <div className="flex gap-2">
                           <Button asChild variant="ghost" size="sm">
@@ -259,7 +242,7 @@ export default function CourseDetail() {
                               查看學生
                             </Link>
                           </Button>
-                          <Button asChild variant="ghost" size="sm">
+                          <Button asChild variant="ghost" size="sm" title="編輯時段">
                             <Link to={`/teacher/courses/${course.id}/classes/${cls.id}/edit`}>
                               <Pencil className="w-4 h-4" />
                             </Link>
@@ -281,15 +264,6 @@ export default function CourseDetail() {
                 <Share2 className="h-5 w-5" />
                 {t('course:courseInvitation.title')}
               </CardTitle>
-              {!invitation && (
-                <Form method="post">
-                  <input type="hidden" name="intent" value="generate-invitation" />
-                  <Button type="submit" size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('course:courseInvitation.generateInvitationCode')}
-                  </Button>
-                </Form>
-              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -299,22 +273,30 @@ export default function CourseDetail() {
               </Alert>
             )}
 
-            {!invitation && !actionData?.newInvitation ? (
-              <EmptyState
-                title={t('course:emptyState.noInvitationCode')}
-                description={t('course:emptyState.noInvitationCodeDescription')}
-                icon={<QrCode className="h-12 w-12" />}
-                action={
-                  <Form method="post">
-                    <input type="hidden" name="intent" value="generate-invitation" />
-                    <Button type="submit">
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      {t('course:courseInvitation.generateInvitationCode')}
-                    </Button>
-                  </Form>
-                }
-                showCard={false}
-              />
+            {classes.length === 0 ? (
+              <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-900 dark:text-amber-100">
+                  請先建立時段，學生才能透過邀請碼加入課程
+                </AlertDescription>
+              </Alert>
+            ) : !invitation && !actionData?.newInvitation ? (
+              <div className="text-center py-12">
+                <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                  <QrCode className="h-10 w-10 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">尚未產生邀請碼</h3>
+                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                  產生邀請碼後，學生可以掃描 QR Code 或輸入邀請碼加入課程並選擇時段
+                </p>
+                <Form method="post">
+                  <input type="hidden" name="intent" value="generate-invitation" />
+                  <Button type="submit" size="lg">
+                    <QrCode className="h-5 w-5 mr-2" />
+                    產生邀請碼
+                  </Button>
+                </Form>
+              </div>
             ) : (
               ((invitation && !actionData?.newInvitation) || actionData?.newInvitation) && (
                 <InvitationDisplay

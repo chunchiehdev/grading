@@ -12,10 +12,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTranslation } from 'react-i18next';
+import type { TeacherInfo, TeacherSubmissionView } from '@/types/teacher';
 
 interface LoaderData {
-  teacher: { id: string; email: string; role: string; name: string };
-  submission: any;
+  teacher: TeacherInfo;
+  submission: TeacherSubmissionView;
 }
 
 interface ActionData {
@@ -31,11 +32,41 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     throw new Response('Submission ID is required', { status: 400 });
   }
 
-  const submission = await getSubmissionByIdForTeacher(submissionId, teacher.id);
+  const rawSubmission = await getSubmissionByIdForTeacher(submissionId, teacher.id);
 
-  if (!submission) {
+  if (!rawSubmission) {
     throw new Response('Submission not found', { status: 404 });
   }
+
+  // Transform database structure into display-optimized structure
+  const submission: TeacherSubmissionView = {
+    student: {
+      name: rawSubmission.student?.name ?? 'Unknown Student',
+      email: rawSubmission.student?.email ?? 'No email',
+      picture: rawSubmission.student?.picture ?? null,
+      initial: rawSubmission.student?.name?.[0] ?? 'U',
+    },
+    assignment: {
+      id: rawSubmission.assignmentArea.id,
+      name: rawSubmission.assignmentArea.name,
+      description: rawSubmission.assignmentArea.description,
+      dueDate: rawSubmission.assignmentArea.dueDate?.toISOString() ?? null,
+      course: {
+        id: rawSubmission.assignmentArea.course.id,
+        name: rawSubmission.assignmentArea.course.name,
+      },
+    },
+    grading: {
+      finalScore: rawSubmission.finalScore,
+      uploadedAt: rawSubmission.uploadedAt.toISOString(),
+      filePath: rawSubmission.filePath,
+      teacherFeedback: rawSubmission.teacherFeedback,
+      aiAnalysisResult: rawSubmission.aiAnalysisResult,
+    },
+    navigation: {
+      backUrl: `/teacher/courses/${rawSubmission.assignmentArea.course.id}/assignments/${rawSubmission.assignmentArea.id}/submissions`,
+    },
+  };
 
   return { teacher, submission };
 }
@@ -71,165 +102,209 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 export default function TeacherSubmissionView() {
   const { submission } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
-  const { t } = useTranslation(['submissions', 'teacher']);
+  const { t } = useTranslation('teacher');
 
-
-  const a = submission.assignmentArea;
-
-  const headerActions = (
-    <Button asChild variant="outline">
-      <Link to={`/teacher/courses/${a.course.id}/assignments/${a.id}/submissions`}>
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        {t('teacher:backToSubmissions')}
-      </Link>
-    </Button>
-  );
+  // Format date helper (client-side for i18n)
+  const formatDate = (date: string) => new Date(date).toLocaleString();
 
   return (
     <div className="bg-background">
       <PageHeader
-        title={`${t('teacher:submissionReview')} - ${submission.student?.name || 'Unknown Student'}`}
-        subtitle={`${a.name} - ${a.course.name}`}
-        actions={headerActions}
+        title={`${t('submissionReview')} - ${submission.student.name}`}
+        subtitle={`${submission.assignment.name} - ${submission.assignment.course.name}`}
+        actions={
+          <Button asChild variant="outline">
+            <Link to={submission.navigation.backUrl}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              {t('backToSubmissions')}
+            </Link>
+          </Button>
+        }
       />
 
       <main className="max-w-7xl mx-auto px-4 pb-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left Column - Main Content */}
           <div className="md:col-span-2 space-y-6">
-            {/* Student Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('teacher:studentInfo')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={submission.student?.picture} alt={submission.student?.name} />
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {submission.student?.name?.charAt(0) || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="text-lg font-medium text-foreground">
-                      {submission.student?.name || 'Unknown Student'}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {submission.student?.email || 'No email'}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Assignment Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('submissions:assignmentInfo.title')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="text-sm text-muted-foreground">
-                  {t('submissions:assignmentInfo.course')}: {a.course.name}
-                </div>
-                {a.dueDate && (
-                  <div className="text-sm text-muted-foreground">
-                    {t('submissions:assignmentInfo.due')}: {new Date(a.dueDate).toLocaleString()}
-                  </div>
-                )}
-                {a.description && (
-                  <div className="text-sm text-muted-foreground">{a.description}</div>
-                )}
-                {submission.filePath && (
-                  <div className="pt-2">
-                    <Button asChild variant="outline" size="sm">
-                      <a href={submission.filePath} target="_blank" rel="noopener noreferrer">
-                        {t('teacher:downloadFile')}
-                      </a>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* AI Analysis Results */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('submissions:aiAnalysis.title')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {submission.aiAnalysisResult ? (
-                  <GradingResultDisplay result={submission.aiAnalysisResult as any} />
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {t('submissions:aiAnalysis.inProgress')}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <StudentInfoCard student={submission.student} />
+            <AssignmentInfoCard assignment={submission.assignment} grading={submission.grading} />
+            <AIAnalysisCard result={submission.grading.aiAnalysisResult} />
           </div>
 
-          {/* Right Column - Summary and Actions */}
           <div className="md:col-span-1 space-y-6">
-            {/* Grading Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('submissions:gradingSummary.title')}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t('submissions:gradingSummary.score')}</span>
-                  <span className="font-medium">
-                    {submission.finalScore !== null ? `${submission.finalScore} ${t('teacher:points')}` : '-'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">{t('submissions:gradingSummary.submitted')}</span>
-                  <span>{new Date(submission.uploadedAt).toLocaleString()}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Teacher Feedback */}
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('teacher:provideFeedback')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Form method="post" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="teacherFeedback">{t('teacher:feedbackLabel')}</Label>
-                    <Textarea
-                      id="teacherFeedback"
-                      name="teacherFeedback"
-                      rows={6}
-                      defaultValue={submission.teacherFeedback || ''}
-                      placeholder={t('teacher:feedbackPlaceholder')}
-                      className="bg-background border-border"
-                    />
-                  </div>
-
-                  {actionData?.error && (
-                    <Alert variant="destructive">
-                      <AlertDescription>{actionData.error}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {actionData?.success && (
-                    <Alert>
-                      <AlertDescription>{t('teacher:feedbackSaved')}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <Button type="submit" className="w-full">
-                    <Save className="w-4 h-4 mr-2" />
-                    {t('teacher:saveFeedback')}
-                  </Button>
-                </Form>
-              </CardContent>
-            </Card>
+            <GradingSummaryCard grading={submission.grading} />
+            <FeedbackFormCard
+              defaultFeedback={submission.grading.teacherFeedback}
+              actionData={actionData}
+            />
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+// ============================================================================
+// Sub-components - extracted to eliminate Card structure duplication
+// ============================================================================
+
+function StudentInfoCard({ student }: { student: TeacherSubmissionView['student'] }) {
+  const { t } = useTranslation('teacher');
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('studentInfo')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center gap-4">
+          <Avatar className="h-12 w-12">
+            <AvatarImage src={student.picture ?? undefined} alt={student.name} />
+            <AvatarFallback className="bg-primary/10 text-primary">
+              {student.initial}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h3 className="text-lg font-medium text-foreground">{student.name}</h3>
+            <p className="text-sm text-muted-foreground">{student.email}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AssignmentInfoCard({
+  assignment,
+  grading
+}: {
+  assignment: TeacherSubmissionView['assignment'];
+  grading: TeacherSubmissionView['grading'];
+}) {
+  const { t } = useTranslation('teacher');
+
+  // Format date on client-side for i18n
+  const formatDate = (date: string) => new Date(date).toLocaleString();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('assignmentInfo')}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="text-sm text-muted-foreground">
+          {t('course')}: {assignment.course.name}
+        </div>
+        {assignment.dueDate && (
+          <div className="text-sm text-muted-foreground">
+            {t('dueDate')}: {formatDate(assignment.dueDate)}
+          </div>
+        )}
+        {assignment.description && (
+          <div className="text-sm text-muted-foreground">{assignment.description}</div>
+        )}
+        {grading.filePath && (
+          <div className="pt-2">
+            <Button asChild variant="outline" size="sm">
+              <a href={grading.filePath} target="_blank" rel="noopener noreferrer">
+                {t('downloadFile')}
+              </a>
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AIAnalysisCard({ result }: { result: any | null }) {
+  const { t } = useTranslation('teacher');
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('aiAnalysis')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {result ? (
+          <GradingResultDisplay result={result} />
+        ) : (
+          <p className="text-sm text-muted-foreground">{t('aiAnalysisInProgress')}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function GradingSummaryCard({ grading }: { grading: TeacherSubmissionView['grading'] }) {
+  const { t } = useTranslation('teacher');
+
+  // Format date on client-side for i18n
+  const formatDate = (date: string) => new Date(date).toLocaleString();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('gradingSummary')}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">{t('score')}</span>
+          <span className="font-medium">
+            {grading.finalScore !== null ? `${grading.finalScore} ${t('points')}` : '-'}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">{t('submittedAt')}</span>
+          <span>{formatDate(grading.uploadedAt)}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FeedbackFormCard({
+  defaultFeedback,
+  actionData
+}: {
+  defaultFeedback: string | null;
+  actionData: ActionData | undefined;
+}) {
+  const { t } = useTranslation('teacher');
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('provideFeedback')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Form method="post" className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="teacherFeedback">{t('feedbackLabel')}</Label>
+            <Textarea
+              id="teacherFeedback"
+              name="teacherFeedback"
+              rows={6}
+              defaultValue={defaultFeedback || ''}
+              placeholder={t('feedbackPlaceholder')}
+              className="bg-background border-border"
+            />
+          </div>
+
+          {actionData?.error && (
+            <Alert variant="destructive">
+              <AlertDescription>{actionData.error}</AlertDescription>
+            </Alert>
+          )}
+
+          {actionData?.success && (
+            <Alert>
+              <AlertDescription>{t('feedbackSaved')}</AlertDescription>
+            </Alert>
+          )}
+
+          <Button type="submit" className="w-full">
+            <Save className="w-4 h-4 mr-2" />
+            {t('saveFeedback')}
+          </Button>
+        </Form>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,0 +1,27 @@
+{
+  "title": "Settings",
+  "subtitle": "Manage your personal information and preferences",
+  "personalInfo": {
+    "title": "Personal Information",
+    "name": "Name",
+    "role": "Role"
+  },
+  "classes": {
+    "title": "My Courses & Classes",
+    "description": "View all courses you are enrolled in and their class schedules",
+    "noClasses": "You are not enrolled in any classes yet",
+    "courseLevelEnrollment": "Course-level enrollment (No specific class assigned)",
+    "joinedAt": "Joined",
+    "students": "Students",
+    "assignments": "Assignments"
+  },
+  "teacher": {
+    "overview": "Course Overview",
+    "description": "Summary of all courses you are teaching",
+    "totalCourses": "Total Courses",
+    "totalStudents": "Total Students",
+    "totalAssignments": "Total Assignments",
+    "coursesList": "My Courses",
+    "noCourses": "No courses created yet"
+  }
+}

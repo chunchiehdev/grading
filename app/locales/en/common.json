@@ -101,5 +101,9 @@
   "notFound": {
     "message": "Looks like you've ventured into the unknown digital realm."
   },
-  "returnHome": "Return to website"
+  "returnHome": "Return to website",
+  "roles": {
+    "student": "Student",
+    "teacher": "Teacher"
+  }
 }

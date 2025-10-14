@@ -131,11 +131,6 @@ export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
   
-  // 只記錄非靜態資源的請求
-  if (!isStaticAsset(path)) {
-    console.log('🚀 root.tsx loader called for path:', path);
-  }
-  
   const locale = getServerLocale(request);
   const session = await getSession(request);
   const toast = session.get('toast') || null;

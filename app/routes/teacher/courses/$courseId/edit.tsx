@@ -1,9 +1,9 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Trash2 } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
-import { getCourseById, updateCourse } from '@/services/course.server';
+import { getCourseById, updateCourse, deleteCourse } from '@/services/course.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,32 +42,47 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = (formData.get('intent') as string) || 'update';
 
-  if (intent !== 'update') {
-    return { error: 'Invalid intent' };
+  // Handle delete action
+  if (intent === 'delete') {
+    try {
+      const ok = await deleteCourse(courseId, teacher.id);
+      if (!ok) {
+        return { error: 'Failed to delete course' };
+      }
+      return redirect('/teacher/courses');
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      return { error: 'An error occurred while deleting the course' };
+    }
   }
 
-  const name = (formData.get('name') as string) || '';
-  const description = (formData.get('description') as string) || '';
+  // Handle update action
+  if (intent === 'update') {
+    const name = (formData.get('name') as string) || '';
+    const description = (formData.get('description') as string) || '';
 
-  if (!name || name.trim().length === 0) {
-    return { error: 'Course name is required' };
-  }
-
-  try {
-    const updated = await updateCourse(courseId, teacher.id, {
-      name: name.trim(),
-      description: description?.trim() || undefined,
-    });
-
-    if (!updated) {
-      return { error: 'Failed to update course' };
+    if (!name || name.trim().length === 0) {
+      return { error: 'Course name is required' };
     }
 
-    return redirect(`/teacher/courses/${courseId}`);
-  } catch (error) {
-    console.error('Error updating course:', error);
-    return { error: 'An error occurred while updating the course' };
+    try {
+      const updated = await updateCourse(courseId, teacher.id, {
+        name: name.trim(),
+        description: description?.trim() || undefined,
+      });
+
+      if (!updated) {
+        return { error: 'Failed to update course' };
+      }
+
+      return redirect(`/teacher/courses/${courseId}`);
+    } catch (error) {
+      console.error('Error updating course:', error);
+      return { error: 'An error occurred while updating the course' };
+    }
   }
+
+  return { error: 'Invalid intent' };
 }
 
 export default function EditCourse() {
@@ -77,7 +92,8 @@ export default function EditCourse() {
 
   return (
     <div className="min-h-full flex items-center justify-center p-8">
-      <div className="w-full max-w-4xl">
+      <div className="w-full max-w-4xl space-y-6">
+        {/* Basic Information Card */}
         <Card>
           <CardHeader>
             <CardTitle>{t('course:edit.title')}</CardTitle>
@@ -114,6 +130,38 @@ export default function EditCourse() {
                   {t('course:edit.save')}
                 </Button>
               </div>
+            </Form>
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone Card */}
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="text-destructive">{t('course:settings.dangerZone')}</CardTitle>
+            <CardDescription>
+              {t('course:settings.dangerZoneDescription')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>
+                {t('course:settings.deleteWarning')}
+              </AlertDescription>
+            </Alert>
+            <Form method="post">
+              <input type="hidden" name="intent" value="delete" />
+              <Button
+                type="submit"
+                variant="destructive"
+                onClick={(e) => {
+                  if (!confirm(t('course:settings.deleteConfirmMessage'))) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {t('course:settings.deleteCourse')}
+              </Button>
             </Form>
           </CardContent>
         </Card>

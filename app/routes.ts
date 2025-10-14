@@ -5,6 +5,7 @@ export default [
   // Public routes
   index('./routes/index.tsx'),
   route('/join', './routes/join.tsx'),
+  route('/settings', './routes/settings.tsx'),
 
   route('/auth', './routes/auth/layout.tsx', [  
     route('login', './routes/auth/login.tsx'), 
@@ -22,10 +23,10 @@ export default [
     route('courses', './routes/teacher/courses/index.tsx'),
     route('courses/new', './routes/teacher/courses/new.tsx'),
     route('courses/:courseId/edit', './routes/teacher/courses/$courseId/edit.tsx'),
-    route('courses/:courseId/settings', './routes/teacher/courses/$courseId/settings.tsx'),
     route('courses/:courseId/students', './routes/teacher/courses/$courseId/students.tsx'),
     
     route('courses/:courseId/classes/new', './routes/teacher/courses/$courseId/classes/new.tsx'),
+    route('courses/:courseId/classes/:classId', './routes/teacher/courses/$courseId/classes/$classId/index.tsx'),
     route('courses/:courseId/classes/:classId/students', './routes/teacher/courses/$courseId/classes/$classId/students.tsx'),
     route('courses/:courseId/classes/:classId/edit', './routes/teacher/courses/$courseId/classes/$classId/edit.tsx'),
 
@@ -43,10 +44,10 @@ export default [
   // Student Platform routes
   ...prefix('/student', [
     route('dashboard', './routes/student/dashboard.tsx'),
-    route('courses', './routes/student/courses.tsx'),
+    route('courses', './routes/student/courses/index.tsx'),
     route('courses/:courseId', './routes/student/courses/$courseId.tsx'),
-    route('assignments', './routes/student/assignments.tsx'),
-    route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId/submit.tsx'),
+    route('assignments', './routes/student/assignments/index.tsx'),
+    route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId.submit.tsx'),
     route('submissions', './routes/student/submissions/index.tsx'),
     route('submissions/:submissionId', './routes/student/submissions/$submissionId.tsx'),
   ]),

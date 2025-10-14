@@ -59,13 +59,13 @@ export function PageHeader({
             {subtitle && <p className="text-muted-foreground mt-2 sm:mt-3 px-1">{subtitle}</p>}
           </div>
 
-          {/* Actions: dropdown on mobile, inline on >= sm */}
+          {/* Actions: always visible */}
           <div className="flex items-center gap-2">
             {menuItems && menuItems.length > 0 ? (
               <div className={cn(showInlineActions ? 'sm:hidden' : '')}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" aria-label={menuButtonLabel}>
+                    <Button variant="outline" size="icon-sm" aria-label={menuButtonLabel}>
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -83,8 +83,8 @@ export function PageHeader({
               </div>
             ) : null}
 
-            {actions && showInlineActions ? (
-              <div className="hidden sm:flex items-center gap-2">{actions}</div>
+            {actions ? (
+              <div className="flex items-center gap-2">{actions}</div>
             ) : null}
           </div>
         </div>

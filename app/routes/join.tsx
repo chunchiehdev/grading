@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { getSession, commitSession } from '@/sessions.server';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { CheckCircle, AlertCircle, Users, User, Clock, MapPin } from 'lucide-react';
+import { CheckCircle, AlertCircle, Users, User, Clock, MapPin, GraduationCap } from 'lucide-react';
 import { useState } from 'react';
 
 import { getUser } from '@/services/auth.server';
@@ -11,7 +11,6 @@ import { enrollStudentInClass } from '@/services/enrollment.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PageHeader } from '@/components/ui/page-header';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -35,6 +34,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   if (!user) {
     throw redirect('/auth/login');
   }
+
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
 
@@ -72,27 +72,44 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
   if (!user) {
     throw redirect('/auth/login');
   }
+
   const formData = await request.formData();
   const code = formData.get('code') as string;
   let classId = formData.get('classId') as string;
 
   if (!code) {
-    return {
-      success: false,
-      error: 'Invitation code is required',
-    };
+    return { success: false, error: 'Invitation code is required' };
   }
 
-  // Validate invitation and get classId if not provided
+  // Early return: Get classId from invitation or form data
   if (!classId) {
     const validation = await validateInvitationCode(code, user.id);
+
+    // Case 1: Invitation has specific classId
     if (validation.invitationCode?.classId) {
       classId = validation.invitationCode.classId;
-    } else {
-      return {
-        success: false,
-        error: '請選擇班次',
-      };
+    }
+    // Case 2: Course-level invitation, need to check if classes exist
+    else {
+      const courseId = validation.invitationCode?.courseId;
+      const teacherId = validation.course?.teacher.id;
+
+      if (!courseId || !teacherId) {
+        return { success: false, error: '無效的邀請碼資訊' };
+      }
+
+      const classes = await listClassesByCourse(courseId, teacherId);
+
+      // Early return: No classes available
+      if (classes.length === 0) {
+        return {
+          success: false,
+          error: '此課程尚未建立時段，請聯絡教師',
+        };
+      }
+
+      // Early return: Classes exist but none selected
+      return { success: false, error: '請選擇時段' };
     }
   }
 
@@ -132,18 +149,15 @@ export default function JoinCourse() {
   // Invalid invitation code
   if (!validation.isValid) {
     return (
-      <div>
-        <PageHeader
-          title={t('course:joinCourse.invalidTitle')}
-          subtitle={t('course:joinCourse.invalidSubtitle')}
-        />
-
-        <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card>
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Card className="border-destructive/50 shadow-lg">
             <CardContent className="pt-6">
               <div className="text-center py-8">
-                <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
-                <h3 className="text-lg font-medium mb-2">
+                <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
+                  <AlertCircle className="h-10 w-10 text-destructive" />
+                </div>
+                <h3 className="text-2xl font-bold mb-2">
                   {t('course:joinCourse.notValid')}
                 </h3>
                 <p className="text-muted-foreground mb-6">
@@ -151,21 +165,28 @@ export default function JoinCourse() {
                 </p>
 
                 {validation.course && (
-                  <div className="bg-muted/50 rounded-lg p-4 mb-6">
-                    <h4 className="font-medium mb-2">
+                  <div className="bg-muted/50 border rounded-lg p-6 mb-6 text-left">
+                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5" />
                       {t('course:joinCourse.courseInfo')}
                     </h4>
-                    <p className="text-sm text-muted-foreground">
-                      <strong>{t('course:course')}:</strong> {validation.course.name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {t('course:instructor', { name: validation.course.teacher.name })} ({validation.course.teacher.email})
-                    </p>
-                    {validation.course.description && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {validation.course.description}
+                    <div className="space-y-2">
+                      <p className="text-sm">
+                        <strong className="text-foreground">{t('course:course')}:</strong>{' '}
+                        <span className="text-muted-foreground">{validation.course.name}</span>
                       </p>
-                    )}
+                      <p className="text-sm">
+                        <strong className="text-foreground">{t('course:instructorLabel')}:</strong>{' '}
+                        <span className="text-muted-foreground">
+                          {validation.course.teacher.name} ({validation.course.teacher.email})
+                        </span>
+                      </p>
+                      {validation.course.description && (
+                        <p className="text-sm text-muted-foreground mt-3 pt-3 border-t">
+                          {validation.course.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -174,7 +195,7 @@ export default function JoinCourse() {
                     {t('course:joinCourse.contactTeacher')}
                   </p>
 
-                  <Button asChild className="w-full">
+                  <Button asChild className="w-full" size="lg">
                     <Link to={user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard'}>
                       {t('course:joinCourse.returnToDashboard')}
                     </Link>
@@ -191,18 +212,15 @@ export default function JoinCourse() {
   // User is already enrolled
   if (validation.isAlreadyEnrolled) {
     return (
-      <div>
-        <PageHeader
-          title={t('course:joinCourse.alreadyEnrolledTitle')}
-          subtitle={t('course:joinCourse.alreadyEnrolledSubtitle')}
-        />
-
-        <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card>
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Card className="border-green-500/50 shadow-lg">
             <CardContent className="pt-6">
               <div className="text-center py-8">
-                <CheckCircle className="mx-auto h-12 w-12 text-green-600 dark:text-green-500 mb-4" />
-                <h3 className="text-lg font-medium mb-2">
+                <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-500" />
+                </div>
+                <h3 className="text-2xl font-bold mb-2">
                   {t('course:joinCourse.alreadyEnrolled')}
                 </h3>
                 <p className="text-muted-foreground mb-6">
@@ -210,18 +228,18 @@ export default function JoinCourse() {
                 </p>
 
                 {validation.course && (
-                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-6">
-                    <div className="flex items-start space-x-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-500 mt-0.5 flex-shrink-0" />
-                      <div className="text-left flex-1">
-                        <h4 className="font-medium text-green-900 dark:text-green-100 mb-1">
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-6 mb-6">
+                    <div className="flex items-start space-x-3 text-left">
+                      <GraduationCap className="h-6 w-6 text-green-600 dark:text-green-500 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2 text-lg">
                           {validation.course.name}
                         </h4>
                         <p className="text-sm text-green-800 dark:text-green-200">
                           {t('course:instructor', { name: validation.course.teacher.name })}
                         </p>
                         {validation.course.description && (
-                          <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                          <p className="text-sm text-green-700 dark:text-green-300 mt-2 pt-2 border-t border-green-200 dark:border-green-800">
                             {validation.course.description}
                           </p>
                         )}
@@ -231,12 +249,12 @@ export default function JoinCourse() {
                 )}
 
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <Button asChild className="flex-1">
+                  <Button asChild className="flex-1" size="lg">
                     <Link to="/student/assignments">
                       {t('course:viewAssignments')}
                     </Link>
                   </Button>
-                  <Button asChild variant="outline" className="flex-1">
+                  <Button asChild variant="outline" className="flex-1" size="lg">
                     <Link to="/student/dashboard">
                       {t('course:joinCourse.goToDashboard')}
                     </Link>
@@ -252,20 +270,17 @@ export default function JoinCourse() {
 
   // Valid invitation - show course info and join button
   return (
-    <div>
-      <PageHeader
-        title={t('course:joinCourse.title')}
-        subtitle={t('course:joinCourse.subtitle')}
-      />
-
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <Card className="shadow-lg">
+          <CardHeader className="space-y-2">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
               {t('course:joinCourse.invitation')}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-base">
               {t('course:joinCourse.reviewDetails')}
             </CardDescription>
           </CardHeader>
@@ -273,31 +288,37 @@ export default function JoinCourse() {
           <CardContent className="space-y-6">
             {/* Course Information */}
             {validation.course && (
-              <div className="bg-muted/50 border rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-foreground mb-3">
-                  {validation.course.name}
-                </h3>
-
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <User className="h-4 w-4 mr-2 flex-shrink-0" />
-                    <span><strong className="text-foreground">{t('course:instructorLabel')}:</strong> {validation.course.teacher.name}</span>
+              <div className="bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20 rounded-lg p-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <GraduationCap className="h-5 w-5 text-primary" />
                   </div>
-
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <span className="ml-6"><strong className="text-foreground">{t('course:student.email')}:</strong> {validation.course.teacher.email}</span>
-                  </div>
-
-                  {validation.course.description && (
-                    <div className="mt-4 ml-6">
-                      <p className="text-sm text-foreground font-medium">
-                        {t('course:description')}:
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-foreground mb-1">
+                      {validation.course.name}
+                    </h3>
+                    {validation.course.description && (
+                      <p className="text-sm text-muted-foreground leading-relaxed">
                         {validation.course.description}
                       </p>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2 mt-4 pt-4 border-t border-primary/20">
+                  <div className="flex items-center gap-2 text-sm">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">
+                      <strong className="text-foreground">{t('course:instructorLabel')}:</strong>{' '}
+                      {validation.course.teacher.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm ml-6">
+                    <span className="text-muted-foreground">
+                      <strong className="text-foreground">{t('course:student.email')}:</strong>{' '}
+                      {validation.course.teacher.email}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -307,7 +328,8 @@ export default function JoinCourse() {
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>{t('common:info')}:</strong> {t('course:joinCourse.roleNote', { role: user.role.toLowerCase() })}
+                  <strong>{t('common:info')}:</strong>{' '}
+                  {t('course:joinCourse.roleNote', { role: user.role.toLowerCase() })}
                 </AlertDescription>
               </Alert>
             )}
@@ -328,7 +350,11 @@ export default function JoinCourse() {
               {/* Class selection */}
               {availableClasses.length > 0 ? (
                 <div className="space-y-4">
-                  <Label className="text-base font-semibold">請選擇班次：</Label>
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <Label className="text-base font-semibold">請選擇時段</Label>
+                  </div>
+
                   <RadioGroup value={selectedClassId || ''} onValueChange={setSelectedClassId}>
                     <div className="space-y-3">
                       {availableClasses.map((cls) => {
@@ -338,12 +364,12 @@ export default function JoinCourse() {
                         return (
                           <div
                             key={cls.id}
-                            className={`flex items-start space-x-3 border rounded-lg p-4 transition-all ${
+                            className={`relative flex items-start space-x-3 border-2 rounded-lg p-4 transition-all ${
                               isFull
-                                ? 'opacity-50 bg-muted/50 cursor-not-allowed'
+                                ? 'opacity-60 bg-muted/50 cursor-not-allowed border-muted'
                                 : isSelected
-                                ? 'border-primary bg-primary/5 shadow-sm'
-                                : 'hover:bg-accent/50 hover:border-accent cursor-pointer'
+                                ? 'border-primary bg-primary/5 shadow-md'
+                                : 'border-border hover:bg-accent/50 hover:border-accent cursor-pointer'
                             }`}
                           >
                             <RadioGroupItem
@@ -357,32 +383,41 @@ export default function JoinCourse() {
                               className={`flex-1 ${isFull ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                               <div>
-                                <div className="font-semibold text-base text-foreground">
+                                <div className="font-semibold text-base text-foreground mb-1">
                                   {cls.name}
                                 </div>
 
                                 {cls.schedule && (
-                                  <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
-                                    <Clock className="w-3 h-3" />
-                                    <span>{cls.schedule.day}</span>
-                                    <span>{cls.schedule.startTime}-{cls.schedule.endTime}</span>
+                                  <div className="text-sm text-muted-foreground mt-2 flex items-center gap-2 flex-wrap">
+                                    <div className="flex items-center gap-1">
+                                      <Clock className="w-3.5 h-3.5" />
+                                      <span>{cls.schedule.day}</span>
+                                    </div>
+                                    <span className="text-muted-foreground/50">•</span>
+                                    <span>{cls.schedule.startTime} - {cls.schedule.endTime}</span>
                                     {cls.schedule.room && (
                                       <>
-                                        <MapPin className="w-3 h-3 ml-2" />
-                                        <span>{cls.schedule.room}</span>
+                                        <span className="text-muted-foreground/50">•</span>
+                                        <div className="flex items-center gap-1">
+                                          <MapPin className="w-3.5 h-3.5" />
+                                          <span>{cls.schedule.room}</span>
+                                        </div>
                                       </>
                                     )}
                                   </div>
                                 )}
 
-                                <div className="flex items-center gap-2 mt-2">
-                                  <Badge variant={isFull ? 'destructive' : 'secondary'} className="text-xs">
+                                <div className="flex items-center gap-2 mt-3">
+                                  <Badge
+                                    variant={isFull ? 'destructive' : 'secondary'}
+                                    className="text-xs font-medium"
+                                  >
                                     <Users className="w-3 h-3 mr-1" />
                                     {cls._count.enrollments}
                                     {cls.capacity ? `/${cls.capacity}` : ''} 人
                                   </Badge>
                                   {isFull && (
-                                    <span className="text-xs text-destructive font-medium">已滿</span>
+                                    <span className="text-xs text-destructive font-semibold">已滿</span>
                                   )}
                                 </div>
                               </div>
@@ -394,36 +429,52 @@ export default function JoinCourse() {
                   </RadioGroup>
 
                   {!selectedClassId && (
-                    <p className="text-sm text-muted-foreground">
-                      請選擇一個班次以繼續
-                    </p>
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        請選擇一個時段以繼續
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </div>
               ) : validation.invitationCode?.classId ? (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
+                <Alert className="border-primary/50 bg-primary/5">
+                  <CheckCircle className="h-4 w-4 text-primary" />
                   <AlertDescription>
-                    此邀請碼專屬於特定班次，將自動加入該班次
+                    此邀請碼專屬於特定時段，將自動加入該時段
                   </AlertDescription>
                 </Alert>
               ) : null}
 
               {/* What happens next */}
-              <div className="bg-muted/50 rounded-lg p-4">
-                <h4 className="font-medium mb-2">
+              <div className="bg-muted/50 border rounded-lg p-5">
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-primary" />
                   {t('course:joinCourse.whatHappens')}
                 </h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• {t('course:joinCourse.benefits.enrolled')}</li>
-                  <li>• {t('course:joinCourse.benefits.viewSubmit')}</li>
-                  <li>• {t('course:joinCourse.benefits.aiGrading')}</li>
-                  <li>• {t('course:joinCourse.benefits.codeUsed')}</li>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>{t('course:joinCourse.benefits.enrolled')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>{t('course:joinCourse.benefits.viewSubmit')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>{t('course:joinCourse.benefits.aiGrading')}</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-0.5">•</span>
+                    <span>{t('course:joinCourse.benefits.codeUsed')}</span>
+                  </li>
                 </ul>
               </div>
 
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Button asChild variant="outline" className="flex-1">
+                <Button asChild variant="outline" className="flex-1" size="lg">
                   <Link to={user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard'}>
                     {t('common:cancel')}
                   </Link>
@@ -431,8 +482,10 @@ export default function JoinCourse() {
                 <Button
                   type="submit"
                   className="flex-1"
+                  size="lg"
                   disabled={availableClasses.length > 0 && !selectedClassId}
                 >
+                  <Users className="h-4 w-4 mr-2" />
                   {t('course:joinCourse.joinCourse')}
                 </Button>
               </div>
