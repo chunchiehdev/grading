@@ -358,7 +358,7 @@ export default function JoinCourse() {
                   <RadioGroup value={selectedClassId || ''} onValueChange={setSelectedClassId}>
                     <div className="space-y-3">
                       {availableClasses.map((cls) => {
-                        const isFull = cls.capacity && cls._count.enrollments >= cls.capacity;
+                        const isFull = !!(cls.capacity && cls._count.enrollments >= cls.capacity);
                         const isSelected = selectedClassId === cls.id;
 
                         return (

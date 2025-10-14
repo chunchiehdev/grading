@@ -6,7 +6,7 @@ import { CourseDetailContent } from '@/components/student/CourseDetailContent';
 import { PageHeader } from '@/components/ui/page-header';
 
 interface LoaderData extends StudentCourseDetailData {
-  student: { id: string; email: string; role: string };
+  student: { id: string; email: string; role: string; name: string };
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs): Promise<LoaderData> {

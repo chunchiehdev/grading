@@ -34,6 +34,7 @@ export interface CreateAssignmentAreaData {
   description?: string;
   rubricId: string;
   dueDate?: Date;
+  classId?: string | null;
 }
 
 export interface UpdateAssignmentAreaData {
@@ -91,6 +92,7 @@ export async function createAssignmentArea(
         courseId,
         rubricId: data.rubricId,
         dueDate: data.dueDate || null,
+        classId: data.classId || null,
       },
       include: {
         course: {

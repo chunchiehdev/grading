@@ -10,7 +10,7 @@ export interface StudentCourseDetailData {
       id: string;
       email: string;
       name: string;
-      picture: string;
+      picture: string | null;
     };
     _count: {
       assignmentAreas: number;
@@ -19,12 +19,7 @@ export interface StudentCourseDetailData {
   myClass: {
     id: string;
     name: string;
-    schedule: {
-      day: string;
-      startTime: string;
-      endTime: string;
-      room: string | null;
-    } | null;
+    schedule: any;
   } | null;
   enrolledAt: Date;
   assignments: StudentAssignmentInfo[];

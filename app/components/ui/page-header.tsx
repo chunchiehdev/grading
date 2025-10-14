@@ -30,7 +30,7 @@ const pageHeaderVariants = cva(
 
 export interface PageHeaderProps extends React.HTMLAttributes<HTMLElement> {
   title?: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   menuItems?: { label: string; to: string; icon?: LucideIcon }[];
   menuButtonLabel?: string;

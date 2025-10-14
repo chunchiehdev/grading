@@ -31,7 +31,7 @@ export interface ClassInfo {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
-  course?: {
+  course: {
     id: string;
     name: string;
     code: string | null;
@@ -46,7 +46,7 @@ export interface ClassInfo {
     name: string;
     email: string;
   } | null;
-  _count?: {
+  _count: {
     enrollments: number;
     assignmentAreas: number;
   };
@@ -62,8 +62,8 @@ export interface CreateClassData {
   courseId: string;
   name: string;
   schedule?: any;
-  capacity?: number;
-  assistantId?: string;
+  capacity?: number | null;
+  assistantId?: string | null;
 }
 
 /**
@@ -75,7 +75,7 @@ export interface CreateClassData {
 export interface UpdateClassData {
   name?: string;
   schedule?: any;
-  capacity?: number;
+  capacity?: number | null;
   assistantId?: string;
   isActive?: boolean;
 }

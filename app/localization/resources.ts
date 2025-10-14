@@ -12,6 +12,7 @@ import enAssignment from '../locales/en/assignment.json'
 import enErrors from '../locales/en/errors.json'
 import enTeacher from '../locales/en/teacher.json'
 import enSettings from '../locales/en/settings.json'
+import enAnalytics from '../locales/en/analytics.json'
 
 import zhCommon from '../locales/zh/common.json'
 import zhAuth from '../locales/zh/auth.json'
@@ -26,6 +27,7 @@ import zhAssignment from '../locales/zh/assignment.json'
 import zhErrors from '../locales/zh/errors.json'
 import zhTeacher from '../locales/zh/teacher.json'
 import zhSettings from '../locales/zh/settings.json'
+import zhAnalytics from '../locales/zh/analytics.json'
 
 
 // Create supported languages array
@@ -47,6 +49,7 @@ export type Resource = {
   errors: typeof enErrors
   teacher: typeof enTeacher
   settings: typeof enSettings
+  analytics: typeof enAnalytics
 }
 
 // Export resources in the format remix-i18next expects
@@ -65,6 +68,7 @@ export const resources: Record<SupportedLanguage, Resource> = {
     errors: enErrors,
     teacher: enTeacher,
     settings: enSettings,
+    analytics: enAnalytics,
   },
   zh: {
     common: zhCommon,
@@ -80,5 +84,6 @@ export const resources: Record<SupportedLanguage, Resource> = {
     errors: zhErrors,
     teacher: zhTeacher,
     settings: zhSettings,
+    analytics: zhAnalytics,
   },
 }

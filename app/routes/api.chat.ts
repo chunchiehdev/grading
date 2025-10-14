@@ -1,6 +1,6 @@
 import { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { requireAuthForApi } from '@/services/auth.server';
-import { db } from '@/generated/prisma/client';
+import { db } from '@/lib/db.server';
 import logger from '@/utils/logger';
 
 // Create new chat

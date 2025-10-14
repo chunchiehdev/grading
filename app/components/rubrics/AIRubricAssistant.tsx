@@ -68,11 +68,11 @@ const MessageItem = memo(({ msg, index, user, onApplyRubric }: MessageItemProps)
       {/* Avatar */}
       <div className="flex-shrink-0">
         {isUser ? (
-          user?.user?.picture ? (
-            <img 
-              src={user.user.picture} 
-              alt={user.user.email || 'User'} 
-              className="w-8 h-8 rounded-full" 
+          user?.picture ? (
+            <img
+              src={user.picture}
+              alt={user.email || 'User'}
+              className="w-8 h-8 rounded-full"
             />
           ) : (
             <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
@@ -183,7 +183,7 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
 
   // Initialize chat when dialog opens
   useEffect(() => {
-    const userId = user?.user?.id;
+    const userId = user?.id;
     console.log("userId", userId)
     
     if (isOpen && userId) {
@@ -221,11 +221,11 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
       disconnect();
       currentUserId.current = null;
     }
-  }, [isOpen, user?.user?.id]);
+  }, [isOpen, user?.id]);
   
   // 獨立的 useEffect 處理連接狀態變化 - 減少依賴項
   useEffect(() => {
-    const userId = user?.user?.id;
+    const userId = user?.id;
     
     // 只在真正需要時才重新連接，減少不必要的檢查
     if (isOpen && userId && userId === currentUserId.current && !isConnected && !isLoading) {

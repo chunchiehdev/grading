@@ -162,7 +162,7 @@ export class ProtectedAIService {
         for (let attempt = 0; attempt <= retryAttempts; attempt++) {
           try {
             return await this.callAIWithFallback(
-              operation, 
+              operation,
               operation, // 使用相同操作作為備援
               `${operationName}-item-${i + index}`
             );
@@ -176,12 +176,15 @@ export class ProtectedAIService {
               });
               return error instanceof Error ? error : new Error(String(error));
             }
-            
+
             // 指數退避重試
             const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
+
+        // TypeScript 安全性：理論上不應該到達這裡
+        return new Error('Unexpected: batch operation completed without result');
       });
 
       const batchResults = await Promise.all(batchPromises);

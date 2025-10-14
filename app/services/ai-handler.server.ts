@@ -11,7 +11,7 @@ import logger from '@/utils/logger';
 export class AIHandlerService {
   private eventSubscriber: EventSubscriber;
   private isRunning: boolean = false;
-  private static instanceCount: number = 0;
+  public static instanceCount: number = 0;
   private instanceId: number;
   private processingEvents: Set<string> = new Set(); 
 
