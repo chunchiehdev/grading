@@ -37,12 +37,8 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
 
             {/* Main Content */}
             <div className="space-y-3">
-              <h1 className="text-2xl font-semibold text-foreground">
-                {t('dashboard:emptyState.noCourses')}
-              </h1>
-              <p className="text-muted-foreground">
-                {t('dashboard:emptyState.noCoursesDescription')}
-              </p>
+              <h1 className="text-2xl font-semibold text-foreground">{t('dashboard:emptyState.noCourses')}</h1>
+              <p className="text-muted-foreground">{t('dashboard:emptyState.noCoursesDescription')}</p>
             </div>
 
             {/* Action Button */}

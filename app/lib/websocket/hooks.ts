@@ -4,11 +4,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import {
-  ConnectionState,
-  type ChatMessage,
-  type WebSocketClientOptions
-} from './types';
+import { ConnectionState, type ChatMessage, type WebSocketClientOptions } from './types';
 import { websocketClient } from './index';
 
 /**
@@ -70,7 +66,7 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
     userIdRef.current = userId;
 
     // 連接到 WebSocket
-    websocketClient.connect(userId).catch(error => {
+    websocketClient.connect(userId).catch((error) => {
       console.error('[useWebSocket] Connection failed:', error);
     });
 
@@ -95,7 +91,7 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
     ping: useCallback(() => websocketClient.ping(), []),
 
     // 事件監聽
-    on: useCallback((event: string, handler: Function) => websocketClient.on(event as any, handler as any), [])
+    on: useCallback((event: string, handler: Function) => websocketClient.on(event as any, handler as any), []),
   };
 }
 
@@ -106,14 +102,7 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
 export function useChatWebSocket(userId?: string, chatId?: string) {
   const currentChatRef = useRef<string | null>(null);
 
-  const {
-    connectionState,
-    isConnected,
-    isHealthy,
-    joinChat,
-    on,
-    ...rest
-  } = useWebSocket(userId);
+  const { connectionState, isConnected, isHealthy, joinChat, on, ...rest } = useWebSocket(userId);
 
   // 自動加入聊天室
   useEffect(() => {
@@ -132,20 +121,26 @@ export function useChatWebSocket(userId?: string, chatId?: string) {
   }, [chatId, isConnected, joinChat]);
 
   // 訊息監聽 Hook
-  const useMessageListener = useCallback((handler: (message: ChatMessage) => void) => {
-    useEffect(() => {
-      const unsubscribe = on('new-msg', handler);
-      return unsubscribe;
-    }, [handler]);
-  }, [on]);
+  const useMessageListener = useCallback(
+    (handler: (message: ChatMessage) => void) => {
+      useEffect(() => {
+        const unsubscribe = on('new-msg', handler);
+        return unsubscribe;
+      }, [handler]);
+    },
+    [on]
+  );
 
   // 聊天同步監聽 Hook
-  const useChatSyncListener = useCallback((handler: (data: any) => void) => {
-    useEffect(() => {
-      const unsubscribe = on('chat-sync', handler);
-      return unsubscribe;
-    }, [handler]);
-  }, [on]);
+  const useChatSyncListener = useCallback(
+    (handler: (data: any) => void) => {
+      useEffect(() => {
+        const unsubscribe = on('chat-sync', handler);
+        return unsubscribe;
+      }, [handler]);
+    },
+    [on]
+  );
 
   return {
     connectionState,
@@ -158,7 +153,7 @@ export function useChatWebSocket(userId?: string, chatId?: string) {
     useChatSyncListener,
 
     // 基礎方法
-    ...rest
+    ...rest,
   };
 }
 
@@ -192,13 +187,16 @@ export function useWebSocketMonitor() {
       }
     }, []),
 
-    getDebugInfo: useCallback(() => ({
-      state: websocketClient.connectionState,
-      userId: websocketClient.currentUserId,
-      metrics: websocketClient.connectionMetrics,
-      isHealthy: websocketClient.isHealthy,
-      timestamp: new Date().toISOString()
-    }), [])
+    getDebugInfo: useCallback(
+      () => ({
+        state: websocketClient.connectionState,
+        userId: websocketClient.currentUserId,
+        metrics: websocketClient.connectionMetrics,
+        isHealthy: websocketClient.isHealthy,
+        timestamp: new Date().toISOString(),
+      }),
+      []
+    ),
   };
 }
 
@@ -206,11 +204,7 @@ export function useWebSocketMonitor() {
  * 一次性事件監聽 Hook
  * 用於處理特定事件的監聽
  */
-export function useWebSocketEvent<T>(
-  event: string,
-  handler: (data: T) => void,
-  deps: React.DependencyList = []
-) {
+export function useWebSocketEvent<T>(event: string, handler: (data: T) => void, deps: React.DependencyList = []) {
   const handlerRef = useRef(handler);
 
   // 更新處理器參考
@@ -233,8 +227,8 @@ export function useWebSocketEvent<T>(
  */
 export function useWebSocketReconnect() {
   const isReconnecting = websocketClient.connectionState === 'reconnecting';
-  const canReconnect = websocketClient.connectionState === 'disconnected' ||
-                      websocketClient.connectionState === 'error';
+  const canReconnect =
+    websocketClient.connectionState === 'disconnected' || websocketClient.connectionState === 'error';
 
   const reconnect = useCallback(async () => {
     if (!canReconnect) {
@@ -248,7 +242,7 @@ export function useWebSocketReconnect() {
     isReconnecting,
     canReconnect,
     reconnect,
-    connectionState: websocketClient.connectionState
+    connectionState: websocketClient.connectionState,
   };
 }
 
@@ -303,6 +297,6 @@ export function useWebSocketStatus() {
     ping: useCallback(() => websocketClient.ping(), []),
 
     // 事件監聽
-    on: useCallback((event: string, handler: Function) => websocketClient.on(event as any, handler as any), [])
+    on: useCallback((event: string, handler: Function) => websocketClient.on(event as any, handler as any), []),
   };
 }

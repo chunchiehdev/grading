@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Edit3, Check, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useTranslation } from "react-i18next";
+import { useState, useRef, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Edit3, Check, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface InlineEditProps {
   value: string;
@@ -23,7 +23,7 @@ export const InlineEdit = ({
   className,
   onSave,
   onCancel,
-  variant = 'body'
+  variant = 'body',
 }: InlineEditProps) => {
   const { t } = useTranslation('common');
   const defaultPlaceholder = placeholder || t('clickToEdit');
@@ -61,14 +61,14 @@ export const InlineEdit = ({
   };
 
   const getDisplayClass = () => {
-    const baseClass = "group flex items-center gap-2 rounded-md transition-colors";
+    const baseClass = 'group flex items-center gap-2 rounded-md transition-colors';
     switch (variant) {
       case 'title':
-        return cn(baseClass, "text-lg font-semibold hover:bg-muted/50 px-2 py-1");
+        return cn(baseClass, 'text-lg font-semibold hover:bg-muted/50 px-2 py-1');
       case 'subtitle':
-        return cn(baseClass, "text-base font-medium hover:bg-muted/50 px-2 py-1");
+        return cn(baseClass, 'text-base font-medium hover:bg-muted/50 px-2 py-1');
       default:
-        return cn(baseClass, "text-sm hover:bg-muted/50 px-2 py-1");
+        return cn(baseClass, 'text-sm hover:bg-muted/50 px-2 py-1');
     }
   };
 
@@ -83,24 +83,14 @@ export const InlineEdit = ({
           onKeyDown={handleKeyDown}
           onBlur={handleSave}
           placeholder={defaultPlaceholder}
-          className={cn("flex-1", className)}
+          className={cn('flex-1', className)}
           rows={multiline ? 3 : undefined}
         />
         <div className="flex items-center gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8"
-            onClick={handleSave}
-          >
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSave}>
             <Check className="h-4 w-4" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8"
-            onClick={handleCancel}
-          >
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleCancel}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -109,14 +99,9 @@ export const InlineEdit = ({
   }
 
   return (
-    <div
-      className={cn(getDisplayClass(), className, "cursor-pointer")}
-      onClick={() => setIsEditing(true)}
-    >
-      <span className={cn("flex-1", !value && "text-muted-foreground italic")}>
-        {value || defaultPlaceholder}
-      </span>
+    <div className={cn(getDisplayClass(), className, 'cursor-pointer')} onClick={() => setIsEditing(true)}>
+      <span className={cn('flex-1', !value && 'text-muted-foreground italic')}>{value || defaultPlaceholder}</span>
       <Edit3 className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
     </div>
   );
-}; 
+};

@@ -68,14 +68,14 @@ export async function loader({ request }: { request: Request }) {
         interval = undefined;
       }
       closed = true;
-    }
+    },
   });
 
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
     },
   });
 }

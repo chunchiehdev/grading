@@ -18,29 +18,19 @@ export function WebSocketTest() {
   const user = loaderData?.user || null;
   const userId = user?.id;
 
-
   console.log('WebSocketTest - loaderData:', loaderData);
   console.log('WebSocketTest - user:', user);
   console.log('WebSocketTest - userId:', userId);
 
-  
-  const {
-    connectionState,
-    isConnected,
-    isHealthy,
-    metrics,
-    reconnect
-  } = useWebSocketStatus();
+  const { connectionState, isConnected, isHealthy, metrics, reconnect } = useWebSocketStatus();
 
   const [pingResult, setPingResult] = useState<string>('');
   const [testLogs, setTestLogs] = useState<string[]>([]);
 
-
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
-    setTestLogs(prev => [`[${timestamp}] ${message}`, ...prev.slice(0, 9)]);
+    setTestLogs((prev) => [`[${timestamp}] ${message}`, ...prev.slice(0, 9)]);
   };
-
 
   const handlePing = async () => {
     try {
@@ -96,31 +86,44 @@ export function WebSocketTest() {
   }, [userId]);
 
   return (
-    <div style={{
-      padding: '20px',
-      border: '2px solid #ddd',
-      borderRadius: '8px',
-      maxWidth: '600px',
-      margin: '20px auto',
-      fontFamily: 'monospace'
-    }}>
+    <div
+      style={{
+        padding: '20px',
+        border: '2px solid #ddd',
+        borderRadius: '8px',
+        maxWidth: '600px',
+        margin: '20px auto',
+        fontFamily: 'monospace',
+      }}
+    >
       <h2 style={{ marginTop: 0 }}>🔧 WebSocket 連接測試</h2>
 
       {/* 基本信息 */}
       <div style={{ marginBottom: '20px' }}>
-        <div><strong>載入狀態:</strong> 已載入</div>
-        <div><strong>用戶ID:</strong> {userId || '未登入'}</div>
-        <div><strong>連接狀態:</strong>
-          <span style={{
-            color: isConnected ? 'green' : 'red',
-            fontWeight: 'bold',
-            marginLeft: '8px'
-          }}>
+        <div>
+          <strong>載入狀態:</strong> 已載入
+        </div>
+        <div>
+          <strong>用戶ID:</strong> {userId || '未登入'}
+        </div>
+        <div>
+          <strong>連接狀態:</strong>
+          <span
+            style={{
+              color: isConnected ? 'green' : 'red',
+              fontWeight: 'bold',
+              marginLeft: '8px',
+            }}
+          >
             {isConnected ? '🟢 已連接' : '🔴 未連接'}
           </span>
         </div>
-        <div><strong>詳細狀態:</strong> {connectionState}</div>
-        <div><strong>健康狀態:</strong> {isHealthy ? '✅ 健康' : '❌ 不健康'}</div>
+        <div>
+          <strong>詳細狀態:</strong> {connectionState}
+        </div>
+        <div>
+          <strong>健康狀態:</strong> {isHealthy ? '✅ 健康' : '❌ 不健康'}
+        </div>
       </div>
 
       {/* 連接指標 */}
@@ -144,7 +147,7 @@ export function WebSocketTest() {
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: isConnected ? 'pointer' : 'not-allowed'
+            cursor: isConnected ? 'pointer' : 'not-allowed',
           }}
         >
           🏓 測試心跳
@@ -159,7 +162,7 @@ export function WebSocketTest() {
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: !isConnected ? 'pointer' : 'not-allowed'
+            cursor: !isConnected ? 'pointer' : 'not-allowed',
           }}
         >
           🔄 手動重連
@@ -175,26 +178,20 @@ export function WebSocketTest() {
       {/* 事件日誌 */}
       <div>
         <h4 style={{ margin: '0 0 10px 0' }}>📝 事件日誌 (最近 10 條)</h4>
-        <div style={{
-          height: '200px',
-          overflow: 'auto',
-          backgroundColor: '#000',
-          color: '#0f0',
-          padding: '10px',
-          fontSize: '12px',
-          borderRadius: '4px'
-        }}>
-          {testLogs.length === 0 ? (
-            <div>等待事件...</div>
-          ) : (
-            testLogs.map((log, index) => (
-              <div key={index}>{log}</div>
-            ))
-          )}
+        <div
+          style={{
+            height: '200px',
+            overflow: 'auto',
+            backgroundColor: '#000',
+            color: '#0f0',
+            padding: '10px',
+            fontSize: '12px',
+            borderRadius: '4px',
+          }}
+        >
+          {testLogs.length === 0 ? <div>等待事件...</div> : testLogs.map((log, index) => <div key={index}>{log}</div>)}
         </div>
       </div>
-
-      
     </div>
   );
 }
@@ -207,34 +204,38 @@ export function SimpleWebSocketStatus() {
 
   if (!user) {
     return (
-      <div style={{
-        position: 'fixed',
-        top: '10px',
-        right: '10px',
-        padding: '8px 12px',
-        backgroundColor: '#e2e3e5',
-        border: '1px solid #d1ecf1',
-        borderRadius: '4px',
-        fontSize: '12px',
-        zIndex: 1000
-      }}>
+      <div
+        style={{
+          position: 'fixed',
+          top: '10px',
+          right: '10px',
+          padding: '8px 12px',
+          backgroundColor: '#e2e3e5',
+          border: '1px solid #d1ecf1',
+          borderRadius: '4px',
+          fontSize: '12px',
+          zIndex: 1000,
+        }}
+      >
         未登入 👤
       </div>
     );
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: '10px',
-      right: '10px',
-      padding: '8px 12px',
-      backgroundColor: isConnected ? '#d4edda' : '#f8d7da',
-      border: `1px solid ${isConnected ? '#c3e6cb' : '#f5c6cb'}`,
-      borderRadius: '4px',
-      fontSize: '12px',
-      zIndex: 1000
-    }}>
+    <div
+      style={{
+        position: 'fixed',
+        top: '10px',
+        right: '10px',
+        padding: '8px 12px',
+        backgroundColor: isConnected ? '#d4edda' : '#f8d7da',
+        border: `1px solid ${isConnected ? '#c3e6cb' : '#f5c6cb'}`,
+        borderRadius: '4px',
+        fontSize: '12px',
+        zIndex: 1000,
+      }}
+    >
       WebSocket: {isConnected ? '🟢' : '🔴'} {connectionState}
     </div>
   );

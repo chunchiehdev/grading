@@ -75,7 +75,11 @@ export default function TeacherCourses() {
     <div>
       <PageHeader
         title={t('pageHeader.title')}
-        subtitle={courses.length === 1 ? t('pageHeader.subtitle', { count: courses.length }) : t('pageHeader.subtitlePlural', { count: courses.length })}
+        subtitle={
+          courses.length === 1
+            ? t('pageHeader.subtitle', { count: courses.length })
+            : t('pageHeader.subtitlePlural', { count: courses.length })
+        }
         actions={headerActions}
       />
 
@@ -104,9 +108,7 @@ export default function TeacherCourses() {
                 {courses.length === 0 ? (
                   <>
                     <h3 className="text-lg font-medium text-foreground mb-2">{t('emptyState.noCoursesYet.title')}</h3>
-                    <p className="text-muted-foreground mb-6">
-                      {t('emptyState.noCoursesYet.description')}
-                    </p>
+                    <p className="text-muted-foreground mb-6">{t('emptyState.noCoursesYet.description')}</p>
                     <Button asChild>
                       <Link to="/teacher/courses/new">
                         <Plus className="w-4 h-4 mr-2" />
@@ -117,9 +119,7 @@ export default function TeacherCourses() {
                 ) : (
                   <>
                     <h3 className="text-lg font-medium text-foreground mb-2">{t('emptyState.noCoursesFound.title')}</h3>
-                    <p className="text-muted-foreground mb-6">
-                      {t('emptyState.noCoursesFound.description')}
-                    </p>
+                    <p className="text-muted-foreground mb-6">{t('emptyState.noCoursesFound.description')}</p>
                     <Button variant="outline" onClick={() => setSearchTerm('')}>
                       {t('search.clearSearch')}
                     </Button>
@@ -155,8 +155,10 @@ function CourseCard({ course }: { course: any }) {
                 {course.name}
               </Link>
             </CardTitle>
-            <div className='mt-1 min-h-[1rem]'>
-              {course.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{course.description}</p>}
+            <div className="mt-1 min-h-[1rem]">
+              {course.description && (
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{course.description}</p>
+              )}
             </div>
           </div>
         </div>
@@ -189,7 +191,9 @@ function CourseCard({ course }: { course: any }) {
                 </div>
               ))}
               {course.assignmentAreas.length > 2 && (
-                <p className="text-xs text-muted-foreground">{t('courseCard.moreAreas', { count: course.assignmentAreas.length - 2 })}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('courseCard.moreAreas', { count: course.assignmentAreas.length - 2 })}
+                </p>
               )}
             </div>
           </div>

@@ -96,14 +96,14 @@ export async function handleGoogleCallback(request: Request) {
         data: {
           email: payload.email,
           name: payload.name,
-          picture: payload.picture,          
+          picture: payload.picture,
         },
       });
     }
 
     console.error('🍪 Creating session for user:', user.id);
     const session = await createUserSession(user.id, request);
-    
+
     let redirectPath;
     if (isFirstTimeUser) {
       // First-time user needs to select role
@@ -112,7 +112,7 @@ export async function handleGoogleCallback(request: Request) {
       // Existing user - redirect based on their role
       redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
     }
-    
+
     const response = redirect(redirectPath);
     response.headers.set('Set-Cookie', session);
 

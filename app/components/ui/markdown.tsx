@@ -15,12 +15,7 @@ interface MarkdownProps {
  * Reusable Markdown component with GitHub Flavored Markdown support
  * Includes security features like HTML sanitization by default
  */
-export function Markdown({ 
-  children, 
-  className, 
-  allowHtml = false, 
-  disableSanitize = false 
-}: MarkdownProps) {
+export function Markdown({ children, className, allowHtml = false, disableSanitize = false }: MarkdownProps) {
   const plugins = [remarkGfm];
   const rehypePlugins = [];
 
@@ -35,7 +30,8 @@ export function Markdown({
   }
 
   return (
-    <div className={cn(
+    <div
+      className={cn(
         // Base Tailwind prose styles
         'prose prose-slate max-w-none',
         // Dark mode support
@@ -54,52 +50,31 @@ export function Markdown({
         'prose-th:text-left prose-th:font-semibold',
         'prose-td:py-2 prose-th:py-2',
         className
-      )}>
-    <ReactMarkdown
-      remarkPlugins={plugins}
-      rehypePlugins={rehypePlugins}
-      components={{
-        // Custom component overrides
-        h1: ({ children }) => (
-          <h1 className="text-2xl font-semibold text-foreground mb-4">{children}</h1>
-        ),
-        h2: ({ children }) => (
-          <h2 className="text-xl font-semibold text-foreground mb-3">{children}</h2>
-        ),
-        h3: ({ children }) => (
-          <h3 className="text-lg font-semibold text-foreground mb-2">{children}</h3>
-        ),
-        p: ({ children }) => (
-          <p className="text-sm leading-relaxed text-foreground mb-3">{children}</p>
-        ),
-        ul: ({ children }) => (
-          <ul className="list-disc list-inside space-y-1 mb-3">{children}</ul>
-        ),
-        ol: ({ children }) => (
-          <ol className="list-decimal list-inside space-y-1 mb-3">{children}</ol>
-        ),
-        li: ({ children }) => (
-          <li className="text-sm text-foreground">{children}</li>
-        ),
-        strong: ({ children }) => (
-          <strong className="font-semibold text-foreground">{children}</strong>
-        ),
-        em: ({ children }) => (
-          <em className="italic text-muted-foreground">{children}</em>
-        ),
-        code: ({ children }) => (
-          <code className="text-sm bg-muted px-1 py-0.5 rounded font-mono">{children}</code>
-        ),
-        pre: ({ children }) => (
-          <pre className="bg-muted border rounded p-3 overflow-x-auto">{children}</pre>
-        ),
-        blockquote: ({ children }) => (
-          <blockquote className="border-l-4 border-primary bg-muted/50 pl-4 py-2 my-3">{children}</blockquote>
-        ),
-      }}
+      )}
     >
-      {children}
-    </ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={plugins}
+        rehypePlugins={rehypePlugins}
+        components={{
+          // Custom component overrides
+          h1: ({ children }) => <h1 className="text-2xl font-semibold text-foreground mb-4">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-xl font-semibold text-foreground mb-3">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-lg font-semibold text-foreground mb-2">{children}</h3>,
+          p: ({ children }) => <p className="text-sm leading-relaxed text-foreground mb-3">{children}</p>,
+          ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3">{children}</ol>,
+          li: ({ children }) => <li className="text-sm text-foreground">{children}</li>,
+          strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+          em: ({ children }) => <em className="italic text-muted-foreground">{children}</em>,
+          code: ({ children }) => <code className="text-sm bg-muted px-1 py-0.5 rounded font-mono">{children}</code>,
+          pre: ({ children }) => <pre className="bg-muted border rounded p-3 overflow-x-auto">{children}</pre>,
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-4 border-primary bg-muted/50 pl-4 py-2 my-3">{children}</blockquote>
+          ),
+        }}
+      >
+        {children}
+      </ReactMarkdown>
     </div>
   );
 }
@@ -108,13 +83,7 @@ export function Markdown({
  * Fallback component that renders plain text with basic formatting
  * Used when Markdown content is not available
  */
-export function PlainTextFallback({ 
-  children, 
-  className 
-}: { 
-  children: string; 
-  className?: string; 
-}) {
+export function PlainTextFallback({ children, className }: { children: string; className?: string }) {
   return (
     <div className={cn('text-sm leading-relaxed', className)}>
       {children.split('\n').map((para, i) => (
@@ -129,11 +98,11 @@ export function PlainTextFallback({
 /**
  * Smart content renderer that uses Markdown if available, falls back to plain text
  */
-export function SmartContent({ 
-  markdown, 
-  plainText, 
+export function SmartContent({
+  markdown,
+  plainText,
   className,
-  fallbackClassName 
+  fallbackClassName,
 }: {
   markdown?: string;
   plainText: string;
@@ -143,10 +112,6 @@ export function SmartContent({
   if (markdown && markdown.trim()) {
     return <Markdown className={className}>{markdown}</Markdown>;
   }
-  
-  return (
-    <PlainTextFallback className={fallbackClassName || className}>
-      {plainText}
-    </PlainTextFallback>
-  );
+
+  return <PlainTextFallback className={fallbackClassName || className}>{plainText}</PlainTextFallback>;
 }

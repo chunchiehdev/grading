@@ -131,7 +131,8 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 }
 
 export default function ManageAssignmentArea() {
-  const { teacher, assignmentArea, rubrics, formattedDueDate, formattedCreatedAt, formattedUpdatedAt } = useLoaderData<typeof loader>();
+  const { teacher, assignmentArea, rubrics, formattedDueDate, formattedCreatedAt, formattedUpdatedAt } =
+    useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
 
   const isOverdue = assignmentArea.dueDate && new Date(assignmentArea.dueDate) < new Date();
@@ -292,7 +293,9 @@ export default function ManageAssignmentArea() {
                   </Label>
                   <DatePicker
                     name="dueDate"
-                    defaultISOString={assignmentArea.dueDate ? new Date(assignmentArea.dueDate).toISOString() : undefined}
+                    defaultISOString={
+                      assignmentArea.dueDate ? new Date(assignmentArea.dueDate).toISOString() : undefined
+                    }
                   />
                 </div>
 
@@ -317,9 +320,7 @@ export default function ManageAssignmentArea() {
                     variant="destructive"
                     onClick={(e) => {
                       if (
-                        !confirm(
-                          'Are you sure you want to delete this assignment area? This action cannot be undone.'
-                        )
+                        !confirm('Are you sure you want to delete this assignment area? This action cannot be undone.')
                       ) {
                         e.preventDefault();
                       }

@@ -9,8 +9,8 @@
  * 星期定義
  */
 export interface WeekdayDefinition {
-  code: string;        // 代碼：一、二、三、四、五、六、日
-  name: string;        // 中文名稱：星期一、星期二...
+  code: string; // 代碼：一、二、三、四、五、六、日
+  name: string; // 中文名稱：星期一、星期二...
   englishName: string; // 英文名稱：Monday, Tuesday...
 }
 
@@ -34,10 +34,10 @@ export const WEEKDAYS: WeekdayDefinition[] = [
  * - B-D: 第 11-13 節
  */
 export interface PeriodDefinition {
-  code: string;               // 節次代碼：1, 2, 3, ..., 9, Z, A, B, C, D
-  startTime: string;          // 開始時間：HH:mm 格式
-  endTime: string;            // 結束時間：HH:mm 格式
-  displayName: string;        // 中文顯示名稱：第1節、午休等
+  code: string; // 節次代碼：1, 2, 3, ..., 9, Z, A, B, C, D
+  startTime: string; // 開始時間：HH:mm 格式
+  endTime: string; // 結束時間：HH:mm 格式
+  displayName: string; // 中文顯示名稱：第1節、午休等
   englishDisplayName: string; // 英文顯示名稱：Period 1, Lunch Break, etc.
 }
 
@@ -64,7 +64,7 @@ export const PERIODS: PeriodDefinition[] = [
  * @returns 節次定義，找不到則返回 undefined
  */
 export function getPeriodByCode(code: string): PeriodDefinition | undefined {
-  return PERIODS.find(p => p.code === code);
+  return PERIODS.find((p) => p.code === code);
 }
 
 /**
@@ -73,7 +73,7 @@ export function getPeriodByCode(code: string): PeriodDefinition | undefined {
  * @returns 星期定義，找不到則返回 undefined
  */
 export function getWeekdayByCode(code: string): WeekdayDefinition | undefined {
-  return WEEKDAYS.find(w => w.code === code);
+  return WEEKDAYS.find((w) => w.code === code);
 }
 
 /**
@@ -83,11 +83,7 @@ export function getWeekdayByCode(code: string): WeekdayDefinition | undefined {
  * @param language 語言代碼：'zh' 或 'en'，預設為 'zh'
  * @returns 格式化的顯示文字，例如：「星期一 第3節 (10:00-10:50)」或 "Monday Period 3 (10:00-10:50)"
  */
-export function formatScheduleDisplay(
-  weekdayCode: string,
-  periodCode: string,
-  language: 'zh' | 'en' = 'zh'
-): string {
+export function formatScheduleDisplay(weekdayCode: string, periodCode: string, language: 'zh' | 'en' = 'zh'): string {
   const weekday = getWeekdayByCode(weekdayCode);
   const period = getPeriodByCode(periodCode);
 
@@ -108,11 +104,7 @@ export function formatScheduleDisplay(
  * @param language 語言代碼：'zh' 或 'en'，預設為 'zh'
  * @returns 格式化的顯示文字，例如：「星期一 第3節」或 "Monday Period 3"
  */
-export function formatScheduleShort(
-  weekdayCode: string,
-  periodCode: string,
-  language: 'zh' | 'en' = 'zh'
-): string {
+export function formatScheduleShort(weekdayCode: string, periodCode: string, language: 'zh' | 'en' = 'zh'): string {
   const weekday = getWeekdayByCode(weekdayCode);
   const period = getPeriodByCode(periodCode);
 
@@ -130,12 +122,12 @@ export function formatScheduleShort(
  * 驗證星期代碼是否有效
  */
 export function isValidWeekday(code: string): boolean {
-  return WEEKDAYS.some(w => w.code === code);
+  return WEEKDAYS.some((w) => w.code === code);
 }
 
 /**
  * 驗證節次代碼是否有效
  */
 export function isValidPeriod(code: string): boolean {
-  return PERIODS.some(p => p.code === code);
+  return PERIODS.some((p) => p.code === code);
 }

@@ -15,7 +15,7 @@ import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import { User } from '@/root';
 import type { VersionInfo } from '@/services/version.server';
-import { Badge } from '@/components/ui/badge'; 
+import { Badge } from '@/components/ui/badge';
 
 interface NavHeaderProps {
   title?: string;
@@ -23,26 +23,18 @@ interface NavHeaderProps {
   className?: string;
 }
 
-export function NavHeader({
-  title,
-  onShare,
-  className
-}: NavHeaderProps) {
+export function NavHeader({ title, onShare, className }: NavHeaderProps) {
   // Always call hooks in the same order - before any early returns
   const { user, versionInfo } = useLoaderData() as { user: User | null; versionInfo: VersionInfo | null };
-  
+
   // Use translation with error handling - always call this hook
   const { t, ready } = useTranslation('navigation', { useSuspense: false });
 
   // Early return after all hooks are called
   if (!user) {
-    return (
-      <div className="hidden">
-        {/* Empty component to maintain consistent hook calls */}
-      </div>
-    );
+    return <div className="hidden">{/* Empty component to maintain consistent hook calls */}</div>;
   }
-  
+
   // Fallback function for when i18n isn't ready
   const safeT = (key: string, fallback: string = key) => {
     if (!ready || !t) {
@@ -81,20 +73,17 @@ export function NavHeader({
 
   return (
     <>
-      <header className={cn(
-        'sticky top-0 z-50 bg-background ',
-        className
-      )}>
+      <header className={cn('sticky top-0 z-50 bg-background ', className)}>
         <nav className="relative w-full flex items-center justify-between py-3 px-4 sm:px-6 lg:px-8">
           {/* Left Section - Logo & Title */}
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-3">
-               <img
-                 src="/home.png"
-                 alt="GradeMaster Logo"
-                 className="w-8 h-8 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded dark:invert"
-               />
-               
+              <img
+                src="/home.png"
+                alt="GradeMaster Logo"
+                className="w-8 h-8 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded dark:invert"
+              />
+
               <div className="hidden sm:block text-lg lg:text-xl 2xl:text-2xl font-semibold text-foreground">
                 {title || safeT('title', 'Grading System')}
               </div>
@@ -122,11 +111,14 @@ export function NavHeader({
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2 px-3 lg:h-10 2xl:h-11 lg:px-4 2xl:px-5">
                   {user.picture ? (
-                    <img src={user.picture} alt={user.email} className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full" />
+                    <img
+                      src={user.picture}
+                      alt={user.email}
+                      className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full"
+                    />
                   ) : (
                     <UserIcon className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />
                   )}
-
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -162,10 +154,7 @@ export function NavHeader({
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-red-600 focus:text-red-600 cursor-pointer"
-                >
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
                   <LogOut className="w-4 h-4 mr-2" />
                   {safeT('logout', 'Logout')}
                 </DropdownMenuItem>
@@ -219,7 +208,7 @@ export function NavHeader({
                   <>
                     <DropdownMenuItem onClick={onShare}>
                       <Share2 className="w-4 h-4 mr-2" />
-{safeT('share', 'Share')}
+                      {safeT('share', 'Share')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </>
@@ -234,10 +223,7 @@ export function NavHeader({
                   </div>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-red-600 focus:text-red-600 cursor-pointer"
-                >
+                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
                   <LogOut className="w-4 h-4 mr-2" />
                   {safeT('logout', 'Logout')}
                 </DropdownMenuItem>
@@ -246,7 +232,6 @@ export function NavHeader({
           </div>
         </nav>
       </header>
-
     </>
   );
 }

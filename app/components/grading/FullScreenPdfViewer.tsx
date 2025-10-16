@@ -7,7 +7,7 @@ type ReactPdf = typeof import('react-pdf');
 interface FullScreenPdfViewerProps {
   file?: File | null | undefined;
   fileUrl?: string;
-  fileName?: string; 
+  fileName?: string;
 }
 
 export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfViewerProps) {
@@ -18,13 +18,16 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
-  console.log("fileUrl", fileUrl);
+  console.log('fileUrl', fileUrl);
 
   useEffect(() => {
     setIsClient(true);
     (async () => {
       const mod = await import('react-pdf');
-      mod.pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+      mod.pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.mjs',
+        import.meta.url
+      ).toString();
       setPdf(mod);
     })();
   }, []);
@@ -42,14 +45,21 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-
   }, [isClient, numPages]);
 
   if (!file && !fileUrl) {
-    return <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">{t('pdfViewer.noFile')}</div>;
+    return (
+      <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+        {t('pdfViewer.noFile')}
+      </div>
+    );
   }
   if (!pdf || !isClient) {
-    return <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">{t('pdfViewer.loading')}</div>;
+    return (
+      <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+        {t('pdfViewer.loading')}
+      </div>
+    );
   }
 
   const Document = pdf.Document as any;
@@ -114,7 +124,7 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
               <button
                 type="button"
                 className="p-1.5 rounded hover:bg-muted transition-colors"
-                onClick={() => setRotation(r => (r + 90) % 360)}
+                onClick={() => setRotation((r) => (r + 90) % 360)}
                 aria-label={t('pdfViewer.rotate')}
               >
                 <RotateCcw className="w-4 h-4" />

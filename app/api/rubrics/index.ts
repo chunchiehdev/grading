@@ -15,21 +15,15 @@ export async function loader({ request }: { request: Request }) {
     const { rubrics, error } = await listRubrics(teacher.id);
 
     if (error) {
-      return Response.json(
-        createErrorResponse(error, ApiErrorCode.INTERNAL_ERROR),
-        { status: 500 }
-      );
+      return Response.json(createErrorResponse(error, ApiErrorCode.INTERNAL_ERROR), { status: 500 });
     }
 
     return Response.json({
       success: true,
-      rubrics: rubrics || []
+      rubrics: rubrics || [],
     });
   } catch (error) {
     console.error('Failed to load rubrics:', error);
-    return Response.json(
-      createErrorResponse('Failed to load rubrics', ApiErrorCode.INTERNAL_ERROR),
-      { status: 500 }
-    );
+    return Response.json(createErrorResponse('Failed to load rubrics', ApiErrorCode.INTERNAL_ERROR), { status: 500 });
   }
-} 
+}

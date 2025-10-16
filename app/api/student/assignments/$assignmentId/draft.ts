@@ -16,7 +16,7 @@ export async function loader({ request, params }: { request: Request; params: an
     }
 
     const draftSubmission = await getDraftSubmission(assignmentId, student.id);
-    
+
     return Response.json({
       success: true,
       data: draftSubmission,
@@ -48,7 +48,7 @@ export async function action({ request, params }: { request: Request; params: an
     } else {
       const formData = await request.formData();
       body = Object.fromEntries(formData.entries());
-      
+
       // Parse JSON fields if they exist
       if (body.fileMetadata && typeof body.fileMetadata === 'string') {
         try {
@@ -76,7 +76,7 @@ export async function action({ request, params }: { request: Request; params: an
     };
 
     const savedDraft = await saveDraftSubmission(draftData);
-    
+
     if (!savedDraft) {
       return Response.json(createErrorResponse('Could not save draft submission'), { status: 500 });
     }

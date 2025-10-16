@@ -8,17 +8,15 @@ import { getCourseById, type CourseInfo } from '@/services/course.server';
 import { createAssignmentArea, type CreateAssignmentAreaData } from '@/services/assignment-area.server';
 import { listRubrics } from '@/services/rubric.server';
 import { listClassesByCourse, type ClassInfo } from '@/services/class.server';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { FormPageLayout, FormSection, FormActionButtons } from '@/components/forms';
 import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
@@ -119,40 +117,23 @@ export default function NewAssignmentArea() {
 
   // Complete Skeleton that matches final layout exactly
   const PageSkeleton = () => (
-    <div className="bg-background text-foreground">
-      {/* PageHeader Skeleton */}
-      <header className="bg-background py-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center">
-            <div>
-              <Skeleton className="h-9 w-64" /> {/* Title */}
-              <div className="mt-3 px-1">
-                <Skeleton className="h-5 w-80" /> {/* Subtitle */}
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Skeleton className="h-10 w-40" /> {/* Back button */}
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background">
+      {/* Centered header section */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-16 xl:pt-20 pb-8 lg:pb-12 text-center">
+        <Skeleton className="h-12 w-64 mx-auto mb-4" /> {/* Title */}
+        <Skeleton className="h-6 w-80 mx-auto" /> {/* Subtitle */}
+      </div>
 
-      {/* Main Content Skeleton */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
-          {/* CardHeader */}
-          <div className="flex flex-col space-y-1.5 p-6">
-            <Skeleton className="h-6 w-32" /> {/* CardTitle */}
-            <Skeleton className="h-4 w-96" /> {/* CardDescription */}
-          </div>
-
-          {/* CardContent */}
-          <div className="p-6 pt-0">
+      {/* Form container */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 lg:pb-32">
+        <div className="space-y-6 lg:space-y-8 xl:space-y-10">
+          {/* Form section skeleton */}
+          <div className="bg-card rounded-2xl shadow-sm p-5 sm:p-6 lg:p-8 xl:p-10">
             <div className="space-y-6">
               {/* Assignment Name */}
               <div className="space-y-2">
                 <Skeleton className="h-4 w-32" /> {/* Label */}
-                <Skeleton className="h-10 w-full" /> {/* Input */}
+                <Skeleton className="h-14 w-full" /> {/* Input */}
               </div>
               {/* Description */}
               <div className="space-y-2">
@@ -162,22 +143,22 @@ export default function NewAssignmentArea() {
               {/* Rubric Selection */}
               <div className="space-y-2">
                 <Skeleton className="h-4 w-20" /> {/* Label */}
-                <Skeleton className="h-10 w-full" /> {/* Select */}
+                <Skeleton className="h-14 w-full" /> {/* Select */}
               </div>
               {/* Due Date */}
               <div className="space-y-2">
                 <Skeleton className="h-4 w-16" /> {/* Label */}
-                <Skeleton className="h-10 w-full" /> {/* Date input */}
-              </div>
-              {/* Action Buttons */}
-              <div className="flex justify-end space-x-4">
-                <Skeleton className="h-10 w-16" /> {/* Cancel */}
-                <Skeleton className="h-10 w-24" /> {/* Create */}
+                <Skeleton className="h-14 w-full" /> {/* Date input */}
               </div>
             </div>
           </div>
+          {/* Action Buttons skeleton */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-5 xl:gap-6 pt-4">
+            <Skeleton className="flex-1 h-14" /> {/* Cancel */}
+            <Skeleton className="flex-1 h-14" /> {/* Submit */}
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 
@@ -185,7 +166,13 @@ export default function NewAssignmentArea() {
     <Suspense fallback={<PageSkeleton />}>
       <Await resolve={teacher}>
         {(resolvedTeacher) => (
-          <AssignmentForm teacher={resolvedTeacher} course={course} rubrics={rubrics} classes={classes} actionData={actionData} />
+          <AssignmentForm
+            teacher={resolvedTeacher}
+            course={course}
+            rubrics={rubrics}
+            classes={classes}
+            actionData={actionData}
+          />
         )}
       </Await>
     </Suspense>
@@ -210,147 +197,130 @@ function AssignmentForm({
   console.log(course.name, 'Course Name');
 
   return (
-    <div className="bg-background text-foreground">
-      <PageHeader
-        title={t('course:assignment.area.createTitle')}
-        subtitle={t('course:assignment.area.createSubtitle', { courseName: course.name })}
-      />
+    <FormPageLayout
+      title={t('course:assignment.area.createTitle')}
+      subtitle={t('course:assignment.area.createSubtitle', { courseName: course.name })}
+    >
+      <Form method="post" className="space-y-6 lg:space-y-8 xl:space-y-10">
+        {actionData?.error && (
+          <Alert variant="destructive" className="rounded-2xl lg:text-base">
+            <AlertDescription>{actionData.error}</AlertDescription>
+          </Alert>
+        )}
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="bg-card text-card-foreground border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              {t('course:assignment.area.details')}
-            </CardTitle>
-            <CardDescription>
-              {t('course:assignment.area.detailsDescription')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form method="post" className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  {t('course:assignment.area.nameLabel')} <span className="text-destructive">*</span>
+        <FormSection>
+          <div className="space-y-2 lg:space-y-3">
+            <Label htmlFor="name" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+              {t('course:assignment.area.nameLabel')} <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="name"
+              name="name"
+              required
+              placeholder={t('course:assignment.area.namePlaceholder')}
+              className="rounded-xl h-11 sm:h-12 lg:h-14 xl:h-16 text-base lg:text-lg xl:text-xl"
+            />
+          </div>
+
+          <div className="space-y-2 lg:space-y-3">
+            <Label htmlFor="description" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+              {t('course:assignment.area.descriptionLabel')}
+            </Label>
+            <Textarea
+              id="description"
+              name="description"
+              rows={4}
+              placeholder={t('course:assignment.area.descriptionPlaceholder')}
+              className="rounded-xl text-base lg:text-lg xl:text-xl"
+            />
+          </div>
+
+          {/* Class Target Selection */}
+          <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
+            <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">目標班次</Label>
+            <input type="hidden" name="classTarget" value={classTarget} />
+            <RadioGroup value={classTarget} onValueChange={(value) => setClassTarget(value as 'all' | 'specific')}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="all" id="all-classes" />
+                <Label htmlFor="all-classes" className="font-normal cursor-pointer">
+                  所有班次（此課程的所有班次都可以看到此作業）
                 </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  required
-                  placeholder={t('course:assignment.area.namePlaceholder')}
-                  className="bg-background border-border focus:ring-ring"
-                />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">{t('course:assignment.area.descriptionLabel')}</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  rows={4}
-                  placeholder={t('course:assignment.area.descriptionPlaceholder')}
-                  className="bg-background border-border focus:ring-ring"
-                />
-              </div>
-
-              {/* Class Target Selection */}
-              <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
-                <Label className="text-base font-medium">目標班次</Label>
-                <input type="hidden" name="classTarget" value={classTarget} />
-                <RadioGroup value={classTarget} onValueChange={(value) => setClassTarget(value as 'all' | 'specific')}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="all" id="all-classes" />
-                    <Label htmlFor="all-classes" className="font-normal cursor-pointer">
-                      所有班次（此課程的所有班次都可以看到此作業）
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="specific" id="specific-class" />
-                    <Label htmlFor="specific-class" className="font-normal cursor-pointer">
-                      指定班次
-                    </Label>
-                  </div>
-                </RadioGroup>
-
-                {classTarget === 'specific' && (
-                  <div className="mt-3 space-y-2">
-                    <Label htmlFor="classId">選擇班次 <span className="text-destructive">*</span></Label>
-                    <Select name="classId" required={classTarget === 'specific'}>
-                      <SelectTrigger className="bg-background border-border">
-                        <SelectValue placeholder="選擇要派發作業的班次" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {classes.map((cls) => (
-                          <SelectItem key={cls.id} value={cls.id}>
-                            {cls.name} ({cls._count.enrollments} 位學生)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-sm text-muted-foreground">
-                      只有選定班次的學生可以看到並提交此作業
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="rubricId">
-                  {t('course:assignment.area.rubricLabel')} <span className="text-destructive">*</span>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="specific" id="specific-class" />
+                <Label htmlFor="specific-class" className="font-normal cursor-pointer">
+                  指定班次
                 </Label>
-                <Select name="rubricId" required>
-                  <SelectTrigger className="bg-background border-border focus:ring-ring">
-                    <SelectValue placeholder={t('course:assignment.area.rubricPlaceholder')} />
+              </div>
+            </RadioGroup>
+
+            {classTarget === 'specific' && (
+              <div className="mt-3 space-y-2">
+                <Label htmlFor="classId" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+                  選擇班次 <span className="text-destructive">*</span>
+                </Label>
+                <Select name="classId" required={classTarget === 'specific'}>
+                  <SelectTrigger className="rounded-xl h-11 sm:h-12 lg:h-14 xl:h-16 text-base lg:text-lg xl:text-xl">
+                    <SelectValue placeholder="選擇要派發作業的班次" />
                   </SelectTrigger>
-                  <SelectContent className="bg-popover border-border">
-                    {rubrics.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">
-                        {t('course:assignment.area.noRubrics')}{' '}
-                        <Link to="/teacher/rubrics/new" className="text-primary hover:underline">
-                          {t('course:assignment.area.createRubricFirst')}
-                        </Link>
-                        .
-                      </div>
-                    ) : (
-                      rubrics.map((rubric) => (
-                        <SelectItem key={rubric.id} value={rubric.id}>
-                          <div>
-                            <div className="font-medium">{rubric.name}</div>
-                            
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.name} ({cls._count.enrollments} 位學生)
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <p className="text-sm text-muted-foreground">只有選定班次的學生可以看到並提交此作業</p>
               </div>
+            )}
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="dueDate" className="flex items-center gap-2">
-                  {t('course:assignment.area.dueDateLabel')}
-                </Label>
-                <DatePicker name="dueDate" />
-              </div>
+          <div className="space-y-2 lg:space-y-3">
+            <Label htmlFor="rubricId" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+              {t('course:assignment.area.rubricLabel')} <span className="text-destructive">*</span>
+            </Label>
+            <Select name="rubricId" required>
+              <SelectTrigger className="rounded-xl h-11 sm:h-12 lg:h-14 xl:h-16 text-base lg:text-lg xl:text-xl">
+                <SelectValue placeholder={t('course:assignment.area.rubricPlaceholder')} />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {rubrics.length === 0 ? (
+                  <div className="p-2 text-sm text-muted-foreground">
+                    {t('course:assignment.area.noRubrics')}{' '}
+                    <Link to="/teacher/rubrics/new" className="text-primary hover:underline">
+                      {t('course:assignment.area.createRubricFirst')}
+                    </Link>
+                    .
+                  </div>
+                ) : (
+                  rubrics.map((rubric) => (
+                    <SelectItem key={rubric.id} value={rubric.id}>
+                      <div>
+                        <div className="font-medium">{rubric.name}</div>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
 
-              {actionData?.error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{actionData.error}</AlertDescription>
-                </Alert>
-              )}
+          <div className="space-y-2 lg:space-y-3">
+            <Label htmlFor="dueDate" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+              {t('course:assignment.area.dueDateLabel')}
+            </Label>
+            <DatePicker name="dueDate" />
+          </div>
+        </FormSection>
 
-              <div className="flex justify-end space-x-4 pt-4">
-                <Button asChild variant="outline">
-                  <Link to={`/teacher/courses/${course.id}`}>{t('course:assignment.area.cancel')}</Link>
-                </Button>
-                <Button type="submit" disabled={rubrics.length === 0}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t('course:assignment.area.createButton')}
-                </Button>
-              </div>
-            </Form>
-          </CardContent>
-        </Card>
-      </main>
-    </div>
+        <FormActionButtons
+          cancelTo={`/teacher/courses/${course.id}`}
+          submitText={t('course:assignment.area.createButton')}
+          cancelText={t('course:assignment.area.cancel')}
+          isDisabled={rubrics.length === 0}
+        />
+      </Form>
+    </FormPageLayout>
   );
 }

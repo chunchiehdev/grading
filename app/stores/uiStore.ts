@@ -87,61 +87,71 @@ const store = create<UiState>()(
   persist(
     immer((set, get) => ({
       sidebarCollapsed: true as boolean,
-      toggleSidebar: () => set((state) => {
-        state.sidebarCollapsed = !state.sidebarCollapsed;
-      }),
-      setSidebarCollapsed: (collapsed) => set((state) => {
-        state.sidebarCollapsed = collapsed;
-      }),
+      toggleSidebar: () =>
+        set((state) => {
+          state.sidebarCollapsed = !state.sidebarCollapsed;
+        }),
+      setSidebarCollapsed: (collapsed) =>
+        set((state) => {
+          state.sidebarCollapsed = collapsed;
+        }),
 
       theme: 'light',
-      setTheme: (theme) => set((state) => {
-        state.theme = theme;
-        applyTheme(theme);
-      }),
-      toggleTheme: () => set((state) => {
-        const currentTheme = state.theme;
-        let newTheme: Theme = 'light';
+      setTheme: (theme) =>
+        set((state) => {
+          state.theme = theme;
+          applyTheme(theme);
+        }),
+      toggleTheme: () =>
+        set((state) => {
+          const currentTheme = state.theme;
+          let newTheme: Theme = 'light';
 
-        if (currentTheme === 'system') newTheme = 'light';
-        else if (currentTheme === 'light') newTheme = 'dark';
-        else newTheme = 'system';
+          if (currentTheme === 'system') newTheme = 'light';
+          else if (currentTheme === 'light') newTheme = 'dark';
+          else newTheme = 'system';
 
-        state.theme = newTheme;
-        applyTheme(newTheme);
-      }),
+          state.theme = newTheme;
+          applyTheme(newTheme);
+        }),
 
       language: 'zh',
-      setLanguage: (language) => set((state) => {
-        state.language = language;
-        applyLanguage(language);
-      }),
-      toggleLanguage: () => set((state) => {
-        const newLanguage = state.language === 'zh' ? 'en' : 'zh';
-        state.language = newLanguage;
-        applyLanguage(newLanguage);
-      }),
+      setLanguage: (language) =>
+        set((state) => {
+          state.language = language;
+          applyLanguage(language);
+        }),
+      toggleLanguage: () =>
+        set((state) => {
+          const newLanguage = state.language === 'zh' ? 'en' : 'zh';
+          state.language = newLanguage;
+          applyLanguage(newLanguage);
+        }),
 
       lastVisitedPage: null,
-      setLastVisitedPage: (page) => set((state) => {
-        state.lastVisitedPage = page;
-      }),
+      setLastVisitedPage: (page) =>
+        set((state) => {
+          state.lastVisitedPage = page;
+        }),
 
       currentStep: 'upload',
       canProceed: false,
 
-      setStep: (step) => set((state) => {
-        state.currentStep = step;
-      }),
+      setStep: (step) =>
+        set((state) => {
+          state.currentStep = step;
+        }),
 
-      setCanProceed: (canProceed) => set((state) => {
-        state.canProceed = canProceed;
-      }),
+      setCanProceed: (canProceed) =>
+        set((state) => {
+          state.canProceed = canProceed;
+        }),
 
-      resetUI: () => set((state) => {
-        state.currentStep = 'upload';
-        state.canProceed = false;
-      })
+      resetUI: () =>
+        set((state) => {
+          state.currentStep = 'upload';
+          state.canProceed = false;
+        }),
     })),
     {
       name: 'ui-storage',
@@ -166,13 +176,13 @@ const store = create<UiState>()(
  */
 export const useUiStore = () => {
   const [hydrated, setHydrated] = useState(false);
-  
+
   useEffect(() => {
     setHydrated(true);
   }, []);
 
   const state = store();
-  
+
   if (!hydrated) {
     return {
       sidebarCollapsed: true,
@@ -193,6 +203,6 @@ export const useUiStore = () => {
       resetUI: () => {},
     };
   }
-  
+
   return state;
 };

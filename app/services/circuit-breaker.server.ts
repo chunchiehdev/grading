@@ -4,19 +4,19 @@ import logger from '@/utils/logger';
  * Circuit Breaker 狀態
  */
 enum CircuitState {
-  CLOSED = 'CLOSED',     // 正常狀態，允許請求通過
-  OPEN = 'OPEN',         // 熔斷狀態，拒絕所有請求
-  HALF_OPEN = 'HALF_OPEN' // 半開狀態，允許少量請求通過以測試服務恢復
+  CLOSED = 'CLOSED', // 正常狀態，允許請求通過
+  OPEN = 'OPEN', // 熔斷狀態，拒絕所有請求
+  HALF_OPEN = 'HALF_OPEN', // 半開狀態，允許少量請求通過以測試服務恢復
 }
 
 /**
  * Circuit Breaker 配置
  */
 interface CircuitBreakerConfig {
-  failureThreshold: number;     // 失敗閾值
-  recoveryTimeout: number;      // 恢復超時時間（毫秒）
-  monitoringPeriod: number;     // 監控週期（毫秒）
-  halfOpenMaxCalls: number;     // 半開狀態最大調用次數
+  failureThreshold: number; // 失敗閾值
+  recoveryTimeout: number; // 恢復超時時間（毫秒）
+  monitoringPeriod: number; // 監控週期（毫秒）
+  halfOpenMaxCalls: number; // 半開狀態最大調用次數
 }
 
 /**
@@ -46,11 +46,11 @@ export class CircuitBreaker {
     config: Partial<CircuitBreakerConfig> = {}
   ) {
     this.config = {
-      failureThreshold: 5,           // 5 次連續失敗後熔斷
-      recoveryTimeout: 60000,        // 60 秒後嘗試恢復
-      monitoringPeriod: 300000,      // 5 分鐘監控週期
-      halfOpenMaxCalls: 3,           // 半開狀態最多 3 次調用
-      ...config
+      failureThreshold: 5, // 5 次連續失敗後熔斷
+      recoveryTimeout: 60000, // 60 秒後嘗試恢復
+      monitoringPeriod: 300000, // 5 分鐘監控週期
+      halfOpenMaxCalls: 3, // 半開狀態最多 3 次調用
+      ...config,
     };
 
     this.stats = {
@@ -59,7 +59,7 @@ export class CircuitBreaker {
       failedCalls: 0,
       consecutiveFailures: 0,
       lastFailureTime: null,
-      state: CircuitState.CLOSED
+      state: CircuitState.CLOSED,
     };
 
     logger.info(`Circuit breaker initialized: ${name}`, { config: this.config });
@@ -70,14 +70,11 @@ export class CircuitBreaker {
    */
   async execute<T>(operation: () => Promise<T>): Promise<T> {
     if (!this.canExecute()) {
-      const error = new CircuitBreakerError(
-        `Circuit breaker ${this.name} is ${this.stats.state}`,
-        this.stats.state
-      );
+      const error = new CircuitBreakerError(`Circuit breaker ${this.name} is ${this.stats.state}`, this.stats.state);
       logger.warn('Circuit breaker blocked request', {
         name: this.name,
         state: this.stats.state,
-        stats: this.getStats()
+        stats: this.getStats(),
       });
       throw error;
     }
@@ -131,7 +128,7 @@ export class CircuitBreaker {
 
     if (this.stats.state === CircuitState.HALF_OPEN) {
       this.halfOpenCalls++;
-      
+
       // 如果半開狀態下的調用都成功，恢復到關閉狀態
       if (this.halfOpenCalls >= this.config.halfOpenMaxCalls) {
         this.stats.state = CircuitState.CLOSED;
@@ -142,7 +139,7 @@ export class CircuitBreaker {
     logger.debug(`Circuit breaker ${this.name} - successful call`, {
       duration,
       state: this.stats.state,
-      consecutiveFailures: this.stats.consecutiveFailures
+      consecutiveFailures: this.stats.consecutiveFailures,
     });
   }
 
@@ -158,7 +155,7 @@ export class CircuitBreaker {
       duration,
       error: error.message,
       consecutiveFailures: this.stats.consecutiveFailures,
-      state: this.stats.state
+      state: this.stats.state,
     });
 
     if (this.stats.state === CircuitState.HALF_OPEN) {
@@ -176,11 +173,11 @@ export class CircuitBreaker {
   private tripCircuit(): void {
     this.stats.state = CircuitState.OPEN;
     this.nextAttempt = Date.now() + this.config.recoveryTimeout;
-    
+
     logger.error(`Circuit breaker ${this.name} TRIPPED - service unavailable`, {
       consecutiveFailures: this.stats.consecutiveFailures,
       nextAttempt: new Date(this.nextAttempt).toISOString(),
-      stats: this.getStats()
+      stats: this.getStats(),
     });
   }
 
@@ -191,7 +188,7 @@ export class CircuitBreaker {
     return {
       name: this.name,
       config: this.config,
-      ...this.stats
+      ...this.stats,
     };
   }
 
@@ -204,15 +201,13 @@ export class CircuitBreaker {
     successRate: number;
     recentErrors: number;
   } {
-    const successRate = this.stats.totalCalls > 0 
-      ? (this.stats.successfulCalls / this.stats.totalCalls) * 100 
-      : 100;
+    const successRate = this.stats.totalCalls > 0 ? (this.stats.successfulCalls / this.stats.totalCalls) * 100 : 100;
 
     return {
       healthy: this.stats.state === CircuitState.CLOSED,
       state: this.stats.state,
       successRate: Number(successRate.toFixed(2)),
-      recentErrors: this.stats.consecutiveFailures
+      recentErrors: this.stats.consecutiveFailures,
     };
   }
 
@@ -226,12 +221,12 @@ export class CircuitBreaker {
       failedCalls: 0,
       consecutiveFailures: 0,
       lastFailureTime: null,
-      state: CircuitState.CLOSED
+      state: CircuitState.CLOSED,
     };
-    
+
     this.halfOpenCalls = 0;
     this.nextAttempt = 0;
-    
+
     logger.info(`Circuit breaker ${this.name} manually reset`);
   }
 
@@ -288,10 +283,7 @@ export class CircuitBreakerManager {
   /**
    * 獲取或創建 Circuit Breaker
    */
-  getBreaker(
-    name: string, 
-    config?: Partial<CircuitBreakerConfig>
-  ): CircuitBreaker {
+  getBreaker(name: string, config?: Partial<CircuitBreakerConfig>): CircuitBreaker {
     if (!this.breakers.has(name)) {
       this.breakers.set(name, new CircuitBreaker(name, config));
     }
@@ -302,7 +294,7 @@ export class CircuitBreakerManager {
    * 獲取所有 Circuit Breaker 的狀態
    */
   getAllStats(): Array<ReturnType<CircuitBreaker['getStats']>> {
-    return Array.from(this.breakers.values()).map(breaker => breaker.getStats());
+    return Array.from(this.breakers.values()).map((breaker) => breaker.getStats());
   }
 
   /**
@@ -312,20 +304,20 @@ export class CircuitBreakerManager {
     healthy: boolean;
     totalBreakers: number;
     healthyBreakers: number;
-    details: Array<ReturnType<CircuitBreaker['getHealthStatus']> & { name: string }>
+    details: Array<ReturnType<CircuitBreaker['getHealthStatus']> & { name: string }>;
   } {
     const details = Array.from(this.breakers.entries()).map(([name, breaker]) => ({
       name,
-      ...breaker.getHealthStatus()
+      ...breaker.getHealthStatus(),
     }));
 
-    const healthyBreakers = details.filter(d => d.healthy).length;
+    const healthyBreakers = details.filter((d) => d.healthy).length;
 
     return {
       healthy: healthyBreakers === details.length,
       totalBreakers: details.length,
       healthyBreakers,
-      details
+      details,
     };
   }
 
@@ -333,7 +325,7 @@ export class CircuitBreakerManager {
    * 重置所有 Circuit Breaker
    */
   resetAll(): void {
-    this.breakers.forEach(breaker => breaker.reset());
+    this.breakers.forEach((breaker) => breaker.reset());
     logger.info('All circuit breakers reset');
   }
 }

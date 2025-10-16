@@ -33,7 +33,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       // Already graded - redirect to view only, no resubmission allowed
       throw new Response(null, {
         status: 302,
-        headers: { Location: `/student/submissions/${latestSubmission.id}` }
+        headers: { Location: `/student/submissions/${latestSubmission.id}` },
       });
     }
 
@@ -91,7 +91,7 @@ export default function SubmitAssignment() {
   const navigate = useNavigate();
 
   // Clear upload store only if there's no draft submission to restore
-  const clearFiles = useUploadStore(state => state.clearFiles);
+  const clearFiles = useUploadStore((state) => state.clearFiles);
 
   useEffect(() => {
     // Only clear uploadStore if this is a fresh assignment (no existing draft)
@@ -114,24 +114,30 @@ export default function SubmitAssignment() {
   // Single state machine - "good taste" principle
   const [state, dispatch] = useReducer(submissionReducer, {
     // Determine phase based on draft state
-    phase: draftSubmission?.lastState === 'completed'
-      ? 'submit'
-      : draftSubmission?.fileMetadata
-        ? 'analyze'  // Has file, ready to analyze
-        : 'upload',  // No file, show upload
-    file: draftSubmission?.fileMetadata ? {
-      id: draftSubmission.fileMetadata.fileId,
-      name: draftSubmission.fileMetadata.fileName,
-      size: draftSubmission.fileMetadata.fileSize
-    } : null,
+    phase:
+      draftSubmission?.lastState === 'completed'
+        ? 'submit'
+        : draftSubmission?.fileMetadata
+          ? 'analyze' // Has file, ready to analyze
+          : 'upload', // No file, show upload
+    file: draftSubmission?.fileMetadata
+      ? {
+          id: draftSubmission.fileMetadata.fileId,
+          name: draftSubmission.fileMetadata.fileName,
+          size: draftSubmission.fileMetadata.fileSize,
+        }
+      : null,
     // Initialize session if we have sessionId OR aiAnalysisResult
     // This handles both new submissions (with sessionId) and existing submissions (with aiAnalysisResult but no sessionId)
-    session: (draftSubmission?.sessionId || draftSubmission?.aiAnalysisResult) ? {
-      id: draftSubmission.sessionId || '',
-      result: draftSubmission.aiAnalysisResult
-    } : null,
+    session:
+      draftSubmission?.sessionId || draftSubmission?.aiAnalysisResult
+        ? {
+            id: draftSubmission.sessionId || '',
+            result: draftSubmission.aiAnalysisResult,
+          }
+        : null,
     error: null,
-    loading: false
+    loading: false,
   });
 
   // GSAP animations
@@ -139,23 +145,24 @@ export default function SubmitAssignment() {
     const tl = gsap.timeline();
 
     // Initial page load animation
-    tl.fromTo(headerRef.current,
+    tl.fromTo(
+      headerRef.current,
       { y: -50, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.8, ease: "back.out(1.7)" }
-    )
-    .fromTo([leftPanelRef.current, rightPanelRef.current],
+      { y: 0, opacity: 1, duration: 0.8, ease: 'back.out(1.7)' }
+    ).fromTo(
+      [leftPanelRef.current, rightPanelRef.current],
       { y: 30, opacity: 0 },
-      { y: 0, opacity: 1, duration: 0.6, stagger: 0.2, ease: "power2.out" },
-      "-=0.4"
+      { y: 0, opacity: 1, duration: 0.6, stagger: 0.2, ease: 'power2.out' },
+      '-=0.4'
     );
 
     // Subtle entrance animations only
-    gsap.from(".ai-results-title", {
+    gsap.from('.ai-results-title', {
       y: 20,
       opacity: 0,
       duration: 0.8,
-      ease: "power2.out",
-      delay: 0.5
+      ease: 'power2.out',
+      delay: 0.5,
     });
   }, []);
 
@@ -187,7 +194,8 @@ export default function SubmitAssignment() {
       const angle = (i * 30 * Math.PI) / 180;
       const distance = 60 + Math.random() * 40;
 
-      gsap.fromTo(particle,
+      gsap.fromTo(
+        particle,
         { scale: 0, rotation: 0 },
         {
           scale: 1,
@@ -196,8 +204,8 @@ export default function SubmitAssignment() {
           rotation: 360,
           opacity: 0,
           duration: 1.2,
-          ease: "power2.out",
-          onComplete: () => particle.remove()
+          ease: 'power2.out',
+          onComplete: () => particle.remove(),
         }
       );
     }
@@ -208,7 +216,7 @@ export default function SubmitAssignment() {
       duration: 0.3,
       yoyo: true,
       repeat: 1,
-      ease: "back.out(2)"
+      ease: 'back.out(2)',
     });
   };
 
@@ -219,7 +227,7 @@ export default function SubmitAssignment() {
 
       dispatch({
         type: 'file_uploaded',
-        file: { id: uploadedFile.fileId, name: uploadedFile.fileName, size: uploadedFile.fileSize }
+        file: { id: uploadedFile.fileId, name: uploadedFile.fileName, size: uploadedFile.fileSize },
       });
 
       // Save draft submission to database for restoration
@@ -259,8 +267,8 @@ export default function SubmitAssignment() {
             type: 'analysis_completed',
             result: {
               ...result.result,
-              _normalizedScore: result.normalizedScore // Store normalized score with result
-            }
+              _normalizedScore: result.normalizedScore, // Store normalized score with result
+            },
           });
 
           // Save AI analysis result to draft
@@ -269,11 +277,13 @@ export default function SubmitAssignment() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                fileMetadata: state.file ? {
-                  fileId: state.file.id,
-                  fileName: state.file.name,
-                  fileSize: state.file.size,
-                } : null,
+                fileMetadata: state.file
+                  ? {
+                      fileId: state.file.id,
+                      fileName: state.file.name,
+                      fileSize: state.file.size,
+                    }
+                  : null,
                 sessionId,
                 aiAnalysisResult: result.result,
                 lastState: 'completed',
@@ -308,7 +318,6 @@ export default function SubmitAssignment() {
     }
   }, [state.loading, state.session?.id]);
 
-
   const waitForParse = async (fileId: string): Promise<boolean> => {
     for (let i = 0; i < 30; i++) {
       try {
@@ -318,7 +327,7 @@ export default function SubmitAssignment() {
         if (file?.parseStatus === 'COMPLETED') return true;
         if (file?.parseStatus === 'FAILED') return false;
       } catch {}
-      await new Promise(r => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 2000));
     }
     return false;
   };
@@ -349,11 +358,17 @@ export default function SubmitAssignment() {
       // Start grading
       const startForm = new FormData();
       startForm.append('action', 'start');
-      const startRes = await fetch(`/api/grading/session/${sessionData.data.sessionId}`, { method: 'POST', body: startForm });
+      const startRes = await fetch(`/api/grading/session/${sessionData.data.sessionId}`, {
+        method: 'POST',
+        body: startForm,
+      });
       const startData = await startRes.json();
       if (!startData.success) throw new Error(startData.error);
     } catch (err) {
-      dispatch({ type: 'error', message: err instanceof Error ? err.message : t('assignment:submit.errors.failedToStartGrading') });
+      dispatch({
+        type: 'error',
+        message: err instanceof Error ? err.message : t('assignment:submit.errors.failedToStartGrading'),
+      });
     }
   };
 
@@ -370,7 +385,7 @@ export default function SubmitAssignment() {
         body: JSON.stringify({
           assignmentId: assignment.id,
           uploadedFileId: state.file.id,
-          sessionId: state.session.id
+          sessionId: state.session.id,
         }),
       });
 
@@ -382,10 +397,12 @@ export default function SubmitAssignment() {
         throw new Error(data.error);
       }
     } catch (err) {
-      dispatch({ type: 'error', message: err instanceof Error ? err.message : t('assignment:submit.errors.failedToSubmit') });
+      dispatch({
+        type: 'error',
+        message: err instanceof Error ? err.message : t('assignment:submit.errors.failedToSubmit'),
+      });
     }
   };
-
 
   // Simplified upload component without Card wrapper
   const renderUploadPhase = () => (
@@ -401,11 +418,7 @@ export default function SubmitAssignment() {
       <div className="space-y-3">
         {/* Primary Action: AI Analysis */}
         {(state.phase === 'analyze' || state.phase === 'submit') && (
-          <Button
-            onClick={startAnalysis}
-            disabled={state.loading}
-            className="w-full font-semibold py-3"
-          >
+          <Button onClick={startAnalysis} disabled={state.loading} className="w-full font-semibold py-3">
             {state.loading ? t('grading:ai.analyzing') : t('assignment:submit.analyzeWithAI')}
           </Button>
         )}
@@ -424,11 +437,7 @@ export default function SubmitAssignment() {
 
         {/* Secondary Actions */}
         <div className="space-y-2">
-          <Button
-            variant="outline"
-            onClick={() => dispatch({ type: 'reset' })}
-            className="w-full text-sm"
-          >
+          <Button variant="outline" onClick={() => dispatch({ type: 'reset' })} className="w-full text-sm">
             {t('assignment:submit.reselectFile')}
           </Button>
         </div>
@@ -448,7 +457,6 @@ export default function SubmitAssignment() {
                 {assignment.course.name} • {assignment.course.teacher.email}
               </p>
             </div>
-      
           </div>
         </div>
       </div>
@@ -456,7 +464,6 @@ export default function SubmitAssignment() {
       {/* Main Content - AI Results First */}
       <main className="px-6 md:px-8 lg:px-10 py-8 h-[calc(100vh-180px)] md:h-[calc(100vh-200px)] lg:h-[calc(100vh-230px)]">
         <div className="grid lg:grid-cols-[1fr_320px] gap-8 lg:gap-10 h-full">
-
           {/* Primary: AI Grading Results */}
           <div ref={rightPanelRef} className="order-2 lg:order-1 flex flex-col">
             <div className="h-full bg-gradient-to-br from-background to-muted/30 rounded-2xl border border-border/50 overflow-hidden">
@@ -477,51 +484,55 @@ export default function SubmitAssignment() {
           <div ref={leftPanelRef} className="order-1 lg:order-2 flex flex-col">
             <div className="h-full overflow-y-auto">
               <div className="space-y-6 p-6">
+                {/* Resubmission Warning */}
+                {draftSubmission && draftSubmission.id && (
+                  <Alert
+                    variant="default"
+                    className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30"
+                  >
+                    <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
 
-            {/* Resubmission Warning */}
-            {draftSubmission && draftSubmission.id && (
-              <Alert variant="default" className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30">
-                 <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                
-                <AlertDescription className="text-orange-700 dark:text-orange-300">
-                  {t('assignment:submit.resubmitWarningDescription')}
-                </AlertDescription>
-              </Alert>
-            )}
+                    <AlertDescription className="text-orange-700 dark:text-orange-300">
+                      {t('assignment:submit.resubmitWarningDescription')}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-            {/* Compact Upload Section */}
-            <div>
-              {/* <h3 className="text-lg font-semibold mb-4">{t('assignment:submit.uploadDocument')}</h3> */}
+                {/* Compact Upload Section */}
+                <div>
+                  {/* <h3 className="text-lg font-semibold mb-4">{t('assignment:submit.uploadDocument')}</h3> */}
 
-              {state.phase === 'upload' ? renderUploadPhase() : (
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 dark:text-blue-400 text-lg font-bold">✓</span>
+                  {state.phase === 'upload' ? (
+                    renderUploadPhase()
+                  ) : (
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 dark:text-blue-400 text-lg font-bold">✓</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-blue-900 dark:text-blue-100 truncate">{state.file?.name}</h4>
+                          <p className="text-sm text-blue-700 dark:text-blue-300">
+                            {Math.round((state.file?.size || 0) / 1024)} KB
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-blue-900 dark:text-blue-100 truncate">{state.file?.name}</h4>
-                      <p className="text-sm text-blue-700 dark:text-blue-300">
-                        {Math.round((state.file?.size || 0) / 1024)} KB
-                      </p>
+                  )}
+                </div>
+
+                {/* Compact Actions */}
+                {renderActions()}
+
+                {/* Error Display */}
+                {state.error && (
+                  <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <span className="text-red-500 dark:text-red-400 text-lg">⚠</span>
+                      <p className="text-sm text-red-700 dark:text-red-300 font-medium">{state.error}</p>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Compact Actions */}
-            {renderActions()}
-
-            {/* Error Display */}
-            {state.error && (
-              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <span className="text-red-500 dark:text-red-400 text-lg">⚠</span>
-                  <p className="text-sm text-red-700 dark:text-red-300 font-medium">{state.error}</p>
-                </div>
-              </div>
-            )}
+                )}
               </div>
             </div>
           </div>

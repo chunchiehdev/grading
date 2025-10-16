@@ -36,9 +36,7 @@ export default function Settings() {
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
               <Avatar className="w-24 h-24">
                 <AvatarImage src={user.picture} alt={user.name} />
-                <AvatarFallback className="text-2xl">
-                  {user.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
+                <AvatarFallback className="text-2xl">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
               </Avatar>
               <div className="flex-1 text-center sm:text-left space-y-2">
                 <h2 className="text-2xl font-semibold text-foreground">{user.name}</h2>

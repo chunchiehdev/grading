@@ -18,7 +18,7 @@ export class CrossTabSyncService {
 
   constructor(channelName = 'chat-sync') {
     this.tabId = this.generateTabId();
-    
+
     // 檢查瀏覽器支援
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       this.channel = new BroadcastChannel(channelName);
@@ -42,14 +42,14 @@ export class CrossTabSyncService {
 
     this.channel.addEventListener('message', (event) => {
       const message: CrossTabMessage = event.data;
-      
+
       // 忽略自己發送的訊息
       if (message.tabId === this.tabId) return;
 
       // 執行相應的監聽器
       const typeListeners = this.listeners.get(message.type);
       if (typeListeners) {
-        typeListeners.forEach(listener => {
+        typeListeners.forEach((listener) => {
           try {
             listener(message.data);
           } catch (error) {
@@ -75,7 +75,7 @@ export class CrossTabSyncService {
       type,
       data,
       timestamp: Date.now(),
-      tabId: this.tabId
+      tabId: this.tabId,
     };
 
     try {
@@ -92,7 +92,7 @@ export class CrossTabSyncService {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, new Set());
     }
-    
+
     this.listeners.get(type)!.add(listener);
 
     // 返回取消訂閱函數
@@ -113,7 +113,7 @@ export class CrossTabSyncService {
   requestSync(): void {
     this.send('SYNC_REQUEST', {
       requestId: `sync_${Date.now()}`,
-      requestedBy: this.tabId
+      requestedBy: this.tabId,
     });
   }
 
@@ -123,11 +123,11 @@ export class CrossTabSyncService {
   private handleSyncRequest(message: CrossTabMessage): void {
     // 這裡應該由具體的實現來決定要同步什麼資料
     // 例如：當前聊天狀態、用戶資訊等
-    
+
     // 觸發同步響應事件，讓上層應用決定要同步什麼
     const syncListeners = this.listeners.get('SYNC_REQUEST');
     if (syncListeners) {
-      syncListeners.forEach(listener => listener(message.data));
+      syncListeners.forEach((listener) => listener(message.data));
     }
   }
 

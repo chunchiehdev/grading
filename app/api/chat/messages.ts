@@ -1,10 +1,10 @@
-import type { ActionFunctionArgs } from "react-router";
-import { db } from "@/lib/db.server";
-import { z } from "zod";
-import { getUser } from "../../services/auth.server.js";
-import { validateApiKey } from "../../middleware/api-key.server.js";
-import { EventPublisher } from "../../services/events.server.js";
-import { ChatCacheService } from "../../services/cache.server.js";
+import type { ActionFunctionArgs } from 'react-router';
+import { db } from '@/lib/db.server';
+import { z } from 'zod';
+import { getUser } from '../../services/auth.server.js';
+import { validateApiKey } from '../../middleware/api-key.server.js';
+import { EventPublisher } from '../../services/events.server.js';
+import { ChatCacheService } from '../../services/cache.server.js';
 
 const CreateMessageSchema = z.object({
   chatId: z.string(),
@@ -25,7 +25,7 @@ export async function action({ request }: ActionFunctionArgs) {
       method: request.method,
       hasApiKey: !!request.headers.get('x-api-key'),
       chatId: validatedData.chatId,
-      role: validatedData.role
+      role: validatedData.role,
     });
 
     // 檢查是否有有效的 API Key（內部服務）
@@ -41,9 +41,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
       // 驗證用戶是否有權限對該聊天進行操作
       const chat = await db.chat.findFirst({
-        where: { 
+        where: {
           id: validatedData.chatId,
-          userId: user.id 
+          userId: user.id,
         },
       });
 
@@ -68,10 +68,10 @@ export async function action({ request }: ActionFunctionArgs) {
         role: validatedData.role,
         content: validatedData.content,
         time: {
-          gte: new Date(Date.now() - 10000) // 最近10秒內的重複訊息
-        }
+          gte: new Date(Date.now() - 10000), // 最近10秒內的重複訊息
+        },
       },
-      orderBy: { time: 'desc' }
+      orderBy: { time: 'desc' },
     });
 
     if (recentMessage) {
@@ -103,17 +103,12 @@ export async function action({ request }: ActionFunctionArgs) {
       const userId = currentUser?.id || 'anonymous';
 
       // 發布事件 - 訊息已創建，包含完整訊息資料
-      await EventPublisher.publishMessageCreated(
-        validatedData.chatId,
-        userId,
-        message.id,
-        {
-          id: message.id,
-          role: message.role,
-          content: message.content,
-          time: message.time
-        }
-      );
+      await EventPublisher.publishMessageCreated(validatedData.chatId, userId, message.id, {
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        time: message.time,
+      });
 
       // 快取失效 - 有新訊息時清除相關快取
       if (currentUser) {
@@ -124,12 +119,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
       // 如果是用戶訊息，觸發 AI 回應（攜帶 messageId 供去重）
       if (validatedData.role === 'USER') {
-        await EventPublisher.publishAIResponseNeeded(
-          validatedData.chatId,
-          userId,
-          validatedData.content,
-          message.id
-        );
+        await EventPublisher.publishAIResponseNeeded(validatedData.chatId, userId, validatedData.content, message.id);
       }
 
       return message;
@@ -144,21 +134,26 @@ export async function action({ request }: ActionFunctionArgs) {
         time: result.time,
       },
     });
-
   } catch (error) {
     console.error('Error creating message:', error);
-    
+
     if (error instanceof z.ZodError) {
-      return Response.json({ 
-        success: false, 
-        error: 'Invalid request data',
-        details: error.errors 
-      }, { status: 400 });
+      return Response.json(
+        {
+          success: false,
+          error: 'Invalid request data',
+          details: error.errors,
+        },
+        { status: 400 }
+      );
     }
 
-    return Response.json({ 
-      success: false, 
-      error: 'Internal server error' 
-    }, { status: 500 });
+    return Response.json(
+      {
+        success: false,
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    );
   }
 }

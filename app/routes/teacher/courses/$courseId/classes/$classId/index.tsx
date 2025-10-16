@@ -82,11 +82,11 @@ function formatSchedule(schedule: any): string {
     '7': '第7節',
     '8': '第8節',
     '9': '第9節',
-    'Z': '第Z節',
-    'A': '第A節',
-    'B': '第B節',
-    'C': '第C節',
-    'D': '第D節',
+    Z: '第Z節',
+    A: '第A節',
+    B: '第B節',
+    C: '第C節',
+    D: '第D節',
   };
   return `星期${schedule.weekday} ${periodNames[schedule.periodCode] || schedule.periodCode}`;
 }
@@ -149,9 +149,7 @@ export default function ClassIndex() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-muted-foreground">上課時間</p>
-                    <p className="text-sm font-medium text-foreground mt-0.5">
-                      {formatSchedule(schedule)}
-                    </p>
+                    <p className="text-sm font-medium text-foreground mt-0.5">{formatSchedule(schedule)}</p>
                   </div>
                 </div>
 
@@ -162,9 +160,7 @@ export default function ClassIndex() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-muted-foreground">教室</p>
-                      <p className="text-sm font-medium text-foreground mt-0.5">
-                        {schedule.room}
-                      </p>
+                      <p className="text-sm font-medium text-foreground mt-0.5">{schedule.room}</p>
                     </div>
                   </div>
                 )}
@@ -218,9 +214,7 @@ export default function ClassIndex() {
                     </CardDescription>
                   </div>
                   <Button asChild size="sm">
-                    <Link to={`/teacher/courses/${courseId}/classes/${classId}/students`}>
-                      查看全部
-                    </Link>
+                    <Link to={`/teacher/courses/${courseId}/classes/${classId}/students`}>查看全部</Link>
                   </Button>
                 </div>
               </CardHeader>
@@ -230,9 +224,7 @@ export default function ClassIndex() {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted/50 mb-3">
                       <Users className="w-8 h-8 text-muted-foreground/50" />
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      尚無學生加入此時段
-                    </p>
+                    <p className="text-sm text-muted-foreground">尚無學生加入此時段</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -242,21 +234,14 @@ export default function ClassIndex() {
                         className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
                       >
                         <Avatar className="h-9 w-9 flex-shrink-0">
-                          <AvatarImage 
-                            src={enrollment.student.picture || undefined} 
-                            alt={enrollment.student.name} 
-                          />
+                          <AvatarImage src={enrollment.student.picture || undefined} alt={enrollment.student.name} />
                           <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
                             {enrollment.student.name.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {enrollment.student.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {enrollment.student.email}
-                          </p>
+                          <p className="text-sm font-medium text-foreground truncate">{enrollment.student.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{enrollment.student.email}</p>
                         </div>
                       </div>
                     ))}

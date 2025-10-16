@@ -20,14 +20,11 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
   const currentLanguage = i18n.language.startsWith('zh') ? 'zh' : 'en';
 
   // Format enrolled date
-  const formattedEnrolledDate = new Date(enrolledAt).toLocaleDateString(
-    currentLanguage === 'zh' ? 'zh-TW' : 'en-US',
-    {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }
-  );
+  const formattedEnrolledDate = new Date(enrolledAt).toLocaleDateString(currentLanguage === 'zh' ? 'zh-TW' : 'en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,9 +51,7 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
               className="w-14 h-14 lg:w-16 lg:h-16 xl:w-20 xl:h-20 rounded-full object-cover bg-muted flex-shrink-0"
             />
             <div className="flex-1 min-w-0">
-              <div className="text-sm lg:text-base text-muted-foreground mb-1">
-                {t('course:detail.teacher')}
-              </div>
+              <div className="text-sm lg:text-base text-muted-foreground mb-1">{t('course:detail.teacher')}</div>
               <div className="text-lg lg:text-xl xl:text-2xl font-medium text-foreground mb-3">
                 {course.teacher.name}
               </div>
@@ -65,13 +60,11 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
                   <div className="flex items-start gap-2">
                     <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div>
-                      <div className="font-medium text-foreground">{t('course:detail.class')}：{myClass.name}</div>
+                      <div className="font-medium text-foreground">
+                        {t('course:detail.class')}：{myClass.name}
+                      </div>
                       <div className="text-xs lg:text-sm mt-1">
-                        {formatScheduleDisplay(
-                          myClass.schedule.weekday,
-                          myClass.schedule.periodCode,
-                          currentLanguage
-                        )}
+                        {formatScheduleDisplay(myClass.schedule.weekday, myClass.schedule.periodCode, currentLanguage)}
                         {myClass.schedule.room && (
                           <span className="ml-2">
                             <MapPin className="w-3 h-3 inline mr-1" />
@@ -119,7 +112,9 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
               {stats.averageScore !== null && (
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-base font-semibold text-blue-600 dark:text-blue-400">{stats.averageScore.toFixed(1)}</span>
+                  <span className="text-base font-semibold text-blue-600 dark:text-blue-400">
+                    {stats.averageScore.toFixed(1)}
+                  </span>
                   <span className="text-sm text-muted-foreground">{t('course:detail.averageScore')}</span>
                 </div>
               )}

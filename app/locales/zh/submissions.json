@@ -1,85 +1,85 @@
 {
-    "title": "我的提交",
-    "history": "提交歷史",
-    "resubmit": "重新繳交",
+  "title": "我的提交",
+  "history": "提交歷史",
+  "resubmit": "重新繳交",
+  "emptyState": {
+    "noSubmissions": "還沒提交任何作業"
+  },
+  "table": {
+    "assignment": "作業",
+    "course": "課程",
+    "submittedAt": "提交時間",
+    "status": "狀態",
+    "viewDetails": "查看詳情"
+  },
+  "backToSubmissions": "返回我的繳交",
+  "assignmentInfo": {
+    "title": "作業資訊",
+    "course": "課程",
+    "due": "截止時間",
+    "description": "作業說明"
+  },
+  "aiAnalysis": {
+    "title": "AI 批改結果",
+    "gradingInProgress": "批改進行中。",
+    "inProgress": "AI 分析進行中..."
+  },
+  "gradingSummary": {
+    "title": "成績",
+    "status": "狀態",
+    "score": "分數",
+    "submitted": "繳交時間"
+  },
+  "teacherComments": {
+    "title": "評語",
+    "empty": "目前沒有老師評語。",
+    "hint": "當您提交作業時，會顯示在這裡"
+  },
+  "status": {
+    "graded": "已批改",
+    "pending": "處理中",
+    "submitted": "已繳交",
+    "failed": "失敗",
+    "unknown": "未知",
+    "analyzed": "已分析"
+  },
+  "teacher": {
+    "title": "提交作業",
+    "subtitle": "檢視與管理此項作業的提交",
+    "stats": {
+      "totalSubmissions": "總提交數",
+      "graded": "已批改",
+      "analyzed": "已分析",
+      "pendingReview": "待審核"
+    },
+    "studentSubmissions": "學生提交",
     "emptyState": {
-        "noSubmissions": "還沒提交任何作業"
+      "noSubmissions": "尚無提交",
+      "noSubmissionsDescription": "學生尚未提交此項作業的任何作品。"
     },
-    "table": {
-        "assignment": "作業",
-        "course": "課程",
-        "submittedAt": "提交時間",
-        "status": "狀態",
-        "viewDetails": "查看詳情"
+    "actions": {
+      "manageAssignment": "管理作業",
+      "backToCourse": "返回課程",
+      "view": "查看",
+      "download": "下載"
     },
-    "backToSubmissions": "返回我的繳交",
-    "assignmentInfo": {
-        "title": "作業資訊",
-        "course": "課程",
-        "due": "截止時間",
-        "description": "作業說明"
+    "feedback": {
+      "teacherFeedback": "教師回饋",
+      "aiAnalysisAvailable": "AI 分析可用",
+      "aiAnalysisDescription": "已為此提交生成自動批改和回饋。"
     },
-    "aiAnalysis": {
-        "title": "AI 批改結果",
-        "gradingInProgress": "批改進行中。",
-        "inProgress": "AI 分析進行中..."
+    "assignmentDetails": {
+      "title": "作業詳情",
+      "assignmentName": "作業名稱",
+      "course": "課程",
+      "gradingRubric": "評分標準",
+      "dueDate": "截止日期",
+      "noDueDate": "未設定截止日期",
+      "description": "說明"
     },
-    "gradingSummary": {
-        "title": "成績",
-        "status": "狀態",
-        "score": "分數",
-        "submitted": "繳交時間"
-    },
-    "teacherComments": {
-        "title": "評語",
-        "empty": "目前沒有老師評語。",
-        "hint": "當您提交作業時，會顯示在這裡"
-    },
-    "status": {
-        "graded": "已批改",
-        "pending": "處理中",
-        "submitted": "已繳交",
-        "failed": "失敗",
-        "unknown": "未知",
-        "analyzed": "已分析"
-    },
-    "teacher": {
-        "title": "提交作業",
-        "subtitle": "檢視與管理此項作業的提交",
-        "stats": {
-            "totalSubmissions": "總提交數",
-            "graded": "已批改",
-            "analyzed": "已分析",
-            "pendingReview": "待審核"
-        },
-        "studentSubmissions": "學生提交",
-        "emptyState": {
-            "noSubmissions": "尚無提交",
-            "noSubmissionsDescription": "學生尚未提交此項作業的任何作品。"
-        },
-        "actions": {
-            "manageAssignment": "管理作業",
-            "backToCourse": "返回課程",
-            "view": "查看",
-            "download": "下載"
-        },
-        "feedback": {
-            "teacherFeedback": "教師回饋",
-            "aiAnalysisAvailable": "AI 分析可用",
-            "aiAnalysisDescription": "已為此提交生成自動批改和回饋。"
-        },
-        "assignmentDetails": {
-            "title": "作業詳情",
-            "assignmentName": "作業名稱",
-            "course": "課程",
-            "gradingRubric": "評分標準",
-            "dueDate": "截止日期",
-            "noDueDate": "未設定截止日期",
-            "description": "說明"
-        },
-        "submissionInfo": {
-            "submitted": "提交於",
-            "score": "分數"
-        }
+    "submissionInfo": {
+      "submitted": "提交於",
+      "score": "分數"
     }
+  }
 }

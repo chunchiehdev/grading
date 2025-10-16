@@ -14,21 +14,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const assignments = await getStudentAssignments(student.id);
 
     // Format dates consistently
-    const formattedAssignments = assignments.map(assignment => ({
+    const formattedAssignments = assignments.map((assignment) => ({
       ...assignment,
       formattedDueDate: assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString('en-CA') : undefined,
     }));
 
     return Response.json({
       success: true,
-      data: formattedAssignments
+      data: formattedAssignments,
     });
-
   } catch (error) {
     console.error('Failed to fetch student assignments:', error);
-    return Response.json({
-      success: false,
-      error: 'Failed to fetch assignments'
-    }, { status: 500 });
+    return Response.json(
+      {
+        success: false,
+        error: 'Failed to fetch assignments',
+      },
+      { status: 500 }
+    );
   }
 }

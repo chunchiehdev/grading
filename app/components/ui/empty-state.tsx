@@ -14,15 +14,15 @@ interface EmptyStateProps {
   showCard?: boolean;
 }
 
-export function EmptyState({ 
-  title, 
-  description, 
-  actionText, 
-  actionLink, 
+export function EmptyState({
+  title,
+  description,
+  actionText,
+  actionLink,
   action,
-  icon, 
+  icon,
   className,
-  showCard = true 
+  showCard = true,
 }: EmptyStateProps) {
   const content = (
     <div className="flex flex-col items-center justify-center text-center space-y-4">
@@ -31,11 +31,12 @@ export function EmptyState({
         <h3 className="text-lg font-medium text-foreground mb-2">{title}</h3>
         <p className="text-muted-foreground mb-6">{description}</p>
       </div>
-      {action || (actionText && actionLink && (
-        <Button asChild>
-          <Link to={actionLink}>{actionText}</Link>
-        </Button>
-      ))}
+      {action ||
+        (actionText && actionLink && (
+          <Button asChild>
+            <Link to={actionLink}>{actionText}</Link>
+          </Button>
+        ))}
     </div>
   );
 
@@ -45,9 +46,7 @@ export function EmptyState({
 
   return (
     <Card className={className}>
-      <CardContent className="pt-6 px-6 pb-8">
-        {content}
-      </CardContent>
+      <CardContent className="pt-6 px-6 pb-8">{content}</CardContent>
     </Card>
   );
 }

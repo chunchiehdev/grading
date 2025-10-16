@@ -1,9 +1,5 @@
 import { getUserFiles } from '@/services/uploaded-file.server';
-import {
-  createPaginatedResponse,
-  createErrorResponse,
-  ApiErrorCode
-} from '@/types/api';
+import { createPaginatedResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 import { withAuth } from '@/middleware/api.server';
 
 /**
@@ -14,7 +10,6 @@ import { withAuth } from '@/middleware/api.server';
  * @returns {Promise<Response>} JSON response with user's files
  */
 export const loader = withAuth(async ({ request, user }) => {
-
   const url = new URL(request.url);
   const parseStatus = url.searchParams.get('parseStatus') as any;
   const limit = parseInt(url.searchParams.get('limit') || '50');
@@ -23,18 +18,13 @@ export const loader = withAuth(async ({ request, user }) => {
   const result = await getUserFiles(user.id, {
     parseStatus,
     limit,
-    offset
+    offset,
   });
 
   if (result.error) {
-    return Response.json(
-      createErrorResponse(result.error, ApiErrorCode.INTERNAL_ERROR),
-      { status: 500 }
-    );
+    return Response.json(createErrorResponse(result.error, ApiErrorCode.INTERNAL_ERROR), { status: 500 });
   }
 
   const page = Math.floor(offset / limit) + 1;
-  return Response.json(
-    createPaginatedResponse(result.files || [], result.total || 0, page, limit)
-  );
-}); 
+  return Response.json(createPaginatedResponse(result.files || [], result.total || 0, page, limit));
+});

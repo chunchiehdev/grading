@@ -40,12 +40,8 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
 
             {/* Main Content */}
             <div className="space-y-3">
-              <h1 className="text-2xl font-semibold text-foreground">
-                {t('rubric:emptyState.noRubrics')}
-              </h1>
-              <p className="text-muted-foreground">
-                {t('rubric:emptyState.noRubricsDescription')}
-              </p>
+              <h1 className="text-2xl font-semibold text-foreground">{t('rubric:emptyState.noRubrics')}</h1>
+              <p className="text-muted-foreground">{t('rubric:emptyState.noRubricsDescription')}</p>
             </div>
 
             {/* Action Button */}
@@ -61,7 +57,8 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
         /* Rubrics Grid */
         <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
           {activeRubrics.map((rubric) => {
-            const totalMaxScore = rubric.criteria?.reduce((total: number, criterion: any) => total + criterion.maxScore, 0) || 100;
+            const totalMaxScore =
+              rubric.criteria?.reduce((total: number, criterion: any) => total + criterion.maxScore, 0) || 100;
 
             return (
               <Link key={rubric.id} to={`/teacher/rubrics/${rubric.id}`} className="block">
@@ -82,9 +79,7 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                           )}
                         </div>
                         {rubric.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-3">
-                            {rubric.description}
-                          </p>
+                          <p className="text-sm text-muted-foreground line-clamp-3">{rubric.description}</p>
                         )}
                       </div>
                       <DropdownMenu>
@@ -95,9 +90,7 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link to={`/teacher/rubrics/${rubric.id}/edit`}>
-                              {t('rubric:edit')}
-                            </Link>
+                            <Link to={`/teacher/rubrics/${rubric.id}/edit`}>{t('rubric:edit')}</Link>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem>
@@ -117,7 +110,9 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                     <div className="flex items-center justify-start gap-8">
                       <div className="flex items-center gap-2">
                         <FileText className="w-5 h-5 text-muted-foreground" />
-                        <span className="text-lg font-semibold text-muted-foreground">{rubric.criteria?.length || 0}</span>
+                        <span className="text-lg font-semibold text-muted-foreground">
+                          {rubric.criteria?.length || 0}
+                        </span>
                         <span className="text-sm text-muted-foreground">{t('rubric:criteria')}</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -132,14 +127,11 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                   <div className="px-6 py-4 min-h-[120px] flex flex-col justify-start">
                     {rubric.criteria && rubric.criteria.length > 0 ? (
                       <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-foreground">
-                          {t('rubric:criteriaPreview')}:
-                        </h4>
+                        <h4 className="text-sm font-medium text-foreground">{t('rubric:criteriaPreview')}:</h4>
                         <div className="space-y-1">
                           {rubric.criteria.slice(0, 2).map((criterion: any, index: number) => (
                             <div key={index} className="flex justify-between text-sm text-muted-foreground">
                               <span className="truncate">{criterion.name}</span>
-                             
                             </div>
                           ))}
                           {rubric.criteria.length > 2 && (
@@ -150,9 +142,7 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-sm text-muted-foreground text-center py-4">
-                        No criteria defined
-                      </div>
+                      <div className="text-sm text-muted-foreground text-center py-4">No criteria defined</div>
                     )}
                   </div>
 

@@ -76,9 +76,7 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
 
                 {/* Course Column */}
                 <div className="col-span-4">
-                  <p className="text-sm text-muted-foreground truncate">
-                    {s.assignmentArea?.course?.name}
-                  </p>
+                  <p className="text-sm text-muted-foreground truncate">{s.assignmentArea?.course?.name}</p>
                 </div>
 
                 {/* Time Column */}

@@ -28,12 +28,8 @@ export function CoursesContent({ data }: CoursesContentProps) {
 
           {/* Main Content */}
           <div className="space-y-3">
-            <h1 className="text-2xl font-semibold text-foreground">
-              {t('course:emptyState.title')}
-            </h1>
-            <p className="text-muted-foreground">
-              {t('course:emptyState.description')}
-            </p>
+            <h1 className="text-2xl font-semibold text-foreground">{t('course:emptyState.title')}</h1>
+            <p className="text-muted-foreground">{t('course:emptyState.description')}</p>
           </div>
         </div>
       </div>
@@ -42,7 +38,6 @@ export function CoursesContent({ data }: CoursesContentProps) {
 
   return (
     <div className="space-y-8">
-
       <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
         {courses.map((course) => (
           <CourseCard key={course.id} course={course} />
@@ -107,7 +102,9 @@ function CourseCard({ course }: CourseCardProps) {
             />
             <div className="flex-1">
               <div className="text-base font-medium text-muted-foreground">{course.teacher.name}</div>
-              <Badge variant="secondary" className="text-xs mt-1">Teacher</Badge>
+              <Badge variant="secondary" className="text-xs mt-1">
+                Teacher
+              </Badge>
             </div>
           </div>
         </div>

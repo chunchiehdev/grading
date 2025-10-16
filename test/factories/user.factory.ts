@@ -17,29 +17,31 @@ export class UserFactory {
         name: options.name || `Test User ${Math.floor(Math.random() * 1000)}`,
         role: options.role || UserRole.STUDENT,
         picture: options.picture || 'https://example.com/avatar.jpg',
-      }
+      },
     });
-    
+
     console.log(`👤 Created ${user.role.toLowerCase()}: ${user.email}`);
     return user;
   }
-  
+
   static async createTeacher(options: Omit<CreateUserOptions, 'role'> = {}) {
     return this.create({ ...options, role: UserRole.TEACHER });
   }
-  
+
   static async createStudent(options: Omit<CreateUserOptions, 'role'> = {}) {
     return this.create({ ...options, role: UserRole.STUDENT });
   }
-  
+
   static async createMany(count: number, options: CreateUserOptions = {}) {
     const users = [];
     for (let i = 0; i < count; i++) {
-      users.push(await this.create({
-        ...options,
-        email: options.email ? `${i}-${options.email}` : undefined,
-        name: options.name ? `${options.name} ${i + 1}` : undefined,
-      }));
+      users.push(
+        await this.create({
+          ...options,
+          email: options.email ? `${i}-${options.email}` : undefined,
+          name: options.name ? `${options.name} ${i + 1}` : undefined,
+        })
+      );
     }
     return users;
   }

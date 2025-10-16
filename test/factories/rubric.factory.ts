@@ -23,8 +23,8 @@ export class RubricFactory {
         { score: 30, description: 'Good - Clear and adequate content' },
         { score: 20, description: 'Fair - Basic content with some gaps' },
         { score: 10, description: 'Poor - Minimal or unclear content' },
-        { score: 0, description: 'Missing - No relevant content' }
-      ]
+        { score: 0, description: 'Missing - No relevant content' },
+      ],
     },
     {
       id: uuidv4(),
@@ -36,8 +36,8 @@ export class RubricFactory {
         { score: 20, description: 'Good - Generally well-organized' },
         { score: 15, description: 'Fair - Some organization issues' },
         { score: 10, description: 'Poor - Disorganized or confusing' },
-        { score: 0, description: 'Missing - No clear organization' }
-      ]
+        { score: 0, description: 'Missing - No clear organization' },
+      ],
     },
     {
       id: uuidv4(),
@@ -46,12 +46,12 @@ export class RubricFactory {
       maxScore: 30,
       levels: [
         { score: 30, description: 'Excellent - Professional writing with no errors' },
-        { score: 25, description: 'Good - Minor errors that don\'t impede understanding' },
+        { score: 25, description: "Good - Minor errors that don't impede understanding" },
         { score: 20, description: 'Fair - Some errors that occasionally impede understanding' },
         { score: 15, description: 'Poor - Frequent errors that impede understanding' },
-        { score: 0, description: 'Missing - Incomprehensible or missing content' }
-      ]
-    }
+        { score: 0, description: 'Missing - Incomprehensible or missing content' },
+      ],
+    },
   ];
 
   static async create(options: CreateRubricOptions) {
@@ -65,13 +65,13 @@ export class RubricFactory {
         isActive: options.isActive ?? true,
         isTemplate: options.isTemplate || false,
         criteria: options.criteria || this.defaultCriteria,
-      }
+      },
     });
-    
+
     console.log(`📋 Created rubric: ${rubric.name} (${rubric.isTemplate ? 'template' : 'regular'})`);
     return rubric;
   }
-  
+
   static async createWithCategories(options: CreateRubricOptions) {
     const categorizedCriteria = [
       {
@@ -79,7 +79,7 @@ export class RubricFactory {
         name: 'Content',
         criteria: [
           this.defaultCriteria[0], // Content Quality
-        ]
+        ],
       },
       {
         id: uuidv4(),
@@ -87,16 +87,16 @@ export class RubricFactory {
         criteria: [
           this.defaultCriteria[1], // Organization
           this.defaultCriteria[2], // Grammar & Style
-        ]
-      }
+        ],
+      },
     ];
-    
+
     return this.create({
       ...options,
-      criteria: categorizedCriteria
+      criteria: categorizedCriteria,
     });
   }
-  
+
   static async createTemplate(options: Omit<CreateRubricOptions, 'isTemplate'>) {
     return this.create({ ...options, isTemplate: true });
   }

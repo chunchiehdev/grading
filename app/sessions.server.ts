@@ -25,7 +25,7 @@ export async function getSession(request: Request) {
 export async function commitSession(session: any) {
   console.error('💾 Committing session with userId:', session.get('userId'));
   const cookieHeader = await sessionStorage.commitSession(session, {
-    expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000)
+    expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000),
   });
   return cookieHeader;
 }

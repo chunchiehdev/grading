@@ -34,19 +34,21 @@ export class ChatSyncService {
         key,
         JSON.stringify({
           ...state,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
         }),
         'EX',
         this.EXPIRATION_TIME
       );
-      
-      // 發送同步事件給該用戶的所有設備
-      await redis.publish(`user:${userId}:sync`, JSON.stringify({
-        type: 'CHAT_STATE_UPDATE',
-        state,
-        timestamp: new Date().toISOString()
-      }));
 
+      // 發送同步事件給該用戶的所有設備
+      await redis.publish(
+        `user:${userId}:sync`,
+        JSON.stringify({
+          type: 'CHAT_STATE_UPDATE',
+          state,
+          timestamp: new Date().toISOString(),
+        })
+      );
     } catch (error) {
       logger.error('Failed to update user chat state:', error);
       throw error;
@@ -61,7 +63,7 @@ export class ChatSyncService {
     const channel = `user:${userId}:sync`;
 
     await subscriber.subscribe(channel);
-    
+
     subscriber.on('message', (receivedChannel, message) => {
       if (receivedChannel === channel) {
         try {
@@ -98,10 +100,10 @@ export class ChatSyncService {
    */
   static async updateUserRecentChats(userId: string, chatIds: string[]): Promise<void> {
     try {
-      const currentState = await this.getUserChatState(userId) || {};
+      const currentState = (await this.getUserChatState(userId)) || {};
       await this.updateUserChatState(userId, {
         ...currentState,
-        recentChats: chatIds.slice(0, 10) // 只保留最近 10 個
+        recentChats: chatIds.slice(0, 10), // 只保留最近 10 個
       });
     } catch (error) {
       logger.error('Failed to update user recent chats:', error);
@@ -116,7 +118,7 @@ export class ChatSyncService {
     try {
       const pattern = `${this.USER_CHAT_STATE_PREFIX}*`;
       const keys = await redis.keys(pattern);
-      
+
       for (const key of keys) {
         const ttl = await redis.ttl(key);
         if (ttl === -1) {
@@ -124,7 +126,7 @@ export class ChatSyncService {
           await redis.expire(key, this.EXPIRATION_TIME);
         }
       }
-      
+
       logger.info(`Processed ${keys.length} user chat state keys for cleanup`);
     } catch (error) {
       logger.error('Failed to cleanup expired states:', error);

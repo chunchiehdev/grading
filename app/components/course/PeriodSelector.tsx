@@ -9,7 +9,7 @@ import { Clock } from 'lucide-react';
  * 時段選擇器值的介面
  */
 export interface PeriodSelectorValue {
-  weekday: string;    // 星期代碼：一、二、三...
+  weekday: string; // 星期代碼：一、二、三...
   periodCode: string; // 節次代碼：1, 2, 3, ..., Z, A, B, C, D
 }
 
@@ -77,13 +77,7 @@ export function PeriodSelector({
           <Label htmlFor={weekdayName}>
             {t('classForm.periodSelector.weekday')} {required && <span className="text-red-500">*</span>}
           </Label>
-          <Select
-            name={weekdayName}
-            value={weekday}
-            onValueChange={setWeekday}
-            disabled={disabled}
-            required={required}
-          >
+          <Select name={weekdayName} value={weekday} onValueChange={setWeekday} disabled={disabled} required={required}>
             <SelectTrigger id={weekdayName}>
               <SelectValue placeholder={t('classForm.periodSelector.selectWeekday')} />
             </SelectTrigger>
@@ -136,9 +130,7 @@ export function PeriodSelector({
 
       {/* 提示訊息 */}
       {required && (!weekday || !periodCode) && (
-        <p className="text-xs text-muted-foreground">
-          {t('classForm.periodSelector.selectPrompt')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('classForm.periodSelector.selectPrompt')}</p>
       )}
     </div>
   );

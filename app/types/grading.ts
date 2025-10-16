@@ -22,8 +22,8 @@ export interface RubricCriteria {
   description: string;
   category?: string;
   levels: {
-    score: number; 
-    description: string; 
+    score: number;
+    description: string;
   }[];
 }
 

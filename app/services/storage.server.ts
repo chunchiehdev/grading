@@ -13,11 +13,11 @@ export const s3Client = new S3Client(storageConfig.s3Config);
  */
 export enum StorageErrorType {
   NETWORK = 'NETWORK',
-  AUTH = 'AUTH', 
+  AUTH = 'AUTH',
   NOT_FOUND = 'NOT_FOUND',
   QUOTA = 'QUOTA',
   VALIDATION = 'VALIDATION',
-  UNKNOWN = 'UNKNOWN'
+  UNKNOWN = 'UNKNOWN',
 }
 
 export interface StorageError extends Error {
@@ -87,19 +87,19 @@ async function retryWithBackoff<T>(
       if (attempt > 1) {
         const delay = baseDelay * Math.pow(2, attempt - 2) + Math.random() * 1000;
         logger.info(`Retrying ${operationName} (attempt ${attempt}/${maxRetries}) after ${Math.round(delay)}ms`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
 
       return await operation();
     } catch (error) {
       lastError = error;
       const storageError = createStorageError(error, operationName);
-      
+
       logger.warn(`${operationName} attempt ${attempt}/${maxRetries} failed:`, {
         error: storageError.message,
         type: storageError.type,
         retryable: storageError.retryable,
-        statusCode: storageError.statusCode
+        statusCode: storageError.statusCode,
       });
 
       // Don't retry if error is not retryable or this is the last attempt
@@ -119,26 +119,31 @@ async function retryWithBackoff<T>(
  * @throws {StorageError} Categorized error with retry information
  */
 export async function getFileFromStorage(fileKey: string): Promise<Buffer> {
-  return retryWithBackoff(async () => {
-    const command = new GetObjectCommand({
-      Bucket: storageConfig.bucket,
-      Key: fileKey,
-    });
+  return retryWithBackoff(
+    async () => {
+      const command = new GetObjectCommand({
+        Bucket: storageConfig.bucket,
+        Key: fileKey,
+      });
 
-    const response = await s3Client.send(command);
-    const chunks: Uint8Array[] = [];
-    
-    if (response.Body) {
-      // @ts-ignore
-      for await (const chunk of response.Body) {
-        chunks.push(chunk);
+      const response = await s3Client.send(command);
+      const chunks: Uint8Array[] = [];
+
+      if (response.Body) {
+        // @ts-ignore
+        for await (const chunk of response.Body) {
+          chunks.push(chunk);
+        }
       }
-    }
-    
-    const buffer = Buffer.concat(chunks);
-    logger.info(`Successfully retrieved file from storage: ${fileKey} (${buffer.length} bytes)`);
-    return buffer;
-  }, 3, 1000, `Get file ${fileKey}`);
+
+      const buffer = Buffer.concat(chunks);
+      logger.info(`Successfully retrieved file from storage: ${fileKey} (${buffer.length} bytes)`);
+      return buffer;
+    },
+    3,
+    1000,
+    `Get file ${fileKey}`
+  );
 }
 
 /**
@@ -151,8 +156,8 @@ export async function getFileFromStorage(fileKey: string): Promise<Buffer> {
  * @throws {StorageError} Categorized error with retry information
  */
 export async function uploadToStorage(
-  fileData: Buffer | Readable, 
-  key: string, 
+  fileData: Buffer | Readable,
+  key: string,
   contentType: string,
   onProgress?: (uploadedBytes: number, totalBytes: number) => void
 ) {
@@ -174,57 +179,62 @@ export async function uploadToStorage(
   const fileSize = Buffer.isBuffer(fileData) ? fileData.length : 'unknown';
   logger.info(`Starting upload to storage: ${key} (${fileSize} bytes, ${contentType})`);
 
-  return retryWithBackoff(async () => {
-    const command = new PutObjectCommand({
-      Bucket: storageConfig.bucket,
-      Key: key,
-      Body: fileData,
-      ContentType: contentType,
-    });
+  return retryWithBackoff(
+    async () => {
+      const command = new PutObjectCommand({
+        Bucket: storageConfig.bucket,
+        Key: key,
+        Body: fileData,
+        ContentType: contentType,
+      });
 
-    // Realistic progress simulation for better UX
-    if (onProgress && Buffer.isBuffer(fileData)) {
-      const totalBytes = fileData.length;
-      
-      // Always simulate progressive upload for better UX
-      onProgress(0, totalBytes);
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      onProgress(Math.floor(totalBytes * 0.2), totalBytes);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      onProgress(Math.floor(totalBytes * 0.5), totalBytes);
-      await new Promise(resolve => setTimeout(resolve, 400));
-      
-      onProgress(Math.floor(totalBytes * 0.8), totalBytes);
-      
-      const response = await s3Client.send(command);
-      
-      // Final progress update
-      await new Promise(resolve => setTimeout(resolve, 200));
-      onProgress(totalBytes, totalBytes);
-      
-      const result = {
-        success: true,
-        key,
-        url: storageConfig.getFileUrl(key),
-        etag: response.ETag,
-      };
-      logger.info(`Successfully uploaded file to storage: ${key} (ETag: ${response.ETag})`);
-      return result;
-    } else {
-      // No progress callback - standard upload
-      const response = await s3Client.send(command);
-      const result = {
-        success: true,
-        key,
-        url: storageConfig.getFileUrl(key),
-        etag: response.ETag,
-      };
-      logger.info(`Successfully uploaded file to storage: ${key} (ETag: ${response.ETag})`);
-      return result;
-    }
-  }, 3, 1500, `Upload file ${key}`);
+      // Realistic progress simulation for better UX
+      if (onProgress && Buffer.isBuffer(fileData)) {
+        const totalBytes = fileData.length;
+
+        // Always simulate progressive upload for better UX
+        onProgress(0, totalBytes);
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        onProgress(Math.floor(totalBytes * 0.2), totalBytes);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        onProgress(Math.floor(totalBytes * 0.5), totalBytes);
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        onProgress(Math.floor(totalBytes * 0.8), totalBytes);
+
+        const response = await s3Client.send(command);
+
+        // Final progress update
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        onProgress(totalBytes, totalBytes);
+
+        const result = {
+          success: true,
+          key,
+          url: storageConfig.getFileUrl(key),
+          etag: response.ETag,
+        };
+        logger.info(`Successfully uploaded file to storage: ${key} (ETag: ${response.ETag})`);
+        return result;
+      } else {
+        // No progress callback - standard upload
+        const response = await s3Client.send(command);
+        const result = {
+          success: true,
+          key,
+          url: storageConfig.getFileUrl(key),
+          etag: response.ETag,
+        };
+        logger.info(`Successfully uploaded file to storage: ${key} (ETag: ${response.ETag})`);
+        return result;
+      }
+    },
+    3,
+    1500,
+    `Upload file ${key}`
+  );
 }
 
 /**
@@ -243,17 +253,22 @@ export async function deleteFromStorage(key: string) {
 
   logger.info(`Starting deletion from storage: ${key}`);
 
-  return retryWithBackoff(async () => {
-    const command = new DeleteObjectCommand({
-      Bucket: storageConfig.bucket,
-      Key: key,
-    });
+  return retryWithBackoff(
+    async () => {
+      const command = new DeleteObjectCommand({
+        Bucket: storageConfig.bucket,
+        Key: key,
+      });
 
-    await s3Client.send(command);
+      await s3Client.send(command);
 
-    logger.info(`Successfully deleted file from storage: ${key}`);
-    return { success: true };
-  }, 3, 1000, `Delete file ${key}`);
+      logger.info(`Successfully deleted file from storage: ${key}`);
+      return { success: true };
+    },
+    3,
+    1000,
+    `Delete file ${key}`
+  );
 }
 
 /**
@@ -272,58 +287,63 @@ export async function streamFromStorage(key: string) {
 
   logger.info(`Starting file stream from storage: ${key}`);
 
-  return retryWithBackoff(async () => {
-    const command = new GetObjectCommand({
-      Bucket: storageConfig.bucket,
-      Key: key,
-    });
+  return retryWithBackoff(
+    async () => {
+      const command = new GetObjectCommand({
+        Bucket: storageConfig.bucket,
+        Key: key,
+      });
 
-    const response = await s3Client.send(command);
+      const response = await s3Client.send(command);
 
-    if (!response.Body) {
-      const error = new Error('File not found or no content') as StorageError;
-      error.type = StorageErrorType.NOT_FOUND;
-      error.retryable = false;
-      throw error;
-    }
-
-    // Convert the response body to a Node.js Readable stream
-    let stream: Readable;
-    if (response.Body instanceof Readable) {
-      stream = response.Body;
-    } else {
-      // Handle other types (Uint8Array, blob, etc.) by converting to stream
-      const chunks: Uint8Array[] = [];
-      const reader = (response.Body as any).getReader();
-      
-      try {
-        let done = false;
-        while (!done) {
-          const { value, done: streamDone } = await reader.read();
-          done = streamDone;
-          if (value) {
-            chunks.push(value);
-          }
-        }
-      } finally {
-        reader.releaseLock();
+      if (!response.Body) {
+        const error = new Error('File not found or no content') as StorageError;
+        error.type = StorageErrorType.NOT_FOUND;
+        error.retryable = false;
+        throw error;
       }
 
-      const buffer = Buffer.concat(chunks);
-      stream = Readable.from(buffer);
-    }
+      // Convert the response body to a Node.js Readable stream
+      let stream: Readable;
+      if (response.Body instanceof Readable) {
+        stream = response.Body;
+      } else {
+        // Handle other types (Uint8Array, blob, etc.) by converting to stream
+        const chunks: Uint8Array[] = [];
+        const reader = (response.Body as any).getReader();
 
-    const result = {
-      stream,
-      contentType: response.ContentType || 'application/octet-stream',
-      contentLength: response.ContentLength || 0,
-      lastModified: response.LastModified,
-      etag: response.ETag
-    };
+        try {
+          let done = false;
+          while (!done) {
+            const { value, done: streamDone } = await reader.read();
+            done = streamDone;
+            if (value) {
+              chunks.push(value);
+            }
+          }
+        } finally {
+          reader.releaseLock();
+        }
 
-    logger.info(`Successfully started streaming file: ${key} (${result.contentLength} bytes)`);
-    return result;
-  }, 3, 1000, `Stream file ${key}`);
+        const buffer = Buffer.concat(chunks);
+        stream = Readable.from(buffer);
+      }
+
+      const result = {
+        stream,
+        contentType: response.ContentType || 'application/octet-stream',
+        contentLength: response.ContentLength || 0,
+        lastModified: response.LastModified,
+        etag: response.ETag,
+      };
+
+      logger.info(`Successfully started streaming file: ${key} (${result.contentLength} bytes)`);
+      return result;
+    },
+    3,
+    1000,
+    `Stream file ${key}`
+  );
 }
 
 /**

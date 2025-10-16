@@ -15,10 +15,12 @@ const handleResponse = async (response: Response) => {
 
 export const uploadApi = {
   createUploadId: async (): Promise<string> => {
-    const data = await handleResponse(await fetch(API_ENDPOINTS.CREATE_ID, { 
-      method: 'POST',
-      credentials: 'include'
-    }));
+    const data = await handleResponse(
+      await fetch(API_ENDPOINTS.CREATE_ID, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    );
     return data.data.uploadId;
   },
 
@@ -27,11 +29,13 @@ export const uploadApi = {
     formData.append('uploadId', uploadId);
     files.forEach((file) => formData.append('files', file));
 
-    const data = await handleResponse(await fetch(API_ENDPOINTS.UPLOAD, { 
-      method: 'POST', 
-      body: formData,
-      credentials: 'include'
-    }));
+    const data = await handleResponse(
+      await fetch(API_ENDPOINTS.UPLOAD, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      })
+    );
     return data.files;
   },
 
@@ -41,7 +45,7 @@ export const uploadApi = {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key }),
-        credentials: 'include'
+        credentials: 'include',
       })
     );
   },
@@ -53,9 +57,9 @@ export const uploadApi = {
     }
 
     console.log('📡 Subscribing to SSE:', API_ENDPOINTS.PROGRESS(uploadId));
-    
+
     const eventSource = new EventSource(API_ENDPOINTS.PROGRESS(uploadId), {
-      withCredentials: true
+      withCredentials: true,
     });
 
     let closed = false;
@@ -76,19 +80,19 @@ export const uploadApi = {
 
     eventSource.onerror = (error) => {
       const target = error.target as EventSource;
-      
+
       if (closed) {
         console.log('⚠️ SSE error on already closed connection');
         return;
       }
-      
+
       // Check connection state
       if (target.readyState === EventSource.CLOSED) {
         console.log('🔌 SSE connection closed by server for:', uploadId);
         cleanup();
         return;
       }
-      
+
       // Only log actual errors during connecting phase
       if (target.readyState === EventSource.CONNECTING) {
         console.log('🔄 SSE reconnecting for:', uploadId);
@@ -102,20 +106,20 @@ export const uploadApi = {
         console.log('⚠️ SSE progress event on closed connection');
         return;
       }
-      
+
       try {
         const response = JSON.parse(event.data);
         const progressData = response.files || {};
-        
+
         onProgress(progressData);
-        
+
         // Check if all files are done
         const hasFiles = Object.keys(progressData).length > 0;
         if (hasFiles) {
           const allDone = Object.values(progressData).every(
             (file: any) => file.status === 'success' || file.status === 'error'
           );
-          
+
           if (allDone) {
             console.log('🎉 All uploads completed for:', uploadId, '- closing SSE connection');
             setTimeout(cleanup, 1000); // Give time for any final updates
@@ -133,12 +137,15 @@ export const uploadApi = {
     });
 
     // Auto cleanup after 15 minutes
-    setTimeout(() => {
-      if (!closed) {
-        console.log('⏰ SSE connection timeout for:', uploadId);
-        cleanup();
-      }
-    }, 15 * 60 * 1000);
+    setTimeout(
+      () => {
+        if (!closed) {
+          console.log('⏰ SSE connection timeout for:', uploadId);
+          cleanup();
+        }
+      },
+      15 * 60 * 1000
+    );
 
     return cleanup;
   },

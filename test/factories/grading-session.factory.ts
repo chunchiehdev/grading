@@ -15,26 +15,26 @@ export class GradingSessionFactory {
         userId: options.userId,
         status: options.status || GradingSessionStatus.PENDING,
         progress: options.progress || 0,
-      }
+      },
     });
-    
+
     console.log(`⚡ Created grading session: ${session.status} (${session.progress}%)`);
     return session;
   }
-  
+
   static async createCompleted(userId: string) {
     return this.create({
       userId,
       status: GradingSessionStatus.COMPLETED,
-      progress: 100
+      progress: 100,
     });
   }
-  
+
   static async createProcessing(userId: string, progress: number = 50) {
     return this.create({
       userId,
       status: GradingSessionStatus.PROCESSING,
-      progress
+      progress,
     });
   }
 }

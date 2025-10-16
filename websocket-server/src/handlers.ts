@@ -25,13 +25,13 @@ export function setupSocketHandlers(io: Server, socket: Socket) {
   // 已廢棄的 send-msg 處理 - 引導前端使用 API
   socket.on('send-msg', async (data: SendMsgData) => {
     logger.warn(`Deprecated send-msg received from ${socket.id}. Please use API endpoint.`);
-    
+
     // 通知前端應該使用 API
     socket.emit('api-redirect', {
       message: '請使用 API 端點發送訊息',
       endpoint: '/api/chat/messages',
       method: 'POST',
-      deprecationWarning: 'WebSocket send-msg is deprecated'
+      deprecationWarning: 'WebSocket send-msg is deprecated',
     });
   });
 

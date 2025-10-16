@@ -5,19 +5,14 @@ import {
   listGradingSessions,
   listAllGradingSessions,
   startGradingSession,
-  cancelGradingSession
+  cancelGradingSession,
 } from '@/services/grading-session.server';
-import { 
-  createSuccessResponse, 
-  createErrorResponse, 
-  createPaginatedResponse,
-  ApiErrorCode 
-} from '@/types/api';
+import { createSuccessResponse, createErrorResponse, createPaginatedResponse, ApiErrorCode } from '@/types/api';
 
 /**
  * GET: List grading sessions - supports both user-scoped and shared views
  * Query params:
- * - view: 'my' (default) for user's own sessions, 'all' for all users' sessions  
+ * - view: 'my' (default) for user's own sessions, 'all' for all users' sessions
  * - limit: pagination limit
  * - offset: pagination offset
  */
@@ -25,10 +20,7 @@ export async function loader({ request }: { request: Request }) {
   try {
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json(
-        createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), 
-        { status: 401 }
-      );
+      return Response.json(createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), { status: 401 });
     }
 
     const url = new URL(request.url);
@@ -37,7 +29,7 @@ export async function loader({ request }: { request: Request }) {
     const offset = parseInt(url.searchParams.get('offset') || '0');
 
     let result;
-    
+
     if (view === 'all') {
       // List all grading sessions from all users
       result = await listAllGradingSessions(limit, offset);
@@ -47,31 +39,25 @@ export async function loader({ request }: { request: Request }) {
     }
 
     if (result.error) {
-      return Response.json(
-        createErrorResponse(result.error, ApiErrorCode.INTERNAL_ERROR), 
-        { status: 500 }
-      );
+      return Response.json(createErrorResponse(result.error, ApiErrorCode.INTERNAL_ERROR), { status: 500 });
     }
 
     const page = Math.floor(offset / limit) + 1;
     return Response.json(
-      createSuccessResponse(
-        result.sessions || [],
-        {
-          total: result.total || 0,
-          page,
-          limit,
-          totalPages: Math.ceil((result.total || 0) / limit),
-          view
-        }
-      )
+      createSuccessResponse(result.sessions || [], {
+        total: result.total || 0,
+        page,
+        limit,
+        totalPages: Math.ceil((result.total || 0) / limit),
+        view,
+      })
     );
   } catch (error) {
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to list sessions',
         ApiErrorCode.INTERNAL_ERROR
-      ), 
+      ),
       { status: 500 }
     );
   }
@@ -84,38 +70,33 @@ export async function action({ request }: { request: Request }) {
   try {
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json(
-        createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), 
-        { status: 401 }
-      );
+      return Response.json(createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), { status: 401 });
     }
 
     const method = request.method;
 
     if (method === 'POST') {
       const formData = await request.formData();
-      const fileIds = JSON.parse(formData.get('fileIds') as string || '[]');
-      const rubricIds = JSON.parse(formData.get('rubricIds') as string || '[]');
+      const fileIds = JSON.parse((formData.get('fileIds') as string) || '[]');
+      const rubricIds = JSON.parse((formData.get('rubricIds') as string) || '[]');
 
       if (!Array.isArray(fileIds) || fileIds.length === 0) {
-        return Response.json(
-          createErrorResponse('At least one file is required', ApiErrorCode.VALIDATION_ERROR),
-          { status: 400 }
-        );
+        return Response.json(createErrorResponse('At least one file is required', ApiErrorCode.VALIDATION_ERROR), {
+          status: 400,
+        });
       }
 
       if (!Array.isArray(rubricIds) || rubricIds.length === 0) {
-        return Response.json(
-          createErrorResponse('At least one rubric is required', ApiErrorCode.VALIDATION_ERROR),
-          { status: 400 }
-        );
+        return Response.json(createErrorResponse('At least one rubric is required', ApiErrorCode.VALIDATION_ERROR), {
+          status: 400,
+        });
       }
 
       // Validate that fileIds and rubricIds have the same length for one-to-one pairing
       if (fileIds.length !== rubricIds.length) {
         return Response.json(
           createErrorResponse(
-            'File and rubric arrays must have the same length for one-to-one pairing', 
+            'File and rubric arrays must have the same length for one-to-one pairing',
             ApiErrorCode.VALIDATION_ERROR
           ),
           { status: 400 }
@@ -125,12 +106,12 @@ export async function action({ request }: { request: Request }) {
       // Create file-rubric pairs
       const filePairs = fileIds.map((fileId: string, index: number) => ({
         fileId,
-        rubricId: rubricIds[index]
+        rubricId: rubricIds[index],
       }));
 
       const result = await createGradingSession({
         userId,
-        filePairs
+        filePairs,
       });
 
       if (!result.success) {
@@ -140,21 +121,16 @@ export async function action({ request }: { request: Request }) {
         );
       }
 
-      return Response.json(
-        createSuccessResponse({ sessionId: result.sessionId })
-      );
+      return Response.json(createSuccessResponse({ sessionId: result.sessionId }));
     }
 
-    return Response.json(
-      createErrorResponse('Method not allowed', ApiErrorCode.VALIDATION_ERROR), 
-      { status: 405 }
-    );
+    return Response.json(createErrorResponse('Method not allowed', ApiErrorCode.VALIDATION_ERROR), { status: 405 });
   } catch (error) {
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to create session',
         ApiErrorCode.INTERNAL_ERROR
-      ), 
+      ),
       { status: 500 }
     );
   }

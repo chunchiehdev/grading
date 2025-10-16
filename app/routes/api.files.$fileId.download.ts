@@ -48,10 +48,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     const fileId = params.fileId;
     if (!fileId) {
-      return Response.json(
-        createErrorResponse('File ID is required', ApiErrorCode.VALIDATION_ERROR),
-        { status: 400 },
-      );
+      return Response.json(createErrorResponse('File ID is required', ApiErrorCode.VALIDATION_ERROR), { status: 400 });
     }
 
     logger.info(`File download request: ${fileId} by user ${userId}`);
@@ -65,10 +62,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         error,
       });
 
-      return Response.json(
-        createErrorResponse('文件不存在或無權訪問', ApiErrorCode.NOT_FOUND),
-        { status: 404 },
-      );
+      return Response.json(createErrorResponse('文件不存在或無權訪問', ApiErrorCode.NOT_FOUND), { status: 404 });
     }
 
     // Check if file is soft-deleted
@@ -113,17 +107,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         headers.set('Content-Length', chunkSize.toString());
 
         const duration = Date.now() - startTime;
-        logger.info(
-          `File range streamed successfully: ${fileId} (${start}-${end}/${file.fileSize}) in ${duration}ms`,
-          {
-            userId,
-            fileName: file.fileName,
-            fileSize: file.fileSize,
-            rangeStart: start,
-            rangeEnd: end,
-            chunkSize,
-          },
-        );
+        logger.info(`File range streamed successfully: ${fileId} (${start}-${end}/${file.fileSize}) in ${duration}ms`, {
+          userId,
+          fileName: file.fileName,
+          fileSize: file.fileSize,
+          rangeStart: start,
+          rangeEnd: end,
+          chunkSize,
+        });
 
         // Convert Node Readable -> Web ReadableStream
         const webStream = createReadableStreamFromReadable(fileStream.stream);
@@ -136,15 +127,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // Regular full file stream
     const duration = Date.now() - startTime;
-    logger.info(
-      `File streamed successfully: ${fileId} (${file.fileSize} bytes) in ${duration}ms`,
-      {
-        userId,
-        fileName: file.fileName,
-        fileSize: file.fileSize,
-        mimeType: file.mimeType,
-      },
-    );
+    logger.info(`File streamed successfully: ${fileId} (${file.fileSize} bytes) in ${duration}ms`, {
+      userId,
+      fileName: file.fileName,
+      fileSize: file.fileSize,
+      mimeType: file.mimeType,
+    });
 
     // Convert Node Readable -> Web ReadableStream
     const webStream = createReadableStreamFromReadable(fileStream.stream);
@@ -168,20 +156,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     if (error && typeof error === 'object' && 'type' in error) {
       const storageError = error as any;
       if (storageError.type === 'NOT_FOUND') {
-        return Response.json(
-          createErrorResponse('文件在存儲中不存在', ApiErrorCode.NOT_FOUND),
-          { status: 404 },
-        );
+        return Response.json(createErrorResponse('文件在存儲中不存在', ApiErrorCode.NOT_FOUND), { status: 404 });
       }
     }
 
     return Response.json(
-      createErrorResponse(
-        error instanceof Error ? error.message : '文件下載失敗',
-        ApiErrorCode.INTERNAL_ERROR,
-      ),
-      { status: 500 },
+      createErrorResponse(error instanceof Error ? error.message : '文件下載失敗', ApiErrorCode.INTERNAL_ERROR),
+      { status: 500 }
     );
   }
 }
-

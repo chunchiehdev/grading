@@ -31,7 +31,7 @@ class GradingProgressStore {
   static async getProgress(gradingId: string): Promise<GradingProgress | null> {
     try {
       logger.debug(`📝 Fetching progress from database for: ${gradingId}`);
-      
+
       // Try to find existing grading result
       const result = await db.gradingResult.findUnique({
         where: { id: gradingId },
@@ -39,19 +39,19 @@ class GradingProgressStore {
           status: true,
           progress: true,
           result: true,
-          errorMessage: true
-        }
+          errorMessage: true,
+        },
       });
-      
+
       if (!result) {
         logger.debug(`No data found in database for ${gradingId}`);
         return null;
       }
-      
+
       // Convert database status to progress format
       let phase: GradingProgress['phase'];
       let message: string;
-      
+
       switch (result.status) {
         case 'PENDING':
           phase = 'check';
@@ -73,24 +73,23 @@ class GradingProgressStore {
           phase = 'check';
           message = '準備中...';
       }
-      
+
       const progressData: GradingProgress = {
         phase,
         progress: result.progress,
         message,
         error: result.errorMessage || undefined,
-        result: result.status === 'COMPLETED' ? result.result : undefined
+        result: result.status === 'COMPLETED' ? result.result : undefined,
       };
-      
+
       logger.debug(`Found progress for ${gradingId}:`, progressData);
       return progressData;
-      
     } catch (error) {
       logger.error(`Error fetching progress for ${gradingId}:`, error);
       return null;
     }
   }
-  
+
   /**
    * Stores grading progress to database
    * @param {string} gradingId - Unique grading session identifier
@@ -100,7 +99,7 @@ class GradingProgressStore {
   static async setProgress(gradingId: string, progress: GradingProgress): Promise<void> {
     try {
       logger.debug(`Setting progress for ${gradingId}, phase: ${progress.phase}`);
-      
+
       // Convert progress format to database fields
       let status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
       switch (progress.phase) {
@@ -120,23 +119,22 @@ class GradingProgressStore {
         default:
           status = 'PENDING';
       }
-      
+
       await db.gradingResult.update({
         where: { id: gradingId },
         data: {
           status,
           progress: progress.progress,
-          errorMessage: progress.error
-        }
+          errorMessage: progress.error,
+        },
       });
-      
+
       logger.debug(`Progress saved to database for ${gradingId}`);
-      
+
       // Log completion
       if (progress.phase === 'completed' || progress.phase === 'error') {
         logger.info(`Final progress state for ${gradingId}:`, progress);
       }
-      
     } catch (error) {
       logger.error(`Error saving progress for ${gradingId}:`, error);
     }
@@ -158,42 +156,39 @@ export const GradingProgressService = {
     await GradingProgressStore.setProgress(gradingId, {
       phase: 'check',
       progress: 0,
-      message: '開始評分...'
+      message: '開始評分...',
     });
   },
-  
+
   /**
    * Updates existing grading progress with partial data
    * @param {string} gradingId - Unique grading session identifier
    * @param {Partial<GradingProgress>} progress - Progress updates to apply
    * @returns {Promise<void>}
    */
-  updateProgress: async (
-    gradingId: string, 
-    progress: Partial<GradingProgress>
-  ): Promise<void> => {
+  updateProgress: async (gradingId: string, progress: Partial<GradingProgress>): Promise<void> => {
     logger.debug(`Updating progress for ${gradingId}:`, progress);
     const currentProgress = await GradingProgressStore.getProgress(gradingId);
-    
+
     if (!currentProgress) {
       logger.warn(`⚠️ No current progress found for ${gradingId}, initializing new progress`);
       await GradingProgressStore.setProgress(gradingId, {
         phase: 'check',
         progress: 0,
         message: '開始評分...',
-        ...progress
+        ...progress,
       });
       return;
     }
 
     const updatedProgress = {
       ...currentProgress,
-      ...progress
+      ...progress,
     };
 
     await GradingProgressStore.setProgress(gradingId, updatedProgress);
   },
-  
+
   /**
    * Retrieves current grading progress
    * @param {string} gradingId - Unique grading session identifier
@@ -202,7 +197,7 @@ export const GradingProgressService = {
   getProgress: async (gradingId: string): Promise<GradingProgress | null> => {
     return GradingProgressStore.getProgress(gradingId);
   },
-  
+
   /**
    * Marks grading as completed with final results
    * @param {string} gradingId - Unique grading session identifier
@@ -215,10 +210,10 @@ export const GradingProgressService = {
       phase: 'completed',
       progress: 100,
       message: '評分完成',
-      result
+      result,
     });
   },
-  
+
   /**
    * Marks grading as failed with error information
    * @param {string} gradingId - Unique grading session identifier
@@ -231,7 +226,7 @@ export const GradingProgressService = {
       phase: 'error',
       progress: 0,
       message: '評分失敗',
-      error
+      error,
     });
-  }
-}; 
+  },
+};

@@ -22,15 +22,9 @@ interface AssignmentCardProps {
   t: (key: string) => string;
 }
 
-function AssignmentCard({
-  assignment,
-  student,
-  getStatusBadge,
-  formatDueDate,
-  t
-}: AssignmentCardProps) {
-  const hasSubmission = assignment.submissions.some(sub => sub.studentId === student.id);
-  const submission = assignment.submissions.find(sub => sub.studentId === student.id);
+function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t }: AssignmentCardProps) {
+  const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
+  const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
 
   return (
     <Link to={`/student/assignments/${assignment.id}/submit`} className="block group">
@@ -43,14 +37,10 @@ function AssignmentCard({
                 {assignment.name}
               </CardTitle>
               {assignment.description && (
-                <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
-                  {assignment.description}
-                </p>
+                <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{assignment.description}</p>
               )}
             </div>
-            <div className="ml-2">
-              {getStatusBadge(assignment)}
-            </div>
+            <div className="ml-2">{getStatusBadge(assignment)}</div>
           </div>
         </CardHeader>
 
@@ -69,7 +59,6 @@ function AssignmentCard({
                   全課程
                 </span>
               )}
-
             </div>
             {hasSubmission && submission?.finalScore !== null ? (
               <div className="flex items-center gap-2">
@@ -78,7 +67,9 @@ function AssignmentCard({
               </div>
             ) : hasSubmission ? (
               <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">{t('assignmentCard.submitted')}</span>
+                <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+                  {t('assignmentCard.submitted')}
+                </span>
                 <span className="text-sm text-muted-foreground">{t('assignmentCard.awaitingGrading')}</span>
               </div>
             ) : (
@@ -99,7 +90,9 @@ function AssignmentCard({
             />
             <div className="flex-1">
               <div className="text-base font-medium text-muted-foreground">{assignment.course.teacher.name}</div>
-              <div className="text-sm text-muted-foreground">{t('assignmentCard.rubric')}: {assignment.rubric.name}</div>
+              <div className="text-sm text-muted-foreground">
+                {t('assignmentCard.rubric')}: {assignment.rubric.name}
+              </div>
             </div>
           </div>
         </div>
@@ -125,7 +118,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
   const { t } = useTranslation('assignment');
 
   // Subscribe to assignment store (initialized by parent component)
-  const assignments = useAssignmentStore(state => state.assignments);
+  const assignments = useAssignmentStore((state) => state.assignments);
 
   // Use external filter if provided, otherwise use 'all'
   const currentFilter = externalFilter || 'all';
@@ -133,7 +126,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
   // Enhanced empty states with guidance while staying clean
   if (assignments.length === 0) {
     const isNotEnrolled = enrolledCourses.length === 0;
-    
+
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-8 max-w-md">
@@ -145,7 +138,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
               <CheckCircle className="w-12 h-12 text-emerald-500" />
             )}
           </div>
-          
+
           {/* Main Content */}
           <div className="space-y-3">
             <h1 className="text-2xl font-semibold text-foreground">
@@ -160,39 +153,41 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
     );
   }
 
-
   // Categorize assignments
-  const categorizedAssignments = assignments.reduce((acc, assignment) => {
-    const hasSubmission = assignment.submissions.some(sub => sub.studentId === student.id);
-    
-    if (hasSubmission) {
-      const submission = assignment.submissions.find(sub => sub.studentId === student.id);
-      if (submission?.status === 'GRADED') {
-        acc.graded.push(assignment);
+  const categorizedAssignments = assignments.reduce(
+    (acc, assignment) => {
+      const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
+
+      if (hasSubmission) {
+        const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
+        if (submission?.status === 'GRADED') {
+          acc.graded.push(assignment);
+        } else {
+          acc.submitted.push(assignment);
+        }
       } else {
-        acc.submitted.push(assignment);
+        const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
+        if (isOverdue) {
+          acc.overdue.push(assignment);
+        } else {
+          acc.pending.push(assignment);
+        }
       }
-    } else {
-      const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
-      if (isOverdue) {
-        acc.overdue.push(assignment);
-      } else {
-        acc.pending.push(assignment);
-      }
+      return acc;
+    },
+    {
+      pending: [] as StudentAssignmentInfo[],
+      submitted: [] as StudentAssignmentInfo[],
+      graded: [] as StudentAssignmentInfo[],
+      overdue: [] as StudentAssignmentInfo[],
     }
-    return acc;
-  }, {
-    pending: [] as StudentAssignmentInfo[],
-    submitted: [] as StudentAssignmentInfo[],
-    graded: [] as StudentAssignmentInfo[],
-    overdue: [] as StudentAssignmentInfo[]
-  });
+  );
 
   const getStatusBadge = (assignment: StudentAssignmentInfo) => {
-    const hasSubmission = assignment.submissions.some(sub => sub.studentId === student.id);
+    const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
 
     if (hasSubmission) {
-      const submission = assignment.submissions.find(sub => sub.studentId === student.id);
+      const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
       if (submission?.status === 'GRADED') {
         return <Badge variant="default">{t('status.graded')}</Badge>;
       }
@@ -204,17 +199,21 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
       return <Badge variant="destructive">{t('status.overdue')}</Badge>;
     }
 
-    return <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">{t('status.pending')}</Badge>;
+    return (
+      <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
+        {t('status.pending')}
+      </Badge>
+    );
   };
 
   const formatDueDate = (dueDate: Date | null) => {
     if (!dueDate) return t('dueDate.noDueDate');
-    
+
     const date = new Date(dueDate);
     const now = new Date();
     const diffTime = date.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
       return t('dueDate.overdue', { days: Math.abs(diffDays) });
     } else if (diffDays === 0) {
@@ -225,7 +224,6 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
       return t('dueDate.dueInDays', { days: diffDays });
     }
   };
-
 
   // Filter assignments based on current filter
   const getFilteredAssignments = () => {

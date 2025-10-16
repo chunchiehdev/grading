@@ -1,10 +1,10 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Trash2, GripVertical } from "lucide-react";
-import { InlineEdit } from "../ui/InlineEdit";
-import { cn } from "@/lib/utils";
-import { useTranslation } from "react-i18next";
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Trash2, GripVertical } from 'lucide-react';
+import { InlineEdit } from '../ui/InlineEdit';
+import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface Level {
   score: number;
@@ -27,24 +27,22 @@ interface CriterionCardProps {
   onUpdateLevel: (score: number, description: string) => void;
 }
 
-
-
 export const CriterionCard = ({
   criterion,
   isSelected,
   onSelect,
   onUpdate,
   onDelete,
-  onUpdateLevel
+  onUpdateLevel,
 }: CriterionCardProps) => {
   const { t } = useTranslation('rubric');
-  const completedLevels = criterion.levels.filter(l => l.description.trim()).length;
-  
+  const completedLevels = criterion.levels.filter((l) => l.description.trim()).length;
+
   return (
     <Card
       className={cn(
-        "group hover:shadow-md transition-all duration-200 cursor-pointer bg-card text-card-foreground border",
-        isSelected && "ring-2 ring-primary shadow-md"
+        'group hover:shadow-md transition-all duration-200 cursor-pointer bg-card text-card-foreground border',
+        isSelected && 'ring-2 ring-primary shadow-md'
       )}
       onClick={onSelect}
     >
@@ -61,7 +59,7 @@ export const CriterionCard = ({
               />
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Button
               type="button"
@@ -77,7 +75,7 @@ export const CriterionCard = ({
             </Button>
           </div>
         </div>
-        
+
         <InlineEdit
           value={criterion.description}
           placeholder={t('criterionCard.criterionDescriptionPlaceholder')}
@@ -95,14 +93,17 @@ export const CriterionCard = ({
               {t('criterionCard.completedStatus', { completed: completedLevels })}
             </div>
           </div>
-          
+
           {/* Level Progress Bar */}
           <div className="grid grid-cols-4 gap-1 h-2 rounded-full overflow-hidden bg-muted">
             {[4, 3, 2, 1].map((score) => {
               const level = criterion.levels.find((l) => l.score === score);
               const isCompleted = Boolean(level?.description.trim());
               return (
-                <div key={score} className={cn("transition-all duration-300", isCompleted ? "bg-primary" : "bg-muted")} />
+                <div
+                  key={score}
+                  className={cn('transition-all duration-300', isCompleted ? 'bg-primary' : 'bg-muted')}
+                />
               );
             })}
           </div>
@@ -110,18 +111,20 @@ export const CriterionCard = ({
           {/* Level Details */}
           <div className="space-y-2">
             {[4, 3, 2, 1].map((score) => {
-              const level = criterion.levels.find(l => l.score === score);
+              const level = criterion.levels.find((l) => l.score === score);
               const description = level?.description || '';
-              
+
               return (
                 <div key={score} className="flex items-start gap-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className={cn("w-3 h-3 rounded-full flex-shrink-0", description ? "bg-primary" : "bg-muted")} />
+                    <div
+                      className={cn('w-3 h-3 rounded-full flex-shrink-0', description ? 'bg-primary' : 'bg-muted')}
+                    />
                     <Badge variant="outline" className="text-xs whitespace-nowrap">
                       {score} - {t(`levelLabels.${score}`)}
                     </Badge>
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <InlineEdit
                       value={description}

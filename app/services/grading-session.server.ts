@@ -32,7 +32,7 @@ export async function createGradingSession(
 
     // Validate user exists
     const user = await db.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
 
     if (!user) {
@@ -40,15 +40,15 @@ export async function createGradingSession(
     }
 
     // Extract file and rubric IDs for validation
-    const fileIds = filePairs.map(pair => pair.fileId);
-    const rubricIds = filePairs.map(pair => pair.rubricId);
+    const fileIds = filePairs.map((pair) => pair.fileId);
+    const rubricIds = filePairs.map((pair) => pair.rubricId);
 
     // Check for duplicate rubric IDs
     const uniqueRubricIds = [...new Set(rubricIds)];
     logger.info(`Validating rubrics for user ${userId}:`, {
       requestedRubricIds: rubricIds,
       uniqueRubricIds,
-      hasDuplicates: rubricIds.length !== uniqueRubricIds.length
+      hasDuplicates: rubricIds.length !== uniqueRubricIds.length,
     });
 
     // Validate files exist and belong to user
@@ -56,13 +56,13 @@ export async function createGradingSession(
       where: {
         id: { in: fileIds },
         userId,
-        parseStatus: 'COMPLETED'
-      }
+        parseStatus: 'COMPLETED',
+      },
     });
 
     if (files.length !== fileIds.length) {
-      const foundFileIds = files.map(f => f.id);
-      const missingFileIds = fileIds.filter(id => !foundFileIds.includes(id));
+      const foundFileIds = files.map((f) => f.id);
+      const missingFileIds = fileIds.filter((id) => !foundFileIds.includes(id));
       logger.error(`Missing files for user ${userId}:`, { missingFileIds, foundFileIds });
       return { success: false, error: 'Some files not found or not ready for grading' };
     }
@@ -71,35 +71,35 @@ export async function createGradingSession(
     const rubrics = await db.rubric.findMany({
       where: {
         id: { in: uniqueRubricIds },
-        isActive: true
-      }
+        isActive: true,
+      },
     });
 
     logger.info(`Found rubrics for user ${userId}:`, {
-      foundRubrics: rubrics.map(r => ({ id: r.id, name: r.name, isActive: r.isActive })),
+      foundRubrics: rubrics.map((r) => ({ id: r.id, name: r.name, isActive: r.isActive })),
       requestedCount: uniqueRubricIds.length,
-      foundCount: rubrics.length
+      foundCount: rubrics.length,
     });
 
     if (rubrics.length !== uniqueRubricIds.length) {
-      const foundRubricIds = rubrics.map(r => r.id);
-      const missingRubricIds = uniqueRubricIds.filter(id => !foundRubricIds.includes(id));
-      
+      const foundRubricIds = rubrics.map((r) => r.id);
+      const missingRubricIds = uniqueRubricIds.filter((id) => !foundRubricIds.includes(id));
+
       // Check if missing rubrics exist but are inactive
       const allMatchingRubrics = await db.rubric.findMany({
         where: { id: { in: missingRubricIds } },
-        select: { id: true, userId: true, isActive: true, name: true }
+        select: { id: true, userId: true, isActive: true, name: true },
       });
-      
+
       logger.error(`Missing rubrics for user ${userId}:`, {
         missingRubricIds,
         foundRubricIds,
-        allMatchingRubrics
+        allMatchingRubrics,
       });
-      
-      return { 
-        success: false, 
-        error: `評分標準驗證失敗：找不到 ${missingRubricIds.length} 個評分標準或它們不是活躍狀態` 
+
+      return {
+        success: false,
+        error: `評分標準驗證失敗：找不到 ${missingRubricIds.length} 個評分標準或它們不是活躍狀態`,
       };
     }
 
@@ -110,8 +110,8 @@ export async function createGradingSession(
         data: {
           userId,
           status: GradingSessionStatus.PENDING,
-          progress: 0
-        }
+          progress: 0,
+        },
       });
 
       // Create grading results for each file-rubric pair
@@ -123,8 +123,8 @@ export async function createGradingSession(
             uploadedFileId: pair.fileId,
             rubricId: pair.rubricId,
             status: GradingStatus.PENDING,
-            progress: 0
-          }
+            progress: 0,
+          },
         });
         gradingResults.push(gradingResult);
       }
@@ -136,13 +136,13 @@ export async function createGradingSession(
 
     return {
       success: true,
-      sessionId: result.session.id
+      sessionId: result.session.id,
     };
   } catch (error) {
     logger.error('Failed to create grading session:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create grading session'
+      error: error instanceof Error ? error.message : 'Failed to create grading session',
     };
   }
 }
@@ -158,7 +158,7 @@ export async function getGradingSession(
     const session = await db.gradingSession.findUnique({
       where: {
         id: sessionId,
-        userId
+        userId,
       },
       include: {
         gradingResults: {
@@ -166,17 +166,17 @@ export async function getGradingSession(
             uploadedFile: {
               select: {
                 fileName: true,
-                originalFileName: true
-              }
+                originalFileName: true,
+              },
             },
             rubric: {
               select: {
-                name: true
-              }
-            }
-          }
-        }
-      }
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -187,7 +187,7 @@ export async function getGradingSession(
   } catch (error) {
     logger.error('Failed to get grading session:', error);
     return {
-      error: error instanceof Error ? error.message : 'Failed to get grading session'
+      error: error instanceof Error ? error.message : 'Failed to get grading session',
     };
   }
 }
@@ -210,36 +210,36 @@ export async function listGradingSessions(
               uploadedFile: {
                 select: {
                   fileName: true,
-                  originalFileName: true
-                }
+                  originalFileName: true,
+                },
               },
               rubric: {
                 select: {
-                  name: true
-                }
-              }
-            }
-          }
+                  name: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         take: limit,
-        skip: offset
+        skip: offset,
       }),
       db.gradingSession.count({
-        where: { userId }
-      })
+        where: { userId },
+      }),
     ]);
 
     return {
       sessions: sessions as GradingSessionWithResults[],
-      total
+      total,
     };
   } catch (error) {
     logger.error('Failed to list grading sessions:', error);
     return {
       sessions: [],
       total: 0,
-      error: error instanceof Error ? error.message : 'Failed to list grading sessions'
+      error: error instanceof Error ? error.message : 'Failed to list grading sessions',
     };
   }
 }
@@ -258,42 +258,42 @@ export async function listAllGradingSessions(
           user: {
             select: {
               id: true,
-              email: true
-            }
+              email: true,
+            },
           },
           gradingResults: {
             include: {
               uploadedFile: {
                 select: {
                   fileName: true,
-                  originalFileName: true
-                }
+                  originalFileName: true,
+                },
               },
               rubric: {
                 select: {
-                  name: true
-                }
-              }
-            }
-          }
+                  name: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         take: limit,
-        skip: offset
+        skip: offset,
       }),
-      db.gradingSession.count()
+      db.gradingSession.count(),
     ]);
 
     return {
       sessions: sessions as GradingSessionWithResults[],
-      total
+      total,
     };
   } catch (error) {
     logger.error('Failed to list all grading sessions:', error);
     return {
       sessions: [],
       total: 0,
-      error: error instanceof Error ? error.message : 'Failed to list all grading sessions'
+      error: error instanceof Error ? error.message : 'Failed to list all grading sessions',
     };
   }
 }
@@ -307,31 +307,31 @@ export async function getAnyGradingSession(
   try {
     const session = await db.gradingSession.findUnique({
       where: {
-        id: sessionId
+        id: sessionId,
       },
       include: {
         user: {
           select: {
             id: true,
-            email: true
-          }
+            email: true,
+          },
         },
         gradingResults: {
           include: {
             uploadedFile: {
               select: {
                 fileName: true,
-                originalFileName: true
-              }
+                originalFileName: true,
+              },
             },
             rubric: {
               select: {
-                name: true
-              }
-            }
-          }
-        }
-      }
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!session) {
@@ -342,7 +342,7 @@ export async function getAnyGradingSession(
   } catch (error) {
     logger.error('Failed to get any grading session:', error);
     return {
-      error: error instanceof Error ? error.message : 'Failed to get grading session'
+      error: error instanceof Error ? error.message : 'Failed to get grading session',
     };
   }
 }
@@ -359,8 +359,8 @@ export async function updateGradingSessionProgress(
     const results = await db.gradingResult.findMany({
       where: {
         gradingSessionId: sessionId,
-        gradingSession: { userId }
-      }
+        gradingSession: { userId },
+      },
     });
 
     if (results.length === 0) {
@@ -368,17 +368,17 @@ export async function updateGradingSessionProgress(
     }
 
     // Calculate overall progress
-    const completedCount = results.filter(r => r.status === GradingStatus.COMPLETED).length;
-    const failedCount = results.filter(r => r.status === GradingStatus.FAILED).length;
-    const processingCount = results.filter(r => r.status === GradingStatus.PROCESSING).length;
-    
+    const completedCount = results.filter((r) => r.status === GradingStatus.COMPLETED).length;
+    const failedCount = results.filter((r) => r.status === GradingStatus.FAILED).length;
+    const processingCount = results.filter((r) => r.status === GradingStatus.PROCESSING).length;
+
     const overallProgress = Math.round((completedCount / results.length) * 100);
-    
+
     // Determine session status
     let sessionStatus: GradingSessionStatus;
     if (completedCount === results.length) {
       sessionStatus = GradingSessionStatus.COMPLETED;
-    } else if (failedCount > 0 && processingCount === 0 && (completedCount + failedCount) === results.length) {
+    } else if (failedCount > 0 && processingCount === 0 && completedCount + failedCount === results.length) {
       sessionStatus = GradingSessionStatus.FAILED;
     } else if (processingCount > 0 || completedCount > 0) {
       sessionStatus = GradingSessionStatus.PROCESSING;
@@ -391,8 +391,8 @@ export async function updateGradingSessionProgress(
       where: { id: sessionId },
       data: {
         status: sessionStatus,
-        progress: overallProgress
-      }
+        progress: overallProgress,
+      },
     });
 
     return { success: true };
@@ -400,7 +400,7 @@ export async function updateGradingSessionProgress(
     logger.error('Failed to update grading session progress:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update progress'
+      error: error instanceof Error ? error.message : 'Failed to update progress',
     };
   }
 }
@@ -424,49 +424,49 @@ export async function startGradingSession(
     await db.gradingSession.update({
       where: {
         id: sessionId,
-        userId
+        userId,
       },
       data: {
-        status: GradingSessionStatus.PROCESSING
-      }
+        status: GradingSessionStatus.PROCESSING,
+      },
     });
 
     // Get all pending results for this session
     const pendingResults = await db.gradingResult.findMany({
       where: {
         gradingSessionId: sessionId,
-        status: 'PENDING'
+        status: 'PENDING',
       },
       select: {
-        id: true
-      }
+        id: true,
+      },
     });
 
     if (pendingResults.length === 0) {
       return { success: true };
     }
 
-    // Use simple grading service 
+    // Use simple grading service
     const { addGradingJobs } = await import('./simple-grading.server');
-    
-    const gradingJobs = pendingResults.map(result => ({
+
+    const gradingJobs = pendingResults.map((result) => ({
       resultId: result.id,
       userId: userId,
       sessionId: sessionId,
-      userLanguage: userLanguage
+      userLanguage: userLanguage,
     }));
 
     const queueResult = await addGradingJobs(gradingJobs);
-    
+
     if (!queueResult.success) {
       await db.gradingSession.update({
         where: { id: sessionId },
-        data: { status: GradingSessionStatus.FAILED }
+        data: { status: GradingSessionStatus.FAILED },
       });
-      
-      return { 
-        success: false, 
-        error: queueResult.error || 'Failed to start grading jobs' 
+
+      return {
+        success: false,
+        error: queueResult.error || 'Failed to start grading jobs',
       };
     }
 
@@ -477,7 +477,7 @@ export async function startGradingSession(
     logger.error('Failed to start grading session:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to start grading'
+      error: error instanceof Error ? error.message : 'Failed to start grading',
     };
   }
 }
@@ -493,11 +493,11 @@ export async function cancelGradingSession(
     await db.gradingSession.update({
       where: {
         id: sessionId,
-        userId
+        userId,
       },
       data: {
-        status: GradingSessionStatus.CANCELLED
-      }
+        status: GradingSessionStatus.CANCELLED,
+      },
     });
 
     return { success: true };
@@ -505,7 +505,7 @@ export async function cancelGradingSession(
     logger.error('Failed to cancel grading session:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to cancel grading session'
+      error: error instanceof Error ? error.message : 'Failed to cancel grading session',
     };
   }
 }

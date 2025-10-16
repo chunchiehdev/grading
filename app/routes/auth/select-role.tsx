@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { updateUserRole } from '@/services/auth.server';
 
 interface LoaderData {
-  user: { id: string; name: string, email: string; role: string };
+  user: { id: string; name: string; email: string; role: string };
 }
 
 interface ActionData {
@@ -16,7 +16,7 @@ interface ActionData {
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
   const { getUser } = await import('@/services/auth.server');
   const user = await getUser(request);
-  
+
   if (!user) {
     throw redirect('/auth/login');
   }
@@ -34,7 +34,7 @@ export async function action({ request }: ActionFunctionArgs) {
   // 直接使用 getUser 而不是 requireAuth，避免重複調用
   const { getUser } = await import('@/services/auth.server');
   const user = await getUser(request);
-  
+
   if (!user) {
     throw redirect('/auth/login');
   }
@@ -94,9 +94,7 @@ export function SelectRolePage(_: SelectRoleProps) {
         {/* Header */}
         <div className="text-center mb-16">
           <h1 className="mb-3">{t('selectRolePage.title')}</h1>
-          <p className="text-muted-foreground">
-            {t('selectRolePage.subtitle')}
-          </p>
+          <p className="text-muted-foreground">{t('selectRolePage.subtitle')}</p>
         </div>
 
         {/* Role Cards */}
@@ -109,9 +107,7 @@ export function SelectRolePage(_: SelectRoleProps) {
                 <span className="text-sm text-primary">{t('selectRolePage.teacher.badge')}</span>
               </div>
               <h2 className="mb-4">{t('selectRolePage.teacher.title')}</h2>
-              <p className="text-muted-foreground mb-6">
-                {t('selectRolePage.teacher.description')}
-              </p>
+              <p className="text-muted-foreground mb-6">{t('selectRolePage.teacher.description')}</p>
             </div>
 
             <ul className="space-y-3 mb-10">
@@ -153,9 +149,7 @@ export function SelectRolePage(_: SelectRoleProps) {
                 <span className="text-sm">{t('selectRolePage.student.badge')}</span>
               </div>
               <h2 className="mb-4">{t('selectRolePage.student.title')}</h2>
-              <p className="text-muted-foreground mb-6">
-                {t('selectRolePage.student.description')}
-              </p>
+              <p className="text-muted-foreground mb-6">{t('selectRolePage.student.description')}</p>
             </div>
 
             <ul className="space-y-3 mb-10">
@@ -192,9 +186,7 @@ export function SelectRolePage(_: SelectRoleProps) {
 
         {/* Footer */}
         <div className="text-center mt-12">
-          <p className="text-sm text-muted-foreground">
-            {t('selectRolePage.roleChangeHint')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('selectRolePage.roleChangeHint')}</p>
         </div>
       </div>
     </div>

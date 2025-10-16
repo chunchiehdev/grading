@@ -2,7 +2,7 @@
   "title": "Rubrics",
   "subtitle": "Create and manage rubrics for your assignments",
   "new": "New Rubric",
-  "active":"Active",
+  "active": "Active",
   "create": "Create Rubric",
   "template": "Template",
   "edit": "Edit Rubric",
@@ -39,7 +39,7 @@
   "needsImprovement": "Needs Improvement",
   "levelNames": {
     "4": "Excellent",
-    "3": "Good", 
+    "3": "Good",
     "2": "Satisfactory",
     "1": "Needs Improvement"
   },
@@ -79,7 +79,7 @@
     "placeholder": "e.g., Personal statement rubric",
     "examples": [
       "Personal statement rubric",
-      "Programming assignment rubric", 
+      "Programming assignment rubric",
       "Presentation rubric",
       "Academic paper rubric"
     ],

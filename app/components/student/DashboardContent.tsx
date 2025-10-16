@@ -19,7 +19,7 @@ export function DashboardContent({ data }: DashboardContentProps) {
   const { t } = useTranslation(['course', 'dashboard', 'submissions']);
 
   // Subscribe to assignment store (initialized by parent component)
-  const getUpcomingDeadlines = useAssignmentStore(state => state.getUpcomingDeadlines);
+  const getUpcomingDeadlines = useAssignmentStore((state) => state.getUpcomingDeadlines);
 
   // Get upcoming deadlines from store (includes sorting logic)
   const upcomingDeadlines = getUpcomingDeadlines(student.id);
@@ -96,7 +96,6 @@ export function DashboardContent({ data }: DashboardContentProps) {
               <h3 className="mt-6 md:mt-8 text-lg md:text-xl lg:text-2xl font-medium text-foreground">
                 {t('dashboard:emptyState.noSubmissions')}
               </h3>
-              
             </div>
           ) : (
             <div className="divide-y divide-border/50">

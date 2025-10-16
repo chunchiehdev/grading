@@ -11,12 +11,10 @@ export interface CourseInfo {
   assignmentAreas?: AssignmentAreaInfo[];
 }
 
-
 export interface CreateCourseData {
   name: string;
   description?: string;
 }
-
 
 /**
  * Creates a new course for a teacher
@@ -134,7 +132,11 @@ export async function getCourseById(courseId: string, teacherId: string): Promis
  * @param {Partial<CreateCourseData>} updateData - Course update data
  * @returns {Promise<CourseInfo | null>} Updated course information
  */
-export async function updateCourse(courseId: string, teacherId: string, updateData: Partial<CreateCourseData>): Promise<CourseInfo | null> {
+export async function updateCourse(
+  courseId: string,
+  teacherId: string,
+  updateData: Partial<CreateCourseData>
+): Promise<CourseInfo | null> {
   try {
     const course = await db.course.updateMany({
       where: {

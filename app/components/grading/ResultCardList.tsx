@@ -87,7 +87,9 @@ export function ResultCardList({ results }: ResultCardListProps) {
 
                     <div>
                       <CardTitle className="text-lg">{resultItem.fileName}</CardTitle>
-                      <p className="text-sm text-muted-foreground">{t('grading:resultCard.rubric', { name: resultItem.rubricName })}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {t('grading:resultCard.rubric', { name: resultItem.rubricName })}
+                      </p>
                     </div>
                   </div>
 

@@ -4,7 +4,7 @@
 
 // Polyfill File.prototype.arrayBuffer if it doesn't exist
 if (typeof File !== 'undefined' && !File.prototype.arrayBuffer) {
-  File.prototype.arrayBuffer = function() {
+  File.prototype.arrayBuffer = function () {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -15,9 +15,9 @@ if (typeof File !== 'undefined' && !File.prototype.arrayBuffer) {
   };
 }
 
-// Polyfill Blob.prototype.arrayBuffer if it doesn't exist  
+// Polyfill Blob.prototype.arrayBuffer if it doesn't exist
 if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
-  Blob.prototype.arrayBuffer = function() {
+  Blob.prototype.arrayBuffer = function () {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = () => {

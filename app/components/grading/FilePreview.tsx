@@ -104,7 +104,8 @@ export function FilePreview({
         )}
       </div>
       <div className="text-xs text-muted-foreground mt-2 shrink-0">
-        {(file?.mimeType || '-')}{file?.fileSize ? ` • ${formatSize(file?.fileSize)}` : ''}
+        {file?.mimeType || '-'}
+        {file?.fileSize ? ` • ${formatSize(file?.fileSize)}` : ''}
       </div>
     </div>
   );
@@ -217,13 +218,13 @@ function ClientPdfViewer({
 
   const Document = mod.Document as any;
   const Page = mod.Page as any;
-  
+
   // Calculate page width accounting for padding and sidebar
   const sidebarWidth = isSidebarOpen ? 200 : 0;
   const contentPadding = 32; // px-4 = 16px each side
   const availableWidth = containerWidth - sidebarWidth - contentPadding;
   const pageWidth = Math.max(300, Math.min(availableWidth * 0.95, 800)); // Use 95% to ensure no overflow
-  
+
   // Debug logging to help troubleshoot
   console.log('PDF width calculation:', {
     containerWidth,
@@ -231,11 +232,12 @@ function ClientPdfViewer({
     contentPadding,
     availableWidth,
     pageWidth,
-    isSidebarOpen
+    isSidebarOpen,
   });
 
   const onLoadSuccess = ({ numPages }: { numPages: number }) => setNumPages(numPages);
-  const scrollToPage = (index: number) => pagesRef.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const scrollToPage = (index: number) =>
+    pagesRef.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const goToPage = (page: number) => scrollToPage(Math.max(0, Math.min((numPages || 1) - 1, page - 1)));
 
   function LazyPage({ pageNumber }: { pageNumber: number }) {
@@ -244,10 +246,10 @@ function ClientPdfViewer({
     useEffect(() => {
       const node = ref.current;
       if (!node) return;
-      const io = new IntersectionObserver(
-        (entries) => entries.forEach((e) => e.isIntersecting && setVisible(true)),
-        { root: contentRef.current, threshold: 0.01 }
-      );
+      const io = new IntersectionObserver((entries) => entries.forEach((e) => e.isIntersecting && setVisible(true)), {
+        root: contentRef.current,
+        threshold: 0.01,
+      });
       io.observe(node);
       return () => io.disconnect();
     }, []);
@@ -267,7 +269,11 @@ function ClientPdfViewer({
               renderTextLayer={false}
               renderAnnotationLayer={false}
               className="shadow max-w-full"
-              loading={<div className="w-full h-40 flex items-center justify-center text-sm text-muted-foreground">{t('filePreview.loadingPage')}</div>}
+              loading={
+                <div className="w-full h-40 flex items-center justify-center text-sm text-muted-foreground">
+                  {t('filePreview.loadingPage')}
+                </div>
+              }
             />
           </div>
         ) : (
@@ -283,9 +289,12 @@ function ClientPdfViewer({
     useEffect(() => {
       const node = ref.current;
       if (!node) return;
-      const io = new IntersectionObserver((entries) => {
-        for (const e of entries) if (e.isIntersecting) setVisible(true);
-      }, { threshold: 0.01 });
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) if (e.isIntersecting) setVisible(true);
+        },
+        { threshold: 0.01 }
+      );
       io.observe(node);
       return () => io.disconnect();
     }, []);
@@ -317,70 +326,95 @@ function ClientPdfViewer({
       )}
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        <Document file={src} onLoadSuccess={onLoadSuccess} loading={<div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">Loading…</div>} className="w-full h-full">
+        <Document
+          file={src}
+          onLoadSuccess={onLoadSuccess}
+          loading={
+            <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+          }
+          className="w-full h-full"
+        >
           <div ref={containerRef} className="relative w-full h-full">
-          {/* Sidebar */}
-          {!isFullScreen && (
-            <>
-              {isSidebarOpen && (
-                <div className="absolute inset-0 bg-black/10 z-10 transition-opacity duration-200" onClick={() => setIsSidebarOpen(false)} />
-              )}
-              <div className={`absolute top-0 left-0 h-full w-40 bg-background border-r shadow-lg transform transition-transform duration-200 z-20 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="w-full h-full overflow-y-auto">
-                  <div className="p-2 space-y-2">
-                    {numPages > 0 && (
-                      Array.from({ length: numPages }, (_, i) => (
-                        <button
-                          key={i}
-                          onClick={() => goToPage(i + 1)}
-                          className="w-full rounded border hover:bg-muted/50 p-1 text-xs text-muted-foreground text-left"
-                          title={`第 ${i + 1} 頁`}
-                        >
-                          <Thumb pageNumber={i + 1} />
-                          <div className="mt-1 text-center">{i + 1}</div>
-                        </button>
-                      ))
-                    )}
+            {/* Sidebar */}
+            {!isFullScreen && (
+              <>
+                {isSidebarOpen && (
+                  <div
+                    className="absolute inset-0 bg-black/10 z-10 transition-opacity duration-200"
+                    onClick={() => setIsSidebarOpen(false)}
+                  />
+                )}
+                <div
+                  className={`absolute top-0 left-0 h-full w-40 bg-background border-r shadow-lg transform transition-transform duration-200 z-20 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                >
+                  <div className="w-full h-full overflow-y-auto">
+                    <div className="p-2 space-y-2">
+                      {numPages > 0 &&
+                        Array.from({ length: numPages }, (_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => goToPage(i + 1)}
+                            className="w-full rounded border hover:bg-muted/50 p-1 text-xs text-muted-foreground text-left"
+                            title={`第 ${i + 1} 頁`}
+                          >
+                            <Thumb pageNumber={i + 1} />
+                            <div className="mt-1 text-center">{i + 1}</div>
+                          </button>
+                        ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </>
-          )}
-
-          <div
-            ref={contentRef}
-            className="absolute inset-0 overflow-y-auto px-4 py-2"
-            onMouseMove={() => isFullScreen && setShowControls(true)}
-          >
-            {numPages > 0 ? (
-              <div className="w-full space-y-0">
-                {Array.from({ length: numPages }, (_, idx) => (
-                  <LazyPage key={idx} pageNumber={idx + 1} />
-                ))}
-              </div>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">Loading…</div>
+              </>
             )}
 
-            {isFullScreen && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: showControls ? 1 : 0 }}
-                transition={{ duration: 0.2 }}
-                className="pointer-events-none fixed left-0 right-0 bottom-4 flex items-center justify-center z-10"
-              >
-                <div className="pointer-events-auto inline-flex items-center gap-3 rounded-full bg-black/60 text-white px-4 py-2 shadow-lg">
-                  <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="disabled:opacity-50 hover:bg-white/20 p-1 rounded">
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <span className="text-sm whitespace-nowrap">Page {currentPage} of {numPages || 1}</span>
-                  <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= (numPages || 1)} className="disabled:opacity-50 hover:bg-white/20 p-1 rounded">
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
+            <div
+              ref={contentRef}
+              className="absolute inset-0 overflow-y-auto px-4 py-2"
+              onMouseMove={() => isFullScreen && setShowControls(true)}
+            >
+              {numPages > 0 ? (
+                <div className="w-full space-y-0">
+                  {Array.from({ length: numPages }, (_, idx) => (
+                    <LazyPage key={idx} pageNumber={idx + 1} />
+                  ))}
                 </div>
-              </motion.div>
-            )}
-          </div>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
+                  Loading…
+                </div>
+              )}
+
+              {isFullScreen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: showControls ? 1 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="pointer-events-none fixed left-0 right-0 bottom-4 flex items-center justify-center z-10"
+                >
+                  <div className="pointer-events-auto inline-flex items-center gap-3 rounded-full bg-black/60 text-white px-4 py-2 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                      className="disabled:opacity-50 hover:bg-white/20 p-1 rounded"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <span className="text-sm whitespace-nowrap">
+                      Page {currentPage} of {numPages || 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage >= (numPages || 1)}
+                      className="disabled:opacity-50 hover:bg-white/20 p-1 rounded"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
           </div>
         </Document>
       </div>

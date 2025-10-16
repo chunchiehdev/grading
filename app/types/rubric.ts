@@ -63,4 +63,4 @@ export interface GradingProgress {
 }
 
 // 從 @/types/database 重新導出需要的枚舉
-export { GradingStatus } from '@/types/database'; 
+export { GradingStatus } from '@/types/database';

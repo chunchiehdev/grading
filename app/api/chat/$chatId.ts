@@ -1,8 +1,8 @@
-import type { LoaderFunctionArgs } from "react-router";
-import { db } from "@/lib/db.server";
-import { getUser } from "../../services/auth.server.js";
-import { validateApiKey } from "../../middleware/api-key.server.js";
-import { ChatPaginationService } from "../../services/pagination.server.js";
+import type { LoaderFunctionArgs } from 'react-router';
+import { db } from '@/lib/db.server';
+import { getUser } from '../../services/auth.server.js';
+import { validateApiKey } from '../../middleware/api-key.server.js';
+import { ChatPaginationService } from '../../services/pagination.server.js';
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const { chatId } = params;
@@ -26,9 +26,9 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
       }
 
       chat = await db.chat.findFirst({
-        where: { 
+        where: {
           id: chatId,
-          userId: user.id 
+          userId: user.id,
         },
         select: {
           id: true,
@@ -36,19 +36,15 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
           title: true,
           context: true,
           createdAt: true,
-          updatedAt: true
-        }
+          updatedAt: true,
+        },
       });
 
       if (!chat) {
         return Response.json({ success: false, error: 'Chat not found' }, { status: 404 });
       }
 
-      const messagesResult = await ChatPaginationService.getPaginatedChatMessages(
-        chatId,
-        user.id,
-        { cursor, limit }
-      );
+      const messagesResult = await ChatPaginationService.getPaginatedChatMessages(chatId, user.id, { cursor, limit });
 
       return Response.json({
         success: true,
@@ -57,11 +53,10 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
           msgs: messagesResult.data,
           pagination: {
             nextCursor: messagesResult.nextCursor,
-            hasNextPage: messagesResult.hasNextPage
-          }
+            hasNextPage: messagesResult.hasNextPage,
+          },
         },
       });
-
     } else {
       chat = await db.chat.findFirst({
         where: { id: chatId },
@@ -87,7 +82,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         context: chat.context,
         createdAt: chat.createdAt,
         updatedAt: chat.updatedAt,
-        msgs: chat.msgs.map(msg => ({
+        msgs: chat.msgs.map((msg) => ({
           id: msg.id,
           role: msg.role,
           content: msg.content,
@@ -95,12 +90,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         })),
       },
     });
-
   } catch (error) {
     console.error('Error getting chat:', error);
-    return Response.json({ 
-      success: false, 
-      error: 'Internal server error' 
-    }, { status: 500 });
+    return Response.json(
+      {
+        success: false,
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    );
   }
 }

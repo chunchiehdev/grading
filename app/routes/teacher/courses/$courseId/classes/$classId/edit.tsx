@@ -138,8 +138,7 @@ export default function EditClass() {
           {t('course:classForm.editClass')}
         </h1>
         <p className="text-base lg:text-lg xl:text-xl text-muted-foreground">
-          {t('course:classForm.editFor')}{' '}
-          <span className="font-medium text-foreground">{classData.course.name}</span>
+          {t('course:classForm.editFor')} <span className="font-medium text-foreground">{classData.course.name}</span>
           {' · '}
           <span className="font-medium text-foreground">{classData.name}</span>
         </p>
@@ -194,7 +193,10 @@ export default function EditClass() {
             </div>
 
             <div className="space-y-2 lg:space-y-3 pt-2 lg:pt-4">
-              <Label htmlFor="room" className="text-base lg:text-lg xl:text-xl font-medium text-foreground flex items-center gap-2 lg:gap-3">
+              <Label
+                htmlFor="room"
+                className="text-base lg:text-lg xl:text-xl font-medium text-foreground flex items-center gap-2 lg:gap-3"
+              >
                 <MapPin className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 text-muted-foreground" />
                 {t('course:classForm.roomOptional')}
               </Label>
@@ -211,7 +213,10 @@ export default function EditClass() {
           {/* Capacity Block */}
           <div className="bg-card rounded-2xl shadow-sm p-5 sm:p-6 lg:p-8 xl:p-10 space-y-3 lg:space-y-4">
             <div className="space-y-2 lg:space-y-3">
-              <Label htmlFor="capacity" className="text-base lg:text-lg xl:text-xl font-medium text-foreground flex items-center gap-2 lg:gap-3">
+              <Label
+                htmlFor="capacity"
+                className="text-base lg:text-lg xl:text-xl font-medium text-foreground flex items-center gap-2 lg:gap-3"
+              >
                 <Users className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 text-muted-foreground" />
                 {t('course:classForm.capacityOptional')}
               </Label>

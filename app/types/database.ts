@@ -23,4 +23,4 @@ export type {
 } from '../generated/prisma/client';
 
 // 重新導出db實例
-export { db } from '../lib/db.server'; 
+export { db } from '../lib/db.server';

@@ -26,13 +26,12 @@ const queryClient = new QueryClient({
   },
 });
 
-export type  User = {
+export type User = {
   id: string;
   email: string;
   name: string;
   picture: string;
   role: 'TEACHER' | 'STUDENT' | null;
-
 };
 
 type LoaderData = {
@@ -87,7 +86,7 @@ async function getVersionInfoSafe(): Promise<VersionInfo> {
       branch: 'unknown',
       commitHash: 'unknown',
       buildTime: new Date().toISOString(),
-      environment: 'development'
+      environment: 'development',
     };
   }
 }
@@ -102,13 +101,8 @@ async function getUserSafe(request: Request): Promise<User | null> {
   }
 }
 
-
 function isStaticAsset(path: string) {
-  return (
-    path.startsWith('/assets/') ||
-    /\.(css|js|ico|png|jpg|svg)$/.test(path) ||
-    path.startsWith('/__')
-  );
+  return path.startsWith('/assets/') || /\.(css|js|ico|png|jpg|svg)$/.test(path) || path.startsWith('/__');
 }
 
 function isPublicPath(path: string): boolean {
@@ -130,7 +124,7 @@ export function getRoleBasedDashboard(userRole: string): string {
 export async function loader({ request }: { request: Request }) {
   const url = new URL(request.url);
   const path = url.pathname;
-  
+
   const locale = getServerLocale(request);
   const session = await getSession(request);
   const toast = session.get('toast') || null;
@@ -158,16 +152,16 @@ export async function loader({ request }: { request: Request }) {
 
   // Get user once for all paths
   const user = await getUserSafe(request);
-  
+
   // Handle public paths
   if (isPublicPath(path)) {
     if (user && path === '/auth/login') {
       if (user.role) {
         throw redirect(getRoleBasedDashboard(user.role));
       }
-        throw redirect('/auth/select-role');
+      throw redirect('/auth/select-role');
     }
-    
+
     const body = { user, isPublicPath: true, versionInfo, locale, toast, podInfo };
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;
@@ -196,7 +190,6 @@ export async function loader({ request }: { request: Request }) {
 }
 
 function Document({ children }: { children: React.ReactNode }) {
-
   return (
     <html lang="zh-TW" suppressHydrationWarning>
       <head>
@@ -256,10 +249,8 @@ function Layout() {
   return (
     <div className="h-screen w-full flex flex-col bg-background">
       {/* Conditional NavHeader - only show for authenticated users or protected paths */}
-      {(user || !isPublicPath) && (
-        <NavHeader className="flex-shrink-0" />
-      )}
-      
+      {(user || !isPublicPath) && <NavHeader className="flex-shrink-0" />}
+
       {/* Main content area with proper scrolling */}
       <main className="flex-1 overflow-y-auto">
         {!isPublicPath ? (
@@ -276,9 +267,8 @@ function Layout() {
         {/* <div className="debug-info fixed bottom-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-50 hover:opacity-100 transition-opacity z-50">
           Pod: {podInfo.podName} | IP: {podInfo.podIP} | Node: {nodeName}
         </div> */}
-  
       </main>
-      
+
       {/* Footer - always present but flexible */}
       {/* <FooterVersion versionInfo={versionInfo} className="flex-shrink-0" /> */}
     </div>

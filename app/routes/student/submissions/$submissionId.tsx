@@ -53,7 +53,6 @@ export default function StudentSubmissionDetail() {
   return (
     <div className="min-h-screen bg-background">
       <main className="w-full px-6 lg:px-12 xl:px-16 2xl:px-20 pb-8 space-y-8">
-
         {/* 頂部作業資訊 - 簡潔背景 */}
         <div className="border-b border-border pb-6">
           <div className="flex items-start justify-between">
@@ -107,7 +106,10 @@ export default function StudentSubmissionDetail() {
           <h2 className="text-xl font-semibold">{t('submissions:aiAnalysis.title')}</h2>
           <div>
             {submission.aiAnalysisResult ? (
-              <GradingResultDisplay result={submission.aiAnalysisResult as any} normalizedScore={submission.normalizedScore} />
+              <GradingResultDisplay
+                result={submission.aiAnalysisResult as any}
+                normalizedScore={submission.normalizedScore}
+              />
             ) : (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">AI分析進行中...</p>

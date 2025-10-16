@@ -84,7 +84,6 @@ const LEVEL_COLORS = {
   1: 'bg-red-100 text-red-800 border-red-200',
 };
 
-
 export default function RubricDetailRoute() {
   const { t } = useTranslation(['rubric', 'common']);
   const { rubric } = useLoaderData<typeof loader>();
@@ -244,16 +243,16 @@ export default function RubricDetailRoute() {
                       <Badge variant="outline">
                         {category.criteria.length} {t('rubric:criteriaCount', { count: category.criteria.length })}
                       </Badge>
-                      <Badge variant="outline">
-                        {t('rubric:maxScore', { score: category.criteria.length * 4 })}
-                      </Badge>
+                      <Badge variant="outline">{t('rubric:maxScore', { score: category.criteria.length * 4 })}</Badge>
                     </div>
                   </div>
                 </CardHeader>
 
                 <CardContent className="p-0">
                   {category.criteria.length === 0 ? (
-                    <div className="p-8 text-center text-muted-foreground">{t('rubric:emptyState.categoryNoCriteria')}</div>
+                    <div className="p-8 text-center text-muted-foreground">
+                      {t('rubric:emptyState.categoryNoCriteria')}
+                    </div>
                   ) : (
                     <div className="divide-y">
                       {category.criteria.map((criterion, criterionIndex) => (
@@ -286,13 +285,16 @@ export default function RubricDetailRoute() {
                                       className={`${LEVEL_COLORS[score as keyof typeof LEVEL_COLORS]} border shrink-0`}
                                       variant="outline"
                                     >
-                                      {score}{t('common:points')} - {t(`rubric:levelLabels.${score}`)}
+                                      {score}
+                                      {t('common:points')} - {t(`rubric:levelLabels.${score}`)}
                                     </Badge>
                                     <div className="flex-1 min-w-0">
                                       {description ? (
                                         <p className="text-sm leading-relaxed">{description}</p>
                                       ) : (
-                                        <p className="text-sm text-muted-foreground italic">{t('rubric:noLevelDescription')}</p>
+                                        <p className="text-sm text-muted-foreground italic">
+                                          {t('rubric:noLevelDescription')}
+                                        </p>
                                       )}
                                     </div>
                                   </div>

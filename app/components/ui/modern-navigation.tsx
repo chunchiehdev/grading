@@ -40,10 +40,7 @@ export function ModernNavigation({
   };
 
   return (
-    <div className={cn(
-      "flex items-center bg-background py-4 w-full relative",
-      className
-    )}>
+    <div className={cn('flex items-center bg-background py-4 w-full relative', className)}>
       <div className="w-[95%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto px-6 flex items-center">
         <div className="hidden md:flex flex-1 justify-start">
           <Tabs value={activeTab} onValueChange={handleTabChange}>
@@ -53,11 +50,11 @@ export function ModernNavigation({
                   key={tab.value}
                   value={tab.value}
                   className={cn(
-                    "text-base font-medium px-0 py-2",
-                    "data-[state=active]:bg-transparent data-[state=active]:shadow-none",
-                    "data-[state=active]:border-b-2 data-[state=active]:border-primary",
-                    "rounded-none border-b-2 border-transparent",
-                    "hover:text-primary transition-colors"
+                    'text-base font-medium px-0 py-2',
+                    'data-[state=active]:bg-transparent data-[state=active]:shadow-none',
+                    'data-[state=active]:border-b-2 data-[state=active]:border-primary',
+                    'rounded-none border-b-2 border-transparent',
+                    'hover:text-primary transition-colors'
                   )}
                 >
                   <span>{tab.label}</span>
@@ -70,9 +67,7 @@ export function ModernNavigation({
         <div className="block md:hidden">
           <Select value={activeTab} onValueChange={handleMobileTabChange}>
             <SelectTrigger className="w-auto min-w-[150px] border-none shadow-none bg-transparent">
-              <SelectValue>
-                {tabs.find(tab => tab.value === activeTab)?.label}
-              </SelectValue>
+              <SelectValue>{tabs.find((tab) => tab.value === activeTab)?.label}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {tabs.map((tab) => (
@@ -86,11 +81,7 @@ export function ModernNavigation({
 
         {/* 右側操作 - 在所有螢幕尺寸顯示 */}
         <div className="flex items-center gap-3 ml-auto">
-          {actions && (
-            <div className="flex items-center gap-2">
-              {actions}
-            </div>
-          )}
+          {actions && <div className="flex items-center gap-2">{actions}</div>}
         </div>
       </div>
     </div>

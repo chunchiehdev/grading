@@ -27,38 +27,31 @@ export enum ApiErrorCode {
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
   RATE_LIMIT = 'RATE_LIMIT',
-  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE'
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
 }
 
 /**
  * 輔助函數：創建成功回應
  */
-export function createSuccessResponse<T>(
-  data: T, 
-  meta?: ApiResponse<T>['meta']
-): ApiResponse<T> {
+export function createSuccessResponse<T>(data: T, meta?: ApiResponse<T>['meta']): ApiResponse<T> {
   return {
     success: true,
     data,
-    ...(meta && { meta })
+    ...(meta && { meta }),
   };
 }
 
 /**
  * 輔助函數：創建錯誤回應
  */
-export function createErrorResponse(
-  message: string,
-  code?: ApiErrorCode,
-  details?: any
-): ApiResponse<never> {
+export function createErrorResponse(message: string, code?: ApiErrorCode, details?: any): ApiResponse<never> {
   return {
     success: false,
     error: {
       message,
       ...(code && { code }),
-      ...(details && { details })
-    }
+      ...(details && { details }),
+    },
   };
 }
 
@@ -78,7 +71,7 @@ export function createPaginatedResponse<T>(
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit)
-    }
+      totalPages: Math.ceil(total / limit),
+    },
   };
-} 
+}

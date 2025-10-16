@@ -26,9 +26,9 @@ export class EventPublisher {
     try {
       const eventData = {
         ...event,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-      
+
       await redis.publish(this.CHAT_EVENTS_CHANNEL, JSON.stringify(eventData));
       logger.debug('Event published:', eventData);
     } catch (error) {
@@ -40,28 +40,38 @@ export class EventPublisher {
   /**
    * 發布用戶訊息創建事件
    */
-  static async publishMessageCreated(chatId: string, userId: string, messageId: string, messageData?: any): Promise<void> {
+  static async publishMessageCreated(
+    chatId: string,
+    userId: string,
+    messageId: string,
+    messageData?: any
+  ): Promise<void> {
     await this.publishChatEvent({
       type: 'MESSAGE_CREATED',
       chatId,
       userId,
       messageId,
       data: messageData,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 
   /**
    * 發布 AI 回應需求事件
    */
-  static async publishAIResponseNeeded(chatId: string, userId: string, messageContent: string, messageId?: string): Promise<void> {
+  static async publishAIResponseNeeded(
+    chatId: string,
+    userId: string,
+    messageContent: string,
+    messageId?: string
+  ): Promise<void> {
     await this.publishChatEvent({
       type: 'AI_RESPONSE_NEEDED',
       chatId,
       userId,
       messageId,
       data: { messageContent },
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 
@@ -75,7 +85,7 @@ export class EventPublisher {
       userId: 'ai',
       messageId,
       data: messageData,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
   }
 }
@@ -96,10 +106,10 @@ export class EventSubscriber {
    */
   async subscribeToChatEvents(): Promise<void> {
     logger.info('Subscribing to Redis chat events channel...');
-    
+
     await this.subscriber.subscribe('chat:events');
     logger.info('✅ Successfully subscribed to Redis chat:events channel');
-    
+
     this.subscriber.on('message', async (channel, message) => {
       if (channel === 'chat:events') {
         try {
@@ -128,17 +138,17 @@ export class EventSubscriber {
   private async handleEvent(event: ChatEvent): Promise<void> {
     const handler = this.handlers.get(event.type);
     if (handler) {
-      logger.debug('📋 Executing handler for event:', { 
-        type: event.type, 
+      logger.debug('📋 Executing handler for event:', {
+        type: event.type,
         chatId: event.chatId,
-        hasHandler: true
+        hasHandler: true,
       });
       await handler(event);
     } else {
       logger.debug('No handler registered for event type:', {
         eventType: event.type,
         chatId: event.chatId,
-        registeredHandlers: Array.from(this.handlers.keys())
+        registeredHandlers: Array.from(this.handlers.keys()),
       });
     }
   }

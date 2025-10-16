@@ -103,13 +103,15 @@ export default function TeacherAnalytics() {
               {rubrics.map((r) => (
                 <div key={r.id} className="rounded-lg border p-4">
                   <div className="font-medium">{r.name}</div>
-                  <div className="text-sm text-gray-600 mt-1">{t('analytics:usedInAssignments', { count: r.usageCount })}</div>
-                  <div className="text-sm text-gray-600">{t('analytics:avgScore', { score: Number(r.averageScore.toFixed(1)) })}</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {t('analytics:usedInAssignments', { count: r.usageCount })}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    {t('analytics:avgScore', { score: Number(r.averageScore.toFixed(1)) })}
+                  </div>
                 </div>
               ))}
-              {rubrics.length === 0 && (
-                <div className="text-gray-600">{t('analytics:noRubrics')}</div>
-              )}
+              {rubrics.length === 0 && <div className="text-gray-600">{t('analytics:noRubrics')}</div>}
             </div>
           </CardContent>
         </Card>
@@ -117,4 +119,3 @@ export default function TeacherAnalytics() {
     </div>
   );
 }
-

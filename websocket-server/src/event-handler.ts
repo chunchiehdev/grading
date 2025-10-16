@@ -86,11 +86,11 @@ export class WebSocketEventHandler {
     try {
       // 優先使用事件中的資料，如果沒有則從資料庫獲取
       let messageData = event.data;
-      
+
       if (!messageData && event.messageId) {
         messageData = await this.getMessageData(event.messageId);
       }
-      
+
       if (messageData) {
         // 廣播給聊天室中的所有用戶
         this.io.to(`chat:${event.chatId}`).emit('new-msg', messageData);
@@ -110,11 +110,11 @@ export class WebSocketEventHandler {
     try {
       // 優先使用事件中的資料，如果沒有則從資料庫獲取
       let messageData = event.data;
-      
+
       if (!messageData && event.messageId) {
         messageData = await this.getMessageData(event.messageId);
       }
-      
+
       if (messageData) {
         // 廣播 AI 回應
         this.io.to(`chat:${event.chatId}`).emit('new-msg', messageData);
@@ -140,7 +140,7 @@ export class WebSocketEventHandler {
           'x-api-key': process.env.INTERNAL_API_KEY || '',
         },
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         return result.success ? result.data : null;
@@ -148,7 +148,7 @@ export class WebSocketEventHandler {
     } catch (error) {
       logger.error(`Failed to fetch message data: ${error}`);
     }
-    
+
     return null;
   }
 
@@ -164,7 +164,7 @@ export class WebSocketEventHandler {
         courseId: event.courseId,
         dueDate: event.dueDate,
         teacherName: event.teacherName,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       // 向所有課程學生發送通知

@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from '@google/genai';
 import logger from '@/utils/logger';
 
 // AI 評分標準生成請求介面
@@ -20,10 +20,11 @@ export interface RubricGenerationResponse {
  */
 function createRubricPrompt(message: string, conversationHistory: any[], context?: any): string {
   const contextInfo = context ? `\n當前評分標準內容：${JSON.stringify(context, null, 2)}\n` : '';
-  
-  const historyText = conversationHistory.length > 0 
-    ? `\n對話歷史：\n${conversationHistory.map(h => `${h.role}: ${h.content}`).join('\n')}\n`
-    : '';
+
+  const historyText =
+    conversationHistory.length > 0
+      ? `\n對話歷史：\n${conversationHistory.map((h) => `${h.role}: ${h.content}`).join('\n')}\n`
+      : '';
 
   return `你是一個專業的教育評分標準生成助手。請根據用戶的需求，生成詳細且實用的評分標準。
 
@@ -94,24 +95,24 @@ async function testGeminiConnection(): Promise<{ success: boolean; error?: strin
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    
+
     // 發送簡單的測試請求
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: "Hello, test connection",
+      model: 'gemini-2.0-flash',
+      contents: 'Hello, test connection',
     });
-    
+
     const text = response.text;
-    
+
     if (text) {
       return { success: true };
     } else {
       return { success: false, error: 'Empty response from test request' };
     }
   } catch (error: any) {
-    return { 
-      success: false, 
-      error: `Connection test failed: ${error.message}` 
+    return {
+      success: false,
+      error: `Connection test failed: ${error.message}`,
     };
   }
 }
@@ -129,7 +130,7 @@ async function callGeminiForRubric(prompt: string): Promise<string> {
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         temperature: 0.7,
@@ -151,10 +152,9 @@ async function callGeminiForRubric(prompt: string): Promise<string> {
       statusText: error.statusText,
       name: error.name,
     };
-    
+
     logger.error('Gemini API detailed error:', errorDetails);
-   
- 
+
     throw error;
   }
 }
@@ -172,7 +172,7 @@ async function callOpenAIForRubric(prompt: string): Promise<string> {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -180,12 +180,12 @@ async function callOpenAIForRubric(prompt: string): Promise<string> {
         messages: [
           {
             role: 'system',
-            content: '你是一個專業的教育評分標準生成助手，擅長創建清晰、實用的評分標準。'
+            content: '你是一個專業的教育評分標準生成助手，擅長創建清晰、實用的評分標準。',
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         max_tokens: 4000,
         temperature: 0.7,
@@ -216,14 +216,14 @@ async function callOpenAIForRubric(prompt: string): Promise<string> {
  */
 export async function generateRubricResponse(request: RubricGenerationRequest): Promise<string> {
   const { message, conversationHistory, context } = request;
-  
+
   // 建構專業的 prompt
   const prompt = createRubricPrompt(message, conversationHistory, context);
-  
-  logger.info('Generating rubric with AI', { 
+
+  logger.info('Generating rubric with AI', {
     messageLength: message.length,
     hasContext: !!context,
-    historyLength: conversationHistory.length 
+    historyLength: conversationHistory.length,
   });
 
   // 先測試 Gemini API 連接性
@@ -236,9 +236,9 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
       logger.info('Successfully generated rubric with OpenAI (Gemini connection failed)');
       return response;
     } catch (openaiError) {
-      logger.error('Both AI services failed', { 
-        geminiError: connectionTest.error, 
-        openaiError 
+      logger.error('Both AI services failed', {
+        geminiError: connectionTest.error,
+        openaiError,
       });
       throw new Error('AI 服務暫時不可用，請稍後再試');
     }
@@ -250,11 +250,11 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
     logger.info('Successfully generated rubric with Gemini');
     return response;
   } catch (geminiError: any) {
-    logger.warn('Gemini API failed, trying OpenAI fallback', { 
+    logger.warn('Gemini API failed, trying OpenAI fallback', {
       error: geminiError.message,
-      details: geminiError 
+      details: geminiError,
     });
-    
+
     // 使用 OpenAI 作為備用方案
     try {
       const response = await callOpenAIForRubric(prompt);
@@ -262,7 +262,7 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
       return response;
     } catch (openaiError) {
       logger.error('Both AI services failed', { geminiError, openaiError });
-      
+
       // 兩個 AI 服務都失敗時，拋出錯誤讓上層處理
       throw new Error('AI 服務暫時不可用，請稍後再試');
     }
@@ -281,7 +281,7 @@ export function validateRubricResponse(response: string): { isValid: boolean; er
     }
 
     const rubricData = JSON.parse(jsonMatch[1]);
-    
+
     // 基本格式驗證
     if (!rubricData.name || !rubricData.description || !Array.isArray(rubricData.categories)) {
       return { isValid: false, error: '評分標準格式不完整' };

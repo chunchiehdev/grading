@@ -37,7 +37,9 @@ export class GeminiPrompts {
             ✅ 所有括號必須正確閉合
             ✅ 語法完全有效，可直接解析
         `);
-    console.log(`🔍 [GeminiPrompts] Generated system instruction (first 200 chars): ${instruction.substring(0, 200)}...`);
+    console.log(
+      `🔍 [GeminiPrompts] Generated system instruction (first 200 chars): ${instruction.substring(0, 200)}...`
+    );
     return instruction;
   }
 

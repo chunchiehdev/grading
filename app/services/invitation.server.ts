@@ -80,11 +80,11 @@ const INVITATION_CONFIG = {
 function generateInvitationCode(): string {
   const { CODE_LENGTH, CODE_CHARSET } = INVITATION_CONFIG;
   let result = '';
-  
+
   for (let i = 0; i < CODE_LENGTH; i++) {
     result += CODE_CHARSET.charAt(Math.floor(Math.random() * CODE_CHARSET.length));
   }
-  
+
   return result;
 }
 
@@ -96,8 +96,8 @@ function generateInvitationCode(): string {
  * @returns Created invitation code information
  */
 export async function createInvitationCode(
-  courseId: string, 
-  teacherId: string, 
+  courseId: string,
+  teacherId: string,
   expiryDays: number = INVITATION_CONFIG.DEFAULT_EXPIRY_DAYS
 ): Promise<InvitationCodeInfo> {
   try {
@@ -175,7 +175,7 @@ export async function createInvitationCode(
     });
 
     console.log('✅ Created invitation code:', code, 'for course:', courseId);
-    
+
     return {
       ...invitationCode,
       course,
@@ -193,10 +193,7 @@ export async function createInvitationCode(
  * @param studentId - Student's user ID (optional, for enrollment check)
  * @returns Validation result with course info
  */
-export async function validateInvitationCode(
-  code: string, 
-  studentId?: string
-): Promise<InvitationValidation> {
+export async function validateInvitationCode(code: string, studentId?: string): Promise<InvitationValidation> {
   try {
     const invitationCode = await db.invitationCode.findUnique({
       where: { code },
@@ -275,13 +272,13 @@ export async function validateInvitationCode(
  * @returns Success status and enrollment info
  */
 export async function useInvitationCode(
-  code: string, 
+  code: string,
   studentId: string
 ): Promise<{ success: boolean; error?: string; enrollmentId?: string }> {
   try {
     // Validate the code first
     const validation = await validateInvitationCode(code, studentId);
-    
+
     if (!validation.isValid) {
       return {
         success: false,
@@ -344,7 +341,7 @@ export async function useInvitationCode(
     });
 
     console.log('✅ Invitation code used:', code, 'student enrolled:', studentId);
-    
+
     return {
       success: true,
       enrollmentId: result.id,
@@ -364,10 +361,7 @@ export async function useInvitationCode(
  * @param teacherId - Teacher's user ID for authorization
  * @returns List of invitation codes
  */
-export async function getCourseInvitationCodes(
-  courseId: string, 
-  teacherId: string
-): Promise<InvitationCodeInfo[]> {
+export async function getCourseInvitationCodes(courseId: string, teacherId: string): Promise<InvitationCodeInfo[]> {
   try {
     // Verify teacher owns the course
     const course = await db.course.findFirst({
@@ -421,13 +415,13 @@ export async function getCourseInvitationCodes(
  * @returns Base64 encoded QR code image
  */
 export async function generateInvitationQRCode(
-  code: string, 
+  code: string,
   baseUrl: string = process.env.APP_BASE_URL || 'http://localhost:5173'
 ): Promise<string> {
   try {
     const invitationUrl = `${baseUrl}/join?code=${code}`;
     const qrCodeDataUrl = await QRCode.toDataURL(invitationUrl, INVITATION_CONFIG.QR_OPTIONS);
-    
+
     console.log('✅ Generated QR code for invitation:', code);
     return qrCodeDataUrl;
   } catch (error) {
@@ -443,7 +437,7 @@ export async function generateInvitationQRCode(
  * @returns Active invitation code or null
  */
 export async function getActiveCourseInvitation(
-  courseId: string, 
+  courseId: string,
   teacherId: string
 ): Promise<InvitationCodeInfo | null> {
   try {
@@ -500,10 +494,7 @@ export async function getActiveCourseInvitation(
  * @param teacherId - Teacher's user ID for authorization
  * @returns Success status
  */
-export async function revokeInvitationCode(
-  code: string, 
-  teacherId: string
-): Promise<boolean> {
+export async function revokeInvitationCode(code: string, teacherId: string): Promise<boolean> {
   try {
     const invitationCode = await db.invitationCode.findUnique({
       where: { code },

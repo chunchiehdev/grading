@@ -15,7 +15,6 @@ export type FileProgress = {
  * Follows Linus principle: solve real problems simply
  */
 export const SimpleProgressService = {
-  
   /**
    * Update progress for a grading result - store in database
    */
@@ -23,12 +22,12 @@ export const SimpleProgressService = {
     try {
       await db.gradingResult.update({
         where: { id: resultId },
-        data: { 
+        data: {
           progress: Math.max(0, Math.min(100, progress)),
-          ...(status && { status: status as any })
-        }
+          ...(status && { status: status as any }),
+        },
       });
-      
+
       logger.info(`📊 Progress updated for result ${resultId}: ${progress}%`);
     } catch (error) {
       logger.error(`❌ Failed to update progress for result ${resultId}:`, error);
@@ -48,17 +47,16 @@ export const SimpleProgressService = {
           progress: true,
           uploadedFile: {
             select: {
-              originalFileName: true
-            }
-          }
-        }
+              originalFileName: true,
+            },
+          },
+        },
       });
 
       const totalProgress = results.reduce((sum, result) => sum + (result.progress || 0), 0);
       const overall = results.length > 0 ? Math.round(totalProgress / results.length) : 0;
 
       return { overall, results };
-      
     } catch (error) {
       logger.error(`❌ Failed to get session progress for ${sessionId}:`, error);
       return { overall: 0, results: [] };
@@ -72,7 +70,7 @@ export const SimpleProgressService = {
     try {
       const results = await db.gradingResult.findMany({
         where: { gradingSessionId: sessionId },
-        select: { status: true, progress: true }
+        select: { status: true, progress: true },
       });
 
       if (results.length === 0) return;
@@ -80,8 +78,8 @@ export const SimpleProgressService = {
       const totalProgress = results.reduce((sum, result) => sum + (result.progress || 0), 0);
       const overall = Math.round(totalProgress / results.length);
 
-      const allCompleted = results.every(r => r.status === 'COMPLETED');
-      const anyProcessing = results.some(r => r.status === 'PROCESSING');
+      const allCompleted = results.every((r) => r.status === 'COMPLETED');
+      const anyProcessing = results.some((r) => r.status === 'PROCESSING');
 
       let sessionStatus: string;
       if (allCompleted) {
@@ -94,14 +92,13 @@ export const SimpleProgressService = {
 
       await db.gradingSession.update({
         where: { id: sessionId },
-        data: { 
+        data: {
           progress: overall,
-          status: sessionStatus as any
-        }
+          status: sessionStatus as any,
+        },
       });
 
       logger.info(`🎯 Session ${sessionId} updated: ${overall}% ${sessionStatus}`);
-      
     } catch (error) {
       logger.error(`❌ Failed to update session progress for ${sessionId}:`, error);
     }
@@ -117,7 +114,7 @@ export const SimpleProgressService = {
     if (progress.progress < 0 || progress.progress > 100) {
       throw new Error('Progress must be between 0 and 100');
     }
-    
+
     if (!['uploading', 'success', 'error'].includes(progress.status)) {
       throw new Error('Invalid status');
     }
@@ -143,5 +140,5 @@ export const SimpleProgressService = {
 
   clearFileProgress: async (uploadId: string): Promise<void> => {
     SimpleProgressService.fileProgressCache.delete(uploadId);
-  }
+  },
 };

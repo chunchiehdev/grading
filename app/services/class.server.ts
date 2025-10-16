@@ -73,10 +73,7 @@ export interface UpdateClassData {
  * @param data - Class creation data
  * @returns Created class information
  */
-export async function createClass(
-  teacherId: string,
-  data: CreateClassData
-): Promise<ClassInfo> {
+export async function createClass(teacherId: string, data: CreateClassData): Promise<ClassInfo> {
   try {
     // Verify teacher owns the course
     const course = await db.course.findFirst({
@@ -152,10 +149,7 @@ export async function createClass(
  * @param teacherId - Teacher's user ID for authorization
  * @returns Class information or null if not found/unauthorized
  */
-export async function getClassById(
-  classId: string,
-  teacherId: string
-): Promise<ClassInfo | null> {
+export async function getClassById(classId: string, teacherId: string): Promise<ClassInfo | null> {
   try {
     const classInstance = await db.class.findFirst({
       where: {
@@ -205,10 +199,7 @@ export async function getClassById(
  * @param teacherId - Teacher's user ID for authorization
  * @returns List of classes with enrollment and assignment counts
  */
-export async function listClassesByCourse(
-  courseId: string,
-  teacherId: string
-): Promise<ClassInfo[]> {
+export async function listClassesByCourse(courseId: string, teacherId: string): Promise<ClassInfo[]> {
   try {
     // Verify teacher owns the course
     const course = await db.course.findFirst({
@@ -250,10 +241,7 @@ export async function listClassesByCourse(
           },
         },
       },
-      orderBy: [
-        { isActive: 'desc' },
-        { createdAt: 'asc' },
-      ],
+      orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
     });
 
     return classes;
@@ -345,10 +333,7 @@ export async function updateClass(
  * @param teacherId - Teacher's user ID for authorization
  * @returns True if deleted successfully
  */
-export async function deleteClass(
-  classId: string,
-  teacherId: string
-): Promise<boolean> {
+export async function deleteClass(classId: string, teacherId: string): Promise<boolean> {
   try {
     // Verify teacher owns the class through course
     const existingClass = await getClassById(classId, teacherId);
@@ -390,12 +375,7 @@ export async function getClassStatistics(classId: string, teacherId: string) {
       throw new Error('Class not found or unauthorized');
     }
 
-    const [
-      totalEnrollments,
-      totalAssignments,
-      recentEnrollments,
-      assignmentStats,
-    ] = await Promise.all([
+    const [totalEnrollments, totalAssignments, recentEnrollments, assignmentStats] = await Promise.all([
       db.enrollment.count({
         where: { classId },
       }),
@@ -436,9 +416,7 @@ export async function getClassStatistics(classId: string, teacherId: string) {
         acc[stat.status] = stat._count;
         return acc;
       }, {}),
-      capacityUtilization: classInstance.capacity
-        ? (totalEnrollments / classInstance.capacity) * 100
-        : null,
+      capacityUtilization: classInstance.capacity ? (totalEnrollments / classInstance.capacity) * 100 : null,
     };
   } catch (error) {
     console.error('❌ Error fetching class statistics:', error);

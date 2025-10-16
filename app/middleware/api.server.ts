@@ -1,4 +1,10 @@
-import { getUser, requireAuth as serviceRequireAuth, requireAuthForApi, requireTeacher, requireStudent } from '@/services/auth.server';
+import {
+  getUser,
+  requireAuth as serviceRequireAuth,
+  requireAuthForApi,
+  requireTeacher,
+  requireStudent,
+} from '@/services/auth.server';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -91,9 +97,7 @@ type AuthenticatedFunction<T> = (args: { request: Request; params: any; user: an
  * Higher-order function to add authentication to API handlers
  * This eliminates the repetitive pattern of getUserId/requireAuth in every route
  */
-export function withAuth<T extends Response>(
-  handler: AuthenticatedFunction<T>
-): LoaderFunction | ActionFunction {
+export function withAuth<T extends Response>(handler: AuthenticatedFunction<T>): LoaderFunction | ActionFunction {
   return async (args) => {
     return withErrorHandler(async () => {
       const user = await requireAuthForApi(args.request);
@@ -114,9 +118,7 @@ export function withAuth<T extends Response>(
 /**
  * Higher-order function to require teacher role
  */
-export function withTeacher<T extends Response>(
-  handler: AuthenticatedFunction<T>
-): LoaderFunction | ActionFunction {
+export function withTeacher<T extends Response>(handler: AuthenticatedFunction<T>): LoaderFunction | ActionFunction {
   return async (args) => {
     return withErrorHandler(async () => {
       const user = await requireAuthForApi(args.request);
@@ -146,9 +148,7 @@ export function withTeacher<T extends Response>(
 /**
  * Higher-order function to require student role
  */
-export function withStudent<T extends Response>(
-  handler: AuthenticatedFunction<T>
-): LoaderFunction | ActionFunction {
+export function withStudent<T extends Response>(handler: AuthenticatedFunction<T>): LoaderFunction | ActionFunction {
   return async (args) => {
     return withErrorHandler(async () => {
       const user = await requireAuthForApi(args.request);

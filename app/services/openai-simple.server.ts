@@ -26,14 +26,14 @@ export interface OpenAIGradingResponse {
  */
 class SimpleOpenAIService {
   private client: OpenAI;
-  private model: string = "gpt-4o-mini";
+  private model: string = 'gpt-4o-mini';
 
   constructor() {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY environment variable is required');
     }
-    
+
     this.client = new OpenAI({ apiKey });
     logger.info(`🤖 Simple OpenAI service initialized with ${this.model}`);
   }
@@ -48,22 +48,22 @@ class SimpleOpenAIService {
       logger.info(`🎯 Grading ${request.fileName} with OpenAI`);
 
       const prompt = this.generatePrompt(request);
-      
+
       const response = await this.client.chat.completions.create({
         model: this.model,
         messages: [
           {
-            role: "system",
-            content: `You are a grading assistant. Always respond with valid JSON format. ${userLanguage === 'zh' ? 'Please write all content in Traditional Chinese.' : 'Please write all content in English.'}`
+            role: 'system',
+            content: `You are a grading assistant. Always respond with valid JSON format. ${userLanguage === 'zh' ? 'Please write all content in Traditional Chinese.' : 'Please write all content in English.'}`,
           },
           {
-            role: "user",
-            content: prompt
-          }
+            role: 'user',
+            content: prompt,
+          },
         ],
         max_tokens: 4000,
         temperature: 0.1,
-        response_format: { type: "json_object" }
+        response_format: { type: 'json_object' },
       });
 
       const content = response.choices[0]?.message?.content;
@@ -75,31 +75,30 @@ class SimpleOpenAIService {
       const duration = Date.now() - startTime;
 
       logger.info(`✅ OpenAI grading completed in ${duration}ms`);
-      
+
       return {
         success: true,
         result,
         metadata: {
           model: this.model,
           tokens: response.usage?.total_tokens || 0,
-          duration
-        }
+          duration,
+        },
       };
-
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       logger.error(`❌ OpenAI grading failed: ${errorMessage}`);
-      
+
       return {
         success: false,
         error: errorMessage,
         metadata: {
           model: this.model,
           tokens: 0,
-          duration
-        }
+          duration,
+        },
       };
     }
   }
@@ -140,37 +139,39 @@ Please provide your grading in the following JSON format:
   private parseResponse(responseText: string, criteria: any[]): GradingResultData {
     try {
       const parsed = JSON.parse(responseText);
-      
+
       return {
         totalScore: Math.round(parsed.totalScore || 0),
         maxScore: Math.round(parsed.maxScore || criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0)),
-        breakdown: criteria.map(criterion => ({
+        breakdown: criteria.map((criterion) => ({
           criteriaId: criterion.id,
           name: criterion.name,
-          score: Math.round(parsed.breakdown?.find((item: any) => 
-            item.criteriaId === criterion.id || item.criteriaId === criterion.name
-          )?.score || 0),
-          feedback: parsed.breakdown?.find((item: any) => 
-            item.criteriaId === criterion.id || item.criteriaId === criterion.name
-          )?.feedback || 'No feedback available'
+          score: Math.round(
+            parsed.breakdown?.find(
+              (item: any) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
+            )?.score || 0
+          ),
+          feedback:
+            parsed.breakdown?.find(
+              (item: any) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
+            )?.feedback || 'No feedback available',
         })),
-        overallFeedback: parsed.overallFeedback || 'No overall feedback provided'
+        overallFeedback: parsed.overallFeedback || 'No overall feedback provided',
       };
-      
     } catch (error) {
       // Simple fallback - no complex repair logic
       const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-      
+
       return {
         totalScore: 0,
         maxScore,
-        breakdown: criteria.map(criterion => ({
+        breakdown: criteria.map((criterion) => ({
           criteriaId: criterion.id,
           name: criterion.name,
           score: 0,
-          feedback: `Grading failed due to response parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`
+          feedback: `Grading failed due to response parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         })),
-        overallFeedback: 'Grading failed. Please try again or contact support.'
+        overallFeedback: 'Grading failed. Please try again or contact support.',
       };
     }
   }

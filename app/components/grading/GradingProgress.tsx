@@ -12,8 +12,8 @@ import { useTranslation } from 'react-i18next';
 interface GradingProgressProps {
   phase: 'check' | 'grade' | 'verify' | 'completed' | 'error';
   className?: string;
-  initialProgress?: number; 
-  message?: string; 
+  initialProgress?: number;
+  message?: string;
 
   onStepComplete?: (step: number) => void;
   onProgressUpdate?: (progress: GradingProgressType) => void;
@@ -28,7 +28,6 @@ interface GradingStep {
   estimatedTime: number;
 }
 
-
 export function GradingProgress({
   initialProgress = 0,
   phase = 'check',
@@ -38,7 +37,7 @@ export function GradingProgress({
   onProgressUpdate,
 }: GradingProgressProps) {
   const { t } = useTranslation('grading');
-  
+
   const GRADING_STEPS: GradingStep[] = [
     {
       id: 'check',

@@ -33,14 +33,16 @@ export interface CursorPaginationResult<T> {
 /**
  * 標準分頁參數驗證和標準化
  */
-export function normalizePaginationOptions(options: PaginationOptions = {}): Required<Omit<PaginationOptions, 'cursor'>> & Pick<PaginationOptions, 'cursor'> {
+export function normalizePaginationOptions(
+  options: PaginationOptions = {}
+): Required<Omit<PaginationOptions, 'cursor'>> & Pick<PaginationOptions, 'cursor'> {
   const page = Math.max(1, options.page || 1);
   const limit = Math.min(Math.max(1, options.limit || 20), 100); // 最大 100 筆
-  
+
   return {
     page,
     limit,
-    cursor: options.cursor
+    cursor: options.cursor,
   };
 }
 
@@ -54,14 +56,9 @@ export function getPaginationOffset(page: number, limit: number): number {
 /**
  * 創建分頁結果
  */
-export function createPaginationResult<T>(
-  data: T[],
-  total: number,
-  page: number,
-  limit: number
-): PaginationResult<T> {
+export function createPaginationResult<T>(data: T[], total: number, page: number, limit: number): PaginationResult<T> {
   const totalPages = Math.ceil(total / limit);
-  
+
   return {
     data,
     total,
@@ -84,11 +81,11 @@ export function createCursorPaginationResult<T extends { id: string }>(
   const hasNextPage = data.length > limit;
   const actualData = hasNextPage ? data.slice(0, limit) : data;
   const nextCursor = hasNextPage ? actualData[actualData.length - 1]?.id : undefined;
-  
+
   return {
     data: actualData,
     nextCursor,
-    hasNextPage
+    hasNextPage,
   };
 }
 
@@ -99,12 +96,9 @@ export class ChatPaginationService {
   /**
    * 獲取用戶聊天列表（優化版 + 快取）
    */
-  static async getPaginatedUserChats(
-    userId: string,
-    options: PaginationOptions = {}
-  ) {
+  static async getPaginatedUserChats(userId: string, options: PaginationOptions = {}) {
     const { page, limit } = normalizePaginationOptions(options);
-    
+
     // 只快取第一頁的結果
     if (page === 1) {
       const cached = await ChatCacheService.getChatList(userId);
@@ -113,7 +107,7 @@ export class ChatPaginationService {
         return createPaginationResult(paginatedData, cached.length, page, limit);
       }
     }
-    
+
     const offset = getPaginationOffset(page, limit);
 
     // 並行執行計數和資料查詢
@@ -132,28 +126,28 @@ export class ChatPaginationService {
               id: true,
               content: true,
               time: true,
-              role: true
-            }
+              role: true,
+            },
           },
           _count: {
-            select: { msgs: true }
-          }
-        }
+            select: { msgs: true },
+          },
+        },
       }),
-      
+
       // 總數查詢
       db.chat.count({
-        where: { userId }
-      })
+        where: { userId },
+      }),
     ]);
 
     // 轉換資料格式
-    const chatList = chats.map(chat => ({
+    const chatList = chats.map((chat) => ({
       id: chat.id,
       title: chat.title || '未命名聊天',
       lastMsg: chat.msgs[0]?.content || '無訊息',
       lastTime: chat.msgs[0]?.time || chat.createdAt,
-      msgCount: chat._count.msgs
+      msgCount: chat._count.msgs,
     }));
 
     // 快取第一頁結果
@@ -167,17 +161,13 @@ export class ChatPaginationService {
   /**
    * 獲取聊天訊息（游標分頁）
    */
-  static async getPaginatedChatMessages(
-    chatId: string,
-    userId: string,
-    options: PaginationOptions = {}
-  ) {
+  static async getPaginatedChatMessages(chatId: string, userId: string, options: PaginationOptions = {}) {
     const { limit, cursor } = normalizePaginationOptions(options);
 
     // 驗證用戶權限
     const chatAccess = await db.chat.findFirst({
       where: { id: chatId, userId },
-      select: { id: true }
+      select: { id: true },
     });
 
     if (!chatAccess) {
@@ -189,7 +179,7 @@ export class ChatPaginationService {
     if (cursor) {
       // 游標分頁：查詢比指定 ID 更早的訊息
       whereClause.id = {
-        lt: cursor
+        lt: cursor,
       };
     }
 
@@ -202,8 +192,8 @@ export class ChatPaginationService {
         id: true,
         role: true,
         content: true,
-        time: true
-      }
+        time: true,
+      },
     });
 
     return createCursorPaginationResult(messages, limit);

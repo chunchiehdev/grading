@@ -15,28 +15,21 @@ export async function action({ request }: { request: Request }) {
     // Get user ID from session
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json(
-        createErrorResponse('用戶未認證', ApiErrorCode.UNAUTHORIZED), 
-        { status: 401 }
-      );
+      return Response.json(createErrorResponse('用戶未認證', ApiErrorCode.UNAUTHORIZED), { status: 401 });
     }
 
     const formData = await request.formData();
-    const fileIds = JSON.parse(formData.get('fileIds') as string || '[]');
-    const rubricIds = JSON.parse(formData.get('rubricIds') as string || '[]');
+    const fileIds = JSON.parse((formData.get('fileIds') as string) || '[]');
+    const rubricIds = JSON.parse((formData.get('rubricIds') as string) || '[]');
 
     if (!Array.isArray(fileIds) || fileIds.length === 0) {
-      return Response.json(
-        createErrorResponse('至少需要選擇一個檔案', ApiErrorCode.VALIDATION_ERROR), 
-        { status: 400 }
-      );
+      return Response.json(createErrorResponse('至少需要選擇一個檔案', ApiErrorCode.VALIDATION_ERROR), { status: 400 });
     }
 
     if (!Array.isArray(rubricIds) || rubricIds.length === 0) {
-      return Response.json(
-        createErrorResponse('至少需要選擇一個評分標準', ApiErrorCode.VALIDATION_ERROR), 
-        { status: 400 }
-      );
+      return Response.json(createErrorResponse('至少需要選擇一個評分標準', ApiErrorCode.VALIDATION_ERROR), {
+        status: 400,
+      });
     }
 
     // Create grading session
@@ -44,13 +37,13 @@ export async function action({ request }: { request: Request }) {
       userId,
       filePairs: fileIds.map((fileId: string, index: number) => ({
         fileId,
-        rubricId: rubricIds[index]
-      }))
+        rubricId: rubricIds[index],
+      })),
     });
 
     if (!sessionResult.success) {
       return Response.json(
-        createErrorResponse(sessionResult.error || 'Failed to create session', ApiErrorCode.INTERNAL_ERROR), 
+        createErrorResponse(sessionResult.error || 'Failed to create session', ApiErrorCode.INTERNAL_ERROR),
         { status: 400 }
       );
     }
@@ -61,10 +54,10 @@ export async function action({ request }: { request: Request }) {
 
     // Start grading process
     const startResult = await startGradingSession(sessionResult.sessionId!, userId, userLanguage);
-    
+
     if (!startResult.success) {
       return Response.json(
-        createErrorResponse(startResult.error || 'Failed to start grading', ApiErrorCode.INTERNAL_ERROR), 
+        createErrorResponse(startResult.error || 'Failed to start grading', ApiErrorCode.INTERNAL_ERROR),
         { status: 500 }
       );
     }
@@ -72,16 +65,13 @@ export async function action({ request }: { request: Request }) {
     return Response.json(
       createSuccessResponse({
         sessionId: sessionResult.sessionId,
-        message: '評分會話已建立並開始處理'
+        message: '評分會話已建立並開始處理',
       })
     );
   } catch (error) {
     return Response.json(
-      createErrorResponse(
-        error instanceof Error ? error.message : '評分過程中發生錯誤',
-        ApiErrorCode.INTERNAL_ERROR
-      ), 
+      createErrorResponse(error instanceof Error ? error.message : '評分過程中發生錯誤', ApiErrorCode.INTERNAL_ERROR),
       { status: 500 }
     );
   }
-} 
+}

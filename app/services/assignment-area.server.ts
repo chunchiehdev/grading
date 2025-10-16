@@ -52,8 +52,8 @@ export interface UpdateAssignmentAreaData {
  * @returns Created assignment area information
  */
 export async function createAssignmentArea(
-  teacherId: string, 
-  courseId: string, 
+  teacherId: string,
+  courseId: string,
   data: CreateAssignmentAreaData
 ): Promise<AssignmentAreaInfo> {
   try {
@@ -73,11 +73,7 @@ export async function createAssignmentArea(
     const rubric = await db.rubric.findFirst({
       where: {
         id: data.rubricId,
-        OR: [
-          { userId: teacherId },
-          { teacherId: teacherId },
-          { isTemplate: true },
-        ],
+        OR: [{ userId: teacherId }, { teacherId: teacherId }, { isTemplate: true }],
       },
     });
 
@@ -146,7 +142,7 @@ export async function createAssignmentArea(
  * @returns Assignment area information or null if not found/unauthorized
  */
 export async function getAssignmentAreaById(
-  assignmentId: string, 
+  assignmentId: string,
   teacherId: string
 ): Promise<AssignmentAreaInfo | null> {
   try {
@@ -197,10 +193,7 @@ export async function getAssignmentAreaById(
  * @param teacherId - Teacher's user ID for authorization
  * @returns List of assignment areas with submission counts
  */
-export async function listAssignmentAreas(
-  courseId: string, 
-  teacherId: string
-): Promise<AssignmentAreaInfo[]> {
+export async function listAssignmentAreas(courseId: string, teacherId: string): Promise<AssignmentAreaInfo[]> {
   try {
     // Verify teacher owns the course
     const course = await db.course.findFirst({
@@ -230,10 +223,7 @@ export async function listAssignmentAreas(
           },
         },
       },
-      orderBy: [
-        { dueDate: 'asc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
     });
 
     return assignmentAreas;
@@ -251,8 +241,8 @@ export async function listAssignmentAreas(
  * @returns Updated assignment area or null if not found/unauthorized
  */
 export async function updateAssignmentArea(
-  assignmentId: string, 
-  teacherId: string, 
+  assignmentId: string,
+  teacherId: string,
   data: UpdateAssignmentAreaData
 ): Promise<AssignmentAreaInfo | null> {
   try {
@@ -267,11 +257,7 @@ export async function updateAssignmentArea(
       const rubric = await db.rubric.findFirst({
         where: {
           id: data.rubricId,
-          OR: [
-            { userId: teacherId },
-            { teacherId: teacherId },
-            { isTemplate: true },
-          ],
+          OR: [{ userId: teacherId }, { teacherId: teacherId }, { isTemplate: true }],
         },
       });
 
@@ -329,10 +315,7 @@ export async function updateAssignmentArea(
  * @param teacherId - Teacher's user ID for authorization
  * @returns True if deleted successfully
  */
-export async function deleteAssignmentArea(
-  assignmentId: string, 
-  teacherId: string
-): Promise<boolean> {
+export async function deleteAssignmentArea(assignmentId: string, teacherId: string): Promise<boolean> {
   try {
     // Verify teacher owns the assignment area through course
     const existingArea = await getAssignmentAreaById(assignmentId, teacherId);

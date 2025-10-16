@@ -58,7 +58,7 @@ export function GradingResultDisplay({ result, normalizedScore, className, onRet
     totalScore: result.totalScore || 0,
     maxScore: result.maxScore || 100,
     breakdown: result.breakdown || [],
-    overallFeedback: result.overallFeedback || t('result.noFeedback')
+    overallFeedback: result.overallFeedback || t('result.noFeedback'),
   };
 
   // Use normalized score (100-point scale) if available, otherwise fallback to old calculation
@@ -70,7 +70,9 @@ export function GradingResultDisplay({ result, normalizedScore, className, onRet
       <div className="flex items-center gap-3 h-10">
         <span className="text-2xl font-semibold leading-none">{displayScore.toFixed(1)}</span>
         <span className="text-sm text-muted-foreground">/ 100</span>
-        <Badge variant="secondary" className="ml-1">{displayScore.toFixed(0)}%</Badge>
+        <Badge variant="secondary" className="ml-1">
+          {displayScore.toFixed(0)}%
+        </Badge>
       </div>
 
       {/* Feedback (compact) */}

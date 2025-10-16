@@ -24,50 +24,52 @@ export class UploadedFileFactory {
         fileSize: options.fileSize || 1024 * 100, // 100KB default
         mimeType: options.mimeType || 'application/pdf',
         parseStatus: options.parseStatus || FileParseStatus.COMPLETED,
-        parsedContent: options.parsedContent !== undefined 
-          ? options.parsedContent 
-          : 'This is a sample PDF content for testing purposes. The document contains academic content that can be graded according to the rubric criteria.',
+        parsedContent:
+          options.parsedContent !== undefined
+            ? options.parsedContent
+            : 'This is a sample PDF content for testing purposes. The document contains academic content that can be graded according to the rubric criteria.',
         parseError: options.parseError || null,
-      }
+      },
     });
-    
+
     console.log(`📄 Created uploaded file: ${file.originalFileName} (${file.parseStatus})`);
     return file;
   }
-  
+
   static async createPdf(userId: string, options: Omit<CreateUploadedFileOptions, 'userId' | 'mimeType'> = {}) {
     return this.create({
       ...options,
       userId,
       mimeType: 'application/pdf',
-      originalFileName: options.originalFileName || 'assignment.pdf'
+      originalFileName: options.originalFileName || 'assignment.pdf',
     });
   }
-  
+
   static async createWord(userId: string, options: Omit<CreateUploadedFileOptions, 'userId' | 'mimeType'> = {}) {
     return this.create({
       ...options,
       userId,
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      originalFileName: options.originalFileName || 'assignment.docx'
+      originalFileName: options.originalFileName || 'assignment.docx',
     });
   }
-  
-  static async createWithParseStatus(userId: string, parseStatus: FileParseStatus, options: Omit<CreateUploadedFileOptions, 'userId' | 'parseStatus'> = {}) {
-    const parsedContent = parseStatus === FileParseStatus.COMPLETED 
-      ? 'Successfully parsed content for testing.'
-      : null;
-      
-    const parseError = parseStatus === FileParseStatus.FAILED
-      ? 'Failed to parse file: corrupted or unsupported format'
-      : null;
-    
+
+  static async createWithParseStatus(
+    userId: string,
+    parseStatus: FileParseStatus,
+    options: Omit<CreateUploadedFileOptions, 'userId' | 'parseStatus'> = {}
+  ) {
+    const parsedContent = parseStatus === FileParseStatus.COMPLETED ? 'Successfully parsed content for testing.' : null;
+
+    const parseError =
+      parseStatus === FileParseStatus.FAILED ? 'Failed to parse file: corrupted or unsupported format' : null;
+
     return this.create({
       ...options,
       userId,
       parseStatus,
       parsedContent,
-      parseError
+      parseError,
     });
   }
 }

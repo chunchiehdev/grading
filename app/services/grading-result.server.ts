@@ -31,8 +31,8 @@ export async function updateGradingResult(
         gradingModel: metadata?.gradingModel,
         gradingTokens: metadata?.gradingTokens,
         gradingDuration: metadata?.gradingDuration,
-        completedAt: new Date()
-      }
+        completedAt: new Date(),
+      },
     });
 
     logger.info(`Updated grading result ${resultId} with score ${gradingData.totalScore}/${gradingData.maxScore}`);
@@ -42,7 +42,7 @@ export async function updateGradingResult(
     logger.error('Failed to update grading result:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update grading result'
+      error: error instanceof Error ? error.message : 'Failed to update grading result',
     };
   }
 }
@@ -60,8 +60,8 @@ export async function failGradingResult(
       data: {
         status: GradingStatus.FAILED,
         errorMessage,
-        completedAt: new Date()
-      }
+        completedAt: new Date(),
+      },
     });
 
     logger.error(`Grading result ${resultId} failed: ${errorMessage}`);
@@ -71,7 +71,7 @@ export async function failGradingResult(
     logger.error('Failed to mark grading result as failed:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update grading result'
+      error: error instanceof Error ? error.message : 'Failed to update grading result',
     };
   }
 }
@@ -79,16 +79,14 @@ export async function failGradingResult(
 /**
  * Starts processing a grading result
  */
-export async function startGradingResult(
-  resultId: string
-): Promise<{ success: boolean; error?: string }> {
+export async function startGradingResult(resultId: string): Promise<{ success: boolean; error?: string }> {
   try {
     await db.gradingResult.update({
       where: { id: resultId },
       data: {
         status: GradingStatus.PROCESSING,
-        progress: 0
-      }
+        progress: 0,
+      },
     });
 
     return { success: true };
@@ -96,7 +94,7 @@ export async function startGradingResult(
     logger.error('Failed to start grading result:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to start grading result'
+      error: error instanceof Error ? error.message : 'Failed to start grading result',
     };
   }
 }
@@ -112,8 +110,8 @@ export async function updateGradingProgress(
     await db.gradingResult.update({
       where: { id: resultId },
       data: {
-        progress: Math.max(0, Math.min(100, progress))
-      }
+        progress: Math.max(0, Math.min(100, progress)),
+      },
     });
 
     return { success: true };
@@ -121,7 +119,7 @@ export async function updateGradingProgress(
     logger.error('Failed to update grading progress:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update progress'
+      error: error instanceof Error ? error.message : 'Failed to update progress',
     };
   }
 }
@@ -137,12 +135,12 @@ export async function getGradingResult(
     const result = await db.gradingResult.findFirst({
       where: {
         id: resultId,
-        gradingSession: { userId }
+        gradingSession: { userId },
       },
       include: {
         uploadedFile: true,
-        rubric: true
-      }
+        rubric: true,
+      },
     });
 
     if (!result) {
@@ -153,7 +151,7 @@ export async function getGradingResult(
   } catch (error) {
     logger.error('Failed to get grading result:', error);
     return {
-      error: error instanceof Error ? error.message : 'Failed to get grading result'
+      error: error instanceof Error ? error.message : 'Failed to get grading result',
     };
   }
 }
@@ -169,13 +167,13 @@ export async function getSessionGradingResults(
     const results = await db.gradingResult.findMany({
       where: {
         gradingSessionId: sessionId,
-        gradingSession: { userId }
+        gradingSession: { userId },
       },
       include: {
         uploadedFile: true,
-        rubric: true
+        rubric: true,
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
     });
 
     return { results: results as GradingResultWithDetails[] };
@@ -183,7 +181,7 @@ export async function getSessionGradingResults(
     logger.error('Failed to get session grading results:', error);
     return {
       results: [],
-      error: error instanceof Error ? error.message : 'Failed to get grading results'
+      error: error instanceof Error ? error.message : 'Failed to get grading results',
     };
   }
 }
@@ -203,12 +201,12 @@ export async function getGradingResultsByStatus(
         rubric: true,
         gradingSession: {
           select: {
-            userId: true
-          }
-        }
+            userId: true,
+          },
+        },
       },
       orderBy: { createdAt: 'asc' },
-      take: limit
+      take: limit,
     });
 
     return { results: results as any };
@@ -216,7 +214,7 @@ export async function getGradingResultsByStatus(
     logger.error('Failed to get grading results by status:', error);
     return {
       results: [],
-      error: error instanceof Error ? error.message : 'Failed to get grading results'
+      error: error instanceof Error ? error.message : 'Failed to get grading results',
     };
   }
 }
@@ -239,13 +237,13 @@ export async function getGradingStatistics(
 }> {
   try {
     const whereClause: any = {
-      gradingSession: { userId }
+      gradingSession: { userId },
     };
 
     if (timeframe) {
       whereClause.createdAt = {
         gte: timeframe.start,
-        lte: timeframe.end
+        lte: timeframe.end,
       };
     }
 
@@ -254,27 +252,25 @@ export async function getGradingStatistics(
       select: {
         status: true,
         result: true,
-        gradingTokens: true
-      }
+        gradingTokens: true,
+      },
     });
 
     const totalResults = results.length;
-    const completedResults = results.filter(r => r.status === GradingStatus.COMPLETED).length;
-    const failedResults = results.filter(r => r.status === GradingStatus.FAILED).length;
-    
-    const completedResultsWithScores = results.filter(r => 
-      r.status === GradingStatus.COMPLETED && r.result
-    );
-    
-    const averageScore = completedResultsWithScores.length > 0
-      ? completedResultsWithScores.reduce((sum, r) => {
-          const resultData = r.result as any;
-          const percentage = resultData?.totalScore && resultData?.maxScore 
-            ? (resultData.totalScore / resultData.maxScore) * 100 
-            : 0;
-          return sum + percentage;
-        }, 0) / completedResultsWithScores.length
-      : 0;
+    const completedResults = results.filter((r) => r.status === GradingStatus.COMPLETED).length;
+    const failedResults = results.filter((r) => r.status === GradingStatus.FAILED).length;
+
+    const completedResultsWithScores = results.filter((r) => r.status === GradingStatus.COMPLETED && r.result);
+
+    const averageScore =
+      completedResultsWithScores.length > 0
+        ? completedResultsWithScores.reduce((sum, r) => {
+            const resultData = r.result as any;
+            const percentage =
+              resultData?.totalScore && resultData?.maxScore ? (resultData.totalScore / resultData.maxScore) * 100 : 0;
+            return sum + percentage;
+          }, 0) / completedResultsWithScores.length
+        : 0;
 
     const totalTokensUsed = results.reduce((sum, r) => sum + (r.gradingTokens || 0), 0);
 
@@ -284,13 +280,13 @@ export async function getGradingStatistics(
         completedResults,
         failedResults,
         averageScore: Math.round(averageScore * 100) / 100,
-        totalTokensUsed
-      }
+        totalTokensUsed,
+      },
     };
   } catch (error) {
     logger.error('Failed to get grading statistics:', error);
     return {
-      error: error instanceof Error ? error.message : 'Failed to get statistics'
+      error: error instanceof Error ? error.message : 'Failed to get statistics',
     };
   }
 }

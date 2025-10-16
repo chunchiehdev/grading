@@ -19,7 +19,6 @@ export type RedisFileProgress = {
  * Uses Redis Hash for efficient multi-file progress storage
  */
 export class RedisProgressService {
-
   /**
    * Get Redis key for upload progress
    */
@@ -30,29 +29,24 @@ export class RedisProgressService {
   /**
    * Update file progress in Redis - atomic operation
    */
-  static async updateFileProgress(
-    uploadId: string, 
-    filename: string, 
-    progress: RedisFileProgress
-  ): Promise<void> {
+  static async updateFileProgress(uploadId: string, filename: string, progress: RedisFileProgress): Promise<void> {
     try {
       const key = this.getProgressKey(uploadId);
       const progressData = {
         ...progress,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       };
 
       // Use Redis Hash for efficient storage of multiple files
       await redis.hset(key, filename, JSON.stringify(progressData));
-      
+
       // Set TTL - 10 minutes for uploads
       await redis.expire(key, 600);
 
       logger.info(
         `📊 Redis progress updated: ${uploadId}/${filename}: ${progress.progress}% ` +
-        `(${progress.uploadedBytes || 0}/${progress.totalBytes || 0} bytes)`
+          `(${progress.uploadedBytes || 0}/${progress.totalBytes || 0} bytes)`
       );
-
     } catch (error) {
       logger.error(`❌ Failed to update Redis progress for ${uploadId}/${filename}:`, error);
       throw error;
@@ -68,7 +62,7 @@ export class RedisProgressService {
       const data = await redis.hgetall(key);
 
       const progress: Record<string, RedisFileProgress> = {};
-      
+
       for (const [filename, value] of Object.entries(data)) {
         try {
           progress[filename] = JSON.parse(value);
@@ -78,13 +72,12 @@ export class RedisProgressService {
           progress[filename] = {
             status: 'error',
             progress: 0,
-            error: 'Data corruption'
+            error: 'Data corruption',
           };
         }
       }
 
       return progress;
-
     } catch (error) {
       logger.error(`❌ Failed to get Redis progress for ${uploadId}:`, error);
       return {}; // Safe fallback
@@ -94,36 +87,32 @@ export class RedisProgressService {
   /**
    * Initialize upload session with file metadata
    */
-  static async initializeUpload(
-    uploadId: string, 
-    files: Array<{ filename: string; size: number }>
-  ): Promise<void> {
+  static async initializeUpload(uploadId: string, files: Array<{ filename: string; size: number }>): Promise<void> {
     try {
       const key = this.getProgressKey(uploadId);
-      
+
       // Initialize all files with 0% progress
       const pipeline = redis.pipeline();
-      
+
       for (const file of files) {
         const initialProgress: RedisFileProgress = {
           status: 'uploading',
           progress: 0,
           uploadedBytes: 0,
           totalBytes: file.size,
-          startTime: Date.now()
+          startTime: Date.now(),
         };
-        
+
         pipeline.hset(key, file.filename, JSON.stringify(initialProgress));
       }
-      
+
       // Set TTL
       pipeline.expire(key, 600);
-      
+
       // Execute all commands atomically
       await pipeline.exec();
-      
-      logger.info(`🎯 Redis upload session initialized: ${uploadId} (${files.length} files)`);
 
+      logger.info(`🎯 Redis upload session initialized: ${uploadId} (${files.length} files)`);
     } catch (error) {
       logger.error(`❌ Failed to initialize Redis upload session ${uploadId}:`, error);
       throw error;
@@ -141,15 +130,14 @@ export class RedisProgressService {
   ): Promise<void> {
     try {
       const progress = Math.round((uploadedBytes / totalBytes) * 100);
-      
+
       await this.updateFileProgress(uploadId, filename, {
         status: 'uploading',
         progress,
         uploadedBytes,
         totalBytes,
-        startTime: Date.now() // For calculating speed
+        startTime: Date.now(), // For calculating speed
       });
-
     } catch (error) {
       logger.error(`❌ Failed to update bytes progress for ${uploadId}/${filename}:`, error);
     }
@@ -158,11 +146,7 @@ export class RedisProgressService {
   /**
    * Mark file as completed
    */
-  static async completeFile(
-    uploadId: string,
-    filename: string,
-    fileId?: string
-  ): Promise<void> {
+  static async completeFile(uploadId: string, filename: string, fileId?: string): Promise<void> {
     try {
       // Get current progress to preserve totalBytes
       const currentProgress = await this.getFileProgress(uploadId);
@@ -173,9 +157,8 @@ export class RedisProgressService {
         progress: 100,
         uploadedBytes: fileProgress?.totalBytes || 0,
         totalBytes: fileProgress?.totalBytes || 0,
-        ...(fileId && { fileId })
+        ...(fileId && { fileId }),
       });
-
     } catch (error) {
       logger.error(`❌ Failed to complete file ${uploadId}/${filename}:`, error);
     }
@@ -184,11 +167,7 @@ export class RedisProgressService {
   /**
    * Mark file as failed
    */
-  static async failFile(
-    uploadId: string,
-    filename: string,
-    error: string
-  ): Promise<void> {
+  static async failFile(uploadId: string, filename: string, error: string): Promise<void> {
     try {
       const currentProgress = await this.getFileProgress(uploadId);
       const fileProgress = currentProgress[filename];
@@ -198,9 +177,8 @@ export class RedisProgressService {
         progress: 0,
         uploadedBytes: 0,
         totalBytes: fileProgress?.totalBytes || 0,
-        error
+        error,
       });
-
     } catch (err) {
       logger.error(`❌ Failed to mark file as failed ${uploadId}/${filename}:`, err);
     }
@@ -235,8 +213,8 @@ export class RedisProgressService {
       const files = Object.values(progress);
 
       const totalFiles = files.length;
-      const completedFiles = files.filter(f => f.status === 'success').length;
-      const failedFiles = files.filter(f => f.status === 'error').length;
+      const completedFiles = files.filter((f) => f.status === 'success').length;
+      const failedFiles = files.filter((f) => f.status === 'error').length;
       const totalBytes = files.reduce((sum, f) => sum + (f.totalBytes || 0), 0);
       const uploadedBytes = files.reduce((sum, f) => sum + (f.uploadedBytes || 0), 0);
       const overallProgress = totalBytes > 0 ? Math.round((uploadedBytes / totalBytes) * 100) : 0;
@@ -247,9 +225,8 @@ export class RedisProgressService {
         failedFiles,
         totalBytes,
         uploadedBytes,
-        overallProgress
+        overallProgress,
       };
-
     } catch (error) {
       logger.error(`❌ Failed to get upload stats for ${uploadId}:`, error);
       return {
@@ -258,7 +235,7 @@ export class RedisProgressService {
         failedFiles: 0,
         totalBytes: 0,
         uploadedBytes: 0,
-        overallProgress: 0
+        overallProgress: 0,
       };
     }
   }

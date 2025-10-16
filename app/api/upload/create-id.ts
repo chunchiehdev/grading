@@ -32,8 +32,5 @@ export async function action({ request }: { request: Request }) {
  * @returns {Promise<Response>} JSON error response indicating POST method required
  */
 export async function loader() {
-  return Response.json(
-    createErrorResponse('use POST to upload ID', ApiErrorCode.VALIDATION_ERROR),
-    { status: 405 }
-  );
+  return Response.json(createErrorResponse('use POST to upload ID', ApiErrorCode.VALIDATION_ERROR), { status: 405 });
 }

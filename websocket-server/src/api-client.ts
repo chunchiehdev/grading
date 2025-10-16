@@ -43,12 +43,12 @@ class ApiClient {
     // 主應用的 API 端點
     this.baseUrl = process.env.MAIN_APP_URL || 'http://localhost:3000';
     this.apiKey = process.env.INTERNAL_API_KEY || '';
-    
+
     logger.info(`WebSocket API Client initialized:`);
     logger.info(`- Base URL: ${this.baseUrl}`);
     logger.info(`- Has API Key: ${!!this.apiKey}`);
     logger.info(`- API Key prefix: ${this.apiKey ? this.apiKey.substring(0, 8) + '...' : 'none'}`);
-    
+
     if (!this.apiKey) {
       logger.warn('INTERNAL_API_KEY not configured - API calls may fail');
     }
@@ -78,19 +78,18 @@ class ApiClient {
       }
 
       const result: CreateMessageResponse = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Unknown API error');
       }
 
       logger.debug(`Message created successfully: ${result.data?.id}`);
       return result;
-
     } catch (error) {
       logger.error(`Failed to create message: ${error}`);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -112,19 +111,18 @@ class ApiClient {
       }
 
       const result: GetChatResponse = await response.json();
-      
+
       if (!result.success) {
         throw new Error(result.error || 'Unknown API error');
       }
 
       logger.debug(`Chat retrieved successfully: ${result.data?.id}`);
       return result;
-
     } catch (error) {
       logger.error(`Failed to get chat: ${error}`);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }

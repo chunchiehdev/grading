@@ -439,11 +439,7 @@ export async function getCourseStudents(courseId: string, teacherId: string) {
  * @param teacherId - Teacher's user ID for authorization
  * @returns True if removed successfully
  */
-export async function unenrollStudent(
-  studentId: string,
-  courseId: string,
-  teacherId: string
-): Promise<boolean> {
+export async function unenrollStudent(studentId: string, courseId: string, teacherId: string): Promise<boolean> {
   try {
     // Verify teacher owns the course
     const course = await db.course.findFirst({
@@ -529,13 +525,16 @@ export async function getCourseEnrollmentStats(courseId: string, teacherId: stri
     });
 
     const totalEnrollments = classes.reduce((sum, cls) => sum + cls._count.enrollments, 0);
-    const recentEnrollments = classes.flatMap((cls) =>
-      cls.enrollments.map((enrollment) => ({
-        enrolledAt: enrollment.enrolledAt,
-        student: enrollment.student,
-        className: cls.name,
-      }))
-    ).sort((a, b) => b.enrolledAt.getTime() - a.enrolledAt.getTime()).slice(0, 5);
+    const recentEnrollments = classes
+      .flatMap((cls) =>
+        cls.enrollments.map((enrollment) => ({
+          enrolledAt: enrollment.enrolledAt,
+          student: enrollment.student,
+          className: cls.name,
+        }))
+      )
+      .sort((a, b) => b.enrolledAt.getTime() - a.enrolledAt.getTime())
+      .slice(0, 5);
 
     return {
       totalEnrollments,

@@ -8,7 +8,7 @@ export interface VersionInfo {
 
 export function getVersionInfo(): VersionInfo {
   let version: string;
-  
+
   if (process.env.BUILD_VERSION) {
     // Use version from build environment (Docker build args)
     version = process.env.BUILD_VERSION;
@@ -21,12 +21,12 @@ export function getVersionInfo(): VersionInfo {
       version = '1.0.0';
     }
   }
-  
+
   return {
     version,
     branch: process.env.BUILD_BRANCH || 'unknown',
     commitHash: process.env.BUILD_COMMIT || 'unknown',
     buildTime: process.env.BUILD_TIME || new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
   };
-} 
+}

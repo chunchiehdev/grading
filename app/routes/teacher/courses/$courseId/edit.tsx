@@ -138,15 +138,11 @@ export default function EditCourse() {
         <Card className="border-destructive/50">
           <CardHeader>
             <CardTitle className="text-destructive">{t('course:settings.dangerZone')}</CardTitle>
-            <CardDescription>
-              {t('course:settings.dangerZoneDescription')}
-            </CardDescription>
+            <CardDescription>{t('course:settings.dangerZoneDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <Alert variant="destructive" className="mb-4">
-              <AlertDescription>
-                {t('course:settings.deleteWarning')}
-              </AlertDescription>
+              <AlertDescription>{t('course:settings.deleteWarning')}</AlertDescription>
             </Alert>
             <Form method="post">
               <input type="hidden" name="intent" value="delete" />

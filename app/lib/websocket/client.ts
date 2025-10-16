@@ -11,7 +11,7 @@ import {
   type ConnectionMetrics,
   type WebSocketEvents,
   type WebSocketEmitEvents,
-  type WebSocketClientOptions
+  type WebSocketClientOptions,
 } from './types';
 import logger from '@/utils/logger';
 
@@ -29,10 +29,10 @@ export class WebSocketClient {
       wsUrl: this.getWebSocketUrl(),
       transports: ['websocket', 'polling'],
       timeout: 15000,
-      forceNew: false,  // 改為 false 提高穩定性
-      maxReconnectAttempts: 10,  // 增加重連次數
-      reconnectDelay: 1000,      // 減少重連延遲
-      ...options?.config
+      forceNew: false, // 改為 false 提高穩定性
+      maxReconnectAttempts: 10, // 增加重連次數
+      reconnectDelay: 1000, // 減少重連延遲
+      ...options?.config,
     };
 
     this.metrics = {
@@ -40,7 +40,7 @@ export class WebSocketClient {
       lastConnectTime: null,
       lastDisconnectTime: null,
       totalReconnects: 0,
-      isHealthy: false
+      isHealthy: false,
     };
 
     // 綁定選項中的回調
@@ -104,7 +104,7 @@ export class WebSocketClient {
       this.socket = io(this.config.wsUrl, {
         transports: this.config.transports as any,
         timeout: this.config.timeout,
-        forceNew: this.config.forceNew
+        forceNew: this.config.forceNew,
       });
 
       // 連接成功
@@ -210,10 +210,7 @@ export class WebSocketClient {
     }
 
     // 指數退避延遲
-    const delay = Math.min(
-      this.config.reconnectDelay * Math.pow(2, this.metrics.totalReconnects),
-      30000
-    );
+    const delay = Math.min(this.config.reconnectDelay * Math.pow(2, this.metrics.totalReconnects), 30000);
 
     logger.debug(`[WebSocket] Scheduling reconnect in ${delay}ms`);
 
@@ -328,7 +325,7 @@ export class WebSocketClient {
   private emit<T extends keyof WebSocketEvents>(event: T, ...args: Parameters<WebSocketEvents[T]>): void {
     const handlers = this.eventHandlers.get(event);
     if (handlers) {
-      handlers.forEach(handler => {
+      handlers.forEach((handler) => {
         try {
           (handler as any)(...args);
         } catch (error) {

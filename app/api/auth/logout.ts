@@ -18,15 +18,12 @@ export async function loader() {
 export async function action({ request }: { request: Request }) {
   const cookie = await logout(request);
 
-  return Response.json(
-    createSuccessResponse({}),
-    {
-      headers: {
-        'Set-Cookie': cookie,
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        Pragma: 'no-cache',
-        Expires: '0',
-      },
-    }
-  );
+  return Response.json(createSuccessResponse({}), {
+    headers: {
+      'Set-Cookie': cookie,
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
+  });
 }

@@ -7,7 +7,7 @@ import type { AssignmentNotification } from '@/lib/websocket/types';
  * Can be used in any component that needs real-time assignment updates
  */
 export function useAssignmentWebSocket(studentId: string) {
-  const handleNewAssignment = useAssignmentStore(state => state.handleNewAssignment);
+  const handleNewAssignment = useAssignmentStore((state) => state.handleNewAssignment);
 
   // Establish WebSocket connection
   useWebSocket(studentId);

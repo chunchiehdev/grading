@@ -1,6 +1,6 @@
-import type { LoaderFunctionArgs } from "react-router";
-import { db } from "@/lib/db.server";
-import { validateApiKey } from "../../middleware/api-key.server.js";
+import type { LoaderFunctionArgs } from 'react-router';
+import { db } from '@/lib/db.server';
+import { validateApiKey } from '../../middleware/api-key.server.js';
 
 export async function loader({ params, request }: LoaderFunctionArgs) {
   const { messageId } = params;
@@ -12,7 +12,7 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
   try {
     // 只允許 API Key 訪問（內部服務調用）
     const hasValidApiKey = validateApiKey(request);
-    
+
     if (!hasValidApiKey) {
       return Response.json({ success: false, error: 'API Key required for this endpoint' }, { status: 401 });
     }
@@ -36,12 +36,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
         chatId: message.chatId,
       },
     });
-
   } catch (error) {
     console.error('Error getting message:', error);
-    return Response.json({ 
-      success: false, 
-      error: 'Internal server error' 
-    }, { status: 500 });
+    return Response.json(
+      {
+        success: false,
+        error: 'Internal server error',
+      },
+      { status: 500 }
+    );
   }
 }

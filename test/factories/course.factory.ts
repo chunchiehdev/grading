@@ -15,16 +15,16 @@ export class CourseFactory {
         teacherId: options.teacherId,
         name: options.name || `Test Course ${Math.floor(Math.random() * 1000)}`,
         description: options.description || 'A test course for automated testing',
-      }
+      },
     });
-    
+
     console.log(`🎓 Created course: ${course.name}`);
     return course;
   }
-  
+
   static async createWithInvitation(teacherId: string, options: Omit<CreateCourseOptions, 'teacherId'> = {}) {
     const course = await this.create({ ...options, teacherId });
-    
+
     // Create invitation code
     const invitationCode = await db.invitationCode.create({
       data: {
@@ -33,9 +33,9 @@ export class CourseFactory {
         courseId: course.id,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
         isUsed: false,
-      }
+      },
     });
-    
+
     console.log(`🔑 Created invitation code: ${invitationCode.code}`);
     return { course, invitationCode };
   }

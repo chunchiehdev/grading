@@ -36,7 +36,7 @@ interface GradingState {
   setResult: (result: GradingResultData | null) => void;
   setError: (error: string | null) => void;
   reset: () => void;
-  
+
   setUploadedFiles: (files: UploadedFileInfo[]) => void;
   addUploadedFiles: (files: UploadedFileInfo[]) => void;
   setSelectedRubricId: (id: string | null) => void;
@@ -69,53 +69,61 @@ export const useGradingStore = create<GradingState>()(
         });
       },
 
-      startGrading: () => set((state) => {
-        state.isGrading = true;
-        state.gradingProgress = { ...DEFAULT_GRADING_PROGRESS };
-        state.result = null;
-        state.error = null;
-      }),
+      startGrading: () =>
+        set((state) => {
+          state.isGrading = true;
+          state.gradingProgress = { ...DEFAULT_GRADING_PROGRESS };
+          state.result = null;
+          state.error = null;
+        }),
 
-      updateProgress: (progress) => set((state) => {
-        state.gradingProgress = { ...state.gradingProgress, ...progress };
-      }),
+      updateProgress: (progress) =>
+        set((state) => {
+          state.gradingProgress = { ...state.gradingProgress, ...progress };
+        }),
 
-      setResult: (result) => set((state) => {
-        console.log('Setting result in store:', result);
-        state.result = result;
-        state.isGrading = false;
-        state.gradingProgress = { ...state.gradingProgress, progress: 100, phase: 'completed', message: '評分完成' };
-      }),
+      setResult: (result) =>
+        set((state) => {
+          console.log('Setting result in store:', result);
+          state.result = result;
+          state.isGrading = false;
+          state.gradingProgress = { ...state.gradingProgress, progress: 100, phase: 'completed', message: '評分完成' };
+        }),
 
-      setError: (error) => set((state) => {
-        state.error = error;
-        state.isGrading = false;
-        state.gradingProgress = { ...state.gradingProgress, phase: 'error', message: '評分失敗' };
-      }),
+      setError: (error) =>
+        set((state) => {
+          state.error = error;
+          state.isGrading = false;
+          state.gradingProgress = { ...state.gradingProgress, phase: 'error', message: '評分失敗' };
+        }),
 
-      reset: () => set((state) => {
-        state.isGrading = false;
-        state.gradingProgress = { ...DEFAULT_GRADING_PROGRESS };
-        state.result = null;
-        state.error = null;
-        state.uploadedFiles = [];
-        state.selectedRubricId = null;
-      }),
+      reset: () =>
+        set((state) => {
+          state.isGrading = false;
+          state.gradingProgress = { ...DEFAULT_GRADING_PROGRESS };
+          state.result = null;
+          state.error = null;
+          state.uploadedFiles = [];
+          state.selectedRubricId = null;
+        }),
 
-      setUploadedFiles: (files) => set((state) => {
-        console.log('Setting uploaded files:', files);
-        state.uploadedFiles = files;
-      }),
+      setUploadedFiles: (files) =>
+        set((state) => {
+          console.log('Setting uploaded files:', files);
+          state.uploadedFiles = files;
+        }),
 
-      addUploadedFiles: (files) => set((state) => {
-        console.log('Adding uploaded files:', files);
-        state.uploadedFiles = [...state.uploadedFiles, ...files];
-      }),
+      addUploadedFiles: (files) =>
+        set((state) => {
+          console.log('Adding uploaded files:', files);
+          state.uploadedFiles = [...state.uploadedFiles, ...files];
+        }),
 
-      setSelectedRubricId: (id) => set((state) => {
-        console.log('Setting rubric ID:', id);
-        state.selectedRubricId = id;
-      })
+      setSelectedRubricId: (id) =>
+        set((state) => {
+          console.log('Setting rubric ID:', id);
+          state.selectedRubricId = id;
+        }),
     })),
     {
       name: 'grading-store',
@@ -129,7 +137,7 @@ export const useGradingStore = create<GradingState>()(
       version: 1,
     }
   )
-); 
+);
 
 /**
  * Helper hook to check if the store has been hydrated from localStorage

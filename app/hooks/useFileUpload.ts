@@ -35,23 +35,21 @@ interface UploadError {
  */
 export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files: UploadedFileResult[]) => void } = {}) {
   const {
-    filesByUploadId,       // NEW: Get all files organized by uploadId
-    currentUploadId,       // NEW: Get current uploadId (renamed from uploadId)
+    filesByUploadId, // NEW: Get all files organized by uploadId
+    currentUploadId, // NEW: Get current uploadId (renamed from uploadId)
     setUploadId,
     addFiles,
     updateProgress,
     setFileStatus,
     removeFile,
-    cleanupOldSessions     // NEW: GC for old sessions
+    cleanupOldSessions, // NEW: GC for old sessions
   } = useUploadStore();
 
   const { setCanProceed, setStep } = useUiStore();
   const progressSubscriptionRef = useRef<(() => void) | null>(null);
 
   // NEW: Compute current uploadId's files for isolated state
-  const currentFiles = currentUploadId && filesByUploadId[currentUploadId]
-    ? filesByUploadId[currentUploadId]
-    : {};
+  const currentFiles = currentUploadId && filesByUploadId[currentUploadId] ? filesByUploadId[currentUploadId] : {};
 
   // Create upload ID mutation
   const createUploadIdMutation = useMutation({
@@ -68,9 +66,9 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       filesToUpload.forEach((file) => formData.append('files', file));
 
       const response = await fetch('/api/upload', {
-        method: 'POST', 
+        method: 'POST',
         body: formData,
-        credentials: 'include'
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -79,7 +77,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       }
 
       const data = await response.json();
-      
+
       if (!data.success) {
         throw new Error(data.error || 'Upload failed');
       }
@@ -95,18 +93,18 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       // Process each upload result with safety checks
       if (Array.isArray(results)) {
         results.forEach((result: UploadedFileResult) => {
-        console.log('🔄 Processing result:', result);
-        if (result.success) {
-          setFileStatus(result.fileName, 'success', {
-            fileId: result.fileId,
-            progress: 100,
-          });
-          successfulFiles.push(result);
-        } else {
-          setFileStatus(result.fileName, 'error', {
-            error: result.error,
-            progress: 0,
-          });
+          console.log('🔄 Processing result:', result);
+          if (result.success) {
+            setFileStatus(result.fileName, 'success', {
+              fileId: result.fileId,
+              progress: 100,
+            });
+            successfulFiles.push(result);
+          } else {
+            setFileStatus(result.fileName, 'error', {
+              error: result.error,
+              progress: 0,
+            });
           }
         });
       }
@@ -135,7 +133,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileId }),
-        credentials: 'include'
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -167,9 +165,12 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       console.warn('handleUpload called with invalid files array:', newFiles);
       return;
     }
-    
-    console.log('🚀 Starting handleUpload for files:', newFiles.map(f => f.name));
-    
+
+    console.log(
+      '🚀 Starting handleUpload for files:',
+      newFiles.map((f) => f.name)
+    );
+
     // Clean up existing subscription before starting a new one
     const unsubscribe = progressSubscriptionRef.current;
     if (unsubscribe) {
@@ -194,14 +195,14 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
           console.warn('Invalid progress data received:', progressData);
           return;
         }
-        
+
         Object.entries(progressData).forEach(([filename, data]: [string, any]) => {
           // Safety check for data
           if (!data || typeof data !== 'object') {
             console.warn('Invalid file progress data:', filename, data);
             return;
           }
-          
+
           if (typeof data.progress === 'number') {
             updateProgress(filename, data.progress);
           }
@@ -216,10 +217,9 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       console.log('📤 Starting file upload...');
       await uploadFilesMutation.mutateAsync(newFiles);
       console.log('✅ File upload completed');
-      
     } catch (error) {
       console.error('❌ Upload error:', error);
-      
+
       // Clean up subscription on error
       const unsubscribe = progressSubscriptionRef.current;
       if (unsubscribe) {
@@ -227,13 +227,13 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
         unsubscribe();
         progressSubscriptionRef.current = null;
       }
-      
+
       // Enhanced error categorization and user feedback
       const uploadError = categorizeUploadError(error);
-      
+
       // Update file statuses with categorized error (with safety check)
       if (Array.isArray(newFiles)) {
-        newFiles.forEach(file => {
+        newFiles.forEach((file) => {
           setFileStatus(file.name, 'error', {
             error: uploadError.message,
             errorType: uploadError.type,
@@ -242,7 +242,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
           });
         });
       }
-      
+
       throw uploadError;
     }
   };
@@ -263,7 +263,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
   const safeFiles = Object.values(currentFiles);
 
   return {
-    files: safeFiles,  // Only files from current uploadId session
+    files: safeFiles, // Only files from current uploadId session
     isCreatingId: createUploadIdMutation.isPending,
     isUploading: uploadFilesMutation.isPending,
     isDeleting: deleteFileMutation.isPending,
@@ -288,7 +288,7 @@ function categorizeUploadError(error: any): UploadError {
     return {
       message: '',
       type: 'unknown',
-      retryable: false
+      retryable: false,
     };
   }
 
@@ -296,66 +296,73 @@ function categorizeUploadError(error: any): UploadError {
   const statusCode = error.status || error.statusCode;
 
   // Network/connection errors
-  if (errorMessage.includes('網絡連接') || 
-      errorMessage.includes('network') || 
-      errorMessage.includes('timeout') ||
-      errorMessage.includes('Failed to fetch') ||
-      statusCode >= 500) {
+  if (
+    errorMessage.includes('網絡連接') ||
+    errorMessage.includes('network') ||
+    errorMessage.includes('timeout') ||
+    errorMessage.includes('Failed to fetch') ||
+    statusCode >= 500
+  ) {
     return {
       message: '網絡連接問題，請檢查網絡後重試',
       type: 'network',
       retryable: true,
-      originalError: error
+      originalError: error,
     };
   }
 
   // Authentication errors
-  if (errorMessage.includes('認證失敗') ||
-      errorMessage.includes('用戶未認證') ||
-      statusCode === 401 || statusCode === 403) {
+  if (
+    errorMessage.includes('認證失敗') ||
+    errorMessage.includes('用戶未認證') ||
+    statusCode === 401 ||
+    statusCode === 403
+  ) {
     return {
       message: '登錄已過期，請重新登錄後重試',
       type: 'auth',
       retryable: false,
-      originalError: error
+      originalError: error,
     };
   }
 
   // File size/quota errors
-  if (errorMessage.includes('文件太大') ||
-      errorMessage.includes('存儲空間') ||
-      errorMessage.includes('100MB') ||
-      statusCode === 413) {
+  if (
+    errorMessage.includes('文件太大') ||
+    errorMessage.includes('存儲空間') ||
+    errorMessage.includes('100MB') ||
+    statusCode === 413
+  ) {
     return {
       message: '文件太大或存儲空間不足，請選擇較小的文件',
       type: 'quota',
       retryable: false,
-      originalError: error
+      originalError: error,
     };
   }
 
   // Validation errors
-  if (errorMessage.includes('無效') ||
-      errorMessage.includes('格式') ||
-      errorMessage.includes('validation') ||
-      statusCode === 400) {
+  if (
+    errorMessage.includes('無效') ||
+    errorMessage.includes('格式') ||
+    errorMessage.includes('validation') ||
+    statusCode === 400
+  ) {
     return {
       message: '文件格式無效或參數錯誤，請檢查文件後重試',
       type: 'validation',
       retryable: false,
-      originalError: error
+      originalError: error,
     };
   }
 
   // Storage errors (usually retryable)
-  if (errorMessage.includes('存儲') ||
-      errorMessage.includes('storage') ||
-      errorMessage.includes('S3')) {
+  if (errorMessage.includes('存儲') || errorMessage.includes('storage') || errorMessage.includes('S3')) {
     return {
       message: '存儲服務暫時不可用，請稍後重試',
       type: 'storage',
       retryable: true,
-      originalError: error
+      originalError: error,
     };
   }
 
@@ -364,6 +371,6 @@ function categorizeUploadError(error: any): UploadError {
     message: errorMessage || '上傳失敗，請稍後重試',
     type: 'unknown',
     retryable: true,
-    originalError: error
+    originalError: error,
   };
 }

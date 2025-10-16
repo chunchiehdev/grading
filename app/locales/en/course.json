@@ -151,7 +151,7 @@
     "save": "Save",
     "cancel": "Cancel"
   },
-  "setting":{
+  "setting": {
     "title": "Course Settings",
     "description": "Modify the course settings",
     "courseName": "Course Name",
@@ -175,7 +175,7 @@
   "myCourses": "My Courses",
   "noCoursesJoined": "You haven't joined any courses yet",
   "enrolledInCourses_one": "You're enrolled in {{count}} course",
-  "enrolledInCourses_other": "You're enrolled in {{count}} courses", 
+  "enrolledInCourses_other": "You're enrolled in {{count}} courses",
   "instructor": "Instructor: {{name}}",
   "instructorLabel": "Instructor",
   "joined": "Joined {{date}}",

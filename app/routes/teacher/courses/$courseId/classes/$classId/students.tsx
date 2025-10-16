@@ -104,20 +104,13 @@ export default function ClassStudents() {
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted/50 mb-4">
                 <Users className="w-10 h-10 text-muted-foreground/50" />
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">
-                尚無學生
-              </h3>
-              <p className="text-base text-muted-foreground">
-                目前還沒有學生加入此時段
-              </p>
+              <h3 className="text-xl font-semibold text-foreground mb-2">尚無學生</h3>
+              <p className="text-base text-muted-foreground">目前還沒有學生加入此時段</p>
             </div>
           ) : (
             <div className="divide-y divide-border/50">
               {students.map((enrollment) => (
-                <div
-                  key={enrollment.enrollmentId}
-                  className="px-6 py-4 hover:bg-muted/20 transition-colors"
-                >
+                <div key={enrollment.enrollmentId} className="px-6 py-4 hover:bg-muted/20 transition-colors">
                   <div className="grid grid-cols-12 gap-4 items-center">
                     {/* Student Column */}
                     <div className="col-span-12 sm:col-span-4 flex items-center gap-3">
@@ -128,9 +121,7 @@ export default function ClassStudents() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-foreground truncate">
-                          {enrollment.student.name}
-                        </p>
+                        <p className="text-sm font-semibold text-foreground truncate">{enrollment.student.name}</p>
                         <p className="text-xs text-muted-foreground truncate sm:hidden flex items-center gap-1 mt-0.5">
                           <Mail className="w-3 h-3 flex-shrink-0" />
                           {enrollment.student.email}

@@ -15,7 +15,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface LoaderData {
   teacher: { id: string; email: string; role: string };
   course: { id: string; name: string };
-  students: Array<{ id: string; name: string; email: string; picture: string | null; enrolledAt: Date; className: string; formattedEnrolledDate: string }>;
+  students: Array<{
+    id: string;
+    name: string;
+    email: string;
+    picture: string | null;
+    enrolledAt: Date;
+    className: string;
+    formattedEnrolledDate: string;
+  }>;
 }
 
 interface ActionData {

@@ -39,14 +39,14 @@ async function getFileFromStorage(fileKey: string): Promise<Buffer> {
 
   const response = await s3Client.send(command);
   const chunks: Uint8Array[] = [];
-  
+
   if (response.Body) {
     // @ts-ignore
     for await (const chunk of response.Body) {
       chunks.push(chunk);
     }
   }
-  
+
   return Buffer.concat(chunks);
 }
 
@@ -109,7 +109,6 @@ async function getParsingResult(taskId: string): Promise<ParseResult> {
   throw lastErr ?? new Error('Failed to reach PDF parser');
 }
 
-
 async function pollForResult(taskId: string, maxAttempts: number = 60, intervalMs: number = 2000): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     let result: ParseResult | null = null;
@@ -120,22 +119,22 @@ async function pollForResult(taskId: string, maxAttempts: number = 60, intervalM
       console.warn(`⚠️ PDF task ${taskId} status check failed (attempt ${attempt + 1}):`, err);
       result = null;
     }
-    
+
     if (result && result.status === 'success') {
       return result.content!;
     } else if (result && result.status === 'failed') {
       throw new Error(`PDF parsing failed: ${result.error}`);
     }
-    
+
     if (result) {
       console.log(`📋 Task ${taskId} status: ${result.status}, attempt ${attempt + 1}/${maxAttempts}`);
     }
-    
+
     if (attempt < maxAttempts - 1) {
-      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
   }
-  
+
   throw new Error(`PDF parsing timed out after ${maxAttempts} attempts`);
 }
 
@@ -184,10 +183,9 @@ export async function triggerPdfParsing(
     });
 
     // Propagate to caller so API can return failure
-    throw (error instanceof Error ? error : new Error('Unknown error'));
+    throw error instanceof Error ? error : new Error('Unknown error');
   }
 }
-
 
 export async function getUserUploadedFiles(userId: string, uploadId?: string) {
   const where: any = { userId };
@@ -199,4 +197,4 @@ export async function getUserUploadedFiles(userId: string, uploadId?: string) {
     where,
     orderBy: { createdAt: 'desc' },
   });
-} 
+}

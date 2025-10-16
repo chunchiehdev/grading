@@ -15,7 +15,10 @@ export type { SubmissionInfo, StudentAssignmentInfo };
  * @param {CreateSubmissionData} submissionData - Submission creation data
  * @returns {Promise<SubmissionInfo>} Created submission information
  */
-export async function createSubmission(studentId: string, submissionData: CreateSubmissionData): Promise<SubmissionInfo> {
+export async function createSubmission(
+  studentId: string,
+  submissionData: CreateSubmissionData
+): Promise<SubmissionInfo> {
   try {
     // Verify the assignment area exists
     const assignmentArea = await db.assignmentArea.findUnique({
@@ -107,10 +110,10 @@ export async function createSubmissionAndLinkGradingResult(
       where: { id: existingSubmission.id },
       data: {
         filePath: filePathOrId,
-        aiAnalysisResult: null as any, 
-        finalScore: null,              
-        teacherFeedback: null,         
-        status: 'SUBMITTED',           
+        aiAnalysisResult: null as any,
+        finalScore: null,
+        teacherFeedback: null,
+        status: 'SUBMITTED',
       },
       include: {
         assignmentArea: {
@@ -146,21 +149,22 @@ export async function createSubmissionAndLinkGradingResult(
     const gradingResult = await db.gradingResult.findFirst({
       where: {
         gradingSessionId: sessionId,
-        status: 'COMPLETED',        
+        status: 'COMPLETED',
       },
       orderBy: { updatedAt: 'desc' },
     });
 
     if (gradingResult && gradingResult.result) {
       const aiAnalysisResult = gradingResult.result as any;
-      const finalScore = typeof aiAnalysisResult.totalScore === 'number'
-        ? Math.round(aiAnalysisResult.totalScore)
-        : null;
+      const finalScore =
+        typeof aiAnalysisResult.totalScore === 'number' ? Math.round(aiAnalysisResult.totalScore) : null;
 
       // Get normalized score (100-point scale) from grading result
       const normalizedScore = gradingResult.normalizedScore ?? null;
 
-      console.log(`🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}`);
+      console.log(
+        `🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}`
+      );
 
       await updateSubmission(submission.id, {
         aiAnalysisResult: aiAnalysisResult,
@@ -171,7 +175,9 @@ export async function createSubmissionAndLinkGradingResult(
 
       console.log(`✅ Successfully linked AI result to submission ${submission.id}`);
     } else {
-      console.warn(`⚠️ Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`);
+      console.warn(
+        `⚠️ Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`
+      );
       console.warn(`   Session exists: ${sessionId ? 'Yes' : 'No'}`);
       console.warn(`   Grading result found: ${gradingResult ? 'Yes' : 'No'}`);
       if (gradingResult) {
@@ -184,7 +190,6 @@ export async function createSubmissionAndLinkGradingResult(
 
   return { submissionId: submission.id };
 }
-
 
 /**
  * Gets all available assignments for a student (assignment areas they can submit to)
@@ -206,8 +211,8 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
       },
     });
 
-    const enrolledCourseIds = enrollments.map(enrollment => enrollment.class.courseId);
-    const enrolledClassIds = enrollments.map(enrollment => enrollment.classId);
+    const enrolledCourseIds = enrollments.map((enrollment) => enrollment.class.courseId);
+    const enrolledClassIds = enrollments.map((enrollment) => enrollment.classId);
 
     if (enrolledCourseIds.length === 0) {
       // Student is not enrolled in any classes
@@ -253,7 +258,7 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
         submissions: {
           where: {
             studentId,
-            status: { not: 'DRAFT' }  // Exclude draft submissions
+            status: { not: 'DRAFT' }, // Exclude draft submissions
           },
           include: {
             assignmentArea: {
@@ -276,10 +281,7 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
           },
         },
       },
-      orderBy: [
-        { dueDate: 'asc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
     });
 
     return assignmentAreas;
@@ -295,10 +297,7 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
  * @param teacherId - Teacher's user ID for authorization
  * @returns List of submissions with student info
  */
-export async function listSubmissionsByAssignment(
-  assignmentId: string, 
-  teacherId: string
-): Promise<SubmissionInfo[]> {
+export async function listSubmissionsByAssignment(assignmentId: string, teacherId: string): Promise<SubmissionInfo[]> {
   try {
     // Verify teacher owns the assignment area through course
     const assignmentArea = await db.assignmentArea.findFirst({
@@ -358,7 +357,11 @@ export async function listSubmissionsByAssignment(
  * @param studentId - Student's user ID (optional, for enrollment check)
  * @returns Assignment area info or null
  */
-export async function getAssignmentAreaForSubmission(assignmentId: string, studentId?: string, includeSubmissions: boolean = false) {
+export async function getAssignmentAreaForSubmission(
+  assignmentId: string,
+  studentId?: string,
+  includeSubmissions: boolean = false
+) {
   try {
     const assignmentArea = await db.assignmentArea.findUnique({
       where: { id: assignmentId },
@@ -382,19 +385,21 @@ export async function getAssignmentAreaForSubmission(assignmentId: string, stude
             description: true,
           },
         },
-        ...(includeSubmissions && studentId ? {
-          submissions: {
-            where: {
-              studentId,
-              status: { not: 'DRAFT' }
-            },
-            select: {
-              id: true,
-              status: true,
-              uploadedAt: true,
+        ...(includeSubmissions && studentId
+          ? {
+              submissions: {
+                where: {
+                  studentId,
+                  status: { not: 'DRAFT' },
+                },
+                select: {
+                  id: true,
+                  status: true,
+                  uploadedAt: true,
+                },
+              },
             }
-          }
-        } : {}),
+          : {}),
       },
     });
 
@@ -453,7 +458,7 @@ export async function getStudentSubmissions(studentId: string): Promise<Submissi
     const submissions = await db.submission.findMany({
       where: {
         studentId,
-        status: { not: 'DRAFT' }  // Exclude draft submissions from dashboard
+        status: { not: 'DRAFT' }, // Exclude draft submissions from dashboard
       },
       include: {
         assignmentArea: {
@@ -491,7 +496,7 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
     const submissions = await db.submission.findMany({
       where: {
         studentId,
-        status: { not: 'DRAFT' }  // Exclude draft submissions from dashboard
+        status: { not: 'DRAFT' }, // Exclude draft submissions from dashboard
       },
       include: {
         assignmentArea: {
@@ -522,14 +527,17 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
  * @param {string} teacherId - Teacher's user ID for authorization
  * @returns {Promise<SubmissionInfo | null>} Submission information or null if not found/unauthorized
  */
-export async function getSubmissionByIdForTeacher(submissionId: string, teacherId: string): Promise<SubmissionInfo | null> {
+export async function getSubmissionByIdForTeacher(
+  submissionId: string,
+  teacherId: string
+): Promise<SubmissionInfo | null> {
   try {
     const submission = await db.submission.findFirst({
       where: {
         id: submissionId,
         assignmentArea: {
           course: {
-            teacherId: teacherId, 
+            teacherId: teacherId,
           },
         },
       },
@@ -707,7 +715,7 @@ export async function getDraftSubmission(
     if (existingSubmission) {
       // Convert submission to draft format
       let fileMetadata = null;
-      
+
       // Try to parse file metadata from filePath (could be fileId or other format)
       if (existingSubmission.filePath) {
         // If filePath looks like a UUID, treat it as fileId and get file details
@@ -723,7 +731,7 @@ export async function getDraftSubmission(
                 mimeType: true,
               },
             });
-            
+
             if (uploadedFile) {
               fileMetadata = {
                 fileId: uploadedFile.id,
@@ -772,9 +780,7 @@ export async function getDraftSubmission(
  * @param {DraftSubmissionData} draftData - Draft submission data
  * @returns {Promise<DraftSubmissionInfo | null>} Saved draft submission data
  */
-export async function saveDraftSubmission(
-  draftData: DraftSubmissionData
-): Promise<DraftSubmissionInfo | null> {
+export async function saveDraftSubmission(draftData: DraftSubmissionData): Promise<DraftSubmissionInfo | null> {
   try {
     const { assignmentAreaId, studentId, fileMetadata, sessionId, aiAnalysisResult, lastState } = draftData;
 
@@ -792,12 +798,12 @@ export async function saveDraftSubmission(
     if (existingSubmission) {
       // Update existing submission
       const updateData: any = {};
-      
+
       // Update file path if new file metadata provided
       if (fileMetadata?.fileId) {
         updateData.filePath = fileMetadata.fileId;
       }
-      
+
       // Update AI analysis result if provided
       if (aiAnalysisResult !== undefined) {
         updateData.aiAnalysisResult = aiAnalysisResult;
@@ -830,7 +836,7 @@ export async function saveDraftSubmission(
     }
 
     console.log('✅ Saved draft submission:', submission.id);
-    
+
     return {
       id: submission.id,
       assignmentAreaId,
@@ -896,4 +902,3 @@ export async function getRecentSubmissionsForTeacher(teacherId: string, limit: n
     return [];
   }
 }
-

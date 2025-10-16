@@ -10,11 +10,11 @@ import logger from '@/utils/logger';
 export class MonitoringService {
   private static readonly METRICS_KEY_PREFIX = 'metrics:';
   private static readonly ALERT_THRESHOLD = {
-    CPU_USAGE: 90,              // CPU使用率警告閾值
-    MEMORY_USAGE: 85,           // 記憶體使用率警告閾值
-    RESPONSE_TIME: 10000,       // 響應時間警告閾值(ms)
-    ERROR_RATE: 20,             // 錯誤率警告閾值(%)
-    ACTIVE_CONNECTIONS: 2000,   // 活躍連線警告閾值
+    CPU_USAGE: 90, // CPU使用率警告閾值
+    MEMORY_USAGE: 85, // 記憶體使用率警告閾值
+    RESPONSE_TIME: 10000, // 響應時間警告閾值(ms)
+    ERROR_RATE: 20, // 錯誤率警告閾值(%)
+    ACTIVE_CONNECTIONS: 2000, // 活躍連線警告閾值
   };
 
   /**
@@ -26,18 +26,12 @@ export class MonitoringService {
 
     try {
       // 並行收集各種指標
-      const [
-        databaseMetrics,
-        redisMetrics,
-        aiServiceMetrics,
-        chatMetrics,
-        performanceMetrics
-      ] = await Promise.all([
+      const [databaseMetrics, redisMetrics, aiServiceMetrics, chatMetrics, performanceMetrics] = await Promise.all([
         this.collectDatabaseMetrics(),
         this.collectRedisMetrics(),
         this.collectAIServiceMetrics(),
         this.collectChatMetrics(),
-        this.collectPerformanceMetrics()
+        this.collectPerformanceMetrics(),
       ]);
 
       const systemMetrics: SystemMetrics = {
@@ -48,7 +42,7 @@ export class MonitoringService {
         aiServices: aiServiceMetrics,
         chat: chatMetrics,
         performance: performanceMetrics,
-        system: await this.collectProcessMetrics()
+        system: await this.collectProcessMetrics(),
       };
 
       // 儲存指標到 Redis（保留24小時）
@@ -58,7 +52,6 @@ export class MonitoringService {
       await this.checkAlerts(systemMetrics);
 
       return systemMetrics;
-
     } catch (error) {
       logger.error('Failed to collect system metrics:', error);
       throw error;
@@ -70,28 +63,22 @@ export class MonitoringService {
    */
   private static async collectDatabaseMetrics(): Promise<DatabaseMetrics> {
     try {
-      const [
-        activeConnections,
-        totalUsers,
-        totalChats,
-        totalMessages,
-        recentChatActivity
-      ] = await Promise.all([
+      const [activeConnections, totalUsers, totalChats, totalMessages, recentChatActivity] = await Promise.all([
         // 模擬資料庫連線數 (Prisma 沒有直接 API)
         Promise.resolve(Math.floor(Math.random() * 20) + 5),
-        
+
         db.user.count(),
         db.chat.count(),
         db.msg.count(),
-        
+
         // 最近24小時的聊天活動
         db.chat.count({
           where: {
             updatedAt: {
-              gte: new Date(Date.now() - 24 * 60 * 60 * 1000)
-            }
-          }
-        })
+              gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
+            },
+          },
+        }),
       ]);
 
       return {
@@ -101,9 +88,8 @@ export class MonitoringService {
         totalMessages,
         recentChatActivity,
         connectionPoolSize: 10, // 從環境配置獲取
-        slowQueries: 0 // 需要實際監控實現
+        slowQueries: 0, // 需要實際監控實現
       };
-
     } catch (error) {
       logger.error('Failed to collect database metrics:', error);
       return {
@@ -113,7 +99,7 @@ export class MonitoringService {
         totalMessages: 0,
         recentChatActivity: 0,
         connectionPoolSize: 0,
-        slowQueries: 0
+        slowQueries: 0,
       };
     }
   }
@@ -130,7 +116,7 @@ export class MonitoringService {
       // 解析 Redis INFO 輸出
       const parseInfo = (info: string) => {
         const result: Record<string, string> = {};
-        info.split('\r\n').forEach(line => {
+        info.split('\r\n').forEach((line) => {
           if (line.includes(':')) {
             const [key, value] = line.split(':');
             result[key] = value;
@@ -149,9 +135,8 @@ export class MonitoringService {
         keyCount: parseInt(keyspaceData.keys || '0'),
         hitRate: parseFloat(statsData.keyspace_hit_rate || '0'),
         connectedClients: parseInt(statsData.connected_clients || '0'),
-        commandsProcessed: parseInt(statsData.total_commands_processed || '0')
+        commandsProcessed: parseInt(statsData.total_commands_processed || '0'),
       };
-
     } catch (error) {
       logger.error('Failed to collect Redis metrics:', error);
       return {
@@ -160,7 +145,7 @@ export class MonitoringService {
         keyCount: 0,
         hitRate: 0,
         connectedClients: 0,
-        commandsProcessed: 0
+        commandsProcessed: 0,
       };
     }
   }
@@ -179,9 +164,8 @@ export class MonitoringService {
         totalRequests: detailedStats.reduce((sum, stat) => sum + stat.totalCalls, 0),
         successfulRequests: detailedStats.reduce((sum, stat) => sum + stat.successfulCalls, 0),
         failedRequests: detailedStats.reduce((sum, stat) => sum + stat.failedCalls, 0),
-        averageResponseTime: 0 // 需要額外實現響應時間追蹤
+        averageResponseTime: 0, // 需要額外實現響應時間追蹤
       };
-
     } catch (error) {
       logger.error('Failed to collect AI service metrics:', error);
       return {
@@ -190,7 +174,7 @@ export class MonitoringService {
         totalRequests: 0,
         successfulRequests: 0,
         failedRequests: 0,
-        averageResponseTime: 0
+        averageResponseTime: 0,
       };
     }
   }
@@ -204,13 +188,7 @@ export class MonitoringService {
       const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
       const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      const [
-        activeUsers,
-        messagesLastHour,
-        messagesLastDay,
-        newChatsToday,
-        averageResponseTime
-      ] = await Promise.all([
+      const [activeUsers, messagesLastHour, messagesLastDay, newChatsToday, averageResponseTime] = await Promise.all([
         // 活躍用戶數（最近1小時有訊息的用戶）
         db.user.count({
           where: {
@@ -218,33 +196,33 @@ export class MonitoringService {
               some: {
                 msgs: {
                   some: {
-                    time: { gte: hourAgo }
-                  }
-                }
-              }
-            }
-          }
+                    time: { gte: hourAgo },
+                  },
+                },
+              },
+            },
+          },
         }),
 
         // 最近1小時的訊息數
         db.msg.count({
-          where: { time: { gte: hourAgo } }
+          where: { time: { gte: hourAgo } },
         }),
 
         // 最近24小時的訊息數
         db.msg.count({
-          where: { time: { gte: dayAgo } }
+          where: { time: { gte: dayAgo } },
         }),
 
         // 今天新建的聊天數
         db.chat.count({
-          where: { 
-            createdAt: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) }
-          }
+          where: {
+            createdAt: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
+          },
         }),
 
         // 平均響應時間（簡化實現）
-        Promise.resolve(Math.floor(Math.random() * 2000) + 500)
+        Promise.resolve(Math.floor(Math.random() * 2000) + 500),
       ]);
 
       return {
@@ -253,9 +231,8 @@ export class MonitoringService {
         messagesLastDay,
         newChatsToday,
         averageResponseTime,
-        websocketConnections: Math.floor(Math.random() * 50) + 10 // 模擬值
+        websocketConnections: Math.floor(Math.random() * 50) + 10, // 模擬值
       };
-
     } catch (error) {
       logger.error('Failed to collect chat metrics:', error);
       return {
@@ -264,7 +241,7 @@ export class MonitoringService {
         messagesLastDay: 0,
         newChatsToday: 0,
         averageResponseTime: 0,
-        websocketConnections: 0
+        websocketConnections: 0,
       };
     }
   }
@@ -274,18 +251,18 @@ export class MonitoringService {
    */
   private static async collectPerformanceMetrics(): Promise<PerformanceMetrics> {
     const used = process.memoryUsage();
-    
+
     return {
       memoryUsage: {
         rss: used.rss,
         heapUsed: used.heapUsed,
         heapTotal: used.heapTotal,
-        external: used.external
+        external: used.external,
       },
       cpuUsage: process.cpuUsage(),
       uptime: process.uptime(),
       nodeVersion: process.version,
-      platform: process.platform
+      platform: process.platform,
     };
   }
 
@@ -303,7 +280,7 @@ export class MonitoringService {
       cwd: process.cwd(),
       execPath: process.execPath,
       memoryUsage: process.memoryUsage(),
-      cpuUsage: process.cpuUsage()
+      cpuUsage: process.cpuUsage(),
     };
   }
 
@@ -314,13 +291,12 @@ export class MonitoringService {
     try {
       const key = `${this.METRICS_KEY_PREFIX}${type}:${Date.now()}`;
       await redis.setex(key, 86400, JSON.stringify(metrics)); // 24小時過期
-      
+
       // 保留最近的指標鍵列表
       const listKey = `${this.METRICS_KEY_PREFIX}${type}:keys`;
       await redis.lpush(listKey, key);
       await redis.ltrim(listKey, 0, 288); // 保留最近12小時的指標 (5分鐘間隔)
       await redis.expire(listKey, 86400);
-
     } catch (error) {
       logger.error('Failed to store metrics:', error);
     }
@@ -341,13 +317,14 @@ export class MonitoringService {
         message: `CPU 使用率過高: ${cpuUsage.toFixed(1)}%`,
         timestamp: Date.now(),
         value: cpuUsage,
-        threshold: this.ALERT_THRESHOLD.CPU_USAGE
+        threshold: this.ALERT_THRESHOLD.CPU_USAGE,
       });
     }
 
     // 記憶體使用率警告
     if (metrics.performance.memoryUsage.heapUsed > 0) {
-      const memoryUsagePercent = (metrics.performance.memoryUsage.heapUsed / metrics.performance.memoryUsage.heapTotal) * 100;
+      const memoryUsagePercent =
+        (metrics.performance.memoryUsage.heapUsed / metrics.performance.memoryUsage.heapTotal) * 100;
       if (memoryUsagePercent > this.ALERT_THRESHOLD.MEMORY_USAGE) {
         alerts.push({
           type: 'MEMORY_HIGH',
@@ -355,7 +332,7 @@ export class MonitoringService {
           message: `記憶體使用率過高: ${memoryUsagePercent.toFixed(1)}%`,
           timestamp: Date.now(),
           value: memoryUsagePercent,
-          threshold: this.ALERT_THRESHOLD.MEMORY_USAGE
+          threshold: this.ALERT_THRESHOLD.MEMORY_USAGE,
         });
       }
     }
@@ -368,7 +345,7 @@ export class MonitoringService {
         message: `AI 服務不健康: ${metrics.aiServices.systemHealth.healthyBreakers}/${metrics.aiServices.systemHealth.totalBreakers} 服務正常`,
         timestamp: Date.now(),
         value: metrics.aiServices.systemHealth.healthyBreakers,
-        threshold: metrics.aiServices.systemHealth.totalBreakers
+        threshold: metrics.aiServices.systemHealth.totalBreakers,
       });
     }
 
@@ -388,11 +365,13 @@ export class MonitoringService {
       await redis.setex(alertsKey, 604800, JSON.stringify(alerts)); // 7天過期
 
       // 發布警告事件
-      await redis.publish('system:alerts', JSON.stringify({
-        timestamp: Date.now(),
-        alerts
-      }));
-
+      await redis.publish(
+        'system:alerts',
+        JSON.stringify({
+          timestamp: Date.now(),
+          alerts,
+        })
+      );
     } catch (error) {
       logger.error('Failed to store alerts:', error);
     }
@@ -405,15 +384,14 @@ export class MonitoringService {
     try {
       const listKey = `${this.METRICS_KEY_PREFIX}${type}:keys`;
       const keys = await redis.lrange(listKey, 0, limit - 1);
-      
+
       if (keys.length === 0) return [];
 
       const metricsData = await redis.mget(...keys);
       return metricsData
-        .filter(data => data !== null)
-        .map(data => JSON.parse(data!))
+        .filter((data) => data !== null)
+        .map((data) => JSON.parse(data!))
         .sort((a, b) => a.timestamp - b.timestamp);
-
     } catch (error) {
       logger.error('Failed to get metrics history:', error);
       return [];
@@ -426,7 +404,7 @@ export class MonitoringService {
   static async getSystemStatusSummary(): Promise<SystemStatusSummary> {
     try {
       const currentMetrics = await this.collectSystemMetrics();
-      
+
       return {
         timestamp: Date.now(),
         healthy: currentMetrics.aiServices.systemHealth.healthy,
@@ -437,10 +415,9 @@ export class MonitoringService {
           messagesLastHour: currentMetrics.chat.messagesLastHour,
           aiServicesHealthy: currentMetrics.aiServices.systemHealth.healthy,
           memoryUsageMB: Math.round(currentMetrics.performance.memoryUsage.heapUsed / 1024 / 1024),
-          uptime: currentMetrics.performance.uptime
-        }
+          uptime: currentMetrics.performance.uptime,
+        },
       };
-
     } catch (error) {
       logger.error('Failed to get system status summary:', error);
       return {
@@ -453,8 +430,8 @@ export class MonitoringService {
           messagesLastHour: 0,
           aiServicesHealthy: false,
           memoryUsageMB: 0,
-          uptime: 0
-        }
+          uptime: 0,
+        },
       };
     }
   }
@@ -462,9 +439,10 @@ export class MonitoringService {
   /**
    * 開始定期指標收集
    */
-  static startMetricsCollection(intervalMs: number = 300000): void { // 5分鐘間隔
+  static startMetricsCollection(intervalMs: number = 300000): void {
+    // 5分鐘間隔
     logger.info('Starting metrics collection', { intervalMs });
-    
+
     const collectMetrics = async () => {
       try {
         await this.collectSystemMetrics();
@@ -478,7 +456,7 @@ export class MonitoringService {
 
     // 設置定期收集
     const interval = setInterval(collectMetrics, intervalMs);
-    
+
     // 優雅關閉處理
     process.on('SIGINT', () => {
       clearInterval(interval);

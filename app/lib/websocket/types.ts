@@ -8,7 +8,7 @@ export enum ConnectionState {
   CONNECTING = 'connecting',
   CONNECTED = 'connected',
   RECONNECTING = 'reconnecting',
-  ERROR = 'error'
+  ERROR = 'error',
 }
 
 export interface ChatMessage {
@@ -38,9 +38,9 @@ export interface ConnectionConfig {
 
 export interface WebSocketEvents {
   // 連接事件
-  'connect': () => void;
-  'disconnect': (reason: string) => void;
-  'connect_error': (error: Error) => void;
+  connect: () => void;
+  disconnect: (reason: string) => void;
+  connect_error: (error: Error) => void;
 
   // 聊天事件
   'new-msg': (msg: ChatMessage) => void;
@@ -51,7 +51,7 @@ export interface WebSocketEvents {
 
   // 系統事件
   'api-redirect': (data: { message: string; endpoint: string; method: string }) => void;
-  'error': (error: { message: string }) => void;
+  error: (error: { message: string }) => void;
 }
 
 export interface AssignmentNotification {
@@ -70,8 +70,7 @@ export interface WebSocketEmitEvents {
   'join-chat': (chatId: string) => void;
 
   // 心跳檢測
-  'ping': (callback?: (response: string) => void) => void;
-
+  ping: (callback?: (response: string) => void) => void;
 }
 
 export interface WebSocketClientOptions {

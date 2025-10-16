@@ -55,13 +55,13 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
     formattedEnrolledDate: c.enrolledAt ? new Date(c.enrolledAt).toLocaleDateString('en-CA') : undefined,
   }));
 
-  return { 
-    user: student, 
-    student, 
-    assignments, 
-    submissions, 
-    courses, 
-    submissionHistory: submissionHistoryRaw 
+  return {
+    user: student,
+    student,
+    assignments,
+    submissions,
+    courses,
+    submissionHistory: submissionHistoryRaw,
   };
 }
 
@@ -72,7 +72,7 @@ export default function StudentDashboard() {
   const [assignmentFilter, setAssignmentFilter] = useState('all');
 
   // Initialize assignment store once on mount
-  const setAssignments = useAssignmentStore(state => state.setAssignments);
+  const setAssignments = useAssignmentStore((state) => state.setAssignments);
   useEffect(() => {
     setAssignments(assignments);
   }, []);
@@ -81,36 +81,45 @@ export default function StudentDashboard() {
   useAssignmentWebSocket(student.id);
 
   // Memoize props to prevent unnecessary re-renders
-  const assignmentsData = useMemo(() => ({
-    student,
-    enrolledCourses: courses
-  }), [student.id, courses.length]);
+  const assignmentsData = useMemo(
+    () => ({
+      student,
+      enrolledCourses: courses,
+    }),
+    [student.id, courses.length]
+  );
 
-  const coursesData = useMemo(() => ({
-    student,
-    courses
-  }), [student.id, courses.length]);
+  const coursesData = useMemo(
+    () => ({
+      student,
+      courses,
+    }),
+    [student.id, courses.length]
+  );
 
-  const submissionsData = useMemo(() => ({
-    student,
-    submissions: submissionHistory
-  }), [student.id, submissionHistory.length]);
+  const submissionsData = useMemo(
+    () => ({
+      student,
+      submissions: submissionHistory,
+    }),
+    [student.id, submissionHistory.length]
+  );
 
-  const dashboardData = useMemo(() => ({
-    student,
-    assignments,
-    submissions
-  }), [student.id, assignments.length, submissions.length]);
+  const dashboardData = useMemo(
+    () => ({
+      student,
+      assignments,
+      submissions,
+    }),
+    [student.id, assignments.length, submissions.length]
+  );
 
   const renderContent = () => {
     switch (currentTab) {
       case 'courses':
         return <CoursesContent data={coursesData} />;
       case 'assignments':
-        return <AssignmentsContent
-          data={assignmentsData}
-          externalFilter={assignmentFilter}
-        />;
+        return <AssignmentsContent data={assignmentsData} externalFilter={assignmentFilter} />;
       case 'submissions':
         return <SubmissionsContent data={submissionsData} />;
       default:
@@ -126,7 +135,7 @@ export default function StudentDashboard() {
           { label: t('dashboard:title'), value: 'dashboard' },
           { label: t('course:courses'), value: 'courses' },
           { label: t('course:assignments'), value: 'assignments' },
-          { label: t('course:assignment.submissions'), value: 'submissions' }
+          { label: t('course:assignment.submissions'), value: 'submissions' },
         ]}
         currentTab={currentTab}
         onTabChange={setCurrentTab}

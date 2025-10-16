@@ -1,231 +1,232 @@
-  1. 使用者進入評分頁面
-  當用戶點擊進入新增評分頁面時：
-  前端初始化
+1. 使用者進入評分頁面
+   當用戶點擊進入新增評分頁面時：
+   前端初始化
 
-  1. React 組件載入：評分頁面的 React 組件開始渲染
-  2. Zustand Store 初始化：useChatStore 從 localStorage 恢復持久化的數據（聊天列表、當前聊天）
-  3. 用戶身份獲取：從 session 中獲取當前用戶的 ID
+1. React 組件載入：評分頁面的 React 組件開始渲染
+1. Zustand Store 初始化：useChatStore 從 localStorage 恢復持久化的數據（聊天列表、當前聊天）
+1. 用戶身份獲取：從 session 中獲取當前用戶的 ID
 
-  Socket 連接建立
+Socket 連接建立
 
-  // 在組件中調用
-  const { connect } = useChatStore();
-  connect(userId);
+// 在組件中調用
+const { connect } = useChatStore();
+connect(userId);
 
-  4. Socket 連接：
-  // chatStore.ts 中
-  const wsUrl = 'http://localhost:3001'; // WebSocket 服務器地址
-  const socket = io(wsUrl, {
-    transports: ['websocket', 'polling'],
-    timeout: 10000,
-    forceNew: true // 強制建立新連接
-  });
-  5. WebSocket 服務器接收連接：
-  websocket-1 | [DEBUG] Socket connected: KmNAb6nxWpLYW8bgAAAB
-  6. 用戶房間加入：
-  socket.emit('join-user', userId);
-  6. WebSocket 服務器收到：
-  websocket-1 | [DEBUG] Socket joined user:013f0393-c7fb-472f-9ac7-0174e9a488d0
+4. Socket 連接：
+   // chatStore.ts 中
+   const wsUrl = 'http://localhost:3001'; // WebSocket 服務器地址
+   const socket = io(wsUrl, {
+   transports: ['websocket', 'polling'],
+   timeout: 10000,
+   forceNew: true // 強制建立新連接
+   });
+5. WebSocket 服務器接收連接：
+   websocket-1 | [DEBUG] Socket connected: KmNAb6nxWpLYW8bgAAAB
+6. 用戶房間加入：
+   socket.emit('join-user', userId);
+7. WebSocket 服務器收到：
+   websocket-1 | [DEBUG] Socket joined user:013f0393-c7fb-472f-9ac7-0174e9a488d0
 
-  2. 聊天列表載入
+8. 聊天列表載入
 
-  await loadChats();
+await loadChats();
 
-  7. API 請求：前端向 GET /api/chat 發送請求
-  8. API 處理：
-  // app/api/chat/index.ts
-  const user = await getUser(request); // 從 session 獲取用戶
-  const chats = await db.chat.findMany({
-    where: { userId: user.id },
-    include: { msgs: { take: 1 } } // 只取最後一條訊息
-  });
-  9. 響應返回：聊天列表數據返回給前端並更新 UI
+7. API 請求：前端向 GET /api/chat 發送請求
+8. API 處理：
+   // app/api/chat/index.ts
+   const user = await getUser(request); // 從 session 獲取用戶
+   const chats = await db.chat.findMany({
+   where: { userId: user.id },
+   include: { msgs: { take: 1 } } // 只取最後一條訊息
+   });
+9. 響應返回：聊天列表數據返回給前端並更新 UI
 
-  3. 打開特定聊天
+10. 打開特定聊天
 
-  當用戶點擊某個聊天時：
+當用戶點擊某個聊天時：
 
-  await openChat(chatId);
+await openChat(chatId);
 
-  10. 載入聊天詳情：
-  const response = await fetch(`/api/chat/${chatId}`);
-  11. API 驗證與查詢：
-  // app/api/chat/$chatId.ts
-  const user = await getUser(request);
-  const chat = await db.chat.findFirst({
+10. 載入聊天詳情：
+    const response = await fetch(`/api/chat/${chatId}`);
+11. API 驗證與查詢：
+    // app/api/chat/$chatId.ts
+    const user = await getUser(request);
+    const chat = await db.chat.findFirst({
     where: { id: chatId, userId: user.id }, // 確保是用戶自己的聊天
     include: { msgs: { take: 20 } } // 載入最近 20 條訊息
-  });
-  12. 加入聊天室：
-  socket.emit('join-chat', chatId);
-  12. WebSocket 服務器收到：
-  websocket-1 | [DEBUG] Socket joined chat:43d3081a-d55b-4c6f-a04f-6a25eda26fb4
+    });
+12. 加入聊天室：
+    socket.emit('join-chat', chatId);
+13. WebSocket 服務器收到：
+    websocket-1 | [DEBUG] Socket joined chat:43d3081a-d55b-4c6f-a04f-6a25eda26fb4
 
-  4. 發送訊息
+14. 發送訊息
 
-  當用戶輸入訊息並點擊發送：
+當用戶輸入訊息並點擊發送：
 
-  sendMsg(content);
+sendMsg(content);
 
-  13. 發送 Socket 事件：
-  socket.emit('send-msg', {
+13. 發送 Socket 事件：
+    socket.emit('send-msg', {
     chatId: currentChat.id,
     content: userMessage,
     userId: userId
-  });
-  14. WebSocket 服務器接收：
-  websocket-1 | [DEBUG] Received message: chatId=43d3081a-d55b-4c6f-a04f-6a25eda26fb4, userId=013f0393-c7fb-472f-9ac7-0174e9a488d0
-  15. 儲存用戶訊息：
-  // websocket-server/src/handlers.ts
-  const userMsgResult = await apiClient.createMessage({
+    });
+14. WebSocket 服務器接收：
+    websocket-1 | [DEBUG] Received message: chatId=43d3081a-d55b-4c6f-a04f-6a25eda26fb4, userId=013f0393-c7fb-472f-9ac7-0174e9a488d0
+15. 儲存用戶訊息：
+    // websocket-server/src/handlers.ts
+    const userMsgResult = await apiClient.createMessage({
     chatId: data.chatId,
     role: 'USER',
     content: data.content,
-  });
-  16. API 驗證與儲存：
-  // app/api/chat/messages.ts
-  // 檢查 API Key（來自 WebSocket 服務器的內部調用）
-  const hasValidApiKey = validateApiKey(request);
+    });
+16. API 驗證與儲存：
+    // app/api/chat/messages.ts
+    // 檢查 API Key（來自 WebSocket 服務器的內部調用）
+    const hasValidApiKey = validateApiKey(request);
 
-  // 儲存訊息到資料庫
-  const message = await db.msg.create({
-    data: {
-      chatId: validatedData.chatId,
-      role: validatedData.role,
-      content: validatedData.content,
-    },
-  });
-  17. 廣播用戶訊息：
-  // WebSocket 服務器廣播給聊天室內所有用戶
-  io.to(`chat:${chatId}`).emit('new-msg', {
-    id: userMsgResult.data.id,
-    role: 'USER',
-    content: userMsgResult.data.content,
-    time: userMsgResult.data.time,
-  });
+// 儲存訊息到資料庫
+const message = await db.msg.create({
+data: {
+chatId: validatedData.chatId,
+role: validatedData.role,
+content: validatedData.content,
+},
+}); 17. 廣播用戶訊息：
+// WebSocket 服務器廣播給聊天室內所有用戶
+io.to(`chat:${chatId}`).emit('new-msg', {
+id: userMsgResult.data.id,
+role: 'USER',
+content: userMsgResult.data.content,
+time: userMsgResult.data.time,
+});
 
-  5. AI 回應生成
+5. AI 回應生成
 
-  18. 獲取聊天上下文：
-  const chatResult = await apiClient.getChat(chatId);
-  19. 調用 AI 服務：
-  const aiResponse = await generateRubricResponse({
-    message: userContent,
-    conversationHistory: chat.msgs,
-    context: chat.context
-  });
-  20. 儲存 AI 回應：
-  const aiMsgResult = await apiClient.createMessage({
-    chatId,
-    role: 'AI',
-    content: aiResponse,
-  });
-  21. 廣播 AI 回應：
-  io.to(`chat:${chatId}`).emit('new-msg', {
-    id: aiMsgResult.data.id,
-    role: 'AI',
-    content: aiMsgResult.data.content,
-    time: aiMsgResult.data.time,
-  });
+6. 獲取聊天上下文：
+   const chatResult = await apiClient.getChat(chatId);
+7. 調用 AI 服務：
+   const aiResponse = await generateRubricResponse({
+   message: userContent,
+   conversationHistory: chat.msgs,
+   context: chat.context
+   });
+8. 儲存 AI 回應：
+   const aiMsgResult = await apiClient.createMessage({
+   chatId,
+   role: 'AI',
+   content: aiResponse,
+   });
+9. 廣播 AI 回應：
+   io.to(`chat:${chatId}`).emit('new-msg', {
+   id: aiMsgResult.data.id,
+   role: 'AI',
+   content: aiMsgResult.data.content,
+   time: aiMsgResult.data.time,
+   });
 
-  6. 前端接收與顯示
+10. 前端接收與顯示
 
-  22. 接收 new-msg 事件：
-  socket.on('new-msg', (msg: ChatMsg) => {
+11. 接收 new-msg 事件：
+    socket.on('new-msg', (msg: ChatMsg) => {
     // 檢查是否重複
     const existingMsgIndex = state.currentChat.msgs.findIndex(m => m.id === msg.id);
     if (existingMsgIndex >= 0) {
-      // 更新現有訊息
-      state.currentChat.msgs[existingMsgIndex] = msg;
+    // 更新現有訊息
+    state.currentChat.msgs[existingMsgIndex] = msg;
     } else {
-      // 添加新訊息
-      state.currentChat.msgs.push(msg);
+    // 添加新訊息
+    state.currentChat.msgs.push(msg);
     }
-  });
-  23. UI 自動更新：由於使用 Zustand，狀態變更會自動觸發組件重新渲染，訊息立即顯示在聊天界面中。
+    });
+12. UI 自動更新：由於使用 Zustand，狀態變更會自動觸發組件重新渲染，訊息立即顯示在聊天界面中。
 
-  關鍵技術點
+關鍵技術點
 
-  - 雙向通信：HTTP API 用於資料持久化，WebSocket 用於即時通信
-  - 權限驗證：API Key 用於內部服務，Session 用於用戶驗證
-  - 狀態管理：Zustand 管理前端狀態，支持持久化
-  - 錯誤處理：多層錯誤處理和重連機制
-  - 去重機制：避免重複訊息顯示
+- 雙向通信：HTTP API 用於資料持久化，WebSocket 用於即時通信
+- 權限驗證：API Key 用於內部服務，Session 用於用戶驗證
+- 狀態管理：Zustand 管理前端狀態，支持持久化
+- 錯誤處理：多層錯誤處理和重連機制
+- 去重機制：避免重複訊息顯示
 
-  這就是完整的聊天系統運作流程！
+這就是完整的聊天系統運作流程！
 
 ---
+
 根據我的檢查，Redis 在你的聊天系統中有以下兩個主要用途：
 
-  1. WebSocket 多實例支援 (Socket.IO Redis Adapter)
+1. WebSocket 多實例支援 (Socket.IO Redis Adapter)
 
-  用途：讓多個 WebSocket 服務器實例可以互相通訊
+用途：讓多個 WebSocket 服務器實例可以互相通訊
 
-  位置：websocket-server/src/server.ts
+位置：websocket-server/src/server.ts
 
-  工作原理：
-  // 設置 Redis adapter
-  const redis = new Redis(REDIS_CONFIG);
-  const subClient = redis.duplicate();
-  io.adapter(createAdapter(redis, subClient));
+工作原理：
+// 設置 Redis adapter
+const redis = new Redis(REDIS_CONFIG);
+const subClient = redis.duplicate();
+io.adapter(createAdapter(redis, subClient));
 
-  作用：
-  - 當你有多個 WebSocket 服務器實例時（水平擴展）
-  - Redis 作為消息中間層，讓不同服務器實例之間可以共享 Socket.IO 房間信息
-  - 例如：用戶 A 連接到服務器 1，用戶 B 連接到服務器 2，但他們在同一個聊天室，Redis 確保訊息可以跨服務器傳遞
+作用：
 
-  目前狀態：
-  - 雖然配置了，但你目前只運行一個 WebSocket 服務器實例
-  - 在單實例環境下，這個功能實際上沒有使用到
+- 當你有多個 WebSocket 服務器實例時（水平擴展）
+- Redis 作為消息中間層，讓不同服務器實例之間可以共享 Socket.IO 房間信息
+- 例如：用戶 A 連接到服務器 1，用戶 B 連接到服務器 2，但他們在同一個聊天室，Redis 確保訊息可以跨服務器傳遞
 
-  2. 檔案上傳進度追蹤 (非聊天系統)
+目前狀態：
 
-  用途：追蹤檔案上傳進度
+- 雖然配置了，但你目前只運行一個 WebSocket 服務器實例
+- 在單實例環境下，這個功能實際上沒有使用到
 
-  位置：app/services/progress.server.ts
+2. 檔案上傳進度追蹤 (非聊天系統)
 
-  Redis 結構：
-  Key: upload:progress:{userId}:{uploadId}
-  Value: JSON格式的進度資料
-  TTL: 3600秒 (1小時)
+用途：追蹤檔案上傳進度
 
-  範例資料：
-  {
-    "file1.pdf": {
-      "status": "uploading",
-      "progress": 75,
-      "error": null
-    },
-    "file2.pdf": {
-      "status": "success",
-      "progress": 100,
-      "key": "storage-key-123"
-    }
-  }
+位置：app/services/progress.server.ts
 
-  聊天系統的資料儲存
+Redis 結構：
+Key: upload:progress:{userId}:{uploadId}
+Value: JSON格式的進度資料
+TTL: 3600秒 (1小時)
 
-  重要觀察：聊天系統的核心資料（聊天記錄、訊息）並沒有使用 Redis，而是直接儲存在 PostgreSQL 中：
+範例資料：
+{
+"file1.pdf": {
+"status": "uploading",
+"progress": 75,
+"error": null
+},
+"file2.pdf": {
+"status": "success",
+"progress": 100,
+"key": "storage-key-123"
+}
+}
 
-  - 聊天記錄：Chat 表
-  - 訊息：Msg 表
-  - 用戶資訊：User 表
+聊天系統的資料儲存
 
-  總結
+重要觀察：聊天系統的核心資料（聊天記錄、訊息）並沒有使用 Redis，而是直接儲存在 PostgreSQL 中：
 
-  在你的聊天系統中，Redis 的角色比較輔助性：
+- 聊天記錄：Chat 表
+- 訊息：Msg 表
+- 用戶資訊：User 表
 
-  1. 多實例支援：為未來擴展準備，目前單實例下用不到
-  2. 上傳進度：用於評分系統的檔案上傳，不是聊天功能
+總結
 
-  聊天系統的即時性是透過 WebSocket 連接達成，不依賴 Redis。所有聊天資料都直接存在 PostgreSQL 中，確保資料持久性和一致性。
+在你的聊天系統中，Redis 的角色比較輔助性：
 
-  如果未來需要進一步優化，可以考慮用 Redis 來：
-  - 快取頻繁訪問的聊天記錄
-  - 儲存線上用戶狀態
-  - 實現更複雜的即時功能
+1. 多實例支援：為未來擴展準備，目前單實例下用不到
+2. 上傳進度：用於評分系統的檔案上傳，不是聊天功能
 
+聊天系統的即時性是透過 WebSocket 連接達成，不依賴 Redis。所有聊天資料都直接存在 PostgreSQL 中，確保資料持久性和一致性。
 
+如果未來需要進一步優化，可以考慮用 Redis 來：
+
+- 快取頻繁訪問的聊天記錄
+- 儲存線上用戶狀態
+- 實現更複雜的即時功能
 
 --- imporve
 
@@ -266,7 +267,7 @@ Zustand 的持久化考量？
 基於上述疑問，我會建議對架構進行以下幾個方向的優化：
 
 1. 職責分離：將 WebSocket Server 轉變為輕量級的事件廣播器
-優化點： 讓 WebSocket Server 專注於即時通訊，移除其所有的業務邏輯（儲存訊息、呼叫 AI 等）。
+   優化點： 讓 WebSocket Server 專注於即時通訊，移除其所有的業務邏輯（儲存訊息、呼叫 AI 等）。
 
 新流程：
 
@@ -291,7 +292,7 @@ AI 回應： 另外一個服務（或後端 API 的一個獨立模組）同樣�
 彈性： 流程更穩健。即使 WebSocket Server 暫時宕機，後端 API 依然能正常儲存訊息，訊息不會丟失，待 WebSocket Server 重啟後仍可正常廣播。
 
 2. 強化安全性：使用基於 Token 的驗證機制
-優化點： 避免靜態 API Key，並確保 WebSocket 連線的用戶身份真實可靠。
+   優化點： 避免靜態 API Key，並確保 WebSocket 連線的用戶身份真實可靠。
 
 新流程：
 
@@ -308,7 +309,7 @@ WebSocket 連線： 前端在建立 Socket 連線時，將這個 JWT 作為參�
 無狀態： WebSocket Server 不需查詢資料庫來驗證用戶身份，只需解碼 JWT，效率更高。
 
 3. 數據一致性：考慮多設備同步
-優化點： 使用 localStorage 作為單一真理來源（Single Source of Truth）在多設備場景下是不夠的。
+   優化點： 使用 localStorage 作為單一真理來源（Single Source of Truth）在多設備場景下是不夠的。
 
 新流程：
 
@@ -318,10 +319,9 @@ localStorage 僅用作緩存，或儲存當前會話的狀態。
 
 在接收到 new-msg 事件後，除了更新 UI，也可以考慮將最新訊息同步到資料庫中，或透過 localStorage 進行本地持久化以提高載入速度。但資料庫應永遠是最終的真理來源。
 
-🟡 性能和擴展性問題
-4. N+1 查詢問題
+🟡 性能和擴展性問題 4. N+1 查詢問題
 typescriptconst chats = await db.chat.findMany({
-  include: { msgs: { take: 1 } }
+include: { msgs: { take: 1 } }
 });
 
 疑問：當聊天數量增加時，這個查詢效率如何？
@@ -331,40 +331,36 @@ typescriptconst chats = await db.chat.findMany({
 使用 DataLoader 批次查詢
 考慮讀寫分離
 
-
-
 5. Redis 使用不當
-javascript// Redis 配置了但沒充分利用
-io.adapter(createAdapter(redis, subClient));
+   javascript// Redis 配置了但沒充分利用
+   io.adapter(createAdapter(redis, subClient));
 
 疑問：為什麼不用 Redis 快取熱門聊天？
 建議：
 typescript// 快取策略
+
 - 最近 20 條訊息快取
 - 用戶在線狀態
 - AI 回應快取（相同問題）
 
-
 6. 前端狀態管理問題
-typescript// localStorage 可能造成資料不同步
-useChatStore 從 localStorage 恢復持久化的數據
+   typescript// localStorage 可能造成資料不同步
+   useChatStore 從 localStorage 恢復持久化的數據
 
 疑問：多標籤頁開啟時如何同步？
 建議：使用 BroadcastChannel API 或 IndexedDB + Service Worker
 
-🟠 架構設計問題
-7. 缺少事件驅動架構
+🟠 架構設計問題 7. 缺少事件驅動架構
 typescript// 目前是同步處理
 socket.emit('send-msg', {...});
 
 建議架構改進：
 用戶 -> API Gateway -> Message Queue -> 處理服務
-                   ↓
-            Event Store (儲存所有事件)
-
+↓
+Event Store (儲存所有事件)
 
 8. AI 服務耦合過緊
-typescriptconst aiResponse = await generateRubricResponse(...);
+   typescriptconst aiResponse = await generateRubricResponse(...);
 
 疑問：AI 服務響應慢時會阻塞整個流程？
 建議：
@@ -372,8 +368,6 @@ typescriptconst aiResponse = await generateRubricResponse(...);
 異步處理 AI 生成
 實施 Circuit Breaker
 加入降級策略
-
-
 
 9. 缺少監控和可觀測性
 
@@ -383,40 +377,38 @@ typescriptconst aiResponse = await generateRubricResponse(...);
 指標收集（Prometheus + Grafana）
 集中式日誌（ELK Stack）
 
-
-
 🔵 具體改進方案
 改進後的架構：
 typescript// 1. 訊息隊列架構
 class MessageQueueService {
-  async publishMessage(event: ChatEvent) {
-    // 發布到 RabbitMQ/Kafka
-    await this.queue.publish('chat.messages', event);
-  }
+async publishMessage(event: ChatEvent) {
+// 發布到 RabbitMQ/Kafka
+await this.queue.publish('chat.messages', event);
+}
 }
 
 // 2. 快取層
 class CacheService {
-  async getCachedMessages(chatId: string) {
-    const cached = await redis.get(`chat:${chatId}:messages`);
-    if (!cached) {
-      const messages = await db.msg.findMany({...});
-      await redis.setex(`chat:${chatId}:messages`, 300, messages);
-      return messages;
-    }
-    return cached;
-  }
+async getCachedMessages(chatId: string) {
+const cached = await redis.get(`chat:${chatId}:messages`);
+if (!cached) {
+const messages = await db.msg.findMany({...});
+await redis.setex(`chat:${chatId}:messages`, 300, messages);
+return messages;
+}
+return cached;
+}
 }
 
 // 3. WebSocket 管理器
 class WebSocketManager {
-  private connections = new Map<string, Socket[]>();
-  
-  async handleReconnection(userId: string) {
-    // 處理斷線重連
-    const missedMessages = await this.getMissedMessages(userId);
-    // 推送錯過的訊息
-  }
+private connections = new Map<string, Socket[]>();
+
+async handleReconnection(userId: string) {
+// 處理斷線重連
+const missedMessages = await this.getMissedMessages(userId);
+// 推送錯過的訊息
+}
 }
 資料庫優化：
 sql-- 加入索引

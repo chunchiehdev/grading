@@ -179,12 +179,8 @@ export async function getStudentCourseDetail(
 
     // Step 4: Calculate statistics
     const total = assignments.length;
-    const completed = assignments.filter((a) =>
-      a.submissions.some((s) => s.status === 'GRADED')
-    ).length;
-    const pending = assignments.filter(
-      (a) => !a.submissions.some((s) => s.studentId === studentId)
-    ).length;
+    const completed = assignments.filter((a) => a.submissions.some((s) => s.status === 'GRADED')).length;
+    const pending = assignments.filter((a) => !a.submissions.some((s) => s.studentId === studentId)).length;
 
     const gradedSubmissions = assignments.flatMap((a) =>
       a.submissions.filter((s) => s.status === 'GRADED' && s.finalScore !== null)
@@ -192,8 +188,7 @@ export async function getStudentCourseDetail(
 
     const averageScore =
       gradedSubmissions.length > 0
-        ? gradedSubmissions.reduce((sum, s) => sum + (s.finalScore || 0), 0) /
-          gradedSubmissions.length
+        ? gradedSubmissions.reduce((sum, s) => sum + (s.finalScore || 0), 0) / gradedSubmissions.length
         : null;
 
     return {

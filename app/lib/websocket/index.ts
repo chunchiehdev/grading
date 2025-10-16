@@ -17,7 +17,7 @@ export type {
   WebSocketEmitEvents,
   WebSocketClientOptions,
   ChatMessage,
-  ChatRoom
+  ChatRoom,
 } from './types';
 
 export { ConnectionState } from './types';
@@ -32,7 +32,7 @@ export {
   useChatWebSocket,
   useWebSocketMonitor,
   useWebSocketEvent,
-  useWebSocketReconnect
+  useWebSocketReconnect,
 } from './hooks';
 
 export const websocket = {
@@ -64,15 +64,24 @@ export const websocket = {
   /**
    * 事件監聽
    */
-  on: <T extends keyof WebSocketEvents>(event: T, handler: WebSocketEvents[T]) =>
-    websocketClient.on(event, handler),
+  on: <T extends keyof WebSocketEvents>(event: T, handler: WebSocketEvents[T]) => websocketClient.on(event, handler),
 
   /**
    * 獲取連接狀態
    */
-  get connectionState() { return websocketClient.connectionState; },
-  get isConnected() { return websocketClient.isConnected; },
-  get isHealthy() { return websocketClient.isHealthy; },
-  get userId() { return websocketClient.currentUserId; },
-  get metrics() { return websocketClient.connectionMetrics; }
+  get connectionState() {
+    return websocketClient.connectionState;
+  },
+  get isConnected() {
+    return websocketClient.isConnected;
+  },
+  get isHealthy() {
+    return websocketClient.isHealthy;
+  },
+  get userId() {
+    return websocketClient.currentUserId;
+  },
+  get metrics() {
+    return websocketClient.connectionMetrics;
+  },
 } as const;

@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from '@google/genai';
 import logger from '@/utils/logger';
 import { GradingResultData } from '@/types/grading';
 import { GeminiGradingRequest, GeminiGradingResponse } from '@/types/gemini';
@@ -13,14 +13,14 @@ import { GeminiPrompts } from './gemini-prompts.server';
  */
 class SimpleGeminiService {
   private client: GoogleGenAI;
-  private model: string = "gemini-2.0-flash";
+  private model: string = 'gemini-2.0-flash';
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY environment variable is required');
     }
-    
+
     this.client = new GoogleGenAI({ apiKey });
     logger.info(`🔮 Simple Gemini service initialized with ${this.model}`);
   }
@@ -55,31 +55,30 @@ class SimpleGeminiService {
       const duration = Date.now() - startTime;
 
       logger.info(`✅ Gemini grading completed in ${duration}ms`);
-      
+
       return {
         success: true,
         result,
         metadata: {
           model: this.model,
           tokens: Math.ceil(response.text.length / 3), // Simple token estimate
-          duration
-        }
+          duration,
+        },
       };
-
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
+
       logger.error(`❌ Gemini grading failed: ${errorMessage}`);
-      
+
       return {
         success: false,
         error: errorMessage,
         metadata: {
           model: this.model,
           tokens: 0,
-          duration
-        }
+          duration,
+        },
       };
     }
   }
@@ -89,39 +88,44 @@ class SimpleGeminiService {
    */
   private parseResponse(responseText: string, criteria: any[]): GradingResultData {
     try {
-      const cleanedText = responseText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      const cleanedText = responseText
+        .replace(/```json\s*/g, '')
+        .replace(/```\s*/g, '')
+        .trim();
       const parsed = JSON.parse(cleanedText);
-      
+
       return {
         totalScore: Math.round(parsed.totalScore || 0),
         maxScore: Math.round(parsed.maxScore || criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0)),
-        breakdown: criteria.map(criterion => ({
+        breakdown: criteria.map((criterion) => ({
           criteriaId: criterion.id,
           name: criterion.name,
-          score: Math.round(parsed.breakdown?.find((item: any) => 
-            item.criteriaId === criterion.id || item.criteriaId === criterion.name
-          )?.score || 0),
-          feedback: parsed.breakdown?.find((item: any) => 
-            item.criteriaId === criterion.id || item.criteriaId === criterion.name
-          )?.feedback || 'No feedback available'
+          score: Math.round(
+            parsed.breakdown?.find(
+              (item: any) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
+            )?.score || 0
+          ),
+          feedback:
+            parsed.breakdown?.find(
+              (item: any) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
+            )?.feedback || 'No feedback available',
         })),
-        overallFeedback: parsed.overallFeedback || 'No overall feedback provided'
+        overallFeedback: parsed.overallFeedback || 'No overall feedback provided',
       };
-      
     } catch (error) {
       // Simple fallback - no complex repair logic
       const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-      
+
       return {
         totalScore: 0,
         maxScore,
-        breakdown: criteria.map(criterion => ({
+        breakdown: criteria.map((criterion) => ({
           criteriaId: criterion.id,
           name: criterion.name,
           score: 0,
-          feedback: `Grading failed due to response parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`
+          feedback: `Grading failed due to response parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         })),
-        overallFeedback: 'Grading failed. Please try again or contact support.'
+        overallFeedback: 'Grading failed. Please try again or contact support.',
       };
     }
   }

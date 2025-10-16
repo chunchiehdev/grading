@@ -27,7 +27,11 @@ export const CompactFileUpload = ({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { files: uploadedFiles, uploadFiles, isUploading } = useFileUpload({
+  const {
+    files: uploadedFiles,
+    uploadFiles,
+    isUploading,
+  } = useFileUpload({
     onUploadComplete: (files) => {
       if (onUploadComplete) {
         const simplified = files.map((f: any) => ({
@@ -38,14 +42,14 @@ export const CompactFileUpload = ({
         }));
         onUploadComplete(simplified);
       }
-    }
+    },
   });
 
   const validateFile = (file: File): string | null => {
     if (file.size > maxFileSize) {
       return t('grading:fileUpload.errors.fileSizeExceeded', {
         fileName: file.name,
-        maxSize: formatFileSize(maxFileSize)
+        maxSize: formatFileSize(maxFileSize),
       });
     }
     const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -55,36 +59,42 @@ export const CompactFileUpload = ({
     return null;
   };
 
-  const handleFiles = useCallback(async (newFiles: File[]) => {
-    setError(null);
+  const handleFiles = useCallback(
+    async (newFiles: File[]) => {
+      setError(null);
 
-    if (newFiles.length > maxFiles) {
-      setError(t('grading:fileUpload.errors.tooManyFiles', { maxFiles }));
-      return;
-    }
-
-    for (const file of newFiles) {
-      const validationError = validateFile(file);
-      if (validationError) {
-        setError(validationError);
+      if (newFiles.length > maxFiles) {
+        setError(t('grading:fileUpload.errors.tooManyFiles', { maxFiles }));
         return;
       }
-    }
 
-    try {
-      await uploadFiles(newFiles);
-    } catch (err: any) {
-      setError(err?.message || t('grading:fileUpload.errors.uploadFailed'));
-    }
-  }, [uploadFiles, maxFiles, validateFile]);
+      for (const file of newFiles) {
+        const validationError = validateFile(file);
+        if (validationError) {
+          setError(validationError);
+          return;
+        }
+      }
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    await handleFiles(droppedFiles);
-  }, [handleFiles]);
+      try {
+        await uploadFiles(newFiles);
+      } catch (err: any) {
+        setError(err?.message || t('grading:fileUpload.errors.uploadFailed'));
+      }
+    },
+    [uploadFiles, maxFiles, validateFile]
+  );
+
+  const handleDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      await handleFiles(droppedFiles);
+    },
+    [handleFiles]
+  );
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -116,34 +126,36 @@ export const CompactFileUpload = ({
           hasError && 'border-red-300 bg-red-50'
         )}
       >
-        <div className={cn(
-          'p-4 rounded-full transition-all duration-200',
-          isDragging ? 'bg-primary/10 text-primary scale-110' : 'bg-muted text-muted-foreground',
-          isSuccess && 'bg-blue-100 text-blue-600',
-          hasError && 'bg-red-100 text-red-600'
-        )}>
-          {isSuccess ? (
-            <Check className="h-8 w-8" />
-          ) : (
-            <Upload className="h-8 w-8" />
+        <div
+          className={cn(
+            'p-4 rounded-full transition-all duration-200',
+            isDragging ? 'bg-primary/10 text-primary scale-110' : 'bg-muted text-muted-foreground',
+            isSuccess && 'bg-blue-100 text-blue-600',
+            hasError && 'bg-red-100 text-red-600'
           )}
+        >
+          {isSuccess ? <Check className="h-8 w-8" /> : <Upload className="h-8 w-8" />}
         </div>
 
         {isSuccess ? (
           <div className="text-center">
             <p className="text-lg font-medium text-blue-700">{currentFile.file.name}</p>
-            <p className="text-sm text-blue-600">{formatFileSize(currentFile.file.size)} • {t('grading:fileUpload.status.uploadSuccess')}</p>
+            <p className="text-sm text-blue-600">
+              {formatFileSize(currentFile.file.size)} • {t('grading:fileUpload.status.uploadSuccess')}
+            </p>
           </div>
         ) : (
           <>
             <div className="text-center">
               <p className="text-lg font-medium">
-                {isDragging ? t('grading:fileUpload.dragDrop.releaseToUpload') : t('grading:fileUpload.dragDrop.dragFilesHere')}
+                {isDragging
+                  ? t('grading:fileUpload.dragDrop.releaseToUpload')
+                  : t('grading:fileUpload.dragDrop.dragFilesHere')}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 {t('grading:fileUpload.supportedFormats', {
                   formats: acceptedFileTypes.join(', '),
-                  maxSize: formatFileSize(maxFileSize)
+                  maxSize: formatFileSize(maxFileSize),
                 })}
               </p>
             </div>

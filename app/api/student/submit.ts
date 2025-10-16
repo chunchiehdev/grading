@@ -22,9 +22,9 @@ export async function action({ request }: { request: Request }) {
     } else {
       const formData = await request.formData();
       const assignmentId = (formData.get('assignmentId') as string) || null;
-      const sessionId = (formData.get('sessionId') as string)
+      const sessionId = formData.get('sessionId') as string;
       const fileToken = (formData.get('filePath') as string) || (formData.get('uploadedFileId') as string) || null;
-      
+
       if (!assignmentId || !fileToken) {
         return Response.json(createErrorResponse('assignmentId and filePath/uploadedFileId are required'), {
           status: 400,

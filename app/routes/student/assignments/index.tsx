@@ -21,7 +21,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   const student = await requireStudent(request);
   const [assignments, enrolledCourses] = await Promise.all([
     getStudentAssignments(student.id),
-    getStudentEnrolledCourses(student.id)
+    getStudentEnrolledCourses(student.id),
   ]);
   return { student, assignments, enrolledCourses };
 }
@@ -33,7 +33,7 @@ export default function StudentAssignments() {
   // Enhanced empty states with guidance while staying clean
   if (assignments.length === 0) {
     const isNotEnrolled = enrolledCourses.length === 0;
-    
+
     return (
       <div className="h-full flex flex-col">
         {/* Main Content - Takes remaining space */}
@@ -47,7 +47,7 @@ export default function StudentAssignments() {
                 <CheckCircle className="w-12 h-12 text-emerald-500" />
               )}
             </div>
-            
+
             {/* Main Content */}
             <div className="space-y-3">
               <h1 className="text-2xl font-semibold text-foreground">
@@ -64,72 +64,78 @@ export default function StudentAssignments() {
   }
 
   // Group assignments by course
-  const assignmentsByCourse = assignments.reduce((acc, assignment) => {
-    const courseId = assignment.course.id;
-    if (!acc[courseId]) {
-      acc[courseId] = {
-        course: assignment.course,
-        assignments: []
-      };
-    }
-    acc[courseId].assignments.push(assignment);
-    return acc;
-  }, {} as Record<string, { course: StudentAssignmentInfo['course'], assignments: StudentAssignmentInfo[] }>);
+  const assignmentsByCourse = assignments.reduce(
+    (acc, assignment) => {
+      const courseId = assignment.course.id;
+      if (!acc[courseId]) {
+        acc[courseId] = {
+          course: assignment.course,
+          assignments: [],
+        };
+      }
+      acc[courseId].assignments.push(assignment);
+      return acc;
+    },
+    {} as Record<string, { course: StudentAssignmentInfo['course']; assignments: StudentAssignmentInfo[] }>
+  );
 
   // Categorize assignments
-  const categorizedAssignments = assignments.reduce((acc, assignment) => {
-    const hasSubmission = assignment.submissions.some(sub => sub.studentId === student.id);
-    
-    if (hasSubmission) {
-      const submission = assignment.submissions.find(sub => sub.studentId === student.id);
-      if (submission?.status === 'GRADED') {
-        acc.graded.push(assignment);
+  const categorizedAssignments = assignments.reduce(
+    (acc, assignment) => {
+      const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
+
+      if (hasSubmission) {
+        const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
+        if (submission?.status === 'GRADED') {
+          acc.graded.push(assignment);
+        } else {
+          acc.submitted.push(assignment);
+        }
       } else {
-        acc.submitted.push(assignment);
+        const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
+        if (isOverdue) {
+          acc.overdue.push(assignment);
+        } else {
+          acc.pending.push(assignment);
+        }
       }
-    } else {
-      const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
-      if (isOverdue) {
-        acc.overdue.push(assignment);
-      } else {
-        acc.pending.push(assignment);
-      }
+      return acc;
+    },
+    {
+      pending: [] as StudentAssignmentInfo[],
+      submitted: [] as StudentAssignmentInfo[],
+      graded: [] as StudentAssignmentInfo[],
+      overdue: [] as StudentAssignmentInfo[],
     }
-    return acc;
-  }, {
-    pending: [] as StudentAssignmentInfo[],
-    submitted: [] as StudentAssignmentInfo[],
-    graded: [] as StudentAssignmentInfo[],
-    overdue: [] as StudentAssignmentInfo[]
-  });
+  );
 
   const getStatusBadge = (assignment: StudentAssignmentInfo) => {
-    const hasSubmission = assignment.submissions.some(sub => sub.studentId === student.id);
-    
+    const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
+
     if (hasSubmission) {
-      const submission = assignment.submissions.find(sub => sub.studentId === student.id);
+      const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
       if (submission?.status === 'GRADED') {
         return <Badge variant="default">{t('status.graded')}</Badge>;
       }
       return <Badge variant="secondary">{t('status.submitted')}</Badge>;
     }
-    
+
     const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
     if (isOverdue) {
       return <Badge variant="destructive">{t('status.overdue')}</Badge>;
     }
-    
+
     return <Badge variant="outline">{t('status.pending')}</Badge>;
   };
 
   const formatDueDate = (dueDate: Date | null) => {
     if (!dueDate) return t('dueDate.noDueDate');
-    
+
     const date = new Date(dueDate);
     const now = new Date();
     const diffTime = date.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
       return t('dueDate.overdue', { days: Math.abs(diffDays) });
     } else if (diffDays === 0) {
@@ -142,9 +148,9 @@ export default function StudentAssignments() {
   };
 
   const AssignmentCard = ({ assignment }: { assignment: StudentAssignmentInfo }) => {
-    const hasSubmission = assignment.submissions.some(sub => sub.studentId === student.id);
-    const submission = assignment.submissions.find(sub => sub.studentId === student.id);
-    
+    const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
+    const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
+
     return (
       <Card className="group hover:shadow-lg transition-all duration-200 hover:border-primary">
         <CardHeader className="pb-3">
@@ -159,9 +165,7 @@ export default function StudentAssignments() {
                 )}
               </div>
             </div>
-            <div className="ml-2">
-              {getStatusBadge(assignment)}
-            </div>
+            <div className="ml-2">{getStatusBadge(assignment)}</div>
           </div>
         </CardHeader>
 
@@ -190,10 +194,15 @@ export default function StudentAssignments() {
             <h4 className="text-sm font-medium text-muted-foreground mb-2">{t('assignmentCard.details')}</h4>
             <div className="space-y-1">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground truncate flex-1">{t('labels.rubricPrefix')}{assignment.rubric.name}</span>
+                <span className="text-muted-foreground truncate flex-1">
+                  {t('labels.rubricPrefix')}
+                  {assignment.rubric.name}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground truncate flex-1">{t('courseInfo.instructorLabel', { email: assignment.course.teacher.email })}</span>
+                <span className="text-muted-foreground truncate flex-1">
+                  {t('courseInfo.instructorLabel', { email: assignment.course.teacher.email })}
+                </span>
               </div>
             </div>
           </div>
@@ -202,15 +211,11 @@ export default function StudentAssignments() {
           <div className="flex space-x-2 pt-2">
             {!hasSubmission ? (
               <Button asChild size="sm" className="flex-1">
-                <Link to={`/student/assignments/${assignment.id}/submit`}>
-                  {t('assignmentCard.submit')}
-                </Link>
+                <Link to={`/student/assignments/${assignment.id}/submit`}>{t('assignmentCard.submit')}</Link>
               </Button>
             ) : (
               <Button asChild variant="outline" size="sm" className="flex-1">
-                <Link to={`/student/assignments/${assignment.id}/submit`}>
-                  {t('assignmentCard.viewSubmission')}
-                </Link>
+                <Link to={`/student/assignments/${assignment.id}/submit`}>{t('assignmentCard.viewSubmission')}</Link>
               </Button>
             )}
           </div>
@@ -221,20 +226,16 @@ export default function StudentAssignments() {
 
   return (
     <div className="bg-background text-foreground">
-      <PageHeader 
-        title={t('pageHeader.allAssignments')} 
+      <PageHeader
+        title={t('pageHeader.allAssignments')}
         subtitle={t('pageHeader.subtitle', { count: assignments.length })}
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline">
-              <Link to="/student/courses">
-                {t('pageHeader.myCourses')}
-              </Link>
+              <Link to="/student/courses">{t('pageHeader.myCourses')}</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link to="/student/dashboard">
-                {t('pageHeader.backToDashboard')}
-              </Link>
+              <Link to="/student/dashboard">{t('pageHeader.backToDashboard')}</Link>
             </Button>
           </div>
         }
@@ -289,4 +290,4 @@ export default function StudentAssignments() {
       </main>
     </div>
   );
-} 
+}

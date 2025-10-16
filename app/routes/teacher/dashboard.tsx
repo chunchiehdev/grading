@@ -33,21 +33,15 @@ interface LoaderData {
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
   const teacher = await requireTeacher(request);
 
-  const [
-    courses,
-    recentSubmissions,
-    rubricsData,
-    analyticsStats,
-    analyticsCourses,
-    analyticsRubrics
-  ] = await Promise.all([
-    getTeacherCourses(teacher.id),
-    getRecentSubmissionsForTeacher(teacher.id),
-    listRubrics(teacher.id),
-    getOverallTeacherStats(teacher.id),
-    getCoursePerformance(teacher.id),
-    getRubricUsage(teacher.id),
-  ]);
+  const [courses, recentSubmissions, rubricsData, analyticsStats, analyticsCourses, analyticsRubrics] =
+    await Promise.all([
+      getTeacherCourses(teacher.id),
+      getRecentSubmissionsForTeacher(teacher.id),
+      listRubrics(teacher.id),
+      getOverallTeacherStats(teacher.id),
+      getCoursePerformance(teacher.id),
+      getRubricUsage(teacher.id),
+    ]);
 
   const rubrics = rubricsData.rubrics || [];
 
@@ -59,32 +53,42 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
     rubrics,
     analyticsStats,
     analyticsCourses,
-    analyticsRubrics
+    analyticsRubrics,
   };
 }
 
 export default function TeacherDashboard() {
-  const { teacher, courses, recentSubmissions, rubrics, analyticsStats, analyticsCourses, analyticsRubrics } = useLoaderData<typeof loader>();
+  const { teacher, courses, recentSubmissions, rubrics, analyticsStats, analyticsCourses, analyticsRubrics } =
+    useLoaderData<typeof loader>();
   const { t } = useTranslation(['course', 'dashboard', 'rubric']);
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [showWebSocketTest, setShowWebSocketTest] = useState(false);
 
   // Memoize props to prevent unnecessary re-renders
-  const dashboardData = useMemo(() => ({
-    teacher,
-    courses,
-    recentSubmissions
-  }), [teacher.id, courses.length, recentSubmissions.length]);
+  const dashboardData = useMemo(
+    () => ({
+      teacher,
+      courses,
+      recentSubmissions,
+    }),
+    [teacher.id, courses.length, recentSubmissions.length]
+  );
 
-  const coursesData = useMemo(() => ({
-    teacher,
-    courses
-  }), [teacher.id, courses.length]);
+  const coursesData = useMemo(
+    () => ({
+      teacher,
+      courses,
+    }),
+    [teacher.id, courses.length]
+  );
 
-  const rubricsData = useMemo(() => ({
-    teacher,
-    rubrics
-  }), [teacher.id, rubrics?.length]);
+  const rubricsData = useMemo(
+    () => ({
+      teacher,
+      rubrics,
+    }),
+    [teacher.id, rubrics?.length]
+  );
 
   const renderContent = () => {
     switch (currentTab) {
@@ -97,10 +101,8 @@ export default function TeacherDashboard() {
     }
   };
 
-
   return (
     <div>
-      
       {/* {process.env.NODE_ENV === 'development' && (
         <div style={{
           position: 'fixed',

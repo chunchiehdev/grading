@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button";
-import { Folder, Trash2 } from "lucide-react";
-import { InlineEdit } from "./InlineEdit";
-import { cn } from "@/lib/utils";
+import { Button } from '@/components/ui/button';
+import { Folder, Trash2 } from 'lucide-react';
+import { InlineEdit } from './InlineEdit';
+import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 
 interface Category {
@@ -45,8 +45,8 @@ export const CategoryNav = ({
           <div
             key={category.id}
             className={cn(
-              "group flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer mb-2",
-              isSelected ? "bg-accent" : "hover:bg-muted/50"
+              'group flex items-center gap-3 p-3 rounded-lg transition-colors cursor-pointer mb-2',
+              isSelected ? 'bg-accent' : 'hover:bg-muted/50'
             )}
             onClick={() => onSelectCategory(category.id)}
           >
@@ -69,8 +69,8 @@ export const CategoryNav = ({
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity",
-                  isSelected ? "text-foreground" : "text-destructive hover:text-destructive"
+                  'h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity',
+                  isSelected ? 'text-foreground' : 'text-destructive hover:text-destructive'
                 )}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -85,4 +85,4 @@ export const CategoryNav = ({
       })}
     </div>
   );
-}; 
+};

@@ -40,7 +40,7 @@ export const useAssignmentStore = create<AssignmentState>()(
     // Set initial assignments (from server)
     setAssignments: (assignments) => {
       set({
-        assignments: assignments.map(a => ({
+        assignments: assignments.map((a) => ({
           ...a,
           formattedDueDate: a.dueDate ? new Date(a.dueDate).toLocaleDateString('en-CA') : undefined,
         })),
@@ -54,7 +54,7 @@ export const useAssignmentStore = create<AssignmentState>()(
       const { assignments } = get();
 
       // Check if assignment already exists
-      const exists = assignments.some(a => a.id === assignment.id);
+      const exists = assignments.some((a) => a.id === assignment.id);
       if (exists) return;
 
       const newAssignment = {
@@ -88,9 +88,7 @@ export const useAssignmentStore = create<AssignmentState>()(
     // Update existing assignment
     updateAssignment: (id, updates) => {
       set((state) => ({
-        assignments: state.assignments.map(a =>
-          a.id === id ? { ...a, ...updates } : a
-        ),
+        assignments: state.assignments.map((a) => (a.id === id ? { ...a, ...updates } : a)),
         lastUpdated: new Date(),
       }));
     },
@@ -98,7 +96,7 @@ export const useAssignmentStore = create<AssignmentState>()(
     // Remove assignment
     removeAssignment: (id) => {
       set((state) => ({
-        assignments: state.assignments.filter(a => a.id !== id),
+        assignments: state.assignments.filter((a) => a.id !== id),
         lastUpdated: new Date(),
       }));
     },
@@ -126,8 +124,8 @@ export const useAssignmentStore = create<AssignmentState>()(
     // Get pending assignments (not submitted by student)
     getPendingAssignments: (studentId) => {
       const { assignments } = get();
-      return assignments.filter(assignment =>
-        !(assignment.submissions || []).some(sub => sub.studentId === studentId)
+      return assignments.filter(
+        (assignment) => !(assignment.submissions || []).some((sub) => sub.studentId === studentId)
       );
     },
 
@@ -135,7 +133,7 @@ export const useAssignmentStore = create<AssignmentState>()(
     getUpcomingDeadlines: (studentId) => {
       const pendingAssignments = get().getPendingAssignments(studentId);
       return pendingAssignments
-        .filter(assignment => assignment.dueDate)
+        .filter((assignment) => assignment.dueDate)
         .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
     },
 

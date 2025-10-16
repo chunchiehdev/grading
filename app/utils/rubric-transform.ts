@@ -1,16 +1,12 @@
 import { ZodError } from 'zod';
-import { 
+import {
   type RubricCriteria,
   type UIRubricData,
   type UICategory,
   type UICriterion,
-  type UILevel
+  type UILevel,
 } from '@/types/rubric';
-import { 
-  UIRubricDataSchema,
-  RubricCompletionSchema,
-  type Level
-} from '@/schemas/rubric';
+import { UIRubricDataSchema, RubricCompletionSchema, type Level } from '@/schemas/rubric';
 
 export type { Level, UICriterion, UICategory, UIRubricData };
 
@@ -24,7 +20,7 @@ export function dbCriteriaToUICategories(categories: any[]): UICategory[] {
     return [];
   }
 
-  return categories.map(category => ({
+  return categories.map((category) => ({
     id: category.id,
     name: category.name,
     criteria: category.criteria.map((criterion: any) => ({
@@ -32,7 +28,7 @@ export function dbCriteriaToUICategories(categories: any[]): UICategory[] {
       name: criterion.name,
       description: criterion.description || '',
       levels: criterion.levels as UILevel[],
-    }))
+    })),
   }));
 }
 
@@ -47,7 +43,7 @@ export function uiCategoriesToDbCriteria(categories: UICategory[]): RubricCriter
       id: criterion.id,
       name: criterion.name,
       description: criterion.description || '',
-      maxScore: Math.max(...criterion.levels.map(l => l.score)),
+      maxScore: Math.max(...criterion.levels.map((l) => l.score)),
       levels: criterion.levels,
     }))
   );
@@ -61,17 +57,17 @@ export function uiCategoriesToDbCriteria(categories: UICategory[]): RubricCriter
  * @returns {string[]} returns.errors - Array of validation error messages
  * @returns {UIRubricData} [returns.data] - Validated data if successful
  */
-export function validateRubricData(data: UIRubricData): { 
-  success: boolean; 
-  errors: string[]; 
-  data?: UIRubricData 
+export function validateRubricData(data: UIRubricData): {
+  success: boolean;
+  errors: string[];
+  data?: UIRubricData;
 } {
   try {
     const validatedData = UIRubricDataSchema.parse(data);
     return { success: true, errors: [], data: validatedData };
   } catch (error) {
     if (error instanceof ZodError) {
-      const errors = error.errors.map(err => err.message);
+      const errors = error.errors.map((err) => err.message);
       return { success: false, errors };
     }
     return { success: false, errors: ['驗證過程中發生未知錯誤'] };
@@ -92,36 +88,36 @@ export function validateRubricCompletion(data: UIRubricData): {
   warnings: string[];
 } {
   const warnings: string[] = [];
-  
+
   try {
     RubricCompletionSchema.parse(data);
-    
+
     // 檢查可選的警告
     const totalCriteria = data.categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
-    const completedCriteria = data.categories.reduce((acc, cat) => 
-      acc + cat.criteria.filter(crit => 
-        crit.levels.some(level => level.description.trim().length > 0)
-      ).length, 0
+    const completedCriteria = data.categories.reduce(
+      (acc, cat) =>
+        acc + cat.criteria.filter((crit) => crit.levels.some((level) => level.description.trim().length > 0)).length,
+      0
     );
-    
+
     if (completedCriteria < totalCriteria) {
       warnings.push(`還有 ${totalCriteria - completedCriteria} 個評分標準未完成等級描述`);
     }
-    
+
     // 檢查是否所有等級都有描述
-    data.categories.forEach(category => {
-      category.criteria.forEach(criterion => {
-        const incompletelevels = criterion.levels.filter(level => !level.description.trim());
+    data.categories.forEach((category) => {
+      category.criteria.forEach((criterion) => {
+        const incompletelevels = criterion.levels.filter((level) => !level.description.trim());
         if (incompletelevels.length > 0) {
           warnings.push(`「${criterion.name}」缺少 ${incompletelevels.length} 個等級描述`);
         }
       });
     });
-    
+
     return { success: true, errors: [], warnings };
   } catch (error) {
     if (error instanceof ZodError) {
-      const errors = error.errors.map(err => err.message);
+      const errors = error.errors.map((err) => err.message);
       return { success: false, errors, warnings };
     }
     return { success: false, errors: ['驗證過程中發生未知錯誤'], warnings };
@@ -149,10 +145,7 @@ export function calculateRubricStats(categories: UICategory[]): {
   const totalCriteria = categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
   const completedCriteria = categories.reduce(
     (acc, cat) =>
-      acc +
-      cat.criteria.filter((crit) =>
-        crit.levels.some((level) => level.description.trim().length > 0)
-      ).length,
+      acc + cat.criteria.filter((crit) => crit.levels.some((level) => level.description.trim().length > 0)).length,
     0
   );
   const maxScore = totalCriteria * 4;
@@ -183,14 +176,14 @@ export function safeParseCategoriesJson(jsonString: string): {
   try {
     const parsed = JSON.parse(jsonString);
     const categories = Array.isArray(parsed) ? parsed : [];
-    
+
     // 基本驗證每個 category 的結構
     for (const category of categories) {
       if (!category.id || !category.name || !Array.isArray(category.criteria)) {
         return { success: false, error: '無效的類別資料結構' };
       }
     }
-    
+
     return { success: true, data: categories };
   } catch (error) {
     return { success: false, error: 'JSON 格式錯誤' };
@@ -203,5 +196,5 @@ export function safeParseCategoriesJson(jsonString: string): {
  * @returns {string[]} Array of formatted error messages in Chinese
  */
 export function formatZodErrors(errors: ZodError): string[] {
-  return errors.errors.map(err => err.message);
-} 
+  return errors.errors.map((err) => err.message);
+}

@@ -1,10 +1,10 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import { Eye, Download, FileText } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Eye, Download, FileText } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Level {
   score: number;
@@ -37,20 +37,18 @@ interface RubricPreviewProps {
 }
 
 const LEVEL_COLORS = {
-  4: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  3: "bg-blue-100 text-blue-800 border-blue-200", 
-  2: "bg-amber-100 text-amber-800 border-amber-200",
-  1: "bg-red-100 text-red-800 border-red-200"
+  4: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  3: 'bg-blue-100 text-blue-800 border-blue-200',
+  2: 'bg-amber-100 text-amber-800 border-amber-200',
+  1: 'bg-red-100 text-red-800 border-red-200',
 };
-
 
 export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProps) => {
   const { t } = useTranslation('rubric');
   const totalCriteria = rubricData.categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
-  const completedCriteria = rubricData.categories.reduce((acc, cat) => 
-    acc + cat.criteria.filter(crit => 
-      crit.levels.some(level => level.description.trim())
-    ).length, 0
+  const completedCriteria = rubricData.categories.reduce(
+    (acc, cat) => acc + cat.criteria.filter((crit) => crit.levels.some((level) => level.description.trim())).length,
+    0
   );
 
   const maxScore = totalCriteria * 4;
@@ -78,10 +76,7 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                   <Badge variant="outline" className="text-xs">
                     {totalCriteria} {t('preview.criteriaLabel')}
                   </Badge>
-                  <Badge 
-                    variant={completionRate === 100 ? "default" : "secondary"} 
-                    className="text-xs"
-                  >
+                  <Badge variant={completionRate === 100 ? 'default' : 'secondary'} className="text-xs">
                     {completionRate}% {t('preview.completionRate')}
                   </Badge>
                 </div>
@@ -102,9 +97,7 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                   <CardTitle className="text-base">{t('preview.rubricDescription')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {rubricData.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{rubricData.description}</p>
                 </CardContent>
               </Card>
             )}
@@ -162,9 +155,7 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                               {categoryIndex + 1}.{criterionIndex + 1} {criterion.name}
                             </h4>
                             {criterion.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {criterion.description}
-                              </p>
+                              <p className="text-sm text-muted-foreground mt-1">{criterion.description}</p>
                             )}
                           </div>
                           <Badge variant="outline" className="ml-2">
@@ -176,16 +167,18 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                           <h5 className="text-sm font-medium text-muted-foreground">{t('preview.gradingLevels')}</h5>
                           <div className="grid gap-2">
                             {[4, 3, 2, 1].map((score) => {
-                              const level = criterion.levels.find(l => l.score === score);
+                              const level = criterion.levels.find((l) => l.score === score);
                               const description = level?.description || '';
-                              
+
                               return (
                                 <div key={score} className="flex items-start gap-3 p-2 rounded-md bg-muted/30">
-                                  <Badge 
+                                  <Badge
                                     className={`${LEVEL_COLORS[score as keyof typeof LEVEL_COLORS]} border`}
                                     variant="outline"
                                   >
-                                    {score}{t('preview.scoreSeparator')}{t(`levelLabels.${score}`)}
+                                    {score}
+                                    {t('preview.scoreSeparator')}
+                                    {t(`levelLabels.${score}`)}
                                   </Badge>
                                   <div className="flex-1 min-w-0">
                                     {description ? (
@@ -213,9 +206,7 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
                 <CardContent className="text-center py-12">
                   <Eye className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">{t('preview.emptyPreviewTitle')}</h3>
-                  <p className="text-muted-foreground">
-                    {t('preview.emptyPreviewMessage')}
-                  </p>
+                  <p className="text-muted-foreground">{t('preview.emptyPreviewMessage')}</p>
                 </CardContent>
               </Card>
             )}
@@ -224,4 +215,4 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
       </DialogContent>
     </Dialog>
   );
-}; 
+};

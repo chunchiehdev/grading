@@ -62,9 +62,9 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   // Calculate submission statistics
   const stats = {
     total: submissions.length,
-    graded: submissions.filter(s => s.status === 'GRADED').length,
-    analyzed: submissions.filter(s => s.status === 'ANALYZED').length,
-    pending: submissions.filter(s => s.status === 'SUBMITTED').length,
+    graded: submissions.filter((s) => s.status === 'GRADED').length,
+    analyzed: submissions.filter((s) => s.status === 'ANALYZED').length,
+    pending: submissions.filter((s) => s.status === 'SUBMITTED').length,
   };
 
   return { teacher, assignmentArea, submissions, stats };
@@ -77,13 +77,29 @@ export default function AssignmentSubmissions() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'GRADED':
-        return <Badge variant="default" className="text-xs">{t('status.graded')}</Badge>;
+        return (
+          <Badge variant="default" className="text-xs">
+            {t('status.graded')}
+          </Badge>
+        );
       case 'ANALYZED':
-        return <Badge variant="secondary" className="text-xs">{t('status.analyzed')}</Badge>;
+        return (
+          <Badge variant="secondary" className="text-xs">
+            {t('status.analyzed')}
+          </Badge>
+        );
       case 'SUBMITTED':
-        return <Badge variant="outline" className="text-xs">{t('status.pending')}</Badge>;
+        return (
+          <Badge variant="outline" className="text-xs">
+            {t('status.pending')}
+          </Badge>
+        );
       default:
-        return <Badge variant="outline" className="text-xs">{t(`status.${status.toLowerCase()}`) || status}</Badge>;
+        return (
+          <Badge variant="outline" className="text-xs">
+            {t(`status.${status.toLowerCase()}`) || status}
+          </Badge>
+        );
     }
   };
 
@@ -207,7 +223,7 @@ export default function AssignmentSubmissions() {
                               {submission.student?.name?.charAt(0) || 'U'}
                             </AvatarFallback>
                           </Avatar>
-                          
+
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <h3 className="text-sm font-medium text-foreground">
@@ -215,21 +231,19 @@ export default function AssignmentSubmissions() {
                               </h3>
                               {getStatusBadge(submission.status)}
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {submission.student?.email || 'No email'}
-                            </p>
+                            <p className="text-sm text-muted-foreground">{submission.student?.email || 'No email'}</p>
                             <div className="flex items-center mt-1 text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3 mr-1" />
-                              <span>{t('teacher.submissionInfo.submitted')} {formatDate(submission.uploadedAt)}</span>
+                              <span>
+                                {t('teacher.submissionInfo.submitted')} {formatDate(submission.uploadedAt)}
+                              </span>
                             </div>
                           </div>
                         </div>
 
                         <div className="flex items-center space-x-4">
                           {/* Status Icon */}
-                          <div className="flex items-center gap-1">
-                            {getStatusIcon(submission.status)}
-                          </div>
+                          <div className="flex items-center gap-1">{getStatusIcon(submission.status)}</div>
 
                           {/* Final Score */}
                           {submission.finalScore !== null && (
@@ -263,7 +277,9 @@ export default function AssignmentSubmissions() {
                       {/* Teacher Feedback */}
                       {submission.teacherFeedback && (
                         <div className="mt-4 p-3 bg-muted rounded-lg">
-                          <h4 className="text-sm font-medium text-foreground mb-1">{t('teacher.feedback.teacherFeedback')}</h4>
+                          <h4 className="text-sm font-medium text-foreground mb-1">
+                            {t('teacher.feedback.teacherFeedback')}
+                          </h4>
                           <p className="text-sm text-muted-foreground">{submission.teacherFeedback}</p>
                         </div>
                       )}
@@ -271,10 +287,10 @@ export default function AssignmentSubmissions() {
                       {/* AI Analysis Summary */}
                       {submission.aiAnalysisResult && (
                         <div className="mt-4 p-3 bg-accent/50 rounded-lg">
-                          <h4 className="text-sm font-medium text-foreground mb-1">{t('teacher.feedback.aiAnalysisAvailable')}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {t('teacher.feedback.aiAnalysisDescription')}
-                          </p>
+                          <h4 className="text-sm font-medium text-foreground mb-1">
+                            {t('teacher.feedback.aiAnalysisAvailable')}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">{t('teacher.feedback.aiAnalysisDescription')}</p>
                         </div>
                       )}
                     </div>
@@ -306,11 +322,13 @@ export default function AssignmentSubmissions() {
                 <div>
                   <h4 className="font-medium text-foreground">{t('teacher.assignmentDetails.dueDate')}</h4>
                   <p className="text-muted-foreground">
-                    {assignmentArea.dueDate ? formatDate(assignmentArea.dueDate) : t('teacher.assignmentDetails.noDueDate')}
+                    {assignmentArea.dueDate
+                      ? formatDate(assignmentArea.dueDate)
+                      : t('teacher.assignmentDetails.noDueDate')}
                   </p>
                 </div>
               </div>
-              
+
               {assignmentArea.description && (
                 <div>
                   <h4 className="font-medium text-foreground">{t('teacher.assignmentDetails.description')}</h4>

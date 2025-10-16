@@ -25,11 +25,7 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
 
   const getScoreDisplay = (score: number | null) => {
     if (score === null) {
-      return (
-        <span className="text-sm text-muted-foreground">
-          評分中...
-        </span>
-      );
+      return <span className="text-sm text-muted-foreground">評分中...</span>;
     }
     return (
       <div className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-primary/10 text-primary">
@@ -56,12 +52,8 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
       {recentSubmissions.length === 0 ? (
         <div className="text-center py-12 md:py-16 lg:py-20 px-6">
           <FileText className="mx-auto h-16 md:h-20 lg:h-24 xl:h-28 w-16 md:w-20 lg:w-24 xl:w-28 text-muted-foreground" />
-          <h3 className="mt-6 md:mt-8 text-lg md:text-xl lg:text-2xl font-medium text-foreground">
-            目前沒有新的提交
-          </h3>
-          <p className="mt-2 md:mt-4 text-base md:text-lg text-muted-foreground">
-            當學生提交作業時，會顯示在這裡
-          </p>
+          <h3 className="mt-6 md:mt-8 text-lg md:text-xl lg:text-2xl font-medium text-foreground">目前沒有新的提交</h3>
+          <p className="mt-2 md:mt-4 text-base md:text-lg text-muted-foreground">當學生提交作業時，會顯示在這裡</p>
         </div>
       ) : (
         <div className="divide-y divide-border/50">
@@ -88,9 +80,7 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
                     <p className="text-sm font-medium text-foreground truncate">
                       {submission.student?.name || 'Unknown'}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {submission.student?.email || ''}
-                    </p>
+                    <p className="text-xs text-muted-foreground truncate">{submission.student?.email || ''}</p>
                   </div>
                 </div>
 
@@ -103,22 +93,16 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
 
                 {/* Course Column */}
                 <div className="col-span-2">
-                  <p className="text-sm text-muted-foreground truncate">
-                    {submission.assignmentArea.course.name}
-                  </p>
+                  <p className="text-sm text-muted-foreground truncate">{submission.assignmentArea.course.name}</p>
                 </div>
 
                 {/* Time Column */}
                 <div className="col-span-2">
-                  <p className="text-sm text-muted-foreground">
-                    {formatTimeAgo(submission.uploadedAt)}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{formatTimeAgo(submission.uploadedAt)}</p>
                 </div>
 
                 {/* Score Column */}
-                <div className="col-span-1 text-right">
-                  {getScoreDisplay(submission.finalScore)}
-                </div>
+                <div className="col-span-1 text-right">{getScoreDisplay(submission.finalScore)}</div>
               </div>
             </div>
           ))}

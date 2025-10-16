@@ -1,107 +1,107 @@
 {
-    "pageHeader": {
-        "allAssignments": "All Assignments",
-        "subtitle": "{{count}} assignments available",
-        "myCourses": "My Courses",
-        "backToDashboard": "Back to Dashboard"
+  "pageHeader": {
+    "allAssignments": "All Assignments",
+    "subtitle": "{{count}} assignments available",
+    "myCourses": "My Courses",
+    "backToDashboard": "Back to Dashboard"
+  },
+  "emptyState": {
+    "notEnrolled": {
+      "title": "Join your first course",
+      "description": "Get started by joining a course with an invitation code from your teacher",
+      "helpText": "Ask your teacher for an invitation code or QR code to get started",
+      "actionText": "Join Course"
     },
-    "emptyState": {
-        "notEnrolled": {
-            "title": "Join your first course",
-            "description": "Get started by joining a course with an invitation code from your teacher",
-            "helpText": "Ask your teacher for an invitation code or QR code to get started",
-            "actionText": "Join Course"
-        },
-        "noAssignments": {
-            "title": "All caught up!",
-            "description": "No assignments available right now",
-            "helpText": "Your teachers will post new assignments here. Check back later or visit your courses.",
-            "courseCount": "Enrolled in {{count}} course",
-            "courseCountPlural": "Enrolled in {{count}} courses",
-            "nextSteps": "What you can do:",
-            "suggestions": {
-                "checkCourses": "Browse your enrolled courses",
-                "contactTeacher": "Contact your teachers for updates",
-                "reviewMaterials": "Review course materials"
-            }
-        },
-        "buttons": {
-            "backToDashboard": "Dashboard",
-            "viewCourses": "My Courses",
-            "joinCourse": "Join Course"
-        }
+    "noAssignments": {
+      "title": "All caught up!",
+      "description": "No assignments available right now",
+      "helpText": "Your teachers will post new assignments here. Check back later or visit your courses.",
+      "courseCount": "Enrolled in {{count}} course",
+      "courseCountPlural": "Enrolled in {{count}} courses",
+      "nextSteps": "What you can do:",
+      "suggestions": {
+        "checkCourses": "Browse your enrolled courses",
+        "contactTeacher": "Contact your teachers for updates",
+        "reviewMaterials": "Review course materials"
+      }
     },
-    "overview": {
-        "enrolledCourses": "Enrolled Courses",
-        "totalAssignments": "Total Assignments",
-        "pending": "Pending"
-    },
-    "assignmentCard": {
-        "instructor": "Instructor",
-        "rubric": "Rubric",
-        "finalScore": "Final Score",
-        "submit": "Submit Assignment",
-        "viewSubmission": "View Submission",
-        "courseName": "Course",
-        "dueDate": "Due Date",
-        "details": "Details",
-        "submitted": "Submitted",
-        "awaitingGrading": "Awaiting Grading",
-        "noDueDate": "No Due Date"
-    },
-    "status": {
-        "graded": "Graded",
-        "submitted": "Submitted",
-        "overdue": "Overdue",
-        "pending": "Pending"
-    },
-    "dueDate": {
-        "noDueDate": "No due date",
-        "overdue": "{{days}} days overdue",
-        "dueToday": "Due today",
-        "dueTomorrow": "Due tomorrow",
-        "dueInDays": "Due in {{days}} days"
-    },
-    "sections": {
-        "pending": "Pending ({count})",
-        "overdue": "Overdue ({count})",
-        "submitted": "Submitted ({count})",
-        "graded": "Graded ({count})"
-    },
-    "courseInfo": {
-        "instructorLabel": "Instructor: {email}",
-        "assignmentCount": "{count} assignment",
-        "assignmentCountPlural": "{count} assignments"
-    },
-    "labels": {
-        "rubricPrefix": "Rubric: "
-    },
-    "submit": {
-        "uploadAssignment": "Upload Assignment",
-        "uploadDocument": "Upload Document",
-        "uploadComplete": "Upload Complete",
-        "replaceFile": "Replace File",
-        "reselectFile": "Reselect File",
-        "analyzing": "Analyzing...",
-        "aiAnalysis": "AI Analysis",
-        "analyzeWithAI": "Analyze with AI",
-        "gradingResults": "Grading Results",
-        "aiAnalysisDescription": "AI will analyze your assignment based on grading criteria and provide detailed feedback",
-        "getAiFeedback": "Get AI Feedback",
-        "rerunAiFeedback": "Re-run AI Feedback",
-        "submitting": "Submitting...",
-        "submitAssignment": "Submit Assignment",
-        "pdfPreview": "PDF Preview",
-        "resubmitWarningTitle": "Resubmitting Assignment",
-        "resubmitWarningDescription": "You have already submitted this assignment. Uploading a new file will overwrite your previous submission and AI analysis results.",
-        "errors": {
-            "failedToCheckStatus": "Failed to check grading status.",
-            "noFileOrRubric": "No file or rubric found.",
-            "parsingFailed": "File parsing failed. Please upload a different file or try again later.",
-            "parsingTimeout": "Parsing is taking longer than expected. Please try again shortly.",
-            "failedToStartGrading": "Failed to start grading",
-            "noFileUploaded": "No file uploaded.",
-            "failedToSubmit": "Failed to submit"
-        }
+    "buttons": {
+      "backToDashboard": "Dashboard",
+      "viewCourses": "My Courses",
+      "joinCourse": "Join Course"
     }
+  },
+  "overview": {
+    "enrolledCourses": "Enrolled Courses",
+    "totalAssignments": "Total Assignments",
+    "pending": "Pending"
+  },
+  "assignmentCard": {
+    "instructor": "Instructor",
+    "rubric": "Rubric",
+    "finalScore": "Final Score",
+    "submit": "Submit Assignment",
+    "viewSubmission": "View Submission",
+    "courseName": "Course",
+    "dueDate": "Due Date",
+    "details": "Details",
+    "submitted": "Submitted",
+    "awaitingGrading": "Awaiting Grading",
+    "noDueDate": "No Due Date"
+  },
+  "status": {
+    "graded": "Graded",
+    "submitted": "Submitted",
+    "overdue": "Overdue",
+    "pending": "Pending"
+  },
+  "dueDate": {
+    "noDueDate": "No due date",
+    "overdue": "{{days}} days overdue",
+    "dueToday": "Due today",
+    "dueTomorrow": "Due tomorrow",
+    "dueInDays": "Due in {{days}} days"
+  },
+  "sections": {
+    "pending": "Pending ({count})",
+    "overdue": "Overdue ({count})",
+    "submitted": "Submitted ({count})",
+    "graded": "Graded ({count})"
+  },
+  "courseInfo": {
+    "instructorLabel": "Instructor: {email}",
+    "assignmentCount": "{count} assignment",
+    "assignmentCountPlural": "{count} assignments"
+  },
+  "labels": {
+    "rubricPrefix": "Rubric: "
+  },
+  "submit": {
+    "uploadAssignment": "Upload Assignment",
+    "uploadDocument": "Upload Document",
+    "uploadComplete": "Upload Complete",
+    "replaceFile": "Replace File",
+    "reselectFile": "Reselect File",
+    "analyzing": "Analyzing...",
+    "aiAnalysis": "AI Analysis",
+    "analyzeWithAI": "Analyze with AI",
+    "gradingResults": "Grading Results",
+    "aiAnalysisDescription": "AI will analyze your assignment based on grading criteria and provide detailed feedback",
+    "getAiFeedback": "Get AI Feedback",
+    "rerunAiFeedback": "Re-run AI Feedback",
+    "submitting": "Submitting...",
+    "submitAssignment": "Submit Assignment",
+    "pdfPreview": "PDF Preview",
+    "resubmitWarningTitle": "Resubmitting Assignment",
+    "resubmitWarningDescription": "You have already submitted this assignment. Uploading a new file will overwrite your previous submission and AI analysis results.",
+    "errors": {
+      "failedToCheckStatus": "Failed to check grading status.",
+      "noFileOrRubric": "No file or rubric found.",
+      "parsingFailed": "File parsing failed. Please upload a different file or try again later.",
+      "parsingTimeout": "Parsing is taking longer than expected. Please try again shortly.",
+      "failedToStartGrading": "Failed to start grading",
+      "noFileUploaded": "No file uploaded.",
+      "failedToSubmit": "Failed to submit"
+    }
+  }
 }

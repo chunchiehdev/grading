@@ -1,106 +1,106 @@
 {
-    "pageHeader": {
-        "allAssignments": "所有作業",
-        "subtitle": "共有 {{count}} 個作業",
-        "myCourses": "我的課程",
-        "backToDashboard": "返回主頁"
+  "pageHeader": {
+    "allAssignments": "所有作業",
+    "subtitle": "共有 {{count}} 個作業",
+    "myCourses": "我的課程",
+    "backToDashboard": "返回主頁"
+  },
+  "emptyState": {
+    "notEnrolled": {
+      "title": "加入您的第一門課程",
+      "description": "使用老師提供的邀請碼加入課程開始學習",
+      "helpText": "向老師索取邀請碼或 QR 碼即可開始",
+      "actionText": "加入課程"
     },
-    "emptyState": {
-        "notEnrolled": {
-            "title": "加入您的第一門課程",
-            "description": "使用老師提供的邀請碼加入課程開始學習",
-            "helpText": "向老師索取邀請碼或 QR 碼即可開始",
-            "actionText": "加入課程"
-        },
-        "noAssignments": {
-            "title": "全部完成！",
-            "description": "目前沒有可用的作業",
-            "helpText": "老師將在這裡發布新作業。稍後再檢查或瀏覽您的課程。",
-            "courseCount": "已加入 {{count}} 門課程",
-            "courseCountPlural": "已加入 {{count}} 門課程",
-            "nextSteps": "您可以：",
-            "suggestions": {
-                "checkCourses": "瀏覽已加入的課程",
-                "contactTeacher": "聯絡老師獲取更新",
-                "reviewMaterials": "複習課程材料"
-            }
-        },
-        "buttons": {
-            "backToDashboard": "主頁",
-            "viewCourses": "我的課程",
-            "joinCourse": "加入課程"
-        }
+    "noAssignments": {
+      "title": "全部完成！",
+      "description": "目前沒有可用的作業",
+      "helpText": "老師將在這裡發布新作業。稍後再檢查或瀏覽您的課程。",
+      "courseCount": "已加入 {{count}} 門課程",
+      "courseCountPlural": "已加入 {{count}} 門課程",
+      "nextSteps": "您可以：",
+      "suggestions": {
+        "checkCourses": "瀏覽已加入的課程",
+        "contactTeacher": "聯絡老師獲取更新",
+        "reviewMaterials": "複習課程材料"
+      }
     },
-    "overview": {
-        "enrolledCourses": "已加入課程",
-        "totalAssignments": "作業總數",
-        "pending": "待繳交"
-    },
-    "assignmentCard": {
-        "instructor": "授課老師",
-        "rubric": "評分標準",
-        "finalScore": "最終分數",
-        "submit": "繳交作業",
-        "viewSubmission": "查看繳交內容",
-        "courseName": "課程",
-        "dueDate": "截止日期",
-        "details": "詳細資訊",
-        "submitted": "已繳交",
-        "awaitingGrading": "等待評分",
-        "noDueDate": "無截止日期"
-    },
-    "status": {
-        "graded": "已評分",
-        "submitted": "已繳交",
-        "overdue": "已逾期",
-        "pending": "待繳交"
-    },
-    "dueDate": {
-        "noDueDate": "無截止日期",
-        "overdue": "已逾期 {{days}} 天",
-        "dueToday": "今天截止",
-        "dueTomorrow": "明天截止",
-        "dueInDays": "{{days}} 天後截止"
-    },
-    "sections": {
-        "pending": "待繳交 ({count})",
-        "overdue": "已逾期 ({count})",
-        "submitted": "已繳交 ({count})",
-        "graded": "已評分 ({count})"
-    },
-    "courseInfo": {
-        "instructorLabel": "授課老師：{{email}}",
-        "assignmentCount": "{count} 個作業",
-        "assignmentCountPlural": "{count} 個作業"
-    },
-    "labels": {
-        "rubricPrefix": "評分規準："
-    },
-    "submit": {
-        "uploadAssignment": "上傳作業",
-        "uploadDocument": "上傳文件",
-        "uploadComplete": "上傳完成",
-        "replaceFile": "更換檔案",
-        "reselectFile": "重新選擇檔案",
-        "analyzing": "分析中...",
-        "analyzeWithAI": "AI 分析",
-        "gradingResults": "評分結果",
-        "aiAnalysisDescription": "AI 將根據評分標準分析您的作業並提供詳細回饋",
-        "getAiFeedback": "取得 AI 回饋",
-        "rerunAiFeedback": "重新執行 AI 回饋",
-        "submitting": "提交中...",
-        "submitAssignment": "提交作業",
-        "pdfPreview": "PDF 預覽",
-        "resubmitWarningTitle": "重新繳交作業",
-        "resubmitWarningDescription": "你已經提交過此作業。重新上傳將覆蓋之前的內容和 AI 分析結果。",
-        "errors": {
-            "failedToCheckStatus": "無法檢查批改狀態。",
-            "noFileOrRubric": "找不到檔案或評分標準。",
-            "parsingFailed": "檔案解析失敗。請上傳不同的檔案或稍後再試。",
-            "parsingTimeout": "解析時間超出預期。請稍後再試。",
-            "failedToStartGrading": "無法開始批改",
-            "noFileUploaded": "沒有上傳檔案。",
-            "failedToSubmit": "提交失敗"
-        }
+    "buttons": {
+      "backToDashboard": "主頁",
+      "viewCourses": "我的課程",
+      "joinCourse": "加入課程"
     }
+  },
+  "overview": {
+    "enrolledCourses": "已加入課程",
+    "totalAssignments": "作業總數",
+    "pending": "待繳交"
+  },
+  "assignmentCard": {
+    "instructor": "授課老師",
+    "rubric": "評分標準",
+    "finalScore": "最終分數",
+    "submit": "繳交作業",
+    "viewSubmission": "查看繳交內容",
+    "courseName": "課程",
+    "dueDate": "截止日期",
+    "details": "詳細資訊",
+    "submitted": "已繳交",
+    "awaitingGrading": "等待評分",
+    "noDueDate": "無截止日期"
+  },
+  "status": {
+    "graded": "已評分",
+    "submitted": "已繳交",
+    "overdue": "已逾期",
+    "pending": "待繳交"
+  },
+  "dueDate": {
+    "noDueDate": "無截止日期",
+    "overdue": "已逾期 {{days}} 天",
+    "dueToday": "今天截止",
+    "dueTomorrow": "明天截止",
+    "dueInDays": "{{days}} 天後截止"
+  },
+  "sections": {
+    "pending": "待繳交 ({count})",
+    "overdue": "已逾期 ({count})",
+    "submitted": "已繳交 ({count})",
+    "graded": "已評分 ({count})"
+  },
+  "courseInfo": {
+    "instructorLabel": "授課老師：{{email}}",
+    "assignmentCount": "{count} 個作業",
+    "assignmentCountPlural": "{count} 個作業"
+  },
+  "labels": {
+    "rubricPrefix": "評分規準："
+  },
+  "submit": {
+    "uploadAssignment": "上傳作業",
+    "uploadDocument": "上傳文件",
+    "uploadComplete": "上傳完成",
+    "replaceFile": "更換檔案",
+    "reselectFile": "重新選擇檔案",
+    "analyzing": "分析中...",
+    "analyzeWithAI": "AI 分析",
+    "gradingResults": "評分結果",
+    "aiAnalysisDescription": "AI 將根據評分標準分析您的作業並提供詳細回饋",
+    "getAiFeedback": "取得 AI 回饋",
+    "rerunAiFeedback": "重新執行 AI 回饋",
+    "submitting": "提交中...",
+    "submitAssignment": "提交作業",
+    "pdfPreview": "PDF 預覽",
+    "resubmitWarningTitle": "重新繳交作業",
+    "resubmitWarningDescription": "你已經提交過此作業。重新上傳將覆蓋之前的內容和 AI 分析結果。",
+    "errors": {
+      "failedToCheckStatus": "無法檢查批改狀態。",
+      "noFileOrRubric": "找不到檔案或評分標準。",
+      "parsingFailed": "檔案解析失敗。請上傳不同的檔案或稍後再試。",
+      "parsingTimeout": "解析時間超出預期。請稍後再試。",
+      "failedToStartGrading": "無法開始批改",
+      "noFileUploaded": "沒有上傳檔案。",
+      "failedToSubmit": "提交失敗"
+    }
+  }
 }

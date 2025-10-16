@@ -1,7 +1,17 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { getSession, commitSession } from '@/sessions.server';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { CheckCircle, AlertCircle, Users, User, Clock, MapPin, GraduationCap, Terminal, AlertCircleIcon } from 'lucide-react';
+import {
+  CheckCircle,
+  AlertCircle,
+  Users,
+  User,
+  Clock,
+  MapPin,
+  GraduationCap,
+  Terminal,
+  AlertCircleIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import { getUser } from '@/services/auth.server';
@@ -411,7 +421,7 @@ export default function JoinCourse() {
                   </RadioGroup>
 
                   {!selectedClassId && (
-                    <Alert variant="warning" > 
+                    <Alert variant="warning">
                       <AlertTitle></AlertTitle>
                       <AlertDescription>{t('course:joinCourse.selectClassPrompt')}</AlertDescription>
                     </Alert>

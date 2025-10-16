@@ -11,10 +11,7 @@ export async function loader({ request }: { request: Request }) {
     const uploadId = url.searchParams.get('uploadId');
 
     if (!uploadId) {
-      return Response.json(
-        createErrorResponse('Missing uploadId', ApiErrorCode.VALIDATION_ERROR),
-        { status: 400 }
-      );
+      return Response.json(createErrorResponse('Missing uploadId', ApiErrorCode.VALIDATION_ERROR), { status: 400 });
     }
 
     // Check if client wants SSE
@@ -24,31 +21,31 @@ export async function loader({ request }: { request: Request }) {
       const stream = new ReadableStream({
         start(controller) {
           const encoder = new TextEncoder();
-          
+
           const sendProgress = async () => {
             try {
               const progress = await RedisProgressService.getFileProgress(uploadId);
               const stats = await RedisProgressService.getUploadStats(uploadId);
-              
+
               const data = {
                 files: progress,
                 stats,
-                timestamp: Date.now()
+                timestamp: Date.now(),
               };
-              
+
               controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-              
+
               // Stop streaming if all files are complete or failed
               const allDone = Object.values(progress).every(
-                file => file.status === 'success' || file.status === 'error'
+                (file) => file.status === 'success' || file.status === 'error'
               );
-              
+
               if (allDone) {
                 controller.enqueue(encoder.encode('event: complete\ndata: done\n\n'));
                 controller.close();
                 return;
               }
-              
+
               // Continue streaming every 500ms
               setTimeout(sendProgress, 500);
             } catch (error) {
@@ -56,28 +53,28 @@ export async function loader({ request }: { request: Request }) {
               controller.error(error);
             }
           };
-          
+
           sendProgress();
-        }
+        },
       });
 
       return new Response(stream, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
+          Connection: 'keep-alive',
         },
       });
     } else {
       // Simple JSON response for one-time progress check
       const progress = await RedisProgressService.getFileProgress(uploadId);
       const stats = await RedisProgressService.getUploadStats(uploadId);
-      
+
       return Response.json(
         createSuccessResponse({
           files: progress,
           stats,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         })
       );
     }

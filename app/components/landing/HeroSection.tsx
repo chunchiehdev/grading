@@ -72,7 +72,11 @@ const HeroSection = () => {
             <div className="relative w-full max-w-lg xl:max-w-xl 2xl:max-w-2xl">
               {/* Main Image */}
               <div className="relative overflow-hidden">
-                <img src="/writing_rm_background.png" alt="grading_picture" className="w-full h-auto object-cover xl:scale-110 2xl:scale-125" />
+                <img
+                  src="/writing_rm_background.png"
+                  alt="grading_picture"
+                  className="w-full h-auto object-cover xl:scale-110 2xl:scale-125"
+                />
               </div>
             </div>
           </div>

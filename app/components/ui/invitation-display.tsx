@@ -16,7 +16,7 @@ export function InvitationDisplay({
   baseUrl,
   codeLabel,
   urlLabel,
-  qrDescription = "Students can scan this code to join"
+  qrDescription = 'Students can scan this code to join',
 }: InvitationDisplayProps) {
   const invitationUrl = `${baseUrl}/join?code=${code}`;
 
@@ -24,24 +24,13 @@ export function InvitationDisplay({
     <div className="grid md:grid-cols-2 gap-6">
       {/* Invitation Details */}
       <div className="flex flex-col justify-center space-y-6 text-center">
-        <CopyableField
-          label={codeLabel}
-          value={code}
-          isCode={true}
-        />
-        
-        <CopyableField
-          label={urlLabel}
-          value={invitationUrl}
-        />
+        <CopyableField label={codeLabel} value={code} isCode={true} />
+
+        <CopyableField label={urlLabel} value={invitationUrl} />
       </div>
 
       {/* QR Code */}
-      <QRDisplay
-        src={qrCodeUrl}
-        alt="Course invitation QR code"
-        description={qrDescription}
-      />
+      <QRDisplay src={qrCodeUrl} alt="Course invitation QR code" description={qrDescription} />
     </div>
   );
 }

@@ -21,4 +21,4 @@ const logger = pino({
  * Default export of the configured logger instance
  * @module logger
  */
-export default logger; 
+export default logger;

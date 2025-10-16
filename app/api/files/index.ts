@@ -1,12 +1,7 @@
 import { getUserId } from '@/services/auth.server';
 import { getUserFiles, deleteFile, restoreFile } from '@/services/uploaded-file.server';
 import { FileParseStatus } from '@/types/database';
-import { 
-  createSuccessResponse, 
-  createErrorResponse, 
-  createPaginatedResponse,
-  ApiErrorCode 
-} from '@/types/api';
+import { createSuccessResponse, createErrorResponse, createPaginatedResponse, ApiErrorCode } from '@/types/api';
 
 /**
  * GET: List user files with optional filtering
@@ -15,10 +10,7 @@ export async function loader({ request }: { request: Request }) {
   try {
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json(
-        createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), 
-        { status: 401 }
-      );
+      return Response.json(createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), { status: 401 });
     }
 
     const url = new URL(request.url);
@@ -31,26 +23,18 @@ export async function loader({ request }: { request: Request }) {
       parseStatus: parseStatus || undefined,
       includeDeleted,
       limit,
-      offset
+      offset,
     });
 
     if (result.error) {
-      return Response.json(
-        createErrorResponse(result.error, ApiErrorCode.INTERNAL_ERROR), 
-        { status: 500 }
-      );
+      return Response.json(createErrorResponse(result.error, ApiErrorCode.INTERNAL_ERROR), { status: 500 });
     }
 
     const page = Math.floor(offset / limit) + 1;
-    return Response.json(
-      createPaginatedResponse(result.files || [], result.total || 0, page, limit)
-    );
+    return Response.json(createPaginatedResponse(result.files || [], result.total || 0, page, limit));
   } catch (error) {
     return Response.json(
-      createErrorResponse(
-        error instanceof Error ? error.message : 'Failed to list files',
-        ApiErrorCode.INTERNAL_ERROR
-      ), 
+      createErrorResponse(error instanceof Error ? error.message : 'Failed to list files', ApiErrorCode.INTERNAL_ERROR),
       { status: 500 }
     );
   }
@@ -64,10 +48,7 @@ export async function action({ request }: { request: Request }) {
   try {
     const userId = await getUserId(request);
     if (!userId) {
-      return Response.json(
-        createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), 
-        { status: 401 }
-      );
+      return Response.json(createErrorResponse('Unauthorized', ApiErrorCode.UNAUTHORIZED), { status: 401 });
     }
 
     const method = request.method;
@@ -75,10 +56,7 @@ export async function action({ request }: { request: Request }) {
     const fileId = formData.get('fileId') as string;
 
     if (!fileId) {
-      return Response.json(
-        createErrorResponse('File ID is required', ApiErrorCode.VALIDATION_ERROR), 
-        { status: 400 }
-      );
+      return Response.json(createErrorResponse('File ID is required', ApiErrorCode.VALIDATION_ERROR), { status: 400 });
     }
 
     if (method === 'DELETE') {
@@ -86,7 +64,7 @@ export async function action({ request }: { request: Request }) {
 
       if (!result.success) {
         return Response.json(
-          createErrorResponse(result.error || 'Failed to delete file', ApiErrorCode.INTERNAL_ERROR), 
+          createErrorResponse(result.error || 'Failed to delete file', ApiErrorCode.INTERNAL_ERROR),
           { status: 400 }
         );
       }
@@ -94,7 +72,7 @@ export async function action({ request }: { request: Request }) {
       return Response.json(
         createSuccessResponse({
           message: `File ${result.deletionType === 'soft' ? 'hidden' : 'permanently deleted'} successfully`,
-          deletionType: result.deletionType
+          deletionType: result.deletionType,
         })
       );
     } else if (method === 'PUT') {
@@ -102,26 +80,21 @@ export async function action({ request }: { request: Request }) {
 
       if (!result.success) {
         return Response.json(
-          createErrorResponse(result.error || 'Failed to restore file', ApiErrorCode.INTERNAL_ERROR), 
+          createErrorResponse(result.error || 'Failed to restore file', ApiErrorCode.INTERNAL_ERROR),
           { status: 400 }
         );
       }
 
-      return Response.json(
-        createSuccessResponse({ message: 'File restored successfully' })
-      );
+      return Response.json(createSuccessResponse({ message: 'File restored successfully' }));
     } else {
-      return Response.json(
-        createErrorResponse('Method not allowed', ApiErrorCode.VALIDATION_ERROR), 
-        { status: 405 }
-      );
+      return Response.json(createErrorResponse('Method not allowed', ApiErrorCode.VALIDATION_ERROR), { status: 405 });
     }
   } catch (error) {
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to process request',
         ApiErrorCode.INTERNAL_ERROR
-      ), 
+      ),
       { status: 500 }
     );
   }

@@ -51,9 +51,7 @@ export const AddCategoryDialog = ({ onAddCategory, children }: AddCategoryDialog
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{t('rubric:addCategory')}</DialogTitle>
-          <DialogDescription>
-            {t('rubric:addCategoryDescription')}
-          </DialogDescription>
+          <DialogDescription>{t('rubric:addCategoryDescription')}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">

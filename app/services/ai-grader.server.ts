@@ -23,7 +23,6 @@ export interface GradingResponse {
  * This is how you write good code: clear, direct, no bullshit
  */
 export class AIGrader {
-  
   /**
    * Grade a document using AI - the Linus way
    * Try Gemini first, fallback to OpenAI if it fails
@@ -36,20 +35,19 @@ export class AIGrader {
     try {
       const geminiService = getSimpleGeminiService();
       const result = await geminiService.gradeDocument(request, userLanguage);
-      
+
       if (result.success && result.result) {
         logger.info(`✅ Gemini grading succeeded for: ${request.fileName}`);
         return {
           success: true,
           result: result.result,
           provider: 'gemini',
-          metadata: result.metadata
+          metadata: result.metadata,
         };
       }
-      
+
       // Log Gemini failure but don't give up yet
       logger.warn(`⚠️ Gemini failed: ${result.error}, trying OpenAI`);
-      
     } catch (error) {
       logger.warn(`⚠️ Gemini error: ${error instanceof Error ? error.message : 'Unknown'}, trying OpenAI`);
     }
@@ -58,33 +56,32 @@ export class AIGrader {
     try {
       const openaiService = getSimpleOpenAIService();
       const result = await openaiService.gradeDocument(request, userLanguage);
-      
+
       if (result.success && result.result) {
         logger.info(`✅ OpenAI grading succeeded for: ${request.fileName}`);
         return {
           success: true,
           result: result.result,
           provider: 'openai',
-          metadata: result.metadata
+          metadata: result.metadata,
         };
       }
-      
+
       logger.error(`❌ OpenAI also failed: ${result.error}`);
-      
+
       return {
         success: false,
         error: `Both AI services failed. Gemini and OpenAI could not grade this document. Please try again later.`,
-        provider: 'none'
+        provider: 'none',
       };
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       logger.error(`❌ OpenAI error: ${errorMessage}`);
-      
+
       return {
         success: false,
         error: `Both AI services failed with errors. Please check your API keys and try again.`,
-        provider: 'none'
+        provider: 'none',
       };
     }
   }

@@ -128,15 +128,15 @@ export default function TeacherSubmissionView() {
           <div className="md:col-span-2 space-y-6">
             <StudentInfoCard student={submission.student} />
             <AssignmentInfoCard assignment={submission.assignment} grading={submission.grading} />
-            <AIAnalysisCard result={submission.grading.aiAnalysisResult} normalizedScore={submission.grading.normalizedScore} />
+            <AIAnalysisCard
+              result={submission.grading.aiAnalysisResult}
+              normalizedScore={submission.grading.normalizedScore}
+            />
           </div>
 
           <div className="md:col-span-1 space-y-6">
             <GradingSummaryCard grading={submission.grading} />
-            <FeedbackFormCard
-              defaultFeedback={submission.grading.teacherFeedback}
-              actionData={actionData}
-            />
+            <FeedbackFormCard defaultFeedback={submission.grading.teacherFeedback} actionData={actionData} />
           </div>
         </div>
       </main>
@@ -159,9 +159,7 @@ function StudentInfoCard({ student }: { student: TeacherSubmissionView['student'
         <div className="flex items-center gap-4">
           <Avatar className="h-12 w-12">
             <AvatarImage src={student.picture ?? undefined} alt={student.name} />
-            <AvatarFallback className="bg-primary/10 text-primary">
-              {student.initial}
-            </AvatarFallback>
+            <AvatarFallback className="bg-primary/10 text-primary">{student.initial}</AvatarFallback>
           </Avatar>
           <div>
             <h3 className="text-lg font-medium text-foreground">{student.name}</h3>
@@ -175,7 +173,7 @@ function StudentInfoCard({ student }: { student: TeacherSubmissionView['student'
 
 function AssignmentInfoCard({
   assignment,
-  grading
+  grading,
 }: {
   assignment: TeacherSubmissionView['assignment'];
   grading: TeacherSubmissionView['grading'];
@@ -199,9 +197,7 @@ function AssignmentInfoCard({
             {t('dueDate')}: {formatDate(assignment.dueDate)}
           </div>
         )}
-        {assignment.description && (
-          <div className="text-sm text-muted-foreground">{assignment.description}</div>
-        )}
+        {assignment.description && <div className="text-sm text-muted-foreground">{assignment.description}</div>}
         {grading.filePath && (
           <div className="pt-2">
             <Button asChild variant="outline" size="sm">
@@ -263,7 +259,7 @@ function GradingSummaryCard({ grading }: { grading: TeacherSubmissionView['gradi
 
 function FeedbackFormCard({
   defaultFeedback,
-  actionData
+  actionData,
 }: {
   defaultFeedback: string | null;
   actionData: ActionData | undefined;
@@ -295,7 +291,7 @@ function FeedbackFormCard({
           )}
 
           {actionData?.success && (
-            <Alert>              
+            <Alert>
               <AlertDescription>{t('feedbackSaved')}</AlertDescription>
             </Alert>
           )}

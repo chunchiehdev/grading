@@ -6,12 +6,9 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 
-
 export function DatePicker({ name, defaultISOString }: { name: string; defaultISOString?: string }) {
   const { t } = useTranslation('common');
-  const [date, setDate] = useState<Date | undefined>(() =>
-    defaultISOString ? new Date(defaultISOString) : undefined
-  );
+  const [date, setDate] = useState<Date | undefined>(() => (defaultISOString ? new Date(defaultISOString) : undefined));
 
   return (
     <div>
@@ -32,11 +29,7 @@ export function DatePicker({ name, defaultISOString }: { name: string; defaultIS
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <UICalendar
-              mode="single"
-              selected={date}
-              onSelect={(d) => setDate(d)}
-            />
+            <UICalendar mode="single" selected={date} onSelect={(d) => setDate(d)} />
           </PopoverContent>
         </Popover>
         {date && (

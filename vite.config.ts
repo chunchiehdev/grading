@@ -7,20 +7,15 @@ export default defineConfig({
   plugins: [
     reactRouter(),
     visualizer({
-      open: true, 
+      open: true,
       gzipSize: true,
-      brotliSize: true, 
+      brotliSize: true,
       filename: 'bundle-report.html',
     }),
     tsconfigPaths(),
   ],
   server: {
     host: '0.0.0.0',
-    allowedHosts: [
-      'app',           
-      'localhost',     
-      '127.0.0.1',     
-      '.localhost',    
-    ],
+    allowedHosts: ['app', 'localhost', '127.0.0.1', '.localhost'],
   },
 });

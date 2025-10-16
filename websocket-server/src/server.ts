@@ -8,9 +8,9 @@ import { WebSocketEventHandler } from './event-handler.js';
 import { REDIS_CONFIG } from './redis-config.js';
 
 const PORT = process.env.PORT || 3001;
-const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
-  : ["http://localhost:3000", "http://localhost:5173"];
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:3000', 'http://localhost:5173'];
 
 // Create HTTP server
 const httpServer = createServer();
@@ -20,9 +20,9 @@ const io = new SocketServer(httpServer, {
   cors: {
     origin: ALLOWED_ORIGINS,
     credentials: true,
-    methods: ["GET", "POST"]
+    methods: ['GET', 'POST'],
   },
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
 });
 
 // Setup Redis adapter for multi-pod support
@@ -42,7 +42,7 @@ async function setupRedisAdapter() {
     // Setup Redis adapter
     const subClient = redis.duplicate();
     io.adapter(createAdapter(redis, subClient));
-    
+
     logger.info('Socket.IO Redis adapter configured for multi-pod support');
 
     // Handle Redis connection events
@@ -53,7 +53,6 @@ async function setupRedisAdapter() {
     redis.on('reconnecting', () => {
       logger.info('Redis reconnecting...');
     });
-
   } catch (error) {
     logger.error(`Failed to setup Redis adapter: ${error}`);
     // Continue without Redis - single instance mode
@@ -72,12 +71,14 @@ io.on('connection', (socket) => {
 httpServer.on('request', (req, res) => {
   if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ 
-      status: 'healthy', 
-      service: 'websocket-server',
-      timestamp: new Date().toISOString(),
-      connections: io.engine.clientsCount
-    }));
+    res.end(
+      JSON.stringify({
+        status: 'healthy',
+        service: 'websocket-server',
+        timestamp: new Date().toISOString(),
+        connections: io.engine.clientsCount,
+      })
+    );
     return;
   }
 
@@ -105,10 +106,10 @@ async function startServer() {
     // Graceful shutdown
     const shutdown = async () => {
       logger.info('Shutting down WebSocket server...');
-      
+
       // Stop event handler
       await eventHandler.stop();
-      
+
       io.close(() => {
         logger.info('Socket.IO server closed');
         httpServer.close(() => {
@@ -120,7 +121,6 @@ async function startServer() {
 
     process.on('SIGTERM', shutdown);
     process.on('SIGINT', shutdown);
-
   } catch (error) {
     logger.error(`Failed to start server: ${error}`);
     process.exit(1);

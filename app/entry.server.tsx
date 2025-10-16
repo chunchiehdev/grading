@@ -23,8 +23,7 @@ export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
-  routerContext: EntryContext,
-  
+  routerContext: EntryContext
 ) {
   // Ensure system services are initialized before handling requests
   // Wait for the one-time startup initialization to complete
@@ -44,9 +43,7 @@ export default async function handleRequest(
     // Ensure requests from bots and SPA Mode renders wait for all content to load before responding
     // https://react.dev/reference/react-dom/server/renderToPipeableStream#waiting-for-all-content-to-load-for-crawlers-and-static-generation
     const readyOption: keyof RenderToPipeableStreamOptions =
-      (userAgent && isbot(userAgent)) || routerContext.isSpaMode
-        ? 'onAllReady'
-        : 'onShellReady';
+      (userAgent && isbot(userAgent)) || routerContext.isSpaMode ? 'onAllReady' : 'onShellReady';
 
     const { pipe, abort } = renderToPipeableStream(
       <I18nextProvider i18n={i18nInstance}>

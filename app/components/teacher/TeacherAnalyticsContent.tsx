@@ -24,7 +24,7 @@ export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) 
     totalCourses = courses.length,
     totalStudents = 0,
     totalSubmissions = 0,
-    averageScore = 0
+    averageScore = 0,
   } = analyticsStats || {};
 
   // Use real course performance data
@@ -37,9 +37,7 @@ export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) 
         <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-foreground">
           {t('dashboard:analytics')}
         </h1>
-        <p className="text-base md:text-lg lg:text-xl text-muted-foreground mt-2">
-          {t('analytics:overview')}
-        </p>
+        <p className="text-base md:text-lg lg:text-xl text-muted-foreground mt-2">{t('analytics:overview')}</p>
       </div>
 
       {/* Key Metrics */}
@@ -51,9 +49,7 @@ export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) 
                 <p className="text-base md:text-lg font-medium text-muted-foreground">
                   {t('dashboard:stats.totalCourses')}
                 </p>
-                <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground">
-                  {totalCourses}
-                </p>
+                <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground">{totalCourses}</p>
               </div>
               <FileText className="w-8 md:w-10 lg:w-12 h-8 md:h-10 lg:h-12 text-primary" />
             </div>
@@ -67,9 +63,7 @@ export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) 
                 <p className="text-base md:text-lg font-medium text-muted-foreground">
                   {t('dashboard:stats.totalSubmissions')}
                 </p>
-                <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground">
-                  {totalSubmissions}
-                </p>
+                <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground">{totalSubmissions}</p>
               </div>
               <Users className="w-8 md:w-10 lg:w-12 h-8 md:h-10 lg:h-12 text-green-600" />
             </div>
@@ -80,9 +74,7 @@ export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) 
           <CardContent className="p-6 md:p-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-base md:text-lg font-medium text-muted-foreground">
-                  {t('analytics:avgScore')}
-                </p>
+                <p className="text-base md:text-lg font-medium text-muted-foreground">{t('analytics:avgScore')}</p>
                 <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground">
                   {averageScore ? `${Math.round(averageScore)}%` : '-'}
                 </p>
@@ -99,9 +91,7 @@ export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) 
                 <p className="text-base md:text-lg font-medium text-muted-foreground">
                   {t('analytics:completionRate')}
                 </p>
-                <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground">
-                  91.2%
-                </p>
+                <p className="text-2xl md:text-3xl lg:text-4xl font-bold text-foreground">91.2%</p>
               </div>
               <BarChart3 className="w-8 md:w-10 lg:w-12 h-8 md:h-10 lg:h-12 text-purple-600" />
             </div>
@@ -123,9 +113,7 @@ export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) 
               {coursePerformance.map((course) => (
                 <div key={course.id} className="p-4 md:p-6 border rounded-lg">
                   <div className="flex justify-between items-start mb-3">
-                    <h3 className="text-base md:text-lg font-medium text-foreground truncate">
-                      {course.name}
-                    </h3>
+                    <h3 className="text-base md:text-lg font-medium text-foreground truncate">{course.name}</h3>
                     <Badge variant="outline" className="ml-2">
                       {course.submissionsCount || 0} submissions
                     </Badge>
@@ -159,9 +147,7 @@ export function TeacherAnalyticsContent({ data }: TeacherAnalyticsContentProps) 
                 <div key={rubric.rubricId} className="p-4 border rounded-lg">
                   <div className="flex justify-between items-center">
                     <span className="font-medium">{rubric.rubricName}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {rubric.usageCount || 0} uses
-                    </span>
+                    <span className="text-sm text-muted-foreground">{rubric.usageCount || 0} uses</span>
                   </div>
                 </div>
               ))}

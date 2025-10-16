@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import logger from '@/utils/logger';
 
@@ -24,10 +24,14 @@ export interface ChatAIResponse {
 /**
  * 生成聊天回應的專業 Prompt
  */
-function createChatPrompt(message: string, conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>, context?: any): string {
+function createChatPrompt(
+  message: string,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
+  context?: any
+): string {
   // 根據不同的上下文類型提供專業化的系統提示
   let systemPrompt = '';
-  
+
   if (context?.type === 'rubric_generation') {
     systemPrompt = `你是一個專業的教育評估專家，專門協助教師制定詳細的評分標準和學習評量工具。請遵循以下原則：
 
@@ -52,10 +56,11 @@ function createChatPrompt(message: string, conversationHistory: Array<{ role: 'u
   }
 
   const contextInfo = context ? `\n聊天情境：${JSON.stringify(context, null, 2)}\n` : '';
-  
-  const historyText = conversationHistory.length > 0 
-    ? `\n對話歷史：\n${conversationHistory.map((h, index) => `${index + 1}. ${h.role}: ${h.content}`).join('\n')}\n`
-    : '';
+
+  const historyText =
+    conversationHistory.length > 0
+      ? `\n對話歷史：\n${conversationHistory.map((h, index) => `${index + 1}. ${h.role}: ${h.content}`).join('\n')}\n`
+      : '';
 
   return `${systemPrompt}
 
@@ -76,30 +81,30 @@ async function testGeminiConnection(): Promise<{ success: boolean; error?: strin
       logger.warn('GEMINI_API_KEY not found in environment variables');
       return { success: false, error: 'GEMINI_API_KEY not configured' };
     }
-    
+
     logger.debug('Testing Gemini connection with API key:', apiKey.substring(0, 10) + '...');
 
     const ai = new GoogleGenAI({ apiKey });
-    
+
     // 發送簡單的測試請求
     logger.debug('Sending test request to Gemini...');
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: "Hello",
+      model: 'gemini-2.0-flash',
+      contents: 'Hello',
     });
-    
+
     logger.debug('Test request completed, checking response...');
     const text = response.text;
-    
+
     if (text) {
       return { success: true };
     } else {
       return { success: false, error: 'Empty response from test request' };
     }
   } catch (error: any) {
-    return { 
-      success: false, 
-      error: `Connection test failed: ${error.message}` 
+    return {
+      success: false,
+      error: `Connection test failed: ${error.message}`,
     };
   }
 }
@@ -118,13 +123,13 @@ async function callGeminiForChat(prompt: string): Promise<string> {
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    logger.debug('Sending request to Gemini API...', { 
-      model: "gemini-2.0-flash",
-      promptLength: prompt.length 
+    logger.debug('Sending request to Gemini API...', {
+      model: 'gemini-2.0-flash',
+      promptLength: prompt.length,
     });
-    
+
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: 'gemini-2.0-flash',
       contents: prompt,
       config: {
         temperature: 0.8,
@@ -147,7 +152,7 @@ async function callGeminiForChat(prompt: string): Promise<string> {
       statusText: error.statusText,
       name: error.name,
     };
-    
+
     logger.error('Gemini API chat error:', errorDetails);
     throw error;
   }
@@ -170,12 +175,12 @@ async function callOpenAIForChat(prompt: string): Promise<string> {
       messages: [
         {
           role: 'system',
-          content: '你是一個專業且友善的AI助手，專門協助用戶解答問題和提供幫助。請用繁體中文回應。'
+          content: '你是一個專業且友善的AI助手，專門協助用戶解答問題和提供幫助。請用繁體中文回應。',
         },
         {
           role: 'user',
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       max_tokens: 2000,
       temperature: 0.8,
@@ -200,14 +205,14 @@ async function callOpenAIForChat(prompt: string): Promise<string> {
  */
 export async function generateChatResponse(request: ChatAIRequest): Promise<string> {
   const { message, conversationHistory, context } = request;
-  
+
   // 建構專業的 prompt
   const prompt = createChatPrompt(message, conversationHistory, context);
-  
-  logger.info('Generating chat response with AI', { 
+
+  logger.info('Generating chat response with AI', {
     messageLength: message.length,
     hasContext: !!context,
-    historyLength: conversationHistory.length 
+    historyLength: conversationHistory.length,
   });
 
   // 先測試 Gemini API 連接性
@@ -220,9 +225,9 @@ export async function generateChatResponse(request: ChatAIRequest): Promise<stri
       logger.info('Successfully generated chat response with OpenAI (Gemini connection failed)');
       return response;
     } catch (openaiError) {
-      logger.error('Both AI services failed for chat', { 
-        geminiError: connectionTest.error, 
-        openaiError 
+      logger.error('Both AI services failed for chat', {
+        geminiError: connectionTest.error,
+        openaiError,
       });
       throw new Error('AI 服務暫時不可用，請稍後再試');
     }
@@ -234,11 +239,11 @@ export async function generateChatResponse(request: ChatAIRequest): Promise<stri
     logger.info('Successfully generated chat response with Gemini');
     return response;
   } catch (geminiError: any) {
-    logger.warn('Gemini API failed for chat, trying OpenAI fallback', { 
+    logger.warn('Gemini API failed for chat, trying OpenAI fallback', {
       error: geminiError.message,
-      details: geminiError 
+      details: geminiError,
     });
-    
+
     // 使用 OpenAI 作為備用方案
     try {
       const response = await callOpenAIForChat(prompt);
@@ -246,7 +251,7 @@ export async function generateChatResponse(request: ChatAIRequest): Promise<stri
       return response;
     } catch (openaiError) {
       logger.error('Both AI services failed for chat', { geminiError, openaiError });
-      
+
       // 兩個 AI 服務都失敗時，拋出錯誤讓上層處理
       throw new Error('AI 服務暫時不可用，請稍後再試');
     }

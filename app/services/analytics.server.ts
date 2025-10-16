@@ -76,7 +76,8 @@ export async function getRubricUsage(teacherId: string) {
 
   return rubrics.map((r) => {
     const usageCount = r.assignmentAreas.length;
-    const allScores = r.assignmentAreas.flatMap((a) => a.submissions)
+    const allScores = r.assignmentAreas
+      .flatMap((a) => a.submissions)
       .map((s) => s.finalScore)
       .filter((v): v is number => typeof v === 'number');
     const averageScore = allScores.length ? allScores.reduce((a, b) => a + b, 0) / allScores.length : 0;
@@ -88,4 +89,3 @@ export async function getRubricUsage(teacherId: string) {
     };
   });
 }
-

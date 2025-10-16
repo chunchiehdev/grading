@@ -3,23 +3,19 @@ import { PrismaClient } from '@/types/database';
 import { ZodError } from 'zod';
 import { GradingProgressService } from './grading-progress.server';
 import logger from '@/utils/logger';
-import { 
-  uiCategoriesToDbCriteria, 
+import {
+  uiCategoriesToDbCriteria,
   validateRubricData,
   validateRubricCompletion,
-  formatZodErrors
+  formatZodErrors,
 } from '@/utils/rubric-transform';
-import { 
+import {
   CreateRubricRequestSchema,
   UpdateRubricRequestSchema,
   DeleteRubricRequestSchema,
-  UIRubricDataSchema 
+  UIRubricDataSchema,
 } from '@/schemas/rubric';
-import { 
-  type RubricCriteria,
-  type RubricResponse,
-  type UIRubricData 
-} from '@/types/rubric';
+import { type RubricCriteria, type RubricResponse, type UIRubricData } from '@/types/rubric';
 
 /**
  * Unified error handling for service operations
@@ -31,15 +27,15 @@ import {
  */
 function handleServiceError(error: unknown, operation: string): { success: false; error: string } {
   console.error(`Error in ${operation}:`, error);
-  
+
   if (error instanceof ZodError) {
     return { success: false, error: formatZodErrors(error).join('; ') };
   }
-  
+
   if (error instanceof Error) {
     return { success: false, error: error.message };
   }
-  
+
   return { success: false, error: `${operation}過程中發生未知錯誤` };
 }
 
@@ -48,7 +44,7 @@ function handleServiceError(error: unknown, operation: string): { success: false
  */
 function transformUICategoriesToCriteria(categories: any[]): any {
   // 改為儲存完整的類別結構，而不是扁平化的 criteria
-  return categories.map(category => ({
+  return categories.map((category) => ({
     id: category.id,
     name: category.name,
     criteria: category.criteria.map((criterion: any) => ({
@@ -58,9 +54,9 @@ function transformUICategoriesToCriteria(categories: any[]): any {
       maxScore: Math.max(...criterion.levels.map((l: any) => l.score)),
       levels: criterion.levels.map((level: any) => ({
         score: level.score,
-        description: level.description
-      }))
-    }))
+        description: level.description,
+      })),
+    })),
   }));
 }
 
@@ -90,23 +86,21 @@ export async function createRubric(
 ): Promise<{ success: boolean; rubricId?: string; error?: string }> {
   try {
     const validation = validateRubricData(rubricData);
-    
+
     if (!validation.success) {
       return { success: false, error: validation.errors[0] };
     }
 
     const completionCheck = validateRubricCompletion(rubricData);
     if (!completionCheck.success) {
-      const hasBlockingErrors = completionCheck.errors.some(err => 
-        err.includes('請至少新增一個評分標準')
-      );
+      const hasBlockingErrors = completionCheck.errors.some((err) => err.includes('請至少新增一個評分標準'));
       if (hasBlockingErrors) {
         return { success: false, error: completionCheck.errors[0] };
       }
     }
 
     const criteria = transformUICategoriesToCriteria(validation.data!.categories);
-    
+
     const result = await db.rubric.create({
       data: {
         userId: userId,
@@ -114,8 +108,8 @@ export async function createRubric(
         description: validation.data!.description,
         version: 1,
         isActive: true,
-        criteria: criteria as any // Prisma JsonValue
-      }
+        criteria: criteria as any, // Prisma JsonValue
+      },
     });
 
     return {
@@ -139,7 +133,7 @@ export async function listRubrics(userId?: string): Promise<{ rubrics: RubricRes
     const dbRubrics = await db.rubric.findMany({
       where: {
         isActive: true,
-        ...(userId && { userId })
+        ...(userId && { userId }),
       },
       orderBy: {
         updatedAt: 'desc',
@@ -158,7 +152,7 @@ export async function listRubrics(userId?: string): Promise<{ rubrics: RubricRes
         isTemplate: dbRubric.isTemplate,
         createdAt: dbRubric.createdAt,
         updatedAt: dbRubric.updatedAt,
-        criteria: categories.flatMap(cat => cat.criteria),
+        criteria: categories.flatMap((cat) => cat.criteria),
         categories: categories,
       };
     });
@@ -183,12 +177,12 @@ export async function listRubrics(userId?: string): Promise<{ rubrics: RubricRes
 export async function getRubric(id: string): Promise<{ rubric?: RubricResponse; error?: string }> {
   try {
     const validatedId = DeleteRubricRequestSchema.shape.id.parse(id);
-    
+
     const dbRubric = await db.rubric.findUnique({
-      where: { 
+      where: {
         id: validatedId,
-        isActive: true 
-      }
+        isActive: true,
+      },
     });
 
     if (!dbRubric) {
@@ -206,7 +200,7 @@ export async function getRubric(id: string): Promise<{ rubric?: RubricResponse; 
       isTemplate: dbRubric.isTemplate,
       createdAt: dbRubric.createdAt,
       updatedAt: dbRubric.updatedAt,
-      criteria: categories.flatMap(cat => cat.criteria),
+      criteria: categories.flatMap((cat) => cat.criteria),
       categories: categories,
     };
 
@@ -234,14 +228,14 @@ export async function updateRubric(
   try {
     const validatedId = DeleteRubricRequestSchema.shape.id.parse(id);
     const validation = validateRubricData(rubricData);
-    
+
     if (!validation.success) {
       return { success: false, error: validation.errors[0] };
     }
 
     // 檢查評分標準是否存在
     const existingRubric = await db.rubric.findUnique({
-      where: { id: validatedId, isActive: true }
+      where: { id: validatedId, isActive: true },
     });
 
     if (!existingRubric) {
@@ -249,7 +243,7 @@ export async function updateRubric(
     }
 
     const criteria = transformUICategoriesToCriteria(validation.data!.categories);
-    
+
     // 直接更新現有記錄（保持相同 ID）
     await db.rubric.update({
       where: { id: validatedId },
@@ -258,8 +252,8 @@ export async function updateRubric(
         description: validation.data!.description,
         version: existingRubric.version + 1,
         criteria: criteria as any, // Prisma JsonValue
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      },
     });
 
     return { success: true };
@@ -278,22 +272,22 @@ export async function updateRubric(
 export async function deleteRubric(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const validatedId = DeleteRubricRequestSchema.shape.id.parse(id);
-    
+
     // 檢查是否有關聯的評分結果
     const relatedResults = await db.gradingResult.findFirst({
-      where: { rubricId: validatedId }
+      where: { rubricId: validatedId },
     });
 
     if (relatedResults) {
-      return { 
-        success: false, 
-        error: '此評分標準已被使用，無法刪除。您可以建立新版本來替代。' 
+      return {
+        success: false,
+        error: '此評分標準已被使用，無法刪除。您可以建立新版本來替代。',
       };
     }
 
     await db.rubric.update({
       where: { id: validatedId },
-      data: { isActive: false }
+      data: { isActive: false },
     });
 
     return { success: true };
@@ -312,10 +306,10 @@ export async function deleteRubric(id: string): Promise<{ success: boolean; erro
 export async function getRubricVersions(id: string): Promise<{ versions: RubricResponse[]; error?: string }> {
   try {
     const validatedId = DeleteRubricRequestSchema.shape.id.parse(id);
-    
+
     // 先找到該評分標準的userId
     const rubric = await db.rubric.findUnique({
-      where: { id: validatedId }
+      where: { id: validatedId },
     });
 
     if (!rubric) {
@@ -326,14 +320,14 @@ export async function getRubricVersions(id: string): Promise<{ versions: RubricR
     const versions = await db.rubric.findMany({
       where: {
         userId: rubric.userId,
-        name: rubric.name
+        name: rubric.name,
       },
       orderBy: {
-        version: 'desc'
-      }
+        version: 'desc',
+      },
     });
 
-    const versionResponses: RubricResponse[] = versions.map(v => ({
+    const versionResponses: RubricResponse[] = versions.map((v) => ({
       id: v.id,
       name: v.name,
       description: v.description,
@@ -360,23 +354,21 @@ export async function getRubricVersions(id: string): Promise<{ versions: RubricR
  * @param {string} sessionId - The grading session ID to process
  * @returns {Promise<Object>} Result object indicating if grading was started
  */
-export async function startGradingProcess(
-  sessionId: string
-): Promise<{ success: boolean; error?: string }> {
+export async function startGradingProcess(sessionId: string): Promise<{ success: boolean; error?: string }> {
   try {
     // Import here to avoid circular dependencies
     const { processGradingSession } = await import('./grading-engine.server');
-    
+
     // Start grading process asynchronously
-    processGradingSession(sessionId).catch(error => {
+    processGradingSession(sessionId).catch((error) => {
       console.error(`Background grading failed for session ${sessionId}:`, error);
     });
-    
+
     return { success: true };
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to start grading process'
+      error: error instanceof Error ? error.message : 'Failed to start grading process',
     };
   }
 }

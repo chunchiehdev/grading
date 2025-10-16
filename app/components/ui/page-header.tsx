@@ -12,21 +12,18 @@ import {
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router';
 
-const pageHeaderVariants = cva(
-  ' ',
-  {
-    variants: {
-      size: {
-        default: 'py-6',
-        sm: 'py-4',
-        lg: 'py-8',
-      },
+const pageHeaderVariants = cva(' ', {
+  variants: {
+    size: {
+      default: 'py-6',
+      sm: 'py-4',
+      lg: 'py-8',
     },
-    defaultVariants: {
-      size: 'default',
-    },
-  }
-);
+  },
+  defaultVariants: {
+    size: 'default',
+  },
+});
 
 export interface PageHeaderProps extends React.HTMLAttributes<HTMLElement> {
   title?: string;
@@ -38,17 +35,17 @@ export interface PageHeaderProps extends React.HTMLAttributes<HTMLElement> {
   size?: VariantProps<typeof pageHeaderVariants>['size'];
 }
 
-export function PageHeader({ 
-  title, 
-  subtitle, 
-  actions, 
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
   menuItems,
   menuButtonLabel = 'Actions',
   showInlineActions = true,
-  size = 'default', 
-  className, 
+  size = 'default',
+  className,
   children,
-  ...props 
+  ...props
 }: PageHeaderProps) {
   return (
     <header className={cn(pageHeaderVariants({ size }), className)} {...props}>
@@ -83,13 +80,11 @@ export function PageHeader({
               </div>
             ) : null}
 
-            {actions ? (
-              <div className="flex items-center gap-2">{actions}</div>
-            ) : null}
+            {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
           </div>
         </div>
         {children}
       </div>
     </header>
   );
-} 
+}

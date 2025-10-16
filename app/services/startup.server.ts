@@ -21,18 +21,18 @@ export class StartupService {
       // 靜默跳過已初始化的情況，避免 SSR 請求產生大量日誌
       return;
     }
-    
+
     if (this.initializationInProgress) {
       logger.warn('🔄 StartupService initialization already in progress, waiting...');
       // 等待初始化完成
       let attempts = 0;
       while (this.initializationInProgress && attempts < 100) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         attempts++;
       }
       return;
     }
-    
+
     this.initializationInProgress = true;
     logger.info('🚀 Initializing system components...');
 
@@ -55,7 +55,6 @@ export class StartupService {
       this.initialized = true;
       this.initializationInProgress = false;
       logger.info('✅ System initialization completed successfully');
-
     } catch (error) {
       logger.error('System initialization failed:', error);
       this.initializationInProgress = false;
@@ -98,17 +97,16 @@ export class StartupService {
   private static async initializeCircuitBreakers(): Promise<void> {
     try {
       logger.info('Initializing Circuit Breakers...');
-      
+
       // 重置所有熔斷器到初始狀態
       ProtectedAIService.resetAllCircuitBreakers();
-      
+
       // 獲取初始狀態
       const initialHealth = ProtectedAIService.getAIServicesHealth();
-      logger.info('Circuit Breakers initialized', { 
+      logger.info('Circuit Breakers initialized', {
         totalBreakers: initialHealth.totalBreakers,
-        healthyBreakers: initialHealth.healthyBreakers 
+        healthyBreakers: initialHealth.healthyBreakers,
       });
-
     } catch (error) {
       logger.error('Failed to initialize Circuit Breakers:', error);
       // 非關鍵錯誤，Circuit Breakers 可以運行時初始化
@@ -121,13 +119,13 @@ export class StartupService {
   private static async initializeMonitoringService(): Promise<void> {
     try {
       logger.info('Starting monitoring service...');
-      
+
       // 收集初始指標
       await MonitoringService.collectSystemMetrics();
-      
+
       // 開始定期指標收集 (5分鐘間隔)
       MonitoringService.startMetricsCollection(5 * 60 * 1000);
-      
+
       logger.info('Monitoring service started');
     } catch (error) {
       logger.error('Failed to start monitoring service:', error);
@@ -152,7 +150,6 @@ export class StartupService {
 
         logger.info('Graceful shutdown completed');
         process.exit(0);
-
       } catch (error) {
         logger.error('Error during graceful shutdown:', error);
         process.exit(1);
@@ -162,7 +159,7 @@ export class StartupService {
     // 註冊信號處理器
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-    
+
     // 處理未捕獲的異常
     process.on('unhandledRejection', (reason, promise) => {
       logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
@@ -188,19 +185,13 @@ export class StartupService {
    */
   static async healthCheck(): Promise<HealthCheckResult> {
     try {
-      const [
-        systemStatus,
-        aiServicesHealth,
-        cacheStats
-      ] = await Promise.all([
+      const [systemStatus, aiServicesHealth, cacheStats] = await Promise.all([
         MonitoringService.getSystemStatusSummary(),
         ProtectedAIService.getAIServicesHealth(),
-        ChatCacheService.getCacheStats()
+        ChatCacheService.getCacheStats(),
       ]);
 
-      const allHealthy = systemStatus.healthy && 
-                        aiServicesHealth.healthy && 
-                        this.initialized;
+      const allHealthy = systemStatus.healthy && aiServicesHealth.healthy && this.initialized;
 
       return {
         healthy: allHealthy,
@@ -208,35 +199,34 @@ export class StartupService {
         components: {
           system: {
             healthy: this.initialized,
-            details: 'System initialization status'
+            details: 'System initialization status',
           },
           database: {
             healthy: systemStatus.metrics.totalUsers >= 0,
-            details: `${systemStatus.metrics.totalUsers} total users`
+            details: `${systemStatus.metrics.totalUsers} total users`,
           },
           aiServices: {
             healthy: aiServicesHealth.healthy,
-            details: `${aiServicesHealth.healthyBreakers}/${aiServicesHealth.totalBreakers} services healthy`
+            details: `${aiServicesHealth.healthyBreakers}/${aiServicesHealth.totalBreakers} services healthy`,
           },
           cache: {
             healthy: cacheStats !== null,
-            details: cacheStats ? 'Cache operational' : 'Cache unavailable'
+            details: cacheStats ? 'Cache operational' : 'Cache unavailable',
           },
           monitoring: {
             healthy: systemStatus.timestamp > 0,
-            details: 'Monitoring service operational'
-          }
+            details: 'Monitoring service operational',
+          },
         },
-        metrics: systemStatus.metrics
+        metrics: systemStatus.metrics,
       };
-
     } catch (error) {
       logger.error('Health check failed:', error);
       return {
         healthy: false,
         timestamp: Date.now(),
         components: {
-          system: { healthy: false, details: 'Health check failed' }
+          system: { healthy: false, details: 'Health check failed' },
         },
         metrics: {
           totalUsers: 0,
@@ -245,8 +235,8 @@ export class StartupService {
           messagesLastHour: 0,
           aiServicesHealthy: false,
           memoryUsageMB: 0,
-          uptime: 0
-        }
+          uptime: 0,
+        },
       };
     }
   }
@@ -264,10 +254,13 @@ export class StartupService {
 interface HealthCheckResult {
   healthy: boolean;
   timestamp: number;
-  components: Record<string, {
-    healthy: boolean;
-    details: string;
-  }>;
+  components: Record<
+    string,
+    {
+      healthy: boolean;
+      details: string;
+    }
+  >;
   metrics: {
     totalUsers: number;
     activeUsers: number;

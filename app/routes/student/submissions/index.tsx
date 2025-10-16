@@ -38,7 +38,7 @@ export default function StudentSubmissions() {
                 </TableHeader>
                 <TableBody>
                   {submissions.map((s) => (
-                    <TableRow 
+                    <TableRow
                       key={s.id}
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => navigate(`/student/submissions/${s.id}`)}

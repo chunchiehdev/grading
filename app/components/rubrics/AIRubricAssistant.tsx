@@ -56,24 +56,15 @@ interface MessageItemProps {
 const MessageItem = memo(({ msg, index, user, onApplyRubric }: MessageItemProps) => {
   const isUser = msg.role === 'USER';
   const rubricData = isUser ? null : msg.parsedContent?.rubricData;
-  const displayText = isUser ? msg.content : (msg.parsedContent?.displayText || msg.content);
+  const displayText = isUser ? msg.content : msg.parsedContent?.displayText || msg.content;
 
   return (
-    <div 
-      key={msg.id} 
-      className="flex gap-4"
-      role="group"
-      aria-label={`${isUser ? '用戶' : 'AI'}訊息 ${index + 1}`}
-    >
+    <div key={msg.id} className="flex gap-4" role="group" aria-label={`${isUser ? '用戶' : 'AI'}訊息 ${index + 1}`}>
       {/* Avatar */}
       <div className="flex-shrink-0">
         {isUser ? (
           user?.picture ? (
-            <img
-              src={user.picture}
-              alt={user.email || 'User'}
-              className="w-8 h-8 rounded-full"
-            />
+            <img src={user.picture} alt={user.email || 'User'} className="w-8 h-8 rounded-full" />
           ) : (
             <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
               <UserIcon className="w-4 h-4 text-primary-foreground" />
@@ -95,22 +86,18 @@ const MessageItem = memo(({ msg, index, user, onApplyRubric }: MessageItemProps)
             role="article"
             aria-label="您的訊息"
           >
-            <p className="text-sm whitespace-pre-wrap leading-relaxed">
-              {msg.content}
-            </p>
+            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
           </div>
         ) : (
           /* AI Message - Direct text with Markdown */
           <div className="text-foreground" role="article" aria-label="AI的回應">
-            <Markdown className="max-w-none">
-              {displayText}
-            </Markdown>
+            <Markdown className="max-w-none">{displayText}</Markdown>
           </div>
         )}
 
         {/* Rubric Preview Card */}
         {rubricData && (
-          <div 
+          <div
             className="mt-4 rounded-xl border border-primary/30 bg-primary/10 p-4 max-w-md"
             role="region"
             aria-label="生成的評分標準預覽"
@@ -119,7 +106,7 @@ const MessageItem = memo(({ msg, index, user, onApplyRubric }: MessageItemProps)
               <CheckCircle className="h-4 w-4" aria-hidden="true" />
               <span className="font-medium text-sm">評分標準已生成</span>
             </div>
-            
+
             <div className="mb-3">
               <div className="font-medium text-sm text-foreground">{rubricData.name}</div>
               <div className="text-xs text-muted-foreground mt-1">
@@ -160,32 +147,21 @@ interface AIRubricAssistantProps {
   };
 }
 
-
 export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubric }: AIRubricAssistantProps) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const loaderData = useLoaderData() as LoaderData | undefined;
   const user = loaderData?.user || null;
-  
-  const {
-    currentChat,
-    isLoading,
-    isConnected,
-    error,
-    connect,
-    disconnect,
-    createChat,
-    openChat,
-    sendMsg,
-    clearError
-  } = useChatStore();
+
+  const { currentChat, isLoading, isConnected, error, connect, disconnect, createChat, openChat, sendMsg, clearError } =
+    useChatStore();
 
   // Initialize chat when dialog opens
   useEffect(() => {
     const userId = user?.id;
-    console.log("userId", userId)
-    
+    console.log('userId', userId);
+
     if (isOpen && userId) {
       // 防止重複連接：只在用戶改變或未連接時才連接
       if (userId !== currentUserId.current) {
@@ -196,15 +172,15 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
         console.log('[DEBUG] Reconnecting to existing user:', userId);
         connect(userId);
       }
-      
+
       // 只在沒有當前聊天且不在載入狀態時才創建新聊天
       if (!currentChat && !isLoading && isConnected) {
         console.log('[DEBUG] Creating new chat...');
         const initChat = async () => {
           try {
-            const chatId = await createChat('評分標準生成', { 
+            const chatId = await createChat('評分標準生成', {
               type: 'rubric_generation',
-              currentRubric 
+              currentRubric,
             });
             if (chatId) {
               await openChat(chatId);
@@ -222,18 +198,18 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
       currentUserId.current = null;
     }
   }, [isOpen, user?.id]);
-  
+
   // 獨立的 useEffect 處理連接狀態變化 - 減少依賴項
   useEffect(() => {
     const userId = user?.id;
-    
+
     // 只在真正需要時才重新連接，減少不必要的檢查
     if (isOpen && userId && userId === currentUserId.current && !isConnected && !isLoading) {
       console.log('[DEBUG] Connection lost, attempting reconnect for user:', userId);
       const timeoutId = setTimeout(() => {
         connect(userId);
       }, 100); // 延遲 100ms 避免過於頻繁的重連嘗試
-      
+
       return () => clearTimeout(timeoutId);
     }
   }, [isConnected, isOpen]); // 移除不必要的依賴
@@ -258,7 +234,7 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
       });
     }
   }, []);
-  
+
   // 使用 useEffect 但頻率較低
   useEffect(() => {
     handleTextareaResize();
@@ -271,15 +247,13 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
     }
   }, [isOpen, error]); // 移除 clearError 依賴
 
-
-
   const sendMessage = () => {
     if (!input.trim() || isLoading || !isConnected || !currentChat) {
       console.log('[DEBUG] Cannot send message:', {
         hasInput: !!input.trim(),
         isLoading,
         isConnected,
-        hasCurrentChat: !!currentChat
+        hasCurrentChat: !!currentChat,
       });
       return;
     }
@@ -296,10 +270,13 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
     }
   };
 
-  const handleApplyRubric = useCallback((rubric: GeneratedRubric) => {
-    onApplyRubric(rubric);
-    onClose();
-  }, [onApplyRubric, onClose]);
+  const handleApplyRubric = useCallback(
+    (rubric: GeneratedRubric) => {
+      onApplyRubric(rubric);
+      onClose();
+    },
+    [onApplyRubric, onClose]
+  );
 
   const handlePromptClick = (prompt: string) => {
     setInput(prompt);
@@ -307,30 +284,23 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      
-      <DialogContent 
+      <DialogContent
         className="fixed inset-0 max-w-none h-screen p-0 flex flex-col bg-background border-0 translate-x-0 translate-y-0 left-0 top-0 sm:rounded-none"
         aria-describedby="ai-rubric-description"
       >
-        
-      <DialogTitle className='sr-only'>AI 評分標準助手</DialogTitle>
-    
+        <DialogTitle className="sr-only">AI 評分標準助手</DialogTitle>
+
         {/* Hidden description for screen readers */}
         <div id="ai-rubric-description" className="sr-only">
           AI 評分標準助手對話界面，可以幫助您生成專業的評分標準
         </div>
 
         {/* Messages Area */}
-        <div 
-          className="flex-1 overflow-y-auto pt-6 bg-background"
-          role="log"
-          aria-label="對話記錄"
-          aria-live="polite"
-        >
+        <div className="flex-1 overflow-y-auto pt-6 bg-background" role="log" aria-label="對話記錄" aria-live="polite">
           <div className="max-w-4xl mx-auto px-6">
             {/* Connection Status */}
             {!isConnected && (
-              <div 
+              <div
                 className="flex items-center justify-center p-4 rounded-lg bg-muted border border-border mb-6"
                 role="status"
                 aria-label="連接狀態"
@@ -344,16 +314,16 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
 
             {/* Error Display */}
             {error && (
-              <div 
+              <div
                 className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 mb-6"
                 role="alert"
                 aria-label="錯誤訊息"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-destructive">{error}</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={clearError}
                     className="border-destructive/20 text-destructive hover:bg-destructive/10"
                   >
@@ -366,13 +336,7 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
             {/* Messages */}
             <div className="space-y-8" role="group" aria-label="對話訊息">
               {currentChat?.msgs.map((msg, index) => (
-                <MessageItem
-                  key={msg.id}
-                  msg={msg}
-                  index={index}
-                  user={user}
-                  onApplyRubric={handleApplyRubric}
-                />
+                <MessageItem key={msg.id} msg={msg} index={index} user={user} onApplyRubric={handleApplyRubric} />
               ))}
 
               {/* Loading Message */}
@@ -401,18 +365,15 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
         {/* Sticky Input Area */}
         <div className="sticky bottom-0 bg-background border-t border-border p-6">
           <div className="max-w-4xl mx-auto">
-            <form 
-              onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage();
+              }}
               className="relative flex items-end gap-3 bg-muted/50 rounded-2xl p-3 border border-border shadow-lg"
             >
               {/* Attachment Button */}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 rounded-lg p-0"
-                aria-label="添加附件"
-              >
+              <Button type="button" variant="ghost" size="sm" className="h-8 w-8 rounded-lg p-0" aria-label="添加附件">
                 <Plus className="h-4 w-4" />
               </Button>
 

@@ -40,10 +40,7 @@ export interface CoursePageData {
  * @param teacherId - Teacher's user ID for authorization
  * @returns Course page data or null if unauthorized
  */
-export async function getCoursePageData(
-  courseId: string, 
-  teacherId: string
-): Promise<CoursePageData | null> {
+export async function getCoursePageData(courseId: string, teacherId: string): Promise<CoursePageData | null> {
   try {
     // Step 1: Single permission verification
     const courseExists = await db.course.findFirst({
@@ -51,11 +48,11 @@ export async function getCoursePageData(
         id: courseId,
         teacherId,
       },
-      select: { id: true }
+      select: { id: true },
     });
 
     if (!courseExists) {
-      return null; 
+      return null;
     }
 
     // Step 2: Get course data with assignment areas
@@ -136,7 +133,6 @@ export async function getCoursePageData(
         recentEnrollments: enrollmentStats.recentEnrollments,
       },
     };
-
   } catch (error) {
     console.error('Error loading course page data:', error);
     return null;

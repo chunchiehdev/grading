@@ -29,7 +29,6 @@ interface CriterionItemAccordionProps {
   onUpdateLevel: (score: number, description: string) => void;
 }
 
-
 export function CriterionItemAccordion({
   criterion,
   isSelected,
@@ -47,7 +46,7 @@ export function CriterionItemAccordion({
         <AccordionPrimitive.Trigger
           onClick={onSelect}
           className={cn(
-            'group flex-1 grid grid-cols-[1fr_auto] items-center gap-3 px-4 sm:px-6 py-4 text-left text-sm font-medium transition-all hover:underline',
+            'group flex-1 grid grid-cols-[1fr_auto] items-center gap-3 px-4 sm:px-6 py-4 text-left text-sm font-medium transition-all hover:underline'
           )}
         >
           <div className="min-w-0">

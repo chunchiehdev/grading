@@ -7,5 +7,5 @@ export const REDIS_CONFIG = {
     const delay = Math.min(times * 50, 2000);
     return delay;
   },
-  maxRetriesPerRequest: 3
+  maxRetriesPerRequest: 3,
 } as const;

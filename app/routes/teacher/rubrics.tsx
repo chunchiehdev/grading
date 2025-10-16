@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { useTranslation } from 'react-i18next';
 
-
 interface LoaderData {
   teacher: { id: string; email: string; role: string; name: string };
   rubricsData: {
@@ -44,10 +43,10 @@ export default function TeacherRubrics() {
   return <RubricsContent teacher={teacher} rubricsData={rubricsData} />;
 }
 
-function RubricsContent({ 
-  teacher, 
-  rubricsData 
-}: { 
+function RubricsContent({
+  teacher,
+  rubricsData,
+}: {
   teacher: { id: string; email: string; role: string; name: string };
   rubricsData: {
     rubrics: Array<{
@@ -65,8 +64,8 @@ function RubricsContent({
 }) {
   const { t } = useTranslation(['rubric', 'common']);
   const { rubrics = [], error } = rubricsData;
-  const activeRubrics = rubrics.filter(r => r.isActive);
-  const templateRubrics = rubrics.filter(r => r.isTemplate);
+  const activeRubrics = rubrics.filter((r) => r.isActive);
+  const templateRubrics = rubrics.filter((r) => r.isTemplate);
 
   const headerActions = (
     <Button asChild>
@@ -77,103 +76,96 @@ function RubricsContent({
     </Button>
   );
 
-
   return (
     <div>
-      <PageHeader
-        title={t('rubric:title')}
-        subtitle={t('rubric:subtitle')}
-        actions={headerActions}
-      />
+      <PageHeader title={t('rubric:title')} subtitle={t('rubric:subtitle')} actions={headerActions} />
 
       <div className="max-w-7xl mx-auto space-y-8">
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">{t('rubric:total')}</p>
-                    <p className="text-2xl font-bold text-foreground">{rubrics.length}</p>
-                  </div>
-                  <FileText className="w-8 h-8 text-primary" />
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{t('rubric:total')}</p>
+                  <p className="text-2xl font-bold text-foreground">{rubrics.length}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <FileText className="w-8 h-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">{t('rubric:active')}</p>
-                    <p className="text-2xl font-bold text-foreground">{activeRubrics.length}</p>
-                  </div>
-                  <Clock className="w-8 h-8 text-green-600" />
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{t('rubric:active')}</p>
+                  <p className="text-2xl font-bold text-foreground">{activeRubrics.length}</p>
                 </div>
-              </CardContent>
-            </Card>
+                <Clock className="w-8 h-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">{t('rubric:template')}</p>
-                    <p className="text-2xl font-bold text-foreground">{templateRubrics.length}</p>
-                  </div>
-                  <Calendar className="w-8 h-8 text-purple-600" />
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">{t('rubric:template')}</p>
+                  <p className="text-2xl font-bold text-foreground">{templateRubrics.length}</p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Error State */}
-          {error && (
-            <Card className="bg-destructive/10 border-destructive/20">
-              <CardContent className="pt-6">
-                <p className="text-destructive">{t('rubric:errorLoading', { error })}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Empty State */}
-          {!error && rubrics.length === 0 && (
-            <Card className="bg-card text-card-foreground border">
-              <CardContent className="pt-6">
-                <div className="text-center py-12">
-                  <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">
-                    {t('rubric:emptyState.categoriesTitle')}
-                  </h3>
-                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    {t('rubric:emptyState.categoriesDescription')}
-                  </p>
-                  <Button asChild>
-            <Link to="/teacher/rubrics/new">
-              <Plus className="w-4 h-4 mr-2" />
-              {t('rubric:emptyState.action')}
-            </Link>
-          </Button>
+                <Calendar className="w-8 h-8 text-purple-600" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </CardContent>
-    </Card>
-  )}
 
-          {/* Rubrics Grid */}
-          {!error && rubrics.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {rubrics.map((rubric) => (
-                <RubricCard key={rubric.id} rubric={rubric} />
-              ))}
-            </div>
-          )}
+        {/* Error State */}
+        {error && (
+          <Card className="bg-destructive/10 border-destructive/20">
+            <CardContent className="pt-6">
+              <p className="text-destructive">{t('rubric:errorLoading', { error })}</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Empty State */}
+        {!error && rubrics.length === 0 && (
+          <Card className="bg-card text-card-foreground border">
+            <CardContent className="pt-6">
+              <div className="text-center py-12">
+                <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">{t('rubric:emptyState.categoriesTitle')}</h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                  {t('rubric:emptyState.categoriesDescription')}
+                </p>
+                <Button asChild>
+                  <Link to="/teacher/rubrics/new">
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('rubric:emptyState.action')}
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Rubrics Grid */}
+        {!error && rubrics.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rubrics.map((rubric) => (
+              <RubricCard key={rubric.id} rubric={rubric} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function RubricCard({ 
-  rubric 
-}: { 
+function RubricCard({
+  rubric,
+}: {
   rubric: {
     id: string;
     name: string;
@@ -206,9 +198,7 @@ function RubricCard({
               </Link>
             </CardTitle>
             {rubric.description && (
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {rubric.description}
-              </p>
+              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{rubric.description}</p>
             )}
           </div>
         </div>
@@ -219,23 +209,29 @@ function RubricCard({
         <div className="flex items-center justify-between">
           <div className="flex gap-2">
             {rubric.isActive ? (
-              <Badge variant="default" className="text-xs">Active</Badge>
+              <Badge variant="default" className="text-xs">
+                Active
+              </Badge>
             ) : (
-              <Badge variant="secondary" className="text-xs">Inactive</Badge>
+              <Badge variant="secondary" className="text-xs">
+                Inactive
+              </Badge>
             )}
             {rubric.isTemplate && (
-              <Badge variant="outline" className="text-xs">Template</Badge>
+              <Badge variant="outline" className="text-xs">
+                Template
+              </Badge>
             )}
           </div>
-          <span className="text-xs text-muted-foreground">
-            v{rubric.version}
-          </span>
+          <span className="text-xs text-muted-foreground">v{rubric.version}</span>
         </div>
 
         {/* Last Updated */}
         <div className="flex items-center text-sm text-muted-foreground">
           <Calendar className="w-4 h-4 mr-2" />
-          <span>{t('rubric:update')} {formatDate(rubric.updatedAt)}</span>
+          <span>
+            {t('rubric:update')} {formatDate(rubric.updatedAt)}
+          </span>
         </div>
 
         {/* Criteria Count */}

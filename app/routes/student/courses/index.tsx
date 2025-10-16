@@ -50,9 +50,7 @@ export default function StudentCourses() {
               <div className="text-center py-12">
                 <UserPlus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">{t('course:emptyState.title')}</h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  {t('course:emptyState.description')}
-                </p>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">{t('course:emptyState.description')}</p>
 
                 <div className="bg-muted rounded-lg p-4 mb-6 max-w-md mx-auto">
                   <h4 className="font-medium text-foreground mb-2">{t('course:emptyState.howToJoin')}</h4>
