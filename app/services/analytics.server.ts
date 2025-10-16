@@ -3,7 +3,7 @@ import { db } from '@/lib/db.server';
 export async function getOverallTeacherStats(teacherId: string) {
   const [totalCourses, totalStudents, totalSubmissions, avgScoreAgg] = await Promise.all([
     db.course.count({ where: { teacherId } }),
-    db.enrollment.count({ where: { course: { teacherId } } }),
+    db.enrollment.count({ where: { class: { course: { teacherId } } } }),
     db.submission.count({ where: { assignmentArea: { course: { teacherId } } } }),
     db.submission.aggregate({
       where: { assignmentArea: { course: { teacherId } }, finalScore: { not: null } },

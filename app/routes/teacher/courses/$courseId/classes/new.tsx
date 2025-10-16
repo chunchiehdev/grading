@@ -1,18 +1,16 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { Users, MapPin } from 'lucide-react';
+import { Users, MapPin, Clock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById } from '@/services/course.server';
 import { createClass } from '@/services/class.server';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PageHeader } from '@/components/ui/page-header';
 import { PeriodSelector } from '@/components/course/PeriodSelector';
-import { getPeriodByCode, getWeekdayByCode } from '@/constants/schedule';
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string };
@@ -31,7 +29,6 @@ interface ActionData {
 export async function loader({ request, params }: LoaderFunctionArgs): Promise<LoaderData> {
   const teacher = await requireTeacher(request);
   const courseId = params.courseId!;
-
   const course = await getCourseById(courseId, teacher.id);
 
   if (!course) {
@@ -53,15 +50,14 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const capacityStr = formData.get('capacity') as string;
 
   if (!name || name.trim().length === 0) {
-    return { error: '時段名稱為必填項目' };
+    return { error: 'classForm.classNameRequired' };
   }
 
   if (!weekday || !periodCode) {
-    return { error: '請選擇上課時間（星期和節次）' };
+    return { error: 'classForm.scheduleRequired' };
   }
 
   try {
-    // Build schedule object with new format
     const schedule = {
       weekday,
       periodCode,
@@ -73,107 +69,132 @@ export async function action({ request, params }: ActionFunctionArgs) {
       name: name.trim(),
       schedule,
       capacity: capacityStr ? parseInt(capacityStr, 10) : null,
-      assistantId: null, // Future enhancement: add assistant selection
+      assistantId: null,
     };
 
     await createClass(teacher.id, classData);
-
     return redirect(`/teacher/courses/${courseId}`);
   } catch (error) {
     console.error('Error creating class:', error);
-    return { error: '建立時段失敗，請重新嘗試。' };
+    return { error: 'classForm.createError' };
   }
 }
 
 export default function NewClass() {
-  const { teacher, course } = useLoaderData<typeof loader>();
+  const { course } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
+  const { t } = useTranslation(['course', 'common']);
 
   return (
-    <div>
-      <PageHeader
-        title="新增時段"
-        subtitle={`為「${course.name}」建立新的時段`}
-      />
+    <div className="min-h-screen bg-background">
+      {/* 標題區 - 居中 */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-16 xl:pt-20 pb-8 lg:pb-12 text-center">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-semibold tracking-tight mb-3 lg:mb-4 xl:mb-6 text-foreground">
+          {t('course:classForm.newClass')}
+        </h1>
+        <p className="text-base lg:text-lg xl:text-xl text-muted-foreground">
+          {t('course:classForm.createFor')}{' '}
+          <span className="font-medium text-foreground">{course.name}</span>
+        </p>
+      </div>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>時段資訊</CardTitle>
-            <CardDescription>設定時段的基本資訊，包括名稱、上課時間和人數限制</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form method="post" className="space-y-6">
-              {/* 時段名稱 */}
-              <div className="space-y-2">
-                <Label htmlFor="name">
-                  時段名稱 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  required
-                  placeholder="例如：101班、週五下午班、Section A"
-                />
-              </div>
+      {/* 表單區 - Apple 風格淺色背景區塊 */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 lg:pb-32">
+        <Form method="post" className="space-y-6 lg:space-y-8 xl:space-y-10">
+          {/* 錯誤提示 */}
+          {actionData?.error && (
+            <Alert variant="destructive" className="rounded-2xl lg:text-base">
+              <AlertDescription>{t(`course:${actionData.error}`)}</AlertDescription>
+            </Alert>
+          )}
 
-              {/* 上課時間選擇 */}
-              <div className="space-y-4">
-                <PeriodSelector
-                  required={true}
-                  weekdayName="weekday"
-                  periodName="periodCode"
-                  showPreview={true}
-                />
-              </div>
+          {/* 基本資訊區塊 */}
+          <div className="bg-card rounded-2xl shadow-sm p-5 sm:p-6 lg:p-8 xl:p-10 space-y-5 lg:space-y-6">
+            <div className="space-y-2 lg:space-y-3">
+              <Label htmlFor="name" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+                {t('course:classForm.className')}
+              </Label>
+              <Input
+                id="name"
+                name="name"
+                required
+                placeholder={t('course:classForm.classNamePlaceholder')}
+                className="rounded-xl h-11 sm:h-12 lg:h-14 xl:h-16 text-base lg:text-lg xl:text-xl"
+              />
+            </div>
+          </div>
 
-              {/* 教室 */}
-              <div className="space-y-2">
-                <Label htmlFor="room" className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  教室（選填）
-                </Label>
-                <Input
-                  id="room"
-                  name="room"
-                  placeholder="例如：資訊館 301"
-                />
-              </div>
+          {/* 時間地點區塊 */}
+          <div className="bg-card rounded-2xl shadow-sm p-5 sm:p-6 lg:p-8 xl:p-10 space-y-5 lg:space-y-6">
+            <div className="space-y-2 lg:space-y-3">
+              <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground flex items-center gap-2 lg:gap-3">
+                <Clock className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 text-muted-foreground" />
+                {t('course:classForm.schedule')}
+              </Label>
+              <p className="text-sm lg:text-base xl:text-lg text-muted-foreground mb-4">
+                {t('course:classForm.scheduleDescription')}
+              </p>
+              <PeriodSelector
+                required={true}
+                weekdayName="weekday"
+                periodName="periodCode"
+                showPreview={true}
+              />
+            </div>
 
-              {/* 人數上限 */}
-              <div className="space-y-2">
-                <Label htmlFor="capacity" className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  人數上限（選填）
-                </Label>
-                <Input
-                  id="capacity"
-                  name="capacity"
-                  type="number"
-                  min="1"
-                  placeholder="不填寫則無人數限制"
-                />
-                <p className="text-sm text-muted-foreground">
-                  設定時段的最大學生人數，留空表示無限制
-                </p>
-              </div>
+            <div className="space-y-2 lg:space-y-3 pt-2 lg:pt-4">
+              <Label htmlFor="room" className="text-base lg:text-lg xl:text-xl font-medium text-foreground flex items-center gap-2 lg:gap-3">
+                <MapPin className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 text-muted-foreground" />
+                {t('course:classForm.roomOptional')}
+              </Label>
+              <Input
+                id="room"
+                name="room"
+                placeholder={t('course:classForm.roomPlaceholder')}
+                className="rounded-xl h-11 sm:h-12 lg:h-14 xl:h-16 text-base lg:text-lg xl:text-xl"
+              />
+            </div>
+          </div>
 
-              {actionData?.error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{actionData.error}</AlertDescription>
-                </Alert>
-              )}
+          {/* 人數限制區塊 */}
+          <div className="bg-card rounded-2xl shadow-sm p-5 sm:p-6 lg:p-8 xl:p-10 space-y-3 lg:space-y-4">
+            <div className="space-y-2 lg:space-y-3">
+              <Label htmlFor="capacity" className="text-base lg:text-lg xl:text-xl font-medium text-foreground flex items-center gap-2 lg:gap-3">
+                <Users className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 text-muted-foreground" />
+                {t('course:classForm.capacityOptional')}
+              </Label>
+              <Input
+                id="capacity"
+                name="capacity"
+                type="number"
+                min="1"
+                placeholder={t('course:classForm.capacityPlaceholder')}
+                className="rounded-xl h-11 sm:h-12 lg:h-14 xl:h-16 text-base lg:text-lg xl:text-xl"
+              />
+              <p className="text-sm lg:text-base xl:text-lg text-muted-foreground">
+                {t('course:classForm.capacityDescription')}
+              </p>
+            </div>
+          </div>
 
-              <div className="flex justify-end space-x-4">
-                <Button asChild variant="outline">
-                  <Link to={`/teacher/courses/${course.id}`}>取消</Link>
-                </Button>
-                <Button type="submit">建立時段</Button>
-              </div>
-            </Form>
-          </CardContent>
-        </Card>
-      </main>
+          {/* Apple 風格大按鈕 */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-5 xl:gap-6 pt-4 lg:pt-6 xl:pt-8">
+            <Button
+              asChild
+              variant="secondary"
+              className="flex-1 h-11 sm:h-12 lg:h-14 xl:h-16 rounded-xl text-base lg:text-lg xl:text-xl font-medium"
+            >
+              <Link to={`/teacher/courses/${course.id}`}>{t('course:classForm.cancel')}</Link>
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1 h-11 sm:h-12 lg:h-14 xl:h-16 rounded-xl text-base lg:text-lg xl:text-xl font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+            >
+              {t('course:classForm.create')}
+            </Button>
+          </div>
+        </Form>
+      </div>
     </div>
   );
 }

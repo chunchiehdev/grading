@@ -254,7 +254,14 @@ export default function SubmitAssignment() {
       if (data.success && data.data?.status === 'COMPLETED') {
         const result = data.data.gradingResults?.find((r: any) => r.result);
         if (result?.result) {
-          dispatch({ type: 'analysis_completed', result: result.result });
+          // Store both result and normalizedScore
+          dispatch({
+            type: 'analysis_completed',
+            result: {
+              ...result.result,
+              _normalizedScore: result.normalizedScore // Store normalized score with result
+            }
+          });
 
           // Save AI analysis result to draft
           try {
@@ -455,7 +462,10 @@ export default function SubmitAssignment() {
             <div className="h-full bg-gradient-to-br from-background to-muted/30 rounded-2xl border border-border/50 overflow-hidden">
               <div className="h-full overflow-y-auto p-6">
                 {state.session?.result ? (
-                  <GradingResultDisplay result={state.session.result} />
+                  <GradingResultDisplay
+                    result={state.session.result}
+                    normalizedScore={state.session.result._normalizedScore}
+                  />
                 ) : (
                   <GradingResultDisplay />
                 )}

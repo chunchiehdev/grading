@@ -97,6 +97,14 @@ export async function processGradingResult(
     await SimpleProgressService.updateGradingProgress(resultId, 80);
 
     if (gradingResponse.success && gradingResponse.result) {
+      // Calculate 100-point normalized score
+      const { totalScore, maxScore } = gradingResponse.result;
+      const normalizedScore = maxScore > 0
+        ? Math.round((totalScore / maxScore) * 10000) / 100
+        : null;
+
+      logger.info(`📊 Normalized score: ${totalScore}/${maxScore} → ${normalizedScore}/100`);
+
       // Success - save result
       await db.gradingResult.update({
         where: { id: resultId },
@@ -104,6 +112,7 @@ export async function processGradingResult(
           status: 'COMPLETED',
           progress: 100,
           result: gradingResponse.result as any,
+          normalizedScore,
           gradingModel: gradingResponse.provider,
           gradingTokens: gradingResponse.metadata?.tokens,
           gradingDuration: gradingResponse.metadata?.duration,

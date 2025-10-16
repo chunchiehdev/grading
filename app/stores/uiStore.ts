@@ -2,12 +2,19 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { useEffect, useState } from 'react';
+import i18n from '@/localization/i18n';
 
 /**
  * Theme options for the application
  * @typedef {'light'|'dark'|'system'} Theme
  */
 type Theme = 'light' | 'dark' | 'system';
+
+/**
+ * Language options for the application
+ * @typedef {'en'|'zh'} Language
+ */
+type Language = 'en' | 'zh';
 
 /**
  * Grading workflow step enumeration
@@ -28,12 +35,16 @@ interface UiState {
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
 
+  language: Language;
+  setLanguage: (language: Language) => void;
+  toggleLanguage: () => void;
+
   lastVisitedPage: string | null;
   setLastVisitedPage: (page: string) => void;
 
   currentStep: GradingStep;
   canProceed: boolean;
-  
+
   setStep: (step: GradingStep) => void;
   setCanProceed: (canProceed: boolean) => void;
   resetUI: () => void;
@@ -52,6 +63,20 @@ function applyTheme(theme: Theme) {
 
   root.classList.remove('light', 'dark');
   root.classList.add(effectiveTheme);
+}
+
+/**
+ * Applies the selected language to i18n and stores preference in cookie
+ * @param {Language} language - The language to apply ('en' or 'zh')
+ */
+function applyLanguage(language: Language) {
+  if (typeof window === 'undefined') return;
+
+  // Update i18n language
+  i18n.changeLanguage(language);
+
+  // Set language preference in cookie for server-side detection
+  document.cookie = `language=${language}; path=/; max-age=31536000; SameSite=Lax`;
 }
 
 /**
@@ -86,6 +111,17 @@ const store = create<UiState>()(
         applyTheme(newTheme);
       }),
 
+      language: 'zh',
+      setLanguage: (language) => set((state) => {
+        state.language = language;
+        applyLanguage(language);
+      }),
+      toggleLanguage: () => set((state) => {
+        const newLanguage = state.language === 'zh' ? 'en' : 'zh';
+        state.language = newLanguage;
+        applyLanguage(newLanguage);
+      }),
+
       lastVisitedPage: null,
       setLastVisitedPage: (page) => set((state) => {
         state.lastVisitedPage = page;
@@ -108,12 +144,17 @@ const store = create<UiState>()(
       })
     })),
     {
-      name: 'ui-storage', 
+      name: 'ui-storage',
       storage: createJSONStorage(() => localStorage),
-      
+
       onRehydrateStorage: () => (state) => {
-        if (state && state.theme) {
-          applyTheme(state.theme);
+        if (state) {
+          if (state.theme) {
+            applyTheme(state.theme);
+          }
+          if (state.language) {
+            applyLanguage(state.language);
+          }
         }
       },
     }
@@ -136,6 +177,7 @@ export const useUiStore = () => {
     return {
       sidebarCollapsed: true,
       theme: 'light' as Theme,
+      language: 'zh' as Language,
       currentStep: 'upload' as GradingStep,
       canProceed: false,
       lastVisitedPage: null,
@@ -143,6 +185,8 @@ export const useUiStore = () => {
       setSidebarCollapsed: () => {},
       setTheme: () => {},
       toggleTheme: () => {},
+      setLanguage: () => {},
+      toggleLanguage: () => {},
       setLastVisitedPage: () => {},
       setStep: () => {},
       setCanProceed: () => {},

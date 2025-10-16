@@ -97,27 +97,9 @@ export async function getCoursePageData(
       orderBy: { createdAt: 'desc' },
     });
 
-    // Step 4: Get enrollment statistics
-    const [enrollmentCount, recentEnrollments] = await Promise.all([
-      db.enrollment.count({
-        where: { courseId },
-      }),
-      db.enrollment.findMany({
-        where: { courseId },
-        select: {
-          enrolledAt: true,
-          student: {
-            select: {
-              id: true,
-              email: true,
-              name: true,
-            },
-          },
-        },
-        orderBy: { enrolledAt: 'desc' },
-        take: 5,
-      }),
-    ]);
+    // Step 4: Get enrollment statistics using the correct service function
+    const { getCourseEnrollmentStats } = await import('./enrollment.server');
+    const enrollmentStats = await getCourseEnrollmentStats(courseId, teacherId);
 
     // Format dates on server side (keeping existing pattern)
     const { formatDateForDisplay } = await import('@/lib/date.server');
@@ -150,8 +132,8 @@ export async function getCoursePageData(
       formattedCreatedDate,
       invitation,
       enrollmentStats: {
-        totalEnrollments: enrollmentCount,
-        recentEnrollments,
+        totalEnrollments: enrollmentStats.totalEnrollments,
+        recentEnrollments: enrollmentStats.recentEnrollments,
       },
     };
 

@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { getSession, commitSession } from '@/sessions.server';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { CheckCircle, AlertCircle, Users, User, Clock, MapPin, GraduationCap } from 'lucide-react';
+import { CheckCircle, AlertCircle, Users, User, Clock, MapPin, GraduationCap, Terminal, AlertCircleIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { getUser } from '@/services/auth.server';
@@ -10,11 +10,12 @@ import { listClassesByCourse, type ClassInfo } from '@/services/class.server';
 import { enrollStudentInClass } from '@/services/enrollment.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
+import { formatScheduleDisplay } from '@/constants/schedule';
 
 interface LoaderData {
   user: { id: string; email: string; role: string; name: string };
@@ -95,7 +96,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
       const teacherId = validation.course?.teacher.id;
 
       if (!courseId || !teacherId) {
-        return { success: false, error: '無效的邀請碼資訊' };
+        return { success: false, error: 'course:joinCourse.invalidInvitationInfo' };
       }
 
       const classes = await listClassesByCourse(courseId, teacherId);
@@ -104,12 +105,12 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
       if (classes.length === 0) {
         return {
           success: false,
-          error: '此課程尚未建立時段，請聯絡教師',
+          error: 'course:joinCourse.noClassesAvailable',
         };
       }
 
       // Early return: Classes exist but none selected
-      return { success: false, error: '請選擇時段' };
+      return { success: false, error: 'course:joinCourse.pleaseSelectClass' };
     }
   }
 
@@ -140,7 +141,10 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
 export default function JoinCourse() {
   const { user, validation, invitationCode, availableClasses } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
-  const { t } = useTranslation(['course', 'common']);
+  const { t, i18n } = useTranslation(['course', 'common']);
+
+  // 當前語言
+  const currentLanguage = i18n.language.startsWith('zh') ? 'zh' : 'en';
 
   // If invitation code specifies a class, use that; otherwise require selection
   const preselectedClassId = validation.invitationCode?.classId || null;
@@ -157,12 +161,8 @@ export default function JoinCourse() {
                 <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
                   <AlertCircle className="h-10 w-10 text-destructive" />
                 </div>
-                <h3 className="text-2xl font-bold mb-2">
-                  {t('course:joinCourse.notValid')}
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  {validation.error}
-                </p>
+                <h3 className="text-2xl font-bold mb-2">{t('course:joinCourse.notValid')}</h3>
+                <p className="text-muted-foreground mb-6">{validation.error}</p>
 
                 {validation.course && (
                   <div className="bg-muted/50 border rounded-lg p-6 mb-6 text-left">
@@ -191,9 +191,7 @@ export default function JoinCourse() {
                 )}
 
                 <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    {t('course:joinCourse.contactTeacher')}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t('course:joinCourse.contactTeacher')}</p>
 
                   <Button asChild className="w-full" size="lg">
                     <Link to={user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard'}>
@@ -220,12 +218,8 @@ export default function JoinCourse() {
                 <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mb-4">
                   <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-500" />
                 </div>
-                <h3 className="text-2xl font-bold mb-2">
-                  {t('course:joinCourse.alreadyEnrolled')}
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  {t('course:joinCourse.alreadyMember')}
-                </p>
+                <h3 className="text-2xl font-bold mb-2">{t('course:joinCourse.alreadyEnrolled')}</h3>
+                <p className="text-muted-foreground mb-6">{t('course:joinCourse.alreadyMember')}</p>
 
                 {validation.course && (
                   <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-6 mb-6">
@@ -250,14 +244,10 @@ export default function JoinCourse() {
 
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button asChild className="flex-1" size="lg">
-                    <Link to="/student/assignments">
-                      {t('course:viewAssignments')}
-                    </Link>
+                    <Link to="/student/assignments">{t('course:viewAssignments')}</Link>
                   </Button>
                   <Button asChild variant="outline" className="flex-1" size="lg">
-                    <Link to="/student/dashboard">
-                      {t('course:joinCourse.goToDashboard')}
-                    </Link>
+                    <Link to="/student/dashboard">{t('course:joinCourse.goToDashboard')}</Link>
                   </Button>
                 </div>
               </div>
@@ -280,9 +270,7 @@ export default function JoinCourse() {
               </div>
               {t('course:joinCourse.invitation')}
             </CardTitle>
-            <CardDescription className="text-base">
-              {t('course:joinCourse.reviewDetails')}
-            </CardDescription>
+            <CardDescription className="text-base">{t('course:joinCourse.reviewDetails')}</CardDescription>
           </CardHeader>
 
           <CardContent className="space-y-6">
@@ -294,13 +282,9 @@ export default function JoinCourse() {
                     <GraduationCap className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-foreground mb-1">
-                      {validation.course.name}
-                    </h3>
+                    <h3 className="text-xl font-bold text-foreground mb-1">{validation.course.name}</h3>
                     {validation.course.description && (
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {validation.course.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{validation.course.description}</p>
                     )}
                   </div>
                 </div>
@@ -338,7 +322,9 @@ export default function JoinCourse() {
             {actionData?.error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{actionData.error}</AlertDescription>
+                <AlertDescription>
+                  {actionData.error.startsWith('course:') ? t(actionData.error) : actionData.error}
+                </AlertDescription>
               </Alert>
             )}
 
@@ -352,7 +338,7 @@ export default function JoinCourse() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <Clock className="h-5 w-5 text-primary" />
-                    <Label className="text-base font-semibold">請選擇時段</Label>
+                    <Label className="text-base font-semibold">{t('course:joinCourse.selectClass')}</Label>
                   </div>
 
                   <RadioGroup value={selectedClassId || ''} onValueChange={setSelectedClassId}>
@@ -368,33 +354,30 @@ export default function JoinCourse() {
                               isFull
                                 ? 'opacity-60 bg-muted/50 cursor-not-allowed border-muted'
                                 : isSelected
-                                ? 'border-primary bg-primary/5 shadow-md'
-                                : 'border-border hover:bg-accent/50 hover:border-accent cursor-pointer'
+                                  ? 'border-primary bg-primary/5 shadow-md'
+                                  : 'border-border hover:bg-accent/50 hover:border-accent cursor-pointer'
                             }`}
                           >
-                            <RadioGroupItem
-                              value={cls.id}
-                              id={cls.id}
-                              disabled={isFull}
-                              className="mt-1"
-                            />
+                            <RadioGroupItem value={cls.id} id={cls.id} disabled={isFull} className="mt-1" />
                             <Label
                               htmlFor={cls.id}
                               className={`flex-1 ${isFull ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                             >
                               <div>
-                                <div className="font-semibold text-base text-foreground mb-1">
-                                  {cls.name}
-                                </div>
+                                <div className="font-semibold text-base text-foreground mb-1">{cls.name}</div>
 
-                                {cls.schedule && (
+                                {cls.schedule && cls.schedule.weekday && cls.schedule.periodCode && (
                                   <div className="text-sm text-muted-foreground mt-2 flex items-center gap-2 flex-wrap">
                                     <div className="flex items-center gap-1">
                                       <Clock className="w-3.5 h-3.5" />
-                                      <span>{cls.schedule.day}</span>
+                                      <span>
+                                        {formatScheduleDisplay(
+                                          cls.schedule.weekday,
+                                          cls.schedule.periodCode,
+                                          currentLanguage
+                                        )}
+                                      </span>
                                     </div>
-                                    <span className="text-muted-foreground/50">•</span>
-                                    <span>{cls.schedule.startTime} - {cls.schedule.endTime}</span>
                                     {cls.schedule.room && (
                                       <>
                                         <span className="text-muted-foreground/50">•</span>
@@ -408,16 +391,15 @@ export default function JoinCourse() {
                                 )}
 
                                 <div className="flex items-center gap-2 mt-3">
-                                  <Badge
-                                    variant={isFull ? 'destructive' : 'secondary'}
-                                    className="text-xs font-medium"
-                                  >
+                                  <Badge variant={isFull ? 'destructive' : 'secondary'} className="text-xs font-medium">
                                     <Users className="w-3 h-3 mr-1" />
                                     {cls._count.enrollments}
-                                    {cls.capacity ? `/${cls.capacity}` : ''} 人
+                                    {cls.capacity ? `/${cls.capacity}` : ''} {t('course:joinCourse.studentCount')}
                                   </Badge>
                                   {isFull && (
-                                    <span className="text-xs text-destructive font-semibold">已滿</span>
+                                    <span className="text-xs text-destructive font-semibold">
+                                      {t('course:joinCourse.classFull')}
+                                    </span>
                                   )}
                                 </div>
                               </div>
@@ -429,20 +411,16 @@ export default function JoinCourse() {
                   </RadioGroup>
 
                   {!selectedClassId && (
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        請選擇一個時段以繼續
-                      </AlertDescription>
+                    <Alert variant="warning" > 
+                      <AlertTitle></AlertTitle>
+                      <AlertDescription>{t('course:joinCourse.selectClassPrompt')}</AlertDescription>
                     </Alert>
                   )}
                 </div>
               ) : validation.invitationCode?.classId ? (
                 <Alert className="border-primary/50 bg-primary/5">
                   <CheckCircle className="h-4 w-4 text-primary" />
-                  <AlertDescription>
-                    此邀請碼專屬於特定時段，將自動加入該時段
-                  </AlertDescription>
+                  <AlertDescription>{t('course:joinCourse.classSpecificInvitation')}</AlertDescription>
                 </Alert>
               ) : null}
 

@@ -49,7 +49,7 @@ export async function publishAssignmentCreatedNotification(
   console.log('🔍 查找課程學生 - courseId:', assignment.courseId);
 
   const courseStudents = await db.enrollment.findMany({
-    where: { courseId: assignment.courseId },
+    where: { class: { courseId: assignment.courseId } },
     include: { student: true }
   });
 

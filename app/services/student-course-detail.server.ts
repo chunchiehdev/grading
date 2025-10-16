@@ -45,28 +45,33 @@ export async function getStudentCourseDetail(
     // Step 1: Verify enrollment and get course basic info
     const enrollment = await db.enrollment.findFirst({
       where: {
-        courseId,
         studentId,
+        class: {
+          courseId,
+        },
       },
       include: {
-        course: {
+        class: {
           include: {
-            teacher: {
-              select: {
-                id: true,
-                email: true,
-                name: true,
-                picture: true,
-              },
-            },
-            _count: {
-              select: {
-                assignmentAreas: true,
+            course: {
+              include: {
+                teacher: {
+                  select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    picture: true,
+                  },
+                },
+                _count: {
+                  select: {
+                    assignmentAreas: true,
+                  },
+                },
               },
             },
           },
         },
-        class: true,  // schedule is a JSON field on class, not a relation
       },
     });
 
@@ -193,11 +198,11 @@ export async function getStudentCourseDetail(
 
     return {
       course: {
-        id: enrollment.course.id,
-        name: enrollment.course.name,
-        description: enrollment.course.description,
-        teacher: enrollment.course.teacher,
-        _count: enrollment.course._count,
+        id: enrollment.class.course.id,
+        name: enrollment.class.course.name,
+        description: enrollment.class.course.description,
+        teacher: enrollment.class.course.teacher,
+        _count: enrollment.class.course._count,
       },
       myClass: enrollment.class || null,
       enrolledAt: enrollment.enrolledAt,

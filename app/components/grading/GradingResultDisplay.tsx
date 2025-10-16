@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 
 interface GradingResultDisplayProps {
   result?: GradingResultData;
+  normalizedScore?: number | null;
   className?: string;
   onRetry?: () => void;
 }
@@ -46,9 +47,9 @@ const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdo
 
 // Removed unused AnalysisSection component
 
-export function GradingResultDisplay({ result, className, onRetry }: GradingResultDisplayProps) {
+export function GradingResultDisplay({ result, normalizedScore, className, onRetry }: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
-  
+
   if (!result) {
     return <EmptyGradingState onRetry={onRetry} />;
   }
@@ -60,15 +61,16 @@ export function GradingResultDisplay({ result, className, onRetry }: GradingResu
     overallFeedback: result.overallFeedback || t('result.noFeedback')
   };
 
-  const percentage = safeResult.maxScore > 0 ? Math.round((safeResult.totalScore / safeResult.maxScore) * 100) : 0;
+  // Use normalized score (100-point scale) if available, otherwise fallback to old calculation
+  const displayScore = normalizedScore ?? Math.round((safeResult.totalScore / safeResult.maxScore) * 100);
 
   return (
     <div className={cn('space-y-6', className)}>
-      {/* Compact score header */}
+      {/* Compact score header - 100-point scale */}
       <div className="flex items-center gap-3 h-10">
-        <span className="text-2xl font-semibold leading-none">{safeResult.totalScore}</span>
-        <span className="text-sm text-muted-foreground">/ {safeResult.maxScore}</span>
-        <Badge variant="secondary" className="ml-1">{percentage}%</Badge>
+        <span className="text-2xl font-semibold leading-none">{displayScore.toFixed(1)}</span>
+        <span className="text-sm text-muted-foreground">/ 100</span>
+        <Badge variant="secondary" className="ml-1">{displayScore.toFixed(0)}%</Badge>
       </div>
 
       {/* Feedback (compact) */}

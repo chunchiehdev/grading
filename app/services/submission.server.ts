@@ -157,11 +157,15 @@ export async function createSubmissionAndLinkGradingResult(
         ? Math.round(aiAnalysisResult.totalScore)
         : null;
 
-      console.log(`🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult.totalScore}, finalScore=${finalScore}`);
+      // Get normalized score (100-point scale) from grading result
+      const normalizedScore = gradingResult.normalizedScore ?? null;
+
+      console.log(`🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}`);
 
       await updateSubmission(submission.id, {
         aiAnalysisResult: aiAnalysisResult,
         finalScore: finalScore ?? undefined,
+        normalizedScore: normalizedScore ?? undefined,
         status: 'ANALYZED',
       });
 
@@ -190,20 +194,23 @@ export async function createSubmissionAndLinkGradingResult(
  */
 export async function getStudentAssignments(studentId: string): Promise<StudentAssignmentInfo[]> {
   try {
-    // Get all enrollments with class information
+    // Get all enrollments with class and course information
     const enrollments = await db.enrollment.findMany({
       where: { studentId },
-      select: {
-        courseId: true,
-        classId: true,
+      include: {
+        class: {
+          select: {
+            courseId: true,
+          },
+        },
       },
     });
 
-    const enrolledCourseIds = enrollments.map(enrollment => enrollment.courseId);
-    const enrolledClassIds = enrollments.map(enrollment => enrollment.classId).filter(Boolean) as string[];
+    const enrolledCourseIds = enrollments.map(enrollment => enrollment.class.courseId);
+    const enrolledClassIds = enrollments.map(enrollment => enrollment.classId);
 
     if (enrolledCourseIds.length === 0) {
-      // Student is not enrolled in any courses
+      // Student is not enrolled in any classes
       return [];
     }
 
@@ -397,17 +404,35 @@ export async function getAssignmentAreaForSubmission(assignmentId: string, stude
 
     // If studentId provided, check enrollment
     if (studentId) {
-      const enrollment = await db.enrollment.findUnique({
-        where: {
-          studentId_courseId: {
-            studentId,
-            courseId: assignmentArea.courseId,
+      // Check if student is enrolled in the appropriate class
+      const courseId = assignmentArea.courseId;
+      const classId = assignmentArea.classId;
+
+      let enrollment;
+      if (classId) {
+        // Class-specific assignment: student must be enrolled in this specific class
+        enrollment = await db.enrollment.findUnique({
+          where: {
+            studentId_classId: {
+              studentId,
+              classId,
+            },
           },
-        },
-      });
+        });
+      } else {
+        // Course-wide assignment: student must be enrolled in any class of this course
+        enrollment = await db.enrollment.findFirst({
+          where: {
+            studentId,
+            class: {
+              courseId,
+            },
+          },
+        });
+      }
 
       if (!enrollment) {
-        throw new Error('Student is not enrolled in this course');
+        throw new Error('Student is not enrolled in this course or class');
       }
     }
 
@@ -583,10 +608,11 @@ export async function getSubmissionById(submissionId: string, studentId: string)
  * @returns {Promise<SubmissionInfo | null>} Updated submission information
  */
 export async function updateSubmission(
-  submissionId: string, 
+  submissionId: string,
   updateData: {
     aiAnalysisResult?: any;
     finalScore?: number;
+    normalizedScore?: number;
     teacherFeedback?: string;
     status?: 'SUBMITTED' | 'ANALYZED' | 'GRADED';
   }

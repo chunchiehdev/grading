@@ -296,25 +296,41 @@ export default function NewRubricRoute() {
 
 
   return (
-    <div className="bg-background text-foreground">
-      <PageHeader
-        title={t('rubric:header.newRubricTitle')}
-        subtitle={t('rubric:newRubricSubtitle')}
-        actions={(
-          <>
-            <Button type="button" variant="outline" onClick={handlePreview}>
-              <Eye className="w-4 h-4 mr-2" />
-              {t('common:preview')}
-            </Button>
-            <Button type="button" onClick={handleSave}>
-              <Save className="w-4 h-4 mr-2" />
-              {t('common:save')}
-            </Button>
-          </>
-        )}
-      />
+    <div className="min-h-screen bg-background">
+      {/* 標題區 - 居中 */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-16 xl:pt-20 pb-8 lg:pb-12">
+        <div className="text-center mb-6 lg:mb-8">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-semibold tracking-tight mb-3 lg:mb-4 xl:mb-6 text-foreground">
+            {t('rubric:header.newRubricTitle')}
+          </h1>
+          <p className="text-base lg:text-lg xl:text-xl text-muted-foreground">
+            {t('rubric:newRubricSubtitle')}
+          </p>
+        </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* 操作按鈕 */}
+        <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 lg:gap-5">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePreview}
+            className="h-11 sm:h-12 lg:h-14 rounded-xl text-base lg:text-lg font-medium"
+          >
+            <Eye className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
+            {t('common:preview')}
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSave}
+            className="h-11 sm:h-12 lg:h-14 rounded-xl text-base lg:text-lg font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+          >
+            <Save className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
+            {t('common:save')}
+          </Button>
+        </div>
+      </div>
+
+      <main className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 lg:pb-32">
         <Form method="post" id="rubric-form">
           <input type="hidden" name="name" value={rubricData.name} />
           <input type="hidden" name="description" value={rubricData.description} />

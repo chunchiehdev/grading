@@ -16,53 +16,24 @@ export type { Level, UICriterion, UICategory, UIRubricData };
 
 /**
  * Converts database criteria to UI categories structure
- * @param {any[]} criteriaOrCategories - Array of categories or legacy criteria from database
+ * @param {any[]} categories - Array of categories from database
  * @returns {UICategory[]} Array of UI category objects
  */
-export function dbCriteriaToUICategories(criteriaOrCategories: any[]): UICategory[] {
-  if (!Array.isArray(criteriaOrCategories) || criteriaOrCategories.length === 0) {
+export function dbCriteriaToUICategories(categories: any[]): UICategory[] {
+  if (!Array.isArray(categories) || categories.length === 0) {
     return [];
   }
 
-  // 檢查是否為新格式（包含類別結構）
-  const firstItem = criteriaOrCategories[0];
-  if (firstItem.id && firstItem.name && Array.isArray(firstItem.criteria)) {
-    // 新格式：直接轉換類別
-    return criteriaOrCategories.map(category => ({
-      id: category.id,
-      name: category.name,
-      criteria: category.criteria.map((criterion: any) => ({
-        id: criterion.id,
-        name: criterion.name,
-        description: criterion.description || '',
-        levels: criterion.levels as UILevel[],
-      }))
-    }));
-  } else {
-    // 舊格式：將所有 criteria 放入預設類別
-    const categoryMap = new Map<string, UICategory>();
-    const categoryName = '預設類別';
-    
-    if (!categoryMap.has(categoryName)) {
-      categoryMap.set(categoryName, {
-        id: `category-${categoryName.replace(/\s+/g, '-').toLowerCase()}`,
-        name: categoryName,
-        criteria: [],
-      });
-    }
-
-    criteriaOrCategories.forEach((criterion) => {
-      const category = categoryMap.get(categoryName)!;
-      category.criteria.push({
-        id: criterion.id,
-        name: criterion.name,
-        description: criterion.description || '',
-        levels: criterion.levels as UILevel[],
-      });
-    });
-
-    return Array.from(categoryMap.values());
-  }
+  return categories.map(category => ({
+    id: category.id,
+    name: category.name,
+    criteria: category.criteria.map((criterion: any) => ({
+      id: criterion.id,
+      name: criterion.name,
+      description: criterion.description || '',
+      levels: criterion.levels as UILevel[],
+    }))
+  }));
 }
 
 /**

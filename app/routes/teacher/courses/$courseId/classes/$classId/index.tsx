@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link } from 'react-router';
-import { Users, Calendar, MapPin, Edit, UserPlus, BookOpen, ClipboardList } from 'lucide-react';
+import { Users, Calendar, MapPin, Edit, UserPlus, ClipboardList } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getClassById } from '@/services/class.server';
@@ -70,35 +70,25 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
 
 // Helper function to format schedule
 function formatSchedule(schedule: any): string {
-  if (!schedule) return '未設定';
-  
-  // New format
-  if (schedule.weekday && schedule.periodCode) {
-    const periodNames: Record<string, string> = {
-      '1': '第1節',
-      '2': '第2節',
-      '3': '第3節',
-      '4': '第4節',
-      '5': '第5節',
-      '6': '第6節',
-      '7': '第7節',
-      '8': '第8節',
-      '9': '第9節',
-      'Z': '第Z節',
-      'A': '第A節',
-      'B': '第B節',
-      'C': '第C節',
-      'D': '第D節',
-    };
-    return `星期${schedule.weekday} ${periodNames[schedule.periodCode] || schedule.periodCode}`;
-  }
-  
-  // Legacy format
-  if (schedule.day) {
-    return `${schedule.day} ${schedule.startTime || ''}-${schedule.endTime || ''}`;
-  }
-  
-  return '未設定';
+  if (!schedule?.weekday || !schedule?.periodCode) return '未設定';
+
+  const periodNames: Record<string, string> = {
+    '1': '第1節',
+    '2': '第2節',
+    '3': '第3節',
+    '4': '第4節',
+    '5': '第5節',
+    '6': '第6節',
+    '7': '第7節',
+    '8': '第8節',
+    '9': '第9節',
+    'Z': '第Z節',
+    'A': '第A節',
+    'B': '第B節',
+    'C': '第C節',
+    'D': '第D節',
+  };
+  return `星期${schedule.weekday} ${periodNames[schedule.periodCode] || schedule.periodCode}`;
 }
 
 export default function ClassIndex() {

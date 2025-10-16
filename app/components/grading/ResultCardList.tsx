@@ -15,6 +15,7 @@ interface ResultCardItem {
   fileName: string;
   rubricName: string;
   result: GradingResultData;
+  normalizedScore?: number | null;
 }
 
 interface ResultCardListProps {
@@ -67,10 +68,9 @@ export function ResultCardList({ results }: ResultCardListProps) {
 
       <div className="space-y-4">
         {results.map((resultItem, index) => {
-          const percentage =
-            resultItem.result.maxScore > 0
-              ? Math.round((resultItem.result.totalScore / resultItem.result.maxScore) * 100)
-              : 0;
+          // Use normalized score (100-point scale) if available, otherwise fallback to old calculation
+          const displayScore =
+            resultItem.normalizedScore ?? Math.round((resultItem.result.totalScore / resultItem.result.maxScore) * 100);
           const isExpanded = expandedIds.has(resultItem.id);
 
           return (
@@ -95,32 +95,32 @@ export function ResultCardList({ results }: ResultCardListProps) {
                     <div className="text-right min-w-[120px]">
                       <div className="flex items-center justify-end space-x-2 mb-1">
                         <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                        <span className="text-xl font-bold">{resultItem.result.totalScore}</span>
-                        <span className="text-sm text-muted-foreground">/{resultItem.result.maxScore}</span>
+                        <span className="text-xl font-bold">{displayScore.toFixed(1)}</span>
+                        <span className="text-sm text-muted-foreground">/ 100</span>
                       </div>
-                      <Progress value={percentage} className="h-2 w-24 ml-auto" />
-                      <div className="text-xs text-muted-foreground mt-1">{percentage}%</div>
+                      <Progress value={displayScore} className="h-2 w-24 ml-auto" />
+                      <div className="text-xs text-muted-foreground mt-1">{displayScore.toFixed(0)}%</div>
                     </div>
 
                     <Badge
                       variant={
-                        percentage >= 90
+                        displayScore >= 90
                           ? 'default'
-                          : percentage >= 80
+                          : displayScore >= 80
                             ? 'secondary'
-                            : percentage >= 70
+                            : displayScore >= 70
                               ? 'outline'
                               : 'destructive'
                       }
                       className="min-w-16 justify-center"
                     >
-                      {percentage >= 90
+                      {displayScore >= 90
                         ? t('grading:resultCard.grades.excellent')
-                        : percentage >= 80
+                        : displayScore >= 80
                           ? t('grading:resultCard.grades.good')
-                          : percentage >= 70
+                          : displayScore >= 70
                             ? t('grading:resultCard.grades.satisfactory')
-                            : percentage >= 60
+                            : displayScore >= 60
                               ? t('grading:resultCard.grades.acceptable')
                               : t('grading:resultCard.grades.needsImprovement')}
                     </Badge>
@@ -134,7 +134,7 @@ export function ResultCardList({ results }: ResultCardListProps) {
 
               {isExpanded && (
                 <CardContent className="border-t bg-muted/20 pt-6">
-                  <GradingResultDisplay result={resultItem.result} />
+                  <GradingResultDisplay result={resultItem.result} normalizedScore={resultItem.normalizedScore} />
                 </CardContent>
               )}
             </Card>

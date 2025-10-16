@@ -4,7 +4,7 @@ import { Users, ArrowLeft, Trash2 } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById } from '@/services/course.server';
-import { getCourseEnrollments, unenrollStudent } from '@/services/enrollment.server';
+import { getCourseStudents, unenrollStudent } from '@/services/enrollment.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
@@ -15,7 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface LoaderData {
   teacher: { id: string; email: string; role: string };
   course: { id: string; name: string };
-  students: Array<{ id: string; name: string; email: string; picture: string | null; enrolledAt: Date; formattedEnrolledDate: string }>; 
+  students: Array<{ id: string; name: string; email: string; picture: string | null; enrolledAt: Date; className: string; formattedEnrolledDate: string }>;
 }
 
 interface ActionData {
@@ -31,13 +31,14 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   const course = await getCourseById(courseId, teacher.id);
   if (!course) throw new Response('Course not found', { status: 404 });
 
-  const enrollments = await getCourseEnrollments(courseId, teacher.id);
+  const enrollments = await getCourseStudents(courseId, teacher.id);
   const students = enrollments.map((e) => ({
     id: e.student.id,
     name: e.student.name,
     email: e.student.email,
     picture: e.student.picture || null,
     enrolledAt: e.enrolledAt,
+    className: e.class.name,
     formattedEnrolledDate: new Date(e.enrolledAt).toLocaleDateString('en-CA'),
   }));
 
@@ -109,6 +110,7 @@ export default function CourseStudents() {
                   <TableRow>
                     <TableHead>Student</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Class</TableHead>
                     <TableHead>Enrolled</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -129,6 +131,7 @@ export default function CourseStudents() {
                         </div>
                       </TableCell>
                       <TableCell className="text-gray-600">{s.email}</TableCell>
+                      <TableCell className="text-gray-600">{s.className}</TableCell>
                       <TableCell className="text-gray-600">{s.formattedEnrolledDate}</TableCell>
                       <TableCell className="text-right">
                         <Form method="post" className="inline-block">

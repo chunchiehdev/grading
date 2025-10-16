@@ -1,4 +1,4 @@
-/.cache
+ /.cache
 /build
 .env
 Architecture.md
@@ -18,3 +18,6 @@ sec/
 k8s/
 k8s/gradsystem/prod/secret.yaml
 k8s/gradsystem/dev/secret-dev.yaml
+
+# Cursor agent artifacts (may contain tokens/credentials)
+.cursor/

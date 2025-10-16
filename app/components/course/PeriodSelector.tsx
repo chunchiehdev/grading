@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WEEKDAYS, PERIODS, formatScheduleDisplay } from '@/constants/schedule';
@@ -43,8 +44,12 @@ export function PeriodSelector({
   periodName = 'periodCode',
   showPreview = true,
 }: PeriodSelectorProps) {
+  const { t, i18n } = useTranslation('course');
   const [weekday, setWeekday] = useState(value?.weekday || '');
   const [periodCode, setPeriodCode] = useState(value?.periodCode || '');
+
+  // 當前語言
+  const currentLanguage = i18n.language.startsWith('zh') ? 'zh' : 'en';
 
   // 當外部 value 改變時更新內部狀態
   useEffect(() => {
@@ -62,7 +67,7 @@ export function PeriodSelector({
   }, [weekday, periodCode, onChange]);
 
   // 生成預覽文字
-  const previewText = weekday && periodCode ? formatScheduleDisplay(weekday, periodCode) : '';
+  const previewText = weekday && periodCode ? formatScheduleDisplay(weekday, periodCode, currentLanguage) : '';
 
   return (
     <div className="space-y-4">
@@ -70,7 +75,7 @@ export function PeriodSelector({
         {/* 星期選擇 */}
         <div className="space-y-2">
           <Label htmlFor={weekdayName}>
-            星期 {required && <span className="text-red-500">*</span>}
+            {t('classForm.periodSelector.weekday')} {required && <span className="text-red-500">*</span>}
           </Label>
           <Select
             name={weekdayName}
@@ -80,12 +85,12 @@ export function PeriodSelector({
             required={required}
           >
             <SelectTrigger id={weekdayName}>
-              <SelectValue placeholder="選擇星期" />
+              <SelectValue placeholder={t('classForm.periodSelector.selectWeekday')} />
             </SelectTrigger>
             <SelectContent>
               {WEEKDAYS.map((w) => (
                 <SelectItem key={w.code} value={w.code}>
-                  {w.name}
+                  {currentLanguage === 'en' ? w.englishName : w.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -95,7 +100,7 @@ export function PeriodSelector({
         {/* 節次選擇 */}
         <div className="space-y-2">
           <Label htmlFor={periodName}>
-            節次 {required && <span className="text-red-500">*</span>}
+            {t('classForm.periodSelector.period')} {required && <span className="text-red-500">*</span>}
           </Label>
           <Select
             name={periodName}
@@ -105,12 +110,12 @@ export function PeriodSelector({
             required={required}
           >
             <SelectTrigger id={periodName}>
-              <SelectValue placeholder="選擇節次" />
+              <SelectValue placeholder={t('classForm.periodSelector.selectPeriod')} />
             </SelectTrigger>
             <SelectContent>
               {PERIODS.map((p) => (
                 <SelectItem key={p.code} value={p.code}>
-                  {p.displayName} ({p.startTime}-{p.endTime})
+                  {currentLanguage === 'en' ? p.englishDisplayName : p.displayName} ({p.startTime}-{p.endTime})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -123,7 +128,7 @@ export function PeriodSelector({
         <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
           <Clock className="w-4 h-4 text-primary flex-shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">上課時間</p>
+            <p className="text-sm font-medium text-foreground">{t('classForm.periodSelector.classTime')}</p>
             <p className="text-sm text-muted-foreground">{previewText}</p>
           </div>
         </div>
@@ -132,7 +137,7 @@ export function PeriodSelector({
       {/* 提示訊息 */}
       {required && (!weekday || !periodCode) && (
         <p className="text-xs text-muted-foreground">
-          請選擇星期和節次以設定上課時間
+          {t('classForm.periodSelector.selectPrompt')}
         </p>
       )}
     </div>

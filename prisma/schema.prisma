@@ -60,7 +60,6 @@ model Course {
   // Relations
   classes         Class[]          // A course can have multiple classes/sections
   assignmentAreas AssignmentArea[]
-  enrollments     Enrollment[]     // Keep for backward compatibility
   invitationCodes InvitationCode[]
   notifications   Notification[] @relation("CourseNotifications")
 
@@ -78,7 +77,7 @@ model Class {
   name        String   @db.VarChar(100)  // "101班", "Section A", "週五下午班"
 
   // Schedule information (JSON structure for flexibility)
-  // Example: { day: "Friday", startTime: "14:00", endTime: "17:00", room: "資訊館 301", weekday: 5 }
+  // Format: { weekday: string, periodCode: string, room?: string }
   schedule    Json?
 
   capacity    Int?     // Maximum number of students (null = unlimited)
@@ -145,6 +144,7 @@ model Submission {
   // AI analysis and grading
   aiAnalysisResult Json?         // AI analysis results
   finalScore       Int?          // Final score
+  normalizedScore  Float?        // 100-point normalized score from AI grading
   teacherFeedback  String?       @db.Text
   status           SubmissionStatus @default(SUBMITTED)
   
@@ -258,7 +258,10 @@ model GradingResult {
   // LLM評分結果 (JSON結構)
   result            Json?    // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }
   errorMessage      String?  // 評分失敗時的錯誤訊息
-  
+
+  // 100 分制正規化分數
+  normalizedScore   Float?   // (totalScore / maxScore) * 100
+
   // 評分原始數據
   gradingModel      String?  @db.VarChar(100) // 使用的模型名稱
   gradingTokens     Int?     // 消耗的tokens數量
@@ -271,6 +274,7 @@ model GradingResult {
   @@index([gradingSessionId, status])
   @@index([uploadedFileId])
   @@index([rubricId])
+  @@index([normalizedScore])
   @@map("grading_results")
 }
 
@@ -320,13 +324,9 @@ model Enrollment {
   studentId String
   student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  // Keep courseId for backward compatibility
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  // New: Student enrolls in a specific class
-  classId   String?
-  class     Class?   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  // Student enrolls in a specific class
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   enrolledAt DateTime @default(now())
 
@@ -334,12 +334,8 @@ model Enrollment {
   finalGrade Float?
   attendance Json?  // Attendance records
 
-  @@unique([studentId, courseId])
-  // Note: @@unique([studentId, classId]) removed because classId is nullable
-  // This would cause issues with existing NULL values and doesn't match business logic
-  // Application layer should prevent duplicate enrollments in the same class
+  @@unique([studentId, classId])
   @@index([studentId])
-  @@index([courseId])
   @@index([classId])
   @@map("enrollments")
 }

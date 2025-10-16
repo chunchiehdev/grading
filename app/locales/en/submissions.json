@@ -32,7 +32,8 @@
   },
   "teacherComments": {
     "title": "Teacher Comments",
-    "empty": "No teacher comments yet."
+    "empty": "No teacher comments yet.",
+    "hint": "When you submit your assignment, it will appear here."
   },
   "status": {
     "graded": "Graded",

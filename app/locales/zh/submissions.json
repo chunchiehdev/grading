@@ -32,7 +32,8 @@
     },
     "teacherComments": {
         "title": "評語",
-        "empty": "目前沒有老師評語。"
+        "empty": "目前沒有老師評語。",
+        "hint": "當您提交作業時，會顯示在這裡"
     },
     "status": {
         "graded": "已批改",

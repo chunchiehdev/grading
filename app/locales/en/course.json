@@ -206,7 +206,15 @@
       "aiGrading": "You'll receive AI-powered grading and feedback",
       "codeUsed": "The invitation code will be marked as used"
     },
-    "joinCourse": "Join Course"
+    "joinCourse": "Join Course",
+    "selectClass": "Select a Class",
+    "selectClassPrompt": "Please select a class to continue",
+    "classFull": "Full",
+    "studentCount": "students",
+    "classSpecificInvitation": "This invitation code is for a specific class and will automatically enroll you in that class",
+    "pleaseSelectClass": "Please select a class",
+    "noClassesAvailable": "This course has no classes yet. Please contact your teacher.",
+    "invalidInvitationInfo": "Invalid invitation code information"
   },
   "emptyState": {
     "title": "No Courses Yet",
@@ -249,11 +257,78 @@
     "totalAssignments": "Total Assignments",
     "completed": "Completed",
     "pending": "Pending",
+    "averageScore": "Average Score",
     "assignmentList": "Assignment List",
     "courseInfo": "Course Information",
     "noAssignments": "No Assignments Yet",
     "noAssignmentsDescription": "This course has not published any assignments yet",
     "courseDescription": "Course Description",
-    "noDescription": "No course description provided by instructor"
+    "noDescription": "No course description provided by instructor",
+    "statistics": "Learning Statistics"
+  },
+  "classManagement": {
+    "title": "Class Management",
+    "newClass": "New Class",
+    "noClasses": "No Classes Yet",
+    "noClassesDescription": "The course needs at least one class section for students to select when joining via invitation code",
+    "createFirstClass": "Create First Class",
+    "viewStudents": "View Students",
+    "editClass": "Edit Class",
+    "students": "students",
+    "full": "full"
+  },
+  "invitationSection": {
+    "needClassesWarning": "Class Section Required",
+    "createClassFirst": "Please create at least one class section first, so students can select their preferred time slot when joining via invitation code",
+    "noInvitation": "No Invitation Code Generated",
+    "noInvitationDescription": "After generating an invitation code, students can scan the QR code or enter the code to join the course and select a class",
+    "generateCode": "Generate Invitation Code"
+  },
+  "assignmentSection": {
+    "submissions": "submissions",
+    "due": "Due",
+    "hasRubric": "Has rubric",
+    "viewSubmissions": "View Submissions",
+    "manage": "Manage"
+  },
+  "classForm": {
+    "newClass": "New Class",
+    "editClass": "Edit Class",
+    "createFor": "Create a new class",
+    "editFor": "Edit class",
+    "backToCourse": "Course",
+    "basicInfo": "Basic Information",
+    "className": "Class Name",
+    "classNamePlaceholder": "e.g., Section 101, Friday PM, Section A",
+    "classNameRequired": "Class name is required",
+    "scheduleRequired": "Please select class time (weekday and period)",
+    "schedule": "Schedule",
+    "scheduleDescription": "Select weekday and period",
+    "room": "Room",
+    "roomOptional": "Room (Optional)",
+    "roomPlaceholder": "e.g., Info Building 301",
+    "capacity": "Capacity",
+    "capacityOptional": "Capacity (Optional)",
+    "capacityPlaceholder": "Leave empty for unlimited",
+    "capacityDescription": "Set maximum number of students. Leave empty for no limit.",
+    "cancel": "Cancel",
+    "create": "Create Class",
+    "save": "Save Changes",
+    "createError": "Failed to create class. Please try again.",
+    "updateError": "Failed to update class. Please try again.",
+    "dangerZone": "Danger Zone",
+    "dangerZoneDescription": "Deleting a class cannot be undone and will remove all student enrollment data for this class",
+    "deleteWarning": "Warning: Deleting this class will remove all enrolled student data. This action cannot be undone.",
+    "deleteConfirm": "Are you sure you want to delete this class? This action cannot be undone and will delete all student enrollment data.",
+    "delete": "Delete Class",
+    "deleteError": "Failed to delete class. Please try again.",
+    "periodSelector": {
+      "weekday": "Weekday",
+      "period": "Period",
+      "selectWeekday": "Select weekday",
+      "selectPeriod": "Select period",
+      "classTime": "Class Time",
+      "selectPrompt": "Please select weekday and period to set class time"
+    }
   }
 }

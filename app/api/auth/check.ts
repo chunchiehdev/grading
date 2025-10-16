@@ -9,7 +9,6 @@ import { createSuccessResponse } from '@/types/api';
  * @returns {Promise<Response>} JSON response with user data or 401 if not authenticated
  */
 export async function loader({ request }: { request: Request }) {
-  console.log('🔍 API /api/auth/check called');
   return withErrorHandler(async () => {
     const user = await getUser(request);
     if (!user) {

@@ -55,7 +55,7 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
             {t('submissions:teacherComments.empty')}
           </h3>
           <p className="mt-2 md:mt-4 text-base md:text-lg text-muted-foreground">
-            當您提交作業時，會顯示在這裡
+            {t('submissions:teacherComments.hint')}
           </p>
         </div>
       ) : (

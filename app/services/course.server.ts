@@ -187,13 +187,13 @@ export async function deleteCourse(courseId: string, teacherId: string): Promise
  * Returns list of students enrolled in a course (teacher authorization required)
  */
 export async function getEnrolledStudents(courseId: string, teacherId: string) {
-  const { getCourseEnrollments } = await import('./enrollment.server');
-  const enrollments = await getCourseEnrollments(courseId, teacherId);
+  const { getCourseStudents } = await import('./enrollment.server');
+  const enrollments = await getCourseStudents(courseId, teacherId);
   return enrollments.map((e) => e.student);
 }
 
 /**
- * Removes a student's enrollment from a course (teacher authorization required)
+ * Removes a student from all classes in a course (teacher authorization required)
  */
 export async function removeStudentFromCourse(courseId: string, studentId: string, teacherId: string) {
   const { unenrollStudent } = await import('./enrollment.server');

@@ -1,14 +1,9 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
-import { useLoaderData, useActionData, Form, useNavigation } from 'react-router';
-import { GraduationCap, User } from 'lucide-react';
+import { useLoaderData, useActionData, useNavigation } from 'react-router';
+import { ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-import { requireAuth, updateUserRole } from '@/services/auth.server';
-
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { RoleCard } from '@/components/ui/role-card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Skeleton } from '@/components/ui/skeleton';
+import { updateUserRole } from '@/services/auth.server';
 
 interface LoaderData {
   user: { id: string; name: string, email: string; role: string };
@@ -19,8 +14,6 @@ interface ActionData {
 }
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
-  // 直接使用 getUser 而不是 requireAuth，避免重複調用
-  // root.tsx 已經處理了認證檢查
   const { getUser } = await import('@/services/auth.server');
   const user = await getUser(request);
   
@@ -77,85 +70,132 @@ export function SelectRolePage(_: SelectRoleProps) {
   const actionData = useActionData() as ActionData | undefined;
   const navigation = useNavigation();
   const isSubmitting = navigation.state === 'submitting';
+  const { t } = useTranslation('auth');
+
+  const handleRoleSelect = (role: 'TEACHER' | 'STUDENT') => {
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.style.display = 'none';
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'role';
+    input.value = role;
+
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+  };
 
   return (
-    <div className="h-full w-full bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden flex items-center justify-center">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Floating Circles */}
-        <div className="absolute top-20 left-10 w-32 h-32 bg-primary/5 rounded-full animate-float opacity-60"></div>
-        <div className="absolute top-40 right-20 w-20 h-20 bg-secondary/10 rounded-full animate-float-slow opacity-40"></div>
-        <div className="absolute bottom-32 left-1/4 w-24 h-24 bg-accent/5 rounded-full animate-float opacity-50"></div>
-        
-        {/* Gradient Orbs */}
-        <div className="absolute top-1/4 right-1/3 w-40 h-40 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-full blur-xl animate-pulse opacity-30"></div>
-        <div className="absolute bottom-1/4 left-1/4 w-32 h-32 bg-gradient-to-r from-accent/10 to-primary/10 rounded-full blur-xl animate-pulse opacity-25"></div>
-      </div>
-      
-      <div className="relative z-10 w-full max-w-2xl px-6 max-h-full flex items-center">
-          <Card className="border-border/50 bg-card/95 backdrop-blur-sm shadow-2xl w-full max-h-full overflow-hidden">
-            <CardHeader className="text-center pb-6">
-              <div className="mx-auto mb-6 p-4 rounded-full bg-gradient-to-r from-primary/10 to-secondary/10 w-fit">
-                <GraduationCap className="w-10 h-10 text-primary" />
+    <div className="size-full flex flex-col items-center justify-center bg-background p-6">
+      <div className="w-full max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <h1 className="mb-3">{t('selectRolePage.title')}</h1>
+          <p className="text-muted-foreground">
+            {t('selectRolePage.subtitle')}
+          </p>
+        </div>
+
+        {/* Role Cards */}
+        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+          {/* Teacher Card */}
+          <div className="group relative bg-card border border-border rounded-3xl p-10 hover:shadow-2xl hover:border-primary/30 transition-all duration-300">
+            <div className="mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-6">
+                <div className="w-2 h-2 rounded-full bg-primary" />
+                <span className="text-sm text-primary">{t('selectRolePage.teacher.badge')}</span>
               </div>
-              <CardTitle className="text-3xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent mb-3">
-                Welcome, {user.name}!
-              </CardTitle>
-              <p className="text-muted-foreground text-lg">
-                Choose how you'll use the app to get started
+              <h2 className="mb-4">{t('selectRolePage.teacher.title')}</h2>
+              <p className="text-muted-foreground mb-6">
+                {t('selectRolePage.teacher.description')}
               </p>
-            </CardHeader>
-            <CardContent className="overflow-y-auto max-h-96">
-              <Form method="post" className="space-y-6" aria-busy={isSubmitting}>
-                <div className="space-y-4">
-                  {isSubmitting ? (
-                    <div className="space-y-4">
-                      <Skeleton className="h-24 w-full" />
-                      <Skeleton className="h-24 w-full" />
-                    </div>
-                  ) : (
-                    <>
-                      <RoleCard
-                        title="Teacher"
-                        description="Create courses, manage assignments, and grade student work"
-                        icon={GraduationCap}
-                        value="TEACHER"
-                        name="role"
-                        variant="teacher"
-                      />
+            </div>
 
-                      <RoleCard
-                        title="Student"
-                        description="Submit assignments and receive feedback from teachers"
-                        icon={User}
-                        value="STUDENT"
-                        name="role"
-                        variant="student"
-                      />
-                    </>
-                  )}
+            <ul className="space-y-3 mb-10">
+              <li className="flex items-start gap-3 text-sm">
+                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
                 </div>
+                <span>{t('selectRolePage.teacher.feature1')}</span>
+              </li>
+              <li className="flex items-start gap-3 text-sm">
+                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                </div>
+                <span>{t('selectRolePage.teacher.feature2')}</span>
+              </li>
+              <li className="flex items-start gap-3 text-sm">
+                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                </div>
+                <span>{t('selectRolePage.teacher.feature3')}</span>
+              </li>
+            </ul>
 
-                {actionData?.error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{actionData.error}</AlertDescription>
-                  </Alert>
-                )}
+            <button
+              onClick={() => handleRoleSelect('TEACHER')}
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-opacity group-hover:gap-3 transition-all disabled:pointer-events-none disabled:opacity-75"
+            >
+              <span>{isSubmitting ? t('selectRolePage.savingButton') : t('selectRolePage.continueAsTeacher')}</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
 
-                <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-                  {isSubmitting ? 'Saving...' : 'Continue'}
-                </Button>
-              </Form>
-
-              <div className="mt-6 text-center">
-                <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
-                  <span className="w-2 h-2 bg-primary/40 rounded-full animate-pulse"></span>
-                  You can change your role later in account settings
-                  <span className="w-2 h-2 bg-primary/40 rounded-full animate-pulse"></span>
-                </p>
+          {/* Student Card */}
+          <div className="group relative bg-card border border-border rounded-3xl p-10 hover:shadow-2xl hover:border-primary/30 transition-all duration-300">
+            <div className="mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary/80 rounded-full mb-6">
+                <div className="w-2 h-2 rounded-full bg-secondary-foreground" />
+                <span className="text-sm">{t('selectRolePage.student.badge')}</span>
               </div>
-            </CardContent>
-          </Card>
+              <h2 className="mb-4">{t('selectRolePage.student.title')}</h2>
+              <p className="text-muted-foreground mb-6">
+                {t('selectRolePage.student.description')}
+              </p>
+            </div>
+
+            <ul className="space-y-3 mb-10">
+              <li className="flex items-start gap-3 text-sm">
+                <div className="w-5 h-5 rounded-full bg-secondary/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-secondary-foreground" />
+                </div>
+                <span>{t('selectRolePage.student.feature1')}</span>
+              </li>
+              <li className="flex items-start gap-3 text-sm">
+                <div className="w-5 h-5 rounded-full bg-secondary/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-secondary-foreground" />
+                </div>
+                <span>{t('selectRolePage.student.feature2')}</span>
+              </li>
+              <li className="flex items-start gap-3 text-sm">
+                <div className="w-5 h-5 rounded-full bg-secondary/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="w-2 h-2 rounded-full bg-secondary-foreground" />
+                </div>
+                <span>{t('selectRolePage.student.feature3')}</span>
+              </li>
+            </ul>
+
+            <button
+              onClick={() => handleRoleSelect('STUDENT')}
+              disabled={isSubmitting}
+              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-foreground text-background rounded-xl hover:opacity-90 transition-opacity group-hover:gap-3 transition-all disabled:pointer-events-none disabled:opacity-75"
+            >
+              <span>{isSubmitting ? t('selectRolePage.savingButton') : t('selectRolePage.continueAsStudent')}</span>
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center mt-12">
+          <p className="text-sm text-muted-foreground">
+            {t('selectRolePage.roleChangeHint')}
+          </p>
+        </div>
       </div>
     </div>
   );

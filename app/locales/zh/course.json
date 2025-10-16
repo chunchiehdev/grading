@@ -163,7 +163,15 @@
       "aiGrading": "您將收到 AI 驅動的評分和回饋",
       "codeUsed": "邀請碼將標記為已使用"
     },
-    "joinCourse": "加入課程"
+    "joinCourse": "加入課程",
+    "selectClass": "請選擇時段",
+    "selectClassPrompt": "請選擇一個時段以繼續",
+    "classFull": "已滿",
+    "studentCount": "人",
+    "classSpecificInvitation": "此邀請碼專屬於特定時段，將自動加入該時段",
+    "pleaseSelectClass": "請選擇時段",
+    "noClassesAvailable": "此課程尚未建立時段，請聯絡教師",
+    "invalidInvitationInfo": "無效的邀請碼資訊"
   },
   "stats": {
     "totalRubrics": "總評分標準",
@@ -251,11 +259,78 @@
     "totalAssignments": "作業總數",
     "completed": "已完成",
     "pending": "待繳交",
+    "averageScore": "平均分數",
     "assignmentList": "作業列表",
     "courseInfo": "課程資訊",
     "noAssignments": "尚無作業",
     "noAssignmentsDescription": "此課程尚未發布任何作業",
     "courseDescription": "課程描述",
-    "noDescription": "教師尚未提供課程描述"
+    "noDescription": "教師尚未提供課程描述",
+    "statistics": "學習統計"
+  },
+  "classManagement": {
+    "title": "時段管理",
+    "newClass": "新增時段",
+    "noClasses": "尚未建立時段",
+    "noClassesDescription": "課程需要至少一個時段，學生才能透過邀請碼選擇加入的時段",
+    "createFirstClass": "建立第一個時段",
+    "viewStudents": "查看學生",
+    "editClass": "編輯時段",
+    "students": "位學生",
+    "full": "已滿"
+  },
+  "invitationSection": {
+    "needClassesWarning": "需要先建立時段",
+    "createClassFirst": "請先建立至少一個時段，學生才能透過邀請碼選擇適合的上課時間加入課程",
+    "noInvitation": "尚未產生邀請碼",
+    "noInvitationDescription": "產生邀請碼後，學生可以掃描 QR Code 或輸入邀請碼加入課程並選擇時段",
+    "generateCode": "產生邀請碼"
+  },
+  "assignmentSection": {
+    "submissions": "份提交",
+    "due": "截止",
+    "hasRubric": "已設定評分標準",
+    "viewSubmissions": "查看提交",
+    "manage": "管理"
+  },
+  "classForm": {
+    "newClass": "新增時段",
+    "editClass": "編輯時段",
+    "createFor": "建立新的時段",
+    "editFor": "編輯時段",
+    "backToCourse": "課程",
+    "basicInfo": "基本資訊",
+    "className": "時段名稱",
+    "classNamePlaceholder": "例如：101班、週五下午班、Section A",
+    "classNameRequired": "時段名稱為必填項目",
+    "scheduleRequired": "請選擇上課時間（星期和節次）",
+    "schedule": "上課時間",
+    "scheduleDescription": "選擇星期和節次",
+    "room": "教室",
+    "roomOptional": "教室（選填）",
+    "roomPlaceholder": "例如：資訊館 301",
+    "capacity": "人數上限",
+    "capacityOptional": "人數上限（選填）",
+    "capacityPlaceholder": "不填寫則無人數限制",
+    "capacityDescription": "設定時段的最大學生人數，留空表示無限制",
+    "cancel": "取消",
+    "create": "建立時段",
+    "save": "儲存變更",
+    "createError": "建立時段失敗，請重新嘗試。",
+    "updateError": "更新時段失敗，請重新嘗試。",
+    "dangerZone": "危險區域",
+    "dangerZoneDescription": "刪除時段後無法復原，該時段的所有學生註冊資料將被移除",
+    "deleteWarning": "注意：刪除時段將移除所有已註冊學生的資料，此操作無法復原。",
+    "deleteConfirm": "確定要刪除此時段嗎？此操作無法復原，將刪除所有學生註冊資料。",
+    "delete": "刪除時段",
+    "deleteError": "刪除時段失敗，請重新嘗試。",
+    "periodSelector": {
+      "weekday": "星期",
+      "period": "節次",
+      "selectWeekday": "選擇星期",
+      "selectPeriod": "選擇節次",
+      "classTime": "上課時間",
+      "selectPrompt": "請選擇星期和節次以設定上課時間"
+    }
   }
 }

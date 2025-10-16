@@ -110,7 +110,7 @@ export function NavHeader({
 
           {/* Right Section - Desktop Controls */}
           <div className="hidden md:flex items-center gap-3 lg:gap-4 2xl:gap-5">
-            <LanguageSwitcher variant="dropdown" />
+            <LanguageSwitcher />
             {onShare && (
               <Button variant="outline" size="sm" onClick={onShare} className="gap-2 lg:h-10 2xl:h-11 lg:px-4 2xl:px-5">
                 <Share2 className="w-4 h-4 lg:w-5 lg:h-5" />
@@ -224,13 +224,15 @@ export function NavHeader({
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <div className="px-2 py-1">
-                  <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
-                    <Globe className="w-3 h-3" />
-                    {safeT('language', 'Language')}
+                <DropdownMenuItem asChild>
+                  <div className="flex items-center justify-between w-full cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      {safeT('language', 'Language')}
+                    </div>
+                    <LanguageSwitcher />
                   </div>
-                  <LanguageSwitcher variant="tabs" className="w-full" />
-                </div>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleLogout}

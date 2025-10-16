@@ -235,10 +235,11 @@ export async function validateInvitationCode(
 
     let isAlreadyEnrolled = false;
     if (studentId) {
-      const enrollment = await db.enrollment.findUnique({
+      // Check if student is enrolled in any class of this course
+      const enrollment = await db.enrollment.findFirst({
         where: {
-          studentId_courseId: {
-            studentId,
+          studentId,
+          class: {
             courseId: invitationCode.courseId,
           },
         },
@@ -304,11 +305,37 @@ export async function useInvitationCode(
 
     // Use transaction to ensure atomicity
     const result = await db.$transaction(async (tx: any) => {
-      // Create enrollment
+      let classId = validation.invitationCode!.classId;
+
+      // If invitation is course-wide (no specific class), get or create default class
+      if (!classId) {
+        // Try to find existing default class
+        let defaultClass = await tx.class.findFirst({
+          where: {
+            courseId: validation.course!.id,
+            name: 'Default Class',
+          },
+        });
+
+        // Create default class if it doesn't exist
+        if (!defaultClass) {
+          defaultClass = await tx.class.create({
+            data: {
+              courseId: validation.course!.id,
+              name: 'Default Class',
+              isActive: true,
+            },
+          });
+        }
+
+        classId = defaultClass.id;
+      }
+
+      // Create enrollment with classId
       const enrollment = await tx.enrollment.create({
         data: {
           studentId,
-          courseId: validation.course!.id,
+          classId,
         },
       });
 

@@ -19,7 +19,7 @@ export interface Rubric {
   isActive: boolean;
   isTemplate: boolean;
   criteria: RubricCriteria[];
-  categories?: UICategory[]; // 新增 categories 欄位，向後兼容
+  categories: UICategory[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,26 +53,6 @@ export interface UILevel {
 }
 
 // 評分相關類型移到 @/types/grading 統一管理
-// 保留舊評分格式的相容性類型
-export interface LegacyGradingResultData {
-  score: number;
-  analysis: string;
-  analysisMarkdown?: string;
-  criteriaScores: {
-    name: string;
-    score: number;
-    comments: string;
-    commentsMarkdown?: string;
-  }[];
-  strengths: string[];
-  strengthsMarkdown?: string[];
-  improvements: string[];
-  improvementsMarkdown?: string[];
-  overallSuggestions: string;
-  overallSuggestionsMarkdown?: string;
-  createdAt: string;
-  gradingDuration: number;
-}
 
 export interface GradingProgress {
   phase: 'upload' | 'check' | 'grade' | 'verify' | 'completed' | 'error';

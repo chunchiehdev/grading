@@ -28,23 +28,32 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
     <div className="space-y-6 md:space-y-8 lg:space-y-10 xl:space-y-12">
       {courses.length === 0 ? (
         /* Empty State */
-        <Card>
-          <CardContent className="p-12 md:p-16 lg:p-20 text-center">
-            <GraduationCap className="mx-auto h-20 md:h-24 lg:h-28 xl:h-32 w-20 md:w-24 lg:w-28 xl:w-32 text-muted-foreground" />
-            <h3 className="mt-6 md:mt-8 text-xl md:text-2xl lg:text-3xl font-medium text-foreground">
-              {t('dashboard:emptyState.noCourses')}
-            </h3>
-            <p className="mt-4 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-              {t('dashboard:emptyState.noCoursesDescription')}
-            </p>
-            <Button asChild size="lg" className="mt-8 text-lg md:text-xl px-8 md:px-10 py-4 md:py-5">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-8 max-w-md">
+            {/* Icon */}
+            <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-muted/40 to-muted/20 flex items-center justify-center">
+              <GraduationCap className="w-12 h-12 text-muted-foreground" />
+            </div>
+
+            {/* Main Content */}
+            <div className="space-y-3">
+              <h1 className="text-2xl font-semibold text-foreground">
+                {t('dashboard:emptyState.noCourses')}
+              </h1>
+              <p className="text-muted-foreground">
+                {t('dashboard:emptyState.noCoursesDescription')}
+              </p>
+            </div>
+
+            {/* Action Button */}
+            <Button asChild size="lg">
               <Link to="/teacher/courses/new">
-                <Plus className="w-6 h-6 mr-2" />
+                <Plus className="w-5 h-5 mr-2" />
                 {t('dashboard:teacher.createCourse')}
               </Link>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : (
         /* Courses Grid */
         <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-6">

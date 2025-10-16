@@ -20,27 +20,22 @@ export function CoursesContent({ data }: CoursesContentProps) {
   if (courses.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="bg-card text-card-foreground border max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <UserPlus className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">{t('course:emptyState.title')}</h3>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                {t('course:emptyState.description')}
-              </p>
+        <div className="text-center space-y-8 max-w-md">
+          {/* Icon */}
+          <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-muted/40 to-muted/20 flex items-center justify-center">
+            <UserPlus className="w-12 h-12 text-muted-foreground" />
+          </div>
 
-              <div className="bg-muted rounded-lg p-4 mb-6 max-w-md mx-auto">
-                <h4 className="font-medium text-foreground mb-2">{t('course:emptyState.howToJoin')}</h4>
-                <ul className="text-sm text-muted-foreground space-y-1 text-left">
-                  <li>• {t('course:emptyState.steps.getCode')}</li>
-                  <li>• {t('course:emptyState.steps.scanQR')}</li>
-                  <li>• {t('course:emptyState.steps.visitLink')}</li>
-                  <li>• {t('course:emptyState.steps.contactTeacher')}</li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Main Content */}
+          <div className="space-y-3">
+            <h1 className="text-2xl font-semibold text-foreground">
+              {t('course:emptyState.title')}
+            </h1>
+            <p className="text-muted-foreground">
+              {t('course:emptyState.description')}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

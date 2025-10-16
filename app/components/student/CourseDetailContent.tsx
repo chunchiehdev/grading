@@ -1,9 +1,8 @@
-import { FileText, Clock, Users, Calendar } from 'lucide-react';
+import { FileText, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslation } from 'react-i18next';
+import { formatScheduleDisplay } from '@/constants/schedule';
 import type { StudentCourseDetailData } from '@/services/student-course-detail.server';
 import type { StudentInfo, StudentAssignmentInfo } from '@/types/student';
 
@@ -14,114 +13,162 @@ interface CourseDetailContentProps {
 }
 
 export function CourseDetailContent({ data }: CourseDetailContentProps) {
-  const { t } = useTranslation(['course', 'assignment', 'common']);
+  const { t, i18n } = useTranslation(['course', 'assignment', 'common']);
   const { course, myClass, enrolledAt, assignments, stats, student } = data;
 
+  // 當前語言
+  const currentLanguage = i18n.language.startsWith('zh') ? 'zh' : 'en';
+
   // Format enrolled date
-  const formattedEnrolledDate = new Date(enrolledAt).toLocaleDateString('zh-TW', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const formattedEnrolledDate = new Date(enrolledAt).toLocaleDateString(
+    currentLanguage === 'zh' ? 'zh-TW' : 'en-US',
+    {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }
+  );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 pb-8">
-      {/* Compact Course Summary */}
-      <Card>
-        <CardContent className="p-6">
-          {/* Teacher & Class Info */}
-          <div className="flex items-center gap-4 mb-4">
+    <div className="min-h-screen bg-background">
+      {/* 大標題區 - 居中 */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-16 xl:pt-20 pb-8 lg:pb-12 text-center">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-semibold tracking-tight mb-3 lg:mb-4 xl:mb-6 text-foreground">
+          {course.name}
+        </h1>
+        {course.description && (
+          <p className="text-base lg:text-lg xl:text-xl text-muted-foreground max-w-3xl mx-auto">
+            {course.description}
+          </p>
+        )}
+      </div>
+
+      {/* 內容區 */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 lg:pb-32 space-y-6 lg:space-y-8 xl:space-y-10">
+        {/* 教師資訊卡片 */}
+        <div className="bg-card rounded-2xl shadow-sm p-5 sm:p-6 lg:p-8 xl:p-10">
+          <div className="flex items-start gap-4 lg:gap-6">
             <img
-              src={course.teacher.picture}
+              src={course.teacher.picture || '/default-avatar.png'}
               alt={course.teacher.name}
-              className="w-12 h-12 rounded-full object-cover bg-muted"
+              className="w-14 h-14 lg:w-16 lg:h-16 xl:w-20 xl:h-20 rounded-full object-cover bg-muted flex-shrink-0"
             />
-            <div className="flex-1">
-              <div className="text-sm text-muted-foreground">{t('course:detail.teacher')}</div>
-              <div className="text-base font-medium text-foreground">{course.teacher.name}</div>
-              <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
-                {myClass && (
-                  <>
-                    <span>{t('course:detail.class')}：{myClass.name}</span>
-                    {myClass.schedule && (
-                      <span className="text-xs">
-                        {myClass.schedule.day} {myClass.schedule.startTime}-{myClass.schedule.endTime}
-                        {myClass.schedule.room && ` • ${myClass.schedule.room}`}
-                      </span>
-                    )}
-                  </>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm lg:text-base text-muted-foreground mb-1">
+                {t('course:detail.teacher')}
+              </div>
+              <div className="text-lg lg:text-xl xl:text-2xl font-medium text-foreground mb-3">
+                {course.teacher.name}
+              </div>
+              <div className="text-sm lg:text-base text-muted-foreground space-y-2">
+                {myClass && myClass.schedule && myClass.schedule.weekday && myClass.schedule.periodCode ? (
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div>
+                      <div className="font-medium text-foreground">{t('course:detail.class')}：{myClass.name}</div>
+                      <div className="text-xs lg:text-sm mt-1">
+                        {formatScheduleDisplay(
+                          myClass.schedule.weekday,
+                          myClass.schedule.periodCode,
+                          currentLanguage
+                        )}
+                        {myClass.schedule.room && (
+                          <span className="ml-2">
+                            <MapPin className="w-3 h-3 inline mr-1" />
+                            {myClass.schedule.room}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-foreground">{t('course:detail.allCourse')}</div>
                 )}
-                {!myClass && <span>{t('course:detail.allCourse')}</span>}
-                <span className="text-xs">• {t('course:detail.joined')}：{formattedEnrolledDate}</span>
+                <div className="text-xs lg:text-sm">
+                  {t('course:detail.joined')}：{formattedEnrolledDate}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Compact Stats */}
-          <div className="flex items-center gap-4 text-sm pt-4 border-t">
-            <span className="text-muted-foreground">{t('course:detail.totalAssignments')}</span>
-            <span className="font-semibold text-foreground">{stats.total}</span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground">{t('course:detail.completed')}</span>
-            <span className="font-semibold text-foreground">{stats.completed}</span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-muted-foreground">{t('course:detail.pending')}</span>
-            <span className="font-semibold text-foreground">{stats.pending}</span>
+          {/* 統計資訊 - 緊湊的內嵌排列 */}
+          <div className="mt-6 pt-6 border-t">
+            <div className="flex flex-wrap gap-6 text-sm">
+              {/* 作業總數 */}
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+                <span className="text-base font-semibold text-foreground">{stats.total}</span>
+                <span className="text-sm text-muted-foreground">{t('course:detail.totalAssignments')}</span>
+              </div>
+
+              {/* 已完成 */}
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <span className="text-base font-semibold text-green-600 dark:text-green-400">{stats.completed}</span>
+                <span className="text-sm text-muted-foreground">{t('course:detail.completed')}</span>
+              </div>
+
+              {/* 待繳交 */}
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                <span className="text-base font-semibold text-orange-600 dark:text-orange-400">{stats.pending}</span>
+                <span className="text-sm text-muted-foreground">{t('course:detail.pending')}</span>
+              </div>
+
+              {/* 平均分數 - 條件顯示 */}
+              {stats.averageScore !== null && (
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-base font-semibold text-blue-600 dark:text-blue-400">{stats.averageScore.toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">{t('course:detail.averageScore')}</span>
+                </div>
+              )}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Tabs: Assignments / Course Info */}
-      <Tabs defaultValue="assignments" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="assignments">{t('course:detail.assignmentList')}</TabsTrigger>
-          <TabsTrigger value="info">{t('course:detail.courseInfo')}</TabsTrigger>
-        </TabsList>
+        {/* 作業列表 */}
+        <div>
+          <h2 className="text-xl lg:text-2xl xl:text-3xl font-semibold text-foreground mb-4 lg:mb-6">
+            {t('course:detail.assignmentList')}
+          </h2>
 
-        <TabsContent value="assignments" className="mt-6">
           {assignments.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">{t('course:detail.noAssignments')}</h3>
-                <p className="text-muted-foreground">{t('course:detail.noAssignmentsDescription')}</p>
-              </CardContent>
-            </Card>
+            <div className="bg-card rounded-2xl shadow-sm p-8 lg:p-12 text-center">
+              <FileText className="mx-auto h-12 w-12 lg:h-16 lg:w-16 text-muted-foreground mb-4" />
+              <h3 className="text-lg lg:text-xl font-medium text-foreground mb-2">
+                {t('course:detail.noAssignments')}
+              </h3>
+              <p className="text-base lg:text-lg text-muted-foreground">
+                {t('course:detail.noAssignmentsDescription')}
+              </p>
+            </div>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(400px,1fr))] gap-6">
-              {assignments.map((assignment) => (
-                <AssignmentCard key={assignment.id} assignment={assignment} studentId={student.id} />
+            <div className="bg-card rounded-2xl shadow-sm overflow-hidden">
+              {assignments.map((assignment, index) => (
+                <AssignmentCard
+                  key={assignment.id}
+                  assignment={assignment}
+                  studentId={student.id}
+                  isLast={index === assignments.length - 1}
+                />
               ))}
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="info" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('course:detail.courseDescription')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {course.description ? (
-                <p className="text-foreground whitespace-pre-wrap">{course.description}</p>
-              ) : (
-                <p className="text-muted-foreground">{t('course:detail.noDescription')}</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </div>
   );
 }
 
-// Assignment Card Component (reused from AssignmentsContent)
+// Assignment List Item - Apple Style
 interface AssignmentCardProps {
   assignment: StudentAssignmentInfo;
   studentId: string;
+  isLast: boolean;
 }
 
-function AssignmentCard({ assignment, studentId }: AssignmentCardProps) {
+function AssignmentCard({ assignment, studentId, isLast }: AssignmentCardProps) {
   const { t } = useTranslation('assignment');
   const hasSubmission = assignment.submissions.some((sub: any) => sub.studentId === studentId);
   const submission = assignment.submissions.find((sub: any) => sub.studentId === studentId);
@@ -129,18 +176,30 @@ function AssignmentCard({ assignment, studentId }: AssignmentCardProps) {
   const getStatusBadge = () => {
     if (hasSubmission) {
       if (submission?.status === 'GRADED') {
-        return <Badge variant="default">{t('status.graded')}</Badge>;
+        return (
+          <Badge className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-0 text-xs lg:text-sm">
+            {t('status.graded')}
+          </Badge>
+        );
       }
-      return <Badge variant="secondary">{t('status.submitted')}</Badge>;
+      return (
+        <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-0 text-xs lg:text-sm">
+          {t('status.submitted')}
+        </Badge>
+      );
     }
 
     const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
     if (isOverdue) {
-      return <Badge variant="destructive">{t('status.overdue')}</Badge>;
+      return (
+        <Badge className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 border-0 text-xs lg:text-sm">
+          {t('status.overdue')}
+        </Badge>
+      );
     }
 
     return (
-      <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
+      <Badge className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-0 text-xs lg:text-sm">
         {t('status.pending')}
       </Badge>
     );
@@ -166,71 +225,65 @@ function AssignmentCard({ assignment, studentId }: AssignmentCardProps) {
   };
 
   return (
-    <Link to={`/student/assignments/${assignment.id}/submit`} className="block group">
-      <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
-        <CardHeader className="p-6 min-h-[140px] flex flex-col justify-start">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
-              <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                {assignment.name}
-              </CardTitle>
-              {assignment.description && (
-                <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{assignment.description}</p>
-              )}
-            </div>
-            <div className="ml-2">{getStatusBadge()}</div>
-          </div>
-        </CardHeader>
-
-        <div className="px-6 py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 flex-wrap">
-              {assignment.class && (
-                <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
-                  {assignment.class.name}
-                </span>
-              )}
-              {!assignment.class && (
-                <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                  全課程
-                </span>
-              )}
-            </div>
-            {hasSubmission && submission?.finalScore !== null ? (
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold text-accent-foreground">{submission?.finalScore}</span>
-                <span className="text-sm text-muted-foreground">{t('assignmentCard.finalScore')}</span>
-              </div>
-            ) : hasSubmission ? (
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">{t('assignmentCard.submitted')}</span>
-                <span className="text-sm text-muted-foreground">{t('assignmentCard.awaitingGrading')}</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{formatDueDate(assignment.dueDate)}</span>
-              </div>
+    <Link
+      to={`/student/assignments/${assignment.id}/submit`}
+      className={`block group hover:bg-accent/5 transition-colors ${!isLast ? 'border-b' : ''}`}
+    >
+      <div className="p-5 sm:p-6 lg:p-8">
+        {/* 標題行 */}
+        <div className="flex items-start justify-between gap-4 mb-3 lg:mb-4">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base lg:text-lg xl:text-xl font-medium text-foreground group-hover:text-primary transition-colors mb-1">
+              {assignment.name}
+            </h3>
+            {assignment.description && (
+              <p className="text-sm lg:text-base text-muted-foreground line-clamp-2">{assignment.description}</p>
             )}
           </div>
+          <div className="flex-shrink-0">{getStatusBadge()}</div>
         </div>
 
-        <div className="px-6 py-4">
-          <div className="text-sm text-muted-foreground">
-            {t('assignmentCard.rubric')}: {assignment.rubric.name}
+        {/* 分數顯示 */}
+        {hasSubmission && submission?.finalScore !== null && (
+          <div className="mb-3 lg:mb-4">
+            <div className="inline-flex items-baseline gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-950/30 rounded-lg">
+              <span className="text-2xl lg:text-3xl font-semibold text-green-600 dark:text-green-400">
+                {submission?.finalScore}
+              </span>
+              <span className="text-sm lg:text-base text-muted-foreground">{t('assignmentCard.finalScore')}</span>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 text-sm">
-            <span className="text-muted-foreground">
-              {assignment.dueDate ? formatDueDate(assignment.dueDate) : t('assignmentCard.noDueDate')}
-            </span>
-            <span className="text-primary font-medium">
-              {!hasSubmission ? t('assignmentCard.submit') : t('assignmentCard.viewSubmission')}
+        {hasSubmission && submission?.finalScore === null && (
+          <div className="mb-3 lg:mb-4">
+            <span className="inline-flex items-center px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm lg:text-base text-blue-600 dark:text-blue-400">
+              {t('assignmentCard.submitted')} • {t('assignmentCard.awaitingGrading')}
             </span>
           </div>
+        )}
+
+        {/* 底部資訊 */}
+        <div className="flex flex-wrap items-center gap-2 lg:gap-3 text-xs lg:text-sm text-muted-foreground">
+          {assignment.class && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300">
+              {assignment.class.name}
+            </span>
+          )}
+          {!assignment.class && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded bg-muted text-muted-foreground">
+              {t('course:detail.allCourse')}
+            </span>
+          )}
+          <span>{assignment.rubric.name}</span>
+          {assignment.dueDate && (
+            <>
+              <span>•</span>
+              <span>{formatDueDate(assignment.dueDate)}</span>
+            </>
+          )}
         </div>
-      </Card>
+      </div>
     </Link>
   );
 }

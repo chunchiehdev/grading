@@ -65,22 +65,12 @@ function transformUICategoriesToCriteria(categories: any[]): any {
 }
 
 /**
- * 將資料庫 criteria JSON 轉換為 UI Categories 或舊版 RubricCriteria[]
+ * Parses criteria JSON from database
+ * Expects categories format: [{ id, name, criteria: [...] }]
  */
 function parseCriteriaFromDB(criteria: unknown): any[] {
   if (Array.isArray(criteria)) {
-    // 檢查是否為新格式（包含類別）
-    if (criteria.length > 0 && criteria[0].id && criteria[0].name && criteria[0].criteria) {
-      // 新格式：直接返回類別陣列
-      return criteria;
-    } else {
-      // 舊格式：轉換為預設類別
-      return [{
-        id: 'default-category',
-        name: '預設類別',
-        criteria: criteria
-      }];
-    }
+    return criteria;
   }
   return [];
 }
@@ -157,16 +147,8 @@ export async function listRubrics(userId?: string): Promise<{ rubrics: RubricRes
     });
 
     const rubrics: RubricResponse[] = dbRubrics.map((dbRubric) => {
-      const parsedData = parseCriteriaFromDB(dbRubric.criteria);
-      
-      // 檢查是否為新的類別格式
-      const isNewFormat = Array.isArray(parsedData) && 
-                         parsedData.length > 0 && 
-                         parsedData[0] && 
-                         typeof parsedData[0] === 'object' && 
-                         'criteria' in parsedData[0] &&
-                         Array.isArray(parsedData[0].criteria);
-      
+      const categories = parseCriteriaFromDB(dbRubric.criteria);
+
       return {
         id: dbRubric.id,
         name: dbRubric.name,
@@ -176,12 +158,8 @@ export async function listRubrics(userId?: string): Promise<{ rubrics: RubricRes
         isTemplate: dbRubric.isTemplate,
         createdAt: dbRubric.createdAt,
         updatedAt: dbRubric.updatedAt,
-        criteria: isNewFormat 
-          ? parsedData.flatMap(cat => cat.criteria) 
-          : parsedData,
-        categories: isNewFormat 
-          ? parsedData 
-          : undefined,
+        criteria: categories.flatMap(cat => cat.criteria),
+        categories: categories,
       };
     });
 
@@ -217,16 +195,8 @@ export async function getRubric(id: string): Promise<{ rubric?: RubricResponse; 
       return { error: '找不到評分標準' };
     }
 
-    const parsedData = parseCriteriaFromDB(dbRubric.criteria);
-    
-    // 檢查是否為新的類別格式（有 categories 結構）
-    const isNewFormat = Array.isArray(parsedData) && 
-                       parsedData.length > 0 && 
-                       parsedData[0] && 
-                       typeof parsedData[0] === 'object' && 
-                       'criteria' in parsedData[0] &&
-                       Array.isArray(parsedData[0].criteria);
-    
+    const categories = parseCriteriaFromDB(dbRubric.criteria);
+
     const rubric: RubricResponse = {
       id: dbRubric.id,
       name: dbRubric.name,
@@ -236,12 +206,8 @@ export async function getRubric(id: string): Promise<{ rubric?: RubricResponse; 
       isTemplate: dbRubric.isTemplate,
       createdAt: dbRubric.createdAt,
       updatedAt: dbRubric.updatedAt,
-      criteria: isNewFormat 
-        ? parsedData.flatMap(cat => cat.criteria) 
-        : parsedData,
-      categories: isNewFormat 
-        ? parsedData 
-        : undefined,
+      criteria: categories.flatMap(cat => cat.criteria),
+      categories: categories,
     };
 
     return { rubric };

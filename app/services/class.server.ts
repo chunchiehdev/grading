@@ -9,19 +9,10 @@ export interface ClassInfo {
   name: string;
   /**
    * Schedule data (JSON)
-   *
-   * New format (recommended):
+   * Format:
    * {
    *   weekday: "一" | "二" | "三" | "四" | "五" | "六" | "日",
    *   periodCode: "1" | "2" | ... | "9" | "Z" | "A" | "B" | "C" | "D",
-   *   room: string (optional)
-   * }
-   *
-   * Legacy format (for backward compatibility):
-   * {
-   *   day: "星期一" | "星期二" | ...,
-   *   startTime: "HH:mm",
-   *   endTime: "HH:mm",
    *   room: string (optional)
    * }
    */
@@ -54,9 +45,7 @@ export interface ClassInfo {
 
 /**
  * Data for creating a new class
- *
- * schedule should use the new format:
- * { weekday: string, periodCode: string, room?: string }
+ * schedule format: { weekday: string, periodCode: string, room?: string }
  */
 export interface CreateClassData {
   courseId: string;
@@ -68,9 +57,7 @@ export interface CreateClassData {
 
 /**
  * Data for updating an existing class
- *
- * schedule should use the new format:
- * { weekday: string, periodCode: string, room?: string }
+ * schedule format: { weekday: string, periodCode: string, room?: string }
  */
 export interface UpdateClassData {
   name?: string;

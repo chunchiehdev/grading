@@ -3,7 +3,6 @@ import { useLoaderData } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getStudentCourseDetail, type StudentCourseDetailData } from '@/services/student-course-detail.server';
 import { CourseDetailContent } from '@/components/student/CourseDetailContent';
-import { PageHeader } from '@/components/ui/page-header';
 
 interface LoaderData extends StudentCourseDetailData {
   student: { id: string; email: string; role: string; name: string };
@@ -37,15 +36,5 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
 export default function StudentCourseDetail() {
   const data = useLoaderData<typeof loader>();
 
-  return (
-    <div>
-      <PageHeader
-        title={data.course.name}
-        subtitle={data.course.description || '課程詳情'}
-        showInlineActions={false}
-      />
-
-      <CourseDetailContent data={data} />
-    </div>
-  );
+  return <CourseDetailContent data={data} />;
 }

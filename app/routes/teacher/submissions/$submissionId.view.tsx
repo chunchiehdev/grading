@@ -58,6 +58,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     },
     grading: {
       finalScore: rawSubmission.finalScore,
+      normalizedScore: rawSubmission.normalizedScore,
       uploadedAt: rawSubmission.uploadedAt.toISOString(),
       filePath: rawSubmission.filePath,
       teacherFeedback: rawSubmission.teacherFeedback,
@@ -127,7 +128,7 @@ export default function TeacherSubmissionView() {
           <div className="md:col-span-2 space-y-6">
             <StudentInfoCard student={submission.student} />
             <AssignmentInfoCard assignment={submission.assignment} grading={submission.grading} />
-            <AIAnalysisCard result={submission.grading.aiAnalysisResult} />
+            <AIAnalysisCard result={submission.grading.aiAnalysisResult} normalizedScore={submission.grading.normalizedScore} />
           </div>
 
           <div className="md:col-span-1 space-y-6">
@@ -215,7 +216,7 @@ function AssignmentInfoCard({
   );
 }
 
-function AIAnalysisCard({ result }: { result: any | null }) {
+function AIAnalysisCard({ result, normalizedScore }: { result: any | null; normalizedScore?: number | null }) {
   const { t } = useTranslation('teacher');
   return (
     <Card>
@@ -224,7 +225,7 @@ function AIAnalysisCard({ result }: { result: any | null }) {
       </CardHeader>
       <CardContent>
         {result ? (
-          <GradingResultDisplay result={result} />
+          <GradingResultDisplay result={result} normalizedScore={normalizedScore} />
         ) : (
           <p className="text-sm text-muted-foreground">{t('aiAnalysisInProgress')}</p>
         )}
@@ -294,7 +295,7 @@ function FeedbackFormCard({
           )}
 
           {actionData?.success && (
-            <Alert>
+            <Alert>              
               <AlertDescription>{t('feedbackSaved')}</AlertDescription>
             </Alert>
           )}

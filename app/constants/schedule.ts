@@ -34,27 +34,28 @@ export const WEEKDAYS: WeekdayDefinition[] = [
  * - B-D: 第 11-13 節
  */
 export interface PeriodDefinition {
-  code: string;        // 節次代碼：1, 2, 3, ..., 9, Z, A, B, C, D
-  startTime: string;   // 開始時間：HH:mm 格式
-  endTime: string;     // 結束時間：HH:mm 格式
-  displayName: string; // 顯示名稱：第1節、午休等
+  code: string;               // 節次代碼：1, 2, 3, ..., 9, Z, A, B, C, D
+  startTime: string;          // 開始時間：HH:mm 格式
+  endTime: string;            // 結束時間：HH:mm 格式
+  displayName: string;        // 中文顯示名稱：第1節、午休等
+  englishDisplayName: string; // 英文顯示名稱：Period 1, Lunch Break, etc.
 }
 
 export const PERIODS: PeriodDefinition[] = [
-  { code: '1', startTime: '08:00', endTime: '08:50', displayName: '第1節' },
-  { code: '2', startTime: '09:00', endTime: '09:50', displayName: '第2節' },
-  { code: '3', startTime: '10:00', endTime: '10:50', displayName: '第3節' },
-  { code: '4', startTime: '11:00', endTime: '11:50', displayName: '第4節' },
-  { code: 'Z', startTime: '12:00', endTime: '12:50', displayName: '午休' },
-  { code: '5', startTime: '13:00', endTime: '13:50', displayName: '第5節' },
-  { code: '6', startTime: '14:00', endTime: '14:50', displayName: '第6節' },
-  { code: '7', startTime: '15:00', endTime: '15:50', displayName: '第7節' },
-  { code: '8', startTime: '16:00', endTime: '16:50', displayName: '第8節' },
-  { code: '9', startTime: '17:00', endTime: '17:50', displayName: '第9節' },
-  { code: 'A', startTime: '18:00', endTime: '18:50', displayName: '第10節' },
-  { code: 'B', startTime: '19:00', endTime: '19:50', displayName: '第11節' },
-  { code: 'C', startTime: '20:00', endTime: '20:50', displayName: '第12節' },
-  { code: 'D', startTime: '21:00', endTime: '21:50', displayName: '第13節' },
+  { code: '1', startTime: '08:00', endTime: '08:50', displayName: '第1節', englishDisplayName: 'Period 1' },
+  { code: '2', startTime: '09:00', endTime: '09:50', displayName: '第2節', englishDisplayName: 'Period 2' },
+  { code: '3', startTime: '10:00', endTime: '10:50', displayName: '第3節', englishDisplayName: 'Period 3' },
+  { code: '4', startTime: '11:00', endTime: '11:50', displayName: '第4節', englishDisplayName: 'Period 4' },
+  { code: 'Z', startTime: '12:00', endTime: '12:50', displayName: '午休', englishDisplayName: 'Lunch Break' },
+  { code: '5', startTime: '13:00', endTime: '13:50', displayName: '第5節', englishDisplayName: 'Period 5' },
+  { code: '6', startTime: '14:00', endTime: '14:50', displayName: '第6節', englishDisplayName: 'Period 6' },
+  { code: '7', startTime: '15:00', endTime: '15:50', displayName: '第7節', englishDisplayName: 'Period 7' },
+  { code: '8', startTime: '16:00', endTime: '16:50', displayName: '第8節', englishDisplayName: 'Period 8' },
+  { code: '9', startTime: '17:00', endTime: '17:50', displayName: '第9節', englishDisplayName: 'Period 9' },
+  { code: 'A', startTime: '18:00', endTime: '18:50', displayName: '第10節', englishDisplayName: 'Period A' },
+  { code: 'B', startTime: '19:00', endTime: '19:50', displayName: '第11節', englishDisplayName: 'Period B' },
+  { code: 'C', startTime: '20:00', endTime: '20:50', displayName: '第12節', englishDisplayName: 'Period C' },
+  { code: 'D', startTime: '21:00', endTime: '21:50', displayName: '第13節', englishDisplayName: 'Period D' },
 ] as const;
 
 /**
@@ -76,12 +77,17 @@ export function getWeekdayByCode(code: string): WeekdayDefinition | undefined {
 }
 
 /**
- * 格式化時段顯示文字
+ * 格式化時段顯示文字（支援多語言）
  * @param weekdayCode 星期代碼
  * @param periodCode 節次代碼
- * @returns 格式化的顯示文字，例如：「星期一 第3節 (10:00-10:50)」
+ * @param language 語言代碼：'zh' 或 'en'，預設為 'zh'
+ * @returns 格式化的顯示文字，例如：「星期一 第3節 (10:00-10:50)」或 "Monday Period 3 (10:00-10:50)"
  */
-export function formatScheduleDisplay(weekdayCode: string, periodCode: string): string {
+export function formatScheduleDisplay(
+  weekdayCode: string,
+  periodCode: string,
+  language: 'zh' | 'en' = 'zh'
+): string {
   const weekday = getWeekdayByCode(weekdayCode);
   const period = getPeriodByCode(periodCode);
 
@@ -89,16 +95,24 @@ export function formatScheduleDisplay(weekdayCode: string, periodCode: string): 
     return '';
   }
 
-  return `${weekday.name} ${period.displayName} (${period.startTime}-${period.endTime})`;
+  const weekdayName = language === 'en' ? weekday.englishName : weekday.name;
+  const periodName = language === 'en' ? period.englishDisplayName : period.displayName;
+
+  return `${weekdayName} ${periodName} (${period.startTime}-${period.endTime})`;
 }
 
 /**
- * 格式化時段簡短顯示（不含時間）
+ * 格式化時段簡短顯示（不含時間，支援多語言）
  * @param weekdayCode 星期代碼
  * @param periodCode 節次代碼
- * @returns 格式化的顯示文字，例如：「星期一 第3節」
+ * @param language 語言代碼：'zh' 或 'en'，預設為 'zh'
+ * @returns 格式化的顯示文字，例如：「星期一 第3節」或 "Monday Period 3"
  */
-export function formatScheduleShort(weekdayCode: string, periodCode: string): string {
+export function formatScheduleShort(
+  weekdayCode: string,
+  periodCode: string,
+  language: 'zh' | 'en' = 'zh'
+): string {
   const weekday = getWeekdayByCode(weekdayCode);
   const period = getPeriodByCode(periodCode);
 
@@ -106,7 +120,10 @@ export function formatScheduleShort(weekdayCode: string, periodCode: string): st
     return '';
   }
 
-  return `${weekday.name} ${period.displayName}`;
+  const weekdayName = language === 'en' ? weekday.englishName : weekday.name;
+  const periodName = language === 'en' ? period.englishDisplayName : period.displayName;
+
+  return `${weekdayName} ${periodName}`;
 }
 
 /**

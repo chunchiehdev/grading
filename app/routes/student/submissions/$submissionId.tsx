@@ -107,7 +107,7 @@ export default function StudentSubmissionDetail() {
           <h2 className="text-xl font-semibold">{t('submissions:aiAnalysis.title')}</h2>
           <div>
             {submission.aiAnalysisResult ? (
-              <GradingResultDisplay result={submission.aiAnalysisResult as any} />
+              <GradingResultDisplay result={submission.aiAnalysisResult as any} normalizedScore={submission.normalizedScore} />
             ) : (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">AI分析進行中...</p>
