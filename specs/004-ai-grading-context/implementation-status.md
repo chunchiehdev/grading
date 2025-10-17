@@ -317,3 +317,4 @@ generateTextGradingPrompt(request: GeminiGradingRequest) {
 - **Context 載入**: `app/services/grading-engine.server.ts`
 - **UI 組件**: `app/components/grading/ReferenceFileUpload.tsx`
 
+

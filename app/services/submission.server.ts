@@ -162,14 +162,18 @@ export async function createSubmissionAndLinkGradingResult(
       // Get normalized score (100-point scale) from grading result
       const normalizedScore = gradingResult.normalizedScore ?? null;
 
+      // Feature 004: Copy context transparency from GradingResult to Submission
+      const usedContext = gradingResult.usedContext ?? null;
+
       console.log(
-        `🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}`
+        `🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}, context=${usedContext ? 'yes' : 'no'}`
       );
 
       await updateSubmission(submission.id, {
         aiAnalysisResult: aiAnalysisResult,
         finalScore: finalScore ?? undefined,
         normalizedScore: normalizedScore ?? undefined,
+        usedContext: usedContext ?? undefined, // Feature 004
         status: 'ANALYZED',
       });
 
@@ -621,6 +625,7 @@ export async function updateSubmission(
     aiAnalysisResult?: any;
     finalScore?: number;
     normalizedScore?: number;
+    usedContext?: any; // Feature 004: Context transparency
     teacherFeedback?: string;
     status?: 'SUBMITTED' | 'ANALYZED' | 'GRADED';
   }
@@ -807,8 +812,9 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       // Update AI analysis result if provided
       if (aiAnalysisResult !== undefined) {
         updateData.aiAnalysisResult = aiAnalysisResult;
-        // Update status based on AI result presence
-        updateData.status = aiAnalysisResult ? 'ANALYZED' : 'DRAFT';
+        // Keep status as DRAFT - AI result doesn't mean submission is complete
+        // Status should only change to SUBMITTED when user explicitly submits
+        // (Don't auto-change to ANALYZED - that's for submitted assignments only)
       }
 
       if (Object.keys(updateData).length > 0) {
@@ -826,7 +832,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
           studentId,
           assignmentAreaId,
           filePath: fileMetadata.fileId,
-          status: aiAnalysisResult ? 'ANALYZED' : 'DRAFT',
+          status: 'DRAFT', // Always create as DRAFT - user hasn't submitted yet
           aiAnalysisResult: aiAnalysisResult || null,
         },
       });

@@ -323,11 +323,26 @@ export async function deleteAssignmentArea(assignmentId: string, teacherId: stri
       return false;
     }
 
-    await db.assignmentArea.delete({
-      where: { id: assignmentId },
+    // Use transaction to ensure all related data is deleted properly
+    await db.$transaction(async (tx) => {
+      // 1. Delete all submissions related to this assignment area
+      await tx.submission.deleteMany({
+        where: { assignmentAreaId: assignmentId },
+      });
+
+      // 2. Update grading results to set assignmentAreaId to null (SetNull cascade)
+      await tx.gradingResult.updateMany({
+        where: { assignmentAreaId: assignmentId },
+        data: { assignmentAreaId: null },
+      });
+
+      // 3. Finally delete the assignment area itself
+      await tx.assignmentArea.delete({
+        where: { id: assignmentId },
+      });
     });
 
-    console.log('✅ Deleted assignment area:', assignmentId);
+    console.log('✅ Deleted assignment area and all related data:', assignmentId);
     return true;
   } catch (error) {
     console.error('❌ Error deleting assignment area:', error);

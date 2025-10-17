@@ -23,8 +23,10 @@ interface AssignmentCardProps {
 }
 
 function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t }: AssignmentCardProps) {
-  const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
-  const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
+  // Filter out DRAFT submissions - only count actual submissions
+  const actualSubmissions = assignment.submissions.filter((sub) => sub.status !== 'DRAFT');
+  const hasSubmission = actualSubmissions.some((sub) => sub.studentId === student.id);
+  const submission = actualSubmissions.find((sub) => sub.studentId === student.id);
 
   return (
     <Link to={`/student/assignments/${assignment.id}/submit`} className="block group">
@@ -46,9 +48,9 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
 
         {/* Statistics - 固定高度區域 */}
         <div className="px-6 py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-4">
+          <div className="flex flex-col gap-3">
+            {/* Class Badge Row - 只顯示班級標籤 */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-lg font-semibold text-muted-foreground">{assignment.course.name}</span>
               {assignment.class && (
                 <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
                   {assignment.class.name}
@@ -60,6 +62,8 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
                 </span>
               )}
             </div>
+
+            {/* Score/Status Row - 獨立一行 */}
             {hasSubmission && submission?.finalScore !== null ? (
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold text-accent-foreground">{submission?.finalScore}</span>
@@ -156,10 +160,12 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
   // Categorize assignments
   const categorizedAssignments = assignments.reduce(
     (acc, assignment) => {
-      const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
+      // Filter out DRAFT submissions - only count actual submissions
+      const actualSubmissions = assignment.submissions.filter((sub) => sub.status !== 'DRAFT');
+      const hasSubmission = actualSubmissions.some((sub) => sub.studentId === student.id);
 
       if (hasSubmission) {
-        const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
+        const submission = actualSubmissions.find((sub) => sub.studentId === student.id);
         if (submission?.status === 'GRADED') {
           acc.graded.push(assignment);
         } else {
@@ -184,10 +190,12 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
   );
 
   const getStatusBadge = (assignment: StudentAssignmentInfo) => {
-    const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
+    // Filter out DRAFT submissions - only count actual submissions
+    const actualSubmissions = assignment.submissions.filter((sub) => sub.status !== 'DRAFT');
+    const hasSubmission = actualSubmissions.some((sub) => sub.studentId === student.id);
 
     if (hasSubmission) {
-      const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
+      const submission = actualSubmissions.find((sub) => sub.studentId === student.id);
       if (submission?.status === 'GRADED') {
         return <Badge variant="default">{t('status.graded')}</Badge>;
       }

@@ -89,6 +89,49 @@
       "cancel": "Cancel",
       "noRubrics": "No rubrics available.",
       "createRubricFirst": "Create one first"
+    },
+    "manage": {
+      "pageTitle": "{{assignmentName}}",
+      "pageSubtitle": "Manage assignment area in {{courseName}}",
+      "viewSubmissions": "View Submissions",
+      "backToCourse": "Back to Course",
+      "stats": {
+        "submissions": "Submissions",
+        "status": "Status",
+        "active": "Active",
+        "overdue": "Overdue",
+        "daysUntilDue": "Days Until Due",
+        "daysOverdue": "{{days}} overdue",
+        "noDueDate": "No due date",
+        "rubric": "Rubric"
+      },
+      "settings": {
+        "title": "Assignment Settings",
+        "description": "Update assignment details, due date, and grading rubric.",
+        "nameLabel": "Assignment Name",
+        "nameRequired": "Assignment name is required",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Provide details about what students need to submit...",
+        "rubricLabel": "Grading Rubric",
+        "rubricRequired": "Please select a rubric",
+        "rubricPlaceholder": "Select a rubric for grading",
+        "currentBadge": "Current",
+        "dueDateLabel": "Due Date (Optional)",
+        "updateSuccess": "Assignment area updated successfully!",
+        "updateError": "Failed to update assignment area",
+        "deleteConfirm": "Are you sure you want to delete this assignment area? This action cannot be undone.",
+        "deleteButton": "Delete Assignment",
+        "deleteError": "Failed to delete assignment area",
+        "cancelButton": "Cancel",
+        "saveButton": "Save Changes"
+      },
+      "info": {
+        "title": "Assignment Information",
+        "created": "Created",
+        "lastUpdated": "Last Updated",
+        "course": "Course",
+        "currentRubric": "Current Rubric"
+      }
     }
   },
   "student": {

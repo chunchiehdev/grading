@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
 import { ArrowLeft, Save, Trash2, Calendar, FileText, Users, Settings } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { requireTeacher } from '@/services/auth.server';
 import {
@@ -134,6 +135,7 @@ export default function ManageAssignmentArea() {
   const { teacher, assignmentArea, rubrics, formattedDueDate, formattedCreatedAt, formattedUpdatedAt } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
+  const { t } = useTranslation(['course', 'common']);
 
   const isOverdue = assignmentArea.dueDate && new Date(assignmentArea.dueDate) < new Date();
   const daysUntilDue = assignmentArea.dueDate
@@ -145,13 +147,13 @@ export default function ManageAssignmentArea() {
       <Button asChild variant="outline">
         <Link to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/submissions`}>
           <Users className="w-4 h-4 mr-2" />
-          View Submissions
+          {t('course:assignment.manage.viewSubmissions')}
         </Link>
       </Button>
       <Button asChild variant="outline">
         <Link to={`/teacher/courses/${assignmentArea.courseId}`}>
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Course
+          {t('course:assignment.manage.backToCourse')}
         </Link>
       </Button>
     </div>
@@ -161,7 +163,7 @@ export default function ManageAssignmentArea() {
     <div className="bg-background text-foreground">
       <PageHeader
         title={assignmentArea.name}
-        subtitle={`Manage assignment area in ${assignmentArea.course.name}`}
+        subtitle={t('course:assignment.manage.pageSubtitle', { courseName: assignmentArea.course.name })}
         actions={headerActions}
       />
 
@@ -173,7 +175,9 @@ export default function ManageAssignmentArea() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Submissions</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {t('course:assignment.manage.stats.submissions')}
+                    </p>
                     <p className="text-2xl font-bold text-foreground">{assignmentArea._count.submissions}</p>
                   </div>
                   <FileText className="w-8 h-8 text-primary" />
@@ -184,8 +188,14 @@ export default function ManageAssignmentArea() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Status</p>
-                    <p className="text-2xl font-bold text-foreground">{isOverdue ? 'Overdue' : 'Active'}</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {t('course:assignment.manage.stats.status')}
+                    </p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {isOverdue
+                        ? t('course:assignment.manage.stats.overdue')
+                        : t('course:assignment.manage.stats.active')}
+                    </p>
                   </div>
                   <Calendar className="w-8 h-8 text-green-600" />
                 </div>
@@ -195,13 +205,15 @@ export default function ManageAssignmentArea() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Days Until Due</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {t('course:assignment.manage.stats.daysUntilDue')}
+                    </p>
                     <p className="text-xl font-bold text-foreground">
                       {daysUntilDue !== null
                         ? daysUntilDue < 0
-                          ? `${Math.abs(daysUntilDue)} overdue`
+                          ? t('course:assignment.manage.stats.daysOverdue', { days: Math.abs(daysUntilDue) })
                           : daysUntilDue.toString()
-                        : 'No due date'}
+                        : t('course:assignment.manage.stats.noDueDate')}
                     </p>
                   </div>
                   <Calendar className="w-8 h-8 text-orange-600" />
@@ -212,7 +224,9 @@ export default function ManageAssignmentArea() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Rubric</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {t('course:assignment.manage.stats.rubric')}
+                    </p>
                     <p className="text-xl font-bold text-foreground">{assignmentArea.rubric.name}</p>
                   </div>
                   <Settings className="w-8 h-8 text-purple-600" />
@@ -226,9 +240,9 @@ export default function ManageAssignmentArea() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings className="h-5 w-5" />
-                Assignment Settings
+                {t('course:assignment.manage.settings.title')}
               </CardTitle>
-              <CardDescription>Update assignment details, due date, and grading rubric.</CardDescription>
+              <CardDescription>{t('course:assignment.manage.settings.description')}</CardDescription>
             </CardHeader>
             <CardContent>
               <Form id="update-assignment-form" method="post" className="space-y-6">
@@ -236,7 +250,7 @@ export default function ManageAssignmentArea() {
 
                 <div className="space-y-2">
                   <Label htmlFor="name">
-                    Assignment Name <span className="text-destructive">*</span>
+                    {t('course:assignment.manage.settings.nameLabel')} <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="name"
@@ -248,24 +262,24 @@ export default function ManageAssignmentArea() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description">{t('course:assignment.manage.settings.descriptionLabel')}</Label>
                   <Textarea
                     id="description"
                     name="description"
-                    rows={4}
+                    rows={20}
                     defaultValue={assignmentArea.description || ''}
-                    placeholder="Provide details about what students need to submit..."
+                    placeholder={t('course:assignment.manage.settings.descriptionPlaceholder')}
                     className="bg-background border-border focus:ring-ring"
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="rubricId">
-                    Grading Rubric <span className="text-destructive">*</span>
+                    {t('course:assignment.manage.settings.rubricLabel')} <span className="text-destructive">*</span>
                   </Label>
                   <Select name="rubricId" defaultValue={assignmentArea.rubricId} required>
                     <SelectTrigger className="bg-background border-border focus:ring-ring">
-                      <SelectValue placeholder="Select a rubric for grading" />
+                      <SelectValue placeholder={t('course:assignment.manage.settings.rubricPlaceholder')} />
                     </SelectTrigger>
                     <SelectContent className="bg-popover border-border">
                       {rubrics.map((rubric) => (
@@ -277,7 +291,7 @@ export default function ManageAssignmentArea() {
                             )}
                             {rubric.id === assignmentArea.rubricId && (
                               <Badge variant="secondary" className="ml-2 text-xs">
-                                Current
+                                {t('course:assignment.manage.settings.currentBadge')}
                               </Badge>
                             )}
                           </div>
@@ -289,7 +303,7 @@ export default function ManageAssignmentArea() {
 
                 <div className="space-y-2">
                   <Label htmlFor="dueDate" className="flex items-center gap-2">
-                    Due Date (Optional)
+                    {t('course:assignment.manage.settings.dueDateLabel')}
                   </Label>
                   <DatePicker
                     name="dueDate"
@@ -307,7 +321,7 @@ export default function ManageAssignmentArea() {
 
                 {actionData?.success && actionData.action === 'update' && (
                   <Alert>
-                    <AlertDescription>Assignment area updated successfully!</AlertDescription>
+                    <AlertDescription>{t('course:assignment.manage.settings.updateSuccess')}</AlertDescription>
                   </Alert>
                 )}
               </Form>
@@ -319,25 +333,25 @@ export default function ManageAssignmentArea() {
                     type="submit"
                     variant="destructive"
                     onClick={(e) => {
-                      if (
-                        !confirm('Are you sure you want to delete this assignment area? This action cannot be undone.')
-                      ) {
+                      if (!confirm(t('course:assignment.manage.settings.deleteConfirm'))) {
                         e.preventDefault();
                       }
                     }}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Assignment
+                    {t('course:assignment.manage.settings.deleteButton')}
                   </Button>
                 </Form>
 
                 <div className="flex gap-2">
                   <Button asChild variant="outline">
-                    <Link to={`/teacher/courses/${assignmentArea.courseId}`}>Cancel</Link>
+                    <Link to={`/teacher/courses/${assignmentArea.courseId}`}>
+                      {t('course:assignment.manage.settings.cancelButton')}
+                    </Link>
                   </Button>
                   <Button type="submit" form="update-assignment-form">
                     <Save className="w-4 h-4 mr-2" />
-                    Save Changes
+                    {t('course:assignment.manage.settings.saveButton')}
                   </Button>
                 </div>
               </div>
@@ -347,24 +361,24 @@ export default function ManageAssignmentArea() {
           {/* Assignment Info */}
           <Card className="bg-card text-card-foreground border">
             <CardHeader>
-              <CardTitle>Assignment Information</CardTitle>
+              <CardTitle>{t('course:assignment.manage.info.title')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h4 className="font-medium text-foreground">Created</h4>
+                  <h4 className="font-medium text-foreground">{t('course:assignment.manage.info.created')}</h4>
                   <p className="text-muted-foreground">{formattedCreatedAt}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-foreground">Last Updated</h4>
+                  <h4 className="font-medium text-foreground">{t('course:assignment.manage.info.lastUpdated')}</h4>
                   <p className="text-muted-foreground">{formattedUpdatedAt}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-foreground">Course</h4>
+                  <h4 className="font-medium text-foreground">{t('course:assignment.manage.info.course')}</h4>
                   <p className="text-muted-foreground">{assignmentArea.course.name}</p>
                 </div>
                 <div>
-                  <h4 className="font-medium text-foreground">Current Rubric</h4>
+                  <h4 className="font-medium text-foreground">{t('course:assignment.manage.info.currentRubric')}</h4>
                   <p className="text-muted-foreground">{assignmentArea.rubric.name}</p>
                 </div>
               </div>

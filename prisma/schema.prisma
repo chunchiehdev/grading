@@ -150,6 +150,10 @@ model Submission {
   aiAnalysisResult Json?         // AI analysis results
   finalScore       Int?          // Final score
   normalizedScore  Float?        // 100-point normalized score from AI grading
+
+  // Context transparency (Feature 004) - copied from GradingResult
+  usedContext      Json?         // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }
+
   teacherFeedback  String?       @db.Text
   status           SubmissionStatus @default(SUBMITTED)
   

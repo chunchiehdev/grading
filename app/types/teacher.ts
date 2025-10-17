@@ -93,6 +93,8 @@ export interface TeacherSubmissionView {
   grading: {
     /** Final score from teacher, null if not graded yet */
     finalScore: number | null;
+    /** AI-generated normalized score (0-100), null if not available */
+    normalizedScore: number | null;
     /** Upload timestamp as ISO string (format in UI with toLocaleString) */
     uploadedAt: string;
     /** File download URL, null if file not available */
@@ -101,6 +103,8 @@ export interface TeacherSubmissionView {
     teacherFeedback: string | null;
     /** AI analysis result JSON, null if analysis incomplete */
     aiAnalysisResult: any | null;
+    /** Context transparency metadata (Feature 004), null if no context was used */
+    usedContext: any | null;
   };
   /** Navigation URLs pre-computed for UI */
   navigation: {

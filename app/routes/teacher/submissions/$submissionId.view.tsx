@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
+import { ContextTransparency } from '@/components/grading/ContextTransparency';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTranslation } from 'react-i18next';
 import type { TeacherInfo, TeacherSubmissionView } from '@/types/teacher';
@@ -63,6 +64,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
       filePath: rawSubmission.filePath,
       teacherFeedback: rawSubmission.teacherFeedback,
       aiAnalysisResult: rawSubmission.aiAnalysisResult,
+      usedContext: rawSubmission.usedContext ?? null, // Feature 004
     },
     navigation: {
       backUrl: `/teacher/courses/${rawSubmission.assignmentArea.course.id}/assignments/${rawSubmission.assignmentArea.id}/submissions`,
@@ -131,6 +133,7 @@ export default function TeacherSubmissionView() {
             <AIAnalysisCard
               result={submission.grading.aiAnalysisResult}
               normalizedScore={submission.grading.normalizedScore}
+              usedContext={submission.grading.usedContext}
             />
           </div>
 
@@ -212,7 +215,15 @@ function AssignmentInfoCard({
   );
 }
 
-function AIAnalysisCard({ result, normalizedScore }: { result: any | null; normalizedScore?: number | null }) {
+function AIAnalysisCard({
+  result,
+  normalizedScore,
+  usedContext,
+}: {
+  result: any | null;
+  normalizedScore?: number | null;
+  usedContext?: any | null;
+}) {
   const { t } = useTranslation('teacher');
   return (
     <Card>
@@ -221,7 +232,13 @@ function AIAnalysisCard({ result, normalizedScore }: { result: any | null; norma
       </CardHeader>
       <CardContent>
         {result ? (
-          <GradingResultDisplay result={result} normalizedScore={normalizedScore} />
+          <div className="space-y-4">
+            {/* Feature 004: Show context transparency first */}
+            {usedContext && <ContextTransparency usedContext={usedContext} />}
+
+            {/* AI grading results */}
+            <GradingResultDisplay result={result} normalizedScore={normalizedScore} />
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">{t('aiAnalysisInProgress')}</p>
         )}
