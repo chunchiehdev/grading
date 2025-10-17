@@ -1,6 +1,7 @@
 import { requireStudent } from '@/services/auth.server';
 import { getDraftSubmission, saveDraftSubmission } from '@/services/submission.server';
 import { createErrorResponse } from '@/types/api';
+import { db } from '@/lib/db.server';
 
 /**
  * GET /api/student/assignments/[assignmentId]/draft
@@ -30,6 +31,9 @@ export async function loader({ request, params }: { request: Request; params: an
 /**
  * POST /api/student/assignments/[assignmentId]/draft
  * Saves/updates draft submission data
+ *
+ * DELETE /api/student/assignments/[assignmentId]/draft
+ * Deletes draft submission (DRAFT status only)
  */
 export async function action({ request, params }: { request: Request; params: any }) {
   try {
@@ -40,6 +44,32 @@ export async function action({ request, params }: { request: Request; params: an
       return Response.json(createErrorResponse('Assignment ID is required'), { status: 400 });
     }
 
+    // Handle DELETE request - clear draft submission
+    if (request.method === 'DELETE') {
+      try {
+        const submission = await db.submission.findFirst({
+          where: {
+            assignmentAreaId: assignmentId,
+            studentId: student.id,
+            status: 'DRAFT', // Only delete DRAFT submissions
+          },
+        });
+
+        if (submission) {
+          await db.submission.delete({
+            where: { id: submission.id },
+          });
+          console.log('✅ Deleted draft submission:', submission.id);
+        }
+
+        return Response.json({ success: true });
+      } catch (error) {
+        console.error('Failed to delete draft submission:', error);
+        return Response.json(createErrorResponse('Failed to delete draft submission'), { status: 500 });
+      }
+    }
+
+    // Handle POST request - save/update draft
     const contentType = request.headers.get('content-type') || '';
     let body: any;
 
