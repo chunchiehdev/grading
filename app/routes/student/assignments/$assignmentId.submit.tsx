@@ -407,6 +407,27 @@ export default function SubmitAssignment() {
     }
   };
 
+  const handleResetFile = async () => {
+    // 1. Clear frontend state first
+    dispatch({ type: 'reset' });
+
+    // 2. Clear database draft (if exists)
+    if (draftSubmission?.id) {
+      try {
+        await fetch(`/api/student/assignments/${assignment.id}/draft`, {
+          method: 'DELETE',
+        });
+        console.log('✅ Cleared draft submission from database');
+      } catch (err) {
+        console.error('Failed to clear draft submission:', err);
+        // Non-critical error, UI already reset
+      }
+    }
+
+    // 3. Clear uploadStore
+    clearFiles();
+  };
+
   // Simplified upload component without Card wrapper
   const renderUploadPhase = () => (
     <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-6 border border-primary/20">
@@ -440,7 +461,7 @@ export default function SubmitAssignment() {
 
         {/* Secondary Actions */}
         <div className="space-y-2">
-          <Button variant="outline" onClick={() => dispatch({ type: 'reset' })} className="w-full text-sm">
+          <Button variant="outline" onClick={handleResetFile} className="w-full text-sm">
             {t('assignment:submit.reselectFile')}
           </Button>
         </div>
@@ -487,8 +508,8 @@ export default function SubmitAssignment() {
           <div ref={leftPanelRef} className="order-1 lg:order-2 flex flex-col">
             <div className="h-full overflow-y-auto">
               <div className="space-y-6 p-6">
-                {/* Resubmission Warning */}
-                {draftSubmission && draftSubmission.id && (
+                {/* Resubmission Warning - Only show if there's a non-DRAFT submission */}
+                {assignment.submissions && assignment.submissions.length > 0 && (
                   <Alert
                     variant="default"
                     className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30"

@@ -676,6 +676,7 @@ export interface DraftSubmissionData {
 
 export interface DraftSubmissionInfo extends DraftSubmissionData {
   id?: string;
+  status?: 'DRAFT' | 'SUBMITTED' | 'ANALYZED' | 'GRADED';
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -767,6 +768,7 @@ export async function getDraftSubmission(
         sessionId: null, // We don't store sessionId in submissions currently
         aiAnalysisResult: existingSubmission.aiAnalysisResult,
         lastState,
+        status: existingSubmission.status,
         createdAt: existingSubmission.createdAt,
         updatedAt: existingSubmission.updatedAt,
       };
@@ -851,6 +853,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       sessionId,
       aiAnalysisResult: submission.aiAnalysisResult,
       lastState,
+      status: submission.status,
       createdAt: submission.createdAt,
       updatedAt: submission.updatedAt,
     };
