@@ -12,6 +12,10 @@ export interface GeminiGradingRequest {
   categories?: any[]; // 新增：完整的類別結構
   fileName: string;
   rubricName: string;
+  // Feature 004: AI Grading Context
+  referenceDocuments?: Array<{ fileId: string; fileName: string; content: string; wasTruncated: boolean }>;
+  customInstructions?: string;
+  language?: 'zh' | 'en'; // Language for AI feedback
 }
 
 // Gemini 檔案評分請求介面 - 直接檔案上傳方式

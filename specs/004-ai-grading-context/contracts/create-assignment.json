@@ -1,0 +1,484 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Create/Update Assignment with Reference Materials",
+    "version": "1.0.0",
+    "description": "API contract for creating assignments with reference documents and custom grading instructions"
+  },
+  "paths": {
+    "/api/assignments": {
+      "post": {
+        "summary": "Create new assignment with optional reference materials",
+        "tags": ["Assignments"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "courseId", "rubricId"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "example": "Chapter 3 Homework"
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "example": "Complete problems 1-10 from textbook"
+                  },
+                  "courseId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                  },
+                  "classId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true,
+                    "description": "Optional - if null, assignment applies to all classes in course",
+                    "example": "660e8400-e29b-41d4-a716-446655440000"
+                  },
+                  "rubricId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "example": "770e8400-e29b-41d4-a716-446655440000"
+                  },
+                  "dueDate": {
+                    "type": "string",
+                    "format": "date-time",
+                    "nullable": true,
+                    "example": "2025-02-01T23:59:59Z"
+                  },
+                  "referenceFileIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 5,
+                    "nullable": true,
+                    "description": "Array of UploadedFile IDs (max 5 files). Files must be successfully parsed before assignment creation.",
+                    "example": [
+                      "880e8400-e29b-41d4-a716-446655440000",
+                      "990e8400-e29b-41d4-a716-446655440000"
+                    ]
+                  },
+                  "customGradingPrompt": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true,
+                    "description": "Custom instructions for AI grading. Max 5000 characters.",
+                    "example": "重點檢查學生是否正確套用牛頓第二定律公式 F=ma。注意單位換算和計算步驟。"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Assignment created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "example": "aa0e8400-e29b-41d4-a716-446655440000"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "Chapter 3 Homework"
+                        },
+                        "referenceFileIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "example": [
+                            "880e8400-e29b-41d4-a716-446655440000",
+                            "990e8400-e29b-41d4-a716-446655440000"
+                          ]
+                        },
+                        "customGradingPrompt": {
+                          "type": "string",
+                          "example": "重點檢查學生是否正確套用牛頓第二定律公式 F=ma。"
+                        },
+                        "referenceFiles": {
+                          "type": "array",
+                          "description": "Details of referenced files (included for convenience)",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "originalFileName": {
+                                "type": "string",
+                                "example": "textbook-chapter-3.pdf"
+                              },
+                              "parseStatus": {
+                                "type": "string",
+                                "enum": ["PENDING", "PROCESSING", "COMPLETED", "FAILED"],
+                                "example": "COMPLETED"
+                              },
+                              "fileSize": {
+                                "type": "integer",
+                                "example": 2457600
+                              }
+                            }
+                          }
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2025-01-16T10:30:00Z"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (validation error)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "referenceFileIds: Array must contain at most 5 element(s)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Referenced file not found or not parsed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Reference file 880e8400-e29b-41d4-a716-446655440000 not found or parsing incomplete"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized (teacher authentication required)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assignments/{assignmentId}": {
+      "patch": {
+        "summary": "Update assignment reference files or custom instructions",
+        "tags": ["Assignments"],
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "referenceFileIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 5,
+                    "nullable": true,
+                    "description": "Replace all reference files (null or empty array removes all references)"
+                  },
+                  "customGradingPrompt": {
+                    "type": "string",
+                    "maxLength": 5000,
+                    "nullable": true,
+                    "description": "Replace custom instructions (null removes instructions)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Assignment updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "referenceFileIds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uuid"
+                          }
+                        },
+                        "customGradingPrompt": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (teacher does not own this assignment)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "You do not have permission to edit this assignment"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Assignment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Assignment not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Get assignment details including reference files",
+        "tags": ["Assignments"],
+        "parameters": [
+          {
+            "name": "assignmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assignment details retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "dueDate": {
+                          "type": "string",
+                          "format": "date-time",
+                          "nullable": true
+                        },
+                        "referenceFiles": {
+                          "type": "array",
+                          "description": "Resolved reference files with parsing status",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "originalFileName": {
+                                "type": "string",
+                                "example": "textbook-chapter-3.pdf"
+                              },
+                              "fileSize": {
+                                "type": "integer",
+                                "example": 2457600
+                              },
+                              "parseStatus": {
+                                "type": "string",
+                                "enum": ["PENDING", "PROCESSING", "COMPLETED", "FAILED"]
+                              },
+                              "parseError": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Error message if parsing failed"
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time"
+                              }
+                            }
+                          }
+                        },
+                        "customGradingPrompt": {
+                          "type": "string",
+                          "nullable": true,
+                          "example": "重點檢查學生是否正確套用牛頓第二定律公式 F=ma。"
+                        },
+                        "rubric": {
+                          "type": "object",
+                          "description": "Associated rubric details"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Assignment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

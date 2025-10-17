@@ -1,0 +1,371 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Context-Aware AI Grading",
+    "version": "1.0.0",
+    "description": "API contract for creating grading sessions with assignment context (reference materials + custom instructions)"
+  },
+  "paths": {
+    "/api/grading/session": {
+      "post": {
+        "summary": "Create grading session with context awareness",
+        "tags": ["Grading"],
+        "description": "Creates a grading session linking GradingResult to AssignmentArea for context retrieval during AI grading",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["fileId", "rubricId"],
+                "properties": {
+                  "fileId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Student's uploaded file (UploadedFile.id)",
+                    "example": "aa0e8400-e29b-41d4-a716-446655440000"
+                  },
+                  "rubricId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Rubric to use for grading",
+                    "example": "bb0e8400-e29b-41d4-a716-446655440000"
+                  },
+                  "assignmentAreaId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true,
+                    "description": "Assignment ID for context-aware grading. If null, grades without reference materials (quick grading mode).",
+                    "example": "cc0e8400-e29b-41d4-a716-446655440000"
+                  },
+                  "language": {
+                    "type": "string",
+                    "enum": ["zh", "en"],
+                    "nullable": true,
+                    "description": "User's interface language for AI feedback. Defaults to 'zh' if not provided.",
+                    "example": "zh"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Grading session created and queued for processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sessionId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Grading session ID for tracking progress",
+                          "example": "dd0e8400-e29b-41d4-a716-446655440000"
+                        },
+                        "resultId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "description": "Grading result ID (the specific file+rubric task)",
+                          "example": "ee0e8400-e29b-41d4-a716-446655440000"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["PENDING", "PROCESSING"],
+                          "description": "Initial grading status",
+                          "example": "PENDING"
+                        },
+                        "contextAvailable": {
+                          "type": "boolean",
+                          "description": "Whether reference materials and custom instructions are available for this grading",
+                          "example": true
+                        },
+                        "referenceFilesCount": {
+                          "type": "integer",
+                          "description": "Number of successfully parsed reference files that will be used",
+                          "example": 2
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "File has no parsed content"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File, rubric, or assignment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Assignment not found"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grading/session/{sessionId}": {
+      "get": {
+        "summary": "Get grading session status and results",
+        "tags": ["Grading"],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Grading session details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "sessionId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["PENDING", "PROCESSING", "COMPLETED", "FAILED"],
+                          "example": "COMPLETED"
+                        },
+                        "progress": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100,
+                          "description": "Overall progress percentage",
+                          "example": 100
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "resultId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "status": {
+                                "type": "string",
+                                "enum": ["PENDING", "PROCESSING", "COMPLETED", "FAILED"]
+                              },
+                              "result": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "AI grading result (null if not completed)",
+                                "properties": {
+                                  "totalScore": {
+                                    "type": "number",
+                                    "example": 85
+                                  },
+                                  "maxScore": {
+                                    "type": "number",
+                                    "example": 100
+                                  },
+                                  "breakdown": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "criteriaId": {
+                                          "type": "string",
+                                          "format": "uuid"
+                                        },
+                                        "name": {
+                                          "type": "string"
+                                        },
+                                        "score": {
+                                          "type": "number"
+                                        },
+                                        "feedback": {
+                                          "type": "string",
+                                          "description": "AI feedback referencing context materials"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "overallFeedback": {
+                                    "type": "string",
+                                    "description": "General feedback from AI (may reference reference documents)"
+                                  }
+                                }
+                              },
+                              "normalizedScore": {
+                                "type": "number",
+                                "nullable": true,
+                                "description": "Score normalized to 100-point scale",
+                                "example": 85.0
+                              },
+                              "usedContext": {
+                                "type": "object",
+                                "nullable": true,
+                                "description": "Context that was used for grading (for transparency)",
+                                "properties": {
+                                  "assignmentAreaId": {
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "nullable": true
+                                  },
+                                  "referenceFilesUsed": {
+                                    "type": "array",
+                                    "description": "List of reference files that were successfully included",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "fileId": {
+                                          "type": "string",
+                                          "format": "uuid"
+                                        },
+                                        "fileName": {
+                                          "type": "string"
+                                        },
+                                        "contentLength": {
+                                          "type": "integer",
+                                          "description": "Characters included in prompt (may be truncated)"
+                                        },
+                                        "wasTruncated": {
+                                          "type": "boolean",
+                                          "description": "Whether content was truncated to fit token limits"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "customInstructionsUsed": {
+                                    "type": "boolean",
+                                    "description": "Whether custom grading instructions were provided"
+                                  }
+                                }
+                              },
+                              "gradingModel": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "AI provider used (gemini, openai, or none)",
+                                "example": "gemini"
+                              },
+                              "gradingDuration": {
+                                "type": "integer",
+                                "nullable": true,
+                                "description": "Grading time in milliseconds",
+                                "example": 2543
+                              },
+                              "completedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                              }
+                            }
+                          }
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "error": {
+                      "type": "string",
+                      "example": "Grading session not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

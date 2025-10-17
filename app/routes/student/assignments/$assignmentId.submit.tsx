@@ -86,7 +86,7 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
 }
 
 export default function SubmitAssignment() {
-  const { t } = useTranslation(['assignment', 'grading', 'common']);
+  const { t, i18n } = useTranslation(['assignment', 'grading', 'common']);
   const { assignment, draftSubmission } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
@@ -348,6 +348,9 @@ export default function SubmitAssignment() {
       const form = new FormData();
       form.append('fileIds', JSON.stringify([state.file.id]));
       form.append('rubricIds', JSON.stringify([assignment.rubric.id]));
+      // Feature 004: Pass assignmentAreaId and detected language for context-aware grading
+      form.append('assignmentAreaId', assignment.id);
+      form.append('language', i18n.language.startsWith('zh') ? 'zh' : 'en');
 
       const sessionRes = await fetch('/api/grading/session', { method: 'POST', body: form });
       const sessionData = await sessionRes.json();

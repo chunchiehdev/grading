@@ -8,6 +8,9 @@ export interface GradingRequest {
   criteria: any[];
   fileName: string;
   rubricName: string;
+  // Feature 004: AI Grading Context
+  referenceDocuments?: Array<{ fileId: string; fileName: string; content: string; wasTruncated: boolean }>;
+  customInstructions?: string;
 }
 
 export interface GradingResponse {
@@ -34,7 +37,8 @@ export class AIGrader {
     // Try Gemini first
     try {
       const geminiService = getSimpleGeminiService();
-      const result = await geminiService.gradeDocument(request, userLanguage);
+      // Feature 004: Pass language in request object
+      const result = await geminiService.gradeDocument({ ...request, language: userLanguage }, userLanguage);
 
       if (result.success && result.result) {
         logger.info(`✅ Gemini grading succeeded for: ${request.fileName}`);
@@ -55,7 +59,8 @@ export class AIGrader {
     // Fallback to OpenAI
     try {
       const openaiService = getSimpleOpenAIService();
-      const result = await openaiService.gradeDocument(request, userLanguage);
+      // Feature 004: Pass language in request object
+      const result = await openaiService.gradeDocument({ ...request, language: userLanguage }, userLanguage);
 
       if (result.success && result.result) {
         logger.info(`✅ OpenAI grading succeeded for: ${request.fileName}`);

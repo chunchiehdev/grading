@@ -72,6 +72,9 @@ export default [
   // File management API routes
   route('/api/files', './api/files/index.ts'),
   route('/api/files/user-files', './api/files/user-files.ts'),
+  route('/api/files/upload', './api/files/upload.ts'),
+  route('/api/files/batch', './api/files/batch.ts'),
+  route('/api/files/:fileId/reparse', './api/files/$fileId.reparse.ts'),
   route('/api/files/:fileId/download', './routes/api.files.$fileId.download.ts'),
 
   // Rubric API routes
@@ -103,6 +106,10 @@ export default [
 
   // AI API routes
   route('/api/ai/generate-rubric', './routes/api.ai.generate-rubric.ts'),
+
+  // Assignment API routes
+  route('/api/assignments', './api/assignments/index.ts'),
+  route('/api/assignments/:assignmentId', './api/assignments/$assignmentId.ts'),
 
   // Student Submission API
   route('/api/student/submit', './api/student/submit.ts'),

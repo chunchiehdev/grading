@@ -17,6 +17,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FormPageLayout, FormSection, FormActionButtons } from '@/components/forms';
+import { ReferenceFileUpload } from '@/components/grading/ReferenceFileUpload';
+import { CustomInstructionsField } from '@/components/teacher/CustomInstructionsField';
 import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
@@ -78,6 +80,8 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
   const dueDate = formData.get('dueDate') as string;
   const classTarget = formData.get('classTarget') as string; // 'all' or 'specific'
   const classId = formData.get('classId') as string;
+  const referenceFileIds = formData.get('referenceFileIds') as string; // JSON string
+  const customGradingPrompt = formData.get('customGradingPrompt') as string;
 
   // Basic validation
   if (!name || name.trim().length === 0) {
@@ -98,6 +102,34 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
     };
 
     const assignment = await createAssignmentArea(teacher.id, courseId, assignmentData);
+
+    // Update reference files and custom grading prompt if provided
+    const updateData: any = {};
+    
+    if (referenceFileIds && referenceFileIds.trim() !== '') {
+      try {
+        const fileIds = JSON.parse(referenceFileIds);
+        // Filter out null/undefined values and only save if we have valid file IDs
+        const validFileIds = fileIds.filter((id: any) => id && typeof id === 'string');
+        if (validFileIds.length > 0) {
+          updateData.referenceFileIds = JSON.stringify(validFileIds);
+        }
+      } catch (error) {
+        console.error('Failed to parse referenceFileIds:', error);
+      }
+    }
+
+    if (customGradingPrompt && customGradingPrompt.trim() !== '') {
+      updateData.customGradingPrompt = customGradingPrompt.trim();
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      const { db } = await import('@/lib/db.server');
+      await db.assignmentArea.update({
+        where: { id: assignment.id },
+        data: updateData,
+      });
+    }
 
     // Redirect to the manage page for the newly created assignment
     return redirect(`/teacher/courses/${courseId}/assignments/${assignment.id}/manage`);
@@ -194,6 +226,8 @@ function AssignmentForm({
 }) {
   const { t } = useTranslation(['course', 'common']);
   const [classTarget, setClassTarget] = useState<'all' | 'specific'>('all');
+  const [referenceFileIds, setReferenceFileIds] = useState<string[]>([]);
+  const [customGradingPrompt, setCustomGradingPrompt] = useState<string>('');
   console.log(course.name, 'Course Name');
 
   return (
@@ -311,6 +345,31 @@ function AssignmentForm({
               {t('course:assignment.area.dueDateLabel')}
             </Label>
             <DatePicker name="dueDate" />
+          </div>
+
+          {/* AI Grading Context - Reference Files */}
+          <div className="space-y-2 lg:space-y-3 pt-4 border-t border-border">
+            <div className="space-y-1">
+              <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+                AI 評分知識庫
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                上傳參考資料（如課程講義、標準答案）讓 AI 根據這些內容評分
+              </p>
+            </div>
+            <ReferenceFileUpload value={referenceFileIds} onChange={setReferenceFileIds} maxFiles={5} />
+            <input type="hidden" name="referenceFileIds" value={JSON.stringify(referenceFileIds)} />
+          </div>
+
+          {/* AI Grading Context - Custom Instructions */}
+          <div className="space-y-2 lg:space-y-3">
+            <CustomInstructionsField
+              value={customGradingPrompt}
+              onChange={setCustomGradingPrompt}
+              maxLength={5000}
+              placeholder="例如：重點檢查學生是否正確套用公式。注意單位換算和計算步驟的完整性。"
+            />
+            <input type="hidden" name="customGradingPrompt" value={customGradingPrompt} />
           </div>
         </FormSection>
 

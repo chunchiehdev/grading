@@ -399,3 +399,161 @@ export async function getTeacherAssignmentStats(teacherId: string) {
     };
   }
 }
+
+// ============================================================================
+// Feature 004: AI Grading with Knowledge Base Context
+// ============================================================================
+
+/**
+ * Load reference documents for grading context
+ * Fetches parsed content from UploadedFile records with 8000 char truncation
+ *
+ * @param assignmentAreaId - The assignment area ID
+ * @returns Array of reference documents with parsed content
+ */
+export async function loadReferenceDocuments(
+  assignmentAreaId: string
+): Promise<Array<{ fileId: string; fileName: string; content: string; wasTruncated: boolean }>> {
+  try {
+    const assignmentArea = await db.assignmentArea.findUnique({
+      where: { id: assignmentAreaId },
+      select: { referenceFileIds: true },
+    });
+
+    if (!assignmentArea || !assignmentArea.referenceFileIds) {
+      return [];
+    }
+
+    let fileIds: string[];
+    try {
+      fileIds = JSON.parse(assignmentArea.referenceFileIds);
+    } catch (error) {
+      console.error('❌ Failed to parse referenceFileIds:', error);
+      return [];
+    }
+
+    if (fileIds.length === 0) {
+      return [];
+    }
+
+    const referenceFiles = await db.uploadedFile.findMany({
+      where: {
+        id: { in: fileIds },
+        isDeleted: false,
+        parseStatus: 'COMPLETED',
+      },
+      select: {
+        id: true,
+        originalFileName: true,
+        parsedContent: true,
+      },
+    });
+
+    // Apply 8000 character truncation per file (Feature 004 requirement)
+    const MAX_CHARS_PER_FILE = 8000;
+
+    return referenceFiles
+      .filter((file) => file.parsedContent) // Only include files with content
+      .map((file) => {
+        const content = file.parsedContent!;
+        const wasTruncated = content.length > MAX_CHARS_PER_FILE;
+
+        let truncatedContent = content;
+        if (wasTruncated) {
+          truncatedContent = content.substring(0, MAX_CHARS_PER_FILE);
+          truncatedContent += '\n\n[Note: Content truncated at 8,000 characters]';
+          console.log(
+            `⚠️ Reference file "${file.originalFileName}" truncated from ${content.length} to ${MAX_CHARS_PER_FILE} characters`
+          );
+        }
+
+        return {
+          fileId: file.id,
+          fileName: file.originalFileName,
+          content: truncatedContent,
+          wasTruncated,
+        };
+      });
+  } catch (error) {
+    console.error('❌ Error loading reference documents:', error);
+    return [];
+  }
+}
+
+/**
+ * Get custom grading instructions for an assignment
+ *
+ * @param assignmentAreaId - Assignment area ID
+ * @returns Custom grading prompt or null
+ */
+export async function getCustomGradingInstructions(assignmentAreaId: string): Promise<string | null> {
+  try {
+    const assignmentArea = await db.assignmentArea.findUnique({
+      where: { id: assignmentAreaId },
+      select: { customGradingPrompt: true },
+    });
+
+    return assignmentArea?.customGradingPrompt || null;
+  } catch (error) {
+    console.error('❌ Error fetching custom grading instructions:', error);
+    return null;
+  }
+}
+
+/**
+ * Validate reference file IDs exist and are parsed
+ * Returns array of valid file IDs and array of errors
+ *
+ * @param fileIds - Array of file IDs to validate
+ * @returns Object with validIds and errors arrays
+ */
+export async function validateReferenceFiles(
+  fileIds: string[]
+): Promise<{ validIds: string[]; errors: string[] }> {
+  if (fileIds.length === 0) {
+    return { validIds: [], errors: [] };
+  }
+
+  if (fileIds.length > 5) {
+    return {
+      validIds: [],
+      errors: ['Maximum 5 reference files allowed'],
+    };
+  }
+
+  try {
+    const files = await db.uploadedFile.findMany({
+      where: {
+        id: { in: fileIds },
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        parseStatus: true,
+        originalFileName: true,
+      },
+    });
+
+    const validIds: string[] = [];
+    const errors: string[] = [];
+
+    for (const fileId of fileIds) {
+      const file = files.find((f) => f.id === fileId);
+
+      if (!file) {
+        errors.push(`Reference file ${fileId} not found`);
+      } else if (file.parseStatus !== 'COMPLETED') {
+        errors.push(
+          `Reference file "${file.originalFileName}" is not fully parsed (status: ${file.parseStatus})`
+        );
+      } else {
+        validIds.push(fileId);
+      }
+    }
+
+    return { validIds, errors };
+  } catch (error) {
+    console.error('❌ Error validating reference files:', error);
+    return { validIds: [], errors: ['Failed to validate reference files'] };
+  }
+}

@@ -88,11 +88,15 @@ export class GeminiPrompts {
   }
 
   static generateTextGradingPrompt(request: GeminiGradingRequest): string {
-    const { content, criteria, categories, fileName, rubricName } = request;
+    const { content, criteria, categories, fileName, rubricName, referenceDocuments, customInstructions, language = 'zh' } = request;
     const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
     const criteriaDescription = categories
       ? this.formatCategorizedCriteriaDescription(categories)
       : this.formatCriteriaDescription(criteria);
+
+    // Feature 004: Format reference documents and custom instructions
+    const referenceSection = referenceDocuments ? this.formatReferenceDocuments(referenceDocuments) : '';
+    const instructionsSection = customInstructions ? this.formatCustomInstructions(customInstructions) : '';
 
     return this.dedent(`
             請對以下內容進行專業評分：
@@ -101,8 +105,12 @@ export class GeminiPrompts {
             **評分標準**：${rubricName}
             **總分**：${maxScore} 分
 
+            ${referenceSection}
+
             ## 評分標準
             ${criteriaDescription}
+
+            ${instructionsSection}
 
             ## 要評分的內容
             ${content}
@@ -114,6 +122,7 @@ export class GeminiPrompts {
             - 說明表現好的地方及原因
             - 指出需要改進的地方及具體建議
             - 提供可執行的改進方向
+            ${referenceSection ? '- 參考知識庫內容判斷正確性和完整性' : ''}
 
             ## 輸出格式
 
@@ -123,8 +132,58 @@ export class GeminiPrompts {
             1. 所有分析都要引用原文
             2. 建議要具體可執行
             3. JSON 格式正確
-            4. 使用繁體中文
+            4. ${language === 'zh' ? '使用繁體中文' : 'Write all feedback in English'}
         `);
+  }
+
+  // Feature 004: Format reference documents for AI prompt
+  static formatReferenceDocuments(
+    documents: Array<{ fileId: string; fileName: string; content: string; wasTruncated: boolean }>
+  ): string {
+    if (!documents || documents.length === 0) {
+      return '';
+    }
+
+    const documentSections = documents
+      .map((doc, index) => {
+        const truncationNote = doc.wasTruncated ? '\n\n[注意：此文件內容已截斷至8000字元]' : '';
+        return this.dedent(`
+          ### 參考文件 ${index + 1}: ${doc.fileName}
+
+          ${doc.content}${truncationNote}
+        `);
+      })
+      .join('\n\n');
+
+    return this.dedent(`
+      ## 參考知識庫 (Reference Knowledge Base)
+
+      以下是與此作業相關的參考資料，請在評分時參考這些內容來判斷學生答案的正確性和完整性：
+
+      ${documentSections}
+
+      **使用指引：**
+      - 比對學生答案與參考資料的一致性
+      - 識別學生理解的正確與錯誤之處
+      - 判斷答案的完整度（是否涵蓋關鍵概念）
+      - 在反饋中明確指出與參考資料的對應關係
+    `);
+  }
+
+  // Feature 004: Format custom grading instructions for AI prompt
+  static formatCustomInstructions(instructions: string): string {
+    if (!instructions || instructions.trim() === '') {
+      return '';
+    }
+
+    return this.dedent(`
+      ## 特殊評分指示 (Special Grading Instructions)
+
+      **教師特別要求：**
+      ${instructions}
+
+      **重要：** 請在評分時特別注意上述指示，這些是針對此作業的特定要求。
+    `);
   }
 
   private static formatCriteriaDescription(criteria: any[]): string {

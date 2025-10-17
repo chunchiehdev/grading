@@ -245,5 +245,25 @@
       "acceptable": "尚可",
       "needsImprovement": "需改進"
     }
-  }
+  },
+  "referenceFiles": "參考資料",
+  "optional": "選填",
+  "referenceFilesDescription": "上傳課程講義、標準答案等參考資料（最多 {{max}} 個檔案）讓 AI 根據這些內容評分",
+  "fileParsed": "已解析",
+  "fileParsing": "解析中",
+  "filePending": "等待解析",
+  "fileParseFailed": "解析失敗",
+  "remove": "移除",
+  "uploading": "上傳中",
+  "addFiles": "新增檔案",
+  "supportedFormats": "支援格式",
+  "maxFilesExceeded": "已超過最多 {{max}} 個檔案的限制",
+  "maxFilesReached": "已達到最多 {{max}} 個檔案",
+  "customInstructions": "自訂評分指示",
+  "customInstructionsDescription": "告訴 AI 評分時要特別注意什麼（例如：重點檢查公式應用、注意計算步驟）",
+  "customInstructionsPlaceholder": "例如：重點檢查學生是否正確套用公式。注意單位換算和計算步驟的完整性。",
+  "approachingCharLimit": "剩餘 {{remaining}} 字元",
+  "charLimitReached": "已達字數上限",
+  "instructionsTip1": "提示：具體說明你希望 AI 重點關注的地方",
+  "instructionsTip2": "提示：可以用中英文混合，AI 都能理解"
 }

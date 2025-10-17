@@ -245,5 +245,25 @@
       "acceptable": "Acceptable",
       "needsImprovement": "Needs Improvement"
     }
-  }
+  },
+  "referenceFiles": "Reference Materials",
+  "optional": "Optional",
+  "referenceFilesDescription": "Upload course materials, answer keys, etc. (max {{max}} files) for AI to use as grading context",
+  "fileParsed": "Parsed",
+  "fileParsing": "Parsing",
+  "filePending": "Pending",
+  "fileParseFailed": "Parse failed",
+  "remove": "Remove",
+  "uploading": "Uploading",
+  "addFiles": "Add Files",
+  "supportedFormats": "Supported formats",
+  "maxFilesExceeded": "Exceeded maximum of {{max}} files",
+  "maxFilesReached": "Maximum {{max}} files reached",
+  "customInstructions": "Custom Grading Instructions",
+  "customInstructionsDescription": "Tell AI what to focus on when grading (e.g., check formula application, calculation steps)",
+  "customInstructionsPlaceholder": "Example: Focus on whether students correctly apply the formula. Pay attention to unit conversion and completeness of calculation steps.",
+  "approachingCharLimit": "{{remaining}} characters remaining",
+  "charLimitReached": "Character limit reached",
+  "instructionsTip1": "Tip: Be specific about what you want AI to focus on",
+  "instructionsTip2": "Tip: You can use mixed Chinese and English, AI understands both"
 }

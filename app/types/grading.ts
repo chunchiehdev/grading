@@ -56,3 +56,32 @@ export interface GradingResultData {
   }>;
   overallFeedback: string | OverallFeedbackStructured;
 }
+
+/**
+ * Grading request with optional context (Feature 004)
+ * Extends existing grading with assignment context and language
+ */
+export interface GradingRequest {
+  fileId: string;
+  rubricId: string;
+  assignmentAreaId?: string | null;  // Optional assignment context
+  language?: 'zh' | 'en' | null;     // User interface language for feedback
+}
+
+/**
+ * Extended grading result with context transparency (Feature 004)
+ */
+export interface GradingResultWithContext extends GradingResultData {
+  usedContext?: {
+    assignmentAreaId: string | null;
+    referenceFilesUsed: Array<{
+      fileId: string;
+      fileName: string;
+      contentLength: number;
+      wasTruncated: boolean;
+    }>;
+    customInstructionsUsed: boolean;
+  };
+  gradingModel?: string;
+  gradingDuration?: number;
+}

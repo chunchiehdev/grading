@@ -80,6 +80,10 @@ export async function action({ request }: { request: Request }) {
       const fileIds = JSON.parse((formData.get('fileIds') as string) || '[]');
       const rubricIds = JSON.parse((formData.get('rubricIds') as string) || '[]');
 
+      // Feature 004: Context-aware grading parameters
+      const assignmentAreaId = formData.get('assignmentAreaId') as string | null;
+      const language = formData.get('language') as string | null;
+
       if (!Array.isArray(fileIds) || fileIds.length === 0) {
         return Response.json(createErrorResponse('At least one file is required', ApiErrorCode.VALIDATION_ERROR), {
           status: 400,
@@ -103,6 +107,14 @@ export async function action({ request }: { request: Request }) {
         );
       }
 
+      // Feature 004: Validate language parameter if provided
+      if (language && !['zh', 'en'].includes(language)) {
+        return Response.json(
+          createErrorResponse('Invalid language. Must be "zh" or "en"', ApiErrorCode.VALIDATION_ERROR),
+          { status: 400 }
+        );
+      }
+
       // Create file-rubric pairs
       const filePairs = fileIds.map((fileId: string, index: number) => ({
         fileId,
@@ -112,6 +124,8 @@ export async function action({ request }: { request: Request }) {
       const result = await createGradingSession({
         userId,
         filePairs,
+        assignmentAreaId: assignmentAreaId || undefined, // Feature 004
+        language: language || undefined, // Feature 004
       });
 
       if (!result.success) {

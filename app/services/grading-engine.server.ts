@@ -1,6 +1,7 @@
 import { db } from '@/types/database';
 import { getAIGrader } from './ai-grader.server';
 import { SimpleProgressService } from './progress-simple.server';
+import { loadReferenceDocuments, getCustomGradingInstructions } from './assignment-area.server';
 import logger from '@/utils/logger';
 
 /**
@@ -83,7 +84,26 @@ export async function processGradingResult(
     // Update progress
     await SimpleProgressService.updateGradingProgress(resultId, 50);
 
-    // Grade with AI - simple and direct
+    // Feature 004: Load context if assignmentAreaId is available
+    let referenceDocuments: Array<{ fileId: string; fileName: string; content: string; wasTruncated: boolean }> = [];
+    let customInstructions: string | null = null;
+
+    if (result.assignmentAreaId) {
+      try {
+        logger.info(`📚 Loading context for assignment ${result.assignmentAreaId}`);
+        referenceDocuments = await loadReferenceDocuments(result.assignmentAreaId);
+        customInstructions = await getCustomGradingInstructions(result.assignmentAreaId);
+
+        logger.info(
+          `✅ Loaded ${referenceDocuments.length} reference documents, custom instructions: ${customInstructions ? 'yes' : 'no'}`
+        );
+      } catch (error) {
+        // Graceful degradation - log error but continue with grading
+        logger.warn(`⚠️ Failed to load context for assignment ${result.assignmentAreaId}:`, error);
+      }
+    }
+
+    // Grade with AI - simple and direct with optional context
     const aiGrader = getAIGrader();
     const gradingResponse = await aiGrader.grade(
       {
@@ -91,6 +111,9 @@ export async function processGradingResult(
         criteria: criteria,
         fileName: result.uploadedFile.originalFileName,
         rubricName: result.rubric.name,
+        // Feature 004: Include context if available
+        referenceDocuments: referenceDocuments.length > 0 ? referenceDocuments : undefined,
+        customInstructions: customInstructions || undefined,
       },
       userLanguage
     );
@@ -105,7 +128,22 @@ export async function processGradingResult(
 
       logger.info(`📊 Normalized score: ${totalScore}/${maxScore} → ${normalizedScore}/100`);
 
-      // Success - save result
+      // Feature 004: Build context transparency metadata
+      const usedContext =
+        result.assignmentAreaId && (referenceDocuments.length > 0 || customInstructions)
+          ? {
+              assignmentAreaId: result.assignmentAreaId,
+              referenceFilesUsed: referenceDocuments.map((doc) => ({
+                fileId: doc.fileId,
+                fileName: doc.fileName,
+                contentLength: doc.content.length,
+                wasTruncated: doc.wasTruncated,
+              })),
+              customInstructionsUsed: !!customInstructions,
+            }
+          : null;
+
+      // Success - save result with context metadata
       await db.gradingResult.update({
         where: { id: resultId },
         data: {
@@ -116,6 +154,7 @@ export async function processGradingResult(
           gradingModel: gradingResponse.provider,
           gradingTokens: gradingResponse.metadata?.tokens,
           gradingDuration: gradingResponse.metadata?.duration,
+          usedContext: usedContext as any, // Feature 004
           completedAt: new Date(),
         },
       });
@@ -189,7 +228,8 @@ export async function processGradingSession(sessionId: string): Promise<{ succes
 
     // Process sequentially to avoid overwhelming APIs
     for (const result of pendingResults) {
-      await processGradingResult(result.id, result.gradingSession.userId, result.gradingSessionId, 'zh'); // Default to Chinese for batch processing
+      // Feature 004: Use default fallback language for batch processing
+      await processGradingResult(result.id, result.gradingSession.userId, result.gradingSessionId, 'zh');
 
       // Simple delay between requests
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -221,12 +261,13 @@ export async function processAllPendingGrading(): Promise<{ processed: number; f
     logger.info(`🔄 Processing ${pendingResults.length} pending grading results`);
 
     for (const result of pendingResults) {
+      // Feature 004: Use default fallback language for batch processing
       const processResult = await processGradingResult(
         result.id,
         result.gradingSession.userId,
         result.gradingSessionId,
         'zh'
-      ); // Default to Chinese for batch processing
+      );
 
       if (processResult.success) {
         processed++;

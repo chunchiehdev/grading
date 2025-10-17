@@ -117,12 +117,17 @@ model AssignmentArea {
   rubric      Rubric    @relation("AssignmentAreaRubrics", fields: [rubricId], references: [id], onDelete: Restrict)
   dueDate     DateTime?
 
+  // AI Grading Context (Feature 004)
+  referenceFileIds    String?  @db.Text  // JSON array of UploadedFile IDs (max 5 files)
+  customGradingPrompt String?  @db.Text  // Custom grading instructions (max 5000 chars)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
   submissions   Submission[]
   notifications Notification[] @relation("AssignmentNotifications")
+  gradingResults GradingResult[]  // NEW: Reverse relation for context-aware grading
 
   @@index([courseId])
   @@index([classId])
@@ -244,20 +249,27 @@ model GradingResult {
   id                String   @id @default(uuid())
   gradingSessionId  String
   gradingSession    GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)
-  
+
   uploadedFileId    String
   uploadedFile      UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)
-  
+
   rubricId          String
   rubric            Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)
-  
+
+  // AI Grading Context (Feature 004)
+  assignmentAreaId  String?
+  assignmentArea    AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)
+
   // 評分狀態和結果
   status            GradingStatus @default(PENDING)
   progress          Int      @default(0) // 此項評分進度 0-100
-  
+
   // LLM評分結果 (JSON結構)
   result            Json?    // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }
   errorMessage      String?  // 評分失敗時的錯誤訊息
+
+  // Context transparency (Feature 004)
+  usedContext       Json?    // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }
 
   // 100 分制正規化分數
   normalizedScore   Float?   // (totalScore / maxScore) * 100
@@ -266,7 +278,7 @@ model GradingResult {
   gradingModel      String?  @db.VarChar(100) // 使用的模型名稱
   gradingTokens     Int?     // 消耗的tokens數量
   gradingDuration   Int?     // 評分耗時(毫秒)
-  
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   completedAt       DateTime? // 評分完成時間
@@ -274,6 +286,7 @@ model GradingResult {
   @@index([gradingSessionId, status])
   @@index([uploadedFileId])
   @@index([rubricId])
+  @@index([assignmentAreaId])  // NEW: Index for JOIN performance
   @@index([normalizedScore])
   @@map("grading_results")
 }
