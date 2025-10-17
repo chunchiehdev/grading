@@ -87,7 +87,7 @@ export default function NewCourse() {
             <Textarea
               id="description"
               name="description"
-              rows={4}
+              rows={10}
               placeholder={t('course:descriptionPlaceholder')}
               className="rounded-xl text-base lg:text-lg xl:text-xl"
             />

@@ -17,6 +17,29 @@
   "gradingSummary": "Grading Summary",
   "score": "Score",
   "submittedAt": "Submitted At",
+  "dashboard": {
+    "tableHeaders": {
+      "student": "Student",
+      "assignment": "Assignment",
+      "course": "Course",
+      "submittedAt": "Submitted",
+      "score": "Score"
+    },
+    "emptyState": {
+      "noSubmissions": "No new submissions",
+      "noSubmissionsDescription": "Submissions will appear here when students submit assignments"
+    },
+    "timeAgo": {
+      "justNow": "Just now",
+      "minutesAgo": "{{count}} minutes ago",
+      "hoursAgo": "{{count}} hours ago",
+      "daysAgo": "{{count}} days ago"
+    },
+    "grading": {
+      "grading": "Grading...",
+      "pointsSuffix": "pts"
+    }
+  },
   "actions": {
     "view": "View",
     "download": "Download",

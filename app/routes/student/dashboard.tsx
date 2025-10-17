@@ -139,23 +139,23 @@ export default function StudentDashboard() {
         ]}
         currentTab={currentTab}
         onTabChange={setCurrentTab}
-        actions={
-          <>
-            {currentTab === 'assignments' && (
-              <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
-                <SelectTrigger className="w-32 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部</SelectItem>
-                  <SelectItem value="pending">待交</SelectItem>
-                  <SelectItem value="submitted">已交</SelectItem>
-                  <SelectItem value="graded">已評分</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </>
-        }
+        // actions={
+        //   <>
+        //     {currentTab === 'assignments' && (
+        //       <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
+        //         <SelectTrigger className="w-32 text-sm">
+        //           <SelectValue />
+        //         </SelectTrigger>
+        //         <SelectContent>
+        //           <SelectItem value="all">全部</SelectItem>
+        //           <SelectItem value="pending">待交</SelectItem>
+        //           <SelectItem value="submitted">已交</SelectItem>
+        //           <SelectItem value="graded">已評分</SelectItem>
+        //         </SelectContent>
+        //       </Select>
+        //     )}
+        //   </>
+        // }
       />
 
       <div className="w-[95%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto pt-6 md:pt-8 lg:pt-10 xl:pt-12 2xl:pt-16">
