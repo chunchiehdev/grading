@@ -69,10 +69,7 @@ export function GradingResultDisplay({ result, normalizedScore, className, onRet
       {/* Compact score header - 100-point scale */}
       <div className="flex items-center gap-3 h-10">
         <span className="text-2xl font-semibold leading-none">{displayScore.toFixed(1)}</span>
-        <span className="text-sm text-muted-foreground">/ 100</span>
-        <Badge variant="secondary" className="ml-1">
-          {displayScore.toFixed(0)}%
-        </Badge>
+        <span className="text-sm text-muted-foreground">/ 100</span>        
       </div>
 
       {/* Feedback (compact) */}

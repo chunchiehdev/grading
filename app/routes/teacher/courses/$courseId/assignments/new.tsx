@@ -263,7 +263,7 @@ function AssignmentForm({
             <Textarea
               id="description"
               name="description"
-              rows={4}
+              rows={8}
               placeholder={t('course:assignment.area.descriptionPlaceholder')}
               className="rounded-xl text-base lg:text-lg xl:text-xl"
             />
