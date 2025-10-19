@@ -21,3 +21,5 @@ k8s/gradsystem/dev/secret-dev.yaml
 
 # Cursor agent artifacts (may contain tokens/credentials)
 .cursor/
+
+grading-pdf/
