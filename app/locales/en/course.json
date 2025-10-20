@@ -374,5 +374,24 @@
       "classTime": "Class Time",
       "selectPrompt": "Please select weekday and period to set class time"
     }
+  },
+  "discovery": {
+    "title": "Discover Courses",
+    "subtitle": "Browse all available courses and enroll in the ones you're interested in",
+    "empty": "No courses available yet",
+    "emptyDescription": "Check back later for new course offerings",
+    "enroll": "Enroll",
+    "enrolled": "Enrolled",
+    "classFull": "Class Full",
+    "students": "students",
+    "schedule": "Schedule",
+    "instructor": "Instructor",
+    "capacity": "Capacity",
+    "enrollmentSuccess": "Successfully enrolled in {{courseName}}!",
+    "enrollmentError": "Failed to enroll. Please try again.",
+    "duplicateEnrollment": "You are already enrolled in this class",
+    "classAtCapacity": "This class is currently full. Please try another section.",
+    "courseInactive": "This course is no longer available",
+    "errorFetching": "Error fetching courses. Please try again."
   }
 }

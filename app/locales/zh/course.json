@@ -376,5 +376,24 @@
       "classTime": "上課時間",
       "selectPrompt": "請選擇星期和節次以設定上課時間"
     }
+  },
+  "discovery": {
+    "title": "探索課程",
+    "subtitle": "瀏覽所有可用課程並加入您感興趣的課程",
+    "empty": "暫無可用課程",
+    "emptyDescription": "請稍後再回來查看新的課程",
+    "enroll": "加入",
+    "enrolled": "已加入",
+    "classFull": "時段已滿",
+    "students": "人",
+    "schedule": "上課時間",
+    "instructor": "授課教師",
+    "capacity": "人數上限",
+    "enrollmentSuccess": "成功加入 {{courseName}}！",
+    "enrollmentError": "加入失敗，請重新嘗試。",
+    "duplicateEnrollment": "您已經加入此時段",
+    "classAtCapacity": "此時段已滿員，請嘗試其他時段。",
+    "courseInactive": "此課程已不可用",
+    "errorFetching": "取得課程失敗，請重新嘗試。"
   }
 }
