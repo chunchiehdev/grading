@@ -294,6 +294,7 @@
   },
   "detail": {
     "teacher": "Instructor",
+    "instructor": "Instructor",
     "class": "Class",
     "allCourse": "All Course",
     "joined": "Joined",

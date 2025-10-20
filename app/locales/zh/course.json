@@ -296,6 +296,7 @@
   },
   "detail": {
     "teacher": "授課教師",
+    "instructor": "授課教師",
     "class": "班級",
     "allCourse": "全課程",
     "joined": "加入",

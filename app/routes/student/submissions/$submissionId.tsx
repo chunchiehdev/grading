@@ -68,10 +68,10 @@ export default function StudentSubmissionDetail() {
             <div className="flex items-start gap-4">
               {/* 分數 - 學生最關心的信息 */}
               <div className="text-right">
-                {submission.finalScore !== null ? (
+                {submission.normalizedScore !== null ? (
                   <div className="bg-muted text-muted-foreground rounded-full px-6 py-3">
-                    <span className="text-3xl font-bold">{submission.finalScore}</span>
-                    <span className="text-lg ml-1">分</span>
+                    <span className="text-3xl font-bold">{submission.normalizedScore.toFixed(1)}</span>
+                    <span className="text-lg ml-1">/ 100</span>
                   </div>
                 ) : (
                   <div className="text-muted-foreground text-right">

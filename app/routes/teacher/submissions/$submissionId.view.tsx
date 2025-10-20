@@ -262,7 +262,7 @@ function GradingSummaryCard({ grading }: { grading: TeacherSubmissionView['gradi
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">{t('score')}</span>
           <span className="font-medium">
-            {grading.finalScore !== null ? `${grading.finalScore} ${t('points')}` : '-'}
+            {grading.normalizedScore !== null ? `${grading.normalizedScore.toFixed(1)} / 100` : '-'}
           </span>
         </div>
         <div className="flex items-center justify-between">

@@ -27,130 +27,80 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
   });
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* 大標題區 - 居中 */}
-      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-16 xl:pt-20 pb-8 lg:pb-12 text-center">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-semibold tracking-tight mb-3 lg:mb-4 xl:mb-6 text-foreground">
+    <div className="w-full bg-background">
+      {/* 大標題區 - 居中，緊湊版 */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 lg:pt-8 xl:pt-10 pb-6 lg:pb-8 text-center">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium tracking-tight mb-2 lg:mb-3 text-foreground">
           {course.name}
         </h1>
         {course.description && (
-          <p className="text-base lg:text-lg xl:text-xl text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-sm lg:text-base text-muted-foreground max-w-3xl mx-auto">
             {course.description}
           </p>
         )}
       </div>
 
-      {/* 內容區 */}
-      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 lg:pb-32 space-y-6 lg:space-y-8 xl:space-y-10">
-        {/* 教師資訊卡片 */}
-        <div className="bg-card rounded-2xl shadow-sm p-5 sm:p-6 lg:p-8 xl:p-10">
-          <div className="flex items-start gap-4 lg:gap-6">
+      {/* 內容區 - 列表盤模式 */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 lg:pb-24 space-y-0">
+        {/* 教師資訊 - 簡潔行樣式，無卡片背景 */}
+        <div className="py-4 border-b border-border hover:bg-accent/15 dark:hover:bg-accent/25 transition-colors duration-150">
+          <div className="flex items-start gap-3">
             <img
               src={course.teacher.picture || '/default-avatar.png'}
               alt={course.teacher.name}
-              className="w-14 h-14 lg:w-16 lg:h-16 xl:w-20 xl:h-20 rounded-full object-cover bg-muted flex-shrink-0"
+              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover bg-muted dark:bg-muted flex-shrink-0"
             />
             <div className="flex-1 min-w-0">
-              <div className="text-sm lg:text-base text-muted-foreground mb-1">{t('course:detail.teacher')}</div>
-              <div className="text-lg lg:text-xl xl:text-2xl font-medium text-foreground mb-3">
-                {course.teacher.name}
+              <div className="flex items-center gap-2">
+                <div className="text-base lg:text-lg font-medium text-foreground">
+                  {course.teacher.name}
+                </div>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 font-medium">
+                  {t('course:detail.instructor')}
+                </span>
               </div>
-              <div className="text-sm lg:text-base text-muted-foreground space-y-2">
+              <div className="text-xs lg:text-sm text-muted-foreground dark:text-muted-foreground mt-1 space-y-0.5">
                 {myClass && myClass.schedule && myClass.schedule.weekday && myClass.schedule.periodCode ? (
-                  <div className="flex items-start gap-2">
-                    <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <div className="font-medium text-foreground">
-                        {t('course:detail.class')}：{myClass.name}
-                      </div>
-                      <div className="text-xs lg:text-sm mt-1">
-                        {formatScheduleDisplay(myClass.schedule.weekday, myClass.schedule.periodCode, currentLanguage)}
-                        {myClass.schedule.room && (
-                          <span className="ml-2">
-                            <MapPin className="w-3 h-3 inline mr-1" />
-                            {myClass.schedule.room}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                  <div>
+                    {t('course:detail.class')}：{myClass.name} • {formatScheduleDisplay(myClass.schedule.weekday, myClass.schedule.periodCode, currentLanguage)}
+                    {myClass.schedule.room && (
+                      <span className="ml-1">• {myClass.schedule.room}</span>
+                    )}
                   </div>
                 ) : (
-                  <div className="text-foreground">{t('course:detail.allCourse')}</div>
+                  <div>{t('course:detail.allCourse')}</div>
                 )}
-                <div className="text-xs lg:text-sm">
+                <div>
                   {t('course:detail.joined')}：{formattedEnrolledDate}
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* 統計資訊 - 緊湊的內嵌排列 */}
-          <div className="mt-6 pt-6 border-t">
-            <div className="flex flex-wrap gap-6 text-sm">
-              {/* 作業總數 */}
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <span className="text-base font-semibold text-foreground">{stats.total}</span>
-                <span className="text-sm text-muted-foreground">{t('course:detail.totalAssignments')}</span>
-              </div>
-
-              {/* 已完成 */}
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-green-600 dark:text-green-400" />
-                <span className="text-base font-semibold text-green-600 dark:text-green-400">{stats.completed}</span>
-                <span className="text-sm text-muted-foreground">{t('course:detail.completed')}</span>
-              </div>
-
-              {/* 待繳交 */}
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                <span className="text-base font-semibold text-orange-600 dark:text-orange-400">{stats.pending}</span>
-                <span className="text-sm text-muted-foreground">{t('course:detail.pending')}</span>
-              </div>
-
-              {/* 平均分數 - 條件顯示 */}
-              {stats.averageScore !== null && (
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-base font-semibold text-blue-600 dark:text-blue-400">
-                    {stats.averageScore.toFixed(1)}
-                  </span>
-                  <span className="text-sm text-muted-foreground">{t('course:detail.averageScore')}</span>
-                </div>
-              )}
-            </div>
+        {/* 作業列表 - 列表盤模式（無卡片背景） */}
+        {assignments.length === 0 ? (
+          <div className="py-8 text-center">
+            <FileText className="mx-auto h-10 w-10 lg:h-12 lg:w-12 text-muted-foreground mb-3" />
+            <h3 className="text-base lg:text-lg font-medium text-foreground mb-1">
+              {t('course:detail.noAssignments')}
+            </h3>
+            <p className="text-sm lg:text-base text-muted-foreground">
+              {t('course:detail.noAssignmentsDescription')}
+            </p>
           </div>
-        </div>
-
-        {/* 作業列表 */}
-        <div>
-          <h2 className="text-xl lg:text-2xl xl:text-3xl font-semibold text-foreground mb-4 lg:mb-6">
-            {t('course:detail.assignmentList')}
-          </h2>
-
-          {assignments.length === 0 ? (
-            <div className="bg-card rounded-2xl shadow-sm p-8 lg:p-12 text-center">
-              <FileText className="mx-auto h-12 w-12 lg:h-16 lg:w-16 text-muted-foreground mb-4" />
-              <h3 className="text-lg lg:text-xl font-medium text-foreground mb-2">
-                {t('course:detail.noAssignments')}
-              </h3>
-              <p className="text-base lg:text-lg text-muted-foreground">
-                {t('course:detail.noAssignmentsDescription')}
-              </p>
-            </div>
-          ) : (
-            <div className="bg-card rounded-2xl shadow-sm overflow-hidden">
-              {assignments.map((assignment, index) => (
-                <AssignmentCard
-                  key={assignment.id}
-                  assignment={assignment}
-                  studentId={student.id}
-                  isLast={index === assignments.length - 1}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {assignments.map((assignment, index) => (
+              <AssignmentCard
+                key={assignment.id}
+                assignment={assignment}
+                studentId={student.id}
+                isLast={index === assignments.length - 1}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -172,13 +122,13 @@ function AssignmentCard({ assignment, studentId, isLast }: AssignmentCardProps) 
     if (hasSubmission) {
       if (submission?.status === 'GRADED') {
         return (
-          <Badge className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-0 text-xs lg:text-sm">
+          <Badge className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-0 text-xs">
             {t('status.graded')}
           </Badge>
         );
       }
       return (
-        <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-0 text-xs lg:text-sm">
+        <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-0 text-xs">
           {t('status.submitted')}
         </Badge>
       );
@@ -187,14 +137,14 @@ function AssignmentCard({ assignment, studentId, isLast }: AssignmentCardProps) 
     const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
     if (isOverdue) {
       return (
-        <Badge className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 border-0 text-xs lg:text-sm">
+        <Badge className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 border-0 text-xs">
           {t('status.overdue')}
         </Badge>
       );
     }
 
     return (
-      <Badge className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-0 text-xs lg:text-sm">
+      <Badge className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-0 text-xs">
         {t('status.pending')}
       </Badge>
     );
@@ -222,54 +172,31 @@ function AssignmentCard({ assignment, studentId, isLast }: AssignmentCardProps) 
   return (
     <Link
       to={`/student/assignments/${assignment.id}/submit`}
-      className={`block group hover:bg-accent/5 transition-colors ${!isLast ? 'border-b' : ''}`}
+      className="block group hover:bg-accent/15 dark:hover:bg-accent/25 transition-colors duration-150"
     >
-      <div className="p-5 sm:p-6 lg:p-8">
-        {/* 標題行 */}
-        <div className="flex items-start justify-between gap-4 mb-3 lg:mb-4">
+      <div className="p-3 sm:p-4 lg:p-5">
+        {/* 標題和狀態行 */}
+        <div className="flex items-start justify-between gap-3 mb-2">
           <div className="flex-1 min-w-0">
-            <h3 className="text-base lg:text-lg xl:text-xl font-medium text-foreground group-hover:text-primary transition-colors mb-1">
+            <h3 className="text-sm lg:text-base font-medium text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-primary transition-colors duration-150">
               {assignment.name}
             </h3>
             {assignment.description && (
-              <p className="text-sm lg:text-base text-muted-foreground line-clamp-2">{assignment.description}</p>
+              <p className="text-xs lg:text-sm text-muted-foreground dark:text-muted-foreground line-clamp-2 mt-0.5">{assignment.description}</p>
             )}
           </div>
-          <div className="flex-shrink-0">{getStatusBadge()}</div>
+          <div className="flex-shrink-0 ml-2">{getStatusBadge()}</div>
         </div>
 
-        {/* 分數顯示 */}
-        {hasSubmission && submission?.finalScore !== null && (
-          <div className="mb-3 lg:mb-4">
-            <div className="inline-flex items-baseline gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-950/30 rounded-lg">
-              <span className="text-2xl lg:text-3xl font-semibold text-green-600 dark:text-green-400">
-                {submission?.finalScore}
-              </span>
-              <span className="text-sm lg:text-base text-muted-foreground">{t('assignmentCard.finalScore')}</span>
-            </div>
-          </div>
-        )}
-
-        {hasSubmission && submission?.finalScore === null && (
-          <div className="mb-3 lg:mb-4">
-            <span className="inline-flex items-center px-3 py-1.5 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm lg:text-base text-blue-600 dark:text-blue-400">
-              {t('assignmentCard.submitted')} • {t('assignmentCard.awaitingGrading')}
-            </span>
-          </div>
-        )}
-
-        {/* 底部資訊 */}
-        <div className="flex flex-wrap items-center gap-2 lg:gap-3 text-xs lg:text-sm text-muted-foreground">
+        {/* 底部資訊 - 單行緊湊 */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground dark:text-muted-foreground">
           {assignment.class && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300">
-              {assignment.class.name}
-            </span>
+            <span className="text-blue-700 dark:text-blue-300">{assignment.class.name}</span>
           )}
           {!assignment.class && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded bg-muted text-muted-foreground">
-              {t('course:detail.allCourse')}
-            </span>
+            <span>{t('course:detail.allCourse')}</span>
           )}
+          <span>•</span>
           <span>{assignment.rubric.name}</span>
           {assignment.dueDate && (
             <>

@@ -26,14 +26,13 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
     return t('teacher:dashboard.timeAgo.daysAgo', { count: Math.floor(diffInMinutes / 1440) });
   };
 
-  const getScoreDisplay = (score: number | null) => {
-    if (score === null) {
+  const getScoreDisplay = (normalizedScore: number | null) => {
+    if (normalizedScore === null) {
       return <span className="text-sm text-muted-foreground">{t('teacher:dashboard.grading.grading')}</span>;
     }
     return (
       <div className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-primary/10 text-primary">
-        <span className="text-sm font-medium">{score}</span>
-        <span className="text-xs ml-1">{t('teacher:dashboard.grading.pointsSuffix')}</span>
+        <span className="text-sm font-medium">{normalizedScore.toFixed(1)}</span>
       </div>
     );
   };
@@ -109,7 +108,7 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
                 </div>
 
                 {/* Score Column */}
-                <div className="col-span-1 text-right">{getScoreDisplay(submission.finalScore)}</div>
+                <div className="col-span-1 text-right">{getScoreDisplay(submission.normalizedScore)}</div>
               </div>
             </div>
           ))}
