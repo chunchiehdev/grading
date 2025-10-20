@@ -11,12 +11,12 @@
 
 **Purpose**: Project initialization and verification of development environment
 
-- [ ] T001 Verify existing component structure and dependencies in `/app/components/ui/` directory
-- [ ] T002 Verify Tailwind CSS configuration and design system tokens in `tailwind.config.ts`
-- [ ] T003 [P] Verify i18n setup and existing translation structure in `app/locales/{en,zh}/course.json`
-- [ ] T004 [P] Review existing Prisma schema and database relationships in `prisma/schema.prisma`
-- [ ] T005 Verify Express API routing pattern in `app/api/` directory and error handling middleware
-- [ ] T006 [P] Setup feature branch checklist: Verify `.specify/templates/`, `CLAUDE.md` patterns, TypeScript strict mode
+- [x] T001 Verify existing component structure and dependencies in `/app/components/ui/` directory
+- [x] T002 Verify Tailwind CSS configuration and design system tokens in `tailwind.config.ts`
+- [x] T003 [P] Verify i18n setup and existing translation structure in `app/locales/{en,zh}/course.json`
+- [x] T004 [P] Review existing Prisma schema and database relationships in `prisma/schema.prisma`
+- [x] T005 Verify Express API routing pattern in `app/api/` directory and error handling middleware
+- [x] T006 [P] Setup feature branch checklist: Verify `.specify/templates/`, `CLAUDE.md` patterns, TypeScript strict mode
 
 ---
 
@@ -26,12 +26,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T007 Create translation keys for course discovery in `app/locales/en/course.json` and `app/locales/zh/course.json` with keys: discovery.{title, empty, enroll, enrolled, classFull, students}
-- [ ] T008 Create Zod validation schema for enrollment requests in `app/schemas/enrollment.ts` with fields: classId (UUID), courseId (UUID), studentId (from auth context)
-- [ ] T009 Setup API response wrapper pattern and error types in `app/api/` directory, ensuring consistent success/error response format
-- [ ] T010 [P] Verify authentication middleware (`requireStudent`, `requireTeacher`) works correctly for route protection in `app/services/auth.server.ts`
-- [ ] T011 [P] Create TypeScript interfaces for DiscoverableCourse, CourseCard, and EnrollmentResponse in `app/types/course.ts`
-- [ ] T012 Verify Prisma client import path is correct: `app/generated/prisma/client` (check custom output configuration)
+- [x] T007 Create translation keys for course discovery in `app/locales/en/course.json` and `app/locales/zh/course.json` with keys: discovery.{title, empty, enroll, enrolled, classFull, students}
+- [x] T008 Create Zod validation schema for enrollment requests in `app/schemas/enrollment.ts` with fields: classId (UUID), courseId (UUID), studentId (from auth context)
+- [x] T009 Setup API response wrapper pattern and error types in `app/api/` directory, ensuring consistent success/error response format
+- [x] T010 [P] Verify authentication middleware (`requireStudent`, `requireTeacher`) works correctly for route protection in `app/services/auth.server.ts`
+- [x] T011 [P] Create TypeScript interfaces for DiscoverableCourse, CourseCard, and EnrollmentResponse in `app/types/course.ts`
+- [x] T012 Verify Prisma client import path is correct: `app/generated/prisma/client` (check custom output configuration)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -45,14 +45,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T013 [US1] Modify InvitationDisplay component layout in `app/components/ui/invitation-display.tsx`: Change grid to flex column, center content, reorder QR code first
-- [ ] T014 [P] [US1] Update QR code wrapper with minimum 200x200px size constraint and descriptive text below in `app/components/ui/invitation-display.tsx`
-- [ ] T015 [P] [US1] Ensure copy-to-clipboard feedback (visual indication/toast) works for code field in `app/components/ui/copyable-field.tsx`
-- [ ] T016 [P] [US1] Ensure copy-to-clipboard feedback works for enrollment URL field in `app/components/ui/copyable-field.tsx`
+- [x] T013 [US1] Modify InvitationDisplay component layout in `app/components/ui/invitation-display.tsx`: Change grid to flex column, center content, reorder QR code first
+- [x] T014 [P] [US1] Update QR code wrapper with minimum 200x200px size constraint and descriptive text below in `app/components/ui/invitation-display.tsx`
+- [x] T015 [P] [US1] Ensure copy-to-clipboard feedback (visual indication/toast) works for code field in `app/components/ui/copyable-field.tsx`
+- [x] T016 [P] [US1] Ensure copy-to-clipboard feedback works for enrollment URL field in `app/components/ui/copyable-field.tsx`
 - [ ] T017 [US1] Test responsive layout at viewport sizes: 320px, 480px, 768px, 1024px, 1920px in `app/components/ui/invitation-display.tsx`
 - [ ] T018 [US1] Verify dark mode support: Test `dark:` classes render correctly with WCAG AA contrast ratios (4.5:1) in light/dark modes
-- [ ] T019 [US1] Apply design system colors: Use primary, secondary, and accent colors from `tailwind.config.ts` for interactive elements
-- [ ] T020 [US1] Add generous spacing/padding to match Card component styling in `app/components/ui/invitation-display.tsx`
+- [x] T019 [US1] Apply design system colors: Use primary, secondary, and accent colors from `tailwind.config.ts` for interactive elements
+- [x] T020 [US1] Add generous spacing/padding to match Card component styling in `app/components/ui/invitation-display.tsx`
 - [ ] T021 [US1] Manual QA: Navigate to `/teacher/courses/[courseId]`, generate invitation, verify layout matches spec acceptance criteria
 
 **Checkpoint**: User Story 1 is fully functional and independently testable
@@ -67,21 +67,21 @@
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Create service function `getDiscoverableCourses()` in `app/services/course-discovery.server.ts` to fetch all active courses with active classes, include teacher info and enrollment counts
-- [ ] T023 [US2] Create service function `getStudentEnrolledCourses()` in `app/services/course-discovery.server.ts` to return Set of courseIds student is enrolled in
-- [ ] T024 [P] [US2] Create service function `createEnrollment()` in `app/services/course-discovery.server.ts` with validation: duplicate check, capacity check, active course/class check
-- [ ] T025 [P] [US2] Implement API endpoint GET `/api/courses/discover` in `app/api/courses/discover.ts`: query params (limit, offset, sort, search), return discoverable courses with pagination
-- [ ] T026 [P] [US2] Implement API endpoint POST `/api/enrollments` in `app/api/enrollments.ts`: create enrollment, validate input, return 201 Created or 409 Conflict errors
-- [ ] T027 [US2] Create React component `CourseDiscoveryContent` in `app/components/student/CourseDiscoveryContent.tsx` with course grid layout, card per course with teacher/schedule/capacity info
-- [ ] T028 [US2] Add course card CTA buttons to `CourseDiscoveryContent.tsx`: "Enroll", "Enrolled" (disabled), "Class Full" (disabled) button states based on enrollment status
-- [ ] T029 [US2] Add empty state to `CourseDiscoveryContent.tsx`: friendly message with icon when no courses available
-- [ ] T030 [US2] Create route loader in `app/routes/student/courses/discover.tsx` to fetch discoverable courses and student's enrolled course IDs
+- [x] T022 [US2] Create service function `getDiscoverableCourses()` in `app/services/course-discovery.server.ts` to fetch all active courses with active classes, include teacher info and enrollment counts
+- [x] T023 [US2] Create service function `getStudentEnrolledCourses()` in `app/services/course-discovery.server.ts` to return Set of courseIds student is enrolled in
+- [x] T024 [P] [US2] Create service function `createEnrollment()` in `app/services/course-discovery.server.ts` with validation: duplicate check, capacity check, active course/class check
+- [x] T025 [P] [US2] Implement API endpoint GET `/api/courses/discover` in `app/api/courses/discover.ts`: query params (limit, offset, sort, search), return discoverable courses with pagination
+- [x] T026 [P] [US2] Implement API endpoint POST `/api/enrollments` in `app/api/enrollments.ts`: create enrollment, validate input, return 201 Created or 409 Conflict errors
+- [x] T027 [US2] Create React component `CourseDiscoveryContent` in `app/components/student/CourseDiscoveryContent.tsx` with course grid layout, card per course with teacher/schedule/capacity info
+- [x] T028 [US2] Add course card CTA buttons to `CourseDiscoveryContent.tsx`: "Enroll", "Enrolled" (disabled), "Class Full" (disabled) button states based on enrollment status
+- [x] T029 [US2] Add empty state to `CourseDiscoveryContent.tsx`: friendly message with icon when no courses available
+- [x] T030 [US2] Create route loader in `app/routes/student/courses/discover.tsx` to fetch discoverable courses and student's enrolled course IDs
 - [ ] T031 [US2] Create route action in `app/routes/student/courses/discover.tsx` to handle POST enrollment requests, redirect or show success toast
-- [ ] T032 [US2] Add loading states and error handling to `app/routes/student/courses/discover.tsx`: loading spinners, error messages from enrollment failures
-- [ ] T033 [US2] Implement form submission debouncing in `CourseDiscoveryContent.tsx` to prevent duplicate enrollment on rapid clicks
+- [x] T032 [US2] Add loading states and error handling to `app/routes/student/courses/discover.tsx`: loading spinners, error messages from enrollment failures
+- [x] T033 [US2] Implement form submission debouncing in `CourseDiscoveryContent.tsx` to prevent duplicate enrollment on rapid clicks
 - [ ] T034 [US2] Test responsive layout: course cards should display correctly at 320px (1 col), 768px (2 cols), 1024px (3+ cols)
 - [ ] T035 [US2] Verify dark mode: course cards use consistent colors with design system tokens, maintain WCAG AA contrast
-- [ ] T036 [US2] Add page header with title using `PageHeader` component in `app/routes/student/courses/discover.tsx`
+- [x] T036 [US2] Add page header with title using `PageHeader` component in `app/routes/student/courses/discover.tsx`
 - [ ] T037 [US2] Manual QA: Navigate to `/student/courses/discover`, see courses, enroll in one, verify success state, test empty state, test capacity full state
 
 **Checkpoint**: User Stories 1 and 2 are complete and independently functional
