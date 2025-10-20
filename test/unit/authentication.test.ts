@@ -29,7 +29,6 @@ vi.mock('google-auth-library', () => ({
 import { db } from '@/lib/db.server';
 import { getSession, commitSession, destroySession } from '@/sessions.server';
 import { redirect } from 'react-router';
-import { OAuth2Client } from 'google-auth-library';
 
 // Import the service being tested
 import {

@@ -1,10 +1,4 @@
-import {
-  getUser,
-  requireAuth as serviceRequireAuth,
-  requireAuthForApi,
-  requireTeacher,
-  requireStudent,
-} from '@/services/auth.server';
+import { getUser, requireAuthForApi } from '@/services/auth.server';
 
 export interface ApiResponse<T = any> {
   success: boolean;

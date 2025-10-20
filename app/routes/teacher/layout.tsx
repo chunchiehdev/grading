@@ -8,7 +8,6 @@ import { getTeacherCourses, type CourseInfo } from '@/services/course.server';
 import { getRecentSubmissionsForTeacher, type SubmissionInfo } from '@/services/submission.server';
 import { listRubrics } from '@/services/rubric.server';
 import { getOverallTeacherStats, getCoursePerformance, getRubricUsage } from '@/services/analytics.server';
-import type { TeacherInfo } from '@/types/teacher';
 
 export interface TeacherLoaderData {
   user: { id: string; email: string; name: string; role: string; picture?: string };

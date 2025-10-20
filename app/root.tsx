@@ -2,8 +2,6 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, redirect } from 'react-router';
 import { ThemeProvider } from '@/theme-provider';
 import './tailwind.css';
-import Sidebar from '@/components/sidebar/Sidebar';
-import { cn } from '@/lib/utils';
 import { NavHeader } from '@/components/navbar/NavHeader';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PUBLIC_PATHS } from '@/constants/auth';

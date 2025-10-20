@@ -44,7 +44,7 @@ describe('PDF Processing Load Tests', () => {
       console.log('\\n📄 Testing PDF Parsing Bottlenecks');
 
       // Mock responses with varying PDF parsing times
-      let processingTimes: number[] = [];
+      const processingTimes: number[] = [];
       mockProcessGradingResult.mockImplementation(async (gradingResultId: string) => {
         // Find the file to check its size
         const gradingResult = await db.gradingResult.findUnique({

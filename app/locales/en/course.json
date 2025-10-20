@@ -376,6 +376,7 @@
     }
   },
   "discovery": {
+    "discover": "Discover Courses",
     "title": "Discover Courses",
     "subtitle": "Browse all available courses and enroll in the ones you're interested in",
     "empty": "No courses available yet",
@@ -392,6 +393,11 @@
     "duplicateEnrollment": "You are already enrolled in this class",
     "classAtCapacity": "This class is currently full. Please try another section.",
     "courseInactive": "This course is no longer available",
-    "errorFetching": "Error fetching courses. Please try again."
+    "errorFetching": "Error fetching courses. Please try again.",
+    "courseName": "Course Name",
+    "class": "Class",
+    "search": "Search courses...",
+    "gridView": "Grid View",
+    "listView": "List View"
   }
 }

@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link } from 'react-router';
-import { ArrowLeft, Download, Eye, FileText, User, Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Download, Eye, FileText, Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getAssignmentAreaById } from '@/services/assignment-area.server';
@@ -125,12 +125,6 @@ export default function AssignmentSubmissions() {
       <Button asChild variant="outline">
         <Link to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/manage`}>
           {t('teacher.actions.manageAssignment')}
-        </Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={`/teacher/courses/${assignmentArea.courseId}`}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          {t('teacher.actions.backToCourse')}
         </Link>
       </Button>
     </div>

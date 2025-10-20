@@ -63,8 +63,10 @@ export default [
 
   // Student Platform - Additional routes (outside layout)
   ...prefix('/student', [
-    route('courses/discover', './routes/student/courses/discover.tsx', { id: 'student-discover' }),
-    route('courses/:courseId', './routes/student/courses/$courseId.tsx'),
+    route('courses', './routes/student/courses/layout.tsx', [
+      route('discover', './routes/student/courses/discover.tsx'),
+      route(':courseId', './routes/student/courses/$courseId.tsx'),
+    ]),
     route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId.submit.tsx'),
     route('submissions/:submissionId', './routes/student/submissions/$submissionId.tsx'),
   ]),

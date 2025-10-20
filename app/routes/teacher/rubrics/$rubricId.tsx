@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Download, Share2, FileText, Clock, Target, Trash2, Folder, CheckCircle2 } from 'lucide-react';
+import { Edit, Download, Share2, FileText, Clock, Target, Trash2, Folder } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import { PageHeader } from '@/components/ui/page-header';

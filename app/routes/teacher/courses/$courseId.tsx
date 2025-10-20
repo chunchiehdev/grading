@@ -1,19 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import {
-  ArrowLeft,
-  Plus,
-  FileText,
-  Users,
-  QrCode,
-  RefreshCw,
-  Share2,
-  Pencil,
-  Clock,
-  MapPin,
-  Trash2,
-  AlertCircle,
-} from 'lucide-react';
+import { Plus, FileText, QrCode, Share2, Pencil, Clock, MapPin, AlertCircle } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { createInvitationCode, generateInvitationQRCode } from '@/services/invitation.server';
@@ -22,10 +9,10 @@ import { listClassesByCourse, type ClassInfo } from '@/services/class.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/ui/page-header';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { InvitationDisplay } from '@/components/ui/invitation-display';
 import { useTranslation } from 'react-i18next';
-import { formatScheduleDisplay, formatScheduleShort } from '@/constants/schedule';
+import { formatScheduleDisplay } from '@/constants/schedule';
 
 interface LoaderData extends CoursePageData {
   teacher: { id: string; email: string; role: string };

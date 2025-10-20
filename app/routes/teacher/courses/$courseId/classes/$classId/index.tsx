@@ -3,8 +3,7 @@ import { useLoaderData, Link } from 'react-router';
 import { Users, Calendar, MapPin, Edit, UserPlus, ClipboardList } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
-import { getClassById } from '@/services/class.server';
-import { getClassStudents } from '@/services/class.server';
+import { getClassById, getClassStudents } from '@/services/class.server';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

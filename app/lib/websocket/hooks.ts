@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { ConnectionState, type ChatMessage, type WebSocketClientOptions } from './types';
+import { type ChatMessage, type WebSocketClientOptions } from './types';
 import { websocketClient } from './index';
 
 /**

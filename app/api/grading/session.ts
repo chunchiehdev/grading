@@ -1,13 +1,6 @@
 import { getUserId } from '@/services/auth.server';
-import {
-  createGradingSession,
-  getGradingSession,
-  listGradingSessions,
-  listAllGradingSessions,
-  startGradingSession,
-  cancelGradingSession,
-} from '@/services/grading-session.server';
-import { createSuccessResponse, createErrorResponse, createPaginatedResponse, ApiErrorCode } from '@/types/api';
+import { createGradingSession, listGradingSessions, listAllGradingSessions } from '@/services/grading-session.server';
+import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
 /**
  * GET: List grading sessions - supports both user-scoped and shared views

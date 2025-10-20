@@ -91,7 +91,7 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
 
       // Map storage error types to user-friendly messages
       let errorType: UploadFileResult['errorType'] = 'storage';
-      let userMessage = getStorageErrorMessage(storageError);
+      const userMessage = getStorageErrorMessage(storageError);
 
       switch (storageError.type) {
         case StorageErrorType.AUTH:

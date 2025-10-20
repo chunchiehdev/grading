@@ -1,6 +1,4 @@
 import { useNavigate, useSearchParams } from 'react-router';
-import { Button } from '@/components/ui/button';
-import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 
 export default function LoginPage() {

@@ -64,8 +64,8 @@ export interface GradingResultData {
 export interface GradingRequest {
   fileId: string;
   rubricId: string;
-  assignmentAreaId?: string | null;  // Optional assignment context
-  language?: 'zh' | 'en' | null;     // User interface language for feedback
+  assignmentAreaId?: string | null; // Optional assignment context
+  language?: 'zh' | 'en' | null; // User interface language for feedback
 }
 
 /**

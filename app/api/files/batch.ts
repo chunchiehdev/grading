@@ -18,10 +18,9 @@ export async function action({ request }: { request: Request }) {
     const fileIds = body.fileIds as string[];
 
     if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
-      return Response.json(
-        createErrorResponse('fileIds array is required', ApiErrorCode.VALIDATION_ERROR),
-        { status: 400 }
-      );
+      return Response.json(createErrorResponse('fileIds array is required', ApiErrorCode.VALIDATION_ERROR), {
+        status: 400,
+      });
     }
 
     // Fetch files that belong to the user and are not deleted
@@ -56,4 +55,3 @@ export async function action({ request }: { request: Request }) {
     );
   }
 }
-

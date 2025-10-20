@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { ArrowLeft, Save, Trash2, Calendar, FileText, Users, Settings } from 'lucide-react';
+import { Save, Trash2, Calendar, FileText, Users, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { requireTeacher } from '@/services/auth.server';
@@ -148,12 +148,6 @@ export default function ManageAssignmentArea() {
         <Link to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/submissions`}>
           <Users className="w-4 h-4 mr-2" />
           {t('course:assignment.manage.viewSubmissions')}
-        </Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link to={`/teacher/courses/${assignmentArea.courseId}`}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          {t('course:assignment.manage.backToCourse')}
         </Link>
       </Button>
     </div>

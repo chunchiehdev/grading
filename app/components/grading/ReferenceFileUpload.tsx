@@ -179,9 +179,7 @@ export function ReferenceFileUpload({
                   {getStatusIcon(file.parseStatus)}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {file.originalFileName}
-                  </p>
+                  <p className="text-sm font-medium text-foreground truncate">{file.originalFileName}</p>
                   <p className="text-xs text-muted-foreground">
                     {(file.fileSize / 1024).toFixed(1)} KB • {getStatusText(file.parseStatus)}
                   </p>
@@ -230,9 +228,7 @@ export function ReferenceFileUpload({
             disabled={isUploading || disabled}
             className="hidden"
           />
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t('supportedFormats')}: PDF, DOCX, TXT
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('supportedFormats')}: PDF, DOCX, TXT</p>
         </div>
       )}
 
@@ -245,9 +241,7 @@ export function ReferenceFileUpload({
 
       {/* Max files reached */}
       {value.length >= maxFiles && (
-        <div className="text-sm text-muted-foreground">
-          {t('maxFilesReached', { max: maxFiles })}
-        </div>
+        <div className="text-sm text-muted-foreground">{t('maxFilesReached', { max: maxFiles })}</div>
       )}
     </div>
   );

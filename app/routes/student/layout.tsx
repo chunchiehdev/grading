@@ -1,5 +1,7 @@
-import { Outlet, useLocation, useNavigate, type LoaderFunctionArgs } from 'react-router';
+import { Outlet, useLocation, useNavigate, type LoaderFunctionArgs, Link } from 'react-router';
 import { ModernNavigation } from '@/components/ui/modern-navigation';
+import { Button } from '@/components/ui/button';
+import { Compass } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { requireStudent } from '@/services/auth.server';
 import {
@@ -71,13 +73,13 @@ export default function StudentLayout() {
     if (pathname === '/student' || pathname === '/student/') {
       return 'dashboard';
     }
-    if (pathname === '/student/courses') {
+    if (pathname.startsWith('/student/courses')) {
       return 'courses';
     }
-    if (pathname === '/student/assignments') {
+    if (pathname.startsWith('/student/assignments')) {
       return 'assignments';
     }
-    if (pathname === '/student/submissions') {
+    if (pathname.startsWith('/student/submissions')) {
       return 'submissions';
     }
 
@@ -110,6 +112,27 @@ export default function StudentLayout() {
         ]}
         currentTab={currentTab}
         onTabChange={handleTabChange}
+        actions={
+          <>
+            {currentTab === 'courses' && (
+              <>
+                {/* 手機版：只顯示圖示 */}
+                <Button asChild size="icon" className="md:hidden">
+                  <Link to="/student/courses/discover">
+                    <Compass className="w-5 h-5" />
+                  </Link>
+                </Button>
+                {/* 桌面版：顯示圖示 + 文字 */}
+                <Button asChild className="hidden md:flex text-sm lg:text-base px-4 lg:px-6">
+                  <Link to="/student/courses/discover">
+                    <Compass className="w-4 h-4 mr-2" />
+                    {t('course:discovery.discover')}
+                  </Link>
+                </Button>
+              </>
+            )}
+          </>
+        }
       />
 
       <div className="w-[95%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto pt-6 md:pt-8 lg:pt-10 xl:pt-12 2xl:pt-16">

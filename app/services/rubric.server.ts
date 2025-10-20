@@ -1,21 +1,8 @@
 import { db } from '@/lib/db.server';
-import { PrismaClient } from '@/types/database';
 import { ZodError } from 'zod';
-import { GradingProgressService } from './grading-progress.server';
-import logger from '@/utils/logger';
-import {
-  uiCategoriesToDbCriteria,
-  validateRubricData,
-  validateRubricCompletion,
-  formatZodErrors,
-} from '@/utils/rubric-transform';
-import {
-  CreateRubricRequestSchema,
-  UpdateRubricRequestSchema,
-  DeleteRubricRequestSchema,
-  UIRubricDataSchema,
-} from '@/schemas/rubric';
-import { type RubricCriteria, type RubricResponse, type UIRubricData } from '@/types/rubric';
+import { validateRubricData, validateRubricCompletion, formatZodErrors } from '@/utils/rubric-transform';
+import { DeleteRubricRequestSchema } from '@/schemas/rubric';
+import { type RubricResponse, type UIRubricData } from '@/types/rubric';
 
 /**
  * Unified error handling for service operations

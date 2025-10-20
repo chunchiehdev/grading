@@ -1,7 +1,6 @@
-import { TrendingUp, Users, FileText, BarChart3, PieChart, Calendar } from 'lucide-react';
+import { TrendingUp, Users, FileText, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { useTranslation } from 'react-i18next';
 import type { TeacherInfo, CourseInfo, OverallTeacherStats, CoursePerformance, RubricUsage } from '@/types/teacher';
 

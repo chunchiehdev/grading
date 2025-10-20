@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, Link } from 'react-router';
+import { useLoaderData } from 'react-router';
 import { Users, Mail, Calendar, User, UserPlus } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';

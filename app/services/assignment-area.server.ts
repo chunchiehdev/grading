@@ -522,9 +522,7 @@ export async function getCustomGradingInstructions(assignmentAreaId: string): Pr
  * @param fileIds - Array of file IDs to validate
  * @returns Object with validIds and errors arrays
  */
-export async function validateReferenceFiles(
-  fileIds: string[]
-): Promise<{ validIds: string[]; errors: string[] }> {
+export async function validateReferenceFiles(fileIds: string[]): Promise<{ validIds: string[]; errors: string[] }> {
   if (fileIds.length === 0) {
     return { validIds: [], errors: [] };
   }
@@ -558,9 +556,7 @@ export async function validateReferenceFiles(
       if (!file) {
         errors.push(`Reference file ${fileId} not found`);
       } else if (file.parseStatus !== 'COMPLETED') {
-        errors.push(
-          `Reference file "${file.originalFileName}" is not fully parsed (status: ${file.parseStatus})`
-        );
+        errors.push(`Reference file "${file.originalFileName}" is not fully parsed (status: ${file.parseStatus})`);
       } else {
         validIds.push(fileId);
       }

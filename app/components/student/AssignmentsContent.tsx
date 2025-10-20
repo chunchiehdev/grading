@@ -66,7 +66,9 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
             {/* Score/Status Row - 獨立一行 */}
             {hasSubmission && submission?.normalizedScore !== null ? (
               <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold text-accent-foreground">{submission?.normalizedScore.toFixed(1)}</span>
+                <span className="text-lg font-semibold text-accent-foreground">
+                  {submission?.normalizedScore.toFixed(1)}
+                </span>
                 <span className="text-sm text-muted-foreground">/ 100</span>
               </div>
             ) : hasSubmission ? (

@@ -39,11 +39,7 @@ export const updateAssignmentSchema = z.object({
   dueDate: z.string().datetime().optional().nullable(),
 
   // Feature 004: Allow updating reference materials and instructions
-  referenceFileIds: z
-    .array(z.string().uuid())
-    .max(5, 'Maximum 5 reference files allowed')
-    .optional()
-    .nullable(),
+  referenceFileIds: z.array(z.string().uuid()).max(5, 'Maximum 5 reference files allowed').optional().nullable(),
 
   customGradingPrompt: z
     .string()

@@ -11,7 +11,6 @@ interface LoaderData {
   user: User | null;
   [key: string]: any;
 }
-import { v4 as uuidv4 } from 'uuid';
 import { Markdown } from '@/components/ui/markdown';
 
 interface Level {

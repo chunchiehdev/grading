@@ -1,6 +1,5 @@
 import { db } from '@/lib/db.server';
 import type { CourseInfo } from './course.server';
-import type { StudentAssignmentInfo } from './submission.server';
 
 export interface CoursePageData {
   course: CourseInfo & {

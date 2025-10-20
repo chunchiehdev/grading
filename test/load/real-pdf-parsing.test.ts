@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { REAL_API_CONFIG, createMinimalTestContent, shouldSkipRealApiTests } from './real-api-config';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { createMinimalTestContent, shouldSkipRealApiTests } from './real-api-config';
 import { UserFactory, UploadedFileFactory } from '../factories';
 import { triggerPdfParsing } from '@/services/pdf-parser.server';
 import { db } from '@/types/database';

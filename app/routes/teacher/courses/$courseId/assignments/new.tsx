@@ -1,7 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Await, Link } from 'react-router';
 import { Suspense, useState } from 'react';
-import { Plus } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, type CourseInfo } from '@/services/course.server';
@@ -105,7 +104,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 
     // Update reference files and custom grading prompt if provided
     const updateData: any = {};
-    
+
     if (referenceFileIds && referenceFileIds.trim() !== '') {
       try {
         const fileIds = JSON.parse(referenceFileIds);
@@ -350,9 +349,7 @@ function AssignmentForm({
           {/* AI Grading Context - Reference Files */}
           <div className="space-y-2 lg:space-y-3 pt-4 border-t border-border">
             <div className="space-y-1">
-              <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
-                AI 評分知識庫
-              </Label>
+              <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">AI 評分知識庫</Label>
               <p className="text-sm text-muted-foreground">
                 上傳參考資料（如課程講義、標準答案）讓 AI 根據這些內容評分
               </p>

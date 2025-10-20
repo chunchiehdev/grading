@@ -113,9 +113,7 @@ export function useFileUploadProgress({
   );
 
   // Check if all files are completed
-  const allCompleted = Array.from(statuses.values()).every(
-    (status) => status.parseStatus === 'COMPLETED'
-  );
+  const allCompleted = Array.from(statuses.values()).every((status) => status.parseStatus === 'COMPLETED');
 
   // Check if any files have failed
   const hasFailed = Array.from(statuses.values()).some((status) => status.parseStatus === 'FAILED');

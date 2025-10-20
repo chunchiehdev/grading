@@ -37,7 +37,8 @@ export function ContextTransparency({ usedContext, customInstructionsPreview }: 
         <AlertCircle className="h-4 w-4" />
         <AlertDescription className="text-sm text-muted-foreground">
           {t('noContextUsed', {
-            defaultValue: 'This grading was performed without additional context (reference materials or custom instructions).',
+            defaultValue:
+              'This grading was performed without additional context (reference materials or custom instructions).',
           })}
         </AlertDescription>
       </Alert>
@@ -83,8 +84,7 @@ export function ContextTransparency({ usedContext, customInstructionsPreview }: 
 
                   <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                     <span>
-                      {(file.contentLength / 1000).toFixed(1)}k{' '}
-                      {t('characters', { defaultValue: 'characters' })}
+                      {(file.contentLength / 1000).toFixed(1)}k {t('characters', { defaultValue: 'characters' })}
                     </span>
 
                     {file.wasTruncated && (

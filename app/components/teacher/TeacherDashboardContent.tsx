@@ -21,8 +21,7 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
 
     if (diffInMinutes < 1) return t('teacher:dashboard.timeAgo.justNow');
     if (diffInMinutes < 60) return t('teacher:dashboard.timeAgo.minutesAgo', { count: diffInMinutes });
-    if (diffInMinutes < 1440)
-      return t('teacher:dashboard.timeAgo.hoursAgo', { count: Math.floor(diffInMinutes / 60) });
+    if (diffInMinutes < 1440) return t('teacher:dashboard.timeAgo.hoursAgo', { count: Math.floor(diffInMinutes / 60) });
     return t('teacher:dashboard.timeAgo.daysAgo', { count: Math.floor(diffInMinutes / 1440) });
   };
 

@@ -88,7 +88,16 @@ export class GeminiPrompts {
   }
 
   static generateTextGradingPrompt(request: GeminiGradingRequest): string {
-    const { content, criteria, categories, fileName, rubricName, referenceDocuments, customInstructions, language = 'zh' } = request;
+    const {
+      content,
+      criteria,
+      categories,
+      fileName,
+      rubricName,
+      referenceDocuments,
+      customInstructions,
+      language = 'zh',
+    } = request;
     const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
     const criteriaDescription = categories
       ? this.formatCategorizedCriteriaDescription(categories)

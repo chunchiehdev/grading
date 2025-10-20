@@ -59,4 +59,3 @@ export async function action({ request, params }: { request: Request; params: an
     );
   }
 }
-

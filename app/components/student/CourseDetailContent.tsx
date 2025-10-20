@@ -1,4 +1,4 @@
-import { FileText, Clock, MapPin, ArrowLeft } from 'lucide-react';
+import { FileText, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,9 +45,7 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
           {course.name}
         </h1>
         {course.description && (
-          <p className="text-sm lg:text-base text-muted-foreground max-w-3xl mx-auto">
-            {course.description}
-          </p>
+          <p className="text-sm lg:text-base text-muted-foreground max-w-3xl mx-auto">{course.description}</p>
         )}
       </div>
 
@@ -63,9 +61,7 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
             />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <div className="text-base lg:text-lg font-medium text-foreground">
-                  {course.teacher.name}
-                </div>
+                <div className="text-base lg:text-lg font-medium text-foreground">{course.teacher.name}</div>
                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 font-medium">
                   {t('course:detail.instructor')}
                 </span>
@@ -73,10 +69,9 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
               <div className="text-xs lg:text-sm text-muted-foreground dark:text-muted-foreground mt-1 space-y-0.5">
                 {myClass && myClass.schedule && myClass.schedule.weekday && myClass.schedule.periodCode ? (
                   <div>
-                    {t('course:detail.class')}：{myClass.name} • {formatScheduleDisplay(myClass.schedule.weekday, myClass.schedule.periodCode, currentLanguage)}
-                    {myClass.schedule.room && (
-                      <span className="ml-1">• {myClass.schedule.room}</span>
-                    )}
+                    {t('course:detail.class')}：{myClass.name} •{' '}
+                    {formatScheduleDisplay(myClass.schedule.weekday, myClass.schedule.periodCode, currentLanguage)}
+                    {myClass.schedule.room && <span className="ml-1">• {myClass.schedule.room}</span>}
                   </div>
                 ) : (
                   <div>{t('course:detail.allCourse')}</div>
@@ -96,9 +91,7 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
             <h3 className="text-base lg:text-lg font-medium text-foreground mb-1">
               {t('course:detail.noAssignments')}
             </h3>
-            <p className="text-sm lg:text-base text-muted-foreground">
-              {t('course:detail.noAssignmentsDescription')}
-            </p>
+            <p className="text-sm lg:text-base text-muted-foreground">{t('course:detail.noAssignmentsDescription')}</p>
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -193,7 +186,9 @@ function AssignmentCard({ assignment, studentId, isLast }: AssignmentCardProps) 
               {assignment.name}
             </h3>
             {assignment.description && (
-              <p className="text-xs lg:text-sm text-muted-foreground dark:text-muted-foreground line-clamp-2 mt-0.5">{assignment.description}</p>
+              <p className="text-xs lg:text-sm text-muted-foreground dark:text-muted-foreground line-clamp-2 mt-0.5">
+                {assignment.description}
+              </p>
             )}
           </div>
           <div className="flex-shrink-0 ml-2">{getStatusBadge()}</div>
@@ -201,12 +196,8 @@ function AssignmentCard({ assignment, studentId, isLast }: AssignmentCardProps) 
 
         {/* 底部資訊 - 單行緊湊 */}
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground dark:text-muted-foreground">
-          {assignment.class && (
-            <span className="text-blue-700 dark:text-blue-300">{assignment.class.name}</span>
-          )}
-          {!assignment.class && (
-            <span>{t('course:detail.allCourse')}</span>
-          )}
+          {assignment.class && <span className="text-blue-700 dark:text-blue-300">{assignment.class.name}</span>}
+          {!assignment.class && <span>{t('course:detail.allCourse')}</span>}
           <span>•</span>
           <span>{assignment.rubric.name}</span>
           {assignment.dueDate && (

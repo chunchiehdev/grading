@@ -1,17 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { getSession, commitSession } from '@/sessions.server';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import {
-  CheckCircle,
-  AlertCircle,
-  Users,
-  User,
-  Clock,
-  MapPin,
-  GraduationCap,
-  Terminal,
-  AlertCircleIcon,
-} from 'lucide-react';
+import { CheckCircle, AlertCircle, Users, User, Clock, MapPin, GraduationCap } from 'lucide-react';
 import { useState } from 'react';
 
 import { getUser } from '@/services/auth.server';
@@ -463,9 +453,7 @@ export default function JoinCourse() {
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Button asChild variant="outline" className="flex-1" size="lg">
-                  <Link to={user.role === 'STUDENT' ? '/student' : '/teacher'}>
-                    {t('common:cancel')}
-                  </Link>
+                  <Link to={user.role === 'STUDENT' ? '/student' : '/teacher'}>{t('common:cancel')}</Link>
                 </Button>
                 <Button
                   type="submit"

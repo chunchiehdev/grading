@@ -44,7 +44,7 @@ export interface AssignmentCreateRequest {
   classId?: string;
   rubricId: string;
   dueDate?: string;
-  referenceFileIds?: string[];  // Array of UploadedFile IDs (max 5)
+  referenceFileIds?: string[]; // Array of UploadedFile IDs (max 5)
   customGradingPrompt?: string; // Custom instructions (max 5000 chars)
 }
 
@@ -52,6 +52,6 @@ export interface AssignmentCreateRequest {
  * Assignment update request
  */
 export interface AssignmentUpdateRequest {
-  referenceFileIds?: string[] | null;  // null removes all references
+  referenceFileIds?: string[] | null; // null removes all references
   customGradingPrompt?: string | null; // null removes instructions
 }

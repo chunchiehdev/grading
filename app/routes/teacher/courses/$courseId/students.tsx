@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
-import { useLoaderData, Form, Link, useActionData } from 'react-router';
-import { Users, ArrowLeft, Trash2 } from 'lucide-react';
+import { useLoaderData, Form, useActionData } from 'react-router';
+import { Users, Trash2 } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById } from '@/services/course.server';
@@ -80,18 +80,9 @@ export default function CourseStudents() {
   const { course, students } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
 
-  const headerActions = (
-    <Button asChild variant="outline">
-      <Link to={`/teacher/courses/${course.id}`}>
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Course
-      </Link>
-    </Button>
-  );
-
   return (
     <div>
-      <PageHeader title={`Students`} subtitle={course.name} actions={headerActions} />
+      <PageHeader title={`Students`} subtitle={course.name} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Card>

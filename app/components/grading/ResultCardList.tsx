@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { GradingResultDisplay } from './GradingResultDisplay';
 import { type GradingResultData } from '@/types/grading';
 import { FileText, Star, ChevronDown, ChevronUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 
 interface ResultCardItem {

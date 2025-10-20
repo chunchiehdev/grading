@@ -6,8 +6,7 @@
 
 import { requireTeacher } from '@/services/auth.server';
 import { createAssignmentSchema } from '@/schemas/assignment';
-import { createAssignmentArea, listAssignmentAreas } from '@/services/assignment-area.server';
-import { validateReferenceFiles } from '@/services/assignment-area.server';
+import { createAssignmentArea, listAssignmentAreas, validateReferenceFiles } from '@/services/assignment-area.server';
 import { db } from '@/lib/db.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
@@ -37,10 +36,9 @@ export async function action({ request }: { request: Request }) {
       const { validIds, errors } = await validateReferenceFiles(data.referenceFileIds);
 
       if (errors.length > 0) {
-        return Response.json(
-          createErrorResponse('Invalid reference files', ApiErrorCode.VALIDATION_ERROR, errors),
-          { status: 400 }
-        );
+        return Response.json(createErrorResponse('Invalid reference files', ApiErrorCode.VALIDATION_ERROR, errors), {
+          status: 400,
+        });
       }
 
       // Replace with only valid IDs
@@ -59,9 +57,7 @@ export async function action({ request }: { request: Request }) {
     // Feature 004: Update with reference files and custom instructions if provided
     if (data.referenceFileIds || data.customGradingPrompt) {
       const referenceFileIdsJson =
-        data.referenceFileIds && data.referenceFileIds.length > 0
-          ? JSON.stringify(data.referenceFileIds)
-          : null;
+        data.referenceFileIds && data.referenceFileIds.length > 0 ? JSON.stringify(data.referenceFileIds) : null;
 
       await db.assignmentArea.update({
         where: { id: assignmentArea.id },
@@ -154,10 +150,9 @@ export async function loader({ request }: { request: Request }) {
     const courseId = url.searchParams.get('courseId');
 
     if (!courseId) {
-      return Response.json(
-        createErrorResponse('courseId parameter required', ApiErrorCode.VALIDATION_ERROR),
-        { status: 400 }
-      );
+      return Response.json(createErrorResponse('courseId parameter required', ApiErrorCode.VALIDATION_ERROR), {
+        status: 400,
+      });
     }
 
     const assignments = await listAssignmentAreas(courseId, teacher.id);

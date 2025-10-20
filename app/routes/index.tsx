@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { HeroSection } from '@/components/landing/HeroSection';
-import { LoadingScreen } from '@/components/landing/LoadingScreen';
 
 /**
  * Landing page with loading screen

@@ -11,7 +11,6 @@ import { Accordion } from '@/components/ui/accordion';
 import { CriterionItemAccordion } from '@/components/rubrics/CriterionItemAccordion';
 import { RubricPreview } from '@/components/rubrics/RubricPreview';
 import { AIRubricAssistant } from '@/components/rubrics/AIRubricAssistant';
-import { FormSection } from '@/components/forms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import type { UICategory, UICriterion, UIRubricData, Level } from '@/utils/rubric-transform';

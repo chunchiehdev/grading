@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { io, Socket } from 'socket.io-client';
 import logger from '@/utils/logger';
-import { crossTabSync, type CrossTabMessage } from '@/utils/broadcastChannel';
+import { crossTabSync } from '@/utils/broadcastChannel';
 
 interface ChatMsg {
   id: string;

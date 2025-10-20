@@ -1,11 +1,9 @@
 // GradingProgress.tsx
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { motion, AnimatePresence, useSpring } from 'framer-motion';
 import { Search, PenLine, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import type { GradingStatus, GradingProgress as GradingProgressType } from '@/types/rubric';
+import type { GradingProgress as GradingProgressType } from '@/types/rubric';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 

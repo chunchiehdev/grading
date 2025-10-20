@@ -1,6 +1,6 @@
 import { requireTeacher } from '@/services/auth.server';
 import { listRubrics } from '@/services/rubric.server';
-import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
+import { createErrorResponse, ApiErrorCode } from '@/types/api';
 
 /**
  * API endpoint to get user's rubrics

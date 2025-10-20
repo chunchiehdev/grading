@@ -8,9 +8,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Share2, LogOut, User as UserIcon, Menu, Globe, Settings } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useLoaderData } from 'react-router';
 import { ModeToggle } from '@/components/ui/mode-toggle';
-import { useLoaderData } from 'react-router';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
 import { User } from '@/root';

@@ -45,10 +45,7 @@ export function CustomInstructionsField({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label
-          htmlFor="custom-grading-instructions"
-          className="block text-sm font-medium text-foreground"
-        >
+        <label htmlFor="custom-grading-instructions" className="block text-sm font-medium text-foreground">
           {t('customInstructions')} ({t('optional')})
         </label>
         <span
@@ -56,8 +53,8 @@ export function CustomInstructionsField({
             isAtLimit
               ? 'text-destructive font-semibold'
               : isNearLimit
-              ? 'text-orange-600 dark:text-orange-500'
-              : 'text-muted-foreground'
+                ? 'text-orange-600 dark:text-orange-500'
+                : 'text-muted-foreground'
           }`}
         >
           {charCount} / {maxLength}
@@ -94,9 +91,7 @@ export function CustomInstructionsField({
         </p>
       )}
 
-      {isAtLimit && (
-        <p className="text-sm text-destructive font-semibold">{t('charLimitReached')}</p>
-      )}
+      {isAtLimit && <p className="text-sm text-destructive font-semibold">{t('charLimitReached')}</p>}
 
       <div className="text-xs text-muted-foreground space-y-1">
         <p>💡 {t('instructionsTip1')}</p>

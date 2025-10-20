@@ -2,12 +2,11 @@ import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionById } from '@/services/submission.server';
-import { PageHeader } from '@/components/ui/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { useTranslation } from 'react-i18next';
-import { RotateCcw, ArrowLeft } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -53,16 +52,6 @@ export default function StudentSubmissionDetail() {
   return (
     <div className="min-h-screen bg-background">
       <main className="w-full px-6 lg:px-12 xl:px-16 2xl:px-20 pb-8 space-y-8">
-        {/* 返回按鈕 */}
-        <div className="pt-4">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/student/submissions" className="flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              {t('common:back')}
-            </Link>
-          </Button>
-        </div>
-
         {/* 頂部作業資訊 - 簡潔背景 */}
         <div className="border-b border-border pb-6">
           <div className="flex items-start justify-between">

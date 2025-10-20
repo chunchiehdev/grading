@@ -378,6 +378,7 @@
     }
   },
   "discovery": {
+    "discover": "探索課程",
     "title": "探索課程",
     "subtitle": "瀏覽所有可用課程並加入您感興趣的課程",
     "empty": "暫無可用課程",
@@ -394,6 +395,11 @@
     "duplicateEnrollment": "您已經加入此時段",
     "classAtCapacity": "此時段已滿員，請嘗試其他時段。",
     "courseInactive": "此課程已不可用",
-    "errorFetching": "取得課程失敗，請重新嘗試。"
+    "errorFetching": "取得課程失敗，請重新嘗試。",
+    "courseName": "課程名稱",
+    "class": "班級",
+    "search": "搜尋課程...",
+    "gridView": "網格檢視",
+    "listView": "列表檢視"
   }
 }

@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
-import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { ArrowLeft, Save } from 'lucide-react';
+import { useLoaderData, useActionData, Form } from 'react-router';
+import { Save } from 'lucide-react';
 import { requireTeacher } from '@/services/auth.server';
 import { getSubmissionByIdForTeacher } from '@/services/submission.server';
 import { PageHeader } from '@/components/ui/page-header';
@@ -115,14 +115,6 @@ export default function TeacherSubmissionView() {
       <PageHeader
         title={`${t('submissionReview')} - ${submission.student.name}`}
         subtitle={`${submission.assignment.name} - ${submission.assignment.course.name}`}
-        actions={
-          <Button asChild variant="outline">
-            <Link to={submission.navigation.backUrl}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {t('backToSubmissions')}
-            </Link>
-          </Button>
-        }
       />
 
       <main className="max-w-7xl mx-auto px-4 pb-8">

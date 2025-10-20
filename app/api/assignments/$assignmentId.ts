@@ -6,8 +6,7 @@
 
 import { requireTeacher } from '@/services/auth.server';
 import { updateAssignmentSchema } from '@/schemas/assignment';
-import { getAssignmentAreaById, updateAssignmentArea } from '@/services/assignment-area.server';
-import { validateReferenceFiles } from '@/services/assignment-area.server';
+import { getAssignmentAreaById, updateAssignmentArea, validateReferenceFiles } from '@/services/assignment-area.server';
 import { db } from '@/lib/db.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
@@ -21,19 +20,15 @@ export async function loader({ request, params }: { request: Request; params: an
     const { assignmentId } = params;
 
     if (!assignmentId) {
-      return Response.json(
-        createErrorResponse('Assignment ID required', ApiErrorCode.VALIDATION_ERROR),
-        { status: 400 }
-      );
+      return Response.json(createErrorResponse('Assignment ID required', ApiErrorCode.VALIDATION_ERROR), {
+        status: 400,
+      });
     }
 
     const assignment = await getAssignmentAreaById(assignmentId, teacher.id);
 
     if (!assignment) {
-      return Response.json(
-        createErrorResponse('Assignment not found', ApiErrorCode.NOT_FOUND),
-        { status: 404 }
-      );
+      return Response.json(createErrorResponse('Assignment not found', ApiErrorCode.NOT_FOUND), { status: 404 });
     }
 
     // Feature 004: Parse and fetch reference files
@@ -93,10 +88,9 @@ export async function action({ request, params }: { request: Request; params: an
     const { assignmentId } = params;
 
     if (!assignmentId) {
-      return Response.json(
-        createErrorResponse('Assignment ID required', ApiErrorCode.VALIDATION_ERROR),
-        { status: 400 }
-      );
+      return Response.json(createErrorResponse('Assignment ID required', ApiErrorCode.VALIDATION_ERROR), {
+        status: 400,
+      });
     }
 
     const body = await request.json();
@@ -117,10 +111,9 @@ export async function action({ request, params }: { request: Request; params: an
       const { validIds, errors } = await validateReferenceFiles(data.referenceFileIds);
 
       if (errors.length > 0) {
-        return Response.json(
-          createErrorResponse('Invalid reference files', ApiErrorCode.VALIDATION_ERROR, errors),
-          { status: 400 }
-        );
+        return Response.json(createErrorResponse('Invalid reference files', ApiErrorCode.VALIDATION_ERROR, errors), {
+          status: 400,
+        });
       }
 
       // Replace with only valid IDs
@@ -135,10 +128,9 @@ export async function action({ request, params }: { request: Request; params: an
     });
 
     if (!updatedAssignment) {
-      return Response.json(
-        createErrorResponse('Assignment not found or unauthorized', ApiErrorCode.NOT_FOUND),
-        { status: 404 }
-      );
+      return Response.json(createErrorResponse('Assignment not found or unauthorized', ApiErrorCode.NOT_FOUND), {
+        status: 404,
+      });
     }
 
     // Feature 004: Update reference files and custom instructions if provided

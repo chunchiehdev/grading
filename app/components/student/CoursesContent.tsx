@@ -1,6 +1,7 @@
-import { Users, FileText, Calendar, UserPlus } from 'lucide-react';
+import { Users, FileText, Calendar, UserPlus, Compass } from 'lucide-react';
 import { Link } from 'react-router';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 import type { CourseWithEnrollmentInfo, StudentInfo } from '@/types/student';
@@ -31,13 +32,21 @@ export function CoursesContent({ data }: CoursesContentProps) {
             <h1 className="text-2xl font-semibold text-foreground">{t('course:emptyState.title')}</h1>
             <p className="text-muted-foreground">{t('course:emptyState.description')}</p>
           </div>
+
+          {/* Action Button */}
+          <Button asChild size="lg">
+            <Link to="/student/courses/discover">
+              <Compass className="w-5 h-5 mr-2" />
+              {t('course:discovery.discover')}
+            </Link>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
         {courses.map((course) => (
           <CourseCard key={course.id} course={course} />

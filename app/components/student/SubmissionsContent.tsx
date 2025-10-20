@@ -48,12 +48,8 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
 
             {/* Main Content */}
             <div className="space-y-3">
-              <h1 className="text-2xl font-semibold text-foreground">
-                {t('submissions:teacherComments.empty')}
-              </h1>
-              <p className="text-muted-foreground">
-                {t('submissions:teacherComments.hint')}
-              </p>
+              <h1 className="text-2xl font-semibold text-foreground">{t('submissions:teacherComments.empty')}</h1>
+              <p className="text-muted-foreground">{t('submissions:teacherComments.hint')}</p>
             </div>
           </div>
         </div>

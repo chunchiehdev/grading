@@ -27,7 +27,7 @@ export async function action({ request }: { request: Request }) {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'text/plain',
     ];
-    
+
     if (!allowedTypes.includes(file.type) && !file.name.match(/\.(pdf|docx|txt)$/i)) {
       return Response.json(
         createErrorResponse('Invalid file type. Only PDF, DOCX, and TXT are allowed', ApiErrorCode.VALIDATION_ERROR),
@@ -43,10 +43,9 @@ export async function action({ request }: { request: Request }) {
     });
 
     if (!result.success) {
-      return Response.json(
-        createErrorResponse(result.error || 'Upload failed', ApiErrorCode.INTERNAL_ERROR),
-        { status: 500 }
-      );
+      return Response.json(createErrorResponse(result.error || 'Upload failed', ApiErrorCode.INTERNAL_ERROR), {
+        status: 500,
+      });
     }
 
     return Response.json(
@@ -59,12 +58,8 @@ export async function action({ request }: { request: Request }) {
   } catch (error) {
     console.error('File upload error:', error);
     return Response.json(
-      createErrorResponse(
-        error instanceof Error ? error.message : 'Upload failed',
-        ApiErrorCode.INTERNAL_ERROR
-      ),
+      createErrorResponse(error instanceof Error ? error.message : 'Upload failed', ApiErrorCode.INTERNAL_ERROR),
       { status: 500 }
     );
   }
 }
-
