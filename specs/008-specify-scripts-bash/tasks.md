@@ -76,7 +76,7 @@
 - [x] T028 [US2] Add course card CTA buttons to `CourseDiscoveryContent.tsx`: "Enroll", "Enrolled" (disabled), "Class Full" (disabled) button states based on enrollment status
 - [x] T029 [US2] Add empty state to `CourseDiscoveryContent.tsx`: friendly message with icon when no courses available
 - [x] T030 [US2] Create route loader in `app/routes/student/courses/discover.tsx` to fetch discoverable courses and student's enrolled course IDs
-- [ ] T031 [US2] Create route action in `app/routes/student/courses/discover.tsx` to handle POST enrollment requests, redirect or show success toast
+- [x] T031 [US2] Create route action in `app/routes/student/courses/discover.tsx` to handle POST enrollment requests, redirect or show success toast
 - [x] T032 [US2] Add loading states and error handling to `app/routes/student/courses/discover.tsx`: loading spinners, error messages from enrollment failures
 - [x] T033 [US2] Implement form submission debouncing in `CourseDiscoveryContent.tsx` to prevent duplicate enrollment on rapid clicks
 - [ ] T034 [US2] Test responsive layout: course cards should display correctly at 320px (1 col), 768px (2 cols), 1024px (3+ cols)
@@ -157,14 +157,14 @@
 
 **Purpose**: Improvements affecting all user stories, documentation, and final validation
 
-- [ ] T068 [P] Add JSDoc comments to all service functions in `app/services/course-discovery.server.ts` with parameter descriptions and return types
-- [ ] T069 [P] Add comprehensive error messages to enrollment failures (duplicate, full, inactive) for user-friendly feedback
-- [ ] T070 [P] Add logging for key operations: course discovery queries, enrollment attempts, validation failures in `app/services/course-discovery.server.ts`
+- [x] T068 [P] Add JSDoc comments to all service functions in `app/services/course-discovery.server.ts` with parameter descriptions and return types
+- [x] T069 [P] Add comprehensive error messages to enrollment failures (duplicate, full, inactive) for user-friendly feedback
+- [x] T070 [P] Add logging for key operations: course discovery queries, enrollment attempts, validation failures in `app/services/course-discovery.server.ts`
 - [ ] T071 Add success toast notifications for successful enrollment in `app/routes/student/courses/discover.tsx` using existing toast component
 - [ ] T072 Update project README or docs to document new routes: GET `/api/courses/discover`, POST `/api/enrollments`, `/student/courses/discover`
 - [ ] T073 Code cleanup: Remove commented code, ensure consistent formatting, verify no console.logs remain
-- [ ] T074 [P] Run type checking: `npm run typecheck` to verify all TypeScript types are correct across new files
-- [ ] T075 [P] Run linting: `npm run lint` and `npm run lint:fix` to ensure code style matches project conventions
+- [x] T074 [P] Run type checking: `npm run typecheck` to verify all TypeScript types are correct across new files
+- [x] T075 [P] Run linting: `npm run lint` and `npm run lint:fix` to ensure code style matches project conventions
 - [ ] T076 Performance audit: Check bundle size impact of new components, optimize if needed
 - [ ] T077 Run quickstart.md validation checklist to verify all requirements met
 - [ ] T078 Final manual testing: Full end-to-end flows on desktop, tablet, mobile in light and dark modes
