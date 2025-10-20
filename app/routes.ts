@@ -63,6 +63,7 @@ export default [
 
   // Student Platform - Additional routes (outside layout)
   ...prefix('/student', [
+    route('courses/discover', './routes/student/courses/discover.tsx'),
     route('courses/:courseId', './routes/student/courses/$courseId.tsx'),
     route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId.submit.tsx'),
     route('submissions/:submissionId', './routes/student/submissions/$submissionId.tsx'),
@@ -123,6 +124,10 @@ export default [
   route('/api/student/submit', './api/student/submit.ts'),
   route('/api/student/assignments', './api/student/assignments/index.ts'),
   route('/api/student/assignments/:assignmentId/draft', './api/student/assignments/$assignmentId/draft.ts'),
+
+  // Course Discovery and Enrollment API routes
+  route('/api/courses/discover', './api/courses/discover.ts'),
+  route('/api/enrollments', './api/enrollments.ts'),
 
   route('/health', './routes/health.tsx'),
 
