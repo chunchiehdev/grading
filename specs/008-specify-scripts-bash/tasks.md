@@ -49,11 +49,11 @@
 - [x] T014 [P] [US1] Update QR code wrapper with minimum 200x200px size constraint and descriptive text below in `app/components/ui/invitation-display.tsx`
 - [x] T015 [P] [US1] Ensure copy-to-clipboard feedback (visual indication/toast) works for code field in `app/components/ui/copyable-field.tsx`
 - [x] T016 [P] [US1] Ensure copy-to-clipboard feedback works for enrollment URL field in `app/components/ui/copyable-field.tsx`
-- [ ] T017 [US1] Test responsive layout at viewport sizes: 320px, 480px, 768px, 1024px, 1920px in `app/components/ui/invitation-display.tsx`
-- [ ] T018 [US1] Verify dark mode support: Test `dark:` classes render correctly with WCAG AA contrast ratios (4.5:1) in light/dark modes
+- [x] T017 [US1] Test responsive layout at viewport sizes: 320px, 480px, 768px, 1024px, 1920px in `app/components/ui/invitation-display.tsx`
+- [x] T018 [US1] Verify dark mode support: Test `dark:` classes render correctly with WCAG AA contrast ratios (4.5:1) in light/dark modes
 - [x] T019 [US1] Apply design system colors: Use primary, secondary, and accent colors from `tailwind.config.ts` for interactive elements
 - [x] T020 [US1] Add generous spacing/padding to match Card component styling in `app/components/ui/invitation-display.tsx`
-- [ ] T021 [US1] Manual QA: Navigate to `/teacher/courses/[courseId]`, generate invitation, verify layout matches spec acceptance criteria
+- [x] T021 [US1] Manual QA: Navigate to `/teacher/courses/[courseId]`, generate invitation, verify layout matches spec acceptance criteria
 
 **Checkpoint**: User Story 1 is fully functional and independently testable
 
@@ -79,10 +79,10 @@
 - [x] T031 [US2] Create route action in `app/routes/student/courses/discover.tsx` to handle POST enrollment requests, redirect or show success toast
 - [x] T032 [US2] Add loading states and error handling to `app/routes/student/courses/discover.tsx`: loading spinners, error messages from enrollment failures
 - [x] T033 [US2] Implement form submission debouncing in `CourseDiscoveryContent.tsx` to prevent duplicate enrollment on rapid clicks
-- [ ] T034 [US2] Test responsive layout: course cards should display correctly at 320px (1 col), 768px (2 cols), 1024px (3+ cols)
-- [ ] T035 [US2] Verify dark mode: course cards use consistent colors with design system tokens, maintain WCAG AA contrast
+- [x] T034 [US2] Test responsive layout: course cards should display correctly at 320px (1 col), 768px (2 cols), 1024px (3+ cols)
+- [x] T035 [US2] Verify dark mode: course cards use consistent colors with design system tokens, maintain WCAG AA contrast
 - [x] T036 [US2] Add page header with title using `PageHeader` component in `app/routes/student/courses/discover.tsx`
-- [ ] T037 [US2] Manual QA: Navigate to `/student/courses/discover`, see courses, enroll in one, verify success state, test empty state, test capacity full state
+- [x] T037 [US2] Manual QA: Navigate to `/student/courses/discover`, see courses, enroll in one, verify success state, test empty state, test capacity full state
 
 **Checkpoint**: User Stories 1 and 2 are complete and independently functional
 
@@ -96,20 +96,20 @@
 
 ### Implementation for User Story 3
 
-- [ ] T038 [US3] Audit existing design system tokens: Document primary, secondary, accent, muted colors from `tailwind.config.ts` and CSS variables
-- [ ] T039 [US3] Audit existing Button component styling in `app/components/ui/button.tsx`: height, padding, font-size, hover states, active states
-- [ ] T040 [US3] Audit existing Card component styling in `app/components/ui/card.tsx`: border-radius, shadow, padding, background colors
-- [ ] T041 [US3] Audit existing typography: heading sizes, weights, letter-spacing from component examples
-- [ ] T042 [US3] Verify InvitationDisplay uses same button styles as existing buttons (primary/secondary variants)
-- [ ] T043 [US3] Verify InvitationDisplay uses same Card styling as assignment cards and course cards
-- [ ] T044 [US3] Verify CourseDiscoveryContent course cards use same Card, Button styling as existing components
-- [ ] T045 [US3] Verify heading typography in both components matches existing h2/h3 sizes and weights
-- [ ] T046 [US3] Verify description/label text uses same muted-foreground color and text-sm size as existing components
-- [ ] T047 [US3] Test light mode: Run contrast check on all text elements (should be ≥4.5:1 for normal text, ≥3:1 for large)
-- [ ] T048 [US3] Test dark mode: Verify color inversion works correctly, re-check contrast ratios with dark background
-- [ ] T049 [US3] Verify spacing consistency: padding between sections, gap between elements matches existing Card/Button spacing patterns
-- [ ] T050 [US3] Verify border-radius: course cards and components use same `rounded-lg` or consistent `var(--radius)` value
-- [ ] T051 [US3] Manual QA: Compare new components side-by-side with existing pages on desktop, tablet, mobile in both light and dark modes
+- [x] T038 [US3] Audit existing design system tokens: Document primary, secondary, accent, muted colors from `tailwind.config.ts` and CSS variables
+- [x] T039 [US3] Audit existing Button component styling in `app/components/ui/button.tsx`: height, padding, font-size, hover states, active states
+- [x] T040 [US3] Audit existing Card component styling in `app/components/ui/card.tsx`: border-radius, shadow, padding, background colors
+- [x] T041 [US3] Audit existing typography: heading sizes, weights, letter-spacing from component examples
+- [x] T042 [US3] Verify InvitationDisplay uses same button styles as existing buttons (primary/secondary variants)
+- [x] T043 [US3] Verify InvitationDisplay uses same Card styling as assignment cards and course cards
+- [x] T044 [US3] Verify CourseDiscoveryContent course cards use same Card, Button styling as existing components
+- [x] T045 [US3] Verify heading typography in both components matches existing h2/h3 sizes and weights
+- [x] T046 [US3] Verify description/label text uses same muted-foreground color and text-sm size as existing components
+- [x] T047 [US3] Test light mode: Run contrast check on all text elements (should be ≥4.5:1 for normal text, ≥3:1 for large)
+- [x] T048 [US3] Test dark mode: Verify color inversion works correctly, re-check contrast ratios with dark background
+- [x] T049 [US3] Verify spacing consistency: padding between sections, gap between elements matches existing Card/Button spacing patterns
+- [x] T050 [US3] Verify border-radius: course cards and components use same `rounded-lg` or consistent `var(--radius)` value
+- [x] T051 [US3] Manual QA: Compare new components side-by-side with existing pages on desktop, tablet, mobile in both light and dark modes
 
 **Checkpoint**: All visual design requirements met, components integrate seamlessly with existing UI
 
@@ -123,16 +123,16 @@
 
 ### Implementation for User Story 4
 
-- [ ] T052 [US4] Review Prisma schema for Course, Class, Enrollment relationships in `prisma/schema.prisma`
-- [ ] T053 [US4] Verify unique constraint exists on `(studentId, classId)` in Enrollment model to prevent duplicates
-- [ ] T054 [US4] Verify foreign keys and cascading deletes are configured correctly in schema
-- [ ] T055 [US4] Verify _count fields work in Prisma queries for enrollment counts in `app/services/course-discovery.server.ts`
-- [ ] T056 [US4] Create test database query: fetch all courses with isActive=true AND has active classes, verify result set is correct
-- [ ] T057 [US4] Create test database query: check duplicate enrollment prevention when inserting same (studentId, classId) twice
-- [ ] T058 [US4] Create test database query: verify capacity validation works when enrollment count >= class.capacity
-- [ ] T059 [US4] Performance test: Run discovery query with 1000+ courses, verify completes in <2 seconds (add indexes if needed)
-- [ ] T060 [US4] Test race condition scenario: simulate two simultaneous enrollment requests to same class at capacity, verify only one succeeds
-- [ ] T061 [US4] Document performance characteristics of key queries in `app/services/course-discovery.server.ts` comments
+- [x] T052 [US4] Review Prisma schema for Course, Class, Enrollment relationships in `prisma/schema.prisma`
+- [x] T053 [US4] Verify unique constraint exists on `(studentId, classId)` in Enrollment model to prevent duplicates
+- [x] T054 [US4] Verify foreign keys and cascading deletes are configured correctly in schema
+- [x] T055 [US4] Verify _count fields work in Prisma queries for enrollment counts in `app/services/course-discovery.server.ts`
+- [x] T056 [US4] Create test database query: fetch all courses with isActive=true AND has active classes, verify result set is correct
+- [x] T057 [US4] Create test database query: check duplicate enrollment prevention when inserting same (studentId, classId) twice
+- [x] T058 [US4] Create test database query: verify capacity validation works when enrollment count >= class.capacity
+- [x] T059 [US4] Performance test: Run discovery query with 1000+ courses, verify completes in <2 seconds (add indexes if needed)
+- [x] T060 [US4] Test race condition scenario: simulate two simultaneous enrollment requests to same class at capacity, verify only one succeeds
+- [x] T061 [US4] Document performance characteristics of key queries in `app/services/course-discovery.server.ts` comments
 
 **Checkpoint**: Database infrastructure is robust and performant
 
@@ -165,10 +165,10 @@
 - [x] T073 Code cleanup: Remove commented code, ensure consistent formatting, verify no console.logs remain
 - [x] T074 [P] Run type checking: `npm run typecheck` to verify all TypeScript types are correct across new files
 - [x] T075 [P] Run linting: `npm run lint` and `npm run lint:fix` to ensure code style matches project conventions
-- [ ] T076 Performance audit: Check bundle size impact of new components, optimize if needed
-- [ ] T077 Run quickstart.md validation checklist to verify all requirements met
-- [ ] T078 Final manual testing: Full end-to-end flows on desktop, tablet, mobile in light and dark modes
-- [ ] T079 Prepare release notes documenting new course discovery feature for users
+- [x] T076 Performance audit: Check bundle size impact of new components, optimize if needed
+- [x] T077 Run quickstart.md validation checklist to verify all requirements met
+- [x] T078 Final manual testing: Full end-to-end flows on desktop, tablet, mobile in light and dark modes
+- [x] T079 Prepare release notes documenting new course discovery feature for users
 
 **Checkpoint**: Feature ready for production deployment
 
