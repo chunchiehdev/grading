@@ -37,8 +37,8 @@ export async function getDiscoverableCourses(options?: {
     const { limit = 50, offset = 0, sort = 'newest', search } = options || {};
 
     // Build where clause for course filtering
+    // Note: Only filter classes by isActive, not Course itself (Course has no isActive field)
     const whereClause: any = {
-      isActive: true,
       classes: {
         some: { isActive: true },
       },
@@ -239,11 +239,6 @@ export async function createEnrollment(studentId: string, classId: string) {
     if (!cls.isActive) {
       logger.warn(`Enrollment failed - class inactive: ${classId}`);
       throw new Error('This class is no longer available. It may have been closed by your teacher.');
-    }
-
-    if (!cls.course.isActive) {
-      logger.warn(`Enrollment failed - course inactive: ${cls.course.id}`);
-      throw new Error('This course is no longer available. It may have been closed by your teacher.');
     }
 
     // Check capacity
