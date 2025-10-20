@@ -1,10 +1,11 @@
-import { useRouteLoaderData, useNavigation } from 'react-router';
+import { useRouteLoaderData, useNavigation, redirect } from 'react-router';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CourseDiscoveryContent } from '@/components/student/CourseDiscoveryContent';
 import { PageHeader } from '@/components/ui/page-header';
 import { Loader2 } from 'lucide-react';
-import type { DiscoverableCourse } from '@/types/course';
+import { getUserId } from '@/services/auth.server';
+import { createEnrollmentSchema } from '@/schemas/enrollment';
 import type { LoaderData } from '../layout';
 
 /**
@@ -40,10 +41,7 @@ export default function CourseDiscoveryPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t('course:discovery.title')}
-        subtitle={t('course:discovery.subtitle')}
-      />
+      <PageHeader title={t('course:discovery.title')} subtitle={t('course:discovery.subtitle')} />
 
       <div className="animate-in fade-in-50 duration-300">
         <CourseDiscoveryContent {...contentProps} />
@@ -59,6 +57,73 @@ export default function CourseDiscoveryPage() {
       )}
     </div>
   );
+}
+
+/**
+ * Action - Handle POST enrollment requests
+ * Processes form submissions for course enrollment
+ */
+export async function action({ request }: { request: Request }) {
+  // Only handle POST requests
+  if (request.method !== 'POST') {
+    return { error: 'Method not allowed' };
+  }
+
+  // Verify user is authenticated
+  const userId = await getUserId(request);
+  if (!userId) {
+    return redirect('/auth/login');
+  }
+
+  try {
+    // Parse form data
+    const formData = await request.formData();
+    const classId = formData.get('classId') as string;
+    const courseId = formData.get('courseId') as string;
+
+    // Validate input
+    const validation = createEnrollmentSchema.safeParse({
+      classId,
+      courseId,
+      studentId: userId,
+    });
+
+    if (!validation.success) {
+      return {
+        error: 'Invalid enrollment data',
+        details: validation.error.errors,
+      };
+    }
+
+    // Call enrollment API
+    const enrollResponse = await fetch(`${process.env.SERVER_URL || 'http://localhost:3000'}/api/enrollments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        cookie: request.headers.get('cookie') || '',
+      },
+      body: JSON.stringify({
+        classId,
+        courseId,
+      }),
+    });
+
+    if (!enrollResponse.ok) {
+      const errorData = await enrollResponse.json();
+      return {
+        error: errorData.error?.message || 'Enrollment failed',
+        status: enrollResponse.status,
+      };
+    }
+
+    // Success - redirect back to discovery page
+    return redirect('/student/courses/discover');
+  } catch (error) {
+    console.error('Enrollment action error:', error);
+    return {
+      error: error instanceof Error ? error.message : 'Enrollment failed',
+    };
+  }
 }
 
 /**

@@ -27,9 +27,7 @@ export function InvitationDisplay({
         <div className="min-w-[200px] min-h-[200px] flex items-center justify-center bg-card rounded-lg border border-border p-4">
           <QRDisplay src={qrCodeUrl} alt="Course invitation QR code" description={qrDescription} />
         </div>
-        <p className="text-sm text-muted-foreground text-center max-w-sm">
-          {qrDescription}
-        </p>
+        <p className="text-sm text-muted-foreground text-center max-w-sm">{qrDescription}</p>
       </div>
 
       {/* Invitation Details - Below QR code */}
@@ -44,9 +42,7 @@ export function InvitationDisplay({
 
       {/* Instructions text */}
       <div className="w-full text-center space-y-2">
-        <p className="text-sm font-medium text-foreground">
-          Share with Students
-        </p>
+        <p className="text-sm font-medium text-foreground">Share with Students</p>
         <p className="text-xs text-muted-foreground">
           Students can scan the QR code, enter the code, or click the invitation link to join this course.
         </p>

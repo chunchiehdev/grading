@@ -57,7 +57,7 @@ export async function loader({ request }: { request: Request }) {
     // Add enrollment status to courses
     const coursesWithStatus = courses.map((course) => ({
       ...course,
-      enrollmentStatus: enrolledCourseIds.has(course.id) ? 'enrolled' : 'not_enrolled' as const,
+      enrollmentStatus: enrolledCourseIds.has(course.id) ? 'enrolled' : ('not_enrolled' as const),
     }));
 
     logger.info(`Discovery page loaded: userId=${userId}, courses=${courses.length}, total=${total}`);

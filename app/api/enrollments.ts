@@ -17,10 +17,7 @@ export async function action({ request }: { request: Request }) {
   try {
     // Only allow POST requests
     if (request.method !== 'POST') {
-      return Response.json(
-        createErrorResponse('Method not allowed', ApiErrorCode.VALIDATION_ERROR),
-        { status: 405 }
-      );
+      return Response.json(createErrorResponse('Method not allowed', ApiErrorCode.VALIDATION_ERROR), { status: 405 });
     }
 
     // Authenticate user
@@ -34,10 +31,7 @@ export async function action({ request }: { request: Request }) {
     try {
       body = await request.json();
     } catch {
-      return Response.json(
-        createErrorResponse('Invalid request body', ApiErrorCode.VALIDATION_ERROR),
-        { status: 400 }
-      );
+      return Response.json(createErrorResponse('Invalid request body', ApiErrorCode.VALIDATION_ERROR), { status: 400 });
     }
 
     // Validate request body
@@ -66,15 +60,9 @@ export async function action({ request }: { request: Request }) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to create enrollment';
 
     // Handle specific error cases
-    if (
-      errorMessage.includes('already enrolled') ||
-      errorMessage.includes('Unique constraint failed')
-    ) {
+    if (errorMessage.includes('already enrolled') || errorMessage.includes('Unique constraint failed')) {
       logger.warn(`Enrollment conflict: ${errorMessage}`);
-      return Response.json(
-        createErrorResponse(errorMessage, ApiErrorCode.VALIDATION_ERROR),
-        { status: 409 }
-      );
+      return Response.json(createErrorResponse(errorMessage, ApiErrorCode.VALIDATION_ERROR), { status: 409 });
     }
 
     if (
@@ -83,16 +71,12 @@ export async function action({ request }: { request: Request }) {
       errorMessage.includes('not active')
     ) {
       logger.warn(`Enrollment validation failed: ${errorMessage}`);
-      return Response.json(
-        createErrorResponse(errorMessage, ApiErrorCode.VALIDATION_ERROR),
-        { status: 409 }
-      );
+      return Response.json(createErrorResponse(errorMessage, ApiErrorCode.VALIDATION_ERROR), { status: 409 });
     }
 
     logger.error('Enrollment error:', error);
-    return Response.json(
-      createErrorResponse('Failed to create enrollment', ApiErrorCode.INTERNAL_ERROR),
-      { status: 500 }
-    );
+    return Response.json(createErrorResponse('Failed to create enrollment', ApiErrorCode.INTERNAL_ERROR), {
+      status: 500,
+    });
   }
 }
