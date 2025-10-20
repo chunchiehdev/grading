@@ -110,7 +110,7 @@ export async function handleGoogleCallback(request: Request) {
       redirectPath = '/auth/select-role';
     } else {
       // Existing user - redirect based on their role
-      redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+      redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
     }
 
     const response = redirect(redirectPath);

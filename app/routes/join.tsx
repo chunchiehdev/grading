@@ -135,7 +135,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<ActionDat
     const session = await getSession(request);
     session.flash('toast', { type: 'success', message: 'Successfully joined the course!' });
     const cookie = await commitSession(session);
-    const redirectTo = user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard';
+    const redirectTo = user.role === 'STUDENT' ? '/student' : '/teacher';
     const res = redirect(redirectTo);
     res.headers.set('Set-Cookie', cookie);
     return res;
@@ -204,7 +204,7 @@ export default function JoinCourse() {
                   <p className="text-sm text-muted-foreground">{t('course:joinCourse.contactTeacher')}</p>
 
                   <Button asChild className="w-full" size="lg">
-                    <Link to={user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard'}>
+                    <Link to={user.role === 'STUDENT' ? '/student' : '/teacher'}>
                       {t('course:joinCourse.returnToDashboard')}
                     </Link>
                   </Button>
@@ -257,7 +257,7 @@ export default function JoinCourse() {
                     <Link to="/student/assignments">{t('course:viewAssignments')}</Link>
                   </Button>
                   <Button asChild variant="outline" className="flex-1" size="lg">
-                    <Link to="/student/dashboard">{t('course:joinCourse.goToDashboard')}</Link>
+                    <Link to="/student">{t('course:joinCourse.goToDashboard')}</Link>
                   </Button>
                 </div>
               </div>
@@ -463,7 +463,7 @@ export default function JoinCourse() {
               {/* Action buttons */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <Button asChild variant="outline" className="flex-1" size="lg">
-                  <Link to={user.role === 'STUDENT' ? '/student/dashboard' : '/teacher/dashboard'}>
+                  <Link to={user.role === 'STUDENT' ? '/student' : '/teacher'}>
                     {t('common:cancel')}
                   </Link>
                 </Button>

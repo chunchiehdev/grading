@@ -117,7 +117,7 @@ function isPublicPath(path: string): boolean {
 }
 
 export function getRoleBasedDashboard(userRole: string): string {
-  return userRole === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+  return userRole === 'TEACHER' ? '/teacher' : '/student';
 }
 // Not needed for our simple i18next setup
 

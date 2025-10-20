@@ -1,6 +1,7 @@
-import { FileText, Clock, MapPin } from 'lucide-react';
+import { FileText, Clock, MapPin, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
 import { formatScheduleDisplay } from '@/constants/schedule';
 import type { StudentCourseDetailData } from '@/services/student-course-detail.server';
@@ -28,6 +29,16 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
 
   return (
     <div className="w-full bg-background">
+      {/* 返回按鈕 */}
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/student/courses" className="flex items-center gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            {t('common:back')}
+          </Link>
+        </Button>
+      </div>
+
       {/* 大標題區 - 居中，緊湊版 */}
       <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 lg:pt-8 xl:pt-10 pb-6 lg:pb-8 text-center">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium tracking-tight mb-2 lg:mb-3 text-foreground">

@@ -1,25 +1,16 @@
-import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData } from 'react-router';
-import { useState, useMemo } from 'react';
-
+import { Outlet, useLocation, useNavigate, type LoaderFunctionArgs, Link } from 'react-router';
+import { ModernNavigation } from '@/components/ui/modern-navigation';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { requireTeacher } from '@/services/auth.server';
 import { getTeacherCourses, type CourseInfo } from '@/services/course.server';
 import { getRecentSubmissionsForTeacher, type SubmissionInfo } from '@/services/submission.server';
 import { listRubrics } from '@/services/rubric.server';
 import { getOverallTeacherStats, getCoursePerformance, getRubricUsage } from '@/services/analytics.server';
-import { Button } from '@/components/ui/button';
-import { ModernNavigation } from '@/components/ui/modern-navigation';
-import { Plus, FileText } from 'lucide-react';
-
-import { TeacherDashboardContent } from '@/components/teacher/TeacherDashboardContent';
-import { TeacherCoursesContent } from '@/components/teacher/TeacherCoursesContent';
-import { TeacherRubricsContent } from '@/components/teacher/TeacherRubricsContent';
-import { Link } from 'react-router';
 import type { TeacherInfo } from '@/types/teacher';
 
-import { useTranslation } from 'react-i18next';
-
-interface LoaderData {
+export interface TeacherLoaderData {
   user: { id: string; email: string; name: string; role: string; picture?: string };
   teacher: { id: string; email: string; name: string; role: string };
   courses: CourseInfo[];
@@ -30,7 +21,7 @@ interface LoaderData {
   analyticsRubrics: Awaited<ReturnType<typeof getRubricUsage>>;
 }
 
-export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
+export async function loader({ request }: LoaderFunctionArgs): Promise<TeacherLoaderData> {
   const teacher = await requireTeacher(request);
 
   const [courses, recentSubmissions, rubricsData, analyticsStats, analyticsCourses, analyticsRubrics] =
@@ -57,70 +48,48 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   };
 }
 
-export default function TeacherDashboard() {
-  const { teacher, courses, recentSubmissions, rubrics, analyticsStats, analyticsCourses, analyticsRubrics } =
-    useLoaderData<typeof loader>();
+/**
+ * Teacher Layout - 管理 tab 導航的主容器
+ * 根據 URL 路徑決定當前 active tab
+ * 使用 <Outlet /> 渲染子路由內容
+ */
+export default function TeacherLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation(['course', 'dashboard', 'rubric']);
-  const [currentTab, setCurrentTab] = useState('dashboard');
-  const [showWebSocketTest, setShowWebSocketTest] = useState(false);
 
-  // Memoize props to prevent unnecessary re-renders
-  const dashboardData = useMemo(
-    () => ({
-      teacher,
-      courses,
-      recentSubmissions,
-    }),
-    [teacher.id, courses.length, recentSubmissions.length]
-  );
+  // 根據 URL 路徑判斷當前 tab
+  const getActiveTab = (): string => {
+    const pathname = location.pathname;
 
-  const coursesData = useMemo(
-    () => ({
-      teacher,
-      courses,
-    }),
-    [teacher.id, courses.length]
-  );
-
-  const rubricsData = useMemo(
-    () => ({
-      teacher,
-      rubrics,
-    }),
-    [teacher.id, rubrics?.length]
-  );
-
-  const renderContent = () => {
-    switch (currentTab) {
-      case 'courses':
-        return <TeacherCoursesContent data={coursesData} />;
-      case 'rubrics':
-        return <TeacherRubricsContent data={rubricsData} />;
-      default:
-        return <TeacherDashboardContent data={dashboardData} />;
+    if (pathname === '/teacher' || pathname === '/teacher/') {
+      return 'dashboard';
     }
+    if (pathname === '/teacher/courses') {
+      return 'courses';
+    }
+    if (pathname === '/teacher/rubrics') {
+      return 'rubrics';
+    }
+
+    // 默認返回 dashboard
+    return 'dashboard';
+  };
+
+  const currentTab = getActiveTab();
+
+  // 處理 tab 變化 - 導航到對應的路由
+  const handleTabChange = (tab: string) => {
+    const routes: Record<string, string> = {
+      dashboard: '/teacher',
+      courses: '/teacher/courses',
+      rubrics: '/teacher/rubrics',
+    };
+    navigate(routes[tab] || '/teacher');
   };
 
   return (
     <div>
-      {/* {process.env.NODE_ENV === 'development' && (
-        <div style={{
-          position: 'fixed',
-          top: '60px',
-          right: '10px',
-          zIndex: 1000
-        }}>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setShowWebSocketTest(!showWebSocketTest)}
-            className="text-xs"
-          >
-            WebSocket Test
-          </Button>
-        </div>
-      )} */}
-
       {/* Modern Navigation */}
       <ModernNavigation
         tabs={[
@@ -129,7 +98,7 @@ export default function TeacherDashboard() {
           { label: t('rubric:title'), value: 'rubrics' },
         ]}
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={handleTabChange}
         actions={
           <>
             {currentTab === 'courses' && (
@@ -171,7 +140,7 @@ export default function TeacherDashboard() {
       />
 
       <div className="w-[95%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto pt-6 md:pt-8 lg:pt-10 xl:pt-12 2xl:pt-16">
-        {renderContent()}
+        <Outlet />
       </div>
     </div>
   );

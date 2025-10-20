@@ -23,7 +23,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
   // If user already has a role assigned (not default STUDENT), redirect them
   if (user.role && user.role !== 'STUDENT') {
-    const redirectPath = user.role === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+    const redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
     throw redirect(redirectPath);
   }
 
@@ -59,7 +59,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   // Redirect to appropriate dashboard after successful role update
-  const redirectPath = selectedRole === 'TEACHER' ? '/teacher/dashboard' : '/student/dashboard';
+  const redirectPath = selectedRole === 'TEACHER' ? '/teacher' : '/student';
   throw redirect(redirectPath);
 }
 

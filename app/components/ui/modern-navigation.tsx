@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 interface NavigationTab {
   label: string;
   value: string;
+  to?: string; // Optional route for navigation
 }
 
 interface ModernNavigationProps {

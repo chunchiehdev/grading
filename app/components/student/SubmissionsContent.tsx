@@ -38,57 +38,68 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
 
   return (
     <div className="bg-background">
-      {/* Table Header Row */}
-      <div className="px-6 md:px-8 lg:px-10 py-4 border-b border-border">
-        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
-          <div className="col-span-4">{t('submissions:table.assignment')}</div>
-          <div className="col-span-4">{t('submissions:table.course')}</div>
-          <div className="col-span-4 text-right">{t('submissions:table.submittedAt')}</div>
-        </div>
-      </div>
-
-      {/* List Content */}
       {!submissions || submissions.length === 0 ? (
-        <div className="text-center py-12 md:py-16 lg:py-20 px-6">
-          <FileText className="mx-auto h-16 md:h-20 lg:h-24 xl:h-28 w-16 md:w-20 lg:w-24 xl:w-28 text-muted-foreground" />
-          <h3 className="mt-6 md:mt-8 text-lg md:text-xl lg:text-2xl font-medium text-foreground">
-            {t('submissions:teacherComments.empty')}
-          </h3>
-          <p className="mt-2 md:mt-4 text-base md:text-lg text-muted-foreground">
-            {t('submissions:teacherComments.hint')}
-          </p>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-8 max-w-md">
+            {/* Icon */}
+            <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-muted/40 to-muted/20 flex items-center justify-center">
+              <FileText className="w-12 h-12 text-muted-foreground" />
+            </div>
+
+            {/* Main Content */}
+            <div className="space-y-3">
+              <h1 className="text-2xl font-semibold text-foreground">
+                {t('submissions:teacherComments.empty')}
+              </h1>
+              <p className="text-muted-foreground">
+                {t('submissions:teacherComments.hint')}
+              </p>
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="divide-y divide-border/50">
-          {submissions.map((s) => (
-            <div
-              key={s.id}
-              className="px-6 md:px-8 lg:px-10 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
-              onClick={() => navigate(`/student/submissions/${s.id}`)}
-            >
-              <div className="grid grid-cols-12 gap-4 items-center">
-                {/* Assignment Column */}
-                <div className="col-span-4">
-                  <p className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
-                    {s.assignmentArea?.name}
-                  </p>
-                </div>
+        <>
+          {/* Table Header Row */}
+          <div className="px-6 md:px-8 lg:px-10 py-4 border-b border-border">
+            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
+              <div className="col-span-4">{t('submissions:table.assignment')}</div>
+              <div className="col-span-4">{t('submissions:table.course')}</div>
+              <div className="col-span-4 text-right">{t('submissions:table.submittedAt')}</div>
+            </div>
+          </div>
 
-                {/* Course Column */}
-                <div className="col-span-4">
-                  <p className="text-sm text-muted-foreground truncate">{s.assignmentArea?.course?.name}</p>
-                </div>
+          {/* List Content */}
+          <div className="divide-y divide-border/50">
+            {submissions.map((s) => (
+              <div
+                key={s.id}
+                className="px-6 md:px-8 lg:px-10 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
+                onClick={() => navigate(`/student/submissions/${s.id}`)}
+              >
+                <div className="grid grid-cols-12 gap-4 items-center">
+                  {/* Assignment Column */}
+                  <div className="col-span-4">
+                    <p className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
+                      {s.assignmentArea?.name}
+                    </p>
+                  </div>
 
-                {/* Time Column */}
-                <div className="col-span-4 text-right">
-                  <p className="text-sm text-muted-foreground">
-                    {s.uploadedAt ? formatTimeAgo(new Date(s.uploadedAt)) : '-'}
-                  </p>
+                  {/* Course Column */}
+                  <div className="col-span-4">
+                    <p className="text-sm text-muted-foreground truncate">{s.assignmentArea?.course?.name}</p>
+                  </div>
+
+                  {/* Time Column */}
+                  <div className="col-span-4 text-right">
+                    <p className="text-sm text-muted-foreground">
+                      {s.uploadedAt ? formatTimeAgo(new Date(s.uploadedAt)) : '-'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

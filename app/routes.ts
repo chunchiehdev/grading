@@ -16,10 +16,15 @@ export default [
   ]),
 
   // Teacher Platform routes
+  route('/teacher', './routes/teacher/layout.tsx', { id: 'teacher-layout' }, [
+    index('./routes/teacher/index.tsx'),
+    route('courses', './routes/teacher/courses.tsx'),
+    route('rubrics', './routes/teacher/rubrics.tsx'),
+  ]),
+
+  // Teacher Platform - Additional routes (outside layout)
   ...prefix('/teacher', [
-    route('dashboard', './routes/teacher/dashboard.tsx'),
     route('analytics', './routes/teacher/analytics.tsx'),
-    route('courses', './routes/teacher/courses/index.tsx'),
     route('courses/new', './routes/teacher/courses/new.tsx'),
     route('courses/:courseId/edit', './routes/teacher/courses/$courseId/edit.tsx'),
     route('courses/:courseId/students', './routes/teacher/courses/$courseId/students.tsx'),
@@ -43,20 +48,23 @@ export default [
       './routes/teacher/courses/$courseId/assignments/$assignmentId.submissions.tsx'
     ),
     route('submissions/:submissionId/view', './routes/teacher/submissions/$submissionId.view.tsx'),
-    route('rubrics', './routes/teacher/rubrics.tsx'),
     route('rubrics/new', './routes/teacher/rubrics/new.tsx'),
     route('rubrics/:rubricId', './routes/teacher/rubrics/$rubricId.tsx'),
     route('rubrics/:rubricId/edit', './routes/teacher/rubrics/$rubricId.edit.tsx'),
   ]),
 
   // Student Platform routes
+  route('/student', './routes/student/layout.tsx', { id: 'student-layout' }, [
+    index('./routes/student/index.tsx'),
+    route('courses', './routes/student/courses.tsx'),
+    route('assignments', './routes/student/assignments.tsx'),
+    route('submissions', './routes/student/submissions.tsx'),
+  ]),
+
+  // Student Platform - Additional routes (outside layout)
   ...prefix('/student', [
-    route('dashboard', './routes/student/dashboard.tsx'),
-    route('courses', './routes/student/courses/index.tsx'),
     route('courses/:courseId', './routes/student/courses/$courseId.tsx'),
-    route('assignments', './routes/student/assignments/index.tsx'),
     route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId.submit.tsx'),
-    route('submissions', './routes/student/submissions/index.tsx'),
     route('submissions/:submissionId', './routes/student/submissions/$submissionId.tsx'),
   ]),
 

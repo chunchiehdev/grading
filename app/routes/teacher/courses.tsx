@@ -1,12 +1,12 @@
 import { useRouteLoaderData } from 'react-router';
 import { useMemo } from 'react';
-import { TeacherRubricsContent } from '@/components/teacher/TeacherRubricsContent';
+import { TeacherCoursesContent } from '@/components/teacher/TeacherCoursesContent';
 import type { TeacherLoaderData } from './layout';
 
 /**
- * Teacher Rubrics Tab - 顯示 rubrics 列表
+ * Teacher Courses Tab - 顯示課程列表
  */
-export default function TeacherRubricsPage() {
+export default function TeacherCoursesPage() {
   // 從 parent layout 獲取 loader 數據
   const parentData = useRouteLoaderData<TeacherLoaderData>('teacher-layout');
 
@@ -14,16 +14,16 @@ export default function TeacherRubricsPage() {
     return <div>Loading...</div>;
   }
 
-  const { teacher, rubrics } = parentData;
+  const { teacher, courses } = parentData;
 
   // Memoize props to prevent unnecessary re-renders
-  const rubricsData = useMemo(
+  const coursesData = useMemo(
     () => ({
       teacher,
-      rubrics,
+      courses,
     }),
-    [teacher.id, rubrics?.length]
+    [teacher.id, courses.length]
   );
 
-  return <TeacherRubricsContent data={rubricsData} />;
+  return <TeacherCoursesContent data={coursesData} />;
 }
