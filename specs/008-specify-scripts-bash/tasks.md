@@ -145,7 +145,7 @@
 - [ ] T062 [P] Run complete end-to-end flow: Teacher creates course → Teacher generates invitation → Student discovers course → Student enrolls → Verify enrollment persists
 - [ ] T063 [P] Test error scenarios: Duplicate enrollment attempt, class full enrollment, inactive course enrollment, non-existent class enrollment
 - [ ] T064 [P] Test concurrent operations: Multiple students enrolling in same course simultaneously, verify no duplicates or capacity violations
-- [ ] T065 Verify i18n keys work in all new components: Check translations render correctly for both EN and ZH locales
+- [x] T065 Verify i18n keys work in all new components: Check translations render correctly for both EN and ZH locales
 - [ ] T066 Test accessibility: Tab navigation through discovery page, screen reader testing on course cards and buttons
 - [ ] T067 Test mobile experience: Touch interactions, button sizing, responsive layout at 320px width
 
@@ -160,9 +160,9 @@
 - [x] T068 [P] Add JSDoc comments to all service functions in `app/services/course-discovery.server.ts` with parameter descriptions and return types
 - [x] T069 [P] Add comprehensive error messages to enrollment failures (duplicate, full, inactive) for user-friendly feedback
 - [x] T070 [P] Add logging for key operations: course discovery queries, enrollment attempts, validation failures in `app/services/course-discovery.server.ts`
-- [ ] T071 Add success toast notifications for successful enrollment in `app/routes/student/courses/discover.tsx` using existing toast component
-- [ ] T072 Update project README or docs to document new routes: GET `/api/courses/discover`, POST `/api/enrollments`, `/student/courses/discover`
-- [ ] T073 Code cleanup: Remove commented code, ensure consistent formatting, verify no console.logs remain
+- [x] T071 Add success toast notifications for successful enrollment in `app/routes/student/courses/discover.tsx` using existing toast component
+- [x] T072 Update project README or docs to document new routes: GET `/api/courses/discover`, POST `/api/enrollments`, `/student/courses/discover`
+- [x] T073 Code cleanup: Remove commented code, ensure consistent formatting, verify no console.logs remain
 - [x] T074 [P] Run type checking: `npm run typecheck` to verify all TypeScript types are correct across new files
 - [x] T075 [P] Run linting: `npm run lint` and `npm run lint:fix` to ensure code style matches project conventions
 - [ ] T076 Performance audit: Check bundle size impact of new components, optimize if needed
