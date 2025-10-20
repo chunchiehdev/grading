@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Loader2 } from 'lucide-react';
 import { getUserId } from '@/services/auth.server';
 import { createEnrollmentSchema } from '@/schemas/enrollment';
+import { getDiscoverableCourses, getStudentEnrolledCourseIds } from '@/services/course-discovery.server';
 import type { LoaderData } from '../layout';
 
 /**
@@ -16,7 +17,10 @@ export default function CourseDiscoveryPage() {
   const { t } = useTranslation(['course']);
   const navigation = useNavigation();
 
-  // Get loader data from parent layout
+  // Get loader data from this route
+  const loaderData = useRouteLoaderData<any>('student-discover');
+
+  // Get layout data for student info
   const parentData = useRouteLoaderData<LoaderData>('student-layout');
 
   if (!parentData) {
@@ -28,15 +32,17 @@ export default function CourseDiscoveryPage() {
   }
 
   const { student } = parentData;
+  const courses = loaderData?.data?.courses || [];
+  const enrolledCourseIds = new Set(courses.filter((c: any) => c.enrollmentStatus === 'enrolled').map((c: any) => c.id));
 
   // Memoize component props to prevent unnecessary re-renders
   const contentProps = useMemo(
     () => ({
       student,
-      courses: [],
-      enrolledCourseIds: new Set<string>(),
+      courses,
+      enrolledCourseIds,
     }),
-    [student.id]
+    [student.id, courses.length]
   );
 
   return (
@@ -128,39 +134,55 @@ export async function action({ request }: { request: Request }) {
 
 /**
  * Loader - Fetch discoverable courses and student's enrolled courses
+ * Calls service functions directly instead of HTTP (for server-side execution)
  */
 export async function loader({ request }: { request: Request }) {
-  const url = new URL(request.url);
-
-  // Get query parameters for filtering
-  const limit = url.searchParams.get('limit') || '50';
-  const offset = url.searchParams.get('offset') || '0';
-  const sort = url.searchParams.get('sort') || 'newest';
-  const search = url.searchParams.get('search') || '';
-
-  // Fetch discoverable courses from API
-  const query = new URLSearchParams({
-    limit,
-    offset,
-    sort,
-    ...(search && { search }),
-  });
-
-  const apiUrl = `${process.env.SERVER_URL || 'http://localhost:3000'}/api/courses/discover?${query}`;
-
   try {
-    const response = await fetch(apiUrl, {
-      headers: {
-        cookie: request.headers.get('cookie') || '',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch courses: ${response.statusText}`);
+    // Verify authentication
+    const userId = await getUserId(request);
+    if (!userId) {
+      return redirect('/auth/login');
     }
 
-    const data = await response.json();
-    return data;
+    const url = new URL(request.url);
+
+    // Get query parameters for filtering
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+    const offset = Math.max(parseInt(url.searchParams.get('offset') || '0'), 0);
+    const sort = (url.searchParams.get('sort') || 'newest') as 'newest' | 'teacher' | 'name';
+    const search = url.searchParams.get('search') || undefined;
+
+    // Call service functions directly (no HTTP fetch needed)
+    const { courses, total, hasMore } = await getDiscoverableCourses({
+      limit,
+      offset,
+      sort,
+      search,
+    });
+
+    // Get enrolled course IDs
+    const enrolledCourseIds = await getStudentEnrolledCourseIds(userId);
+
+    // Add enrollment status to courses
+    const coursesWithStatus = courses.map((course) => ({
+      ...course,
+      enrollmentStatus: enrolledCourseIds.has(course.id) ? 'enrolled' : ('not_enrolled' as const),
+    }));
+
+    return {
+      success: true,
+      data: {
+        courses: coursesWithStatus,
+        total,
+        hasMore,
+      },
+      meta: {
+        total,
+        limit,
+        offset,
+        hasMore,
+      },
+    };
   } catch (error) {
     console.error('Error fetching discoverable courses:', error);
     return {
@@ -170,6 +192,7 @@ export async function loader({ request }: { request: Request }) {
         total: 0,
         hasMore: false,
       },
+      error: error instanceof Error ? error.message : 'Failed to fetch courses',
     };
   }
 }
