@@ -11,6 +11,7 @@
 ### 已完成的核心功能
 
 #### 1. 資料庫 Schema（Phase 1-2）✅
+
 - ✅ Prisma schema 已新增三個欄位：
   - `AssignmentArea.referenceFileIds` (String, nullable, JSON array)
   - `AssignmentArea.customGradingPrompt` (Text, nullable)
@@ -18,8 +19,9 @@
 - ✅ Migration 已執行並驗證
 
 #### 2. 後端服務層（Phase 3-5）✅
+
 - ✅ `assignment-area.server.ts`: CRUD for reference files + custom instructions
-- ✅ `gemini-prompts.server.ts`: 
+- ✅ `gemini-prompts.server.ts`:
   - `formatReferenceDocuments()` - 格式化參考文件為 Markdown 區塊
   - `formatCustomInstructions()` - 格式化自訂指示
   - `generateTextGradingPrompt()` - 整合所有 context 到 prompt
@@ -27,6 +29,7 @@
 - ✅ `pdf-parser.server.ts`: 已有完整的解析服務整合
 
 #### 3. API 路由（Phase 3-5）✅
+
 - ✅ `/api/assignments` (POST) - 接受 referenceFileIds 和 customGradingPrompt
 - ✅ `/api/assignments/:id` (GET/PATCH) - 回傳和更新 reference files
 - ✅ `/api/files/upload` - 單檔上傳端點（for reference materials）
@@ -34,12 +37,14 @@
 - ✅ `/api/files/:fileId/reparse` - 重新解析失敗檔案
 
 #### 4. 前端組件（Phase 3-4）✅
+
 - ✅ `ReferenceFileUpload.tsx` - 多檔上傳 UI with parse status
 - ✅ `CustomInstructionsField.tsx` - 字數限制的文字輸入
 - ✅ `new.tsx` - 已整合兩個組件到建立作業表單
 - ✅ 使用 Tailwind semantic tokens (dark mode ready)
 
 #### 5. 型別定義 & Schema（Phase 1）✅
+
 - ✅ `app/types/assignment.ts` - AssignmentAreaWithReferences, ReferenceFileUsage
 - ✅ `app/types/grading.ts` - GradingRequest extended
 - ✅ `app/schemas/assignment.ts` - Zod validation
@@ -53,6 +58,7 @@
 **問題**：`ReferenceFileUpload` 和 `CustomInstructionsField` 使用的翻譯 key 未定義
 
 **已補充**（剛剛修正）：
+
 ```json
 // app/locales/zh/grading.json & app/locales/en/grading.json
 "referenceFiles": "參考資料" / "Reference Materials"
@@ -66,12 +72,14 @@
 **環境變數**：`PDF_PARSER_API_URL`
 
 **設定方式**：
+
 ```bash
 # .env 或 docker-compose.dev.yaml
 PDF_PARSER_API_URL=https://gradingpdf.grading.software
 ```
 
 **目前狀態**：
+
 - ✅ 程式碼已支援（`pdf-parser.server.ts` 第 10 行）
 - ✅ docker-compose 已定義環境變數（第 28 行）
 - ⚠️ 需要實際設定到 `.env` 或 環境變數
@@ -131,13 +139,15 @@ PDF_PARSER_API_URL=https://gradingpdf.grading.software
 **官方端點**: https://gradingpdf.grading.software
 
 根據你提供的搜尋結果：
+
 ```json
-{"message":"PDF Parser Service","docs":"/docs","health":"/health"}
+{ "message": "PDF Parser Service", "docs": "/docs", "health": "/health" }
 ```
 
 ### API 端點
 
 #### 1. **POST /parse** - 提交解析任務
+
 ```typescript
 // app/services/pdf-parser.server.ts:66
 const response = await fetch(`${PDF_PARSER_API_BASE}/parse`, {
@@ -149,11 +159,12 @@ const response = await fetch(`${PDF_PARSER_API_BASE}/parse`, {
 ```
 
 #### 2. **GET /task/:taskId** - 查詢解析狀態
+
 ```typescript
 // app/services/pdf-parser.server.ts:97
 const response = await fetch(`${PDF_PARSER_API_BASE}/task/${taskId}`);
 
-// Response: 
+// Response:
 // { status: "success", content: "解析後的文字內容" }
 // { status: "pending" }
 // { status: "processing" }
@@ -163,12 +174,14 @@ const response = await fetch(`${PDF_PARSER_API_BASE}/task/${taskId}`);
 ### 配置方式
 
 **方法 1: 環境變數**
+
 ```bash
 # .env
 PDF_PARSER_API_URL=https://gradingpdf.grading.software
 ```
 
 **方法 2: docker-compose.dev.yaml（推薦）**
+
 ```yaml
 services:
   app:
@@ -177,6 +190,7 @@ services:
 ```
 
 **驗證配置**：
+
 ```bash
 # 檢查環境變數
 docker compose -f docker-compose.dev.yaml exec app env | grep PDF_PARSER
@@ -243,10 +257,11 @@ generateTextGradingPrompt(request: GeminiGradingRequest) {
 
 1. ✅ **i18n 翻譯已補充** - 重新整理瀏覽器即可看到中英文介面
 2. **設定 PDF Parser URL**:
+
    ```bash
    # 在 .env 新增或修改
    echo "PDF_PARSER_API_URL=https://gradingpdf.grading.software" >> .env
-   
+
    # 重啟 dev server
    docker compose -f docker-compose.dev.yaml restart app
    ```
@@ -272,15 +287,15 @@ generateTextGradingPrompt(request: GeminiGradingRequest) {
 
 ## 📊 功能完成度總結
 
-| 階段 | 完成度 | 備註 |
-|------|--------|------|
-| Phase 1: Setup | 100% | Schema、型別定義 |
-| Phase 2: Foundation | 100% | Services、API |
-| Phase 3: US1 (Reference Upload) | 100% | UI、解析整合 |
-| Phase 4: US2 (Custom Instructions) | 100% | UI、表單整合 |
-| Phase 5: US3 (Context Grading) | 100% | Prompt 組合完成 |
-| Phase 6: US4 (Language) | 100% | 語言偵測已實作 |
-| Phase 8: i18n | 100% ✅ | **剛剛補充完成** |
+| 階段                               | 完成度  | 備註             |
+| ---------------------------------- | ------- | ---------------- |
+| Phase 1: Setup                     | 100%    | Schema、型別定義 |
+| Phase 2: Foundation                | 100%    | Services、API    |
+| Phase 3: US1 (Reference Upload)    | 100%    | UI、解析整合     |
+| Phase 4: US2 (Custom Instructions) | 100%    | UI、表單整合     |
+| Phase 5: US3 (Context Grading)     | 100%    | Prompt 組合完成  |
+| Phase 6: US4 (Language)            | 100%    | 語言偵測已實作   |
+| Phase 8: i18n                      | 100% ✅ | **剛剛補充完成** |
 
 **總完成度：100%** 🎉
 
@@ -316,5 +331,3 @@ generateTextGradingPrompt(request: GeminiGradingRequest) {
 - **Prompt 組合**: `app/services/gemini-prompts.server.ts` (L90-L179)
 - **Context 載入**: `app/services/grading-engine.server.ts`
 - **UI 組件**: `app/components/grading/ReferenceFileUpload.tsx`
-
-

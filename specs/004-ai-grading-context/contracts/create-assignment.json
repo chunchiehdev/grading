@@ -61,10 +61,7 @@
                     "maxItems": 5,
                     "nullable": true,
                     "description": "Array of UploadedFile IDs (max 5 files). Files must be successfully parsed before assignment creation.",
-                    "example": [
-                      "880e8400-e29b-41d4-a716-446655440000",
-                      "990e8400-e29b-41d4-a716-446655440000"
-                    ]
+                    "example": ["880e8400-e29b-41d4-a716-446655440000", "990e8400-e29b-41d4-a716-446655440000"]
                   },
                   "customGradingPrompt": {
                     "type": "string",
@@ -108,10 +105,7 @@
                             "type": "string",
                             "format": "uuid"
                           },
-                          "example": [
-                            "880e8400-e29b-41d4-a716-446655440000",
-                            "990e8400-e29b-41d4-a716-446655440000"
-                          ]
+                          "example": ["880e8400-e29b-41d4-a716-446655440000", "990e8400-e29b-41d4-a716-446655440000"]
                         },
                         "customGradingPrompt": {
                           "type": "string",

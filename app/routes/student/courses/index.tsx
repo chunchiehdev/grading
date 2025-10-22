@@ -1,7 +1,7 @@
 import { useRouteLoaderData } from 'react-router';
 import { useMemo } from 'react';
 import { CoursesContent } from '@/components/student/CoursesContent';
-import type { LoaderData } from './layout';
+import type { LoaderData } from '../layout';
 
 /**
  * Student Courses Tab - 顯示已加入的課程列表

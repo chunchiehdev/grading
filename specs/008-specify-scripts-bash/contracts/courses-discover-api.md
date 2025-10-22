@@ -7,19 +7,21 @@ Fetches all discoverable courses with teacher information and current student's 
 ## Request
 
 ### Method
+
 `GET`
 
 ### Endpoint
+
 `/api/courses/discover`
 
 ### Query Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `limit` | number | No | 50 | Number of results per page (max 100) |
-| `offset` | number | No | 0 | Number of results to skip (for pagination) |
-| `sort` | string | No | "newest" | Sort order: `newest`, `teacher`, `name` |
-| `search` | string | No | - | Search courses by name or teacher name (case-insensitive) |
+| Parameter | Type   | Required | Default  | Description                                               |
+| --------- | ------ | -------- | -------- | --------------------------------------------------------- |
+| `limit`   | number | No       | 50       | Number of results per page (max 100)                      |
+| `offset`  | number | No       | 0        | Number of results to skip (for pagination)                |
+| `sort`    | string | No       | "newest" | Sort order: `newest`, `teacher`, `name`                   |
+| `search`  | string | No       | -        | Search courses by name or teacher name (case-insensitive) |
 
 ### Authentication
 
@@ -88,6 +90,7 @@ Fetches all discoverable courses with teacher information and current student's 
 ### Error Responses
 
 #### 400 Bad Request
+
 ```json
 {
   "success": false,
@@ -96,6 +99,7 @@ Fetches all discoverable courses with teacher information and current student's 
 ```
 
 #### 401 Unauthorized
+
 ```json
 {
   "success": false,
@@ -104,6 +108,7 @@ Fetches all discoverable courses with teacher information and current student's 
 ```
 
 #### 500 Internal Server Error
+
 ```json
 {
   "success": false,
@@ -115,52 +120,52 @@ Fetches all discoverable courses with teacher information and current student's 
 
 ### Course Object
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string (UUID) | Course identifier |
-| `name` | string | Course display name |
-| `description` | string | Course description (nullable) |
-| `code` | string | Course code like "CS101" (nullable) |
-| `teacher` | Teacher object | Course creator information |
-| `classes` | Class[] | Array of class sections for this course |
-| `enrollmentStatus` | enum | Student's enrollment status: `not_enrolled`, `enrolled` |
-| `createdAt` | string (ISO 8601) | Course creation timestamp |
+| Field              | Type              | Description                                             |
+| ------------------ | ----------------- | ------------------------------------------------------- |
+| `id`               | string (UUID)     | Course identifier                                       |
+| `name`             | string            | Course display name                                     |
+| `description`      | string            | Course description (nullable)                           |
+| `code`             | string            | Course code like "CS101" (nullable)                     |
+| `teacher`          | Teacher object    | Course creator information                              |
+| `classes`          | Class[]           | Array of class sections for this course                 |
+| `enrollmentStatus` | enum              | Student's enrollment status: `not_enrolled`, `enrolled` |
+| `createdAt`        | string (ISO 8601) | Course creation timestamp                               |
 
 ### Teacher Object
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string (UUID) | User identifier |
-| `name` | string | Full name of teacher |
-| `email` | string | Email address |
+| Field     | Type           | Description                    |
+| --------- | -------------- | ------------------------------ |
+| `id`      | string (UUID)  | User identifier                |
+| `name`    | string         | Full name of teacher           |
+| `email`   | string         | Email address                  |
 | `picture` | string \| null | Profile picture URL (nullable) |
 
 ### Class Object
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string (UUID) | Class section identifier |
-| `name` | string | Section name (e.g., "Section A", "101班") |
-| `schedule` | Schedule object | When/where the class meets |
-| `capacity` | number \| null | Max students (null = unlimited) |
-| `enrollmentCount` | number | Current number of enrolled students |
-| `isFull` | boolean | Whether enrollment capacity is reached |
+| Field             | Type            | Description                               |
+| ----------------- | --------------- | ----------------------------------------- |
+| `id`              | string (UUID)   | Class section identifier                  |
+| `name`            | string          | Section name (e.g., "Section A", "101班") |
+| `schedule`        | Schedule object | When/where the class meets                |
+| `capacity`        | number \| null  | Max students (null = unlimited)           |
+| `enrollmentCount` | number          | Current number of enrolled students       |
+| `isFull`          | boolean         | Whether enrollment capacity is reached    |
 
 ### Schedule Object
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `weekday` | string | Day of week (e.g., "Monday", "週一") |
-| `periodCode` | string | Time slot (e.g., "09:00-10:30") |
-| `room` | string | Location (e.g., "Building A, Room 201") |
+| Field        | Type   | Description                             |
+| ------------ | ------ | --------------------------------------- |
+| `weekday`    | string | Day of week (e.g., "Monday", "週一")    |
+| `periodCode` | string | Time slot (e.g., "09:00-10:30")         |
+| `room`       | string | Location (e.g., "Building A, Room 201") |
 
 ### Pagination
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `total` | number | Total number of discoverable courses |
-| `offset` | number | Results skipped (from request) |
-| `limit` | number | Results per page (from request) |
+| Field     | Type    | Description                                        |
+| --------- | ------- | -------------------------------------------------- |
+| `total`   | number  | Total number of discoverable courses               |
+| `offset`  | number  | Results skipped (from request)                     |
+| `limit`   | number  | Results per page (from request)                    |
 | `hasMore` | boolean | Whether more results available beyond current page |
 
 ## Business Logic
@@ -199,6 +204,7 @@ Fetches all discoverable courses with teacher information and current student's 
 ### Example 1: Get newest courses with pagination
 
 **Request**:
+
 ```
 GET /api/courses/discover?limit=10&offset=0&sort=newest
 ```
@@ -208,6 +214,7 @@ GET /api/courses/discover?limit=10&offset=0&sort=newest
 ### Example 2: Search for courses by name
 
 **Request**:
+
 ```
 GET /api/courses/discover?search=JavaScript&limit=25
 ```
@@ -217,6 +224,7 @@ GET /api/courses/discover?search=JavaScript&limit=25
 ### Example 3: Filter by teacher, sorted alphabetically
 
 **Request**:
+
 ```
 GET /api/courses/discover?sort=teacher&limit=50
 ```

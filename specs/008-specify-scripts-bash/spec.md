@@ -7,7 +7,7 @@
 
 ---
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Redesigned Sleek Invitation Display (Priority: P1)
 
@@ -89,7 +89,7 @@ The backend system must efficiently support querying all publishable courses and
 
 ---
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -156,7 +156,7 @@ The backend system must efficiently support querying all publishable courses and
 
 ---
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -199,4 +199,3 @@ The backend system must efficiently support querying all publishable courses and
 ## Open Questions for Clarification
 
 [NEEDS CLARIFICATION: Waiting List Feature - Should students be able to join a waiting list when a class is full, with automatic notification when a spot becomes available? Or should the MVP simply prevent enrollment with a "Class Full" message and suggest contacting the teacher?]
-

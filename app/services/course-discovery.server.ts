@@ -117,7 +117,7 @@ export async function getDiscoverableCourses(options?: {
         return {
           id: cls.id,
           name: cls.name,
-          schedule: cls.schedule as ClassCard['schedule'],
+          schedule: (cls.schedule as unknown as ClassCard['schedule']) || { weekday: '', periodCode: '', room: '' },
           capacity,
           enrollmentCount,
           isFull,

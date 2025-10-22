@@ -7,9 +7,11 @@ Creates a new enrollment record linking a student to a specific class, with vali
 ## Request
 
 ### Method
+
 `POST`
 
 ### Endpoint
+
 `/api/enrollments`
 
 ### Headers
@@ -30,10 +32,10 @@ Authorization: [Cookie session or JWT header]
 
 ### Body Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `classId` | string (UUID) | Yes | ID of the class section to enroll in |
-| `courseId` | string (UUID) | Yes | ID of the parent course (for reference/validation) |
+| Field      | Type          | Required | Description                                        |
+| ---------- | ------------- | -------- | -------------------------------------------------- |
+| `classId`  | string (UUID) | Yes      | ID of the class section to enroll in               |
+| `courseId` | string (UUID) | Yes      | ID of the parent course (for reference/validation) |
 
 ### Authentication
 
@@ -156,30 +158,33 @@ Authorization: [Cookie session or JWT header]
 
 ### Enrollment Object
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string (UUID) | Enrollment record identifier |
-| `studentId` | string (UUID) | ID of enrolled student |
-| `classId` | string (UUID) | ID of the class |
-| `courseId` | string (UUID) | ID of the course (for reference) |
+| Field            | Type              | Description                           |
+| ---------------- | ----------------- | ------------------------------------- |
+| `id`             | string (UUID)     | Enrollment record identifier          |
+| `studentId`      | string (UUID)     | ID of enrolled student                |
+| `classId`        | string (UUID)     | ID of the class                       |
+| `courseId`       | string (UUID)     | ID of the course (for reference)      |
 | `enrollmentDate` | string (ISO 8601) | Timestamp when enrollment was created |
-| `status` | enum | Enrollment status: `active` |
+| `status`         | enum              | Enrollment status: `active`           |
 
 ## Business Logic
 
 ### Validation Rules (in order of execution)
 
 1. **Input Validation**:
+
    - Both `classId` and `courseId` must be present
    - Both must be valid UUIDs
    - Request body must not contain extra fields
 
 2. **Resource Existence**:
+
    - Class with given `classId` must exist
    - Course with given `courseId` must exist
    - Course must contain the specified class (foreign key relationship)
 
 3. **Enrollment Eligibility**:
+
    - Student must not already be enrolled in this class (unique constraint on studentId+classId)
    - Course must have `isActive = true`
    - Class must have `isActive = true`
@@ -218,6 +223,7 @@ Authorization: [Cookie session or JWT header]
 ### Example 1: Successful Enrollment
 
 **Request**:
+
 ```http
 POST /api/enrollments HTTP/1.1
 Content-Type: application/json
@@ -229,6 +235,7 @@ Content-Type: application/json
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "success": true,
@@ -248,6 +255,7 @@ Content-Type: application/json
 ### Example 2: Class Full Error
 
 **Request**:
+
 ```http
 POST /api/enrollments HTTP/1.1
 Content-Type: application/json
@@ -259,6 +267,7 @@ Content-Type: application/json
 ```
 
 **Response** (409 Conflict):
+
 ```json
 {
   "success": false,
@@ -269,6 +278,7 @@ Content-Type: application/json
 ### Example 3: Already Enrolled Error
 
 **Request**:
+
 ```http
 POST /api/enrollments HTTP/1.1
 Content-Type: application/json
@@ -280,6 +290,7 @@ Content-Type: application/json
 ```
 
 **Response** (409 Conflict):
+
 ```json
 {
   "success": false,
@@ -289,16 +300,16 @@ Content-Type: application/json
 
 ## Error Handling Strategy
 
-| Error Type | HTTP Status | User Message | Action |
-|------------|-------------|--------------|--------|
-| Missing fields | 400 | "Please provide all required information" | Highlight form errors |
-| Invalid UUID | 400 | "Invalid course/class ID" | Refresh page |
-| Not authenticated | 401 | "Please log in" | Redirect to login |
-| Class not found | 404 | "Course or class no longer available" | Refresh discovery page |
-| Already enrolled | 409 | "You are already enrolled" | Show "Enrolled" button state |
-| Class full | 409 | "Class full. Try another section" | Disable button, show alternatives |
-| Course inactive | 409 | "Course no longer available" | Refresh page |
-| Database error | 500 | "Something went wrong. Please try again" | Retry after delay |
+| Error Type        | HTTP Status | User Message                              | Action                            |
+| ----------------- | ----------- | ----------------------------------------- | --------------------------------- |
+| Missing fields    | 400         | "Please provide all required information" | Highlight form errors             |
+| Invalid UUID      | 400         | "Invalid course/class ID"                 | Refresh page                      |
+| Not authenticated | 401         | "Please log in"                           | Redirect to login                 |
+| Class not found   | 404         | "Course or class no longer available"     | Refresh discovery page            |
+| Already enrolled  | 409         | "You are already enrolled"                | Show "Enrolled" button state      |
+| Class full        | 409         | "Class full. Try another section"         | Disable button, show alternatives |
+| Course inactive   | 409         | "Course no longer available"              | Refresh page                      |
+| Database error    | 500         | "Something went wrong. Please try again"  | Retry after delay                 |
 
 ## Security Considerations
 

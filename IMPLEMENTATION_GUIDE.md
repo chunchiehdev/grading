@@ -12,9 +12,11 @@
 ## 📋 Implementation Checklist Status
 
 ✅ **All Specification Checklists**: COMPLETE
+
 - Requirements quality checklist: 22/22 items ✓
 
 ✅ **All Planning Documents**: READY
+
 - `spec.md`: Feature specification (37 FRs, 4 user stories, 9 success criteria)
 - `plan.md`: Implementation plan (technical context, architecture)
 - `data-model.md`: Database design (5 entities, query patterns)
@@ -29,11 +31,13 @@
 ### Option A: Full Team Handoff (Recommended)
 
 1. **Clone the feature branch**:
+
    ```bash
    git checkout 008-specify-scripts-bash
    ```
 
 2. **Share these documents with your team**:
+
    - `/home/chunc/workspace/grading/specs/008-specify-scripts-bash/tasks.md` ← START HERE
    - `/home/chunc/workspace/grading/specs/008-specify-scripts-bash/plan.md`
    - `/home/chunc/workspace/grading/specs/008-specify-scripts-bash/spec.md`
@@ -41,6 +45,7 @@
    - `/home/chunc/workspace/grading/specs/008-specify-scripts-bash/contracts/`
 
 3. **Follow the execution plan** (from tasks.md):
+
    - Phase 1-2: Setup & Foundational (2-4 hours) - Foundation
    - Phase 3: User Story 1 (3-5 hours) - MVP
    - Phase 4-6: User Stories 2-4 (parallel) - Full feature
@@ -55,6 +60,7 @@
 ## 📊 Task Phases Overview
 
 ### Phase 1: Setup (1-2 hours) - 6 tasks
+
 **Files affected**: Configuration verification only, no code changes
 
 - Verify component structure (`/app/components/ui/`)
@@ -65,11 +71,13 @@
 - Verify TypeScript & feature branch setup
 
 ### Phase 2: Foundational (1-2 hours) - 6 tasks
+
 **Files affected**: Translation keys, schemas, types, authentication
 
 **CRITICAL**: This phase BLOCKS all user stories. Must complete before any story work begins.
 
 - **T007**: Add i18n keys to `app/locales/en/course.json` & `app/locales/zh/course.json`
+
   ```json
   "discovery": {
     "title": "Discover Courses",
@@ -82,10 +90,11 @@
   ```
 
 - **T008**: Create `app/schemas/enrollment.ts` with Zod schema
+
   ```typescript
   export const enrollmentSchema = z.object({
     classId: z.string().uuid(),
-    courseId: z.string().uuid()
+    courseId: z.string().uuid(),
   });
   ```
 
@@ -94,6 +103,7 @@
 - **T010**: Verify auth middleware in `app/services/auth.server.ts`
 
 - **T011**: Create `app/types/course.ts` with interfaces:
+
   ```typescript
   export interface DiscoverableCourse { ... }
   export interface CourseCard { ... }
@@ -103,12 +113,15 @@
 - **T012**: Verify Prisma client path: `app/generated/prisma/client`
 
 ### Phase 3: User Story 1 - InvitationDisplay Redesign (3-5 hours) - 9 tasks
+
 **Files affected**: `app/components/ui/invitation-display.tsx`, `copyable-field.tsx`
 
 **MVP Launch Point**: This phase delivers the first improvement to users (sleek invitation display)
 
 **Key Changes**:
+
 1. **T013**: Change layout from 2-column grid to single-column flex
+
    - Before: `<div className="grid md:grid-cols-2 gap-6">`
    - After: `<div className="flex flex-col items-center justify-center gap-8">`
 
@@ -124,17 +137,18 @@
 ---
 
 ### Phase 4: User Story 2 - Course Discovery Page (6-8 hours) - 16 tasks
+
 **Files affected**:
+
 - Backend: `app/services/course-discovery.server.ts` (NEW), `app/api/courses/discover.ts` (NEW), `app/api/enrollments.ts` (NEW)
 - Frontend: `app/routes/student/courses/discover.tsx` (NEW), `app/components/student/CourseDiscoveryContent.tsx` (NEW)
 
 **Backend Implementation** (Parallel tasks T022-T026):
+
 1. **T022**: Service `getDiscoverableCourses()` in `course-discovery.server.ts`
+
    ```typescript
-   export async function getDiscoverableCourses(
-     studentId: string,
-     options?: { limit?; offset?; sort?; search? }
-   ) {
+   export async function getDiscoverableCourses(studentId: string, options?: { limit?; offset?; sort?; search? }) {
      // Fetch courses with isActive=true && has active classes
      // Include teacher info, enrollment counts
      // Exclude already-enrolled courses
@@ -142,13 +156,16 @@
    ```
 
 2. **T023**: Service `getStudentEnrolledCourses()`
+
    - Returns Set<courseId> for fast lookup
 
 3. **T024**: Service `createEnrollment(studentId, classId)`
+
    - Validate: duplicate check, capacity check, active status
    - Use Prisma transaction for atomicity
 
 4. **T025**: API endpoint GET `/api/courses/discover`
+
    - Query params: limit, offset, sort, search
    - Returns paginated courses with pagination metadata
 
@@ -156,20 +173,23 @@
    - Validate input with Zod schema
    - Return 201 Created or 409 Conflict with descriptive errors
 
-**Frontend Implementation** (Sequential T027-T037):
-6. **T027**: React component `CourseDiscoveryContent.tsx`
-   - Course grid layout (responsive: 1/2/3+ columns)
-   - Course cards with teacher info, schedule, capacity
+**Frontend Implementation** (Sequential T027-T037): 6. **T027**: React component `CourseDiscoveryContent.tsx`
+
+- Course grid layout (responsive: 1/2/3+ columns)
+- Course cards with teacher info, schedule, capacity
 
 7. **T028**: Course card buttons
+
    - "Enroll", "Enrolled" (disabled), "Class Full" (disabled) states
 
 8. **T029**: Empty state UI when no courses
 
 9. **T030**: Route loader in `discover.tsx`
+
    - Fetch courses and student's enrolled course IDs
 
 10. **T031**: Route action in `discover.tsx`
+
     - Handle POST enrollment requests
 
 11. **T032**: Loading states & error handling
@@ -185,16 +205,20 @@
 ---
 
 ### Phase 5: User Story 3 - Visual Design Consistency (2-3 hours) - 14 tasks
+
 **Files affected**: Configuration audits only (no code changes needed if design system used correctly)
 
 **Key Audits**:
+
 1. **T038-T041**: Audit existing design system (colors, buttons, cards, typography)
+
    - Document primary, secondary, accent colors from `tailwind.config.ts`
    - Document button variants, sizes, states
    - Document card styling (border-radius, shadow, padding)
    - Document heading/text sizes and weights
 
 2. **T042-T046**: Verify new components use existing design patterns
+
    - InvitationDisplay uses same button styles ✓
    - InvitationDisplay uses same Card styling ✓
    - CourseDiscoveryContent uses same Button/Card styling ✓
@@ -202,6 +226,7 @@
    - Text colors match existing muted-foreground ✓
 
 3. **T047-T050**: Accessibility & spacing verification
+
    - Light mode contrast ≥ 4.5:1 for normal text ✓
    - Dark mode contrast verified ✓
    - Spacing consistency with existing patterns ✓
@@ -214,10 +239,13 @@
 ---
 
 ### Phase 6: User Story 4 - Database Infrastructure (2-3 hours) - 10 tasks
+
 **Files affected**: `prisma/schema.prisma` (verification only), `app/services/course-discovery.server.ts`
 
 **Database Verification**:
+
 1. **T052-T054**: Verify Prisma schema relationships
+
    - Course → Class relationship exists ✓
    - Class → Enrollment relationship exists ✓
    - Unique constraint on (studentId, classId) exists ✓
@@ -226,15 +254,18 @@
 2. **T055**: Verify `_count` aggregation works in Prisma queries
 
 3. **T056-T058**: Test key database queries
+
    - Fetch courses with active classes
    - Duplicate enrollment prevention
    - Capacity validation
 
 4. **T059**: Performance test
+
    - Discovery query with 1000+ courses completes in <2 seconds
    - Add indexes if needed
 
 5. **T060**: Race condition testing
+
    - Two simultaneous enrollments to same full class → only one succeeds
 
 6. **T061**: Document performance characteristics
@@ -244,9 +275,11 @@
 ---
 
 ### Phase 7: Integration & Cross-Story Testing (1-2 hours) - 6 tasks
+
 **Files affected**: No code changes, testing only
 
 **End-to-End Testing**:
+
 1. **T062**: Teacher creates course → generates invitation → student discovers → enrolls → verify persistence
 2. **T063**: Error scenarios (duplicate, full, inactive, non-existent)
 3. **T064**: Concurrent enrollment operations
@@ -261,6 +294,7 @@
 ### Phase 8: Polish & Cross-Cutting Concerns (2-3 hours) - 12 tasks
 
 **Code Quality**:
+
 1. **T068**: JSDoc comments on service functions
 2. **T069**: Comprehensive error messages
 3. **T070**: Add logging for key operations
@@ -268,13 +302,7 @@
 5. **T072**: Update documentation
 6. **T073**: Code cleanup (remove comments, console.logs, format)
 
-**Validation**:
-7. **T074**: `npm run typecheck` ✓
-8. **T075**: `npm run lint && npm run lint:fix` ✓
-9. **T076**: Bundle size audit
-10. **T077**: Quickstart validation
-11. **T078**: Final manual testing (all viewports, themes)
-12. **T079**: Release notes
+**Validation**: 7. **T074**: `npm run typecheck` ✓ 8. **T075**: `npm run lint && npm run lint:fix` ✓ 9. **T076**: Bundle size audit 10. **T077**: Quickstart validation 11. **T078**: Final manual testing (all viewports, themes) 12. **T079**: Release notes
 
 **Checkpoint**: Feature production-ready ✓
 
@@ -484,4 +512,3 @@ Before deploying to production:
 ---
 
 **Good luck with the implementation! You have a comprehensive, production-ready specification and task list. Execute Phase-by-Phase and validate at each checkpoint.** 🚀
-

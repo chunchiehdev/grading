@@ -7,6 +7,8 @@ export interface CreateGradingSessionRequest {
     fileId: string;
     rubricId: string;
   }>;
+  assignmentAreaId?: string; // Feature 004: Context transparency
+  language?: string; // Feature 004: Language for context awareness
 }
 
 export interface GradingSessionWithResults extends GradingSession {

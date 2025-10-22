@@ -9,14 +9,17 @@
 **Tests**: Not explicitly requested in specification - focusing on implementation tasks. Tests can be added later if needed.
 
 ## Format: `[ID] [P?] [Story] Description`
+
 - **[P]**: Can run in parallel (different files, no dependencies)
 - **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
 - Include exact file paths in descriptions
 
 ## Path Conventions
+
 React Router v7 application structure:
+
 - `app/routes/` - File-based routing (UI pages + API endpoints)
-- `app/services/` - Business logic layer (*.server.ts)
+- `app/services/` - Business logic layer (\*.server.ts)
 - `app/components/` - UI components
 - `app/schemas/` - Zod validation schemas
 - `app/types/` - TypeScript definitions
@@ -224,6 +227,7 @@ React Router v7 application structure:
 **Phase 8 (Polish)**: T054, T055, T056, T059, T060 can all run in parallel (different concerns)
 
 **Parallel User Stories**:
+
 - US1 and US2 can be developed in parallel by different developers (both P1, no dependencies)
 - US4 and US5 can be developed in parallel after US3 completes (both P2, independent)
 

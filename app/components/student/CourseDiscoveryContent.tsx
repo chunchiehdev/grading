@@ -5,27 +5,28 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, BookOpen, Grid3x3, List, Search, X } from 'lucide-react';
+import { Loader2, BookOpen, Grid3x3, List } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CourseDiscoveryContentProps } from '@/types/course';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
 import gsap from 'gsap';
 
-export function CourseDiscoveryContent({ student, courses, enrolledCourseIds }: CourseDiscoveryContentProps) {
+export function CourseDiscoveryContent({ student, courses, enrolledCourseIds, searchQuery = '', isSearching = false }: CourseDiscoveryContentProps) {
   const { t } = useTranslation(['course']);
   const [enrollingClassId, setEnrollingClassId] = useState<string | null>(null);
-  const [enrolledClasses, setEnrolledClasses] = useState<Set<string>>(enrolledCourseIds);
+  const [locallyEnrolled, setLocallyEnrolled] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [searchTerm, setSearchTerm] = useState('');
+
+  // 合併從 props 來的 enrolledCourseIds 和本地新增的
+  const enrolledClasses = new Set([...enrolledCourseIds, ...locallyEnrolled]);
 
   // Refs for GSAP animations
-  const gridIconRef = useRef<SVGSVGElement>(null);
-  const listIconRef = useRef<SVGSVGElement>(null);
+  const gridIconRef = useRef<SVGSVGElement | null>(null);
+  const listIconRef = useRef<SVGSVGElement | null>(null);
 
   // Animation function for icon
-  const animateIcon = (iconRef: React.RefObject<SVGSVGElement>) => {
+  const animateIcon = (iconRef: React.RefObject<SVGSVGElement | null>) => {
     if (!iconRef.current) return;
 
     gsap.fromTo(
@@ -75,10 +76,10 @@ export function CourseDiscoveryContent({ student, courses, enrolledCourseIds }: 
         return;
       }
 
-      // Update enrolled set
+      // Update local enrolled set
       const courseId = courses.find((c) => c.classes.some((cl) => cl.id === classId))?.id;
       if (courseId) {
-        setEnrolledClasses(new Set([...enrolledClasses, courseId]));
+        setLocallyEnrolled(prev => new Set([...prev, courseId]));
       }
 
       toast.success(t('course:discovery.enrollmentSuccess', { courseName }));
@@ -90,7 +91,23 @@ export function CourseDiscoveryContent({ student, courses, enrolledCourseIds }: 
     }
   };
 
-  // Empty state
+  // 移除愚蠢的 skeleton - 搜尋時保持內容不變
+  // 載入狀態已經在父層顯示 spinner
+
+  // Show no results state for search
+  if (courses.length === 0 && searchQuery) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6">
+        <BookOpen className="h-16 w-16 text-amber-300 mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">No Courses Found</h3>
+        <p className="text-muted-foreground max-w-sm">
+          No courses match your search for <strong>"{searchQuery}"</strong>. Try a different search term.
+        </p>
+      </div>
+    );
+  }
+
+  // Empty state (no search, no courses)
   if (courses.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6">
@@ -103,67 +120,42 @@ export function CourseDiscoveryContent({ student, courses, enrolledCourseIds }: 
 
   return (
     <div className="space-y-6">
-      {/* Toolbar: Search + View Mode Toggle */}
-      <div className="flex items-center justify-between gap-4">
-        {/* Left: Search Box */}
-        <div className="flex-1 max-w-md relative">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder={t('course:discovery.search')}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-9 h-9 text-sm"
-              aria-label={t('course:discovery.search')}
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded transition-colors"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
-          </div>
+      {/* Search Results Header */}
+      {searchQuery && (
+        <div className="mb-4 animate-in fade-in-50 duration-300">
+          <h2 className="text-lg font-semibold">
+            Search Results for <span className="text-blue-600">"{searchQuery}"</span>
+            <span className="text-muted-foreground ml-2">({courses.length})</span>
+          </h2>
         </div>
+      )}
 
-        {/* Right: View Mode Toggle - Icon Only */}
+      {/* Toolbar: View Mode Toggle Only (hide during search if we want to simplify) */}
+      <div className="flex items-center justify-end gap-4">
+        {/* View Mode Toggle - Icon Only */}
         <div className="inline-flex rounded-lg border border-border bg-muted p-1 gap-1">
           {/* Grid View Button */}
           <button
             onClick={() => handleViewModeChange('grid')}
             className={`p-2 rounded transition-all ${
-              viewMode === 'grid'
-                ? 'bg-background shadow-sm'
-                : 'hover:bg-background/50'
+              viewMode === 'grid' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
             }`}
             aria-label={t('course:discovery.gridView')}
             title={t('course:discovery.gridView')}
           >
-            <Grid3x3
-              ref={gridIconRef}
-              className="h-5 w-5 text-foreground"
-              style={{ transformOrigin: 'center' }}
-            />
+            <Grid3x3 ref={gridIconRef} className="h-5 w-5 text-foreground" style={{ transformOrigin: 'center' }} />
           </button>
 
           {/* List View Button */}
           <button
             onClick={() => handleViewModeChange('list')}
             className={`p-2 rounded transition-all ${
-              viewMode === 'list'
-                ? 'bg-background shadow-sm'
-                : 'hover:bg-background/50'
+              viewMode === 'list' ? 'bg-background shadow-sm' : 'hover:bg-background/50'
             }`}
             aria-label={t('course:discovery.listView')}
             title={t('course:discovery.listView')}
           >
-            <List
-              ref={listIconRef}
-              className="h-5 w-5 text-foreground"
-              style={{ transformOrigin: 'center' }}
-            />
+            <List ref={listIconRef} className="h-5 w-5 text-foreground" style={{ transformOrigin: 'center' }} />
           </button>
         </div>
       </div>
@@ -208,7 +200,8 @@ export function CourseDiscoveryContent({ student, courses, enrolledCourseIds }: 
                       {cls.schedule && (
                         <div className="text-xs text-muted-foreground space-y-1">
                           <div>
-                            <span className="font-medium">{t('course:discovery.schedule')}:</span> {cls.schedule.weekday}
+                            <span className="font-medium">{t('course:discovery.schedule')}:</span>{' '}
+                            {cls.schedule.weekday}
                           </div>
                           <div>
                             <span className="font-medium">{t('course:discovery.capacity')}:</span> {cls.enrollmentCount}
@@ -266,14 +259,22 @@ export function CourseDiscoveryContent({ student, courses, enrolledCourseIds }: 
                     <TableCell>
                       <div className="flex flex-col gap-1">
                         <span className="font-medium line-clamp-1">{course.name}</span>
-                        {course.code && <Badge variant="outline" className="w-fit text-xs">{course.code}</Badge>}
+                        {course.code && (
+                          <Badge variant="outline" className="w-fit text-xs">
+                            {course.code}
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-6 w-6 flex-shrink-0">
-                          {course.teacher.picture && <AvatarImage src={course.teacher.picture} alt={course.teacher.name} />}
-                          <AvatarFallback className="text-xs">{course.teacher.name.charAt(0).toUpperCase()}</AvatarFallback>
+                          {course.teacher.picture && (
+                            <AvatarImage src={course.teacher.picture} alt={course.teacher.name} />
+                          )}
+                          <AvatarFallback className="text-xs">
+                            {course.teacher.name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
                         </Avatar>
                         <span className="text-sm truncate">{course.teacher.name}</span>
                       </div>

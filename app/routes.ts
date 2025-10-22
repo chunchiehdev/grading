@@ -56,17 +56,17 @@ export default [
   // Student Platform routes
   route('/student', './routes/student/layout.tsx', { id: 'student-layout' }, [
     index('./routes/student/index.tsx'),
-    route('courses', './routes/student/courses.tsx'),
+    route('courses', './routes/student/courses/layout.tsx', [
+      index('./routes/student/courses/index.tsx'),
+      route('discover', './routes/student/courses/discover.tsx'),
+      route(':courseId', './routes/student/courses/$courseId.tsx'),
+    ]),
     route('assignments', './routes/student/assignments.tsx'),
     route('submissions', './routes/student/submissions.tsx'),
   ]),
 
   // Student Platform - Additional routes (outside layout)
   ...prefix('/student', [
-    route('courses', './routes/student/courses/layout.tsx', [
-      route('discover', './routes/student/courses/discover.tsx'),
-      route(':courseId', './routes/student/courses/$courseId.tsx'),
-    ]),
     route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId.submit.tsx'),
     route('submissions/:submissionId', './routes/student/submissions/$submissionId.tsx'),
   ]),

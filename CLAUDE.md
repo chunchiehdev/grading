@@ -252,5 +252,4 @@ PostgreSQL with Prisma ORM featuring:
 - Follow the established service layer patterns for new features
 - Test both success and error paths for critical workflows
 - Document complex business logic with comprehensive comments
-- dont run the server. I will start it myself using docker-compose.dev.yaml
-- do not run npm run typecheck. I will do it myself.
+- use rg to search file or text. do not use grep.

@@ -38,16 +38,18 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
 
   return (
     <div className="bg-background">
-      {/* Table Header Row */}
-      <div className="px-6 md:px-8 lg:px-10 py-4 border-b border-border">
-        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
-          <div className="col-span-4">{t('teacher:dashboard.tableHeaders.student')}</div>
-          <div className="col-span-3">{t('teacher:dashboard.tableHeaders.assignment')}</div>
-          <div className="col-span-2">{t('teacher:dashboard.tableHeaders.course')}</div>
-          <div className="col-span-2">{t('teacher:dashboard.tableHeaders.submittedAt')}</div>
-          <div className="col-span-1 text-right">{t('teacher:dashboard.tableHeaders.score')}</div>
+      {/* Table Header Row - Only show when there are submissions */}
+      {recentSubmissions.length > 0 && (
+        <div className="px-6 md:px-8 lg:px-10 py-4 border-b border-border">
+          <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
+            <div className="col-span-4">{t('teacher:dashboard.tableHeaders.student')}</div>
+            <div className="col-span-3">{t('teacher:dashboard.tableHeaders.assignment')}</div>
+            <div className="col-span-2">{t('teacher:dashboard.tableHeaders.course')}</div>
+            <div className="col-span-2">{t('teacher:dashboard.tableHeaders.submittedAt')}</div>
+            <div className="col-span-1 text-right">{t('teacher:dashboard.tableHeaders.score')}</div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* List Content */}
       {recentSubmissions.length === 0 ? (
@@ -56,9 +58,6 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
           <h3 className="mt-6 md:mt-8 text-lg md:text-xl lg:text-2xl font-medium text-foreground">
             {t('teacher:dashboard.emptyState.noSubmissions')}
           </h3>
-          <p className="mt-2 md:mt-4 text-base md:text-lg text-muted-foreground">
-            {t('teacher:dashboard.emptyState.noSubmissionsDescription')}
-          </p>
         </div>
       ) : (
         <div className="divide-y divide-border/50">

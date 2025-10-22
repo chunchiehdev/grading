@@ -202,7 +202,9 @@
     "save": "Save",
     "cancel": "Cancel",
     "dangerZone": "Danger Zone",
+    "dangerZoneDescription": "Deleting this course cannot be undone and will remove all data.",
     "deleteWarning": "Deleting this course will remove all data associated with it.",
+    "deleteConfirm": "Are you sure you want to delete this course? This action cannot be undone.",
     "deleteCourse": "Delete Course"
   },
   "pageHeader": {

@@ -8,6 +8,7 @@
 Enable teachers to upload reference documents (textbooks, answer keys, lecture notes) and provide custom grading instructions when creating assignments. When students submit work, the system automatically combines these reference materials, custom instructions, rubric criteria, and student work into a comprehensive AI prompt, enabling context-aware grading that judges both correctness and quality.
 
 **Technical Approach**:
+
 - Extend existing database schema (Prisma) with nullable fields for backward compatibility
 - Reuse existing file upload/parsing infrastructure (MinIO + PDF parser API)
 - Enhance AI grading pipeline (gemini-prompts.server.ts) to compose contextual prompts
@@ -18,12 +19,14 @@ Enable teachers to upload reference documents (textbooks, answer keys, lecture n
 
 **Language/Version**: TypeScript 5.x with Node.js 20+ (React Router v7 application)
 **Primary Dependencies**:
+
 - Backend: React Router v7, Express, Prisma ORM, Socket.IO
 - Frontend: React 19, Radix UI, Tailwind CSS, Framer Motion
 - AI: OpenAI API + Google Generative AI (Gemini 2.0 Flash)
 - Storage: PostgreSQL (database), MinIO (S3-compatible file storage), Redis (cache/sessions)
 
 **Storage**:
+
 - PostgreSQL with Prisma ORM (custom output: `app/generated/prisma/client`)
 - MinIO S3-compatible object storage for files
 - Redis for sessions and real-time progress tracking
@@ -33,12 +36,14 @@ Enable teachers to upload reference documents (textbooks, answer keys, lecture n
 **Project Type**: Full-stack web application (React Router v7 SSR + API routes)
 
 **Performance Goals**:
+
 - File upload: Handle 5MB PDFs within 3 minutes (including parsing)
 - AI grading: Add <2 seconds overhead vs current flow (excluding async parsing)
 - Reference document parsing: <60 seconds for 90% of typical materials
 - Token management: Prevent prompt overflow with graceful truncation
 
 **Constraints**:
+
 - Backward compatibility: Existing assignments without context must work unchanged
 - Token limits: Gemini 1M tokens, OpenAI 128k tokens (target 15k total per grading)
 - File formats: PDF, DOCX, TXT only (existing parser limitation)
@@ -46,6 +51,7 @@ Enable teachers to upload reference documents (textbooks, answer keys, lecture n
 - Custom instructions: 5000 char limit
 
 **Scale/Scope**:
+
 - Expected: 1-5 reference documents per assignment
 - File sizes: Typically 1-10MB per document
 - Concurrent users: Existing system scale (teacher + student platforms)
@@ -53,11 +59,12 @@ Enable teachers to upload reference documents (textbooks, answer keys, lecture n
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 **Constitution Status**: Template constitution not yet configured for this project.
 
 **Default Engineering Principles Applied**:
+
 - ✅ **Backward Compatibility**: All new schema fields nullable, existing workflows unchanged
 - ✅ **Graceful Degradation**: System proceeds with grading even if references fail to load
 - ✅ **Reuse Existing Infrastructure**: Leveraging current upload, parsing, AI, and i18n systems
@@ -66,6 +73,7 @@ Enable teachers to upload reference documents (textbooks, answer keys, lecture n
 - ✅ **Observability**: Logging for reference loading, token usage, and truncation events
 
 **Architecture Decisions**:
+
 - Direct database relation: `GradingResult.assignmentAreaId` (avoid multi-hop JOINs)
 - Stateless prompt composition: Pure function combining context elements
 - Fixed truncation strategy: 8000 chars (no dynamic configuration for simplicity)
@@ -145,6 +153,7 @@ tests/
 ```
 
 **Structure Decision**: React Router v7 collocated architecture - frontend/backend in single `app/` directory. This project uses:
+
 - File-based routing (`app/routes/`) for both UI pages and API endpoints
 - Server-side services (`*.server.ts`) for business logic
 - Shared components and types across client/server boundaries
@@ -154,15 +163,15 @@ No new directories needed - all changes integrate into existing structure.
 
 ## Complexity Tracking
 
-*No constitution violations - all changes follow existing patterns:*
+_No constitution violations - all changes follow existing patterns:_
 
-| Aspect | Approach | Justification |
-|--------|----------|---------------|
-| Schema Changes | Add nullable fields to existing tables | Maintains backward compatibility, no data migration needed |
-| Prompt Composition | Pure function with explicit parameters | Testable, debuggable, stateless |
-| File Association | JSON array in single field | Simple, sufficient for 1-5 files, avoids JOIN complexity |
-| Error Handling | Graceful degradation at each step | Follows existing pattern in codebase (see ai-grader.server.ts fallback) |
-| Language Detection | Reuse existing i18n context | Zero new dependencies, leverages proven system |
+| Aspect             | Approach                               | Justification                                                           |
+| ------------------ | -------------------------------------- | ----------------------------------------------------------------------- |
+| Schema Changes     | Add nullable fields to existing tables | Maintains backward compatibility, no data migration needed              |
+| Prompt Composition | Pure function with explicit parameters | Testable, debuggable, stateless                                         |
+| File Association   | JSON array in single field             | Simple, sufficient for 1-5 files, avoids JOIN complexity                |
+| Error Handling     | Graceful degradation at each step      | Follows existing pattern in codebase (see ai-grader.server.ts fallback) |
+| Language Detection | Reuse existing i18n context            | Zero new dependencies, leverages proven system                          |
 
 **No Additional Complexity Introduced** - Feature extends existing patterns without new architectural concepts.
 
@@ -171,21 +180,25 @@ No new directories needed - all changes integrate into existing structure.
 **Research Areas** (to be documented in `research.md`):
 
 1. **Token Management Strategy**
+
    - Current context window limits for Gemini 2.0 Flash (1M) and GPT-4o-mini (128k)
    - Optimal truncation approach: character-based vs sentence-boundary
    - Token estimation accuracy for Chinese + English mixed content
 
 2. **Prompt Engineering Best Practices**
+
    - Optimal ordering: references → instructions → rubric → student work
    - Separator formatting for AI clarity (markdown sections vs delimiters)
    - Few-shot examples vs zero-shot for context-aware grading
 
 3. **Database Performance**
+
    - JSON array query performance vs dedicated junction table
    - Index strategy for new fields (assignmentAreaId on GradingResult)
    - Migration strategy for nullable fields (impact on existing queries)
 
 4. **File Upload UX Patterns**
+
    - Multi-file upload with individual progress indicators
    - Async parse status polling vs WebSocket updates
    - File removal/replacement workflow during assignment edit
@@ -196,6 +209,7 @@ No new directories needed - all changes integrate into existing structure.
    - Fallback strategy when language detection fails
 
 **Decisions to Document**:
+
 - Chosen truncation algorithm (simple character limit vs smart truncation)
 - Prompt template structure (markdown-based for AI readability)
 - JSON array storage justification (vs new ReferenceFileAssociation table)
@@ -206,12 +220,14 @@ No new directories needed - all changes integrate into existing structure.
 **Deliverables**:
 
 1. **`data-model.md`**:
+
    - Prisma schema additions (3 new fields with types/constraints)
    - Entity relationship diagram updates
    - Migration script outline
    - Backward compatibility verification
 
 2. **`contracts/`**:
+
    - `POST /api/assignments` - Extended request/response with new fields
    - `PATCH /api/assignments/:id` - Update reference files/instructions
    - `GET /api/assignments/:id` - Include references in response
@@ -227,6 +243,7 @@ No new directories needed - all changes integrate into existing structure.
 
 **Agent Context Update**:
 Run `.specify/scripts/bash/update-agent-context.sh claude` after Phase 1 to:
+
 - Add Prisma schema extension pattern to context
 - Document AI prompt composition approach
 - Reference graceful degradation pattern
@@ -234,6 +251,7 @@ Run `.specify/scripts/bash/update-agent-context.sh claude` after Phase 1 to:
 ## Next Steps
 
 After `/ speckit.plan` completes:
+
 1. Review generated `research.md` - validate technical decisions
 2. Review generated `data-model.md` - verify schema changes
 3. Review generated `contracts/` - validate API contracts

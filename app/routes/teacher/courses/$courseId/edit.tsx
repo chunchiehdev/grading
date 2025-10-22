@@ -136,12 +136,12 @@ export default function EditCourse() {
         {/* Danger Zone Card */}
         <Card className="border-destructive/50">
           <CardHeader>
-            <CardTitle className="text-destructive">{t('course:settings.dangerZone')}</CardTitle>
-            <CardDescription>{t('course:settings.dangerZoneDescription')}</CardDescription>
+            <CardTitle className="text-destructive">{t('course:setting.dangerZone')}</CardTitle>
+            <CardDescription>{t('course:setting.dangerZoneDescription')}</CardDescription>
           </CardHeader>
           <CardContent>
             <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{t('course:settings.deleteWarning')}</AlertDescription>
+              <AlertDescription>{t('course:setting.deleteWarning')}</AlertDescription>
             </Alert>
             <Form method="post">
               <input type="hidden" name="intent" value="delete" />
@@ -149,13 +149,13 @@ export default function EditCourse() {
                 type="submit"
                 variant="destructive"
                 onClick={(e) => {
-                  if (!confirm(t('course:settings.deleteConfirmMessage'))) {
+                  if (!confirm(t('course:setting.deleteConfirm'))) {
                     e.preventDefault();
                   }
                 }}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                {t('course:settings.deleteCourse')}
+                {t('course:setting.deleteCourse')}
               </Button>
             </Form>
           </CardContent>

@@ -105,17 +105,20 @@ EOF
 ### Step 1: Teacher Creates Assignment with Context
 
 1. **Login as Teacher**:
+
    ```
    Navigate to: http://localhost:5173/teacher/login
    Use Google OAuth (development mode)
    ```
 
 2. **Navigate to Assignment Creation**:
+
    ```
    Dashboard → Courses → Select Course → Create Assignment
    ```
 
 3. **Upload Reference Files**:
+
    - Click "Add Reference Materials" button
    - Upload `test-data/reference-files/answer-key.txt`
    - Upload `test-data/reference-files/lecture-notes.txt`
@@ -124,6 +127,7 @@ EOF
    - **Expected time**: ~5-10 seconds for TXT files, ~30-60 seconds for PDFs
 
 4. **Add Custom Instructions**:
+
    - Scroll to "Custom Grading Instructions" field
    - Paste the sample instructions above
    - **Expected behavior**: Character counter shows "245 / 5000 characters"
@@ -160,6 +164,7 @@ EOF
 ### Step 2: Student Submits Work
 
 1. **Login as Student**:
+
    ```
    Navigate to: http://localhost:5173/student/login
    Join course with invitation code
@@ -173,6 +178,7 @@ EOF
 ### Step 3: Verify Context-Aware Grading
 
 1. **Monitor Grading Progress**:
+
    ```bash
    # Watch Redis for progress updates
    docker exec -it grading-redis redis-cli
@@ -181,6 +187,7 @@ EOF
    ```
 
 2. **Check Database for Context Usage**:
+
    ```sql
    -- Connect to PostgreSQL
    docker exec -it grading-postgres psql -U grading_admin -d grading_db
@@ -201,12 +208,14 @@ EOF
    ```
 
 3. **Inspect AI Prompt (Logs)**:
+
    ```bash
    # View grading engine logs
    docker compose -f docker-compose.dev.yaml logs -f app | grep "Grading prompt"
    ```
 
    **Expected log output** (truncated for readability):
+
    ```
    [GradingEngine] Composing prompt with context:
    - Reference documents: 2 files
@@ -242,12 +251,14 @@ EOF
    ```
 
 4. **Verify Response Includes Context Transparency**:
+
    ```bash
    # GET grading session results
    curl http://localhost:5173/api/grading/session/<session-id>
    ```
 
    **Expected response** (partial):
+
    ```json
    {
      "success": true,
@@ -328,6 +339,7 @@ EOF
 1. Switch UI language to English (`i18n.changeLanguage('en')`)
 2. Trigger grading
 3. **Expected behavior**:
+
    - API request includes `"language": "en"`
    - AI feedback provided in English
    - Verify in logs: "Grading with language: en"
@@ -444,6 +456,7 @@ FROM "GradingResult" gr;
 **Symptoms**: File upload succeeds, but parseStatus remains "PROCESSING" forever.
 
 **Diagnosis**:
+
 ```bash
 # Check PDF parser API health
 curl http://<pdf-parser-api>/health
@@ -457,6 +470,7 @@ ORDER BY "createdAt" DESC;
 ```
 
 **Solutions**:
+
 1. Verify PDF parser API is running and accessible
 2. Check file format is supported (PDF, DOCX, TXT only)
 3. Retry parsing by re-uploading file
@@ -467,6 +481,7 @@ ORDER BY "createdAt" DESC;
 **Symptoms**: Grading completes, but feedback doesn't reference uploaded materials.
 
 **Diagnosis**:
+
 ```bash
 # Check if context was loaded
 docker compose -f docker-compose.dev.yaml logs app | grep "loadReferenceDocuments"
@@ -476,6 +491,7 @@ curl http://localhost:5173/api/grading/session/<session-id> | jq '.data.results[
 ```
 
 **Solutions**:
+
 1. Verify `referenceFilesUsed` array is not empty
 2. Check for truncation warnings in logs
 3. Ensure `assignmentAreaId` is passed to grading session API
@@ -486,6 +502,7 @@ curl http://localhost:5173/api/grading/session/<session-id> | jq '.data.results[
 **Symptoms**: UI language is English, but AI feedback is in Chinese.
 
 **Diagnosis**:
+
 ```javascript
 // In browser console
 console.log(i18n.language); // Should be 'en'
@@ -495,6 +512,7 @@ console.log(i18n.language); // Should be 'en'
 ```
 
 **Solutions**:
+
 1. Ensure `language` parameter is passed in grading session API call
 2. Verify i18n is initialized: `i18n.isInitialized`
 3. Check fallback behavior: if language is `null`, defaults to `'zh'`
@@ -503,14 +521,14 @@ console.log(i18n.language); // Should be 'en'
 
 Expected timings on local development environment:
 
-| Operation | Expected Duration | Notes |
-|-----------|-------------------|-------|
-| TXT file upload | < 1 second | No parsing needed |
-| PDF file upload | 3-5 seconds | Upload only |
-| PDF parsing | 30-60 seconds | External API call |
-| Prompt composition | < 100ms | In-memory operation |
-| AI grading (Gemini) | 2-5 seconds | Network + inference |
-| Total grading with context | 2-6 seconds | Excludes parsing (async) |
+| Operation                  | Expected Duration | Notes                    |
+| -------------------------- | ----------------- | ------------------------ |
+| TXT file upload            | < 1 second        | No parsing needed        |
+| PDF file upload            | 3-5 seconds       | Upload only              |
+| PDF parsing                | 30-60 seconds     | External API call        |
+| Prompt composition         | < 100ms           | In-memory operation      |
+| AI grading (Gemini)        | 2-5 seconds       | Network + inference      |
+| Total grading with context | 2-6 seconds       | Excludes parsing (async) |
 
 ## Next Steps
 

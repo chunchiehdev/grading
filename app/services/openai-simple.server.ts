@@ -8,6 +8,7 @@ export interface OpenAIGradingRequest {
   criteria: any[];
   fileName: string;
   rubricName: string;
+  language?: string; // Feature 004: Language for context awareness
 }
 
 export interface OpenAIGradingResponse {

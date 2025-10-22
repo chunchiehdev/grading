@@ -10,12 +10,14 @@
 **Objective**: Redesign the teacher invitation display component to be sleek and properly positioned, while creating a new student course discovery page that enables students to browse and directly enroll in all available courses offered by teachers on the platform.
 
 **Scope**:
+
 - **UI Component Redesign**: InvitationDisplay (single-column centered layout with QR code prominence)
 - **New Feature**: Course discovery & enrollment page for students (`/student/courses/discover`)
 - **Backend Support**: API endpoints for course discovery and enrollment management
 - **Database**: Query optimization for discoverability (minimal schema changes expected)
 
 **Technical Approach**:
+
 - Use existing React Router v7 + Tailwind CSS component library for UI consistency
 - Leverage existing Prisma relationships (Course → Class → Enrollment) without major migrations
 - Create two API endpoints: GET `/api/courses/discover` and POST `/api/enrollments`
@@ -35,11 +37,12 @@
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 **Note**: The project constitution file is currently a template (`constitution.md`). This feature check validates against established project patterns in CLAUDE.md:
 
 ✅ **Project Pattern Alignment**:
+
 - **Architecture**: Follows React Router v7 file-based routing with role-based access (/student vs /teacher routes) ✓
 - **Service Layer**: Uses `.server.ts` suffix for server-side code with type exports ✓
 - **State Management**: Uses Zustand with persistence for UI state ✓
@@ -131,6 +134,7 @@ tests/
 ```
 
 **Structure Decision**: Web application feature implementation following established patterns:
+
 - **Backend routes** use `.server.ts` naming convention for type safety and SSR support
 - **Frontend components** remain in `components/` organized by feature area (ui/ for reusable, student/ for feature-specific)
 - **API endpoints** in `/api/` directory with Express-style routing
@@ -147,18 +151,21 @@ tests/
 **Clarifications Resolved**:
 
 1. **Waiting List Feature** - Resolved ✓
+
    - **Decision**: MVP excludes waiting list functionality
    - **Rationale**: Keeps initial scope manageable; "Class Full" message with teacher contact suggestion sufficient for launch
    - **Fallback**: Students see disabled "Class Full" message, not enrollment failure
    - **Future**: Waiting list can be added as enhancement in subsequent iteration
 
 2. **Database Schema Changes** - Resolved ✓
+
    - **Decision**: No schema migrations required
    - **Rationale**: Existing Course → Class → Enrollment relationships already support required queries
    - **Verification**: Verified in `/prisma/schema.prisma` - all relationships exist with proper foreign keys
    - **Query Optimization**: Index on `Course.isActive`, `Class.isActive`, `Class.courseId` may improve discovery query performance (optional)
 
 3. **API Endpoint Patterns** - Resolved ✓
+
    - **Decision**: Follow existing REST patterns with Express.js
    - **Endpoints**:
      - GET `/api/courses/discover` - fetches discoverable courses with enrollment status
@@ -166,6 +173,7 @@ tests/
    - **Error Handling**: Use existing `ApiError` class and `withErrorHandler` wrapper
 
 4. **UI Component Library** - Resolved ✓
+
    - **Decision**: Use existing Radix UI + Tailwind CSS + shadcn/ui pattern
    - **Color System**: Leverage existing CSS variables (primary, secondary, accent, muted, etc.)
    - **Components**: Button, Card, CardContent, CardHeader, CardTitle already exist and used consistently
@@ -183,13 +191,13 @@ tests/
 
 **Entities Used** (no new models needed):
 
-| Entity | Fields | Relationships | Notes |
-|--------|--------|---------------|-------|
-| **Course** | id, name, description, code, teacherId, isActive | Teacher (User), Classes[], AssignmentAreas[], InvitationCodes[] | Used for discovery filtering |
-| **Class** | id, courseId, name, schedule (JSON), capacity, isActive | Course, Enrollments[], Students (via Enrollment) | Per-section capacity limits |
-| **Enrollment** | id, studentId, classId, enrollmentDate, status | Student (User), Class | Unique constraint (studentId, classId) |
-| **User** | id, email, name, picture, role | Courses[] (teacher), Enrollments[] (student) | Role enum: TEACHER/STUDENT |
-| **InvitationCode** | id, code, courseId, classId, expiresAt, usedCount | Course, Class | Optional - alternative to discovery |
+| Entity             | Fields                                                  | Relationships                                                   | Notes                                  |
+| ------------------ | ------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------- |
+| **Course**         | id, name, description, code, teacherId, isActive        | Teacher (User), Classes[], AssignmentAreas[], InvitationCodes[] | Used for discovery filtering           |
+| **Class**          | id, courseId, name, schedule (JSON), capacity, isActive | Course, Enrollments[], Students (via Enrollment)                | Per-section capacity limits            |
+| **Enrollment**     | id, studentId, classId, enrollmentDate, status          | Student (User), Class                                           | Unique constraint (studentId, classId) |
+| **User**           | id, email, name, picture, role                          | Courses[] (teacher), Enrollments[] (student)                    | Role enum: TEACHER/STUDENT             |
+| **InvitationCode** | id, code, courseId, classId, expiresAt, usedCount       | Course, Class                                                   | Optional - alternative to discovery    |
 
 **Queries Needed**:
 
@@ -314,9 +322,9 @@ interface InvitationDisplayProps {
   code: string;
   qrCodeUrl: string;
   baseUrl: string;
-  codeLabel: string;          // i18n label
-  urlLabel: string;            // i18n label
-  qrDescription?: string;      // i18n description
+  codeLabel: string; // i18n label
+  urlLabel: string; // i18n label
+  qrDescription?: string; // i18n description
 }
 
 // Single-column centered layout
@@ -351,6 +359,7 @@ interface CourseDiscoveryContentProps {
 **For Implementation Team**:
 
 1. **Start InvitationDisplay Redesign**
+
    - File: `app/components/ui/invitation-display.tsx`
    - Change grid to flex column with centered content
    - QR code first, then code/URL fields below
@@ -358,6 +367,7 @@ interface CourseDiscoveryContentProps {
    - Test responsive layout down to 320px
 
 2. **Create Course Discovery Route**
+
    - File: `app/routes/student/courses/discover.tsx`
    - Loader: Fetch all discoverable courses + student enrollments
    - Action: Handle enrollment form submissions
@@ -365,18 +375,21 @@ interface CourseDiscoveryContentProps {
    - Add i18n keys: `course:discovery.{title,empty,enroll,enrolled,classFull}`
 
 3. **Implement Backend Service**
+
    - File: `app/services/course-discovery.server.ts`
    - Export `getDiscoverableCourses(studentId, options)` function
    - Export `createEnrollment(studentId, classId)` function
    - Handle error cases: duplicate, capacity, not found
 
 4. **Create API Endpoints**
+
    - Files: `app/api/courses/discover.ts`, `app/api/enrollments.ts`
    - Use Express Router pattern
    - Apply `withErrorHandler` middleware
    - Validate requests with Zod schemas
 
 5. **Update Translations**
+
    - Add `course.json` keys for discovery page
    - Both `en` and `zh` locales
    - Keys: title, empty_message, enroll_button, enrolled_badge, class_full_message
@@ -388,6 +401,3 @@ interface CourseDiscoveryContentProps {
    - Services: test query results, constraint enforcement
 
 ---
-
-
-

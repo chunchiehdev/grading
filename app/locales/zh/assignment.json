@@ -83,6 +83,7 @@
     "replaceFile": "更換檔案",
     "reselectFile": "重新選擇檔案",
     "analyzing": "分析中...",
+    "aiAnalysis": "AI 分析",
     "analyzeWithAI": "AI 分析",
     "gradingResults": "評分結果",
     "aiAnalysisDescription": "AI 將根據評分標準分析您的作業並提供詳細回饋",

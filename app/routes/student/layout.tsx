@@ -10,8 +10,9 @@ import {
   type StudentAssignmentInfo,
   type SubmissionInfo,
 } from '@/services/submission.server';
-import { getStudentEnrolledCourses, type CourseWithEnrollmentInfo } from '@/services/enrollment.server';
+import { getStudentEnrolledCourses } from '@/services/enrollment.server';
 import { getSubmissionsByStudentId } from '@/services/submission.server';
+import type { CourseWithEnrollmentInfo } from '@/types/student';
 
 export interface LoaderData {
   user: { id: string; email: string; role: string; name: string; picture?: string };

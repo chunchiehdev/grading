@@ -18,6 +18,7 @@ export interface StudentInfo {
 
 /**
  * Submission information with all related data
+ * Extended to include teacher view fields (normalizedScore, usedContext) for unified handling
  */
 export interface SubmissionInfo {
   id: string;
@@ -27,7 +28,9 @@ export interface SubmissionInfo {
   uploadedAt: Date;
   aiAnalysisResult: any | null;
   finalScore: number | null;
+  normalizedScore: number | null;
   teacherFeedback: string | null;
+  usedContext: any | null;
   status: string;
   createdAt: Date;
   updatedAt: Date;

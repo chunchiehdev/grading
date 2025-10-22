@@ -90,4 +90,6 @@ export interface CourseDiscoveryContentProps {
   };
   courses: DiscoverableCourse[];
   enrolledCourseIds: Set<string>;
+  searchQuery?: string;
+  isSearching?: boolean;
 }

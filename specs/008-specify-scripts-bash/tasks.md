@@ -126,7 +126,7 @@
 - [x] T052 [US4] Review Prisma schema for Course, Class, Enrollment relationships in `prisma/schema.prisma`
 - [x] T053 [US4] Verify unique constraint exists on `(studentId, classId)` in Enrollment model to prevent duplicates
 - [x] T054 [US4] Verify foreign keys and cascading deletes are configured correctly in schema
-- [x] T055 [US4] Verify _count fields work in Prisma queries for enrollment counts in `app/services/course-discovery.server.ts`
+- [x] T055 [US4] Verify \_count fields work in Prisma queries for enrollment counts in `app/services/course-discovery.server.ts`
 - [x] T056 [US4] Create test database query: fetch all courses with isActive=true AND has active classes, verify result set is correct
 - [x] T057 [US4] Create test database query: check duplicate enrollment prevention when inserting same (studentId, classId) twice
 - [x] T058 [US4] Create test database query: verify capacity validation works when enrollment count >= class.capacity
@@ -191,6 +191,7 @@
 ### User Story Completion Order
 
 **MVP Approach** (Launch after Phase 1-3):
+
 1. Setup (Phase 1)
 2. Foundational (Phase 2)
 3. User Story 1 (Phase 3) - InvitationDisplay Redesign
@@ -198,6 +199,7 @@
 5. **DEPLOY MVP** (InvitationDisplay improvement only)
 
 **Full Feature Approach** (All user stories):
+
 1. Setup → Foundational → All user stories in parallel → Integration → Polish
 2. User Story 1: Invitation Display (3-5 hours)
 3. User Story 2: Course Discovery (6-8 hours)
@@ -207,22 +209,27 @@
 ### Parallel Opportunities
 
 **Phase 1 Setup**:
+
 - T003, T004, T005, T006 all marked [P] - can run simultaneously
 
 **Phase 2 Foundational**:
+
 - T010, T011 marked [P] - create translations and schema in parallel with other tasks
 - T003, T004, T005, T006 from Setup can all run in parallel
 
 **User Story 1 (Invitation Display)**:
+
 - T014, T015, T016 marked [P] - all UI updates can be coded in parallel
 - T018 (dark mode) can be verified while layout is being finalized
 
 **User Story 2 (Course Discovery)**:
+
 - T022, T023, T024 marked [P] - all service functions can be created in parallel
 - T025, T026 marked [P] - API endpoints can be implemented in parallel
 - Once services done, T027-T035 (React component and route) can follow
 
 **Team Execution Example (3 developers)**:
+
 ```
 Developer A:
   - Phase 1-2: Setup & Foundational
@@ -264,23 +271,28 @@ After Phase 3:
 ### Recommended Execution Path
 
 **Day 1 Morning**:
+
 - Complete Phase 1 (Setup)
 - Complete Phase 2 (Foundational)
 
 **Day 1 Afternoon**:
+
 - Start Phase 3 (User Story 1: Invitation Display)
 - Dev B: Start Phase 4 backend (User Story 2 services)
 
 **Day 2 Morning**:
+
 - Finish Phase 3 (US1)
 - Dev C: Start Phase 4 frontend (User Story 2 component)
 - Dev B: Start Phase 6 (Database infrastructure validation)
 
 **Day 2 Afternoon**:
+
 - All: Phase 7 (Integration testing)
 - Manual QA on real device/mobile
 
 **Day 3 Morning**:
+
 - Phase 8 (Polish & final validation)
 - Release preparation
 
@@ -290,12 +302,12 @@ After Phase 3:
 
 Each task maps to Feature Specification success criteria (SC-001 through SC-009):
 
-| Task Group | Maps to Success Criteria |
-|-----------|------------------------|
-| T013-T021 (US1) | SC-001 (space reduction), SC-008 (QR code), SC-004 (contrast) |
-| T022-T037 (US2) | SC-002 (3 clicks), SC-003 (<2s load), SC-007 (instant update) |
+| Task Group      | Maps to Success Criteria                                         |
+| --------------- | ---------------------------------------------------------------- |
+| T013-T021 (US1) | SC-001 (space reduction), SC-008 (QR code), SC-004 (contrast)    |
+| T022-T037 (US2) | SC-002 (3 clicks), SC-003 (<2s load), SC-007 (instant update)    |
 | T038-T051 (US3) | SC-006 (100% consistency), SC-004 (WCAG AA), SC-005 (responsive) |
-| T052-T061 (US4) | SC-003 (performance), SC-009 (no duplicates) |
+| T052-T061 (US4) | SC-003 (performance), SC-009 (no duplicates)                     |
 
 ---
 
@@ -314,31 +326,32 @@ Each task maps to Feature Specification success criteria (SC-001 through SC-009)
 
 ## Estimated Timeline
 
-| Phase | Tasks | Hours | Notes |
-|-------|-------|-------|-------|
-| Phase 1: Setup | T001-T006 | 1-2 | Verification tasks, mostly quick checks |
-| Phase 2: Foundational | T007-T012 | 1-2 | Create schemas, config, interfaces |
-| Phase 3: User Story 1 | T013-T021 | 3-5 | InvitationDisplay redesign |
-| Phase 4: User Story 2 | T022-T037 | 6-8 | Services, API endpoints, components |
-| Phase 5: User Story 3 | T038-T051 | 2-3 | Visual audit and consistency verification |
-| Phase 6: User Story 4 | T052-T061 | 2-3 | Database query validation and performance |
-| Phase 7: Integration | T062-T067 | 1-2 | E2E testing and accessibility |
-| Phase 8: Polish | T068-T079 | 2-3 | Documentation, cleanup, final validation |
-| **TOTAL** | **79 tasks** | **20-30 hours** | 2-3 developers, 3-5 days |
+| Phase                 | Tasks        | Hours           | Notes                                     |
+| --------------------- | ------------ | --------------- | ----------------------------------------- |
+| Phase 1: Setup        | T001-T006    | 1-2             | Verification tasks, mostly quick checks   |
+| Phase 2: Foundational | T007-T012    | 1-2             | Create schemas, config, interfaces        |
+| Phase 3: User Story 1 | T013-T021    | 3-5             | InvitationDisplay redesign                |
+| Phase 4: User Story 2 | T022-T037    | 6-8             | Services, API endpoints, components       |
+| Phase 5: User Story 3 | T038-T051    | 2-3             | Visual audit and consistency verification |
+| Phase 6: User Story 4 | T052-T061    | 2-3             | Database query validation and performance |
+| Phase 7: Integration  | T062-T067    | 1-2             | E2E testing and accessibility             |
+| Phase 8: Polish       | T068-T079    | 2-3             | Documentation, cleanup, final validation  |
+| **TOTAL**             | **79 tasks** | **20-30 hours** | 2-3 developers, 3-5 days                  |
 
 ---
 
 ## Quick Reference
 
 **For this sprint, focus on**:
+
 1. ✅ Phase 1-2 (Setup & Foundational) - Foundation must be solid
 2. ✅ Phase 3 (User Story 1) - MVP launchable feature
 3. ✅ Phase 7 (Integration) - Make sure everything works together
 4. Defer Phase 8 (Polish) to next sprint if time-constrained
 
 **Always start with**:
+
 - Read spec.md acceptance criteria for each user story
 - Review design documents in contracts/ before coding
 - Write failing tests first if TDD approach desired
 - Commit frequently with clear messages
-

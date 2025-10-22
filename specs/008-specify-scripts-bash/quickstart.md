@@ -67,6 +67,7 @@ mkdir -p app/api/courses/
 **File**: `app/components/ui/invitation-display.tsx`
 
 Current structure:
+
 ```tsx
 <div className="grid md:grid-cols-2 gap-6">
   {/* Invitation Details - LEFT COLUMN */}
@@ -81,6 +82,7 @@ Current structure:
 ```
 
 **Required Changes**:
+
 - Change `grid md:grid-cols-2` → `flex flex-col`
 - Move QR code to top (reorder children)
 - Center content with `items-center justify-center`
@@ -90,14 +92,13 @@ Current structure:
 #### B2. Redesign Component
 
 **New Structure**:
+
 ```tsx
 <div className="flex flex-col items-center justify-center gap-8 py-8 px-4">
   {/* QR Code - PROMINENT */}
   <div className="flex flex-col items-center gap-4">
     <QRDisplay {...props} />
-    <p className="text-sm text-muted-foreground text-center">
-      {qrDescription || 'Scan to join this course'}
-    </p>
+    <p className="text-sm text-muted-foreground text-center">{qrDescription || 'Scan to join this course'}</p>
   </div>
 
   {/* Divider or spacing */}
@@ -159,10 +160,7 @@ interface CourseDiscoveryOptions {
  * - Includes enrollment status for current student
  * - Includes teacher info and class details
  */
-export async function getDiscoverableCourses(
-  studentId: string,
-  options: CourseDiscoveryOptions = {}
-) {
+export async function getDiscoverableCourses(studentId: string, options: CourseDiscoveryOptions = {}) {
   const { limit = 50, offset = 0, sort = 'newest', search } = options;
 
   // Get courses with active classes
@@ -170,15 +168,15 @@ export async function getDiscoverableCourses(
     where: {
       isActive: true,
       classes: {
-        some: { isActive: true }
+        some: { isActive: true },
       },
       // Optional search filter
       ...(search && {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
-          { teacher: { name: { contains: search, mode: 'insensitive' } } }
-        ]
-      })
+          { teacher: { name: { contains: search, mode: 'insensitive' } } },
+        ],
+      }),
     },
     include: {
       teacher: {
@@ -186,33 +184,33 @@ export async function getDiscoverableCourses(
           id: true,
           name: true,
           email: true,
-          picture: true
-        }
+          picture: true,
+        },
       },
       classes: {
         where: { isActive: true },
         include: {
-          _count: { select: { enrollments: { where: { status: 'active' } } } }
-        }
-      }
+          _count: { select: { enrollments: { where: { status: 'active' } } } },
+        },
+      },
     },
     orderBy: getOrderBy(sort),
     take: Math.min(limit, 100),
-    skip: offset
+    skip: offset,
   });
 
   // Get student's enrolled courses for status comparison
   const enrolledCourseIds = await getStudentEnrolledCourses(studentId);
 
   // Format response
-  return courses.map(course => ({
+  return courses.map((course) => ({
     ...course,
     enrollmentStatus: enrolledCourseIds.has(course.id) ? 'enrolled' : 'not_enrolled',
-    classes: course.classes.map(cls => ({
+    classes: course.classes.map((cls) => ({
       ...cls,
       enrollmentCount: cls._count.enrollments,
-      isFull: cls.capacity ? cls._count.enrollments >= cls.capacity : false
-    }))
+      isFull: cls.capacity ? cls._count.enrollments >= cls.capacity : false,
+    })),
   }));
 }
 
@@ -225,8 +223,8 @@ export async function createEnrollment(studentId: string, classId: string) {
     where: { id: classId },
     include: {
       course: true,
-      _count: { select: { enrollments: { where: { status: 'active' } } } }
-    }
+      _count: { select: { enrollments: { where: { status: 'active' } } } },
+    },
   });
 
   if (!enrollClass) {
@@ -246,8 +244,8 @@ export async function createEnrollment(studentId: string, classId: string) {
   // 4. Check for duplicate enrollment
   const existing = await prisma.enrollment.findUnique({
     where: {
-      studentId_classId: { studentId, classId }
-    }
+      studentId_classId: { studentId, classId },
+    },
   });
 
   if (existing) {
@@ -259,8 +257,8 @@ export async function createEnrollment(studentId: string, classId: string) {
     data: {
       studentId,
       classId,
-      status: 'active'
-    }
+      status: 'active',
+    },
   });
 }
 
@@ -280,9 +278,9 @@ function getOrderBy(sort: string) {
 async function getStudentEnrolledCourses(studentId: string) {
   const enrollments = await prisma.enrollment.findMany({
     where: { studentId, status: 'active' },
-    select: { class: { select: { courseId: true } } }
+    select: { class: { select: { courseId: true } } },
   });
-  return new Set(enrollments.map(e => e.class.courseId));
+  return new Set(enrollments.map((e) => e.class.courseId));
 }
 ```
 
@@ -309,7 +307,7 @@ router.get(
       limit: limit ? parseInt(String(limit)) : 50,
       offset: offset ? parseInt(String(offset)) : 0,
       sort: (sort as string) || 'newest',
-      search: search ? String(search) : undefined
+      search: search ? String(search) : undefined,
     });
 
     res.json({
@@ -319,8 +317,8 @@ router.get(
         total: courses.length, // TODO: Get total count separately
         offset: offset ? parseInt(String(offset)) : 0,
         limit: limit ? parseInt(String(limit)) : 50,
-        hasMore: courses.length === (limit || 50)
-      }
+        hasMore: courses.length === (limit || 50),
+      },
     });
   })
 );
@@ -341,7 +339,7 @@ const router = Router();
 
 const enrollmentSchema = z.object({
   classId: z.string().uuid(),
-  courseId: z.string().uuid()
+  courseId: z.string().uuid(),
 });
 
 router.post(
@@ -355,7 +353,7 @@ router.post(
 
     res.status(201).json({
       success: true,
-      data: { enrollment }
+      data: { enrollment },
     });
   })
 );
@@ -413,12 +411,7 @@ interface Props {
   isLoading: boolean;
 }
 
-export function CourseDiscoveryContent({
-  courses,
-  enrolledCourseIds,
-  onEnroll,
-  isLoading
-}: Props) {
+export function CourseDiscoveryContent({ courses, enrolledCourseIds, onEnroll, isLoading }: Props) {
   const { t } = useTranslation('course');
   const [enrolling, setEnrolling] = useState<string | null>(null);
 
@@ -432,15 +425,13 @@ export function CourseDiscoveryContent({
 
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {courses.map(course => (
+      {courses.map((course) => (
         <Card key={course.id} className="overflow-hidden hover:shadow-lg transition-shadow">
           <CardHeader>
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-lg truncate">{course.name}</CardTitle>
-                <CardDescription className="text-sm">
-                  {course.teacher.name}
-                </CardDescription>
+                <CardDescription className="text-sm">{course.teacher.name}</CardDescription>
               </div>
               {enrolledCourseIds.has(course.id) && (
                 <span className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded">
@@ -451,13 +442,9 @@ export function CourseDiscoveryContent({
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {course.description && (
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {course.description}
-              </p>
-            )}
+            {course.description && <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>}
 
-            {course.classes.map(cls => (
+            {course.classes.map((cls) => (
               <div key={cls.id} className="text-sm border rounded p-2 space-y-1">
                 <p className="font-medium">{cls.name}</p>
                 {cls.schedule && (
@@ -472,11 +459,7 @@ export function CourseDiscoveryContent({
                 <Button
                   size="sm"
                   className="w-full mt-2"
-                  disabled={
-                    enrolledCourseIds.has(course.id) ||
-                    cls.isFull ||
-                    enrolling === cls.id
-                  }
+                  disabled={enrolledCourseIds.has(course.id) || cls.isFull || enrolling === cls.id}
                   onClick={async () => {
                     setEnrolling(cls.id);
                     try {
@@ -525,12 +508,12 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
   const courses = await getDiscoverableCourses(student.id, {
     limit: 100,
-    sort: 'newest'
+    sort: 'newest',
   });
 
   return {
     student,
-    courses
+    courses,
   };
 }
 
@@ -549,7 +532,7 @@ export async function action({ request }: ActionFunctionArgs) {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Enrollment failed'
+      error: error instanceof Error ? error.message : 'Enrollment failed',
     };
   }
 }
@@ -559,9 +542,7 @@ export default function CourseDiscoveryPage() {
   const { student, courses } = useLoaderData<LoaderData>();
 
   const enrolledCourseIds = new Set(
-    courses
-      .filter((c: any) => c.enrollmentStatus === 'enrolled')
-      .map((c: any) => c.id)
+    courses.filter((c: any) => c.enrollmentStatus === 'enrolled').map((c: any) => c.id)
   );
 
   return (
@@ -682,13 +663,13 @@ npm run db:analyze -- "SELECT ... FROM courses"
 
 ## Risk Mitigation
 
-| Risk | Mitigation |
-|------|-----------|
-| Duplicate enrollments | Unique constraint + debounced form submission |
-| Race condition on capacity | Atomic database transaction |
-| Performance issues | Pagination + query optimization |
-| Accessibility issues | Automated testing + manual audit |
-| Mobile responsiveness | Tested at 320px/480px/768px/1024px |
+| Risk                       | Mitigation                                    |
+| -------------------------- | --------------------------------------------- |
+| Duplicate enrollments      | Unique constraint + debounced form submission |
+| Race condition on capacity | Atomic database transaction                   |
+| Performance issues         | Pagination + query optimization               |
+| Accessibility issues       | Automated testing + manual audit              |
+| Mobile responsiveness      | Tested at 320px/480px/768px/1024px            |
 
 ---
 
@@ -715,4 +696,3 @@ After implementation:
 - Tailwind CSS: https://tailwindcss.com/
 - Zod validation: https://zod.dev/
 - WCAG 2.1 guidelines: https://www.w3.org/WAI/WCAG21/quickref/
-

@@ -52,25 +52,28 @@ This document describes the database entities used for course discovery and stud
 
 **Fields**:
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | UUID | PK, NOT NULL | Unique identifier |
-| `email` | String | UNIQUE, NOT NULL | Email address (from Google OAuth) |
-| `name` | String (255) | NOT NULL | Full name |
-| `picture` | String (500) | NULLABLE | Profile picture URL |
-| `role` | Enum | NOT NULL, DEFAULT "STUDENT" | `TEACHER` or `STUDENT` |
-| `createdAt` | DateTime | NOT NULL, DEFAULT now() | Account creation timestamp |
-| `updatedAt` | DateTime | NOT NULL, DEFAULT now() | Last modification timestamp |
+| Field       | Type         | Constraints                 | Description                       |
+| ----------- | ------------ | --------------------------- | --------------------------------- |
+| `id`        | UUID         | PK, NOT NULL                | Unique identifier                 |
+| `email`     | String       | UNIQUE, NOT NULL            | Email address (from Google OAuth) |
+| `name`      | String (255) | NOT NULL                    | Full name                         |
+| `picture`   | String (500) | NULLABLE                    | Profile picture URL               |
+| `role`      | Enum         | NOT NULL, DEFAULT "STUDENT" | `TEACHER` or `STUDENT`            |
+| `createdAt` | DateTime     | NOT NULL, DEFAULT now()     | Account creation timestamp        |
+| `updatedAt` | DateTime     | NOT NULL, DEFAULT now()     | Last modification timestamp       |
 
 **Relationships**:
+
 - `courses[]`: Courses created by this teacher (if role = TEACHER)
 - `enrollments[]`: Classes enrolled in by this student (if role = STUDENT)
 
 **Indexes**:
+
 - `email` (UNIQUE)
 - `role` (for role-based filtering)
 
 **Usage for Feature**:
+
 - Teachers: Display name and picture on course discovery cards
 - Students: Identify enrolled courses and prevent duplicate enrollments
 
@@ -82,32 +85,36 @@ This document describes the database entities used for course discovery and stud
 
 **Fields**:
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | UUID | PK, NOT NULL | Unique identifier |
-| `name` | String (255) | NOT NULL | Course title |
-| `description` | Text | NULLABLE | Detailed course description |
-| `code` | String (50) | NULLABLE, INDEX | Course code (e.g., "CS101") |
-| `teacherId` | UUID | FK→User, NOT NULL | Creator of course |
-| `isActive` | Boolean | NOT NULL, DEFAULT true | Whether course is discoverable |
-| `createdAt` | DateTime | NOT NULL, DEFAULT now() | Creation timestamp |
-| `updatedAt` | DateTime | NOT NULL, DEFAULT now() | Modification timestamp |
+| Field         | Type         | Constraints             | Description                    |
+| ------------- | ------------ | ----------------------- | ------------------------------ |
+| `id`          | UUID         | PK, NOT NULL            | Unique identifier              |
+| `name`        | String (255) | NOT NULL                | Course title                   |
+| `description` | Text         | NULLABLE                | Detailed course description    |
+| `code`        | String (50)  | NULLABLE, INDEX         | Course code (e.g., "CS101")    |
+| `teacherId`   | UUID         | FK→User, NOT NULL       | Creator of course              |
+| `isActive`    | Boolean      | NOT NULL, DEFAULT true  | Whether course is discoverable |
+| `createdAt`   | DateTime     | NOT NULL, DEFAULT now() | Creation timestamp             |
+| `updatedAt`   | DateTime     | NOT NULL, DEFAULT now() | Modification timestamp         |
 
 **Relationships**:
+
 - `teacher`: The User who created this course
 - `classes[]`: All Class sections within this course
 - `assignmentAreas[]`: Assignments for this course
 - `invitationCodes[]`: Invitation codes for this course
 
 **Indexes**:
+
 - `teacherId` (FK)
 - `code` (for course code lookup)
 - `isActive` (for discovery filtering)
 
 **Constraints**:
+
 - A course requires `isActive=true` AND at least one active class to be discoverable
 
 **Usage for Feature**:
+
 - Fetch all active courses for discovery page
 - Display course info (name, description, teacher)
 - Check if student is already enrolled in any class of the course
@@ -120,42 +127,47 @@ This document describes the database entities used for course discovery and stud
 
 **Fields**:
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | UUID | PK, NOT NULL | Unique identifier |
-| `courseId` | UUID | FK→Course, NOT NULL, INDEX | Parent course |
-| `name` | String (100) | NOT NULL | Section name (e.g., "Section A", "101班") |
-| `schedule` | JSON | NULLABLE | `{weekday, periodCode, room}` |
-| `capacity` | Integer | NULLABLE | Max students (NULL = unlimited) |
-| `assistantId` | UUID | FK→User, NULLABLE | Teaching assistant |
-| `isActive` | Boolean | NOT NULL, DEFAULT true | Whether section is active |
-| `createdAt` | DateTime | NOT NULL, DEFAULT now() | Creation timestamp |
-| `updatedAt` | DateTime | NOT NULL, DEFAULT now() | Modification timestamp |
+| Field         | Type         | Constraints                | Description                               |
+| ------------- | ------------ | -------------------------- | ----------------------------------------- |
+| `id`          | UUID         | PK, NOT NULL               | Unique identifier                         |
+| `courseId`    | UUID         | FK→Course, NOT NULL, INDEX | Parent course                             |
+| `name`        | String (100) | NOT NULL                   | Section name (e.g., "Section A", "101班") |
+| `schedule`    | JSON         | NULLABLE                   | `{weekday, periodCode, room}`             |
+| `capacity`    | Integer      | NULLABLE                   | Max students (NULL = unlimited)           |
+| `assistantId` | UUID         | FK→User, NULLABLE          | Teaching assistant                        |
+| `isActive`    | Boolean      | NOT NULL, DEFAULT true     | Whether section is active                 |
+| `createdAt`   | DateTime     | NOT NULL, DEFAULT now()    | Creation timestamp                        |
+| `updatedAt`   | DateTime     | NOT NULL, DEFAULT now()    | Modification timestamp                    |
 
 **Relationships**:
+
 - `course`: The parent Course
 - `enrollments[]`: All student enrollments in this class
 - `invitationCodes[]`: Invitation codes for this section
 
 **Indexes**:
+
 - `courseId` (FK, for filtering by course)
 - `isActive` (for discovery filtering)
 - `(courseId, isActive)` (composite, for finding active classes of a course)
 
 **Constraints**:
+
 - Capacity validation: `capacity IS NULL OR capacity > 0`
 - Only classes with `isActive=true` are discoverable
 
 **Schedule Format**:
+
 ```json
 {
-  "weekday": "Monday",           // or "週一", "Mon", etc.
-  "periodCode": "09:00-10:30",   // time range
+  "weekday": "Monday", // or "週一", "Mon", etc.
+  "periodCode": "09:00-10:30", // time range
   "room": "Building A, Room 201" // location
 }
 ```
 
 **Usage for Feature**:
+
 - Display schedule and room information on course cards
 - Track current enrollment count for capacity management
 - Check if class is at capacity before allowing enrollment
@@ -169,31 +181,35 @@ This document describes the database entities used for course discovery and stud
 
 **Fields**:
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | UUID | PK, NOT NULL | Unique identifier |
-| `studentId` | UUID | FK→User, NOT NULL, INDEX | Enrolled student |
-| `classId` | UUID | FK→Class, NOT NULL, INDEX | Enrolled class |
-| `enrollmentDate` | DateTime | NOT NULL, DEFAULT now() | Enrollment timestamp |
-| `status` | Enum | NOT NULL, DEFAULT "active" | `active`, `dropped`, `completed` |
-| `createdAt` | DateTime | NOT NULL, DEFAULT now() | Record creation |
-| `updatedAt` | DateTime | NOT NULL, DEFAULT now() | Record modification |
+| Field            | Type     | Constraints                | Description                      |
+| ---------------- | -------- | -------------------------- | -------------------------------- |
+| `id`             | UUID     | PK, NOT NULL               | Unique identifier                |
+| `studentId`      | UUID     | FK→User, NOT NULL, INDEX   | Enrolled student                 |
+| `classId`        | UUID     | FK→Class, NOT NULL, INDEX  | Enrolled class                   |
+| `enrollmentDate` | DateTime | NOT NULL, DEFAULT now()    | Enrollment timestamp             |
+| `status`         | Enum     | NOT NULL, DEFAULT "active" | `active`, `dropped`, `completed` |
+| `createdAt`      | DateTime | NOT NULL, DEFAULT now()    | Record creation                  |
+| `updatedAt`      | DateTime | NOT NULL, DEFAULT now()    | Record modification              |
 
 **Relationships**:
+
 - `student`: The User who is enrolled
 - `class`: The Class they're enrolled in
 
 **Indexes**:
+
 - `studentId` (for finding student's enrollments)
 - `classId` (for finding class enrollments)
 - `(studentId, classId)` UNIQUE (preventing duplicates)
 
 **Constraints**:
+
 - **Unique Constraint**: `(studentId, classId)` must be unique (no duplicate enrollments)
 - **Foreign Keys**: Both `studentId` and `classId` must reference valid records
 - **Status Validation**: Status must be one of enum values
 
 **Usage for Feature**:
+
 - Check if student is already enrolled in a class (prevent duplicates)
 - Count current enrollments per class for capacity checking
 - Mark student as "Enrolled" on discovery page if already enrolled
@@ -208,6 +224,7 @@ This document describes the database entities used for course discovery and stud
 **Purpose**: Fetch courses available for student discovery
 
 **SQL Concept**:
+
 ```sql
 SELECT DISTINCT c.*
 FROM courses c
@@ -219,33 +236,36 @@ LIMIT :limit OFFSET :offset
 ```
 
 **Result Fields**:
+
 - Course: id, name, description, code, teacherId, createdAt
 - Teacher: name, email, picture
 - Classes for each course: id, name, schedule, capacity, active enrollment count
 
 **Prisma Equivalent**:
+
 ```typescript
 await prisma.course.findMany({
   where: {
     isActive: true,
     classes: {
-      some: { isActive: true }
-    }
+      some: { isActive: true },
+    },
   },
   include: {
     teacher: { select: { id: true, name: true, email: true, picture: true } },
     classes: {
       where: { isActive: true },
-      include: { _count: { select: { enrollments: true } } }
-    }
+      include: { _count: { select: { enrollments: true } } },
+    },
   },
   orderBy: { createdAt: 'desc' },
   take: limit,
-  skip: offset
-})
+  skip: offset,
+});
 ```
 
 **Performance Notes**:
+
 - Index needed: `(courses.isActive, courses.createdAt)`
 - Index needed: `(classes.courseId, classes.isActive)`
 - Results: ~50-100 courses per page typical
@@ -255,6 +275,7 @@ await prisma.course.findMany({
 **Purpose**: Determine if student is enrolled in a course/class
 
 **SQL Concept**:
+
 ```sql
 SELECT e.* FROM enrollments e
 WHERE e."studentId" = :studentId
@@ -264,15 +285,16 @@ LIMIT 1
 ```
 
 **Prisma Equivalent**:
+
 ```typescript
 const enrollment = await prisma.enrollment.findUnique({
   where: {
     studentId_classId: {
       studentId,
-      classId
-    }
-  }
-})
+      classId,
+    },
+  },
+});
 ```
 
 **Usage**: Prevent duplicate enrollments, show "Enrolled" badge
@@ -284,6 +306,7 @@ const enrollment = await prisma.enrollment.findUnique({
 **Purpose**: Determine if class is at capacity
 
 **SQL Concept**:
+
 ```sql
 SELECT COUNT(*) as count FROM enrollments e
 WHERE e."classId" = :classId
@@ -291,16 +314,18 @@ WHERE e."classId" = :classId
 ```
 
 **Prisma Equivalent**:
+
 ```typescript
 const count = await prisma.enrollment.count({
   where: {
     classId,
-    status: 'active'
-  }
-})
+    status: 'active',
+  },
+});
 ```
 
 **Logic**:
+
 - If `class.capacity = null`: unlimited (never full)
 - If `count >= class.capacity`: class is full
 - Otherwise: available spots
@@ -312,6 +337,7 @@ const count = await prisma.enrollment.count({
 **Purpose**: Determine which courses to mark as "Enrolled" on discovery page
 
 **SQL Concept**:
+
 ```sql
 SELECT DISTINCT c.id FROM enrollments e
 JOIN classes cl ON e."classId" = cl.id
@@ -321,20 +347,21 @@ WHERE e."studentId" = :studentId
 ```
 
 **Prisma Equivalent**:
+
 ```typescript
-const enrolledCourseIds = await prisma.enrollment.findMany({
-  where: {
-    studentId,
-    status: 'active'
-  },
-  select: {
-    class: {
-      select: { courseId: true }
-    }
-  }
-}).then(enrollments =>
-  new Set(enrollments.map(e => e.class.courseId))
-)
+const enrolledCourseIds = await prisma.enrollment
+  .findMany({
+    where: {
+      studentId,
+      status: 'active',
+    },
+    select: {
+      class: {
+        select: { courseId: true },
+      },
+    },
+  })
+  .then((enrollments) => new Set(enrollments.map((e) => e.class.courseId)));
 ```
 
 **Usage**: Mark courses as "Enrolled" on discovery page UI
@@ -344,6 +371,7 @@ const enrolledCourseIds = await prisma.enrollment.findMany({
 ## Data Validation Rules
 
 ### 1. Course Validity
+
 - `name`: Required, non-empty string, max 255 chars
 - `description`: Optional, max 5000 chars
 - `code`: Optional, alphanumeric, max 50 chars
@@ -351,6 +379,7 @@ const enrolledCourseIds = await prisma.enrollment.findMany({
 - `isActive`: Boolean, default true
 
 ### 2. Class Validity
+
 - `name`: Required, non-empty string, max 100 chars
 - `courseId`: Required, must reference valid Course
 - `schedule`: Optional, if present must have weekday, periodCode
@@ -358,12 +387,14 @@ const enrolledCourseIds = await prisma.enrollment.findMany({
 - `isActive`: Boolean, default true
 
 ### 3. Enrollment Validity
+
 - `studentId`: Required, must reference valid User with role=STUDENT
 - `classId`: Required, must reference valid Class
 - Combination `(studentId, classId)` must be unique
 - `status`: Must be 'active', 'dropped', or 'completed'
 
 ### 4. Enrollment Prerequisites
+
 - Student must not already have active enrollment in this class
 - Class must have `isActive=true`
 - Parent course must have `isActive=true`
@@ -390,6 +421,7 @@ Alternative path:
 ```
 
 **Valid Transitions**:
+
 - `create`: No state → `active` ✓
 - `drop`: `active` → `dropped` ✓
 - `complete`: `active` → `completed` ✓
@@ -419,12 +451,14 @@ CREATE INDEX courses_name_trgm ON courses USING gin(name gin_trgm_ops);  -- full
 ### Query Optimization Strategy
 
 1. **Discovery Page Load**:
+
    - Use pagination (50 results per page)
    - Pre-filter by `isActive` and class existence
    - Use indexes on `(isActive, createdAt)`
    - Cache results for 5-10 minutes if data is stable
 
 2. **Enrollment Checks**:
+
    - Use unique index on `(studentId, classId)` for O(1) lookup
    - Check capacity via COUNT query with same index
    - Combine both checks in single transaction

@@ -5,7 +5,7 @@
 **Status**: Draft
 **Input**: User description: "Enable teachers to upload reference documents (PDF/docs) and provide custom grading instructions so AI can grade student work with full course context including textbooks, answer keys, and teaching priorities"
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Teacher Uploads Reference Materials (Priority: P1)
 
@@ -105,7 +105,7 @@ After AI provides context-aware grading, teacher reviews the AI analysis, refere
 
 - **What happens when AI providers (Gemini/OpenAI) have outages?** Existing fallback mechanism continues to work: Gemini fails → OpenAI attempted. Both fail → grading marked as failed and can be retried later.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -125,19 +125,22 @@ After AI provides context-aware grading, teacher reviews the AI analysis, refere
 - **FR-014**: System MUST allow teachers to view which reference files and custom instructions were used for each graded submission
 - **FR-015**: System MUST preserve existing teacher review and override capabilities - teachers maintain final authority over grades
 
-### Key Entities *(include if feature involves data)*
+### Key Entities _(include if feature involves data)_
 
 - **AssignmentArea**: Represents a homework assignment. New attributes:
+
   - Collection of reference document IDs (stores which knowledge base files are relevant)
   - Custom grading instructions text (stores teacher's specific grading priorities)
   - Existing attributes: rubric, due date, course/class associations
 
 - **UploadedFile**: Represents an uploaded document. Existing attributes used:
+
   - Parsed content text (extracted from PDF/DOCX/TXT)
   - Parse status (pending/processing/completed/failed)
   - File metadata (size, type, original filename)
 
 - **GradingResult**: Represents one AI grading task. New attribute:
+
   - Assignment reference (links back to AssignmentArea to retrieve context)
   - Existing attributes: grading status, AI result JSON, rubric used
 
@@ -146,7 +149,7 @@ After AI provides context-aware grading, teacher reviews the AI analysis, refere
   - AI analysis result
   - Teacher feedback and final score
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -173,6 +176,7 @@ After AI provides context-aware grading, teacher reviews the AI analysis, refere
 ## Scope
 
 ### In Scope
+
 - Upload and associate reference documents with assignments
 - Parse reference documents to extract text content
 - Store custom grading instructions for assignments
@@ -183,6 +187,7 @@ After AI provides context-aware grading, teacher reviews the AI analysis, refere
 - Maintain backward compatibility with assignments lacking context
 
 ### Out of Scope
+
 - Automatic summarization of long reference documents (use simple truncation instead)
 - Versioning or tracking changes to reference materials over time
 - Support for video or audio reference materials (text documents only)

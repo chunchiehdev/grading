@@ -324,6 +324,7 @@ export async function getRubricVersions(id: string): Promise<{ versions: RubricR
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
       criteria: parseCriteriaFromDB(v.criteria),
+      categories: [], // Empty categories for version history display
     }));
 
     return { versions: versionResponses };

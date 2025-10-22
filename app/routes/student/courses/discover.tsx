@@ -1,16 +1,19 @@
-import { useLoaderData, useNavigation, redirect } from 'react-router';
-import { useMemo } from 'react';
+import { useLoaderData, redirect, useFetcher, useSearchParams } from 'react-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CourseDiscoveryContent } from '@/components/student/CourseDiscoveryContent';
 import { Loader2 } from 'lucide-react';
 import { getUserId } from '@/services/auth.server';
 import { createEnrollmentSchema } from '@/schemas/enrollment';
 import { getDiscoverableCourses, getStudentEnrolledCourseIds } from '@/services/course-discovery.server';
+import { CourseSearchBar } from '@/components/discover/CourseSearchBar';
+import { SearchErrorBoundary } from '@/components/discover/SearchErrorBoundary';
+import type { DiscoveryResponse } from '@/types/course';
 
 interface DiscoverLoaderData {
   success: boolean;
   student: { id: string; email: string; role: string; name: string };
-  data?: {
+  data: {
     courses: any[];
     total: number;
     hasMore: boolean;
@@ -22,13 +25,16 @@ interface DiscoverLoaderData {
  * Course Discovery Page - /student/courses/discover
  * Independent page for browsing and enrolling in courses
  * Has its own loader to avoid impacting other tabs' performance
+ * Includes search filtering via URL parameters and React Router
  */
 export default function CourseDiscoveryPage() {
   const { t } = useTranslation(['course']);
-  const navigation = useNavigation();
-
-  // Get loader data from THIS ROUTE (its own loader)
   const loaderData = useLoaderData<DiscoverLoaderData>();
+  const searchFetcher = useFetcher<DiscoveryResponse>();
+  const [searchParams] = useSearchParams();
+
+  // 直接從 URL 讀取 searchQuery - 單一真相來源
+  const searchQuery = searchParams.get('search') || '';
 
   if (!loaderData?.success) {
     return (
@@ -39,33 +45,62 @@ export default function CourseDiscoveryPage() {
   }
 
   const { student } = loaderData;
-  const courses = loaderData?.data?.courses || [];
-  const enrolledCourseIds = new Set(courses.filter((c: any) => c.enrollmentStatus === 'enrolled').map((c: any) => c.id));
 
-  // Memoize component props to prevent unnecessary re-renders
-  const contentProps = useMemo(
-    () => ({
-      student,
-      courses,
-      enrolledCourseIds,
-    }),
-    [student.id, courses.length]
+  // 修正：正確讀取 API 回應結構並處理錯誤
+  const searchData = searchFetcher.data as DiscoveryResponse | undefined;
+  const searchError = searchData && !searchData.success ? searchData.error : null;
+  const courses = searchData?.success && searchData.data
+    ? searchData.data.courses  // 搜尋結果
+    : loaderData.data.courses || [];  // 初始資料或空陣列
+
+  const isSearching = searchFetcher.state === 'loading';
+
+  // 簡化：直接計算 enrolledCourseIds，不需要過度 memoize
+  const enrolledCourseIds = new Set(
+    courses.filter((c: any) => c.enrollmentStatus === 'enrolled').map((c: any) => c.id)
   );
 
   return (
     <div className="space-y-6">
-      <div className="max-w-7xl mx-auto px-4 animate-in fade-in-50 duration-300">
-        <CourseDiscoveryContent {...contentProps} />
-      </div>
+      <div className="max-w-7xl mx-auto px-4 space-y-4">
+        {/* Course Discovery Header - Stable */}
+        <div className="animate-in fade-in-50 duration-300">
+          <h1 className="text-3xl font-bold mb-2">Discover Courses</h1>
+          <p className="text-gray-600 mb-4">Browse and enroll in available courses</p>
 
-      {/* Loading indicator */}
-      {navigation.state === 'loading' && (
-        <div className="fixed inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center pointer-events-none z-40">
-          <div className="bg-background border border-border rounded-lg p-4 shadow-lg">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-          </div>
+          {/* Search Bar - 使用同一個 fetcher 實例 */}
+          <SearchErrorBoundary>
+            <div className="mb-6">
+              <CourseSearchBar fetcher={searchFetcher} />
+            </div>
+          </SearchErrorBoundary>
         </div>
-      )}
+
+        {/* 錯誤提示 */}
+        {searchError && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            Search failed: {searchError}
+          </div>
+        )}
+
+        {/* Course Content - 保持內容穩定，只顯示 spinner */}
+        <SearchErrorBoundary>
+          <div className="relative animate-in fade-in-50 duration-300">
+            {isSearching && (
+              <div className="absolute top-2 right-2 z-10">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            )}
+            <CourseDiscoveryContent
+              student={student}
+              courses={courses}
+              enrolledCourseIds={enrolledCourseIds}
+              searchQuery={searchQuery}
+              isSearching={isSearching}
+            />
+          </div>
+        </SearchErrorBoundary>
+      </div>
     </div>
   );
 }
@@ -73,8 +108,9 @@ export default function CourseDiscoveryPage() {
 /**
  * Loader - Fetch discoverable courses and student's enrolled courses
  * Independent loader for this route to avoid impacting other tabs
+ * Supports search filtering via URL parameters
  */
-export async function loader({ request }: { request: Request }): Promise<DiscoverLoaderData> {
+export async function loader({ request }: { request: Request }): Promise<DiscoverLoaderData | Response> {
   try {
     // Verify authentication
     const userId = await getUserId(request);
@@ -90,18 +126,12 @@ export async function loader({ request }: { request: Request }): Promise<Discove
     const sort = (url.searchParams.get('sort') || 'newest') as 'newest' | 'teacher' | 'name';
     const search = url.searchParams.get('search') || undefined;
 
-    // Get student info
-    const user = await getUserId(request);
-    if (!user) {
-      return redirect('/auth/login');
-    }
-
-    // Call service functions directly
+    // Call service functions directly (with search parameter)
     const { courses, total, hasMore } = await getDiscoverableCourses({
       limit,
       offset,
       sort,
-      search,
+      search,  // Pass search parameter to service layer
     });
 
     // Get enrolled course IDs

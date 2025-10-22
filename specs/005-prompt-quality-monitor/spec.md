@@ -5,7 +5,7 @@
 **Status**: Draft
 **Input**: User description: "你可以知道今天我們去評分階段的時候，我們拿了哪一些 prompt 給大型語言模型，那他的回應的品質目前會是如何? 也就是 Prompt 是好或是不好? 如果不好我們能夠如何的優化?還是說應該要優化老師設定的評分標準字數"
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - View Actual Prompt Sent to AI (Priority: P1)
 
@@ -74,21 +74,25 @@ Teachers can compare quality metrics across multiple submissions within the same
 ### Edge Cases
 
 - What happens when AI response cannot be parsed as JSON (complete failure)?
+
   - System should still show the raw response text and mark quality as "解析失敗" (Parse failed)
 
 - How does system handle very long prompts (> 10,000 tokens)?
+
   - Quality metrics should include "上下文過長" (Context too long) warning with token count
 
 - What if reference documents are in different languages than rubric?
+
   - System should detect language mismatch and flag as potential quality issue
 
 - How to handle edge case where rubric criteria IDs don't match AI response criteria IDs?
+
   - Quality metric should show "評分標準不匹配" (Criteria mismatch) with list of missing IDs
 
 - What if teacher modifies rubric after submissions are graded?
   - Historical prompt/response data should remain immutable; quality analysis uses criteria from grading time
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -110,7 +114,7 @@ Teachers can compare quality metrics across multiple submissions within the same
 - **Optimization Recommendation**: Actionable suggestion for improving prompt quality including issue type (rubric clarity, instruction length, context size), severity (info/warning/critical), affected component (which criteria or instruction section), suggested improvement text, and optional before/after example
 - **Aggregate Quality Report**: Summary statistics for an assignment area including average quality score across submissions, distribution of warning types, trend over time (if multiple grading sessions), and systemic issue detection
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

@@ -146,7 +146,10 @@ export async function getStudentCourseDetail(
         id: area.course.id,
         name: area.course.name,
         teacher: {
+          id: area.course.teacher.id,
           email: area.course.teacher.email,
+          name: area.course.teacher.name,
+          picture: area.course.teacher.picture,
         },
       },
       class: area.class
@@ -164,16 +167,9 @@ export async function getStudentCourseDetail(
       submissions: area.submissions.map((sub) => ({
         id: sub.id,
         studentId: sub.studentId,
-        assignmentAreaId: sub.assignmentAreaId,
-        filePath: sub.filePath,
-        uploadedAt: sub.uploadedAt,
-        aiAnalysisResult: sub.aiAnalysisResult,
-        finalScore: sub.finalScore,
-        teacherFeedback: sub.teacherFeedback,
         status: sub.status,
-        createdAt: sub.createdAt,
-        updatedAt: sub.updatedAt,
-        assignmentArea: area as any, // Already included above
+        finalScore: sub.finalScore,
+        uploadedAt: sub.uploadedAt,
       })),
     }));
 
