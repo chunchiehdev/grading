@@ -10,13 +10,14 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(uuid())
-  email      String   @unique
-  role       UserRole @default(STUDENT) // New role field with default to STUDENT
-  name       String   @db.VarChar(255)
-  picture    String   @db.VarChar(500) 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(uuid())
+  email           String   @unique
+  role            UserRole @default(STUDENT) // New role field with default to STUDENT
+  hasSelectedRole Boolean  @default(false)   // Track if user has explicitly selected a role
+  name            String   @db.VarChar(255)
+  picture         String   @db.VarChar(500)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
   rubrics         Rubric[]

@@ -21,8 +21,8 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
     throw redirect('/auth/login');
   }
 
-  // If user already has a role assigned (not default STUDENT), redirect them
-  if (user.role && user.role !== 'STUDENT') {
+  // If user has already selected a role, redirect them to the appropriate dashboard
+  if (user.hasSelectedRole) {
     const redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
     throw redirect(redirectPath);
   }

@@ -105,11 +105,11 @@ export async function handleGoogleCallback(request: Request) {
     const session = await createUserSession(user.id, request);
 
     let redirectPath;
-    if (isFirstTimeUser) {
-      // First-time user needs to select role
+    if (!user.hasSelectedRole) {
+      // User hasn't selected a role yet (either new user or upgrading from old system)
       redirectPath = '/auth/select-role';
     } else {
-      // Existing user - redirect based on their role
+      // User has selected a role - redirect based on their role
       redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
     }
 
@@ -153,7 +153,7 @@ export async function getUser(request: Request) {
   try {
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, role: true, name: true, picture: true },
+      select: { id: true, email: true, role: true, name: true, picture: true, hasSelectedRole: true },
     });
 
     if (!user) {
@@ -192,11 +192,14 @@ export async function updateUserRole(userId: string, role: 'TEACHER' | 'STUDENT'
   try {
     const user = await db.user.update({
       where: { id: userId },
-      data: { role },
-      select: { id: true, email: true, role: true },
+      data: {
+        role,
+        hasSelectedRole: true, // Mark that user has explicitly selected a role
+      },
+      select: { id: true, email: true, role: true, hasSelectedRole: true },
     });
 
-    console.error('👤 Updated user role:', user.email, 'to', role);
+    console.error('👤 Updated user role:', user.email, 'to', role, '(hasSelectedRole:', user.hasSelectedRole, ')');
     return user;
   } catch (error) {
     console.error('❌ Error updating user role:', error);

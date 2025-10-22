@@ -148,7 +148,7 @@ export default function CourseDetail() {
                 {t('course:classManagement.title')}
               </CardTitle>
               {classes.length > 0 && (
-                <Button asChild size="sm">
+                <Button asChild variant="emphasis">
                   <Link to={`/teacher/courses/${course.id}/classes/new`}>
                     <Plus className="h-4 w-4 mr-2" />
                     {t('course:classManagement.newClass')}
@@ -167,7 +167,7 @@ export default function CourseDetail() {
                 <p className="text-muted-foreground mb-8 max-w-md mx-auto">
                   {t('course:classManagement.noClassesDescription')}
                 </p>
-                <Button asChild size="lg">
+                <Button asChild variant="emphasis">
                   <Link to={`/teacher/courses/${course.id}/classes/new`}>
                     <Plus className="h-5 w-5 mr-2" />
                     {t('course:classManagement.createFirstClass')}
