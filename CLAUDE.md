@@ -2,8 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Development Commands
-
+## Development Commands 
+- **rg**:  use `rg` in command line to search file or text. do not use `grep`
 - **Dev server**: `npm run dev` (React Router dev server with hot reload)
 - **Build**: `npm run build` (Production build)
 - **Start production**: `npm start` (Serve built application)
@@ -252,4 +252,3 @@ PostgreSQL with Prisma ORM featuring:
 - Follow the established service layer patterns for new features
 - Test both success and error paths for critical workflows
 - Document complex business logic with comprehensive comments
-- use rg to search file or text. do not use grep.

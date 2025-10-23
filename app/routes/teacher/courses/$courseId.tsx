@@ -304,7 +304,7 @@ export default function CourseDetail() {
                 <h3 className="mt-2 text-sm font-medium text-foreground">{t('course:emptyState.noAssignments')}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{t('course:emptyState.noAssignmentsDescription')}</p>
                 <div className="mt-6">
-                  <Button asChild>
+                  <Button asChild variant="emphasis">
                     <Link to={`/teacher/courses/${course.id}/assignments/new`}>{t('course:assignment.new')}</Link>
                   </Button>
                 </div>

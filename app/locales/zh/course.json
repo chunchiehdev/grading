@@ -44,7 +44,10 @@
     "invitationCode": "邀請碼",
     "invitationUrl": "邀請連結",
     "reGenerateCode": "重新生成代碼",
-    "generateInvitationCode": "新增邀請碼"
+    "generateInvitationCode": "新增邀請碼",
+    "shareWithStudents": "分享給學生",
+    "scanQRDescription": "學生可以掃描此代碼加入",
+    "invitationInstructions": "學生可以掃描 QR Code、輸入邀請碼或點擊邀請連結加入此課程。"
   },
   "assignment": {
     "title": "作業區",

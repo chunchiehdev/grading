@@ -83,6 +83,8 @@
   "add": "Add",
   "clear": "Clear",
   "pick": "Pick",
+  "copy": "Copy",
+  "copied": "Copied",
   "clickToEdit": "Click to edit...",
   "openSidebar": "Open sidebar",
   "closeSidebar": "Close sidebar",

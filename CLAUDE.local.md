@@ -154,3 +154,4 @@
 docker compose -f docker-compose.dev.yaml up 能夠啟動專案
 docker compose -f docker-compose.dev.yaml ps 會列出容器 ID、名稱、狀態、對應的埠口。
 docker compose -f docker-compose.dev.yaml logs -f 可以看容器日誌
+rg:  use `rg` in command line to search file or text. do not use `grep`
