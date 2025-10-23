@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check, Share2 } from 'lucide-react';
 import { QRDisplay } from './qr-display';
+import { Button } from './button';
 import { toast } from 'sonner';
 
 interface InvitationDisplayProps {
@@ -88,14 +89,16 @@ export function InvitationDisplay({
         <code className="text-2xl font-mono font-bold tracking-wider text-foreground">
           {code}
         </code>
-        <button
+        <Button
           onClick={handleCopyCode}
-          className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          variant="ghost"
+          size="sm"
+          className="text-xs uppercase tracking-widest"
           title={t('copied', { ns: 'common' })}
         >
           {copiedCode ? (
             <>
-              <Check className="h-3 w-3" />
+              <Check className="h-3 w-3 text-green-600 dark:text-green-500" />
               <span>{t('copied', { ns: 'common' })}</span>
             </>
           ) : (
@@ -104,7 +107,7 @@ export function InvitationDisplay({
               <span>{t('copy', { ns: 'common' })}</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       {/* Spacer */}
@@ -112,23 +115,25 @@ export function InvitationDisplay({
 
       {/* Action Buttons - Minimal */}
       <div className="flex gap-8 w-full justify-center">
-        <button
+        <Button
           onClick={handleShareQR}
-          className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/20 hover:shadow-md hover:scale-105 px-4 py-3 rounded transition-all duration-200 flex items-center gap-2 active:scale-95"
+          variant="minimal"
+          className="text-sm uppercase tracking-widest"
           title={t('courseInvitation.shareQRCode')}
         >
           <Share2 className="h-4 w-4" />
           <span className="hidden sm:inline">{t('courseInvitation.shareQRCode')}</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           onClick={handleCopyUrl}
-          className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/20 hover:shadow-md hover:scale-105 px-4 py-3 rounded transition-all duration-200 flex items-center gap-2 active:scale-95"
+          variant="minimal"
+          className="text-sm uppercase tracking-widest"
           title={t('courseInvitation.copyInvitationLink')}
         >
           <Copy className="h-4 w-4" />
           <span className="hidden sm:inline">{t('courseInvitation.copyInvitationLink')}</span>
-        </button>
+        </Button>
       </div>
     </div>
   );
