@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { getSession, commitSession } from '@/sessions.server';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { CheckCircle, AlertCircle, Users, User, Clock, MapPin, GraduationCap } from 'lucide-react';
+import { CheckCircle, Users, User, Clock, MapPin, GraduationCap } from 'lucide-react';
 import { useState } from 'react';
 
 import { getUser } from '@/services/auth.server';
@@ -40,15 +40,20 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   const code = url.searchParams.get('code');
 
   if (!code) {
-    throw new Response('Invitation code is required', { status: 400 });
+    throw redirect(user.role === 'STUDENT' ? '/student/courses/discover' : '/teacher');
   }
 
   try {
     const validation = await validateInvitationCode(code, user.id);
 
+    // Redirect back to discover if invitation is invalid or already enrolled
+    if (!validation.isValid || validation.isAlreadyEnrolled) {
+      throw redirect(user.role === 'STUDENT' ? '/student/courses/discover' : '/teacher');
+    }
+
     // Load available classes if invitation is course-level (no specific classId)
     let availableClasses: ClassInfo[] = [];
-    if (validation.isValid && validation.invitationCode && !validation.invitationCode.classId) {
+    if (validation.invitationCode && !validation.invitationCode.classId) {
       const courseId = validation.invitationCode.courseId;
       const teacherId = validation.course?.teacher.id;
       if (courseId && teacherId) {
@@ -64,7 +69,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
     };
   } catch (error) {
     console.error('Error validating invitation:', error);
-    throw new Response('Failed to validate invitation', { status: 500 });
+    throw redirect(user.role === 'STUDENT' ? '/student/courses/discover' : '/teacher');
   }
 }
 
@@ -149,114 +154,6 @@ export default function JoinCourse() {
   // If invitation code specifies a class, use that; otherwise require selection
   const preselectedClassId = validation.invitationCode?.classId || null;
   const [selectedClassId, setSelectedClassId] = useState<string | null>(preselectedClassId);
-
-  // Invalid invitation code
-  if (!validation.isValid) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card className="border-destructive/50 shadow-lg">
-            <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <div className="mx-auto w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mb-4">
-                  <AlertCircle className="h-10 w-10 text-destructive" />
-                </div>
-                <h3 className="text-2xl font-bold mb-2">{t('course:joinCourse.notValid')}</h3>
-                <p className="text-muted-foreground mb-6">{validation.error}</p>
-
-                {validation.course && (
-                  <div className="bg-muted/50 border rounded-lg p-6 mb-6 text-left">
-                    <h4 className="font-semibold mb-3 flex items-center gap-2">
-                      <GraduationCap className="h-5 w-5" />
-                      {t('course:joinCourse.courseInfo')}
-                    </h4>
-                    <div className="space-y-2">
-                      <p className="text-sm">
-                        <strong className="text-foreground">{t('course:course')}:</strong>{' '}
-                        <span className="text-muted-foreground">{validation.course.name}</span>
-                      </p>
-                      <p className="text-sm">
-                        <strong className="text-foreground">{t('course:instructorLabel')}:</strong>{' '}
-                        <span className="text-muted-foreground">
-                          {validation.course.teacher.name} ({validation.course.teacher.email})
-                        </span>
-                      </p>
-                      {validation.course.description && (
-                        <p className="text-sm text-muted-foreground mt-3 pt-3 border-t">
-                          {validation.course.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">{t('course:joinCourse.contactTeacher')}</p>
-
-                  <Button asChild className="w-full" size="lg">
-                    <Link to={user.role === 'STUDENT' ? '/student' : '/teacher'}>
-                      {t('course:joinCourse.returnToDashboard')}
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
-  // User is already enrolled
-  if (validation.isAlreadyEnrolled) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <Card className="border-green-500/50 shadow-lg">
-            <CardContent className="pt-6">
-              <div className="text-center py-8">
-                <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-950 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-500" />
-                </div>
-                <h3 className="text-2xl font-bold mb-2">{t('course:joinCourse.alreadyEnrolled')}</h3>
-                <p className="text-muted-foreground mb-6">{t('course:joinCourse.alreadyMember')}</p>
-
-                {validation.course && (
-                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-6 mb-6">
-                    <div className="flex items-start space-x-3 text-left">
-                      <GraduationCap className="h-6 w-6 text-green-600 dark:text-green-500 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2 text-lg">
-                          {validation.course.name}
-                        </h4>
-                        <p className="text-sm text-green-800 dark:text-green-200">
-                          {t('course:instructor', { name: validation.course.teacher.name })}
-                        </p>
-                        {validation.course.description && (
-                          <p className="text-sm text-green-700 dark:text-green-300 mt-2 pt-2 border-t border-green-200 dark:border-green-800">
-                            {validation.course.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button asChild className="flex-1" size="lg">
-                    <Link to="/student/assignments">{t('course:viewAssignments')}</Link>
-                  </Button>
-                  <Button asChild variant="outline" className="flex-1" size="lg">
-                    <Link to="/student">{t('course:joinCourse.goToDashboard')}</Link>
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
 
   // Valid invitation - show course info and join button
   return (

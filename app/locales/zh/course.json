@@ -419,6 +419,13 @@
     "class": "班級",
     "search": "搜尋課程...",
     "gridView": "網格檢視",
-    "listView": "列表檢視"
+    "listView": "列表檢視",
+    "invitationCodeLabel": "有邀請碼嗎？",
+    "invitationCodeDescription": "輸入邀請碼直接加入課程",
+    "invitationCodePlaceholder": "在此輸入邀請碼",
+    "invitationCodeRequired": "邀請碼為必填項",
+    "invitationCodeInvalid": "邀請碼至少須 3 個字元",
+    "joinButton": "加入課程",
+    "contactTeacher": "請聯繫您的教師取得新的邀請碼"
   }
 }

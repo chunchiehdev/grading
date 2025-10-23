@@ -7,6 +7,7 @@ import { getUserId } from '@/services/auth.server';
 import { createEnrollmentSchema } from '@/schemas/enrollment';
 import { getDiscoverableCourses, getStudentEnrolledCourseIds } from '@/services/course-discovery.server';
 import { CourseSearchBar } from '@/components/discover/CourseSearchBar';
+import { InvitationCodeInput } from '@/components/discover/InvitationCodeInput';
 import { SearchErrorBoundary } from '@/components/discover/SearchErrorBoundary';
 import type { DiscoveryResponse } from '@/types/course';
 
@@ -68,10 +69,11 @@ export default function CourseDiscoveryPage() {
           <h1 className="text-3xl font-bold mb-2">Discover Courses</h1>
           <p className="text-gray-600 mb-4">Browse and enroll in available courses</p>
 
-          {/* Search Bar - 使用同一個 fetcher 實例 */}
+          {/* Search Bar and Invitation Code Input */}
           <SearchErrorBoundary>
-            <div className="mb-6">
+            <div className="space-y-4 mb-6">
               <CourseSearchBar fetcher={searchFetcher} />
+              <InvitationCodeInput />
             </div>
           </SearchErrorBoundary>
         </div>

@@ -406,6 +406,13 @@
     "class": "Class",
     "search": "Search courses...",
     "gridView": "Grid View",
-    "listView": "List View"
+    "listView": "List View",
+    "invitationCodeLabel": "Have an invitation code?",
+    "invitationCodeDescription": "Enter your invitation code to join a course directly",
+    "invitationCodePlaceholder": "Enter invitation code here",
+    "invitationCodeRequired": "Invitation code is required",
+    "invitationCodeInvalid": "Invitation code must be at least 3 characters",
+    "joinButton": "Join Course",
+    "contactTeacher": "Please contact your teacher for a new invitation code"
   }
 }
