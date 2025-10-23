@@ -11,12 +11,12 @@ const buttonVariants = cva(
       variant: {
         default: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
         destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
-        outline: 'border-2 border-foreground/20 dark:border-foreground/30 bg-background shadow-sm hover:border-accent hover:bg-accent/10 hover:text-accent transition-all',
+        outline: 'border-2 border-foreground/20 dark:border-foreground/30 bg-background shadow-sm hover:border-accent hover:bg-accent/30 dark:hover:bg-accent/40 hover:text-accent hover:shadow-md hover:scale-105 active:scale-95 transition-all',
         secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground ',
         link: 'text-primary underline-offset-4 hover:underline',
         emphasis:
-          'bg-[hsl(var(--accent-emphasis))] text-[hsl(var(--accent-emphasis-foreground))] shadow hover:bg-[hsl(var(--accent-emphasis))]/90',
+          'bg-[hsl(var(--accent-emphasis))] text-[hsl(var(--accent-emphasis-foreground))] shadow hover:bg-[hsl(var(--accent-emphasis))]/80 hover:shadow-lg hover:shadow-[hsl(var(--accent-emphasis))]/40 hover:scale-105 active:scale-95 transition-all',
         minimal: 'text-foreground hover:text-accent hover:bg-accent/15 dark:hover:bg-accent/25 hover:shadow-md hover:scale-105 active:scale-95 duration-200',
       },
       size: {
