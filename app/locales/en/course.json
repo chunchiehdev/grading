@@ -49,7 +49,8 @@
     "scanQRDescription": "Students can scan this code to join",
     "invitationInstructions": "Students can scan the QR code or use the invitation code below to join this course.",
     "shareQRCode": "Share QR Code",
-    "copyInvitationCode": "Copy Invitation Code"
+    "copyInvitationCode": "Copy Invitation Code",
+    "copyInvitationLink": "Copy Link"
   },
   "assignment": {
     "title": "Assignment",

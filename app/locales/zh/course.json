@@ -49,7 +49,8 @@
     "scanQRDescription": "學生可以掃描此代碼加入",
     "invitationInstructions": "學生可以掃描 QR Code 或使用下方邀請碼加入此課程。",
     "shareQRCode": "分享 QR Code",
-    "copyInvitationCode": "複製邀請碼"
+    "copyInvitationCode": "複製邀請碼",
+    "copyInvitationLink": "複製連結"
   },
   "assignment": {
     "title": "作業區",

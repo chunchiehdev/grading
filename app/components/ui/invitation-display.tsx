@@ -114,7 +114,7 @@ export function InvitationDisplay({
       <div className="flex gap-8 w-full justify-center">
         <button
           onClick={handleShareQR}
-          className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded transition-all flex items-center gap-2"
+          className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/20 hover:shadow-md hover:scale-105 px-4 py-3 rounded transition-all duration-200 flex items-center gap-2 active:scale-95"
           title={t('courseInvitation.shareQRCode')}
         >
           <Share2 className="h-4 w-4" />
@@ -123,11 +123,11 @@ export function InvitationDisplay({
 
         <button
           onClick={handleCopyUrl}
-          className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded transition-all flex items-center gap-2"
-          title={t('copy', { ns: 'common' })}
+          className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/20 hover:shadow-md hover:scale-105 px-4 py-3 rounded transition-all duration-200 flex items-center gap-2 active:scale-95"
+          title={t('courseInvitation.copyInvitationLink')}
         >
           <Copy className="h-4 w-4" />
-          <span className="hidden sm:inline">{t('copy', { ns: 'common' })}</span>
+          <span className="hidden sm:inline">{t('courseInvitation.copyInvitationLink')}</span>
         </button>
       </div>
     </div>
