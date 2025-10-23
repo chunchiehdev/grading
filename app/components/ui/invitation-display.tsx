@@ -66,79 +66,69 @@ export function InvitationDisplay({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-background">
-      <div className="flex flex-col items-center gap-8 max-w-sm w-full">
-        {/* Title - Heading */}
-        <div className="text-center space-y-2 w-full">
-          <h1 className="text-3xl font-light text-foreground tracking-tight">
-            {t('courseInvitation.shareWithStudents')}
-          </h1>
-          <div className="w-12 h-px bg-border mx-auto" />
+    <div className="flex flex-col items-center gap-8 w-full">
+      {/* QR Code - Minimal Container */}
+      <div className="flex flex-col items-center gap-4 w-full">
+        <div className="w-48 h-48 flex items-center justify-center bg-white rounded-sm border border-border">
+          <QRDisplay src={qrCodeUrl} alt="Course invitation QR code" />
         </div>
+        <p className="text-xs text-muted-foreground text-center leading-relaxed">
+          {finalQrDescription}
+        </p>
+      </div>
 
-        {/* QR Code - Minimal Container */}
-        <div className="flex flex-col items-center gap-4 w-full">
-          <div className="w-48 h-48 flex items-center justify-center bg-white rounded-sm border border-border">
-            <QRDisplay src={qrCodeUrl} alt="Course invitation QR code" description={finalQrDescription} />
-          </div>
-          <p className="text-xs text-muted-foreground text-center leading-relaxed">
-            {finalQrDescription}
-          </p>
-        </div>
+      {/* Spacer */}
+      <div className="w-full h-px bg-border/50" />
 
-        {/* Spacer */}
-        <div className="w-full h-px bg-border/50" />
+      {/* Invitation Code - Minimal Display */}
+      <div className="flex flex-col items-center gap-4 w-full">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">
+          {codeLabel}
+        </p>
+        <code className="text-2xl font-mono font-bold tracking-wider text-foreground">
+          {code}
+        </code>
+        <button
+          onClick={handleCopyCode}
+          className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          title={t('copied', { ns: 'common' })}
+        >
+          {copiedCode ? (
+            <>
+              <Check className="h-3 w-3" />
+              <span>{t('copied', { ns: 'common' })}</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-3 w-3" />
+              <span>{t('copy', { ns: 'common' })}</span>
+            </>
+          )}
+        </button>
+      </div>
 
-        {/* Invitation Code - Minimal Display */}
-        <div className="flex flex-col items-center gap-4 w-full">
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            {codeLabel}
-          </p>
-          <code className="text-2xl font-mono font-bold tracking-wider text-foreground">
-            {code}
-          </code>
-          <button
-            onClick={handleCopyCode}
-            className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            title={t('copied', { ns: 'common' })}
-          >
-            {copiedCode ? (
-              <>
-                <Check className="h-3 w-3" />
-                <span>{t('copied', { ns: 'common' })}</span>
-              </>
-            ) : (
-              <>
-                <Copy className="h-3 w-3" />
-                <span>{t('copy', { ns: 'common' })}</span>
-              </>
-            )}
-          </button>
-        </div>
+      {/* Spacer */}
+      <div className="w-full h-px bg-border/50" />
 
-        {/* Spacer */}
-        <div className="w-full h-px bg-border/50" />
+      {/* Action Buttons - Minimal */}
+      <div className="flex gap-8 w-full justify-center">
+        <button
+          onClick={handleShareQR}
+          className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded transition-all flex items-center gap-2"
+          title={t('courseInvitation.shareQRCode')}
+        >
+          <Share2 className="h-4 w-4" />
+          <span className="hidden sm:inline">{t('courseInvitation.shareQRCode')}</span>
+        </button>
 
-        {/* Action Buttons - Minimal */}
-        <div className="flex gap-8 w-full justify-center">
-          <button
-            onClick={handleShareQR}
-            className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded transition-all flex items-center gap-2"
-            title={t('courseInvitation.shareQRCode')}
-          >
-            <Share2 className="h-4 w-4" />
-            <span className="hidden sm:inline">{t('courseInvitation.shareQRCode')}</span>
-          </button>
-
-          <button
-            onClick={handleCopyUrl}
-            className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded transition-all flex items-center gap-2"
-            title={t('copy', { ns: 'common' })}
-          >
-            <Copy className="h-4 w-4" />
-            <span className="hidden sm:inline">{t('copy', { ns: 'common' })}</span>
-          </button>
-        </div>
+        <button
+          onClick={handleCopyUrl}
+          className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded transition-all flex items-center gap-2"
+          title={t('copy', { ns: 'common' })}
+        >
+          <Copy className="h-4 w-4" />
+          <span className="hidden sm:inline">{t('copy', { ns: 'common' })}</span>
+        </button>
       </div>
     </div>
   );
