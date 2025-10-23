@@ -66,8 +66,8 @@ export function InvitationDisplay({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center w-full min-h-screen py-16 px-4 sm:px-6 lg:px-8 bg-background">
-      <div className="flex flex-col items-center gap-12 max-w-md w-full">
+    <div className="flex flex-col items-center justify-center w-full min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-background">
+      <div className="flex flex-col items-center gap-8 max-w-sm w-full">
         {/* Title - Heading */}
         <div className="text-center space-y-2 w-full">
           <h1 className="text-3xl font-light text-foreground tracking-tight">
@@ -77,8 +77,8 @@ export function InvitationDisplay({
         </div>
 
         {/* QR Code - Minimal Container */}
-        <div className="flex flex-col items-center gap-6 w-full">
-          <div className="w-64 h-64 flex items-center justify-center bg-white rounded-sm border border-border">
+        <div className="flex flex-col items-center gap-4 w-full">
+          <div className="w-48 h-48 flex items-center justify-center bg-white rounded-sm border border-border">
             <QRDisplay src={qrCodeUrl} alt="Course invitation QR code" description={finalQrDescription} />
           </div>
           <p className="text-xs text-muted-foreground text-center leading-relaxed">
@@ -123,7 +123,7 @@ export function InvitationDisplay({
         <div className="flex gap-8 w-full justify-center">
           <button
             onClick={handleShareQR}
-            className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent transition-colors flex items-center gap-2"
+            className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded transition-all flex items-center gap-2"
             title={t('courseInvitation.shareQRCode')}
           >
             <Share2 className="h-4 w-4" />
@@ -131,12 +131,12 @@ export function InvitationDisplay({
           </button>
 
           <button
-            onClick={handleCopyCode}
-            className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent transition-colors flex items-center gap-2"
-            title={t('courseInvitation.copyInvitationCode')}
+            onClick={handleCopyUrl}
+            className="text-sm uppercase tracking-widest font-medium text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded transition-all flex items-center gap-2"
+            title={t('copy', { ns: 'common' })}
           >
             <Copy className="h-4 w-4" />
-            <span className="hidden sm:inline">{t('courseInvitation.copyInvitationCode')}</span>
+            <span className="hidden sm:inline">{t('copy', { ns: 'common' })}</span>
           </button>
         </div>
       </div>
