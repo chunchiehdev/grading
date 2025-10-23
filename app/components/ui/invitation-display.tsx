@@ -113,12 +113,13 @@ export function InvitationDisplay({
       {/* Spacer */}
       <div className="w-full h-px bg-border/50" />
 
-      {/* Action Buttons - Minimal */}
-      <div className="flex gap-8 w-full justify-center">
+      {/* Action Buttons */}
+      <div className="flex gap-4 w-full justify-center flex-wrap">
         <Button
           onClick={handleShareQR}
-          variant="minimal"
-          className="text-sm uppercase tracking-widest"
+          variant="emphasis"
+          size="default"
+          className="uppercase tracking-widest"
           title={t('courseInvitation.shareQRCode')}
         >
           <Share2 className="h-4 w-4" />
@@ -127,8 +128,9 @@ export function InvitationDisplay({
 
         <Button
           onClick={handleCopyUrl}
-          variant="minimal"
-          className="text-sm uppercase tracking-widest"
+          variant="outline"
+          size="default"
+          className="uppercase tracking-widest"
           title={t('courseInvitation.copyInvitationLink')}
         >
           <Copy className="h-4 w-4" />
