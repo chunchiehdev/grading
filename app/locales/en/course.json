@@ -47,7 +47,9 @@
     "generateInvitationCode": "Generate Invitation Code",
     "shareWithStudents": "Share with Students",
     "scanQRDescription": "Students can scan this code to join",
-    "invitationInstructions": "Students can scan the QR code, enter the code, or click the invitation link to join this course."
+    "invitationInstructions": "Students can scan the QR code or use the invitation code below to join this course.",
+    "shareQRCode": "Share QR Code",
+    "copyInvitationCode": "Copy Invitation Code"
   },
   "assignment": {
     "title": "Assignment",
