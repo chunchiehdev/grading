@@ -70,7 +70,7 @@ export function InvitationDisplay({
       {/* QR Code - Minimal Container */}
       <div className="flex flex-col items-center gap-4 w-full">
         <div className="w-48 h-48 flex items-center justify-center bg-white rounded-sm border border-border">
-          <QRDisplay src={qrCodeUrl} alt="Course invitation QR code" />
+          <QRDisplay src={qrCodeUrl} alt="Course invitation QR code" className="w-full h-full object-contain" />
         </div>
         <p className="text-xs text-muted-foreground text-center leading-relaxed">
           {finalQrDescription}
