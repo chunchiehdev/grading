@@ -177,5 +177,13 @@
   "removeFromTemplate": "從範本移除",
   "totalPoints": "總分",
   "criteriaPreview": "評分項目預覽",
-  "moreCriteria": "更多項目"
+  "moreCriteria": "更多項目",
+  "header": {
+    "newRubricTitle": "建立新評分標準"
+  },
+  "draftRecovery": {
+    "message": "找到未保存的草稿。是否要恢復？",
+    "clearButton": "清除草稿",
+    "clearConfirm": "清除草稿？"
+  }
 }

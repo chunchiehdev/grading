@@ -275,6 +275,81 @@ export default function NewRubricRoute() {
     setShowAIAssistant(false);
   };
 
+  // Draft recovery on mount
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+
+    const savedDraft = localStorage.getItem('rubric-draft');
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        // Check if user wants to restore
+        const shouldRestore = window.confirm(
+          t('rubric:draftRecovery.message', {
+            defaultValue: 'Unsaved draft found. Would you like to restore it?',
+          })
+        );
+
+        if (shouldRestore) {
+          setRubricData(draft);
+          if (draft.categories.length > 0) {
+            setSelectedCategoryId(draft.categories[0].id);
+            if (draft.categories[0].criteria.length > 0) {
+              setSelectedCriterionId(draft.categories[0].criteria[0].id);
+            }
+          }
+        } else {
+          localStorage.removeItem('rubric-draft');
+        }
+      } catch (error) {
+        console.error('Error recovering draft:', error);
+        localStorage.removeItem('rubric-draft');
+      }
+    }
+  }, []);
+
+  // Auto-save draft to localStorage with debounce
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Only save if there's content
+    if (!rubricData.name && rubricData.categories.length === 0) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem('rubric-draft', JSON.stringify(rubricData));
+      } catch (error) {
+        console.error('Error saving draft:', error);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [rubricData]);
+
+  // Clear draft on successful submission
+  useEffect(() => {
+    if (actionData && !actionData.error) {
+      try {
+        localStorage.removeItem('rubric-draft');
+      } catch (error) {
+        console.error('Error clearing draft:', error);
+      }
+    }
+  }, [actionData]);
+
+  // Handle clear draft
+  const handleClearDraft = () => {
+    if (window.confirm(t('rubric:draftRecovery.clearConfirm', { defaultValue: 'Clear draft?' }))) {
+      localStorage.removeItem('rubric-draft');
+      setRubricData({ name: '', description: '', categories: [] });
+      setSelectedCategoryId(null);
+      setSelectedCriterionId(null);
+    }
+  };
+
   useEffect(() => {
     if (actionData) {
       setIsLoading(false);
@@ -285,10 +360,24 @@ export default function NewRubricRoute() {
     <div className="min-h-screen bg-background">
       {/* 標題區 - 居中 */}
       <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-16 xl:pt-20 pb-8 lg:pb-12 text-center">
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-semibold tracking-tight mb-3 lg:mb-4 xl:mb-6 text-foreground">
-          {t('rubric:header.newRubricTitle')}
-        </h1>
-        <p className="text-base lg:text-lg xl:text-xl text-muted-foreground">{t('rubric:newRubricSubtitle')}</p>
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-semibold tracking-tight text-foreground">
+            {t('rubric:header.newRubricTitle')}
+          </h1>
+        </div>
+        <p className="text-base lg:text-lg xl:text-xl text-muted-foreground mb-4">{t('rubric:newRubricSubtitle')}</p>
+        {/* Clear draft button */}
+        {(rubricData.name || rubricData.categories.length > 0) && (
+          <Button
+            type="button"
+            variant="minimal"
+            size="sm"
+            onClick={handleClearDraft}
+            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+          >
+            {t('rubric:draftRecovery.clearButton', { defaultValue: 'Clear draft' })}
+          </Button>
+        )}
       </div>
 
       <main className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 lg:pb-32">
@@ -389,9 +478,10 @@ export default function NewRubricRoute() {
             </Button>
             <Button
               type="button"
+              variant="emphasis"
               onClick={handleSave}
               disabled={!canSave() || isLoading}
-              className="flex-1 h-11 sm:h-12 lg:h-14 xl:h-16 rounded-xl text-base lg:text-lg xl:text-xl font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+              className="flex-1 h-11 sm:h-12 lg:h-14 xl:h-16 rounded-xl text-base lg:text-lg xl:text-xl font-medium"
             >
               <Save className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
               {isLoading ? t('rubric:saving') : t('common:save')}

@@ -190,5 +190,13 @@
   "removeFromTemplate": "Remove from Template",
   "totalPoints": "Total Points",
   "criteriaPreview": "Criteria Preview",
-  "moreCriteria": "more criteria"
+  "moreCriteria": "more criteria",
+  "header": {
+    "newRubricTitle": "Create New Rubric"
+  },
+  "draftRecovery": {
+    "message": "Unsaved draft found. Would you like to restore it?",
+    "clearButton": "Clear draft",
+    "clearConfirm": "Clear draft?"
+  }
 }

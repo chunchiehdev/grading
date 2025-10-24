@@ -42,8 +42,9 @@ export function FormActionButtons({
       </Button>
       <Button
         type="submit"
+        variant="emphasis"
         disabled={isLoading || isDisabled}
-        className="flex-1 h-11 sm:h-12 lg:h-14 xl:h-16 rounded-xl text-base lg:text-lg xl:text-xl font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+        className="flex-1 h-11 sm:h-12 lg:h-14 xl:h-16 rounded-xl text-base lg:text-lg xl:text-xl font-medium"
       >
         {submitText}
       </Button>

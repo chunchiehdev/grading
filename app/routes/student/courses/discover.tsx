@@ -9,6 +9,7 @@ import { getDiscoverableCourses, getStudentEnrolledCourseIds } from '@/services/
 import { CourseSearchBar } from '@/components/discover/CourseSearchBar';
 import { InvitationCodeInput } from '@/components/discover/InvitationCodeInput';
 import { SearchErrorBoundary } from '@/components/discover/SearchErrorBoundary';
+import { Card, CardContent } from '@/components/ui/card';
 import type { DiscoveryResponse } from '@/types/course';
 
 interface DiscoverLoaderData {
@@ -62,47 +63,52 @@ export default function CourseDiscoveryPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="max-w-7xl mx-auto px-4 space-y-4">
-        {/* Course Discovery Header - Stable */}
-        <div className="animate-in fade-in-50 duration-300">
-          <h1 className="text-3xl font-bold mb-2">Discover Courses</h1>
-          <p className="text-gray-600 mb-4">Browse and enroll in available courses</p>
-
-          {/* Search Bar and Invitation Code Input */}
-          <SearchErrorBoundary>
-            <div className="space-y-4 mb-6">
+    <div className="space-y-4">
+      {/* Search and Invitation Section */}
+      <div className="space-y-4">
+        {/* Main Search Bar */}
+        <SearchErrorBoundary>
+          <Card className="border-border/50 bg-gradient-to-br from-primary/5 via-background to-accent/5">
+            <CardContent className="pt-6">
               <CourseSearchBar fetcher={searchFetcher} />
-              <InvitationCodeInput />
-            </div>
-          </SearchErrorBoundary>
-        </div>
+            </CardContent>
+          </Card>
+        </SearchErrorBoundary>
 
-        {/* 錯誤提示 */}
+        {/* Invitation Code Input */}
+        <SearchErrorBoundary>
+          <InvitationCodeInput />
+        </SearchErrorBoundary>
+
+        {/* Search Error Alert */}
         {searchError && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-            Search failed: {searchError}
+          <div className="flex items-start gap-3 p-4 rounded-lg border border-destructive/50 bg-destructive/5 text-destructive animate-in fade-in-50">
+            <div className="mt-0.5 text-lg">⚠️</div>
+            <div className="flex-1">
+              <p className="font-medium">{t('course:discovery.searchFailed')}</p>
+              <p className="text-sm opacity-75">{searchError}</p>
+            </div>
           </div>
         )}
-
-        {/* Course Content - 保持內容穩定，只顯示 spinner */}
-        <SearchErrorBoundary>
-          <div className="relative animate-in fade-in-50 duration-300">
-            {isSearching && (
-              <div className="absolute top-2 right-2 z-10">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              </div>
-            )}
-            <CourseDiscoveryContent
-              student={student}
-              courses={courses}
-              enrolledCourseIds={enrolledCourseIds}
-              searchQuery={searchQuery}
-              isSearching={isSearching}
-            />
-          </div>
-        </SearchErrorBoundary>
       </div>
+
+      {/* Course Content Section */}
+      <SearchErrorBoundary>
+        <div className="relative">
+          {isSearching && (
+            <div className="absolute top-4 right-4 z-10">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          )}
+          <CourseDiscoveryContent
+            student={student}
+            courses={courses}
+            enrolledCourseIds={enrolledCourseIds}
+            searchQuery={searchQuery}
+            isSearching={isSearching}
+          />
+        </div>
+      </SearchErrorBoundary>
     </div>
   );
 }
