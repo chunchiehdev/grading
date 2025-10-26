@@ -426,6 +426,24 @@
     "invitationCodeRequired": "邀請碼為必填項",
     "invitationCodeInvalid": "邀請碼至少須 3 個字元",
     "joinButton": "加入課程",
-    "contactTeacher": "請聯繫您的教師取得新的邀請碼"
+    "contactTeacher": "請聯繫您的教師取得新的邀請碼",
+    "openSearchModal": "搜尋課程",
+    "closeSearchModal": "關閉搜尋",
+    "openInvitationModal": "使用邀請碼加入",
+    "closeInvitationModal": "關閉",
+    "searchModalTitle": "搜尋課程",
+    "searchModalDescription": "按課程名稱、代碼或授課教師搜尋",
+    "searchResults": "搜尋結果",
+    "coursesFound": "門課程",
+    "searchNoResults": "未找到符合 \"{{query}}\" 的課程",
+    "searchTryAgain": "嘗試其他搜尋關鍵字",
+    "invitationModalTitle": "使用邀請碼加入課程",
+    "invitationModalDescription": "輸入您的教師分享的邀請碼",
+    "validatingCode": "正在驗證邀請碼...",
+    "codeValidated": "邀請碼驗證成功！",
+    "validateButton": "驗證邀請碼",
+    "invitationCodeLength": "通常為大寫字母和數字",
+    "joinCourse": "您將被新增到此課程，並可存取所有作業",
+    "searchFailed": "搜尋失敗"
   }
 }

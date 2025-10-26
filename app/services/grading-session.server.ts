@@ -30,7 +30,7 @@ export async function createGradingSession(
   request: CreateGradingSessionRequest
 ): Promise<{ success: boolean; sessionId?: string; error?: string }> {
   try {
-    const { userId, filePairs } = request;
+    const { userId, filePairs, assignmentAreaId } = request;
 
     // Validate user exists
     const user = await db.user.findUnique({
@@ -124,6 +124,8 @@ export async function createGradingSession(
             gradingSessionId: session.id,
             uploadedFileId: pair.fileId,
             rubricId: pair.rubricId,
+            // Feature 004: Store assignmentAreaId for context-aware grading
+            assignmentAreaId: assignmentAreaId || null,
             status: GradingStatus.PENDING,
             progress: 0,
           },

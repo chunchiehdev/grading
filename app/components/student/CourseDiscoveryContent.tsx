@@ -5,28 +5,29 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, BookOpen, Grid3x3, List, Users, Clock, MapPin } from 'lucide-react';
+import { Loader2, BookOpen, Users, Clock, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CourseDiscoveryContentProps } from '@/types/course';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-export function CourseDiscoveryContent({ student, courses, enrolledCourseIds, searchQuery = '', isSearching = false }: CourseDiscoveryContentProps) {
+export function CourseDiscoveryContent({
+  student,
+  courses,
+  enrolledCourseIds,
+  searchQuery = '',
+  isSearching = false,
+  viewMode = 'grid',
+  onViewModeChange,
+}: CourseDiscoveryContentProps & { viewMode?: 'grid' | 'list'; onViewModeChange?: (mode: 'grid' | 'list') => void }) {
   const { t } = useTranslation(['course']);
   const [enrollingClassId, setEnrollingClassId] = useState<string | null>(null);
   const [locallyEnrolled, setLocallyEnrolled] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // 合併從 props 來的 enrolledCourseIds 和本地新增的
   const enrolledClasses = new Set([...enrolledCourseIds, ...locallyEnrolled]);
-
-  // Handle view mode change
-  const handleViewModeChange = (mode: 'grid' | 'list') => {
-    setViewMode(mode);
-  };
 
   // Handle enrollment
   const handleEnroll = async (classId: string, courseName: string) => {
@@ -91,27 +92,10 @@ export function CourseDiscoveryContent({ student, courses, enrolledCourseIds, se
   }
 
   return (
-    <div className="space-y-6">
-      {/* View Mode Toggle - Using Tabs */}
-      <Tabs value={viewMode} onValueChange={(v) => handleViewModeChange(v as 'grid' | 'list')} className="w-full">
-        <TabsList className="inline-flex h-10 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground gap-1">
-          <TabsTrigger
-            value="grid"
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm hover:text-foreground gap-2"
-          >
-            <Grid3x3 className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs lg:text-sm">{t('course:discovery.gridView')}</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="list"
-            className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm hover:text-foreground gap-2"
-          >
-            <List className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs lg:text-sm">{t('course:discovery.listView')}</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="grid" className="mt-4 animate-in fade-in-50 duration-300" data-state="active">
+    <div>
+      {/* Grid View */}
+      {viewMode === 'grid' && (
+        <div className="animate-in fade-in-50 duration-300">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {courses.map((course) => (
               <Card
@@ -242,9 +226,12 @@ export function CourseDiscoveryContent({ student, courses, enrolledCourseIds, se
               </Card>
             ))}
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="list" className="mt-4 animate-in fade-in-50 duration-300" data-state="active">
+      {/* List View */}
+      {viewMode === 'list' && (
+        <div className="animate-in fade-in-50 duration-300">
           <div className="rounded-lg border border-border/50 overflow-hidden bg-card">
             <Table>
               <TableHeader className="bg-muted/30">
@@ -351,8 +338,8 @@ export function CourseDiscoveryContent({ student, courses, enrolledCourseIds, se
               </TableBody>
             </Table>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 }

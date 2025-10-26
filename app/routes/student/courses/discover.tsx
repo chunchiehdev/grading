@@ -2,14 +2,14 @@ import { useLoaderData, redirect, useFetcher, useSearchParams } from 'react-rout
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CourseDiscoveryContent } from '@/components/student/CourseDiscoveryContent';
-import { Loader2 } from 'lucide-react';
+import { CourseSearchModal } from '@/components/discover/CourseSearchModal';
+import { InvitationCodeModal } from '@/components/discover/InvitationCodeModal';
+import { SearchErrorBoundary } from '@/components/discover/SearchErrorBoundary';
+import { Button } from '@/components/ui/button';
+import { Loader2, Search, Ticket, Grid3x3, List } from 'lucide-react';
 import { getUserId } from '@/services/auth.server';
 import { createEnrollmentSchema } from '@/schemas/enrollment';
 import { getDiscoverableCourses, getStudentEnrolledCourseIds } from '@/services/course-discovery.server';
-import { CourseSearchBar } from '@/components/discover/CourseSearchBar';
-import { InvitationCodeInput } from '@/components/discover/InvitationCodeInput';
-import { SearchErrorBoundary } from '@/components/discover/SearchErrorBoundary';
-import { Card, CardContent } from '@/components/ui/card';
 import type { DiscoveryResponse } from '@/types/course';
 
 interface DiscoverLoaderData {
@@ -34,8 +34,11 @@ export default function CourseDiscoveryPage() {
   const loaderData = useLoaderData<DiscoverLoaderData>();
   const searchFetcher = useFetcher<DiscoveryResponse>();
   const [searchParams] = useSearchParams();
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [invitationModalOpen, setInvitationModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
-  // 直接從 URL 讀取 searchQuery - 單一真相來源
+  // Read searchQuery from URL - single source of truth
   const searchQuery = searchParams.get('search') || '';
 
   if (!loaderData?.success) {
@@ -48,49 +51,102 @@ export default function CourseDiscoveryPage() {
 
   const { student } = loaderData;
 
-  // 修正：正確讀取 API 回應結構並處理錯誤
+  // Parse API response correctly
   const searchData = searchFetcher.data as DiscoveryResponse | undefined;
   const searchError = searchData && !searchData.success ? searchData.error : null;
   const courses = searchData?.success && searchData.data
-    ? searchData.data.courses  // 搜尋結果
-    : loaderData.data.courses || [];  // 初始資料或空陣列
+    ? searchData.data.courses  // Search results
+    : loaderData.data.courses || [];  // Initial data or empty array
 
   const isSearching = searchFetcher.state === 'loading';
 
-  // 簡化：直接計算 enrolledCourseIds，不需要過度 memoize
+  // Calculate enrolled course IDs
   const enrolledCourseIds = new Set(
     courses.filter((c: any) => c.enrollmentStatus === 'enrolled').map((c: any) => c.id)
   );
 
   return (
-    <div className="space-y-4">
-      {/* Search and Invitation Section */}
-      <div className="space-y-4">
-        {/* Main Search Bar */}
-        <SearchErrorBoundary>
-          <Card className="border-border/50 bg-gradient-to-br from-primary/5 via-background to-accent/5">
-            <CardContent className="pt-6">
-              <CourseSearchBar fetcher={searchFetcher} />
-            </CardContent>
-          </Card>
-        </SearchErrorBoundary>
+    <div className="space-y-6">
+      {/* Action Buttons - Icon Triggers for Modals and View Mode */}
+      <div className="flex items-center justify-between gap-2">
+        {/* Left: Search and Invitation Buttons */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setSearchModalOpen(true)}
+            aria-label={t('course:discovery.openSearchModal')}
+            title={t('course:discovery.openSearchModal')}
+            className="h-10 w-10 rounded-lg"
+          >
+            <Search className="h-5 w-5" />
+          </Button>
 
-        {/* Invitation Code Input */}
-        <SearchErrorBoundary>
-          <InvitationCodeInput />
-        </SearchErrorBoundary>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setInvitationModalOpen(true)}
+            aria-label={t('course:discovery.openInvitationModal')}
+            title={t('course:discovery.openInvitationModal')}
+            className="h-10 w-10 rounded-lg"
+          >
+            <Ticket className="h-5 w-5" />
+          </Button>
+        </div>
 
-        {/* Search Error Alert */}
-        {searchError && (
-          <div className="flex items-start gap-3 p-4 rounded-lg border border-destructive/50 bg-destructive/5 text-destructive animate-in fade-in-50">
-            <div className="mt-0.5 text-lg">⚠️</div>
-            <div className="flex-1">
-              <p className="font-medium">{t('course:discovery.searchFailed')}</p>
-              <p className="text-sm opacity-75">{searchError}</p>
-            </div>
-          </div>
-        )}
+        {/* Right: View Mode Toggle */}
+        <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'ghost'}
+            size="icon"
+            onClick={() => setViewMode('grid')}
+            aria-label={t('course:discovery.gridView')}
+            title={t('course:discovery.gridView')}
+            className="h-8 w-8"
+          >
+            <Grid3x3 className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            size="icon"
+            onClick={() => setViewMode('list')}
+            aria-label={t('course:discovery.listView')}
+            title={t('course:discovery.listView')}
+            className="h-8 w-8"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+
+      {/* Search Modal */}
+      <SearchErrorBoundary>
+        <CourseSearchModal
+          open={searchModalOpen}
+          onOpenChange={setSearchModalOpen}
+          fetcher={searchFetcher}
+        />
+      </SearchErrorBoundary>
+
+      {/* Invitation Code Modal */}
+      <SearchErrorBoundary>
+        <InvitationCodeModal
+          open={invitationModalOpen}
+          onOpenChange={setInvitationModalOpen}
+        />
+      </SearchErrorBoundary>
+
+      {/* Search Error Alert (if any) */}
+      {searchError && (
+        <div className="flex items-start gap-3 p-4 rounded-lg border border-destructive/50 bg-destructive/5 text-destructive animate-in fade-in-50">
+          <div className="mt-0.5 text-lg">⚠️</div>
+          <div className="flex-1">
+            <p className="font-medium">{t('course:discovery.errorFetching')}</p>
+            <p className="text-sm opacity-75">{searchError}</p>
+          </div>
+        </div>
+      )}
 
       {/* Course Content Section */}
       <SearchErrorBoundary>
@@ -106,6 +162,8 @@ export default function CourseDiscoveryPage() {
             enrolledCourseIds={enrolledCourseIds}
             searchQuery={searchQuery}
             isSearching={isSearching}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
           />
         </div>
       </SearchErrorBoundary>

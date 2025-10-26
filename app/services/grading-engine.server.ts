@@ -2,6 +2,8 @@ import { db } from '@/types/database';
 import { getAIGrader } from './ai-grader.server';
 import { SimpleProgressService } from './progress-simple.server';
 import { loadReferenceDocuments, getCustomGradingInstructions } from './assignment-area.server';
+import { getGradingLogger } from './grading-logger.server';
+import { GeminiPrompts } from './gemini-prompts.server';
 import logger from '@/utils/logger';
 
 /**
@@ -14,6 +16,10 @@ export async function processGradingResult(
   sessionId: string,
   userLanguage: 'zh' | 'en' = 'zh'
 ): Promise<{ success: boolean; error?: string }> {
+  const startTime = Date.now();
+  const gradingLogger = getGradingLogger();
+  gradingLogger.initializeSessionLog(sessionId, resultId);
+
   try {
     logger.info(`🎯 Processing grading result: ${resultId}`);
 
@@ -23,12 +29,54 @@ export async function processGradingResult(
       include: {
         uploadedFile: true,
         rubric: true,
-        gradingSession: true,
+        gradingSession: {
+          include: {
+            user: true,
+          },
+        },
+        assignmentArea: true,
       },
     });
 
     if (!result) {
       return { success: false, error: 'Grading result not found' };
+    }
+
+    // Log user information
+    if (result.gradingSession?.user) {
+      gradingLogger.addUserInfo(
+        sessionId,
+        result.gradingSession.user.id,
+        result.gradingSession.user.email,
+        result.gradingSession.user.role
+      );
+    }
+
+    // Log assignment information
+    if (result.assignmentArea) {
+      gradingLogger.addAssignmentInfo(
+        sessionId,
+        result.assignmentArea.id,
+        result.assignmentArea.name || 'Untitled Assignment'
+      );
+    }
+
+    // Log file and rubric information
+    if (result.uploadedFile) {
+      gradingLogger.addFileInfo(
+        sessionId,
+        result.uploadedFileId,
+        result.uploadedFile.originalFileName,
+        `s3://${result.uploadedFile.fileKey}`
+      );
+    }
+
+    if (result.rubric) {
+      gradingLogger.addRubricInfo(
+        sessionId,
+        result.rubricId,
+        result.rubric.name
+      );
     }
 
     if (result.status !== 'PENDING') {
@@ -97,26 +145,47 @@ export async function processGradingResult(
         logger.info(
           `✅ Loaded ${referenceDocuments.length} reference documents, custom instructions: ${customInstructions ? 'yes' : 'no'}`
         );
+
+        // Log context information for Feature 004
+        gradingLogger.addContextInfo(
+          sessionId,
+          referenceDocuments.map((doc) => ({
+            fileId: doc.fileId,
+            fileName: doc.fileName,
+            contentLength: doc.content.length,
+            wasTruncated: doc.wasTruncated,
+          })),
+          !!customInstructions,
+          customInstructions?.length
+        );
       } catch (error) {
         // Graceful degradation - log error but continue with grading
         logger.warn(`⚠️ Failed to load context for assignment ${result.assignmentAreaId}:`, error);
+        // Log context loading failure
+        gradingLogger.addError(sessionId, 'Context loading', error instanceof Error ? error.message : String(error));
       }
     }
 
     // Grade with AI - simple and direct with optional context
     const aiGrader = getAIGrader();
-    const gradingResponse = await aiGrader.grade(
-      {
-        content: result.uploadedFile.parsedContent,
-        criteria: criteria,
-        fileName: result.uploadedFile.originalFileName,
-        rubricName: result.rubric.name,
-        // Feature 004: Include context if available
-        referenceDocuments: referenceDocuments.length > 0 ? referenceDocuments : undefined,
-        customInstructions: customInstructions || undefined,
-      },
-      userLanguage
-    );
+
+    // Log prompt information for complete traceability
+    const gradingRequest = {
+      content: result.uploadedFile.parsedContent,
+      criteria: criteria,
+      fileName: result.uploadedFile.originalFileName,
+      rubricName: result.rubric.name,
+      // Feature 004: Include context if available
+      referenceDocuments: referenceDocuments.length > 0 ? referenceDocuments : undefined,
+      customInstructions: customInstructions || undefined,
+    };
+
+    // Generate and log the prompt (for research traceability)
+    const prompt = GeminiPrompts.generateTextGradingPrompt(gradingRequest);
+    const promptTokenEstimate = Math.ceil(prompt.length / 3.5); // Simple token estimate
+    gradingLogger.addPromptInfo(sessionId, prompt, promptTokenEstimate, userLanguage);
+
+    const gradingResponse = await aiGrader.grade(gradingRequest, userLanguage);
 
     // Update progress
     await SimpleProgressService.updateGradingProgress(resultId, 80);
@@ -159,10 +228,33 @@ export async function processGradingResult(
         },
       });
 
+      // Log grading success
+      gradingLogger.addResult(
+        sessionId,
+        gradingResponse.result?.totalScore,
+        gradingResponse.result?.maxScore,
+        normalizedScore || undefined,
+        gradingResponse.result?.overallFeedback || undefined,
+        gradingResponse.result?.breakdown
+      );
+      // Log AI response (rawResponse only - avoid duplication with "result")
+      gradingLogger.addAIResponse(
+        sessionId,
+        gradingResponse.provider,
+        gradingResponse.result, // This is the rawResponse from Gemini
+        gradingResponse.metadata?.tokens,
+        gradingResponse.metadata?.duration,
+        gradingResponse.metadata?.model
+      );
+
       // Update session progress
       await SimpleProgressService.updateSessionProgress(sessionId);
 
       logger.info(`✅ Grading completed for ${result.uploadedFile.originalFileName}`);
+
+      // Finalize and save log
+      await gradingLogger.finalize(sessionId, startTime);
+
       return { success: true };
     } else {
       // Failure - save error
@@ -176,11 +268,25 @@ export async function processGradingResult(
         },
       });
 
+      // Log grading failure
+      gradingLogger.addError(sessionId, 'AI grading', gradingResponse.error || 'AI grading failed');
+
       logger.error(`❌ Grading failed for ${result.uploadedFile.originalFileName}: ${gradingResponse.error}`);
+
+      // Finalize and save log
+      await gradingLogger.finalize(sessionId, startTime);
+
       return { success: false, error: gradingResponse.error };
     }
   } catch (error) {
     logger.error(`💥 Fatal error processing grading result ${resultId}:`, error);
+
+    // Log fatal error
+    gradingLogger.addError(
+      sessionId,
+      'Fatal error',
+      error instanceof Error ? error.message : 'Processing error'
+    );
 
     // Mark as failed
     try {
@@ -196,6 +302,9 @@ export async function processGradingResult(
     } catch (updateError) {
       logger.error(`Failed to update result status for ${resultId}:`, updateError);
     }
+
+    // Finalize and save log
+    await gradingLogger.finalize(sessionId, startTime);
 
     return {
       success: false,

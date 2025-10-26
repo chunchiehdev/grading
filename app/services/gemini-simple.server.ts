@@ -42,8 +42,12 @@ class SimpleGeminiService {
         contents: prompt,
         config: {
           systemInstruction,
-          maxOutputTokens: 4000,
-          temperature: 0.1,
+          // Feature: Increased output token limit for detailed feedback
+          // From 4000 → 8192 (full capacity for Gemini 2.0 Flash)
+          maxOutputTokens: 8192,
+          // Feature: Adjusted temperature for better quality feedback
+          // From 0.1 → 0.3 (balance consistency with creative suggestions)
+          temperature: 0.3,
         },
       });
 
@@ -56,12 +60,18 @@ class SimpleGeminiService {
 
       logger.info(`✅ Gemini grading completed in ${duration}ms`);
 
+      // Better token estimation: roughly 1 token per 4 characters (Chinese) or 4 characters (English)
+      // Output tokens based on actual response length
+      const outputTokens = this.estimateTokens(response.text);
+
+      logger.info(`📊 Output tokens: ${outputTokens}`);
+
       return {
         success: true,
         result,
         metadata: {
           model: this.model,
-          tokens: Math.ceil(response.text.length / 3), // Simple token estimate
+          tokens: outputTokens,
           duration,
         },
       };
@@ -81,6 +91,17 @@ class SimpleGeminiService {
         },
       };
     }
+  }
+
+  /**
+   * Estimate tokens in text
+   * Better estimation than length/3:
+   * - Chinese: ~1 token per 1.5 characters
+   * - English: ~1 token per 4 characters
+   * - Average: ~1 token per 3.5 characters
+   */
+  private estimateTokens(text: string): number {
+    return Math.ceil(text.length / 3.5);
   }
 
   /**

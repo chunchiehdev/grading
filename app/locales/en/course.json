@@ -413,6 +413,25 @@
     "invitationCodeRequired": "Invitation code is required",
     "invitationCodeInvalid": "Invitation code must be at least 3 characters",
     "joinButton": "Join Course",
-    "contactTeacher": "Please contact your teacher for a new invitation code"
+    "contactTeacher": "Please contact your teacher for a new invitation code",
+    "openSearchModal": "Search courses",
+    "closeSearchModal": "Close search",
+    "openInvitationModal": "Join with invitation code",
+    "closeInvitationModal": "Close",
+    "searchModalTitle": "Search Courses",
+    "searchModalDescription": "Find courses by name, code, or instructor",
+    "searchResults": "Search Results",
+    "coursesFound": "courses found",
+    "searchNoResults": "No courses found for \"{{query}}\"",
+    "searchTryAgain": "Try different keywords",
+    "invitationModalTitle": "Join with Invitation Code",
+    "invitationModalDescription": "Enter the code your teacher shared with you",
+    "validatingCode": "Validating code...",
+    "codeValidated": "Code validated successfully!",
+    "validateButton": "Validate Code",
+    "invitationCodeLength": "Usually uppercase letters and numbers",
+    "courseInfo": "Course Information",
+    "joinCourse": "You will be added to this course and can access all assignments",
+    "searchFailed": "Search failed"
   }
 }
