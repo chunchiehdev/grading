@@ -50,49 +50,6 @@ export class GeminiPrompts {
     return instruction;
   }
 
-  static generateFileGradingPrompt(request: GeminiFileGradingRequest): string {
-    const { criteria, categories, fileName, rubricName } = request;
-    const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-    const criteriaDescription = categories
-      ? this.formatCategorizedCriteriaDescription(categories)
-      : this.formatCriteriaDescription(criteria);
-
-    return this.dedent(`
-            請對上傳的文件進行專業評分分析：
-
-            **檔案名稱**：${fileName}
-            **評分標準**：${rubricName}
-            **總分**：${maxScore} 分
-
-            ## 評分標準
-            ${criteriaDescription}
-
-            ## 評分要求
-
-            **分析重點：**
-            1. **引用分析** - 每個評分項目都要引用原文具體內容
-            2. **證據支持** - 說明為什麼給這個分數，基於什麼證據
-            3. **具體改進** - 指出可以如何改善，給出明確方向
-            4. **實用導向** - 重點在於幫助提升，不是挑毛病
-
-            **引用格式：**
-            - 用引號標示原文：「原文內容」
-            - 說明這段內容的表現如何
-            - 提供具體的改進建議
-
-            ## 輸出格式
-
-            ${this.getDetailedOutputFormat(maxScore)}
-
-            **評分原則：**
-            - 必須基於評分標準客觀評分
-            - 每個分析都要有原文引用支持
-            - 建議要具體可執行，不要空泛
-            - 重點幫助提升而非批評
-
-            請開始分析：
-        `);
-  }
 
   static generateTextGradingPrompt(request: GeminiGradingRequest): string {
     const {
@@ -267,90 +224,36 @@ export class GeminiPrompts {
 **評分要求：** 請按照類別結構理解評分標準的邏輯分組，這將有助於提供更有組織性的評分分析。`;
   }
 
-  private static getDetailedOutputFormat(maxScore: number): string {
+
+  private static getSimpleOutputFormat(_maxScore: number): string {
+    // Linus Principle: Single Responsibility
+    // The JSON Schema in gemini-simple.server.ts enforces structure (minItems, maxItems, required fields)
+    // This prompt only guides content quality, not structure
     return this.dedent(`
-            **🚨 CRITICAL: 嚴格JSON格式要求**
-            - 必須使用雙引號，不可使用單引號
-            - 字串內的引號請用「」或『』替代
-            - 確保所有 { } [ ] 正確配對並閉合
-            - 不要在JSON前後添加任何解釋文字
-            - 數字類型不要加引號
-            - 避免在字串內使用換行符，用\\n代替
+            ## 輸出要求
 
-            **請僅回應以下JSON格式，不要添加其他內容：**
+            提供詳細的 JSON 格式評分反饋。每個評分項目的 feedback 應包含：
 
-            \`\`\`json
-            {
-              "totalScore": 總分數字,
-              "maxScore": ${maxScore},
-              "breakdown": [
-                {
-                  "criteriaId": "評分項目的真實ID（見下方列表）",
-                  "score": 該項目得分,
-                  "evidence": {
-                    "strengths": "表現好的原文引用「具體內容」及分析",
-                    "weaknesses": "需改進的原文引用「具體內容」及分析"
-                  },
-                  "feedback": {
-                    "whatWorked": "什麼地方做得好，為什麼好",
-                    "whatNeedsWork": "什麼地方需要改進，具體問題是什麼",
-                    "howToImprove": "具體改進建議，可以怎麼做得更好"
-                  },
-                  "scoreJustification": "為什麼給這個分數，要達到更高分需要什麼"
-                }
-              ],
-              "overallFeedback": {
-                "documentStrengths": [
-                  "整體最突出的優點1（引用支持）",
-                  "整體最突出的優點2（引用支持）"
-                ],
-                "keyImprovements": [
-                  "最重要的改進點1（具體可執行）",
-                  "最重要的改進點2（具體可執行）"
-                ],
-                "nextSteps": "基於這份文件，下一步應該重點改善什麼"
-              }
-            }
-            \`\`\`
+            1. **原文引用和分析**（150-200字）
+               - 引用 2-3 處具體的學生原文，用「」標示
+               - 說明這些內容如何體現評分標準
 
-            **⚠️ JSON 驗證要點：**
-            1. 字串值用雙引號包圍
-            2. 內容引用使用「」而非""
-            3. 所有括號必須配對
-            4. 最後一項不加逗號
-            5. 僅回應JSON，無其他說明
-        `);
-  }
+            2. **優點說明**（100-150字）
+               - 明確指出做得特別好的地方
+               - 解釋為什麼這是優秀的表現
 
-  private static getSimpleOutputFormat(maxScore: number): string {
-    return this.dedent(`
-            ## 輸出格式
+            3. **改進建議**（100-150字）
+               - 識別可以改進的具體領域
+               - 提供 1-2 個可執行的改進步驟
 
-            回應遵循此 JSON 結構。每個 feedback 應包含：
-            1. 原文引用和分析（引用具體內容）
-            2. 優點說明
-            3. 改進建議
-            4. 總評和分數理由
+            4. **分數理由**（50-100字）
+               - 綜合評價該項目的表現
+               - 解釋這個分數的根據
 
-            \`\`\`json
-            {
-              "totalScore": 數字,
-              "maxScore": ${maxScore},
-              "breakdown": [
-                {
-                  "criteriaId": "評分項目真實ID",
-                  "score": 該項目得分,
-                  "feedback": "詳細反饋"
-                }
-              ],
-              "overallFeedback": "整體評價"
-            }
-            \`\`\`
-
-            **重點：**
-            - 回應僅包含 JSON，無其他文字
-            - 每個 breakdown 項目必須有 feedback
-            - 字串引用用「」而非 ""
+            **確保事項：**
+            - 所有字串用雙引號，內容引用用「」
+            - 回應為有效的 JSON，可直接解析
+            - 為每個評分項目提供詳細 feedback
         `);
   }
 
