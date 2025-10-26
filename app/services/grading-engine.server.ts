@@ -21,7 +21,7 @@ export async function processGradingResult(
   gradingLogger.initializeSessionLog(sessionId, resultId);
 
   try {
-    logger.info(`🎯 Processing grading result: ${resultId}`);
+    logger.info(`Processing grading result: ${resultId}`);
 
     // Get result with required data
     const result = await db.gradingResult.findUnique({
@@ -143,7 +143,7 @@ export async function processGradingResult(
         customInstructions = await getCustomGradingInstructions(result.assignmentAreaId);
 
         logger.info(
-          `✅ Loaded ${referenceDocuments.length} reference documents, custom instructions: ${customInstructions ? 'yes' : 'no'}`
+          `Loaded ${referenceDocuments.length} reference documents, custom instructions: ${customInstructions ? 'yes' : 'no'}`
         );
 
         // Log context information for Feature 004
