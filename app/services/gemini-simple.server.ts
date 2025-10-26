@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import logger from '@/utils/logger';
 import { GradingResultData } from '@/types/grading';
 import { GeminiGradingRequest, GeminiGradingResponse } from '@/types/gemini';
@@ -26,6 +26,58 @@ class SimpleGeminiService {
   }
 
   /**
+   * Generate JSON Schema for grading response structure
+   * Linus Principle: Let the schema do the work, not prompt text
+   * - minItems/maxItems enforce ALL criteria get feedback
+   * - required fields enforce structure
+   * - descriptions guide, not repeat what's in prompt
+   */
+  private getGradingResponseSchema(maxScore: number, criteriaCount: number) {
+    return {
+      type: Type.OBJECT,
+      properties: {
+        totalScore: {
+          type: Type.NUMBER,
+          description: '學生的總分',
+        },
+        maxScore: {
+          type: Type.NUMBER,
+          description: '滿分',
+        },
+        breakdown: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              criteriaId: {
+                type: Type.STRING,
+                description: '評分標準的 ID，必須精確匹配提供的 ID',
+              },
+              score: {
+                type: Type.NUMBER,
+                description: '此項目得分（0-滿分之間）',
+              },
+              feedback: {
+                type: Type.STRING,
+                description: '詳細反饋：引用原文、分析優點、給出改進建議、解釋分數',
+              },
+            },
+            required: ['criteriaId', 'score', 'feedback'],
+          },
+          minItems: criteriaCount,
+          maxItems: criteriaCount,
+          description: `必須包含全部 ${criteriaCount} 個評分標準的反饋`,
+        },
+        overallFeedback: {
+          type: Type.STRING,
+          description: '作品整體評價，包括主要優點和改進方向',
+        },
+      },
+      required: ['totalScore', 'maxScore', 'breakdown', 'overallFeedback'],
+    };
+  }
+
+  /**
    * Grade a document - simple and direct
    */
   async gradeDocument(request: GeminiGradingRequest, userLanguage: 'zh' | 'en' = 'zh'): Promise<GeminiGradingResponse> {
@@ -36,6 +88,11 @@ class SimpleGeminiService {
 
       const prompt = GeminiPrompts.generateTextGradingPrompt(request);
       const systemInstruction = GeminiPrompts.generateSystemInstruction(userLanguage);
+      const maxScore = request.criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
+      const criteriaCount = request.criteria.length;
+
+      // P3: Use JSON Schema to force structured output with all breakdown items
+      const responseSchema = this.getGradingResponseSchema(maxScore, criteriaCount);
 
       const response = await this.client.models.generateContent({
         model: this.model,
@@ -48,6 +105,9 @@ class SimpleGeminiService {
           // Feature: Adjusted temperature for better quality feedback
           // From 0.1 → 0.3 (balance consistency with creative suggestions)
           temperature: 0.3,
+          // P3: Force structured JSON output with schema validation
+          responseMimeType: 'application/json',
+          responseSchema,
         },
       });
 
