@@ -84,7 +84,7 @@
     "reselectFile": "Reselect File",
     "analyzing": "Analyzing...",
     "aiAnalysis": "AI Analysis",
-    "analyzeWithAI": "Analyze with AI",
+    "analyzeWithAI": "Grading",
     "gradingResults": "Grading Results",
     "aiAnalysisDescription": "AI will analyze your assignment based on grading criteria and provide detailed feedback",
     "getAiFeedback": "Get AI Feedback",
