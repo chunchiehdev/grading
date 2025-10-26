@@ -104,7 +104,8 @@
     "grading": "AI 正在根據評分標準進行評分...",
     "generating": "AI 正在生成評分回饋...",
     "error": "AI 評分過程中發生錯誤",
-    "retry": "重新評分"
+    "retry": "重新評分",
+    "processingTip": "這通常需要 30 秒至 2 分鐘，請耐心等待..."
   },
   "validation": {
     "fileRequired": "請上傳檔案或輸入文字內容",

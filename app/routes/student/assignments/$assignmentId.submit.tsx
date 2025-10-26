@@ -495,9 +495,10 @@ export default function SubmitAssignment() {
                   <GradingResultDisplay
                     result={state.session.result}
                     normalizedScore={state.session.result._normalizedScore}
+                    isLoading={state.loading}
                   />
                 ) : (
-                  <GradingResultDisplay />
+                  <GradingResultDisplay isLoading={state.loading} />
                 )}
               </div>
             </div>

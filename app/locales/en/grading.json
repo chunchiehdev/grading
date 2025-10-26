@@ -104,7 +104,8 @@
     "grading": "AI is grading based on rubric criteria...",
     "generating": "AI is generating grading feedback...",
     "error": "Error occurred during AI grading",
-    "retry": "Retry grading"
+    "retry": "Retry grading",
+    "processingTip": "This usually takes 30 seconds to 2 minutes, please wait..."
   },
   "validation": {
     "fileRequired": "Please upload a file or enter text content",

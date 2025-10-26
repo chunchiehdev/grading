@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { Markdown } from '@/components/ui/markdown';
 import { EmptyGradingState } from './EmptyGradingState';
+import { LoadingAnalysisIcon } from './LoadingAnalysisIcon';
 import { CompactStructuredFeedback } from './StructuredFeedback';
 import { GradingResultData } from '@/types/grading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +15,7 @@ interface GradingResultDisplayProps {
   normalizedScore?: number | null;
   className?: string;
   onRetry?: () => void;
+  isLoading?: boolean;
 }
 
 // Removed unused helper functions for cleaner code
@@ -47,9 +49,15 @@ const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdo
 
 // Removed unused AnalysisSection component
 
-export function GradingResultDisplay({ result, normalizedScore, className, onRetry }: GradingResultDisplayProps) {
+export function GradingResultDisplay({ result, normalizedScore, className, onRetry, isLoading }: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
 
+  // Show loading animation when analyzing
+  if (isLoading) {
+    return <LoadingAnalysisIcon isLoading={true} />;
+  }
+
+  // Show empty state when no result yet
   if (!result) {
     return <EmptyGradingState onRetry={onRetry} />;
   }
