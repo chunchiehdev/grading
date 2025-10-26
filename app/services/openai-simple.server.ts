@@ -141,27 +141,41 @@ Please provide your grading in the following JSON format:
     try {
       const parsed = JSON.parse(responseText);
 
+      // Diagnostic logging
+      const expectedCount = criteria.length;
+      const providedCount = parsed.breakdown?.length || 0;
+      if (providedCount !== expectedCount) {
+        logger.warn(`⚠️ Feedback count mismatch: expected ${expectedCount}, got ${providedCount}`);
+        parsed.breakdown?.forEach((item: any, index: number) => {
+          logger.info(`  [${index}] criteriaId: ${item.criteriaId}, score: ${item.score}, feedback length: ${item.feedback?.length || 0}`);
+        });
+      }
+
       return {
         totalScore: Math.round(parsed.totalScore || 0),
         maxScore: Math.round(parsed.maxScore || criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0)),
-        breakdown: criteria.map((criterion) => ({
-          criteriaId: criterion.id,
-          name: criterion.name,
-          score: Math.round(
-            parsed.breakdown?.find(
-              (item: any) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
-            )?.score || 0
-          ),
-          feedback:
-            parsed.breakdown?.find(
-              (item: any) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
-            )?.feedback || 'No feedback available',
-        })),
+        breakdown: criteria.map((criterion) => {
+          const feedbackItem = parsed.breakdown?.find(
+            (item: any) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
+          );
+
+          if (!feedbackItem) {
+            logger.warn(`⚠️ Missing feedback for criterion: ${criterion.id} (${criterion.name})`);
+          }
+
+          return {
+            criteriaId: criterion.id,
+            name: criterion.name,
+            score: Math.round(feedbackItem?.score || 0),
+            feedback: feedbackItem?.feedback || 'No feedback available',
+          };
+        }),
         overallFeedback: parsed.overallFeedback || 'No overall feedback provided',
       };
     } catch (error) {
       // Simple fallback - no complex repair logic
       const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
+      logger.error(`💥 Parse response error: ${error instanceof Error ? error.message : 'Unknown error'}`);
 
       return {
         totalScore: 0,
