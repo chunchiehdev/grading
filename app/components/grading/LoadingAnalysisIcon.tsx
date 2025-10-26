@@ -1,134 +1,82 @@
-import { useRef, useEffect } from 'react';
-import { Sparkles } from 'lucide-react';
+import { useRef } from 'react';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
-import { useTranslation } from 'react-i18next';
 
 interface LoadingAnalysisIconProps {
   isLoading?: boolean;
 }
 
 /**
- * LoadingAnalysisIcon - Animated icon for AI analysis phase
- * Uses GSAP for smooth, performant animations
+ * LoadingAnalysisIcon - Three bouncing dots loading animation
+ * Design Philosophy: Simple bouncing motion, no text
  *
- * Features:
- * - Rotating sparkle icon (primary animation)
- * - Pulsing glow effect around icon
- * - Subtle scale breathing animation
- * - Responsive to prefers-reduced-motion
+ * Animation: Three dots jump up and down in sequence
  */
 export function LoadingAnalysisIcon({ isLoading = true }: LoadingAnalysisIconProps) {
-  const { t } = useTranslation('grading');
-  const iconRef = useRef<HTMLDivElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const dot1Ref = useRef<HTMLDivElement>(null);
+  const dot2Ref = useRef<HTMLDivElement>(null);
+  const dot3Ref = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
-      // Check for reduced motion preference
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
       if (!isLoading || prefersReducedMotion) {
-        // Stop animations if not loading or user prefers reduced motion
-        gsap.to([iconRef.current, glowRef.current], { duration: 0.3, opacity: 1 });
         return;
       }
 
-      // Create a timeline for coordinated animations
-      const tl = gsap.timeline({ repeat: -1 });
+      // Dot 1 bounces
+      gsap.to(dot1Ref.current, {
+        y: -10,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        repeat: -1,
+        yoyo: true,
+        delay: 0,
+      });
 
-      // 1. Rotating sparkle icon (continuous smooth rotation)
-      tl.to(
-        iconRef.current,
-        {
-          rotation: 360,
-          duration: 3,
-          ease: 'linear',
-        },
-        0 // Start at the beginning of timeline
-      );
+      // Dot 2 bounces with delay
+      gsap.to(dot2Ref.current, {
+        y: -10,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        repeat: -1,
+        yoyo: true,
+        delay: 0.2,
+      });
 
-      // 2. Pulsing glow effect (synchronized with rotation)
-      tl.to(
-        glowRef.current,
-        {
-          boxShadow: [
-            '0 0 20px rgba(59, 130, 246, 0.4)',
-            '0 0 40px rgba(59, 130, 246, 0.6)',
-            '0 0 20px rgba(59, 130, 246, 0.4)',
-          ],
-          duration: 2,
-          ease: 'sine.inOut',
-        },
-        0 // Start at the same time as rotation
-      );
-
-      // 3. Subtle scale breathing (icon gets slightly larger/smaller)
-      tl.to(
-        iconRef.current,
-        {
-          scale: [1, 1.1, 1],
-          duration: 2,
-          ease: 'sine.inOut',
-        },
-        0 // Start at the same time
-      );
+      // Dot 3 bounces with more delay
+      gsap.to(dot3Ref.current, {
+        y: -10,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        repeat: -1,
+        yoyo: true,
+        delay: 0.4,
+      });
     },
     { dependencies: [isLoading] }
   );
 
   return (
-    <div ref={containerRef} className="flex flex-col items-center justify-center p-8 text-center">
-      {/* Loading Icon with Glow */}
-      <div className="relative mb-6">
-        {/* Glow effect background */}
-        <div
-          ref={glowRef}
-          className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400/20 to-blue-600/10"
-          style={{
-            width: '80px',
-            height: '80px',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            boxShadow: '0 0 20px rgba(59, 130, 246, 0.4)',
-          }}
-        />
+    <div className="flex items-center justify-center h-full w-full gap-2">
+      {/* Dot 1 - Amber */}
+      <div
+        ref={dot1Ref}
+        className="w-3 h-3 rounded-full bg-gradient-to-br from-amber-300 to-amber-500"
+      />
 
-        {/* Rotating icon */}
-        <div ref={iconRef} className="relative z-10">
-          <Sparkles className="w-16 h-16 text-blue-500" strokeWidth={1.5} />
-        </div>
-      </div>
+      {/* Dot 2 - Orange */}
+      <div
+        ref={dot2Ref}
+        className="w-3 h-3 rounded-full bg-gradient-to-br from-orange-300 to-orange-500"
+      />
 
-      {/* Loading text with ellipsis animation */}
-      <h3 className="text-lg font-medium text-foreground mb-2">
-        {t('grading:ai.analyzing')}
-      </h3>
-
-      {/* Animated ellipsis */}
-      <div className="flex items-center justify-center h-6">
-        <style>{`
-          @keyframes ellipsis {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
-          }
-          .ellipsis::after {
-            content: '.';
-            animation: ellipsis 1.5s steps(4, end) infinite;
-            min-width: 1.25rem;
-            text-align: center;
-          }
-        `}</style>
-        <p className="text-sm text-muted-foreground ellipsis" />
-      </div>
-
-      {/* Loading tips */}
-      <p className="text-xs text-muted-foreground mt-4 max-w-xs">
-        {t('grading:ai.processingTip')}
-      </p>
+      {/* Dot 3 - Red */}
+      <div
+        ref={dot3Ref}
+        className="w-3 h-3 rounded-full bg-gradient-to-br from-red-300 to-red-500"
+      />
     </div>
   );
 }
