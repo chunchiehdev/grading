@@ -197,6 +197,11 @@ export async function processGradingResult(
 
       logger.info(`📊 Normalized score: ${totalScore}/${maxScore} → ${normalizedScore}/100`);
 
+      // Log thought summary if available
+      if (gradingResponse.thoughtSummary) {
+        logger.info(`💭 Thought summary available (${gradingResponse.thoughtSummary.length} chars)`);
+      }
+
       // Feature 004: Build context transparency metadata
       const usedContext =
         result.assignmentAreaId && (referenceDocuments.length > 0 || customInstructions)
@@ -212,13 +217,14 @@ export async function processGradingResult(
             }
           : null;
 
-      // Success - save result with context metadata
+      // Success - save result with context metadata and thought summary
       await db.gradingResult.update({
         where: { id: resultId },
         data: {
           status: 'COMPLETED',
           progress: 100,
           result: gradingResponse.result as any,
+          thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
           normalizedScore,
           gradingModel: gradingResponse.provider,
           gradingTokens: gradingResponse.metadata?.tokens,
@@ -227,6 +233,8 @@ export async function processGradingResult(
           completedAt: new Date(),
         },
       });
+
+      logger.info(`💾 Saved thoughtSummary (${gradingResponse.thoughtSummary?.length || 0} chars) to DB`);
 
       // Log grading success
       gradingLogger.addResult(

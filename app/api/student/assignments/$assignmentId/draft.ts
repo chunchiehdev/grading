@@ -102,6 +102,7 @@ export async function action({ request, params }: { request: Request; params: an
       fileMetadata: body.fileMetadata || null,
       sessionId: body.sessionId || null,
       aiAnalysisResult: body.aiAnalysisResult || null,
+      thoughtSummary: body.thoughtSummary ?? null,
       lastState: body.lastState || 'idle',
     };
 

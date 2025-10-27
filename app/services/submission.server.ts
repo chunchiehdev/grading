@@ -671,6 +671,7 @@ export interface DraftSubmissionData {
   } | null;
   sessionId?: string | null;
   aiAnalysisResult?: any | null;
+  thoughtSummary?: string | null;
   lastState?: 'idle' | 'ready' | 'grading' | 'completed' | 'error';
 }
 
@@ -767,6 +768,7 @@ export async function getDraftSubmission(
         fileMetadata,
         sessionId: null, // We don't store sessionId in submissions currently
         aiAnalysisResult: existingSubmission.aiAnalysisResult,
+        thoughtSummary: existingSubmission.thoughtSummary,
         lastState,
         status: existingSubmission.status,
         createdAt: existingSubmission.createdAt,
@@ -789,7 +791,15 @@ export async function getDraftSubmission(
  */
 export async function saveDraftSubmission(draftData: DraftSubmissionData): Promise<DraftSubmissionInfo | null> {
   try {
-    const { assignmentAreaId, studentId, fileMetadata, sessionId, aiAnalysisResult, lastState } = draftData;
+    const {
+      assignmentAreaId,
+      studentId,
+      fileMetadata,
+      sessionId,
+      aiAnalysisResult,
+      thoughtSummary,
+      lastState,
+    } = draftData;
 
     // Check if submission already exists
     const existingSubmission = await db.submission.findFirst({
@@ -819,6 +829,10 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
         // (Don't auto-change to ANALYZED - that's for submitted assignments only)
       }
 
+      if (thoughtSummary !== undefined) {
+        updateData.thoughtSummary = thoughtSummary;
+      }
+
       if (Object.keys(updateData).length > 0) {
         submission = await db.submission.update({
           where: { id: existingSubmission.id },
@@ -836,6 +850,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
           filePath: fileMetadata.fileId,
           status: 'DRAFT', // Always create as DRAFT - user hasn't submitted yet
           aiAnalysisResult: aiAnalysisResult || null,
+          thoughtSummary: thoughtSummary || null,
         },
       });
     } else {
@@ -852,6 +867,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       fileMetadata,
       sessionId,
       aiAnalysisResult: submission.aiAnalysisResult,
+      thoughtSummary: submission.thoughtSummary,
       lastState,
       status: submission.status,
       createdAt: submission.createdAt,

@@ -108,11 +108,24 @@ class SimpleGeminiService {
           // P3: Force structured JSON output with schema validation
           responseMimeType: 'application/json',
           responseSchema,
+          // Feature: Enable thinking process for better reasoning
+          // Shows AI's internal reasoning to students
+          thinkingConfig: {
+            includeThoughts: true,
+            thinkingBudget: 8192,
+          },
         },
       });
 
       if (!response.text) {
         throw new Error('Empty response from Gemini API');
+      }
+
+      // Extract thought parts from response
+      // Gemini returns thinking in candidates[0].content.parts as separate parts with thought: true
+      const thoughtSummary = this.extractThoughtSummary(response);
+      if (thoughtSummary) {
+        logger.info(`💭 Thought summary extracted (${thoughtSummary.length} chars)`);
       }
 
       const result = this.parseResponse(response.text, request.criteria);
@@ -129,6 +142,7 @@ class SimpleGeminiService {
       return {
         success: true,
         result,
+        thoughtSummary,
         metadata: {
           model: this.model,
           tokens: outputTokens,
@@ -150,6 +164,48 @@ class SimpleGeminiService {
           duration,
         },
       };
+    }
+  }
+
+  /**
+   * Extract thought summary from Gemini response
+   * Gemini returns thinking content in candidates[0].content.parts[] with thought: true
+   */
+  private extractThoughtSummary(response: any): string | undefined {
+    try {
+      // Navigate to candidates[0].content.parts
+      const candidates = response.candidates;
+      if (!Array.isArray(candidates) || candidates.length === 0) {
+        logger.warn('No candidates in response');
+        return undefined;
+      }
+
+      const firstCandidate = candidates[0];
+      const content = firstCandidate?.content;
+      if (!content) {
+        logger.warn('No content in first candidate');
+        return undefined;
+      }
+
+      const parts = content.parts;
+      if (!Array.isArray(parts)) {
+        logger.warn('No parts array in content');
+        return undefined;
+      }
+
+      // Find all thought parts and concatenate their text
+      const thoughtParts = parts.filter((part: any) => part.thought === true && part.text);
+      if (thoughtParts.length === 0) {
+        logger.info('No thought parts found in response');
+        return undefined;
+      }
+
+      const thoughtSummary = thoughtParts.map((part: any) => part.text).join('\n\n');
+      logger.info(`📍 Extracted ${thoughtParts.length} thought part(s)`);
+      return thoughtSummary;
+    } catch (error) {
+      logger.warn(`Failed to extract thought summary: ${error instanceof Error ? error.message : String(error)}`);
+      return undefined;
     }
   }
 

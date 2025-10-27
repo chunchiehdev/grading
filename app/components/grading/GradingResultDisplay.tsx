@@ -6,6 +6,8 @@ import { CompactStructuredFeedback } from './StructuredFeedback';
 import { GradingResultData } from '@/types/grading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 // Updated to work with new grading result format from database - types now imported from @/types/grading
@@ -13,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 interface GradingResultDisplayProps {
   result?: GradingResultData;
   normalizedScore?: number | null;
+  thoughtSummary?: string | null;
   className?: string;
   onRetry?: () => void;
   isLoading?: boolean;
@@ -49,7 +52,7 @@ const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdo
 
 // Removed unused AnalysisSection component
 
-export function GradingResultDisplay({ result, normalizedScore, className, onRetry, isLoading }: GradingResultDisplayProps) {
+export function GradingResultDisplay({ result, normalizedScore, thoughtSummary, className, onRetry, isLoading }: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
 
   // Show loading animation when analyzing
@@ -98,6 +101,25 @@ export function GradingResultDisplay({ result, normalizedScore, className, onRet
           )}
         </div>
       </section>
+
+      {/* AI Thinking Process - Collapsible */}
+      {thoughtSummary && (
+        <section>
+          <Collapsible defaultOpen={false}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors group">
+              <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
+              <span>💭 {t('result.aiThinkingProcess', 'AI 思考過程')}</span>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-3">
+              <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-950/20 dark:to-blue-950/10 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="text-sm text-muted-foreground leading-relaxed">
+                  <Markdown>{thoughtSummary}</Markdown>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </section>
+      )}
     </div>
   );
 }

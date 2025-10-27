@@ -149,6 +149,7 @@ model Submission {
   
   // AI analysis and grading
   aiAnalysisResult Json?         // AI analysis results
+  thoughtSummary   String?       @db.Text // AI 思考摘要，用於恢復草稿
   finalScore       Int?          // Final score
   normalizedScore  Float?        // 100-point normalized score from AI grading
 
@@ -272,6 +273,9 @@ model GradingResult {
   // LLM評分結果 (JSON結構)
   result            Json?    // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }
   errorMessage      String?  // 評分失敗時的錯誤訊息
+
+  // AI Thinking Process (Feature 005: Thinking Models)
+  thoughtSummary    String?  @db.Text // AI 的思考過程摘要
 
   // Context transparency (Feature 004)
   usedContext       Json?    // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }
@@ -449,5 +453,4 @@ enum NotificationType {
   SUBMISSION_GRADED      // Teacher graded submission
   COURSE_ANNOUNCEMENT    // General course announcement
 }
-
 

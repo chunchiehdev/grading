@@ -18,6 +18,7 @@ export interface GradingResponse {
   result?: GradingResultData;
   error?: string;
   provider?: string;
+  thoughtSummary?: string | null;
   metadata?: any;
 }
 
@@ -45,6 +46,7 @@ export class AIGrader {
         return {
           success: true,
           result: result.result,
+          thoughtSummary: result.thoughtSummary,
           provider: 'gemini',
           metadata: result.metadata,
         };

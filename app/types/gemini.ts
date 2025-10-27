@@ -32,6 +32,7 @@ export interface GeminiFileGradingRequest {
 export interface GeminiGradingResponse {
   success: boolean;
   result?: GradingResultData;
+  thoughtSummary?: string; // AI 的思考過程摘要
   error?: string;
   metadata?: {
     model: string;

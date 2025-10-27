@@ -52,7 +52,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 interface SubmissionState {
   phase: 'upload' | 'analyze' | 'submit' | 'done';
   file: { id: string; name: string; size: number } | null;
-  session: { id: string; result: any } | null;
+  session: { id: string; result: any; thoughtSummary?: string } | null;
   error: string | null;
   loading: boolean;
 }
@@ -60,7 +60,7 @@ interface SubmissionState {
 type Action =
   | { type: 'file_uploaded'; file: { id: string; name: string; size: number } }
   | { type: 'analysis_started'; sessionId: string }
-  | { type: 'analysis_completed'; result: any }
+  | { type: 'analysis_completed'; result: any; thoughtSummary?: string }
   | { type: 'submission_completed' }
   | { type: 'error'; message: string }
   | { type: 'reset' };
@@ -72,7 +72,7 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
     case 'analysis_started':
       return { ...state, loading: true, session: { id: action.sessionId, result: null } };
     case 'analysis_completed':
-      return { ...state, phase: 'submit', loading: false, session: { ...state.session!, result: action.result } };
+      return { ...state, phase: 'submit', loading: false, session: { ...state.session!, result: action.result, thoughtSummary: action.thoughtSummary } };
     case 'submission_completed':
       return { ...state, phase: 'done', loading: false };
     case 'error':
@@ -133,6 +133,7 @@ export default function SubmitAssignment() {
         ? {
             id: draftSubmission.sessionId || '',
             result: draftSubmission.aiAnalysisResult,
+            thoughtSummary: draftSubmission.thoughtSummary || undefined,
           }
         : null,
     error: null,
@@ -261,6 +262,10 @@ export default function SubmitAssignment() {
       if (data.success && data.data?.status === 'COMPLETED') {
         const result = data.data.gradingResults?.find((r: any) => r.result);
         if (result?.result) {
+          // Extract thought summary from grading result
+          const thoughtSummary = result.thoughtSummary;
+          console.log(`💭 [pollSession] Retrieved thoughtSummary:`, !!thoughtSummary, thoughtSummary?.substring(0, 100));
+
           // Store both result and normalizedScore
           dispatch({
             type: 'analysis_completed',
@@ -268,6 +273,7 @@ export default function SubmitAssignment() {
               ...result.result,
               _normalizedScore: result.normalizedScore, // Store normalized score with result
             },
+            thoughtSummary,
           });
 
           // Save AI analysis result to draft
@@ -285,6 +291,7 @@ export default function SubmitAssignment() {
                   : null,
                 sessionId,
                 aiAnalysisResult: result.result,
+                thoughtSummary,
                 lastState: 'completed',
               }),
             });
@@ -495,6 +502,7 @@ export default function SubmitAssignment() {
                   <GradingResultDisplay
                     result={state.session.result}
                     normalizedScore={state.session.result._normalizedScore}
+                    thoughtSummary={state.session.thoughtSummary}
                     isLoading={state.loading}
                   />
                 ) : (
