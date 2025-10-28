@@ -105,12 +105,14 @@ export async function processGradingResult(
 
       if (rubricData && rubricData.length > 0) {
         // Check if it's the new category format (categories with nested criteria)
-        if (rubricData[0] && 'criteria' in rubricData[0] && Array.isArray(rubricData[0].criteria)) {
-          // Type guard: this is a category format with nested criteria
-          criteria = flattenCategoriesToCriteria(rubricData as any);
+        // DbRubricCriteria is (DbCategory | DbCriterion)[]
+        const firstItem = rubricData[0];
+        if (firstItem && 'criteria' in firstItem && Array.isArray((firstItem as any).criteria)) {
+          // This is DbCategory format with nested criteria
+          criteria = flattenCategoriesToCriteria(rubricData);
         } else {
-          // Flat array of criteria - already DbCriterion[] from parseRubricCriteria
-          criteria = rubricData as DbCriterion[];
+          // Assume it's flat DbCriterion array
+          criteria = rubricData as any as DbCriterion[];
         }
       } else {
         criteria = [];
@@ -232,6 +234,9 @@ export async function processGradingResult(
       // Success - save result with context metadata and thought summary
       // Note: We convert to plain objects for Prisma's JSON field compatibility
       // (Prisma's InputJsonObject type requires flexibility for structured data)
+      // Also extract overallFeedback as string (handles both string and structured formats)
+      const overallFeedbackStr = extractOverallFeedback(gradingResponse.result) || '';
+
       await db.gradingResult.update({
         where: { id: resultId },
         data: {
@@ -240,8 +245,8 @@ export async function processGradingResult(
           result: {
             totalScore: gradingResponse.result.totalScore,
             maxScore: gradingResponse.result.maxScore,
-            breakdown: gradingResponse.result.breakdown,
-            overallFeedback: gradingResponse.result.overallFeedback,
+            breakdown: gradingResponse.result.breakdown || [],
+            overallFeedback: overallFeedbackStr,
           },
           thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
           normalizedScore,
@@ -266,7 +271,7 @@ export async function processGradingResult(
         gradingResponse.result?.maxScore,
         normalizedScore || undefined,
         extractOverallFeedback(gradingResponse.result) || undefined,
-        gradingResponse.result?.breakdown
+        gradingResponse.result?.breakdown || []
       );
       // Log AI response (rawResponse only - avoid duplication with "result")
       gradingLogger.addAIResponse(
