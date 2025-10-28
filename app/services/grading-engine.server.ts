@@ -1,10 +1,18 @@
-import { db } from '@/types/database';
+import { db, GradingStatus } from '@/types/database';
 import { getAIGrader } from './ai-grader.server';
 import { SimpleProgressService } from './progress-simple.server';
 import { loadReferenceDocuments, getCustomGradingInstructions } from './assignment-area.server';
 import { getGradingLogger } from './grading-logger.server';
 import { GeminiPrompts } from './gemini-prompts.server';
 import logger from '@/utils/logger';
+import {
+  parseRubricCriteria,
+  parseRubricCriteriaWithDefault,
+  flattenCategoriesToCriteria,
+  type DbCriterion,
+} from '@/schemas/rubric-data';
+import type { UsedContext } from '@/utils/grading-helpers';
+import { extractOverallFeedback } from '@/utils/grading-helpers';
 
 /**
  * Simple grading engine - no fallback hell, no special cases
@@ -91,17 +99,20 @@ export async function processGradingResult(
     await SimpleProgressService.updateGradingProgress(resultId, 10, 'PROCESSING');
 
     // Parse criteria - handle both old and new format
-    let criteria: any[];
+    let criteria: DbCriterion[];
     try {
-      const rubricData = Array.isArray(result.rubric.criteria)
-        ? result.rubric.criteria
-        : JSON.parse(result.rubric.criteria as string);
+      const rubricData = parseRubricCriteria(result.rubric.criteria);
 
-      // Check if it's the new category format
-      if (Array.isArray(rubricData) && rubricData[0]?.criteria) {
-        criteria = rubricData.flatMap((cat: any) => cat.criteria);
+      if (rubricData && rubricData.length > 0) {
+        // Check if it's the new category format (categories with nested criteria)
+        if (rubricData[0]?.criteria) {
+          criteria = flattenCategoriesToCriteria(rubricData);
+        } else {
+          // Assume it's a flat array of criteria
+          criteria = rubricData as unknown as DbCriterion[];
+        }
       } else {
-        criteria = rubricData;
+        criteria = [];
       }
     } catch (error) {
       await db.gradingResult.update({
@@ -223,13 +234,13 @@ export async function processGradingResult(
         data: {
           status: 'COMPLETED',
           progress: 100,
-          result: gradingResponse.result as any,
+          result: gradingResponse.result, // Already GradingResultData, Prisma auto-converts to JSON
           thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
           normalizedScore,
           gradingModel: gradingResponse.provider,
           gradingTokens: gradingResponse.metadata?.tokens,
           gradingDuration: gradingResponse.metadata?.duration,
-          usedContext: usedContext as any, // Feature 004
+          usedContext: usedContext, // Already UsedContext | null, Prisma auto-converts to JSON
           completedAt: new Date(),
         },
       });
@@ -242,7 +253,7 @@ export async function processGradingResult(
         gradingResponse.result?.totalScore,
         gradingResponse.result?.maxScore,
         normalizedScore || undefined,
-        gradingResponse.result?.overallFeedback || undefined,
+        extractOverallFeedback(gradingResponse.result) || undefined,
         gradingResponse.result?.breakdown
       );
       // Log AI response (rawResponse only - avoid duplication with "result")
@@ -411,13 +422,12 @@ export async function retryFailedGrading(
   sessionId?: string
 ): Promise<{ success: boolean; retriedCount: number; error?: string }> {
   try {
-    const whereClause: any = { status: 'FAILED' };
-    if (sessionId) {
-      whereClause.gradingSessionId = sessionId;
-    }
+    const where = sessionId
+      ? { status: GradingStatus.FAILED, gradingSessionId: sessionId }
+      : { status: GradingStatus.FAILED };
 
     const failedResults = await db.gradingResult.findMany({
-      where: whereClause,
+      where,
       orderBy: { updatedAt: 'desc' },
       take: 20, // Retry in batches
     });
