@@ -5,10 +5,14 @@ export interface CreateGradingResultOptions {
   gradingSessionId: string;
   uploadedFileId: string;
   rubricId: string;
+  assignmentAreaId?: string | null;
   status?: GradingStatus;
   progress?: number;
   result?: any;
   errorMessage?: string | null;
+  thoughtSummary?: string | null;
+  usedContext?: Record<string, any> | null;
+  normalizedScore?: number | null;
   gradingModel?: string | null;
   gradingTokens?: number | null;
   gradingDuration?: number | null;
@@ -43,16 +47,25 @@ export class GradingResultFactory {
   };
 
   static async create(options: CreateGradingResultOptions) {
+    const normalizedScore = options.normalizedScore !== undefined ? options.normalizedScore :
+      (options.result?.totalScore && options.result?.maxScore ?
+        (options.result.totalScore / options.result.maxScore) * 100 :
+        null);
+
     const gradingResult = await db.gradingResult.create({
       data: {
         id: uuidv4(),
         gradingSessionId: options.gradingSessionId,
         uploadedFileId: options.uploadedFileId,
         rubricId: options.rubricId,
+        assignmentAreaId: options.assignmentAreaId ?? null,
         status: options.status || GradingStatus.PENDING,
         progress: options.progress || 0,
         result: options.result || null,
         errorMessage: options.errorMessage || null,
+        thoughtSummary: options.thoughtSummary ?? null,
+        ...(options.usedContext && { usedContext: options.usedContext }),
+        normalizedScore: normalizedScore as number | null,
         gradingModel: options.gradingModel || null,
         gradingTokens: options.gradingTokens || null,
         gradingDuration: options.gradingDuration || null,
@@ -68,11 +81,23 @@ export class GradingResultFactory {
     options: Omit<CreateGradingResultOptions, 'status' | 'progress' | 'result'>,
     customResult?: any
   ) {
+    const result = customResult || this.defaultResult;
+    const normalizedScore = (result.totalScore / result.maxScore) * 100;
+
+    const defaultUsedContext = {
+      assignmentAreaId: options.assignmentAreaId,
+      referenceFilesUsed: [],
+      customInstructionsUsed: false,
+    };
+
     return this.create({
       ...options,
       status: GradingStatus.COMPLETED,
       progress: 100,
-      result: customResult || this.defaultResult,
+      result,
+      thoughtSummary: options.thoughtSummary || 'This assignment demonstrates strong understanding of the core concepts with well-articulated arguments.',
+      usedContext: options.usedContext || defaultUsedContext,
+      normalizedScore: options.normalizedScore || normalizedScore,
       gradingModel: 'gemini-1.5-pro',
       gradingTokens: 1247,
       gradingDuration: 3500, // 3.5 seconds

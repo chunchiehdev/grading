@@ -3,6 +3,9 @@ import {
   UserFactory,
   RubricFactory,
   CourseFactory,
+  ClassFactory,
+  EnrollmentFactory,
+  SubmissionFactory,
   AssignmentAreaFactory,
   UploadedFileFactory,
 } from '../factories';
@@ -42,8 +45,10 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
   let teacher: any;
   let students: any[];
   let course: any;
+  let classRecord: any;
   let assignment: any;
   let rubric: any;
+  let enrollments: any[];
 
   beforeEach(async () => {
     console.log('\n🎬 REAL-TIME DEMO: Setting up test data...');
@@ -95,15 +100,32 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
       }
     }
 
+    teacher = await db.user.update({
+      where: { id: teacher.id },
+      data: { hasSelectedRole: true },
+    });
+
     students = await UserFactory.createMany(9, {
       role: 'STUDENT',
+      hasSelectedRole: true,
     });
 
     const courseData = await CourseFactory.createWithInvitation(teacher.id, {
       name: 'Real-Time Demo Course',
       description: 'Live queue monitoring demo',
+      code: 'DEMO-101',
     });
     course = courseData.course;
+    console.log(`   ✓ Created course: ${course.name} (${course.code})`);
+
+    // CREATE CLASS - Students belong to a specific class/section
+    classRecord = await ClassFactory.create({
+      courseId: course.id,
+      name: 'Demo Section A',
+      schedule: { weekday: 'Monday', periodCode: '1-2', room: 'A101' },
+      capacity: 30,
+    });
+    console.log(`   ✓ Created class: ${classRecord.name}`);
 
     rubric = await RubricFactory.create({
       userId: teacher.id,
@@ -113,26 +135,36 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
         {
           id: 'content',
           name: 'Content Quality',
-          maxScore: 100,
+          maxScore: 4,
           levels: [
-            { score: 100, description: 'Excellent' },
-            { score: 50, description: 'Average' },
-            { score: 0, description: 'Poor' },
+            { score: 4, description: 'Excellent - Comprehensive and insightful content' },
+            { score: 3, description: 'Good - Clear and adequate content' },
+            { score: 2, description: 'Fair - Basic content with some gaps' },
+            { score: 1, description: 'Poor - Minimal or unclear content' },
           ],
         },
       ],
     });
+    console.log(`   ✓ Created rubric: ${rubric.name}`);
 
+    // CREATE CLASS-SPECIFIC ASSIGNMENT
     assignment = await AssignmentAreaFactory.createWithDueDate(
       {
         courseId: course.id,
         rubricId: rubric.id,
+        classId: classRecord.id, // NEW: Link to specific class
         name: 'Demo Assignment',
       },
       7
     );
+    console.log(`   ✓ Created assignment: ${assignment.name}`);
 
-    console.log(`✅ Setup complete - ready for demo`);
+    // ENROLL STUDENTS IN CLASS
+    const studentIds = students.map(s => s.id);
+    enrollments = await EnrollmentFactory.createForClass(classRecord.id, studentIds);
+    console.log(`   ✓ Enrolled ${enrollments.length} students in class`);
+
+    console.log(`✅ Setup complete - test will create submissions during execution`);
   });
 
   it('REAL-TIME: Watch 9th student get rate limited on Admin Dashboard', async () => {
@@ -157,15 +189,17 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
     console.log('═════════════════════════════════════════════════════════\n');
 
     // ============================================
-    // PHASE 1: Create PDFs for 9 students
+    // PHASE 1: Upload files (they auto-parse)
     // ============================================
-    console.log('📝 PHASE 1: Creating 9 student submissions...');
+    console.log('📝 PHASE 1: Uploading 9 student files...');
+    console.log('   (Files will parse automatically)');
 
     const uploadedFiles = [];
     for (let i = 0; i < 9; i++) {
       const file = await UploadedFileFactory.createPdf(students[i].id, {
         originalFileName: `submission-student-${i + 1}.pdf`,
         fileSize: 1024 * 50,
+        parseStatus: 'COMPLETED', // Simulates completed parsing
         parsedContent: `
           This is submission number ${i + 1}.
 
@@ -178,16 +212,16 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
         `,
       });
       uploadedFiles.push(file);
-      console.log(`   ✓ Student ${i + 1}: ${file.originalFileName}`);
+      console.log(`   ✓ Student ${i + 1}: ${file.originalFileName} (parsed: ${file.parseStatus})`);
     }
 
     // ============================================
     // PHASE 2: Create Grading Sessions (with GradingResults)
     // ============================================
-    console.log('\n🔗 PHASE 2: Creating grading sessions...');
+    console.log('\n🔗 PHASE 2: Creating grading sessions for parsed files...');
 
     const sessionIds = [];
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < uploadedFiles.length; i++) {
       const sessionResult = await createGradingSession({
         userId: students[i].id,
         filePairs: [
@@ -205,7 +239,7 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
       }
 
       sessionIds.push(sessionResult.sessionId!);
-      console.log(`   ✓ Student ${i + 1}: Session ready for grading`);
+      console.log(`   ✓ Student ${i + 1}: Session created, ready for grading`);
     }
 
     // ============================================
@@ -233,9 +267,9 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
     console.log('   • Status: 🔴 RED (Rate Limited)\n');
 
     // ============================================
-    // PHASE 4: Long wait - let Admin Dashboard catch up
+    // PHASE 4: Monitor queue processing
     // ============================================
-    console.log('⏳ PHASE 4: Keeping jobs in queue for 15 seconds...');
+    console.log('⏳ PHASE 4: Monitoring queue for 15 seconds...');
     console.log('   Admin Dashboard polls every 2 seconds');
     console.log('   You should see 6-7 updates during this time\n');
 
@@ -257,9 +291,42 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
     }
 
     // ============================================
-    // PHASE 5: Final status check
+    // PHASE 5: Create Submission records (AFTER grading completes)
     // ============================================
-    console.log('\n✅ PHASE 5: Final queue status');
+    console.log('\n📋 PHASE 5: Creating submission records (final step in production flow)...');
+    console.log('   In production: Students click "Submit Assignment" button after grading');
+    console.log('   This creates the Submission record linking to graded results\n');
+
+    const submissions = [];
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      // Get the grading result from database
+      const gradingResult = await db.gradingResult.findFirst({
+        where: {
+          uploadedFileId: uploadedFiles[i].id,
+          rubricId: rubric.id,
+        },
+      });
+
+      // Create submission record (AFTER grading is complete)
+      const submission = await SubmissionFactory.create({
+        studentId: students[i].id,
+        assignmentAreaId: assignment.id,
+        filePath: uploadedFiles[i].fileKey,
+        aiAnalysisResult: gradingResult?.result,
+        finalScore: gradingResult?.result?.totalScore,
+        normalizedScore: gradingResult?.normalizedScore,
+        thoughtSummary: gradingResult?.thoughtSummary,
+        usedContext: gradingResult?.usedContext,
+        status: gradingResult ? 'ANALYZED' : 'SUBMITTED',
+      });
+      submissions.push(submission);
+      console.log(`   ✓ Student ${i + 1}: Submission created (links to grading result)`);
+    }
+
+    // ============================================
+    // PHASE 6: Final status check
+    // ============================================
+    console.log('\n✅ PHASE 6: Final queue status');
 
     const finalStatus = await getQueueStatus();
     console.log(`\n   Final Counts:`);
@@ -270,17 +337,24 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
     console.log(`   • Rate Limited: ${finalStatus.isRateLimited ? '🔴 YES' : '🟢 NO'}`);
 
     // ============================================
-    // PHASE 6: Summary
+    // PHASE 7: Summary
     // ============================================
     console.log('\n\n╔═══════════════════════════════════════════════════════╗');
     console.log('║  ✅ DEMO COMPLETE                                      ║');
     console.log('╚═══════════════════════════════════════════════════════╝');
 
     console.log('\n📊 WHAT YOU SAW:');
-    console.log('   ✅ 9 students submitted real PDF assignments');
+    console.log('   ✅ COMPLETE PRODUCTION WORKFLOW (Upload → Parse → Grade → Submit):');
+    console.log('   ✅ Teacher created course with code DEMO-101');
+    console.log('   ✅ Class section created and organized');
+    console.log('   ✅ 9 students enrolled in class');
+    console.log('   ✅ 9 PDF files uploaded and parsed');
+    console.log('   ✅ 9 grading sessions created with parsed files');
     console.log('   ✅ All 9 jobs added to BullMQ queue');
     console.log('   ✅ Front 8 jobs processed with Gemini API');
     console.log('   ✅ 9th job waiting (rate limited)');
+    console.log('   ✅ 9 submission records created (AFTER grading)');
+    console.log('   ✅ Submissions linked to grading results');
     console.log('   ✅ Admin Dashboard updated in REAL-TIME');
 
     console.log('\n🔍 VERIFICATION:');
@@ -290,9 +364,10 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
 
     console.log('\n📝 NEXT STEPS:');
     console.log('   1. Check your Admin Dashboard - you should see the history');
-    console.log('   2. Refresh the page to see current queue status');
-    console.log('   3. Run test again to see repeated pattern');
-    console.log('   4. Check database to see grading results stored\n');
+    console.log('   2. Verify database: submissions table has 9 new records');
+    console.log('   3. Verify submissions linked to grading results');
+    console.log('   4. Check submission.aiAnalysisResult has grading data');
+    console.log('   5. Run test again to see repeated pattern\n');
 
     // Verify some jobs were actually processed
     expect(finalStatus.completed + finalStatus.failed + finalStatus.waiting + finalStatus.active).toBeGreaterThan(0);

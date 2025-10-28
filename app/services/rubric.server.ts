@@ -3,6 +3,13 @@ import { ZodError } from 'zod';
 import { validateRubricData, validateRubricCompletion, formatZodErrors } from '@/utils/rubric-transform';
 import { DeleteRubricRequestSchema } from '@/schemas/rubric';
 import { type RubricResponse, type UIRubricData } from '@/types/rubric';
+import {
+  transformUICategoriesToDbCriteria,
+  parseRubricCriteria,
+  parseRubricCriteriaWithDefault,
+  flattenCategoriesToCriteria,
+  type DbRubricCriteria,
+} from '@/schemas/rubric-data';
 
 /**
  * Unified error handling for service operations
@@ -26,37 +33,6 @@ function handleServiceError(error: unknown, operation: string): { success: false
   return { success: false, error: `${operation}過程中發生未知錯誤` };
 }
 
-/**
- * 將UI類別轉換為新schema的criteria JSON格式
- */
-function transformUICategoriesToCriteria(categories: any[]): any {
-  // 改為儲存完整的類別結構，而不是扁平化的 criteria
-  return categories.map((category) => ({
-    id: category.id,
-    name: category.name,
-    criteria: category.criteria.map((criterion: any) => ({
-      id: criterion.id,
-      name: criterion.name,
-      description: criterion.description || '',
-      maxScore: Math.max(...criterion.levels.map((l: any) => l.score)),
-      levels: criterion.levels.map((level: any) => ({
-        score: level.score,
-        description: level.description,
-      })),
-    })),
-  }));
-}
-
-/**
- * Parses criteria JSON from database
- * Expects categories format: [{ id, name, criteria: [...] }]
- */
-function parseCriteriaFromDB(criteria: unknown): any[] {
-  if (Array.isArray(criteria)) {
-    return criteria;
-  }
-  return [];
-}
 
 /**
  * Creates a new rubric with validation and version control
@@ -86,7 +62,7 @@ export async function createRubric(
       }
     }
 
-    const criteria = transformUICategoriesToCriteria(validation.data!.categories);
+    const criteria = transformUICategoriesToDbCriteria(validation.data!.categories);
 
     const result = await db.rubric.create({
       data: {
@@ -95,7 +71,7 @@ export async function createRubric(
         description: validation.data!.description,
         version: 1,
         isActive: true,
-        criteria: criteria as any, // Prisma JsonValue
+        criteria: criteria, // Prisma auto-converts to JSON
       },
     });
 
@@ -128,7 +104,7 @@ export async function listRubrics(userId?: string): Promise<{ rubrics: RubricRes
     });
 
     const rubrics: RubricResponse[] = dbRubrics.map((dbRubric) => {
-      const categories = parseCriteriaFromDB(dbRubric.criteria);
+      const categories = parseRubricCriteriaWithDefault(dbRubric.criteria);
 
       return {
         id: dbRubric.id,
@@ -139,7 +115,7 @@ export async function listRubrics(userId?: string): Promise<{ rubrics: RubricRes
         isTemplate: dbRubric.isTemplate,
         createdAt: dbRubric.createdAt,
         updatedAt: dbRubric.updatedAt,
-        criteria: categories.flatMap((cat) => cat.criteria),
+        criteria: flattenCategoriesToCriteria(categories),
         categories: categories,
       };
     });
@@ -176,7 +152,7 @@ export async function getRubric(id: string): Promise<{ rubric?: RubricResponse; 
       return { error: '找不到評分標準' };
     }
 
-    const categories = parseCriteriaFromDB(dbRubric.criteria);
+    const categories = parseRubricCriteriaWithDefault(dbRubric.criteria);
 
     const rubric: RubricResponse = {
       id: dbRubric.id,
@@ -187,7 +163,7 @@ export async function getRubric(id: string): Promise<{ rubric?: RubricResponse; 
       isTemplate: dbRubric.isTemplate,
       createdAt: dbRubric.createdAt,
       updatedAt: dbRubric.updatedAt,
-      criteria: categories.flatMap((cat) => cat.criteria),
+      criteria: flattenCategoriesToCriteria(categories),
       categories: categories,
     };
 
@@ -229,7 +205,7 @@ export async function updateRubric(
       return { success: false, error: '找不到評分標準' };
     }
 
-    const criteria = transformUICategoriesToCriteria(validation.data!.categories);
+    const criteria = transformUICategoriesToDbCriteria(validation.data!.categories);
 
     // 直接更新現有記錄（保持相同 ID）
     await db.rubric.update({
@@ -238,7 +214,7 @@ export async function updateRubric(
         name: validation.data!.name,
         description: validation.data!.description,
         version: existingRubric.version + 1,
-        criteria: criteria as any, // Prisma JsonValue
+        criteria: criteria, // Prisma auto-converts to JSON
         updatedAt: new Date(),
       },
     });
@@ -314,18 +290,21 @@ export async function getRubricVersions(id: string): Promise<{ versions: RubricR
       },
     });
 
-    const versionResponses: RubricResponse[] = versions.map((v) => ({
-      id: v.id,
-      name: v.name,
-      description: v.description,
-      version: v.version,
-      isActive: v.isActive,
-      isTemplate: v.isTemplate,
-      createdAt: v.createdAt,
-      updatedAt: v.updatedAt,
-      criteria: parseCriteriaFromDB(v.criteria),
-      categories: [], // Empty categories for version history display
-    }));
+    const versionResponses: RubricResponse[] = versions.map((v) => {
+      const categories = parseRubricCriteriaWithDefault(v.criteria);
+      return {
+        id: v.id,
+        name: v.name,
+        description: v.description,
+        version: v.version,
+        isActive: v.isActive,
+        isTemplate: v.isTemplate,
+        createdAt: v.createdAt,
+        updatedAt: v.updatedAt,
+        criteria: flattenCategoriesToCriteria(categories),
+        categories: categories,
+      };
+    });
 
     return { versions: versionResponses };
   } catch (error) {

@@ -37,4 +37,24 @@ export class GradingSessionFactory {
       progress,
     });
   }
+
+  static async createWithResults(userId: string, filePairs: Array<{ uploadedFileId: string; rubricId: string; assignmentAreaId?: string }>) {
+    const session = await this.create({ userId, status: GradingSessionStatus.PENDING });
+
+    const { GradingResultFactory } = await import('./grading-result.factory');
+
+    const results = [];
+    for (const pair of filePairs) {
+      const result = await GradingResultFactory.create({
+        gradingSessionId: session.id,
+        uploadedFileId: pair.uploadedFileId,
+        rubricId: pair.rubricId,
+        assignmentAreaId: pair.assignmentAreaId,
+      });
+      results.push(result);
+    }
+
+    console.log(`📦 Created grading session with ${results.length} results`);
+    return { session, results };
+  }
 }

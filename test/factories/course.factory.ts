@@ -5,6 +5,8 @@ export interface CreateCourseOptions {
   teacherId: string;
   name?: string;
   description?: string;
+  code?: string;
+  syllabus?: string;
 }
 
 export class CourseFactory {
@@ -15,10 +17,12 @@ export class CourseFactory {
         teacherId: options.teacherId,
         name: options.name || `Test Course ${Math.floor(Math.random() * 1000)}`,
         description: options.description || 'A test course for automated testing',
+        code: options.code ?? null,
+        syllabus: options.syllabus ?? null,
       },
     });
 
-    console.log(`🎓 Created course: ${course.name}`);
+    console.log(`🎓 Created course: ${course.name}${options.code ? ` (${options.code})` : ''}`);
     return course;
   }
 

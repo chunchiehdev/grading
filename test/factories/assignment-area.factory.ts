@@ -7,6 +7,9 @@ export interface CreateAssignmentAreaOptions {
   name?: string;
   description?: string;
   dueDate?: Date | null;
+  classId?: string | null;
+  referenceFileIds?: string | null;
+  customGradingPrompt?: string | null;
 }
 
 export class AssignmentAreaFactory {
@@ -19,6 +22,9 @@ export class AssignmentAreaFactory {
         name: options.name || `Assignment ${Math.floor(Math.random() * 1000)}`,
         description: options.description || 'Test assignment for automated testing',
         dueDate: options.dueDate !== undefined ? options.dueDate : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        classId: options.classId ?? null,
+        referenceFileIds: options.referenceFileIds ?? null,
+        customGradingPrompt: options.customGradingPrompt ?? null,
       },
     });
 

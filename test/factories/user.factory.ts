@@ -6,6 +6,7 @@ export interface CreateUserOptions {
   name?: string;
   role?: UserRole;
   picture?: string;
+  hasSelectedRole?: boolean;
 }
 
 export class UserFactory {
@@ -17,6 +18,7 @@ export class UserFactory {
         name: options.name || `Test User ${Math.floor(Math.random() * 1000)}`,
         role: options.role || UserRole.STUDENT,
         picture: options.picture || 'https://example.com/avatar.jpg',
+        hasSelectedRole: options.hasSelectedRole ?? false,
       },
     });
 

@@ -1,6 +1,8 @@
 import { db, GradingStatus, type GradingResult, type Rubric, type UploadedFile } from '@/types/database';
+import { Prisma } from '@prisma/client';
 import logger from '@/utils/logger';
 import { GradingResultData } from '@/types/grading';
+import { extractTotalScore } from '@/utils/grading-helpers';
 
 // GradingResultData 現在從 @/types/grading 統一導入
 
@@ -27,7 +29,7 @@ export async function updateGradingResult(
       data: {
         status: GradingStatus.COMPLETED,
         progress: 100,
-        result: gradingData as any, // Prisma JsonValue
+        result: gradingData as unknown as Record<string, any>, // Plain object, Prisma handles JSON conversion
         gradingModel: metadata?.gradingModel,
         gradingTokens: metadata?.gradingTokens,
         gradingDuration: metadata?.gradingDuration,
@@ -192,7 +194,7 @@ export async function getSessionGradingResults(
 export async function getGradingResultsByStatus(
   status: GradingStatus,
   limit: number = 50
-): Promise<{ results: GradingResultWithDetails[]; error?: string }> {
+): Promise<{ results: (GradingResult & { uploadedFile: UploadedFile; rubric: Rubric })[]; error?: string }> {
   try {
     const results = await db.gradingResult.findMany({
       where: { status },
@@ -209,7 +211,7 @@ export async function getGradingResultsByStatus(
       take: limit,
     });
 
-    return { results: results as any };
+    return { results };
   } catch (error) {
     logger.error('Failed to get grading results by status:', error);
     return {
@@ -236,19 +238,21 @@ export async function getGradingStatistics(
   error?: string;
 }> {
   try {
-    const whereClause: any = {
-      gradingSession: { userId },
-    };
-
-    if (timeframe) {
-      whereClause.createdAt = {
-        gte: timeframe.start,
-        lte: timeframe.end,
-      };
-    }
+    // Build where clause for grading results
+    const where = timeframe
+      ? {
+          gradingSession: { userId },
+          createdAt: {
+            gte: timeframe.start,
+            lte: timeframe.end,
+          },
+        }
+      : {
+          gradingSession: { userId },
+        };
 
     const results = await db.gradingResult.findMany({
-      where: whereClause,
+      where,
       select: {
         status: true,
         result: true,
@@ -265,9 +269,9 @@ export async function getGradingStatistics(
     const averageScore =
       completedResultsWithScores.length > 0
         ? completedResultsWithScores.reduce((sum, r) => {
-            const resultData = r.result as any;
-            const percentage =
-              resultData?.totalScore && resultData?.maxScore ? (resultData.totalScore / resultData.maxScore) * 100 : 0;
+            const totalScore = extractTotalScore(r.result);
+            const maxScore = r.result && typeof r.result === 'object' && 'maxScore' in r.result ? (r.result as any).maxScore : 100;
+            const percentage = totalScore && maxScore ? (totalScore / maxScore) * 100 : 0;
             return sum + percentage;
           }, 0) / completedResultsWithScores.length
         : 0;
