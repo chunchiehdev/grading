@@ -1,6 +1,26 @@
 import { db } from '@/lib/db.server';
 import logger from '@/utils/logger';
-import type { DiscoverableCourse, ClassCard } from '@/types/course';
+import type { DiscoverableCourse, ClassCard, ClassSchedule } from '@/types/course';
+
+/**
+ * Safely parse class schedule from database JSON
+ */
+function parseClassSchedule(schedule: unknown): ClassSchedule {
+  if (
+    schedule &&
+    typeof schedule === 'object' &&
+    'weekday' in schedule &&
+    'periodCode' in schedule &&
+    'room' in schedule &&
+    typeof (schedule as any).weekday === 'string' &&
+    typeof (schedule as any).periodCode === 'string' &&
+    typeof (schedule as any).room === 'string'
+  ) {
+    return schedule as ClassSchedule;
+  }
+  // Fallback for invalid data
+  return { weekday: '', periodCode: '', room: '' };
+}
 
 /**
  * Fetches all discoverable courses with their class sections and teacher information
@@ -117,7 +137,7 @@ export async function getDiscoverableCourses(options?: {
         return {
           id: cls.id,
           name: cls.name,
-          schedule: (cls.schedule as unknown as ClassCard['schedule']) || { weekday: '', periodCode: '', room: '' },
+          schedule: parseClassSchedule(cls.schedule),
           capacity,
           enrollmentCount,
           isFull,

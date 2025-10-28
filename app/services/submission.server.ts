@@ -1,5 +1,6 @@
 import { db } from '@/lib/db.server';
 import type { SubmissionInfo, StudentAssignmentInfo } from '@/types/student';
+import { parseGradingResult, type GradingResultData, type UsedContext } from '@/utils/grading-helpers';
 
 export interface CreateSubmissionData {
   assignmentAreaId: string;
@@ -88,7 +89,7 @@ export async function createSubmissionAndLinkGradingResult(
     orderBy: { createdAt: 'desc' },
   });
 
-  let submission: any;
+  let submission: SubmissionInfo | null;
 
   if (existingSubmission) {
     // Check if resubmission is allowed
@@ -110,7 +111,6 @@ export async function createSubmissionAndLinkGradingResult(
       where: { id: existingSubmission.id },
       data: {
         filePath: filePathOrId,
-        aiAnalysisResult: null as any,
         finalScore: null,
         teacherFeedback: null,
         status: 'SUBMITTED',
@@ -131,13 +131,17 @@ export async function createSubmissionAndLinkGradingResult(
       },
     });
 
-    console.log(`✅ Resubmission successful: Updated submission ${submission.id}`);
+    console.log(`✅ Resubmission successful: Updated submission ${submission!.id}`);
   } else {
     submission = await createSubmission(studentId, {
       assignmentAreaId,
       filePath: filePathOrId,
     });
     console.log(`✅ Created new submission ${submission.id}`);
+  }
+
+  if (!submission) {
+    throw new Error('Failed to create or update submission');
   }
 
   if (!sessionId) {
@@ -155,9 +159,8 @@ export async function createSubmissionAndLinkGradingResult(
     });
 
     if (gradingResult && gradingResult.result) {
-      const aiAnalysisResult = gradingResult.result as any;
-      const finalScore =
-        typeof aiAnalysisResult.totalScore === 'number' ? Math.round(aiAnalysisResult.totalScore) : null;
+      const aiAnalysisResult = parseGradingResult(gradingResult.result);
+      const finalScore = aiAnalysisResult?.totalScore ? Math.round(aiAnalysisResult.totalScore) : null;
 
       // Get normalized score (100-point scale) from grading result
       const normalizedScore = gradingResult.normalizedScore ?? null;
@@ -166,7 +169,7 @@ export async function createSubmissionAndLinkGradingResult(
       const usedContext = gradingResult.usedContext ?? null;
 
       console.log(
-        `🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}, context=${usedContext ? 'yes' : 'no'}`
+        `🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult?.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}, context=${usedContext ? 'yes' : 'no'}`
       );
 
       await updateSubmission(submission.id, {
@@ -619,16 +622,18 @@ export async function getSubmissionById(submissionId: string, studentId: string)
  * @param {Object} updateData - Update data
  * @returns {Promise<SubmissionInfo | null>} Updated submission information
  */
+export interface UpdateSubmissionOptions {
+  aiAnalysisResult?: GradingResultData;
+  finalScore?: number | null;
+  normalizedScore?: number | null;
+  usedContext?: UsedContext | null; // Feature 004: Context transparency
+  teacherFeedback?: string | null;
+  status?: 'SUBMITTED' | 'ANALYZED' | 'GRADED';
+}
+
 export async function updateSubmission(
   submissionId: string,
-  updateData: {
-    aiAnalysisResult?: any;
-    finalScore?: number;
-    normalizedScore?: number;
-    usedContext?: any; // Feature 004: Context transparency
-    teacherFeedback?: string;
-    status?: 'SUBMITTED' | 'ANALYZED' | 'GRADED';
-  }
+  updateData: UpdateSubmissionOptions
 ): Promise<SubmissionInfo | null> {
   try {
     const submission = await db.submission.update({
@@ -670,7 +675,7 @@ export interface DraftSubmissionData {
     mimeType: string;
   } | null;
   sessionId?: string | null;
-  aiAnalysisResult?: any | null;
+  aiAnalysisResult?: unknown;
   thoughtSummary?: string | null;
   lastState?: 'idle' | 'ready' | 'grading' | 'completed' | 'error';
 }
@@ -814,7 +819,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
 
     if (existingSubmission) {
       // Update existing submission
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
 
       // Update file path if new file metadata provided
       if (fileMetadata?.fileId) {

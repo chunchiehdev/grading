@@ -108,8 +108,8 @@ export async function processGradingResult(
         if (rubricData[0]?.criteria) {
           criteria = flattenCategoriesToCriteria(rubricData);
         } else {
-          // Assume it's a flat array of criteria
-          criteria = rubricData as unknown as DbCriterion[];
+          // Assume it's a flat array of criteria - rubricData is already DbCriterion[] from parseRubricCriteria
+          criteria = rubricData;
         }
       } else {
         criteria = [];
