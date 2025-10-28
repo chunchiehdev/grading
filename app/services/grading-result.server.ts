@@ -1,8 +1,8 @@
 import { db, GradingStatus, type GradingResult, type Rubric, type UploadedFile } from '@/types/database';
-import { Prisma } from '@prisma/client';
 import logger from '@/utils/logger';
-import { GradingResultData } from '@/types/grading';
-import { extractTotalScore } from '@/utils/grading-helpers';
+import type { GradingResultData } from '@/types/grading';
+import { GradingResultDataSchema } from '@/schemas/grading';
+import { extractTotalScore, extractMaxScore } from '@/utils/grading-helpers';
 
 // GradingResultData 現在從 @/types/grading 統一導入
 
@@ -13,6 +13,7 @@ export interface GradingResultWithDetails extends GradingResult {
 
 /**
  * Updates a grading result with LLM scoring data
+ * Uses Zod validation to ensure type-safe data before storage
  */
 export async function updateGradingResult(
   resultId: string,
@@ -24,12 +25,16 @@ export async function updateGradingResult(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Runtime validation: Zod validates the data structure before storage
+    // This ensures both type safety (TypeScript) and runtime correctness (Zod)
+    const validatedData = GradingResultDataSchema.parse(gradingData);
+
     const result = await db.gradingResult.update({
       where: { id: resultId },
       data: {
         status: GradingStatus.COMPLETED,
         progress: 100,
-        result: gradingData as unknown as Record<string, any>, // Plain object, Prisma handles JSON conversion
+        result: validatedData, 
         gradingModel: metadata?.gradingModel,
         gradingTokens: metadata?.gradingTokens,
         gradingDuration: metadata?.gradingDuration,
@@ -37,10 +42,18 @@ export async function updateGradingResult(
       },
     });
 
-    logger.info(`Updated grading result ${resultId} with score ${gradingData.totalScore}/${gradingData.maxScore}`);
+    logger.info(`Updated grading result ${resultId} with score ${validatedData.totalScore}/${validatedData.maxScore}`);
 
     return { success: true };
   } catch (error) {
+    if (error instanceof Error && error.message.includes('Zod validation')) {
+      logger.warn(`Invalid grading data for result ${resultId}:`, error.message);
+      return {
+        success: false,
+        error: `Invalid grading data: ${error instanceof Error ? error.message : 'Unknown validation error'}`,
+      };
+    }
+
     logger.error('Failed to update grading result:', error);
     return {
       success: false,
@@ -149,6 +162,7 @@ export async function getGradingResult(
       return { error: 'Grading result not found' };
     }
 
+    // Prisma infers the correct type from include: { uploadedFile, rubric }
     return { result: result as GradingResultWithDetails };
   } catch (error) {
     logger.error('Failed to get grading result:', error);
@@ -178,7 +192,7 @@ export async function getSessionGradingResults(
       orderBy: { createdAt: 'asc' },
     });
 
-    return { results: results as GradingResultWithDetails[] };
+    return { results };
   } catch (error) {
     logger.error('Failed to get session grading results:', error);
     return {
@@ -270,7 +284,7 @@ export async function getGradingStatistics(
       completedResultsWithScores.length > 0
         ? completedResultsWithScores.reduce((sum, r) => {
             const totalScore = extractTotalScore(r.result);
-            const maxScore = r.result && typeof r.result === 'object' && 'maxScore' in r.result ? (r.result as any).maxScore : 100;
+            const maxScore = extractMaxScore(r.result) || 100;
             const percentage = totalScore && maxScore ? (totalScore / maxScore) * 100 : 0;
             return sum + percentage;
           }, 0) / completedResultsWithScores.length

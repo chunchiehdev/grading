@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { type ChatMessage, type WebSocketClientOptions } from './types';
+import { type ChatMessage, type WebSocketClientOptions, type WebSocketEvents } from './types';
 import { websocketClient } from './index';
 
 /**
@@ -78,6 +78,13 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
   }, [userId]);
 
   // 返回 WebSocket 狀態和方法
+  const onEventListener = useCallback(
+    <T extends keyof WebSocketEvents>(event: T, handler: WebSocketEvents[T]) => {
+      return websocketClient.on(event, handler);
+    },
+    []
+  );
+
   return {
     connectionState,
     isConnected,
@@ -91,7 +98,7 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
     ping: useCallback(() => websocketClient.ping(), []),
 
     // 事件監聽
-    on: useCallback((event: string, handler: Function) => websocketClient.on(event as any, handler as any), []),
+    on: onEventListener,
   };
 }
 
@@ -204,7 +211,11 @@ export function useWebSocketMonitor() {
  * 一次性事件監聽 Hook
  * 用於處理特定事件的監聽
  */
-export function useWebSocketEvent<T>(event: string, handler: (data: T) => void, deps: React.DependencyList = []) {
+export function useWebSocketEvent<K extends keyof WebSocketEvents>(
+  event: K,
+  handler: WebSocketEvents[K],
+  deps: React.DependencyList = []
+) {
   const handlerRef = useRef(handler);
 
   // 更新處理器參考
@@ -213,9 +224,7 @@ export function useWebSocketEvent<T>(event: string, handler: (data: T) => void, 
   }, [handler]);
 
   useEffect(() => {
-    const unsubscribe = websocketClient.on(event as any, (...args: any[]) => {
-      handlerRef.current(args[0]);
-    });
+    const unsubscribe = websocketClient.on(event, handlerRef.current);
 
     return unsubscribe;
   }, deps);
@@ -286,6 +295,13 @@ export function useWebSocketStatus() {
   }, []);
 
   // 返回只讀狀態和安全的方法
+  const onEventListener = useCallback(
+    <K extends keyof WebSocketEvents>(event: K, handler: WebSocketEvents[K]) => {
+      return websocketClient.on(event, handler);
+    },
+    []
+  );
+
   return {
     connectionState,
     isConnected,
@@ -297,6 +313,6 @@ export function useWebSocketStatus() {
     ping: useCallback(() => websocketClient.ping(), []),
 
     // 事件監聽
-    on: useCallback((event: string, handler: Function) => websocketClient.on(event as any, handler as any), []),
+    on: onEventListener,
   };
 }

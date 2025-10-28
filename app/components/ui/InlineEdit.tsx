@@ -76,16 +76,28 @@ export const InlineEdit = ({
     const InputComponent = multiline ? Textarea : Input;
     return (
       <div className="flex items-start gap-2">
-        <InputComponent
-          ref={inputRef as any}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={handleSave}
-          placeholder={defaultPlaceholder}
-          className={cn('flex-1', className)}
-          rows={multiline ? 3 : undefined}
-        />
+        {multiline ? (
+          <Textarea
+            ref={inputRef as React.Ref<HTMLTextAreaElement>}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleSave}
+            placeholder={defaultPlaceholder}
+            className={cn('flex-1', className)}
+            rows={3}
+          />
+        ) : (
+          <Input
+            ref={inputRef as React.Ref<HTMLInputElement>}
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleSave}
+            placeholder={defaultPlaceholder}
+            className={cn('flex-1', className)}
+          />
+        )}
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSave}>
             <Check className="h-4 w-4" />

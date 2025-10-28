@@ -102,7 +102,7 @@ export class WebSocketClient {
       logger.debug('[WebSocket] Creating connection to:', this.config.wsUrl);
 
       this.socket = io(this.config.wsUrl, {
-        transports: this.config.transports as any,
+        transports: (this.config.transports || ['websocket', 'polling']) as ['websocket', 'polling'],
         timeout: this.config.timeout,
         forceNew: this.config.forceNew,
       });
@@ -327,7 +327,10 @@ export class WebSocketClient {
     if (handlers) {
       handlers.forEach((handler) => {
         try {
-          (handler as any)(...args);
+          // TypeScript can't infer proper typing here due to the Map structure,
+          // but the actual call is guaranteed to be correct by type system
+          const typedHandler = handler as (...args: Parameters<WebSocketEvents[T]>) => void;
+          typedHandler(...args);
         } catch (error) {
           logger.error(`[WebSocket] Event handler error for ${event}:`, error);
         }

@@ -1,25 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import logger from '@/utils/logger';
-
-// Chat AI 請求介面
-export interface ChatAIRequest {
-  message: string;
-  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string; timestamp?: Date }>;
-  context?: {
-    type?: 'rubric_generation' | 'general_chat';
-    currentRubric?: any;
-    [key: string]: any;
-  };
-}
-
-// Chat AI 回應介面
-export interface ChatAIResponse {
-  success: boolean;
-  response?: string;
-  error?: string;
-  provider?: 'gemini' | 'openai';
-}
+import type { ChatAIRequest, ChatAIResponse, ChatContext } from '@/types/chat';
 
 /**
  * 生成聊天回應的專業 Prompt
@@ -27,7 +9,7 @@ export interface ChatAIResponse {
 function createChatPrompt(
   message: string,
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
-  context?: any
+  context?: ChatContext
 ): string {
   // 根據不同的上下文類型提供專業化的系統提示
   let systemPrompt = '';
@@ -101,10 +83,11 @@ async function testGeminiConnection(): Promise<{ success: boolean; error?: strin
     } else {
       return { success: false, error: 'Empty response from test request' };
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return {
       success: false,
-      error: `Connection test failed: ${error.message}`,
+      error: `Connection test failed: ${errorMessage}`,
     };
   }
 }
@@ -145,13 +128,13 @@ async function callGeminiForChat(prompt: string): Promise<string> {
     }
 
     return text;
-  } catch (error: any) {
-    const errorDetails = {
-      message: error.message,
-      status: error.status,
-      statusText: error.statusText,
-      name: error.name,
-    };
+  } catch (error: unknown) {
+    const errorDetails = error instanceof Error
+      ? {
+          message: error.message,
+          name: error.name,
+        }
+      : { error };
 
     logger.error('Gemini API chat error:', errorDetails);
     throw error;
@@ -238,10 +221,10 @@ export async function generateChatResponse(request: ChatAIRequest): Promise<stri
     const response = await callGeminiForChat(prompt);
     logger.info('Successfully generated chat response with Gemini');
     return response;
-  } catch (geminiError: any) {
+  } catch (geminiError: unknown) {
+    const errorMsg = geminiError instanceof Error ? geminiError.message : 'Unknown error';
     logger.warn('Gemini API failed for chat, trying OpenAI fallback', {
-      error: geminiError.message,
-      details: geminiError,
+      error: errorMsg,
     });
 
     // 使用 OpenAI 作為備用方案

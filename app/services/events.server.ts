@@ -1,17 +1,6 @@
 import { redis } from '@/lib/redis';
 import logger from '@/utils/logger';
-
-/**
- * 事件類型定義
- */
-export type ChatEvent = {
-  type: 'MESSAGE_CREATED' | 'AI_RESPONSE_NEEDED' | 'AI_RESPONSE_GENERATED';
-  chatId: string;
-  userId: string;
-  messageId?: string;
-  data?: any;
-  timestamp: Date;
-};
+import type { ChatEvent, MessageData } from '@/types/events';
 
 /**
  * 事件發布服務
@@ -44,7 +33,7 @@ export class EventPublisher {
     chatId: string,
     userId: string,
     messageId: string,
-    messageData?: any
+    messageData?: Record<string, unknown>
   ): Promise<void> {
     await this.publishChatEvent({
       type: 'MESSAGE_CREATED',
@@ -78,7 +67,11 @@ export class EventPublisher {
   /**
    * 發布 AI 回應完成事件
    */
-  static async publishAIResponseGenerated(chatId: string, messageId: string, messageData?: any): Promise<void> {
+  static async publishAIResponseGenerated(
+    chatId: string,
+    messageId: string,
+    messageData?: Record<string, unknown>
+  ): Promise<void> {
     await this.publishChatEvent({
       type: 'AI_RESPONSE_GENERATED',
       chatId,

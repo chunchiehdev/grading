@@ -1,26 +1,12 @@
 import { db } from '@/lib/db.server';
 import { redis } from '@/lib/redis';
 import type { AssignmentArea } from '@/generated/prisma/client';
-
-export interface AssignmentNotificationEvent {
-  type: 'ASSIGNMENT_CREATED';
-  courseId: string;
-  assignmentId: string;
-  assignmentName: string;
-  dueDate: Date | null;
-  studentIds: string[];
-  teacherName: string;
-}
-
-export interface NotificationData {
-  type: 'ASSIGNMENT_CREATED' | 'ASSIGNMENT_DUE_SOON' | 'SUBMISSION_GRADED' | 'COURSE_ANNOUNCEMENT';
-  userId: string;
-  courseId?: string;
-  assignmentId?: string;
-  title: string;
-  message: string;
-  data?: any;
-}
+import type {
+  AssignmentNotificationEvent,
+  NotificationData,
+  EnrollmentWithStudent,
+  UnreadNotification,
+} from '@/types/notification';
 
 export async function createNotifications(notifications: NotificationData[]): Promise<void> {
   if (notifications.length === 0) return;
@@ -55,7 +41,7 @@ export async function publishAssignmentCreatedNotification(
 
   console.log(
     '📋 課程學生名單:',
-    courseStudents.map((e: any) => ({
+    courseStudents.map((e: EnrollmentWithStudent) => ({
       studentId: e.studentId,
       studentName: e.student.name,
       studentEmail: e.student.email,
@@ -67,10 +53,10 @@ export async function publishAssignmentCreatedNotification(
     return;
   }
 
-  const studentIds = courseStudents.map((enrollment: any) => enrollment.studentId);
+  const studentIds = courseStudents.map((enrollment: EnrollmentWithStudent) => enrollment.studentId);
   console.log('📤 將發送通知給學生IDs:', studentIds);
 
-  const notifications: NotificationData[] = courseStudents.map((enrollment: any) => ({
+  const notifications: NotificationData[] = courseStudents.map((enrollment: EnrollmentWithStudent) => ({
     type: 'ASSIGNMENT_CREATED',
     userId: enrollment.studentId,
     courseId: assignment.courseId,
@@ -99,7 +85,7 @@ export async function publishAssignmentCreatedNotification(
   await redis.publish('notifications:assignment', JSON.stringify(event));
 }
 
-export async function getUnreadNotifications(userId: string): Promise<any[]> {
+export async function getUnreadNotifications(userId: string): Promise<UnreadNotification[]> {
   return db.notification.findMany({
     where: {
       userId,
@@ -111,7 +97,7 @@ export async function getUnreadNotifications(userId: string): Promise<any[]> {
     },
     orderBy: { createdAt: 'desc' },
     take: 50,
-  });
+  }) as Promise<UnreadNotification[]>;
 }
 
 export async function markNotificationAsRead(notificationId: string, userId: string): Promise<void> {

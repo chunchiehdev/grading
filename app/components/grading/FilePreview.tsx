@@ -39,7 +39,7 @@ export function FilePreview({
 
   const isPdf = useMemo(() => {
     const mt = localFile?.type || file?.mimeType || '';
-    const url = (typeof src === 'string' ? src : (src as any)?.url) as string | undefined;
+    const url = (typeof src === 'string' ? src : (src && typeof src === 'object' && 'url' in src ? src.url : undefined)) as string | undefined;
     return mt === 'application/pdf' || (url?.toLowerCase().endsWith('.pdf') ?? false);
   }, [localFile?.type, file?.mimeType, src]);
 
@@ -119,6 +119,7 @@ function ClientPdfViewer({
   isFullScreen?: boolean;
 }) {
   const { t } = useTranslation('grading');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [mod, setMod] = useState<any>(null);
   const [isClient, setIsClient] = useState(false);
   const [numPages, setNumPages] = useState<number>(0);
@@ -216,8 +217,11 @@ function ClientPdfViewer({
     );
   }
 
-  const Document = mod.Document as any;
-  const Page = mod.Page as any;
+  // React-PDF components with proper type handling
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Document = mod.Document as React.ComponentType<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Page = mod.Page as React.ComponentType<any>;
 
   // Calculate page width accounting for padding and sidebar
   const sidebarWidth = isSidebarOpen ? 200 : 0;

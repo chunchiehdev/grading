@@ -62,8 +62,11 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
     );
   }
 
-  const Document = pdf.Document as any;
-  const Page = pdf.Page as any;
+  // React-PDF components with proper type handling
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Document = pdf.Document as React.ComponentType<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Page = pdf.Page as React.ComponentType<any>;
 
   return (
     <div className="w-full h-full bg-background flex flex-col">

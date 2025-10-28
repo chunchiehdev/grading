@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+### Important do not use git add . or git commit .
+
 ## Project Overview
 
 This is a grading system application built with React Router v7, TypeScript, and Prisma. It supports both teacher and student platforms with AI-powered grading capabilities using Gemini and OpenAI APIs.
@@ -196,3 +198,4 @@ API routes follow REST conventions:
 5. Handle database operations in service layer, not directly in routes
 6. Use transactions for multi-step database operations
 7. Tests run against development database with cleanup - ensure Docker is running
+

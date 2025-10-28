@@ -1,15 +1,36 @@
 import { GradingResultData } from './grading';
+import type { DbCriterion, DbRubricCriteria } from '@/schemas/rubric-data';
 
 /**
  * Gemini AI 服務的共用型別定義
  * 統一所有 Gemini 相關服務的介面
  */
 
+// Gemini API Response structures (internal use, not user-facing)
+export interface GeminiContentPart {
+  text?: string;
+  thought?: boolean;
+}
+
+export interface GeminiContent {
+  parts: GeminiContentPart[];
+  role?: string;
+}
+
+export interface GeminiCandidate {
+  content: GeminiContent;
+  finishReason?: string;
+}
+
+export interface GeminiResponse {
+  candidates?: GeminiCandidate[];
+  text?: string;
+}
+
 // Gemini 評分請求介面 - 文字內容方式
 export interface GeminiGradingRequest {
   content: string;
-  criteria: any[]; // 向後兼容，保留扁平化格式
-  categories?: any[]; // 新增：完整的類別結構
+  criteria: DbCriterion[]; // Properly typed as DB criteria
   fileName: string;
   rubricName: string;
   // Feature 004: AI Grading Context
@@ -22,8 +43,7 @@ export interface GeminiGradingRequest {
 export interface GeminiFileGradingRequest {
   fileBuffer: Buffer;
   mimeType: string;
-  criteria: any[]; // 向後兼容，保留扁平化格式
-  categories?: any[]; // 新增：完整的類別結構
+  criteria: DbCriterion[]; // Properly typed as DB criteria
   fileName: string;
   rubricName: string;
 }

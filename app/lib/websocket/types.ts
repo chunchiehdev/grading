@@ -3,6 +3,8 @@
  * 集中管理所有 WebSocket 相關的型別
  */
 
+import type { ChatMsg, Chat, ChatSyncData } from '@/types/chat';
+
 export enum ConnectionState {
   DISCONNECTED = 'disconnected',
   CONNECTING = 'connecting',
@@ -11,21 +13,9 @@ export enum ConnectionState {
   ERROR = 'error',
 }
 
-export interface ChatMessage {
-  id: string;
-  role: 'USER' | 'AI';
-  content: string;
-  data?: any;
-  time: Date;
-}
-
-export interface ChatRoom {
-  id: string;
-  title?: string;
-  context?: any;
-  createdAt: Date;
-  msgs: ChatMessage[];
-}
+// Re-export chat types for convenience
+export type ChatMessage = ChatMsg;
+export type ChatRoom = Chat;
 
 export interface ConnectionConfig {
   wsUrl?: string;
@@ -44,7 +34,7 @@ export interface WebSocketEvents {
 
   // 聊天事件
   'new-msg': (msg: ChatMessage) => void;
-  'chat-sync': (data: any) => void;
+  'chat-sync': (data: ChatSyncData) => void;
 
   // 通知事件
   'assignment-notification': (notification: AssignmentNotification) => void;

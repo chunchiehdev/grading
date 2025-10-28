@@ -14,6 +14,7 @@ import { startGradingSession } from '@/services/grading-session.server';
 import { getQueueStatus } from '@/services/bullmq-grading.server';
 import { bullmqRedis } from '@/lib/redis';
 import { db } from '@/types/database';
+import { extractTotalScore } from '@/utils/grading-helpers';
 
 /**
  * Real-Time Demo: 9th Request Rate Limiting
@@ -312,11 +313,11 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
         studentId: students[i].id,
         assignmentAreaId: assignment.id,
         filePath: uploadedFiles[i].fileKey,
-        aiAnalysisResult: gradingResult?.result,
-        finalScore: gradingResult?.result?.totalScore,
-        normalizedScore: gradingResult?.normalizedScore,
-        thoughtSummary: gradingResult?.thoughtSummary,
-        usedContext: gradingResult?.usedContext,
+        aiAnalysisResult: gradingResult?.result as Record<string, any> | undefined,
+        finalScore: extractTotalScore(gradingResult?.result),
+        normalizedScore: gradingResult?.normalizedScore ?? undefined,
+        thoughtSummary: gradingResult?.thoughtSummary ?? undefined,
+        usedContext: gradingResult?.usedContext as Record<string, any> | undefined,
         status: gradingResult ? 'ANALYZED' : 'SUBMITTED',
       });
       submissions.push(submission);

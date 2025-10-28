@@ -17,9 +17,10 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import type { FetcherWithComponents } from 'react-router';
 import { SEARCH_CONSTRAINTS } from '@/contracts/search-api';
+import type { DiscoveryResponse } from '@/types/course';
 
 interface CourseSearchBarProps {
-  fetcher: FetcherWithComponents<any>;
+  fetcher: FetcherWithComponents<DiscoveryResponse>;
   onSearchChange?: (query: string) => void;
 }
 

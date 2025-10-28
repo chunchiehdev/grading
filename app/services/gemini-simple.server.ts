@@ -1,7 +1,8 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import logger from '@/utils/logger';
 import { GradingResultData } from '@/types/grading';
-import { GeminiGradingRequest, GeminiGradingResponse } from '@/types/gemini';
+import { GeminiGradingRequest, GeminiGradingResponse, type GeminiResponse, type GeminiContentPart } from '@/types/gemini';
+import type { DbCriterion } from '@/schemas/rubric-data';
 import { GeminiPrompts } from './gemini-prompts.server';
 
 /**
@@ -171,7 +172,7 @@ class SimpleGeminiService {
    * Extract thought summary from Gemini response
    * Gemini returns thinking content in candidates[0].content.parts[] with thought: true
    */
-  private extractThoughtSummary(response: any): string | undefined {
+  private extractThoughtSummary(response: GeminiResponse): string | undefined {
     try {
       // Navigate to candidates[0].content.parts
       const candidates = response.candidates;
@@ -194,13 +195,13 @@ class SimpleGeminiService {
       }
 
       // Find all thought parts and concatenate their text
-      const thoughtParts = parts.filter((part: any) => part.thought === true && part.text);
+      const thoughtParts = parts.filter((part: GeminiContentPart) => part.thought === true && part.text);
       if (thoughtParts.length === 0) {
         logger.info('No thought parts found in response');
         return undefined;
       }
 
-      const thoughtSummary = thoughtParts.map((part: any) => part.text).join('\n\n');
+      const thoughtSummary = thoughtParts.map((part: GeminiContentPart) => part.text || '').join('\n\n');
       logger.info(`📍 Extracted ${thoughtParts.length} thought part(s)`);
       return thoughtSummary;
     } catch (error) {
@@ -223,7 +224,7 @@ class SimpleGeminiService {
   /**
    * Parse Gemini response - simple and robust
    */
-  private parseResponse(responseText: string, criteria: any[]): GradingResultData {
+  private parseResponse(responseText: string, criteria: DbCriterion[]): GradingResultData {
     try {
       const cleanedText = responseText
         .replace(/```json\s*/g, '')
@@ -236,8 +237,10 @@ class SimpleGeminiService {
       const providedCount = parsed.breakdown?.length || 0;
       if (providedCount !== expectedCount) {
         logger.warn(`⚠️ Feedback count mismatch: expected ${expectedCount}, got ${providedCount}`);
-        parsed.breakdown?.forEach((item: any, index: number) => {
-          logger.info(`  [${index}] criteriaId: ${item.criteriaId}, score: ${item.score}, feedback length: ${item.feedback?.length || 0}`);
+        parsed.breakdown?.forEach((item: Record<string, unknown>, index: number) => {
+          logger.info(
+            `  [${index}] criteriaId: ${item.criteriaId}, score: ${item.score}, feedback length: ${typeof item.feedback === 'string' ? item.feedback.length : 0}`
+          );
         });
       }
 
@@ -246,7 +249,7 @@ class SimpleGeminiService {
         maxScore: Math.round(parsed.maxScore || criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0)),
         breakdown: criteria.map((criterion) => {
           const feedbackItem = parsed.breakdown?.find(
-            (item: any) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
+            (item: Record<string, unknown>) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
           );
 
           if (!feedbackItem) {
@@ -256,8 +259,8 @@ class SimpleGeminiService {
           return {
             criteriaId: criterion.id,
             name: criterion.name,
-            score: Math.round(feedbackItem?.score || 0),
-            feedback: feedbackItem?.feedback || 'No feedback available',
+            score: Math.round((feedbackItem?.score as number) || 0),
+            feedback: (feedbackItem?.feedback as string) || 'No feedback available',
           };
         }),
         overallFeedback: parsed.overallFeedback || 'No overall feedback provided',

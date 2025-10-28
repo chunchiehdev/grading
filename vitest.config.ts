@@ -18,6 +18,8 @@ export default defineConfig({
       GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
       GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
       OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+      // PDF Parser API for document parsing tests
+      PDF_PARSER_API_URL: process.env.PDF_PARSER_API_URL || 'https://gradingpdf.grading.software',
     },
     testTimeout: 60000, 
     poolOptions: {

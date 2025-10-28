@@ -1,37 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import { io, Socket } from 'socket.io-client';
+import { io } from 'socket.io-client';
 import logger from '@/utils/logger';
 import { crossTabSync } from '@/utils/broadcastChannel';
-
-interface ChatMsg {
-  id: string;
-  role: 'USER' | 'AI';
-  content: string;
-  data?: any;
-  time: Date;
-}
-
-interface Chat {
-  id: string;
-  title?: string;
-  context?: any;
-  createdAt: Date;
-  msgs: ChatMsg[];
-}
-
-interface ChatList {
-  id: string;
-  title: string;
-  lastMsg: string;
-  lastTime: Date;
-  msgCount: number;
-}
+import type { ChatMsg, Chat, ChatList, ChatContext, ChatSyncData, ChatSocket } from '@/types/chat';
 
 interface ChatState {
   // State
-  socket: Socket | null;
+  socket: ChatSocket | null;
   isConnected: boolean;
   isReconnecting: boolean;
   reconnectAttempts: number;
@@ -49,7 +26,7 @@ interface ChatState {
   reconnect: () => void;
   compensateMessages: () => Promise<void>;
   loadChats: () => Promise<void>;
-  createChat: (title?: string, context?: any) => Promise<string | null>;
+  createChat: (title?: string, context?: ChatContext) => Promise<string | null>;
   openChat: (chatId: string) => Promise<void>;
   sendMsg: (content: string) => void;
   clearError: () => void;
@@ -235,10 +212,10 @@ export const useChatStore = create<ChatState>()(
         });
 
         // 監聽多設備同步事件
-        socket.on('chat-sync', (syncData: any) => {
+        socket.on('chat-sync', (syncData: ChatSyncData) => {
           console.log('[DEBUG] Received chat sync:', syncData);
           set((state) => {
-            if (syncData.type === 'CHAT_STATE_UPDATE') {
+            if (syncData.type === 'CHAT_STATE_UPDATE' && syncData.state) {
               // 更新聊天狀態，但不覆蓋當前正在使用的聊天
               if (syncData.state.recentChats && !state.currentChat) {
                 // 只在沒有當前聊天時才更新
@@ -249,7 +226,7 @@ export const useChatStore = create<ChatState>()(
         });
 
         set((state) => {
-          state.socket = socket as any; // 暫時解決 immer 類型問題
+          state.socket = socket;
           state.userId = userId;
         });
 
@@ -326,8 +303,8 @@ export const useChatStore = create<ChatState>()(
                 // 合併新訊息，避免重複
                 const existingIds = new Set(state.currentChat.msgs.map((m) => m.id));
                 const newMessages = result.data
-                  .filter((msg: any) => !existingIds.has(msg.id))
-                  .map((msg: any) => ({
+                  .filter((msg: ChatMsg) => !existingIds.has(msg.id))
+                  .map((msg: ChatMsg) => ({
                     ...msg,
                     time: new Date(msg.time),
                   }));
@@ -372,7 +349,7 @@ export const useChatStore = create<ChatState>()(
 
           if (result.success) {
             set((state) => {
-              state.chats = result.data.map((chat: any) => ({
+              state.chats = result.data.map((chat: ChatList) => ({
                 ...chat,
                 lastTime: new Date(chat.lastTime),
               }));
@@ -443,7 +420,7 @@ export const useChatStore = create<ChatState>()(
             const chat = {
               ...result.data,
               createdAt: new Date(result.data.createdAt),
-              msgs: result.data.msgs.map((msg: any) => ({
+              msgs: result.data.msgs.map((msg: ChatMsg) => ({
                 ...msg,
                 time: new Date(msg.time),
               })),
@@ -656,7 +633,7 @@ export const useChatStore = create<ChatState>()(
             set((state) => {
               // 合併聊天列表，避免重複
               const existingIds = new Set(state.chats.map((c) => c.id));
-              const newChats = data.recentChats.filter((chat: any) => !existingIds.has(chat.id));
+              const newChats = data.recentChats.filter((chat: ChatList) => !existingIds.has(chat.id));
 
               state.chats = [...state.chats, ...newChats];
             });
@@ -721,7 +698,7 @@ export const useChatStore = create<ChatState>()(
 
           // 可選：廣播給其他分頁做同步清空
           try {
-            crossTabSync.send('SYNC_REQUEST' as any, { type: 'RESET', timestamp: Date.now() });
+            crossTabSync.send('SYNC_REQUEST', { type: 'RESET', timestamp: Date.now() });
           } catch {}
         } catch (err) {
           console.error('[ERROR] Failed to clear chat store:', err);
@@ -732,10 +709,10 @@ export const useChatStore = create<ChatState>()(
       name: 'chat-store',
       version: 2,
       // 當資料結構或來源需要重置時，可藉由版本提升觸發遷移清空
-      migrate: (persistedState: any, version: number) => {
+      migrate: (persistedState: unknown, version: number) => {
         if (version < 2) {
           return {
-            ...persistedState,
+            ...(persistedState as Record<string, unknown>),
             chats: [],
             currentChat: null,
           };

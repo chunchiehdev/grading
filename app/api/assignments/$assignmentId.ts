@@ -10,11 +10,15 @@ import { getAssignmentAreaById, updateAssignmentArea, validateReferenceFiles } f
 import { db } from '@/lib/db.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
+interface RouteParams {
+  assignmentId?: string;
+}
+
 /**
  * GET /api/assignments/:assignmentId
  * Get assignment details with reference files
  */
-export async function loader({ request, params }: { request: Request; params: any }) {
+export async function loader({ request, params }: { request: Request; params: RouteParams }) {
   try {
     const teacher = await requireTeacher(request);
     const { assignmentId } = params;
@@ -32,10 +36,22 @@ export async function loader({ request, params }: { request: Request; params: an
     }
 
     // Feature 004: Parse and fetch reference files
-    let referenceFiles: any[] = [];
-    if ((assignment as any).referenceFileIds) {
+    interface ReferenceFile {
+      id: string;
+      originalFileName: string;
+      fileSize: number;
+      parseStatus: string | null;
+      parseError: string | null;
+      createdAt: Date;
+    }
+
+    let referenceFiles: ReferenceFile[] = [];
+
+    // Check if assignment has referenceFileIds field
+    const assignmentWithFiles = assignment as Record<string, unknown>;
+    if (assignmentWithFiles.referenceFileIds && typeof assignmentWithFiles.referenceFileIds === 'string') {
       try {
-        const fileIds: string[] = JSON.parse((assignment as any).referenceFileIds);
+        const fileIds: string[] = JSON.parse(assignmentWithFiles.referenceFileIds);
         if (fileIds.length > 0) {
           referenceFiles = await db.uploadedFile.findMany({
             where: {
@@ -82,7 +98,7 @@ export async function loader({ request, params }: { request: Request; params: an
  * PATCH /api/assignments/:assignmentId
  * Update assignment including reference files and custom instructions
  */
-export async function action({ request, params }: { request: Request; params: any }) {
+export async function action({ request, params }: { request: Request; params: RouteParams }) {
   try {
     const teacher = await requireTeacher(request);
     const { assignmentId } = params;
@@ -142,7 +158,7 @@ export async function action({ request, params }: { request: Request; params: an
             : null
           : undefined;
 
-      const updateData: any = {};
+      const updateData: Record<string, string | null> = {};
       if (referenceFileIdsJson !== undefined) {
         updateData.referenceFileIds = referenceFileIdsJson;
       }
@@ -173,10 +189,11 @@ export async function action({ request, params }: { request: Request; params: an
     });
 
     // Parse and fetch reference files
-    let referenceFiles: any[] = [];
-    if ((finalAssignment as any)?.referenceFileIds) {
+    let referenceFiles: ReferenceFile[] = [];
+    const finalAssignmentWithFiles = finalAssignment as Record<string, unknown>;
+    if (finalAssignmentWithFiles?.referenceFileIds && typeof finalAssignmentWithFiles.referenceFileIds === 'string') {
       try {
-        const fileIds: string[] = JSON.parse((finalAssignment as any).referenceFileIds);
+        const fileIds: string[] = JSON.parse(finalAssignmentWithFiles.referenceFileIds);
         referenceFiles = await db.uploadedFile.findMany({
           where: {
             id: { in: fileIds },

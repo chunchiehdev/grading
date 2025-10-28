@@ -106,7 +106,7 @@ export default function StudentSubmissionDetail() {
           <div>
             {submission.aiAnalysisResult ? (
               <GradingResultDisplay
-                result={submission.aiAnalysisResult as any}
+                result={submission.aiAnalysisResult as Record<string, unknown>}
                 normalizedScore={submission.normalizedScore}
               />
             ) : (

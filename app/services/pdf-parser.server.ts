@@ -6,6 +6,7 @@ import FormData from 'form-data';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '@/services/storage.server';
 import { storageConfig } from '@/config/storage';
+import type { FetchOptions, PdfParserSubmitResponse, ParseResult } from '@/types/pdf-parser';
 
 const PDF_PARSER_API_BASE = process.env.PDF_PARSER_API_URL || 'http://localhost:8000';
 const PDF_PARSER_TIMEOUT_MS = Number(process.env.PDF_PARSER_TIMEOUT_MS || 5000);
@@ -13,7 +14,7 @@ const PDF_PARSER_RETRIES = Number(process.env.PDF_PARSER_RETRIES || 2);
 
 async function fetchWithTimeout(
   url: string,
-  options: any = {},
+  options: FetchOptions = {},
   timeoutMs = PDF_PARSER_TIMEOUT_MS
 ): Promise<FetchResponse> {
   const controller = new AbortController();
@@ -23,12 +24,6 @@ async function fetchWithTimeout(
   } finally {
     clearTimeout(timeout);
   }
-}
-
-interface ParseResult {
-  status: string;
-  content?: string;
-  error?: string;
 }
 
 async function getFileFromStorage(fileKey: string): Promise<Buffer> {
@@ -60,13 +55,13 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
   formData.append('user_id', userId);
   formData.append('file_id', fileName);
 
-  let lastErr: any;
+  let lastErr: Error | unknown;
   for (let attempt = 0; attempt <= PDF_PARSER_RETRIES; attempt++) {
     try {
       const response = await fetchWithTimeout(`${PDF_PARSER_API_BASE}/parse`, {
         method: 'POST',
         body: formData,
-        headers: formData.getHeaders(),
+        headers: formData.getHeaders() as Record<string, string>,
       });
 
       if (!response.ok) {
@@ -74,7 +69,7 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
         throw new Error(`PDF Parser API error: ${response.status} - ${errorText}`);
       }
 
-      const result = (await response.json()) as any;
+      const result = (await response.json()) as PdfParserSubmitResponse;
       return result.task_id;
     } catch (err) {
       lastErr = err;
@@ -87,11 +82,11 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
       break;
     }
   }
-  throw lastErr ?? new Error('Failed to submit PDF for parsing');
+  throw lastErr instanceof Error ? lastErr : new Error('Failed to submit PDF for parsing');
 }
 
 async function getParsingResult(taskId: string): Promise<ParseResult> {
-  let lastErr: any;
+  let lastErr: Error | unknown;
   for (let attempt = 0; attempt <= PDF_PARSER_RETRIES; attempt++) {
     try {
       const response = await fetchWithTimeout(`${PDF_PARSER_API_BASE}/task/${taskId}`);
@@ -106,7 +101,7 @@ async function getParsingResult(taskId: string): Promise<ParseResult> {
       await new Promise((r) => setTimeout(r, backoff));
     }
   }
-  throw lastErr ?? new Error('Failed to reach PDF parser');
+  throw lastErr instanceof Error ? lastErr : new Error('Failed to reach PDF parser');
 }
 
 async function pollForResult(taskId: string, maxAttempts: number = 60, intervalMs: number = 2000): Promise<string> {
@@ -188,10 +183,7 @@ export async function triggerPdfParsing(
 }
 
 export async function getUserUploadedFiles(userId: string, uploadId?: string) {
-  const where: any = { userId };
-  if (uploadId) {
-    where.uploadId = uploadId;
-  }
+  const where = uploadId ? { userId, uploadId } : { userId };
 
   return db.uploadedFile.findMany({
     where,

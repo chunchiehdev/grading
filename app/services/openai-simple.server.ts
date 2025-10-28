@@ -1,26 +1,8 @@
 import OpenAI from 'openai';
 import logger from '@/utils/logger';
 import { GradingResultData } from '@/types/grading';
-
-// Simple, focused interfaces
-export interface OpenAIGradingRequest {
-  content: string;
-  criteria: any[];
-  fileName: string;
-  rubricName: string;
-  language?: string; // Feature 004: Language for context awareness
-}
-
-export interface OpenAIGradingResponse {
-  success: boolean;
-  result?: GradingResultData;
-  error?: string;
-  metadata?: {
-    model: string;
-    tokens: number;
-    duration: number;
-  };
-}
+import { OpenAIGradingRequest, OpenAIGradingResponse } from '@/types/openai';
+import type { DbCriterion } from '@/schemas/rubric-data';
 
 /**
  * Simple, reliable OpenAI service - no over-engineering
@@ -137,7 +119,7 @@ Please provide your grading in the following JSON format:
   /**
    * Parse OpenAI response - simple and robust
    */
-  private parseResponse(responseText: string, criteria: any[]): GradingResultData {
+  private parseResponse(responseText: string, criteria: DbCriterion[]): GradingResultData {
     try {
       const parsed = JSON.parse(responseText);
 
@@ -146,8 +128,10 @@ Please provide your grading in the following JSON format:
       const providedCount = parsed.breakdown?.length || 0;
       if (providedCount !== expectedCount) {
         logger.warn(`⚠️ Feedback count mismatch: expected ${expectedCount}, got ${providedCount}`);
-        parsed.breakdown?.forEach((item: any, index: number) => {
-          logger.info(`  [${index}] criteriaId: ${item.criteriaId}, score: ${item.score}, feedback length: ${item.feedback?.length || 0}`);
+        parsed.breakdown?.forEach((item: Record<string, unknown>, index: number) => {
+          logger.info(
+            `  [${index}] criteriaId: ${item.criteriaId}, score: ${item.score}, feedback length: ${typeof item.feedback === 'string' ? item.feedback.length : 0}`
+          );
         });
       }
 
@@ -156,7 +140,7 @@ Please provide your grading in the following JSON format:
         maxScore: Math.round(parsed.maxScore || criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0)),
         breakdown: criteria.map((criterion) => {
           const feedbackItem = parsed.breakdown?.find(
-            (item: any) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
+            (item: Record<string, unknown>) => item.criteriaId === criterion.id || item.criteriaId === criterion.name
           );
 
           if (!feedbackItem) {
@@ -166,8 +150,8 @@ Please provide your grading in the following JSON format:
           return {
             criteriaId: criterion.id,
             name: criterion.name,
-            score: Math.round(feedbackItem?.score || 0),
-            feedback: feedbackItem?.feedback || 'No feedback available',
+            score: Math.round((feedbackItem?.score as number) || 0),
+            feedback: (feedbackItem?.feedback as string) || 'No feedback available',
           };
         }),
         overallFeedback: parsed.overallFeedback || 'No overall feedback provided',

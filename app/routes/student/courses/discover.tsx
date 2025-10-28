@@ -10,13 +10,13 @@ import { Loader2, Search, Ticket, Grid3x3, List } from 'lucide-react';
 import { getUserId } from '@/services/auth.server';
 import { createEnrollmentSchema } from '@/schemas/enrollment';
 import { getDiscoverableCourses, getStudentEnrolledCourseIds } from '@/services/course-discovery.server';
-import type { DiscoveryResponse } from '@/types/course';
+import type { DiscoveryResponse, DiscoverableCourse } from '@/types/course';
 
 interface DiscoverLoaderData {
   success: boolean;
   student: { id: string; email: string; role: string; name: string };
   data: {
-    courses: any[];
+    courses: DiscoverableCourse[];
     total: number;
     hasMore: boolean;
   };
@@ -52,7 +52,8 @@ export default function CourseDiscoveryPage() {
   const { student } = loaderData;
 
   // Parse API response correctly
-  const searchData = searchFetcher.data as DiscoveryResponse | undefined;
+  // Type is already known from useFetcher<DiscoveryResponse>(), no assertion needed
+  const searchData = searchFetcher.data;
   const searchError = searchData && !searchData.success ? searchData.error : null;
   const courses = searchData?.success && searchData.data
     ? searchData.data.courses  // Search results
@@ -62,7 +63,7 @@ export default function CourseDiscoveryPage() {
 
   // Calculate enrolled course IDs
   const enrolledCourseIds = new Set(
-    courses.filter((c: any) => c.enrollmentStatus === 'enrolled').map((c: any) => c.id)
+    courses.filter((c: DiscoverableCourse) => c.enrollmentStatus === 'enrolled').map((c: DiscoverableCourse) => c.id)
   );
 
   return (

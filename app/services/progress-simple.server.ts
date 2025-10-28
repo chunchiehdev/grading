@@ -1,4 +1,4 @@
-import { db } from '@/types/database';
+import { db, GradingStatus, type GradingSessionStatus } from '@/types/database';
 import logger from '@/utils/logger';
 
 /**
@@ -18,13 +18,17 @@ export const SimpleProgressService = {
   /**
    * Update progress for a grading result - store in database
    */
-  updateGradingProgress: async (resultId: string, progress: number, status?: string): Promise<void> => {
+  updateGradingProgress: async (
+    resultId: string,
+    progress: number,
+    status?: GradingStatus
+  ): Promise<void> => {
     try {
       await db.gradingResult.update({
         where: { id: resultId },
         data: {
           progress: Math.max(0, Math.min(100, progress)),
-          ...(status && { status: status as any }),
+          ...(status && { status }),
         },
       });
 
@@ -37,7 +41,17 @@ export const SimpleProgressService = {
   /**
    * Get progress for a grading session
    */
-  getSessionProgress: async (sessionId: string): Promise<{ overall: number; results: any[] }> => {
+  getSessionProgress: async (
+    sessionId: string
+  ): Promise<{
+    overall: number;
+    results: Array<{
+      id: string;
+      status: GradingStatus;
+      progress: number;
+      uploadedFile: { originalFileName: string } | null;
+    }>;
+  }> => {
     try {
       const results = await db.gradingResult.findMany({
         where: { gradingSessionId: sessionId },
@@ -78,23 +92,23 @@ export const SimpleProgressService = {
       const totalProgress = results.reduce((sum, result) => sum + (result.progress || 0), 0);
       const overall = Math.round(totalProgress / results.length);
 
-      const allCompleted = results.every((r) => r.status === 'COMPLETED');
-      const anyProcessing = results.some((r) => r.status === 'PROCESSING');
+      const allCompleted = results.every((r) => r.status === GradingStatus.COMPLETED);
+      const anyProcessing = results.some((r) => r.status === GradingStatus.PROCESSING);
 
-      let sessionStatus: string;
+      let sessionStatus: GradingSessionStatus;
       if (allCompleted) {
-        sessionStatus = 'COMPLETED';
+        sessionStatus = 'COMPLETED' as GradingSessionStatus;
       } else if (anyProcessing) {
-        sessionStatus = 'PROCESSING';
+        sessionStatus = 'PROCESSING' as GradingSessionStatus;
       } else {
-        sessionStatus = 'PENDING';
+        sessionStatus = 'PENDING' as GradingSessionStatus;
       }
 
       await db.gradingSession.update({
         where: { id: sessionId },
         data: {
           progress: overall,
-          status: sessionStatus as any,
+          status: sessionStatus,
         },
       });
 

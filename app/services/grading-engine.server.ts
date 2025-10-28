@@ -91,8 +91,21 @@ export async function processGradingResult(
       return { success: true }; // Already processed
     }
 
-    if (!result.uploadedFile?.parsedContent) {
+    // Type narrowing: explicit null checks so TypeScript knows fields are non-null
+    if (!result.uploadedFile) {
+      return { success: false, error: 'File not found' };
+    }
+
+    if (!result.uploadedFile.parsedContent) {
       return { success: false, error: 'File has no parsed content' };
+    }
+
+    if (!result.rubric || !result.rubric.name) {
+      return { success: false, error: 'Rubric not found or has no name' };
+    }
+
+    if (!result.uploadedFile.originalFileName) {
+      return { success: false, error: 'File has no name' };
     }
 
     // Update to processing
@@ -189,9 +202,10 @@ export async function processGradingResult(
       criteria: criteria,
       fileName: result.uploadedFile.originalFileName,
       rubricName: result.rubric.name,
-      // Feature 004: Include context if available
-      referenceDocuments: referenceDocuments.length > 0 ? referenceDocuments : undefined,
-      customInstructions: customInstructions || undefined,
+      
+      // options field 
+      ...(referenceDocuments.length > 0 && { referenceDocuments }),
+      ...(customInstructions && { customInstructions }),
     };
 
     // Generate and log the prompt (for research traceability)

@@ -22,7 +22,8 @@ let initializationError: Error | null = null;
 let gradingQueueInstance: Queue<GradingJob> | null = null;
 
 // Try to initialize queue, but don't fail if Redis is not ready yet
-let gradingQueue: Queue<GradingJob>;
+// Type allows null for error state
+let gradingQueue: Queue<GradingJob> | null = null;
 try {
   console.log('[BullMQ] Step 1: About to create Queue instance...');
   console.log('[BullMQ] bullmqRedis type:', typeof bullmqRedis, bullmqRedis ? 'defined' : 'null');
@@ -60,8 +61,7 @@ try {
   console.error('[BullMQ] Stack:', errStack);
   logger.error('[BullMQ] ❌ Failed to initialize grading queue:', initializationError);
 
-  // Create a dummy queue that will throw errors
-  gradingQueue = null as any;
+  // Keep gradingQueue as null; callers will handle the error state
 }
 
 // ============================================================================
@@ -82,7 +82,7 @@ try {
  * Uses dedicated Redis connection with maxRetriesPerRequest: null
  * (required for BullMQ blocking operations)
  */
-let gradingWorker: Worker<GradingJob>;
+let gradingWorker: Worker<GradingJob> | null = null;
 try {
   console.log('[BullMQ] Step 3: About to create Worker instance...');
   logger.info('[BullMQ] Initializing grading worker...');
@@ -160,8 +160,7 @@ try {
     initializationError = workerError;
   }
 
-  // Create a dummy worker that will throw errors
-  gradingWorker = null as any;
+  // Keep gradingWorker as null; callers will handle the error state
 }
 
 // ============================================================================

@@ -1,6 +1,5 @@
-// 統一的資料庫類型導出
-// 所有地方都應該從這裡import，而不是直接從generated client導入
-
+// Unified database type exports  
+// All imports should come from here instead of directly from the generated client
 // PrismaClient needs to be exported as a value for constructor usage
 export {
   PrismaClient,
@@ -22,5 +21,4 @@ export type {
   Prisma,
 } from '../generated/prisma/client';
 
-// 重新導出db實例
 export { db } from '../lib/db.server';

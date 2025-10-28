@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } fro
 import { Readable } from 'stream';
 import { storageConfig } from '@/config/storage';
 import logger from '@/utils/logger';
+import type { S3Error, ReadableStreamBody } from '@/types/storage';
 
 /**
  * AWS S3 client instance configured with storage settings
@@ -30,10 +31,11 @@ export interface StorageError extends Error {
 /**
  * Creates a categorized storage error with additional metadata
  */
-function createStorageError(error: any, operation: string): StorageError {
-  const statusCode = error.$metadata?.httpStatusCode || error.statusCode;
-  const errorCode = error.Code || error.name;
-  const message = error.message || 'Storage operation failed';
+function createStorageError(error: S3Error | unknown, operation: string): StorageError {
+  const s3Error = error as S3Error;
+  const statusCode = s3Error.$metadata?.httpStatusCode || s3Error.statusCode;
+  const errorCode = s3Error.Code || s3Error.name;
+  const message = s3Error.message || 'Storage operation failed';
 
   let type = StorageErrorType.UNKNOWN;
   let retryable = false;
@@ -80,7 +82,7 @@ async function retryWithBackoff<T>(
   baseDelay: number = 1000,
   operationName: string = 'operation'
 ): Promise<T> {
-  let lastError: any;
+  let lastError: Error | unknown;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -310,7 +312,7 @@ export async function streamFromStorage(key: string) {
       } else {
         // Handle other types (Uint8Array, blob, etc.) by converting to stream
         const chunks: Uint8Array[] = [];
-        const reader = (response.Body as any).getReader();
+        const reader = (response.Body as ReadableStreamBody).getReader();
 
         try {
           let done = false;

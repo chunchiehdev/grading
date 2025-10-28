@@ -9,9 +9,15 @@ import { withAuth } from '@/middleware/api.server';
  * @param {Object} params.user - Authenticated user object
  * @returns {Promise<Response>} JSON response with user's files
  */
+// Valid parse status values based on application logic
+type ParseStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | null;
+
 export const loader = withAuth(async ({ request, user }) => {
   const url = new URL(request.url);
-  const parseStatus = url.searchParams.get('parseStatus') as any;
+  const parseStatusParam = url.searchParams.get('parseStatus');
+  // Validate parseStatus is one of the expected values
+  const validStatuses: ParseStatus[] = ['PENDING', 'SUCCESS', 'FAILED', null];
+  const parseStatus: ParseStatus = (parseStatusParam && validStatuses.includes(parseStatusParam as ParseStatus) ? parseStatusParam : null) as ParseStatus;
   const limit = parseInt(url.searchParams.get('limit') || '50');
   const offset = parseInt(url.searchParams.get('offset') || '0');
 

@@ -16,6 +16,7 @@ import { triggerPdfParsing } from '@/services/pdf-parser.server';
 import { bullmqRedis } from '@/lib/redis';
 import { db } from '@/types/database';
 import { createMinimalTestContent } from '../load/real-api-config';
+import { extractTotalScore } from '@/utils/grading-helpers';
 
 /**
  * End-to-End Test: 20 Students Complete Workflow
@@ -359,11 +360,11 @@ describe('E2E: 20 Students Complete Workflow', () => {
           studentId: student.id,
           assignmentAreaId: assignment.id,
           filePath: file.fileKey,
-          aiAnalysisResult: gradingResult?.result,
-          finalScore: gradingResult?.result?.totalScore,
-          normalizedScore: gradingResult?.normalizedScore,
-          thoughtSummary: gradingResult?.thoughtSummary,
-          usedContext: gradingResult?.usedContext,
+          aiAnalysisResult: gradingResult?.result as Record<string, any> | undefined,
+          finalScore: extractTotalScore(gradingResult?.result),
+          normalizedScore: gradingResult?.normalizedScore ?? undefined,
+          thoughtSummary: gradingResult?.thoughtSummary ?? undefined,
+          usedContext: gradingResult?.usedContext as Record<string, any> | undefined,
           status: gradingResult ? 'ANALYZED' : 'SUBMITTED',
         });
 

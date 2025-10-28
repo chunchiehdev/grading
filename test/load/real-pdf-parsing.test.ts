@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createMinimalTestContent, shouldSkipRealApiTests } from './real-api-config';
-import { UserFactory, UploadedFileFactory } from '../factories';
+import { UserFactory } from '../factories';
 import { triggerPdfParsing } from '@/services/pdf-parser.server';
+import { uploadToStorage } from '@/services/storage.server';
 import { db } from '@/types/database';
 
 /**
@@ -45,22 +46,44 @@ describe('Real PDF Parsing Load Tests', () => {
           email: 'pdf.test@university.edu',
         });
 
-        // Create minimal PDF content for testing
+        // Create actual PDF content as Buffer
         const testPdfContent = createMinimalTestContent();
+        const pdfBuffer = Buffer.from(testPdfContent, 'utf8');
 
-        const uploadedFile = await UploadedFileFactory.create({
-          userId: teacher.id,
-          originalFileName: 'single-test.pdf',
-          fileName: 'single-test.pdf',
-          fileSize: Buffer.byteLength(testPdfContent, 'utf8'),
-          mimeType: 'application/pdf',
-          parseStatus: 'PENDING',
-          parsedContent: null,
+        // Generate unique fileKey BEFORE uploading
+        const fileName = 'single-test.pdf';
+        const fileKey = `uploads/${teacher.id}/${Date.now()}-${fileName}`;
+
+        console.log(`📤 Uploading file to S3: ${fileName}`);
+        console.log(`🔑 File key: ${fileKey}`);
+        console.log(`📊 File size: ${pdfBuffer.length} bytes`);
+
+        // Upload file to S3 (real upload!)
+        const uploadResult = await uploadToStorage(
+          pdfBuffer,
+          fileKey,
+          'application/pdf'
+        );
+
+        console.log(`✅ File uploaded successfully to S3`);
+        console.log(`🔑 S3 Key: ${uploadResult.key}`);
+
+        // Create database record with REAL fileKey from S3
+        const uploadedFile = await db.uploadedFile.create({
+          data: {
+            id: require('uuid').v4(),
+            userId: teacher.id,
+            fileName: fileName,
+            originalFileName: fileName,
+            fileKey: uploadResult.key,  // Use real S3 key!
+            fileSize: pdfBuffer.length,
+            mimeType: 'application/pdf',
+            parseStatus: 'PENDING',
+            parsedContent: null,
+          },
         });
 
-        console.log(`📤 Created test file: ${uploadedFile.originalFileName}`);
-        console.log(`🔑 File key: ${uploadedFile.fileKey}`);
-        console.log(`📊 File size: ${uploadedFile.fileSize} bytes`);
+        console.log(`📝 Created database record for file: ${uploadedFile.originalFileName}`);
 
         const startTime = Date.now();
 
@@ -114,24 +137,35 @@ describe('Real PDF Parsing Load Tests', () => {
           email: 'concurrent.pdf@university.edu',
         });
 
-        // Create 5 test files for concurrent parsing
+        // Create and upload 5 test files to S3
         const testFiles = await Promise.all(
-          Array.from({ length: 5 }, (_, i) => {
+          Array.from({ length: 5 }, async (_, i) => {
             const content = createMinimalTestContent() + `\\n\\nFile ${i + 1} specific content.`;
+            const pdfBuffer = Buffer.from(content, 'utf8');
+            const fileName = `concurrent-${i + 1}.pdf`;
+            const fileKey = `uploads/${teacher.id}/${Date.now()}-${i}-${fileName}`;
 
-            return UploadedFileFactory.create({
-              userId: teacher.id,
-              originalFileName: `concurrent-${i + 1}.pdf`,
-              fileName: `concurrent-${i + 1}.pdf`,
-              fileSize: Buffer.byteLength(content, 'utf8'),
-              mimeType: 'application/pdf',
-              parseStatus: 'PENDING',
-              parsedContent: null,
+            // Upload to S3
+            const uploadResult = await uploadToStorage(pdfBuffer, fileKey, 'application/pdf');
+
+            // Create database record with real S3 key
+            return db.uploadedFile.create({
+              data: {
+                id: require('uuid').v4(),
+                userId: teacher.id,
+                fileName,
+                originalFileName: fileName,
+                fileKey: uploadResult.key,
+                fileSize: pdfBuffer.length,
+                mimeType: 'application/pdf',
+                parseStatus: 'PENDING',
+                parsedContent: null,
+              },
             });
           })
         );
 
-        console.log(`📤 Created ${testFiles.length} test files for concurrent parsing`);
+        console.log(`📤 Created and uploaded ${testFiles.length} test files to S3`);
 
         const startTime = Date.now();
 
@@ -225,20 +259,31 @@ describe('Real PDF Parsing Load Tests', () => {
           email: 'timeout.test@university.edu',
         });
 
-        // Create a file that might cause timeout (very large content)
+        // Create a large file that might cause timeout
         const largeContent = createMinimalTestContent().repeat(100); // Repeat content 100 times
+        const pdfBuffer = Buffer.from(largeContent, 'utf8');
+        const fileName = 'large-timeout-test.pdf';
+        const fileKey = `uploads/${teacher.id}/${Date.now()}-${fileName}`;
 
-        const largeFile = await UploadedFileFactory.create({
-          userId: teacher.id,
-          originalFileName: 'large-timeout-test.pdf',
-          fileName: 'large-timeout-test.pdf',
-          fileSize: Buffer.byteLength(largeContent, 'utf8'),
-          mimeType: 'application/pdf',
-          parseStatus: 'PENDING',
-          parsedContent: null,
+        // Upload large file to S3
+        const uploadResult = await uploadToStorage(pdfBuffer, fileKey, 'application/pdf');
+
+        // Create database record with real S3 key
+        const largeFile = await db.uploadedFile.create({
+          data: {
+            id: require('uuid').v4(),
+            userId: teacher.id,
+            fileName,
+            originalFileName: fileName,
+            fileKey: uploadResult.key,
+            fileSize: pdfBuffer.length,
+            mimeType: 'application/pdf',
+            parseStatus: 'PENDING',
+            parsedContent: null,
+          },
         });
 
-        console.log(`📤 Created large test file: ${largeFile.originalFileName}`);
+        console.log(`📤 Created and uploaded large test file: ${largeFile.originalFileName}`);
         console.log(`📊 File size: ${largeFile.fileSize} bytes (${Math.round(largeFile.fileSize / 1024)}KB)`);
 
         const startTime = Date.now();
@@ -290,21 +335,32 @@ describe('Real PDF Parsing Load Tests', () => {
         // Test multiple small files to check service load handling
         const batchSize = 3;
         const testFiles = await Promise.all(
-          Array.from({ length: batchSize }, (_, i) => {
+          Array.from({ length: batchSize }, async (_, i) => {
             const content = createMinimalTestContent() + `\\n\\nBatch test file ${i + 1}.`;
+            const pdfBuffer = Buffer.from(content, 'utf8');
+            const fileName = `load-test-${i + 1}.pdf`;
+            const fileKey = `uploads/${teacher.id}/${Date.now()}-${i}-${fileName}`;
 
-            return UploadedFileFactory.create({
-              userId: teacher.id,
-              originalFileName: `load-test-${i + 1}.pdf`,
-              fileName: `load-test-${i + 1}.pdf`,
-              fileSize: Buffer.byteLength(content, 'utf8'),
-              mimeType: 'application/pdf',
-              parseStatus: 'PENDING',
+            // Upload to S3
+            const uploadResult = await uploadToStorage(pdfBuffer, fileKey, 'application/pdf');
+
+            // Create database record with real S3 key
+            return db.uploadedFile.create({
+              data: {
+                id: require('uuid').v4(),
+                userId: teacher.id,
+                fileName,
+                originalFileName: fileName,
+                fileKey: uploadResult.key,
+                fileSize: pdfBuffer.length,
+                mimeType: 'application/pdf',
+                parseStatus: 'PENDING',
+              },
             });
           })
         );
 
-        console.log(`📤 Testing PDF parser service with ${batchSize} files`);
+        console.log(`📤 Testing PDF parser service with ${batchSize} uploaded files`);
 
         const serviceStartTime = Date.now();
         let successCount = 0;

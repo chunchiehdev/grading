@@ -3,17 +3,18 @@
  * 使用 BroadcastChannel API 實現多標籤頁狀態同步
  */
 
-export interface CrossTabMessage {
-  type: 'CHAT_UPDATE' | 'USER_STATUS' | 'NEW_MESSAGE' | 'SYNC_REQUEST' | 'SYNC_RESPONSE';
-  data: any;
-  timestamp: number;
-  tabId: string;
-}
+import type {
+  CrossTabMessage,
+  CrossTabMessageType,
+  CrossTabMessageData,
+  MessageListener,
+} from '@/types/broadcast';
+import type { ChatMsg } from '@/types/chat';
 
 export class CrossTabSyncService {
   private channel: BroadcastChannel | null = null;
   private tabId: string;
-  private listeners: Map<string, Set<(data: any) => void>> = new Map();
+  private listeners: Map<CrossTabMessageType, Set<MessageListener>> = new Map();
   private isInitialized = false;
 
   constructor(channelName = 'chat-sync') {
@@ -68,7 +69,7 @@ export class CrossTabSyncService {
   /**
    * 發送訊息到其他標籤頁
    */
-  send(type: CrossTabMessage['type'], data: any): void {
+  send(type: CrossTabMessageType, data: CrossTabMessageData): void {
     if (!this.channel || !this.isInitialized) return;
 
     const message: CrossTabMessage = {
@@ -88,7 +89,7 @@ export class CrossTabSyncService {
   /**
    * 監聽特定類型的訊息
    */
-  subscribe(type: CrossTabMessage['type'], listener: (data: any) => void): () => void {
+  subscribe(type: CrossTabMessageType, listener: MessageListener): () => void {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, new Set());
     }
@@ -134,14 +135,18 @@ export class CrossTabSyncService {
   /**
    * 廣播新訊息
    */
-  broadcastNewMessage(chatId: string, message: any): void {
+  broadcastNewMessage(chatId: string, message: ChatMsg): void {
     this.send('NEW_MESSAGE', { chatId, message });
   }
 
   /**
    * 廣播聊天更新
    */
-  broadcastChatUpdate(chatId: string, updateType: 'title' | 'status' | 'participants', data: any): void {
+  broadcastChatUpdate(
+    chatId: string,
+    updateType: 'title' | 'status' | 'participants',
+    data: Record<string, unknown>
+  ): void {
     this.send('CHAT_UPDATE', { chatId, updateType, data });
   }
 

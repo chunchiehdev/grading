@@ -154,7 +154,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // Handle storage-specific errors
     if (error && typeof error === 'object' && 'type' in error) {
-      const storageError = error as any;
+      const storageError = error as Record<string, unknown>;
       if (storageError.type === 'NOT_FOUND') {
         return Response.json(createErrorResponse('文件在存儲中不存在', ApiErrorCode.NOT_FOUND), { status: 404 });
       }

@@ -9,6 +9,7 @@ import {
   GradingResultFactory,
 } from '../factories';
 import { db } from '@/types/database';
+import { extractBreakdown, extractTotalScore } from '@/utils/grading-helpers';
 
 /**
  * Complete Workflow Demo Test
@@ -121,7 +122,8 @@ describe('Complete Grading System Workflow Demo', () => {
     console.log(`   • Course: "${course.name}"`);
     console.log(`   • Invitation code: ${invitationCode.code}`);
     console.log(`   • Assignment: "${majorAssignment.name}"`);
-    console.log(`   • Rubric: ${comprehensiveRubric.name} (${comprehensiveRubric.criteria.length} criteria)`);
+    const rubricCriteriaCount = Array.isArray(comprehensiveRubric.criteria) ? comprehensiveRubric.criteria.length : 0;
+    console.log(`   • Rubric: ${comprehensiveRubric.name} (${rubricCriteriaCount} criteria)`);
 
     // 📝 PHASE 2: Student Submissions - Multiple students submit their work
     console.log('\n📝 PHASE 2: Student Assignment Submissions');
@@ -372,9 +374,9 @@ In conclusion, environmental policies are necessary to protect the environment a
     );
 
     console.log(`✅ AI grading simulation complete:`);
-    console.log(`   • Excellent paper: ${excellentGrading.result.totalScore}/100`);
-    console.log(`   • Average paper: ${averageGrading.result.totalScore}/100`);
-    console.log(`   • Weak paper: ${weakGrading.result.totalScore}/100`);
+    console.log(`   • Excellent paper: ${extractTotalScore(excellentGrading.result) ?? '?'}/100`);
+    console.log(`   • Average paper: ${extractTotalScore(averageGrading.result) ?? '?'}/100`);
+    console.log(`   • Weak paper: ${extractTotalScore(weakGrading.result) ?? '?'}/100`);
 
     // 📊 PHASE 5: Results Analysis and Validation
     console.log('\n📊 PHASE 5: Academic Results Analysis');
@@ -393,18 +395,18 @@ In conclusion, environmental policies are necessary to protect the environment a
     console.log(`✅ Results validation:`);
     console.log(`   • Total results processed: ${allResults.length}`);
     console.log(`   • Valid results: ${validResults.length}`);
-    console.log(
-      `   • Average score: ${Math.round(allResults.reduce((sum, r) => sum + r.result.totalScore, 0) / allResults.length)}`
-    );
-    console.log(
-      `   • Score range: ${Math.min(...allResults.map((r) => r.result.totalScore))} - ${Math.max(...allResults.map((r) => r.result.totalScore))}`
-    );
+    const scores = allResults.map((r) => extractTotalScore(r.result) ?? 0);
+    const averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+    const minScore = Math.min(...scores);
+    const maxScore = Math.max(...scores);
+    console.log(`   • Average score: ${averageScore}`);
+    console.log(`   • Score range: ${minScore} - ${maxScore}`);
 
     // Detailed breakdown analysis
-    const criteriaAverages = {};
+    const criteriaAverages: Record<string, any> = {};
     allResults.forEach((result) => {
-      const data = result.result as any;
-      data.breakdown.forEach((criteria) => {
+      const breakdown = extractBreakdown(result.result);
+      breakdown.forEach((criteria) => {
         if (!criteriaAverages[criteria.criteriaId]) {
           criteriaAverages[criteria.criteriaId] = { total: 0, count: 0, name: criteria.name };
         }

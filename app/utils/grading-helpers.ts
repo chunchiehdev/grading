@@ -99,12 +99,13 @@ export function extractOverallFeedback(result: unknown): string | undefined {
   if (!parsed?.overallFeedback) return undefined;
 
   // If it's a structured object, convert to string
-  if (typeof parsed.overallFeedback === 'object') {
-    const feedback = parsed.overallFeedback as any;
-    return feedback.summary || 'No feedback provided';
+  if (typeof parsed.overallFeedback === 'object' && parsed.overallFeedback !== null) {
+    const feedback = parsed.overallFeedback as Record<string, unknown>;
+    const summary = feedback.summary;
+    return typeof summary === 'string' ? summary : 'No feedback provided';
   }
 
-  return parsed.overallFeedback;
+  return typeof parsed.overallFeedback === 'string' ? parsed.overallFeedback : undefined;
 }
 
 /**

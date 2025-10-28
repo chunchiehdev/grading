@@ -19,12 +19,12 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Loader2, Clock, MapPin, Users, Search, AlertCircle } from 'lucide-react';
 import { SEARCH_CONSTRAINTS } from '@/contracts/search-api';
-import type { DiscoverableCourse } from '@/types/course';
+import type { DiscoverableCourse, DiscoveryResponse } from '@/types/course';
 
 interface CourseSearchModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  fetcher: FetcherWithComponents<any>;
+  fetcher: FetcherWithComponents<DiscoveryResponse>;
 }
 
 /**
@@ -112,7 +112,8 @@ export function CourseSearchModal({ open, onOpenChange, fetcher }: CourseSearchM
   }, [searchParams, fetcher, navigate]);
 
   // Parse search results from fetcher
-  const searchData = fetcher.data as any;
+  // Type is already known from fetcher prop, no assertion needed
+  const searchData = fetcher.data;
   const courses = searchData?.data?.courses || [];
   const searchError = searchData && !searchData.success ? searchData.error : null;
   const isLoading = fetcher.state === 'loading';
