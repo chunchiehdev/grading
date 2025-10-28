@@ -450,8 +450,8 @@ export async function startGradingSession(
       return { success: true };
     }
 
-    // Use simple grading service
-    const { addGradingJobs } = await import('./simple-grading.server');
+    // Use BullMQ grading service (distributed, Redis-backed, with global rate limiting)
+    const { addGradingJobs } = await import('./bullmq-grading.server');
 
     const gradingJobs = pendingResults.map((result) => ({
       resultId: result.id,

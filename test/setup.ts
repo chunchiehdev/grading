@@ -2,6 +2,20 @@ import '@testing-library/jest-dom';
 import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { db } from '@/types/database';
 import { server } from './mocks/server';
+import fs from 'fs';
+import path from 'path';
+
+// Load .env file for tests
+const envPath = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf-8');
+  envContent.split('\n').forEach((line) => {
+    const [key, ...values] = line.split('=');
+    if (key && !key.startsWith('#') && !process.env[key]) {
+      process.env[key] = values.join('=').trim().replace(/^"(.*)"$/, '$1');
+    }
+  });
+}
 
 // Global test setup
 beforeAll(async () => {
@@ -20,11 +34,9 @@ beforeAll(async () => {
   }
 });
 
-// Clean up after each test
-beforeEach(async () => {
-  console.log('🧹 Cleaning test data...');
-  await cleanupTestData();
-});
+// ⚠️ WARNING: Do NOT call cleanupTestData() globally!
+// It deletes ALL database records, which will destroy user data
+// Individual tests should handle their own cleanup if needed
 
 // Reset MSW handlers after each test
 afterEach(() => {

@@ -2,6 +2,7 @@ import { MonitoringService } from './monitoring.server.js';
 import { ChatCacheService } from './cache.server.js';
 import { aiHandlerService } from './ai-handler.server.js';
 import { ProtectedAIService } from './ai-protected.server.js';
+import initializeGradingWorker from './worker-init.server.js';
 import logger from '@/utils/logger';
 
 /**
@@ -46,10 +47,13 @@ export class StartupService {
       // 3. 初始化 Circuit Breakers（非關鍵）
       await this.initializeCircuitBreakers();
 
-      // 4. 啟動監控服務（非關鍵，暫時跳過）
+      // 4. 初始化 BullMQ Grading Worker（關鍵服務，用於 Gemini API rate limiting）
+      await initializeGradingWorker();
+
+      // 5. 啟動監控服務（非關鍵，暫時跳過）
       // await this.initializeMonitoringService();
 
-      // 5. 設置優雅關閉處理
+      // 6. 設置優雅關閉處理
       this.setupGracefulShutdown();
 
       this.initialized = true;

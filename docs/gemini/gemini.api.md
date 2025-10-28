@@ -1,7 +1,3 @@
-以下是你提供的文件內容，轉換成 Markdown 格式：
-
----
-
 # Text Generation
 
 The Gemini API can generate text output from various inputs, including text, images, video, and audio, leveraging Gemini models.

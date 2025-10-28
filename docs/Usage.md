@@ -1,25 +1,29 @@
-# PDF Parser API 使用文檔
+# PDF Parser API Usage Documentation
 
-## 📋 概述
+## Overview
 
-這是一個基於 FastAPI 和 Celery 的高性能 PDF 解析服務，支持異步處理和多用戶並發訪問。使用 MarkItDown 引擎將 PDF 文件轉換為 Markdown 格式文本。
+This is a high-performance PDF parsing service based on FastAPI and Celery, supporting asynchronous processing and multi-user concurrent access. It uses the MarkItDown engine to convert PDF files into Markdown format text.
 
-## 🚀 快速開始
+-----
 
-### 服務地址
+## Quick Start
 
-- **API 基礎 URL**: `http://localhost:8000`
-- **API 文檔**: `http://localhost:8000/docs`
+### Service Address
 
-## 📖 API 端點
+  - **API Base URL**: `http://localhost:8000`
+  - **API Documentation**: `http://localhost:8000/docs`
 
-### 1. 健康檢查
+-----
+
+## API Endpoints
+
+### 1\. Health Check
 
 ```http
 GET /health
 ```
 
-**響應示例**:
+**Response Example**:
 
 ```json
 {
@@ -28,24 +32,24 @@ GET /health
 }
 ```
 
-### 2. 上傳 PDF 進行解析（異步）
+### 2\. Upload PDF for Parsing (Async)
 
 ```http
 POST /parse
 ```
 
-**請求參數**:
+**Request Parameters**:
 
-- `file` (required): PDF 文件（multipart/form-data）
-- `user_id` (optional): 用戶識別碼，預設為 "default"
-- `file_id` (optional): 文件識別碼，用於追蹤特定文件
+  - `file` (required): PDF file (multipart/form-data)
+  - `user_id` (optional): User identifier, defaults to "default"
+  - `file_id` (optional): File identifier, used for tracking a specific file
 
-**文件限制**:
+**File Limits**:
 
-- 僅支持 PDF 格式（`application/pdf`）
-- 最大文件大小: 50MB
+  - Only supports PDF format (`application/pdf`)
+  - Max file size: 50MB
 
-**響應示例**:
+**Response Example**:
 
 ```json
 {
@@ -55,37 +59,37 @@ POST /parse
 }
 ```
 
-### 3. 查詢解析結果
+### 3\. Query Parsing Result
 
 ```http
 GET /task/{task_id}
 ```
 
-**路徑參數**:
+**Path Parameters**:
 
-- `task_id`: 上傳時返回的任務 ID
+  - `task_id`: The Task ID returned upon upload
 
-**響應狀態**:
+**Response Status**:
 
-- `pending`: 任務排隊中
-- `processing`: 正在處理
-- `success`: 處理成功
-- `failed`: 處理失敗
+  - `pending`: Task is queued
+  - `processing`: Processing in progress
+  - `success`: Processing successful
+  - `failed`: Processing failed
 
-**成功響應示例**:
+**Success Response Example**:
 
 ```json
 {
   "task_id": "abc123-def456-789ghi",
   "status": "success",
-  "content": "解析出的 PDF 文本內容...",
+  "content": "Parsed PDF text content...",
   "user_id": "user123",
   "file_id": "document001",
   "error": null
 }
 ```
 
-**失敗響應示例**:
+**Failed Response Example**:
 
 ```json
 {
@@ -94,15 +98,17 @@ GET /task/{task_id}
   "content": null,
   "user_id": "user123",
   "file_id": "document001",
-  "error": "解析失敗的具體原因"
+  "error": "Specific reason for parsing failure"
 }
 ```
 
-## 💻 使用示例
+-----
+
+## Usage Examples
 
 ### Command Line (curl)
 
-#### 1. 基本上傳
+#### 1\. Basic Upload
 
 ```bash
 curl -X POST \
@@ -110,7 +116,7 @@ curl -X POST \
   http://localhost:8000/parse
 ```
 
-#### 2. 帶用戶和文件識別的上傳
+#### 2\. Upload with User and File Identifiers
 
 ```bash
 curl -X POST \
@@ -120,14 +126,14 @@ curl -X POST \
   http://localhost:8000/parse
 ```
 
-#### 3. 查詢結果
+#### 3\. Query Result
 
 ```bash
-# 使用返回的 task_id
+# Use the returned task_id
 curl http://localhost:8000/task/abc123-def456-789ghi
 ```
 
-#### 4. 完整流程腳本
+#### 4\. Complete Process Script
 
 ```bash
 #!/bin/bash
@@ -135,39 +141,39 @@ PDF_PATH="/path/to/document.pdf"
 USER_ID="john_doe"
 FILE_ID="report_001"
 
-# 上傳文件
-echo "上傳 PDF..."
+# Upload file
+echo "Uploading PDF..."
 RESPONSE=$(curl -s -X POST \
   -F "file=@$PDF_PATH" \
   -F "user_id=$USER_ID" \
   -F "file_id=$FILE_ID" \
   http://localhost:8000/parse)
 
-# 提取 task_id
+# Extract task_id
 TASK_ID=$(echo $RESPONSE | jq -r '.task_id')
-echo "任務 ID: $TASK_ID"
+echo "Task ID: $TASK_ID"
 
-# 輪詢結果
-echo "等待處理完成..."
+# Poll for result
+echo "Waiting for processing to complete..."
 while true; do
   RESULT=$(curl -s http://localhost:8000/task/$TASK_ID)
   STATUS=$(echo $RESULT | jq -r '.status')
 
   if [ "$STATUS" = "success" ]; then
-    echo "處理成功！"
+    echo "Processing successful!"
     echo $RESULT | jq -r '.content' > parsed_content.txt
     break
   elif [ "$STATUS" = "failed" ]; then
-    echo "處理失敗: $(echo $RESULT | jq -r '.error')"
+    echo "Processing failed: $(echo $RESULT | jq -r '.error')"
     break
   else
-    echo "狀態: $STATUS，繼續等待..."
+    echo "Status: $STATUS, continuing to wait..."
     sleep 2
   fi
 done
 ```
 
-### Python 示例
+### Python Example
 
 ```python
 import requests
@@ -179,7 +185,7 @@ class PDFParserClient:
         self.base_url = base_url
 
     def upload_pdf(self, file_path, user_id=None, file_id=None):
-        """上傳 PDF 文件"""
+        """Upload PDF file"""
         url = f"{self.base_url}/parse"
 
         with open(file_path, 'rb') as f:
@@ -195,14 +201,14 @@ class PDFParserClient:
             return response.json()
 
     def get_result(self, task_id):
-        """查詢解析結果"""
+        """Query parsing result"""
         url = f"{self.base_url}/task/{task_id}"
         response = requests.get(url)
         response.raise_for_status()
         return response.json()
 
     def wait_for_completion(self, task_id, timeout=300):
-        """等待處理完成"""
+        """Wait for processing to complete"""
         start_time = time.time()
 
         while time.time() - start_time < timeout:
@@ -212,17 +218,17 @@ class PDFParserClient:
             if status == 'success':
                 return result['content']
             elif status == 'failed':
-                raise Exception(f"處理失敗: {result['error']}")
+                raise Exception(f"Processing failed: {result['error']}")
 
             time.sleep(2)
 
-        raise TimeoutError("處理超時")
+        raise TimeoutError("Processing timed out")
 
-# 使用示例
+# Usage Example
 if __name__ == "__main__":
     client = PDFParserClient()
 
-    # 上傳文件
+    # Upload file
     upload_result = client.upload_pdf(
         "document.pdf",
         user_id="alice",
@@ -230,18 +236,18 @@ if __name__ == "__main__":
     )
 
     task_id = upload_result['task_id']
-    print(f"任務 ID: {task_id}")
+    print(f"Task ID: {task_id}")
 
-    # 等待完成並獲取結果
+    # Wait for completion and get result
     try:
         content = client.wait_for_completion(task_id)
-        print("解析完成:")
+        print("Parsing complete:")
         print(content)
     except Exception as e:
-        print(f"錯誤: {e}")
+        print(f"Error: {e}")
 ```
 
-### JavaScript 示例
+### JavaScript Example
 
 ```javascript
 class PDFParserAPI {
@@ -286,54 +292,56 @@ class PDFParserAPI {
       if (result.status === 'success') {
         return result.content;
       } else if (result.status === 'failed') {
-        throw new Error(`處理失敗: ${result.error}`);
+        throw new Error(`Processing failed: ${result.error}`);
       }
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
 
-    throw new Error('處理超時');
+    throw new Error('Processing timed out');
   }
 }
 
-// 使用示例
+// Usage Example
 async function parseDocument() {
   const api = new PDFParserAPI();
   const fileInput = document.getElementById('fileInput');
   const file = fileInput.files[0];
 
   try {
-    // 上傳文件
+    // Upload file
     const uploadResult = await api.uploadPDF(file, 'user123', 'doc001');
-    console.log('任務 ID:', uploadResult.task_id);
+    console.log('Task ID:', uploadResult.task_id);
 
-    // 等待完成
+    // Wait for completion
     const content = await api.waitForCompletion(uploadResult.task_id);
-    console.log('解析結果:', content);
+    console.log('Parsing result:', content);
 
-    // 顯示結果
+    // Display result
     document.getElementById('result').textContent = content;
   } catch (error) {
-    console.error('錯誤:', error);
+    console.error('Error:', error);
   }
 }
 ```
 
-## 🏗️ 多用戶並發處理
+-----
 
-### 用戶和文件識別
+## 🏗️ Multi-User Concurrency Handling
 
-系統通過 `user_id` 和 `file_id` 參數來區分不同用戶和文件：
+### User and File Identification
+
+The system uses `user_id` and `file_id` parameters to differentiate between different users and files:
 
 ```bash
-# 用戶 A 上傳文件
+# User A uploads a file
 curl -X POST \
   -F "file=@report.pdf" \
   -F "user_id=alice" \
   -F "file_id=monthly_report_2024_01" \
   http://localhost:8000/parse
 
-# 用戶 B 上傳文件
+# User B uploads a file
 curl -X POST \
   -F "file=@contract.pdf" \
   -F "user_id=bob" \
@@ -341,80 +349,87 @@ curl -X POST \
   http://localhost:8000/parse
 ```
 
-### 任務追蹤最佳實踐
+### Task Tracking Best Practices
 
-1. **使用有意義的 user_id**:
+1.  **Use meaningful user\_id**:
 
-   ```
-   user_id=alice_marketing
-   user_id=bob_legal_dept
-   user_id=system_batch_job
-   ```
+    ```
+    user_id=alice_marketing
+    user_id=bob_legal_dept
+    user_id=system_batch_job
+    ```
 
-2. **使用有意義的 file_id**:
+2.  **Use meaningful file\_id**:
 
-   ```
-   file_id=invoice_2024_001
-   file_id=contract_vendor_xyz
-   file_id=report_q1_2024
-   ```
+    ```
+    file_id=invoice_2024_001
+    file_id=contract_vendor_xyz
+    file_id=report_q1_2024
+    ```
 
-3. **任務 ID 管理**:
-   - 每次上傳都會獲得唯一的 `task_id`
-   - 建議在客戶端記錄 `task_id` 與業務邏輯的對應關係
-   - 可以建立任務狀態追蹤表
+3.  **Task ID Management**:
 
-## ⚡ 性能特點
+      - A unique `task_id` is obtained for each upload.
+      - It is recommended to map the `task_id` to your business logic on the client-side.
+      - You can create a task status tracking table.
 
-### 系統容量
+-----
 
-- **並發處理**: 8 個同時處理槽位（2 worker × 4 concurrency）
-- **佇列容量**: 無限制（Redis 支撐）
-- **處理速度**: 平均 10-50ms per PDF（取決於文件大小）
+## ⚡ Performance Characteristics
 
-### 自動擴展
+### System Capacity
 
-- 系統會自動處理並發請求
-- 超出處理能力的請求會自動排隊
-- 先進先出 (FIFO) 處理順序
+  - **Concurrent Processing**: 8 simultaneous processing slots (2 workers × 4 concurrency)
+  - **Queue Capacity**: Unlimited (Backed by Redis)
+  - **Processing Speed**: Average 10-50ms per PDF (depends on file size)
 
-## 🔍 監控和除錯
+### Auto-scaling
 
-### 系統狀態查詢
+  - The system automatically handles concurrent requests.
+  - Requests exceeding processing capacity are automatically queued.
+  - First-In, First-Out (FIFO) processing order.
+
+-----
+
+## 🔍 Monitoring and Debugging
+
+### System Status Query
 
 ```bash
-# 查看佇列長度
+# Check queue length
 docker exec grading-pdf-redis-1 redis-cli llen celery
 
-# 查看活躍任務
+# Check active tasks
 docker exec grading-pdf-worker-1 celery -A app.worker.celery_app inspect active
 
-# 查看系統統計
+# Check system stats
 docker exec grading-pdf-worker-1 celery -A app.worker.celery_app inspect stats
 ```
 
-### 日誌查看
+### View Logs
 
 ```bash
-# 查看所有服務日誌
+# View all service logs
 docker compose logs -f
 
-# 查看特定服務日誌
+# View specific service logs
 docker compose logs -f api
 docker compose logs -f worker
 ```
 
-## ❌ 錯誤處理
+-----
 
-### 常見錯誤碼
+## ❌ Error Handling
 
-| 狀態碼 | 說明           | 解決方案                  |
-| ------ | -------------- | ------------------------- |
-| 400    | 非 PDF 文件    | 確保上傳的是 PDF 格式文件 |
-| 413    | 文件過大       | 文件大小不能超過 50MB     |
-| 500    | 服務器內部錯誤 | 檢查服務狀態或聯繫管理員  |
+### Common Error Codes
 
-### 任務失敗處理
+| Status Code | Description | Solution |
+| :--- | :--- | :--- |
+| 400 | Non-PDF file | Ensure the uploaded file is in PDF format |
+| 413 | File too large | File size must not exceed 50MB |
+| 500 | Internal Server Error | Check service status or contact admin |
+
+### Task Failure Handling
 
 ```python
 def handle_parsing_result(task_id):
@@ -423,33 +438,14 @@ def handle_parsing_result(task_id):
     if result['status'] == 'failed':
         error_msg = result['error']
         if 'file format' in error_msg.lower():
-            print("文件格式錯誤，請確保是有效的 PDF 文件")
+            print("File format error, please ensure it is a valid PDF file")
         elif 'timeout' in error_msg.lower():
-            print("處理超時，請稍後重試")
+            print("Processing timed out, please try again later")
         else:
-            print(f"處理失敗: {error_msg}")
+            print(f"Processing failed: {error_msg}")
     elif result['status'] == 'success':
         return result['content']
 ```
 
-## 🔧 部署說明
 
-### 啟動服務
-
-```bash
-docker compose up -d
-```
-
-### 停止服務
-
-```bash
-docker compose down
-```
-
-### 查看服務狀態
-
-```bash
-docker compose ps
-```
-
-這個 API 提供了完整的 PDF 解析解決方案，支持高並發、任務追蹤和用戶隔離，適用於各種規模的應用場景。
+This API provides a complete PDF parsing solution, supporting high concurrency, task tracking, and user isolation, suitable for various application scenarios.

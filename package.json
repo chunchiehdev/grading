@@ -24,6 +24,8 @@
     "version:get": "node -p \"require('./package.json').version\""
   },
   "dependencies": {
+    "@bull-board/api": "^5.22.3",
+    "@bull-board/express": "^5.22.3",
     "@aws-sdk/client-s3": "^3.802.0",
     "@aws-sdk/s3-request-presigner": "^3.758.0",
     "@conform-to/react": "^1.2.2",
@@ -70,6 +72,7 @@
     "@types/three": "^0.175.0",
     "axios": "^1.8.3",
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.12.15",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

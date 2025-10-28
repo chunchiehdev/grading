@@ -133,6 +133,9 @@ export default [
 
   route('/health', './routes/health.tsx'),
 
+  // Admin routes
+  route('/admin/queues', './routes/admin/queues.tsx'),
+
   // 404 route
   route('*', './routes/_404.tsx'),
 ] satisfies RouteConfig;
