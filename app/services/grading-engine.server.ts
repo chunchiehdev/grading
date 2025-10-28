@@ -105,11 +105,12 @@ export async function processGradingResult(
 
       if (rubricData && rubricData.length > 0) {
         // Check if it's the new category format (categories with nested criteria)
-        if (rubricData[0]?.criteria) {
-          criteria = flattenCategoriesToCriteria(rubricData);
+        if (rubricData[0] && 'criteria' in rubricData[0] && Array.isArray(rubricData[0].criteria)) {
+          // Type guard: this is a category format with nested criteria
+          criteria = flattenCategoriesToCriteria(rubricData as any);
         } else {
-          // Assume it's a flat array of criteria - rubricData is already DbCriterion[] from parseRubricCriteria
-          criteria = rubricData;
+          // Flat array of criteria - already DbCriterion[] from parseRubricCriteria
+          criteria = rubricData as DbCriterion[];
         }
       } else {
         criteria = [];
@@ -229,18 +230,29 @@ export async function processGradingResult(
           : null;
 
       // Success - save result with context metadata and thought summary
+      // Note: We convert to plain objects for Prisma's JSON field compatibility
+      // (Prisma's InputJsonObject type requires flexibility for structured data)
       await db.gradingResult.update({
         where: { id: resultId },
         data: {
           status: 'COMPLETED',
           progress: 100,
-          result: gradingResponse.result, // Already GradingResultData, Prisma auto-converts to JSON
+          result: {
+            totalScore: gradingResponse.result.totalScore,
+            maxScore: gradingResponse.result.maxScore,
+            breakdown: gradingResponse.result.breakdown,
+            overallFeedback: gradingResponse.result.overallFeedback,
+          },
           thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
           normalizedScore,
           gradingModel: gradingResponse.provider,
           gradingTokens: gradingResponse.metadata?.tokens,
           gradingDuration: gradingResponse.metadata?.duration,
-          usedContext: usedContext, // Already UsedContext | null, Prisma auto-converts to JSON
+          usedContext: usedContext ? {
+            assignmentAreaId: usedContext.assignmentAreaId,
+            referenceFilesUsed: usedContext.referenceFilesUsed,
+            customInstructionsUsed: usedContext.customInstructionsUsed,
+          } : undefined, // Use undefined instead of null for optional JSON fields
           completedAt: new Date(),
         },
       });
@@ -263,7 +275,7 @@ export async function processGradingResult(
         gradingResponse.result, // This is the rawResponse from Gemini
         gradingResponse.metadata?.tokens,
         gradingResponse.metadata?.duration,
-        gradingResponse.metadata?.model
+        gradingResponse.metadata?.model || undefined
       );
 
       // Update session progress
