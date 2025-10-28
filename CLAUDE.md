@@ -2,253 +2,197 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Development Commands 
-- **rg**:  use `rg` in command line to search file or text. do not use `grep`
-- **Dev server**: `npm run dev` (React Router dev server with hot reload)
-- **Build**: `npm run build` (Production build)
-- **Start production**: `npm start` (Serve built application)
-- **Test**: `npm test` (Vitest), `npm run test:watch`, `npm run test:coverage`
-- **Lint**: `npm run lint`, `npm run lint:fix` (ESLint)
-- **Type check**: `npm run typecheck` (TypeScript + React Router typegen)
-- **Format**: `npm run format`, `npm run format:check` (Prettier)
-- **Database migrations**: `npm run migrate:dev` (development), `npm run migrate:prod` (production)
-- **Search**: `rg <pattern>` (ripgrep for fast code search)
+## Project Overview
 
-## Architecture Overview
+This is a grading system application built with React Router v7, TypeScript, and Prisma. It supports both teacher and student platforms with AI-powered grading capabilities using Gemini and OpenAI APIs.
 
-This is a React Router v7 application for educational grading with comprehensive AI integration and multi-role support.
+## Tech Stack
 
-**Tech Stack**:
+- **Frontend**: React 19, React Router v7, TypeScript, Tailwind CSS, Radix UI, Zustand
+- **Backend**: Node.js, Express, Prisma ORM, BullMQ for job queuing
+- **Database**: PostgreSQL 16
+- **Cache/Queue**: Redis 7 with BullMQ
+- **Storage**: MinIO (S3-compatible object storage)
+- **AI**: Google Gemini API, OpenAI API
+- **Real-time**: Socket.io with Redis adapter
+- **Testing**: Vitest, Testing Library
+- **Container**: Docker Compose for development
 
-- Frontend: React 19 + React Router v7 + Radix UI + Tailwind CSS + Framer Motion
-- Backend: Node.js with Express + Socket.IO for real-time updates
-- Database: PostgreSQL with Prisma ORM (custom output: `app/generated/prisma/client`)
-- Cache/Sessions: Redis with ioredis + Socket.IO Redis adapter
-- Storage: MinIO (S3-compatible) with AWS SDK v3
-- State: Zustand stores with persistence (`gradingStore`, `uiStore`, `uploadStore`)
-- AI: Multi-provider (OpenAI + Google Generative AI) with fallback mechanisms
-- Testing: Vitest + Testing Library + MSW + jsdom
-- Internationalization: i18next + react-i18next with language detection
-- UI: Comprehensive component library with shadcn/ui pattern + MUI integration
+## Development Commands
 
-**Key Directories**:
+```bash
+# Start development environment (all services)
+docker-compose -f docker-compose.dev.yaml up -d
 
-- `app/routes/` - File-based routing with role-based access (teacher/student platforms)
-- `app/api/` - API endpoints with centralized error handling middleware
-- `app/services/` - Business logic layer with `.server.ts` naming convention
-- `app/components/` - UI components organized by feature (grading, landing, ui)
-- `app/stores/` - Zustand state management with Immer and persistence
-- `app/schemas/` - Zod validation schemas for API and form validation
-- `app/types/` - TypeScript type definitions organized by domain
-- `app/locales/` - i18n translation files (en/zh) organized by feature
-- `prisma/` - Database schema, migrations, and generated client
+# Install dependencies
+npm install
 
-## Core User Workflows
+# Run development server (outside Docker)
+npm run dev
 
-**Teacher Workflow**:
+# Run tests
+npm run test                  # Run once
+npm run test:watch            # Watch mode
+npm run test:coverage         # With coverage
+npm run test -- filename      # Specific file
 
-1. Google OAuth authentication → role selection → teacher dashboard
-2. Create courses with invitation codes/QR codes for student enrollment
-3. Create assignment areas with attached rubrics (reusable templates)
-4. View student submissions with AI analysis results
-5. Provide final grades and feedback
+# Database migrations
+npm run migrate:dev           # Apply migrations in dev
+npm run migrate:prod          # Deploy migrations in production
+npx prisma generate          # Generate Prisma client
 
-**Student Workflow**:
+# Code quality
+npm run lint                  # ESLint check
+npm run lint:fix             # ESLint auto-fix
+npm run format               # Prettier format
+npm run typecheck            # TypeScript check
 
-1. Google OAuth authentication → role selection → student dashboard
-2. Join courses via invitation codes or QR codes
-3. View assignments categorized by status (pending, submitted, graded)
-4. Submit files with real-time AI analysis preview
-5. Track submission status and view teacher feedback
+# Build and production
+npm run build                # Build for production
+npm run start                # Start production server
+```
 
-## Database Schema
+## Architecture Principles
 
-PostgreSQL with Prisma ORM featuring:
+### React Router v7 Patterns
 
-- **Custom client output**: `app/generated/prisma/client`
-- **Multi-platform binaries**: `["native", "linux-musl-openssl-3.0.x"]`
-- **Core Models**: User, Course, AssignmentArea, Submission, Rubric, GradingSession, GradingResult, UploadedFile
-- **Role-based access**: TEACHER/STUDENT enum with proper relations
-- **Course management**: Teacher-owned courses with student enrollments via invitation codes
-- **JSON fields**: Flexible rubric criteria, AI analysis results, and metadata storage
-- **Audit trail**: Comprehensive timestamps, soft deletes, and status tracking
-- **Indexes**: Optimized for common query patterns (userId, courseId, status)
+This project uses React Router v7 (NOT Remix). Key patterns:
 
-## AI Integration Architecture
+1. **Server-side data loading** via loaders:
+```typescript
+export const loader = async ({ request }: { request: Request }) => {
+  const userId = await getUserId(request);
+  const data = await fetchData(userId);
+  return { data };
+};
+```
 
-**Multi-Provider Strategy**:
+2. **Use correct imports** - Always use `react-router`, never `@remix-run/*`:
+```typescript
+import { useLoaderData } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
+```
 
-- Primary: Google Generative AI (Gemini) with file upload support
-- Fallback: OpenAI API with Assistant API for file processing
-- Validation: Result quality checks with retry mechanisms
-- Error handling: Comprehensive fallback chain with provider switching
+3. **Routes defined in `app/routes.ts`** using the new routing API
 
-**Document Processing Pipeline**:
+### File Naming Conventions
 
-1. **File Upload**: MinIO storage with chunked uploads and progress tracking
-2. **Parsing**: External PDF parser API with async polling
-3. **AI Analysis**: Multi-stage fallback (Gemini file → OpenAI file → Gemini text → OpenAI text)
-4. **Result Validation**: Quality checks to prevent corrupted AI responses
-5. **Storage**: Results stored as JSON in PostgreSQL with metadata
+- **Server-only code**: Must use `.server.ts` suffix (e.g., `auth.server.ts`)
+- **Route files**: Follow React Router v7 conventions in `app/routes/`
+- **Components**: PascalCase in `app/components/`
+- **Utilities**: camelCase in `app/utils/`
+- **Schemas**: Zod schemas in `app/schemas/`
 
-**Progress Tracking**:
+### Service Layer Architecture
 
-- Upload progress: Redis-based real-time tracking per file/session
-- Grading progress: Database-stored with phases (check → grade → verify → completed)
-- Real-time updates: Socket.IO for live status updates to UI
+Services in `app/services/*.server.ts` follow these patterns:
 
-## Authentication & Authorization
+1. **Always handle errors gracefully** - return fallback values, don't throw
+2. **Export interfaces** for return types
+3. **Use Prisma client** for database operations
+4. **ES modules only** - use `await import()`, never `require()`
 
-**Session-based Authentication**:
+### Database and Prisma
 
-- Google OAuth 2.0 with `google-auth-library`
-- Cookie-based sessions with secure configuration
-- Redis session storage for scalability
-- Role-based route protection (`requireAuth`, `requireTeacher`, `requireStudent`)
+- **Prisma schema**: Located at `prisma/schema.prisma`
+- **Generated client**: Output to `app/generated/prisma/client/`
+- **Main entities**: User, Course, Class, Assignment, Submission, Rubric, GradingSession
+- **Role-based system**: TEACHER, STUDENT, ADMIN roles
 
-**Security Features**:
+### Queue System (BullMQ)
 
-- CSRF protection via SameSite cookies
-- Secure cookie configuration for production
-- Role-based access control at route and API levels
-- Session expiration and cleanup
+The application uses BullMQ for async job processing:
+
+- **Grading jobs**: Processed via `bullmq-grading.server.ts`
+- **Redis connection**: Configured in `app/config/redis.ts`
+- **Worker initialization**: Via `worker-init.server.ts`
+- **Rate limiting**: Built-in queue rate limiting support
+
+### Testing Strategy
+
+All tests are consolidated in the `test/` directory with the following structure:
+
+1. **Integration tests** in `test/integration/` - complete workflows and UI testing
+2. **Unit tests** in `test/unit/` - isolated functions
+3. **Contract tests** in `test/contract/` - API contract validation
+4. **Load tests** in `test/load/` - performance and load testing
+5. **Fixtures** in `test/fixtures/` - shared test data
+6. **Factories** in `test/factories/` - test data creation utilities
+7. **Mocks** in `test/mocks/` - mock services and handlers
+8. **Sequential execution** to prevent database conflicts
+9. **Automatic cleanup** after each test via `cleanupTestData()`
+
+### AI Integration
+
+The system integrates multiple AI providers:
+
+- **Gemini API** for grading and rubric generation
+- **OpenAI API** as fallback/alternative
+- **Circuit breaker pattern** for resilience
+- **Structured prompts** for consistent grading
+
+## Key Services
+
+- `grading-session.server.ts` - Main grading orchestration
+- `bullmq-grading.server.ts` - Async grading job processing
+- `ai-grader.server.ts` - AI grading logic
+- `auth.server.ts` - Authentication and authorization
+- `course.server.ts` - Course management
+- `enrollment.server.ts` - Student enrollment handling
+
+## Environment Variables
+
+Key environment variables (see docker-compose.dev.yaml for full list):
+
+- `DATABASE_URL` - PostgreSQL connection
+- `REDIS_HOST/PORT/PASSWORD` - Redis configuration
+- `GEMINI_API_KEY` - Google AI API key
+- `OPENAI_API_KEY` - OpenAI API key
+- `GOOGLE_CLIENT_ID/SECRET` - OAuth configuration
+- `MINIO_*` - Object storage settings
+- `AUTH_SECRET` - Session encryption key
+
+## Code Style Requirements
+
+From the existing Copilot instructions:
+
+- Be terse and provide actual code, not high-level explanations
+- Treat developers as experts
+- No moral lectures or unnecessary warnings
+- Respect prettier formatting preferences
+- For code adjustments, show only relevant context (few lines before/after changes)
+
+## Component Standards
+
+When creating React components:
+
+1. Use functional components with TypeScript
+2. Prefer Radix UI primitives over custom implementations
+3. Use Tailwind CSS for styling (with `cn()` utility for conditional classes)
+4. Follow the existing component patterns in `app/components/`
+
+## API Route Patterns
+
+API routes follow REST conventions:
+
+- Located in `app/routes/api.*.ts`
+- Use Zod for input validation
+- Return `Response.json()` for JSON responses
+- Handle errors with appropriate status codes
 
 ## State Management
 
-**Client-side (Zustand)**:
+- **Zustand** for client-side global state
+- **React Query (TanStack Query)** for server state
+- **React Context** for theme and localization
+- Avoid prop drilling by using appropriate state management
 
-- `gradingStore`: Grading progress, results, file uploads with localStorage persistence
-- `uiStore`: Theme, sidebar, navigation state with hydration safety
-- `uploadStore`: File upload tracking with Immer for immutable updates
+## Important Notes
 
-**Server-side (Redis)**:
-
-- Upload progress tracking with TTL expiration
-- Session storage for authentication
-- Caching for frequently accessed data
-
-## Configuration & Environment
-
-**Docker Development Setup**:
-
-- PostgreSQL database with admin user
-- Redis cache with password protection
-- MinIO object storage with S3-compatible API
-- External PDF parser API integration
-
-**Environment Variables**:
-
-- Database: `DATABASE_URL` for PostgreSQL connection
-- Redis: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
-- Storage: `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`
-- AI: `GOOGLE_API_KEY`, `OPENAI_API_KEY`
-- Auth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `AUTH_SECRET`
-
-## Code Patterns & Conventions
-
-**Service Layer Patterns**:
-
-- All server-side code uses `.server.ts` suffix
-- Export interfaces for return types with comprehensive JSDoc
-- Always handle errors gracefully with fallback values
-- Use descriptive function names and consistent error handling
-
-**API Design**:
-
-- Centralized error handling with `ApiError` class and `withErrorHandler`
-- Consistent response format: `{ success: boolean, data?: T, error?: string }`
-- Role-based middleware for route protection
-- Comprehensive input validation with Zod schemas
-
-**Database Operations**:
-
-- Always use Prisma transactions for multi-model operations
-- Proper error handling with user-friendly messages
-- Optimized queries with appropriate includes and selects
-- Consistent use of UUID primary keys and proper indexing
-
-**Component Architecture**:
-
-- Feature-based organization (grading/, landing/, ui/)
-- Comprehensive prop interfaces with TypeScript
-- Accessibility-first design with Radix UI primitives
-- Consistent styling with Tailwind CSS and shadcn/ui patterns
-
-## Testing Strategy
-
-**Test Structure**:
-
-- Unit tests with Vitest and jsdom environment
-- Component testing with React Testing Library
-- API mocking with MSW (Mock Service Worker)
-- Factory pattern for test data generation
-- Isolated test database configuration
-
-**Coverage Areas**:
-
-- Service layer business logic
-- Component rendering and interactions
-- API endpoint validation
-- Database operations and transactions
-- File upload and processing workflows
-
-## Internationalization
-
-**i18n Implementation**:
-
-- i18next with react-i18next integration
-- Automatic language detection with fallbacks
-- Feature-based translation organization (auth, course, grading, etc.)
-- Server-side rendering support with hydration safety
-- Language switching with persistent user preference
-
-## Performance Optimizations
-
-**Frontend**:
-
-- Code splitting with React Router v7
-- Lazy loading for non-critical components
-- Optimized bundle analysis with rollup-plugin-visualizer
-- Image optimization and lazy loading
-- Efficient state updates with Zustand and Immer
-
-**Backend**:
-
-- Redis caching for frequently accessed data
-- Database query optimization with proper indexing
-- File upload chunking for large files
-- Rate limiting and request queuing for AI APIs
-- Background job processing for long-running tasks
-
-## Deployment & Infrastructure
-
-**Container Support**:
-
-- Multi-stage Docker builds for production optimization
-- Kubernetes manifests for dev/prod environments
-- Health check endpoints for container orchestration
-- Environment-specific configuration management
-
-**Monitoring & Logging**:
-
-- Structured logging with Pino
-- Comprehensive error tracking
-- Performance monitoring for AI API usage
-- File upload and processing metrics
-
-## Fixed Issues & Technical Debt
-
-- **Rubric Save Hanging**: Fixed loading state persistence in form components
-- **Store Hydration**: Proper SSR hydration handling for Zustand stores
-- **File Upload Error Handling**: Comprehensive error types and user feedback
-- **AI Provider Fallbacks**: Robust error handling with automatic provider switching
-- **Database Connection Pooling**: Optimized Prisma client configuration
-
-## Development Best Practices
-
-- Always import database types from `app/types/database.ts` for consistency
-- Use Redis for temporary data, PostgreSQL for persistent data
-- Implement proper error boundaries in React components
-- Follow the established service layer patterns for new features
-- Test both success and error paths for critical workflows
-- Document complex business logic with comprehensive comments
+1. This is an ES modules project - always use `import`, never `require()`
+2. Server-side code must have `.server.ts` suffix to prevent client bundling
+3. Use `Promise.all()` for parallel data fetching in loaders
+4. Always validate user inputs with Zod schemas
+5. Handle database operations in service layer, not directly in routes
+6. Use transactions for multi-step database operations
+7. Tests run against development database with cleanup - ensure Docker is running
