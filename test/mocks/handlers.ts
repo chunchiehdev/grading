@@ -1,9 +1,19 @@
 import { http, HttpResponse } from 'msw';
 
 // Mock handlers for external APIs
+// These handlers check the environment variable at REQUEST TIME, not module load time
 export const handlers = [
-  // Mock Gemini API
-  http.post('https://generativelanguage.googleapis.com/v1beta/models/*', () => {
+  // Mock/Bypass Gemini API
+  http.post('https://generativelanguage.googleapis.com/v1beta/models/*', ({ request }) => {
+    // 🔧 FIX: Check environment at request time to allow runtime changes
+    const useRealApis = process.env.USE_REAL_APIS === 'true';
+
+    if (useRealApis) {
+      // ✅ Bypass this request - let it go to the real API
+      return new HttpResponse(null, { status: 999 });
+    }
+
+    // ❌ Return mock data (only when USE_REAL_APIS !== 'true')
     return HttpResponse.json({
       candidates: [
         {
@@ -31,8 +41,17 @@ export const handlers = [
     });
   }),
 
-  // Mock OpenAI API
-  http.post('https://api.openai.com/v1/chat/completions', () => {
+  // Mock/Bypass OpenAI API
+  http.post('https://api.openai.com/v1/chat/completions', ({ request }) => {
+    // 🔧 FIX: Check environment at request time
+    const useRealApis = process.env.USE_REAL_APIS === 'true';
+
+    if (useRealApis) {
+      // ✅ Bypass this request - let it go to the real API
+      return new HttpResponse(null, { status: 999 });
+    }
+
+    // ❌ Return mock data (only when USE_REAL_APIS !== 'true')
     return HttpResponse.json({
       choices: [
         {
@@ -56,16 +75,80 @@ export const handlers = [
     });
   }),
 
-  // Mock PDF Parser API
-  http.post('http://140.115.126.192:8001/parse', () => {
+  // Mock PDF Parser API (dev endpoint)
+  http.post('https://devgradingpdf.grading.software/parse', ({ request }) => {
+    // 🔧 FIX: Check environment at request time
+    const useRealApis = process.env.USE_REAL_APIS === 'true';
+
+    if (useRealApis) {
+      // ✅ Bypass this request - let it go to the real API
+      return new HttpResponse(null, { status: 999 });
+    }
+
+    // ❌ Return mock data (only when USE_REAL_APIS !== 'true')
+    const taskId = `mock-task-${Date.now()}`;
     return HttpResponse.json({
+      task_id: taskId,
       success: true,
-      data: {
-        text: 'This is parsed PDF content for testing.',
-        metadata: {
-          pages: 1,
-          words: 8,
-        },
+    });
+  }),
+
+  // Mock PDF Parser API (production endpoint)
+  http.post('https://gradingpdf.grading.software/parse', ({ request }) => {
+    // 🔧 FIX: Check environment at request time
+    const useRealApis = process.env.USE_REAL_APIS === 'true';
+
+    if (useRealApis) {
+      // ✅ Bypass this request - let it go to the real API
+      return new HttpResponse(null, { status: 999 });
+    }
+
+    // ❌ Return mock data (only when USE_REAL_APIS !== 'true')
+    const taskId = `mock-task-${Date.now()}`;
+    return HttpResponse.json({
+      task_id: taskId,
+      success: true,
+    });
+  }),
+
+  // Mock PDF task status polling endpoint (dev)
+  http.get('https://devgradingpdf.grading.software/task/:taskId', ({ request }) => {
+    // 🔧 FIX: Check environment at request time
+    const useRealApis = process.env.USE_REAL_APIS === 'true';
+
+    if (useRealApis) {
+      // ✅ Bypass this request - let it go to the real API
+      return new HttpResponse(null, { status: 999 });
+    }
+
+    // ❌ Return mock data (only when USE_REAL_APIS !== 'true')
+    return HttpResponse.json({
+      status: 'success',
+      content: 'This is parsed PDF content for testing.\n\nTest Essay: Climate Change Analysis\n\nClimate change is one of the most pressing issues of our time.',
+      metadata: {
+        pages: 1,
+        words: 50,
+      },
+    });
+  }),
+
+  // Mock PDF task status polling endpoint (production)
+  http.get('https://gradingpdf.grading.software/task/:taskId', ({ request }) => {
+    // 🔧 FIX: Check environment at request time
+    const useRealApis = process.env.USE_REAL_APIS === 'true';
+
+    if (useRealApis) {
+      // ✅ Bypass this request - let it go to the real API
+      return new HttpResponse(null, { status: 999 });
+    }
+
+    // ❌ Return mock data (only when USE_REAL_APIS !== 'true')
+    return HttpResponse.json({
+      status: 'success',
+      content: 'This is parsed PDF content for testing.\n\nTest Essay: Climate Change Analysis\n\nClimate change is one of the most pressing issues of our time.',
+      metadata: {
+        pages: 1,
+        words: 50,
       },
     });
   }),
