@@ -165,11 +165,14 @@ Conclusion: We must act now to address climate change through policy, technology
 }
 
 export function createTestRubric() {
+  // Use dynamic import to get uuid
+  const { v4: uuidv4 } = require('uuid');
+
   return {
     name: 'Load Test Rubric',
     criteria: [
       {
-        id: 'content',
+        id: uuidv4(),
         name: 'Content Quality',
         description: 'Quality of content and arguments',
         maxScore: 50,
@@ -180,7 +183,7 @@ export function createTestRubric() {
         ],
       },
       {
-        id: 'structure',
+        id: uuidv4(),
         name: 'Structure',
         description: 'Organization and flow',
         maxScore: 50,

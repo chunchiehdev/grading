@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { v4 as uuidv4 } from 'uuid';
 import {
   UserFactory,
   RubricFactory,
@@ -71,7 +72,7 @@ describe('BullMQ E2E - Ninth Request Rate Limiting', () => {
       isTemplate: true,
       criteria: [
         {
-          id: 'content',
+          id: uuidv4(),
           name: 'Content Quality',
           maxScore: 100,
           levels: [

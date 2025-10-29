@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { v4 as uuidv4 } from 'uuid';
 import {
   UserFactory,
   RubricFactory,
@@ -134,14 +135,21 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
       isTemplate: true,
       criteria: [
         {
-          id: 'content',
-          name: 'Content Quality',
-          maxScore: 4,
-          levels: [
-            { score: 4, description: 'Excellent - Comprehensive and insightful content' },
-            { score: 3, description: 'Good - Clear and adequate content' },
-            { score: 2, description: 'Fair - Basic content with some gaps' },
-            { score: 1, description: 'Poor - Minimal or unclear content' },
+          id: uuidv4(),
+          name: 'General',
+          criteria: [
+            {
+              id: uuidv4(),
+              name: 'Content Quality',
+              maxScore: 4,
+              description: 'Quality and depth of content',
+              levels: [
+                { score: 4, description: 'Excellent - Comprehensive and insightful content' },
+                { score: 3, description: 'Good - Clear and adequate content' },
+                { score: 2, description: 'Fair - Basic content with some gaps' },
+                { score: 1, description: 'Poor - Minimal or unclear content' },
+              ],
+            },
           ],
         },
       ],

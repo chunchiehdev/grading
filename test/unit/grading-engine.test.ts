@@ -59,6 +59,10 @@ describe('Grading Engine Logic', () => {
     it('should process grading result successfully', async () => {
       console.log('\\n🤖 Testing Successful Grading Workflow');
 
+      // Generate consistent criteria IDs for test
+      const contentQualityId = uuidv4();
+      const writingClarityId = uuidv4();
+
       // Mock grading result with all required data
       const mockGradingResult = {
         id: 'result123',
@@ -76,13 +80,13 @@ describe('Grading Engine Logic', () => {
           name: '論文評分標準',
           criteria: [
             {
-              id: 'content-quality',
+              id: contentQualityId,
               name: '內容品質',
               description: '分析深度和廣度',
               maxScore: 40,
             },
             {
-              id: 'writing-clarity',
+              id: writingClarityId,
               name: '寫作清晰度',
               description: '表達的清楚程度',
               maxScore: 30,
@@ -106,12 +110,12 @@ describe('Grading Engine Logic', () => {
             maxScore: 70,
             breakdown: [
               {
-                criteriaId: 'content-quality',
+                criteriaId: contentQualityId,
                 score: 35,
                 feedback: '內容分析深入，引用適當',
               },
               {
-                criteriaId: 'writing-clarity',
+                criteriaId: writingClarityId,
                 score: 25,
                 feedback: '表達清晰，結構完整',
               },
@@ -343,6 +347,8 @@ describe('Grading Engine Logic', () => {
     it('should track progress through database updates', async () => {
       console.log('\\n📊 Testing Database Progress Updates');
 
+      const testCriteriaId = uuidv4();
+
       const mockGradingResult = {
         id: 'result123',
         status: 'PENDING',
@@ -357,7 +363,7 @@ describe('Grading Engine Logic', () => {
         rubric: {
           id: 'rubric123',
           name: 'Test Rubric',
-          criteria: [{ id: 'test', name: 'Test', maxScore: 10 }],
+          criteria: [{ id: testCriteriaId, name: 'Test', maxScore: 10 }],
         },
         gradingSession: { id: 'session123' },
       };
@@ -370,7 +376,7 @@ describe('Grading Engine Logic', () => {
           result: {
             totalScore: 9,
             maxScore: 10,
-            breakdown: [{ criteriaId: 'test', score: 9, feedback: 'Excellent work' }],
+            breakdown: [{ criteriaId: testCriteriaId, score: 9, feedback: 'Excellent work' }],
           },
           metadata: { model: 'gemini-2.0-flash', tokens: 1200 },
         }),

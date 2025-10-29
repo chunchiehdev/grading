@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { v4 as uuidv4 } from 'uuid';
 import {
   UserFactory,
   RubricFactory,
@@ -34,7 +35,7 @@ describe('Grading Engine Validation Tests', () => {
         name: 'Test Rubric',
         criteria: [
           {
-            id: 'content',
+            id: uuidv4(),
             name: 'Content Quality',
             description: 'Quality of content',
             maxScore: 50,
@@ -144,7 +145,7 @@ describe('Grading Engine Validation Tests', () => {
         name: 'Standard Rubric',
         criteria: [
           {
-            id: 'content-quality',
+            id: uuidv4(),
             name: 'Content Quality',
             description: 'Quality and depth of content',
             maxScore: 40,
@@ -156,7 +157,7 @@ describe('Grading Engine Validation Tests', () => {
             ],
           },
           {
-            id: 'organization',
+            id: uuidv4(),
             name: 'Organization',
             description: 'Structure and flow',
             maxScore: 30,
@@ -176,12 +177,12 @@ describe('Grading Engine Validation Tests', () => {
         name: 'Categorized Rubric',
         criteria: [
           {
-            id: 'content-category',
+            id: uuidv4(),
             name: 'Content Analysis',
             description: 'Content-related criteria',
             criteria: [
               {
-                id: 'thesis',
+                id: uuidv4(),
                 name: 'Thesis Statement',
                 description: 'Quality of thesis',
                 maxScore: 25,
@@ -194,12 +195,12 @@ describe('Grading Engine Validation Tests', () => {
             ],
           },
           {
-            id: 'structure-category',
+            id: uuidv4(),
             name: 'Structure & Style',
             description: 'Structural criteria',
             criteria: [
               {
-                id: 'organization',
+                id: uuidv4(),
                 name: 'Organization',
                 description: 'Essay structure',
                 maxScore: 25,
@@ -292,7 +293,7 @@ describe('Grading Engine Validation Tests', () => {
         name: 'Essay Evaluation Rubric',
         criteria: [
           {
-            id: 'content-analysis',
+            id: uuidv4(),
             name: 'Content & Analysis',
             description: 'Quality of content and analytical thinking',
             maxScore: 50,
@@ -305,7 +306,7 @@ describe('Grading Engine Validation Tests', () => {
             ],
           },
           {
-            id: 'writing-quality',
+            id: uuidv4(),
             name: 'Writing Quality',
             description: 'Grammar, style, and clarity',
             maxScore: 30,

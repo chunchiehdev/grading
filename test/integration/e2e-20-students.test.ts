@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, before } from 'vitest';
+import { v4 as uuidv4 } from 'uuid';
 import {
   UserFactory,
   RubricFactory,
@@ -17,6 +18,7 @@ import { bullmqRedis } from '@/lib/redis';
 import { db } from '@/types/database';
 import { createMinimalTestContent } from '../load/real-api-config';
 import { extractTotalScore } from '@/utils/grading-helpers';
+import { createTestPdf } from '../utils/pdf-generator';
 
 /**
  * End-to-End Test: 20 Students Complete Workflow
@@ -24,7 +26,7 @@ import { extractTotalScore } from '@/utils/grading-helpers';
  * 🎯 PURPOSE:
  * Verify that 20 students can complete the ENTIRE workflow without errors:
  * ✅ Upload PDF files to S3
- * ✅ Parse all PDFs with real PDF parser
+ * ✅ Parse all PDFs with REAL PDF parser (https://devgradingpdf.grading.software)
  * ✅ Create grading sessions
  * ✅ Submit to BullMQ queue for grading
  * ✅ Wait for grading completion
@@ -38,6 +40,27 @@ import { extractTotalScore } from '@/utils/grading-helpers';
  * - Production submission creation
  * - Scalability with 20 concurrent students
  * - Error handling and reporting
+ *
+ * 🔧 MSW MOCKING BEHAVIOR:
+ * - MSW (Mock Service Worker) is started in test/setup.ts
+ * - PDF parser handlers are in test/mocks/handlers.ts (lines 78-154)
+ * - By default, MSW intercepts PDF parser calls and returns mock data:
+ *   → POST /parse returns { task_id: "mock-task-..." }
+ *   → GET /task/:taskId returns canned string "This is parsed PDF content..."
+ * - To use REAL APIs, you MUST set: USE_REAL_APIS=true
+ * - When USE_REAL_APIS=true, MSW returns status 999 to bypass interception
+ *
+ * 🌐 REAL API MODE (this test):
+ * - This test explicitly sets process.env.USE_REAL_APIS = 'true'
+ * - PDF parsing calls go to: ${PDF_PARSER_API_URL}/parse
+ * - Default: https://devgradingpdf.grading.software
+ * - You'll see "🌐 REAL API CALL" logs in console output
+ *
+ * ⚙️ TO RUN WITH REAL APIs:
+ * 1. Ensure USE_REAL_APIS=true in .env or export USE_REAL_APIS=true
+ * 2. Optionally set PDF_PARSER_API_URL to override endpoint
+ * 3. Run: npm run test test/integration/e2e-20-students.test.ts
+ * 4. Watch for "🌐 REAL API CALL" banner in console
  */
 
 interface StudentResult {
@@ -62,6 +85,30 @@ describe('E2E: 20 Students Complete Workflow', () => {
 
   const STUDENT_COUNT = 20;
   const results: StudentResult[] = [];
+
+  // ============================================
+  // 🔧 FORCE REAL API MODE
+  // ============================================
+  // CRITICAL: This test MUST use real APIs to validate production behavior
+  // MSW will intercept and mock requests unless USE_REAL_APIS=true
+  before(() => {
+    // Force real API mode
+    process.env.USE_REAL_APIS = 'true';
+
+    // Reset MSW handlers to respect the new environment variable
+    // This ensures handlers check USE_REAL_APIS at request time
+    const { server } = require('../mocks/server');
+    const { handlers } = require('../mocks/handlers');
+    server.resetHandlers(...handlers);
+
+    console.log('\n╔════════════════════════════════════════════════════════╗');
+    console.log('║  🌐 REAL API MODE ENABLED                              ║');
+    console.log('╚════════════════════════════════════════════════════════╝');
+    console.log(`✅ USE_REAL_APIS: ${process.env.USE_REAL_APIS}`);
+    console.log(`📡 PDF Parser URL: ${process.env.PDF_PARSER_API_URL || 'http://localhost:8000'}`);
+    console.log('🔄 MSW handlers reset to bypass mode');
+    console.log('⚠️  All HTTP requests will hit REAL external APIs\n');
+  });
 
   beforeEach(async () => {
     console.log('\n🎬 E2E TEST: Setting up infrastructure for 20 students...');
@@ -130,7 +177,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
       isTemplate: true,
       criteria: [
         {
-          id: 'content',
+          id: uuidv4(),
           name: 'Content Quality',
           maxScore: 4,
           levels: [
@@ -184,6 +231,25 @@ describe('E2E: 20 Students Complete Workflow', () => {
     console.log('╚════════════════════════════════════════════════════════╝\n');
 
     // ============================================
+    // VALIDATE REAL API MODE
+    // ============================================
+    const useRealApis = process.env.USE_REAL_APIS === 'true';
+    const pdfParserUrl = process.env.PDF_PARSER_API_URL || 'http://localhost:8000';
+
+    console.log('🔍 Environment Check:');
+    console.log(`   USE_REAL_APIS: ${process.env.USE_REAL_APIS} (${useRealApis ? '✅ REAL APIS' : '❌ MOCKED'})`);
+    console.log(`   PDF_PARSER_API_URL: ${pdfParserUrl}`);
+
+    if (!useRealApis) {
+      console.warn('\n⚠️  WARNING: USE_REAL_APIS is not true!');
+      console.warn('   MSW will intercept API calls and return mock data.');
+      console.warn('   Set USE_REAL_APIS=true to test real parser.\n');
+    } else {
+      console.log('\n✅ REAL API MODE: All requests will hit external endpoints');
+      console.log('   You should see "🌐 REAL API CALL" logs from pdf-parser.server.ts\n');
+    }
+
+    // ============================================
     // PHASE 1: Upload files for all 20 students
     // ============================================
     console.log('📝 PHASE 1: Uploading 20 PDF files...\n');
@@ -195,11 +261,16 @@ describe('E2E: 20 Students Complete Workflow', () => {
 
       try {
         const content = `${createMinimalTestContent()}\n\nStudent ${i + 1} submission for E2E testing.`;
-        const pdfBuffer = Buffer.from(content, 'utf8');
+
+        // ✅ Generate REAL PDF (not plain text)
+        console.log(`   📝 Student ${i + 1}: Generating real PDF file...`);
+        const pdfBuffer = await createTestPdf(content);
+
         const fileName = `e2e-student-${i + 1}.pdf`;
         const fileKey = `uploads/${student.id}/${Date.now()}-${i}-${fileName}`;
 
         // Upload to S3
+        console.log(`   ⬆️  Student ${i + 1}: Uploading to S3...`);
         const uploadResult = await uploadToStorage(pdfBuffer, fileKey, 'application/pdf');
 
         // Create database record
@@ -219,7 +290,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
 
         uploadedFiles.push(uploadedFile);
         results[i].uploadStatus = 'success';
-        console.log(`   ✅ Student ${i + 1}: File uploaded (${pdfBuffer.length} bytes)`);
+        console.log(`   ✅ Student ${i + 1}: File uploaded (${pdfBuffer.length} bytes, REAL PDF format)`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         results[i].errors.push(`Upload failed: ${errorMsg}`);
@@ -231,6 +302,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
     // PHASE 2: Parse all 20 PDF files
     // ============================================
     console.log('\n🔄 PHASE 2: Parsing 20 PDF files with real PDF parser...\n');
+    console.log(`📡 API Endpoint: ${process.env.PDF_PARSER_API_URL || 'http://localhost:8000'}\n`);
 
     for (let i = 0; i < uploadedFiles.length; i++) {
       const file = uploadedFiles[i];
@@ -317,9 +389,9 @@ describe('E2E: 20 Students Complete Workflow', () => {
     // ============================================
     // PHASE 5: Monitor queue processing
     // ============================================
-    console.log('\n⏳ PHASE 5: Monitoring queue for 30 seconds...\n');
+    console.log('\n⏳ PHASE 5: Monitoring queue for 180 seconds (rate limiting: 8 RPM = ~2.5 min for 20 jobs)...\n');
 
-    const waitDuration = 30000; // 30 seconds
+    const waitDuration = 180000; // 180 seconds (3 minutes) - enough for 20 jobs at 8 RPM
     const startTime = Date.now();
     let lastCheck = 0;
 
@@ -451,5 +523,5 @@ describe('E2E: 20 Students Complete Workflow', () => {
       failedStudents.length,
       `${failedStudents.length} students failed: ${failedStudents.map((s) => `Student ${s.studentIndex + 1}`).join(', ')}`
     ).toBe(0);
-  }, 600000); // 10 minute timeout for 20 students
+  }, 900000); // 15 minute timeout (includes 3 min queue processing due to 8 RPM rate limit)
 });

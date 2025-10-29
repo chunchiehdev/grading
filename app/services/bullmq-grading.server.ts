@@ -120,10 +120,13 @@ try {
       if (
         errorMessage.includes('429') ||
         errorMessage.includes('quota') ||
-        errorMessage.includes('rate limit')
+        errorMessage.includes('rate limit') ||
+        errorMessage.includes('503') ||
+        errorMessage.includes('overloaded') ||
+        errorMessage.includes('UNAVAILABLE')
       ) {
-        logger.warn(`⚠️ [BullMQ] Rate limit detected, will retry: ${errorMessage}`);
-        throw Worker.RateLimitError();
+        logger.warn(`⚠️ [BullMQ] Rate limit/Service issue detected, will retry: ${errorMessage}`);
+        throw Worker.RateLimitError();  // Retry with exponential backoff
       }
 
       throw error;

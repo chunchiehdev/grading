@@ -48,7 +48,15 @@ export class RubricFactory {
     // Check if already in categorized format (items have .criteria property)
     const isAlreadyCategorized = criteria[0]?.criteria !== undefined;
     if (isAlreadyCategorized) {
-      return criteria;
+      // Ensure all IDs are valid UUIDs (recursive validation)
+      return criteria.map(category => ({
+        ...category,
+        id: this.ensureValidUUID(category.id),
+        criteria: category.criteria?.map((criterion: any) => ({
+          ...criterion,
+          id: this.ensureValidUUID(criterion.id),
+        })) || [],
+      }));
     }
 
     // Check if in flat format (items have .maxScore property)
@@ -59,7 +67,7 @@ export class RubricFactory {
         id: uuidv4(),
         name: 'General',
         criteria: criteria.map(criterion => ({
-          id: criterion.id || uuidv4(),
+          id: this.ensureValidUUID(criterion.id),
           name: criterion.name,
           description: criterion.description || '',
           maxScore: criterion.maxScore || 0,
@@ -71,6 +79,19 @@ export class RubricFactory {
     // Unknown format, return as-is
     console.warn('Unknown criteria format, returning as-is');
     return criteria;
+  }
+
+  // Helper: Ensure ID is a valid UUID format, generate new one if invalid
+  private static ensureValidUUID(id: any): string {
+    // Check if already a valid UUID format (8-4-4-4-12 hex pattern)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (typeof id === 'string' && uuidRegex.test(id)) {
+      return id;
+    }
+
+    // Invalid or missing UUID - generate new one
+    console.warn(`Invalid or missing UUID detected: "${id}", generating new one`);
+    return uuidv4();
   }
 
   // Flat criteria format (for direct use)

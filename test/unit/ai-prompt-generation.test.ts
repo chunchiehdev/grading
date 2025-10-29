@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { v4 as uuidv4 } from 'uuid';
 import { GeminiPrompts } from '@/services/gemini-prompts.server';
 import type { GeminiGradingRequest, GeminiFileGradingRequest } from '@/types/gemini';
 
@@ -77,6 +78,9 @@ describe('AI Prompt Generation Logic', () => {
 
   describe('File Grading Prompt Generation', () => {
     it('should generate file grading prompt with basic criteria', () => {
+      const contentQualityId = uuidv4();
+      const structureOrgId = uuidv4();
+
       const request: GeminiFileGradingRequest = {
         fileName: '學生論文.pdf',
         rubricName: '論文評分標準',
@@ -84,7 +88,7 @@ describe('AI Prompt Generation Logic', () => {
         mimeType: 'application/pdf',
         criteria: [
           {
-            id: 'content-quality',
+            id: contentQualityId,
             name: '內容品質',
             description: '論文內容的深度和廣度',
             maxScore: 40,
@@ -96,7 +100,7 @@ describe('AI Prompt Generation Logic', () => {
             ],
           },
           {
-            id: 'structure-organization',
+            id: structureOrgId,
             name: '結構組織',
             description: '論文的邏輯結構和組織性',
             maxScore: 30,
@@ -123,8 +127,8 @@ describe('AI Prompt Generation Logic', () => {
       // Criteria details inclusion
       expect(prompt).toContain('內容品質');
       expect(prompt).toContain('結構組織');
-      expect(prompt).toContain('"content-quality"');
-      expect(prompt).toContain('"structure-organization"');
+      expect(prompt).toContain(`"${contentQualityId}"`);
+      expect(prompt).toContain(`"${structureOrgId}"`);
       expect(prompt).toContain('40 分');
       expect(prompt).toContain('30 分');
 
@@ -144,6 +148,12 @@ describe('AI Prompt Generation Logic', () => {
     });
 
     it('should handle criteria with categories', () => {
+      const academicId = uuidv4();
+      const researchDepthId = uuidv4();
+      const citationQualityId = uuidv4();
+      const presentationId = uuidv4();
+      const writingClarityId = uuidv4();
+
       const request: GeminiFileGradingRequest = {
         fileName: '期末作業.docx',
         rubricName: '分類評分標準',
@@ -152,11 +162,11 @@ describe('AI Prompt Generation Logic', () => {
         criteria: [], // Empty when using categories
         categories: [
           {
-            id: 'academic-content',
+            id: academicId,
             name: '學術內容',
             criteria: [
               {
-                id: 'research-depth',
+                id: researchDepthId,
                 name: '研究深度',
                 description: '研究的深入程度',
                 maxScore: 25,
@@ -166,7 +176,7 @@ describe('AI Prompt Generation Logic', () => {
                 ],
               },
               {
-                id: 'citation-quality',
+                id: citationQualityId,
                 name: '引用品質',
                 description: '文獻引用的正確性',
                 maxScore: 15,
@@ -178,11 +188,11 @@ describe('AI Prompt Generation Logic', () => {
             ],
           },
           {
-            id: 'presentation',
+            id: presentationId,
             name: '表達呈現',
             criteria: [
               {
-                id: 'writing-clarity',
+                id: writingClarityId,
                 name: '寫作清晰度',
                 description: '文字表達的清楚程度',
                 maxScore: 20,
@@ -208,9 +218,9 @@ describe('AI Prompt Generation Logic', () => {
       expect(prompt).toContain('2.1 **寫作清晰度**');
 
       // Criteria IDs validation
-      expect(prompt).toContain('"research-depth"');
-      expect(prompt).toContain('"citation-quality"');
-      expect(prompt).toContain('"writing-clarity"');
+      expect(prompt).toContain(`"${researchDepthId}"`);
+      expect(prompt).toContain(`"${citationQualityId}"`);
+      expect(prompt).toContain(`"${writingClarityId}"`);
 
       // NOTE: Current implementation bug - should calculate total from categories (25 + 15 + 20 = 60)
       // but currently only counts criteria array which is empty when using categories
@@ -224,16 +234,21 @@ describe('AI Prompt Generation Logic', () => {
     });
 
     it('should calculate total score correctly', () => {
+      const c1Id = uuidv4();
+      const c2Id = uuidv4();
+      const c3Id = uuidv4();
+      const c4Id = uuidv4();
+
       const request: GeminiFileGradingRequest = {
         fileName: 'test.pdf',
         rubricName: 'Test Rubric',
         fileBuffer: Buffer.from('test content'),
         mimeType: 'application/pdf',
         criteria: [
-          { id: 'c1', name: 'Criterion 1', maxScore: 10 },
-          { id: 'c2', name: 'Criterion 2', maxScore: 15 },
-          { id: 'c3', name: 'Criterion 3', maxScore: 25 },
-          { id: 'c4', name: 'Criterion 4', maxScore: 50 },
+          { id: c1Id, name: 'Criterion 1', maxScore: 10 },
+          { id: c2Id, name: 'Criterion 2', maxScore: 15 },
+          { id: c3Id, name: 'Criterion 3', maxScore: 25 },
+          { id: c4Id, name: 'Criterion 4', maxScore: 50 },
         ],
       };
 
@@ -263,13 +278,14 @@ describe('AI Prompt Generation Logic', () => {
       }).not.toThrow();
 
       // Test with criteria without levels
+      const simpleId = uuidv4();
       const noLevelsRequest: GeminiFileGradingRequest = {
         fileName: 'simple.pdf',
         rubricName: 'Simple Rubric',
         fileBuffer: Buffer.from('test content'),
         mimeType: 'application/pdf',
         criteria: [
-          { id: 'simple', name: 'Simple Criterion', maxScore: 10 },
+          { id: simpleId, name: 'Simple Criterion', maxScore: 10 },
           // No levels array
         ],
       };
@@ -286,13 +302,16 @@ describe('AI Prompt Generation Logic', () => {
 
   describe('Text Grading Prompt Generation', () => {
     it('should generate text grading prompt with content', () => {
+      const analysisDepthId = uuidv4();
+      const argumentClarityId = uuidv4();
+
       const request: GeminiGradingRequest = {
         content: '這是學生提交的作業內容。包含了對於主題的分析和討論。',
         fileName: '作業一.txt',
         rubricName: '文字作業評分標準',
         criteria: [
           {
-            id: 'analysis-depth',
+            id: analysisDepthId,
             name: '分析深度',
             description: '對主題分析的深入程度',
             maxScore: 30,
@@ -303,7 +322,7 @@ describe('AI Prompt Generation Logic', () => {
             ],
           },
           {
-            id: 'argument-clarity',
+            id: argumentClarityId,
             name: '論述清晰度',
             description: '論述的邏輯性和清晰度',
             maxScore: 20,
@@ -333,8 +352,8 @@ describe('AI Prompt Generation Logic', () => {
       // Criteria details
       expect(prompt).toContain('分析深度');
       expect(prompt).toContain('論述清晰度');
-      expect(prompt).toContain('"analysis-depth"');
-      expect(prompt).toContain('"argument-clarity"');
+      expect(prompt).toContain(`"${analysisDepthId}"`);
+      expect(prompt).toContain(`"${argumentClarityId}"`);
 
       // Analysis requirements
       expect(prompt).toContain('引用具體內容作為分析依據');
@@ -350,11 +369,13 @@ describe('AI Prompt Generation Logic', () => {
     });
 
     it('should use simple output format for text grading', () => {
+      const testId = uuidv4();
+
       const request: GeminiGradingRequest = {
         content: 'Test content',
         fileName: 'test.txt',
         rubricName: 'Test Rubric',
-        criteria: [{ id: 'test', name: 'Test', maxScore: 10 }],
+        criteria: [{ id: testId, name: 'Test', maxScore: 10 }],
       };
 
       const prompt = GeminiPrompts.generateTextGradingPrompt(request);
@@ -382,7 +403,7 @@ describe('AI Prompt Generation Logic', () => {
         fileBuffer: Buffer.from('test content'),
         mimeType: 'application/pdf',
         criteria: Array.from({ length: 10 }, (_, i) => ({
-          id: `criterion-${i + 1}`,
+          id: uuidv4(),
           name: `評分標準 ${i + 1}`,
           description: `這是第 ${i + 1} 個詳細的評分標準，用於評估學生作業的不同面向和表現品質。`,
           maxScore: 10,
@@ -410,6 +431,13 @@ describe('AI Prompt Generation Logic', () => {
     });
 
     it('should maintain prompt clarity regardless of complexity', () => {
+      const cat1Id = uuidv4();
+      const cat2Id = uuidv4();
+      const c1Id = uuidv4();
+      const c2Id = uuidv4();
+      const c3Id = uuidv4();
+      const c4Id = uuidv4();
+
       const complexRequest: GeminiFileGradingRequest = {
         fileName: 'multi-category-assignment.pdf',
         rubricName: 'Multi-Category Rubric',
@@ -418,19 +446,19 @@ describe('AI Prompt Generation Logic', () => {
         criteria: [],
         categories: [
           {
-            id: 'cat1',
+            id: cat1Id,
             name: '第一類別',
             criteria: [
-              { id: 'c1', name: '標準一', maxScore: 10 },
-              { id: 'c2', name: '標準二', maxScore: 15 },
+              { id: c1Id, name: '標準一', maxScore: 10 },
+              { id: c2Id, name: '標準二', maxScore: 15 },
             ],
           },
           {
-            id: 'cat2',
+            id: cat2Id,
             name: '第二類別',
             criteria: [
-              { id: 'c3', name: '標準三', maxScore: 20 },
-              { id: 'c4', name: '標準四', maxScore: 25 },
+              { id: c3Id, name: '標準三', maxScore: 20 },
+              { id: c4Id, name: '標準四', maxScore: 25 },
             ],
           },
         ],
@@ -447,20 +475,27 @@ describe('AI Prompt Generation Logic', () => {
       const sectionCount = (prompt.match(/##/g) || []).length;
       expect(sectionCount).toBeGreaterThanOrEqual(3);
 
-      // Should maintain ID clarity
-      expect(prompt).toContain('"c1", "c2", "c3", "c4"');
+      // Should maintain ID clarity (check that IDs are present)
+      expect(prompt).toContain(`"${c1Id}"`);
+      expect(prompt).toContain(`"${c2Id}"`);
+      expect(prompt).toContain(`"${c3Id}"`);
+      expect(prompt).toContain(`"${c4Id}"`);
 
       console.log('✅ Complex prompts maintain clear structure');
     });
 
     it('should include all critical elements consistently', () => {
+      const test1Id = uuidv4();
+      const test2aId = uuidv4();
+      const test2bId = uuidv4();
+
       const requests = [
         {
           fileName: 'test1.pdf',
           rubricName: 'Rubric 1',
           fileBuffer: Buffer.from('test content'),
           mimeType: 'application/pdf',
-          criteria: [{ id: 'test1', name: 'Test 1', maxScore: 10 }],
+          criteria: [{ id: test1Id, name: 'Test 1', maxScore: 10 }],
         },
         {
           fileName: 'test2.docx',
@@ -468,8 +503,8 @@ describe('AI Prompt Generation Logic', () => {
           fileBuffer: Buffer.from('test content'),
           mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           criteria: [
-            { id: 'test2a', name: 'Test 2A', maxScore: 15 },
-            { id: 'test2b', name: 'Test 2B', maxScore: 25 },
+            { id: test2aId, name: 'Test 2A', maxScore: 15 },
+            { id: test2bId, name: 'Test 2B', maxScore: 25 },
           ],
         },
       ];

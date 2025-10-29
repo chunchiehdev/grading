@@ -7,10 +7,19 @@ import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from '@/services/storage.server';
 import { storageConfig } from '@/config/storage';
 import type { FetchOptions, PdfParserSubmitResponse, ParseResult } from '@/types/pdf-parser';
+import https from 'https';
 
 const PDF_PARSER_API_BASE = process.env.PDF_PARSER_API_URL || 'http://localhost:8000';
 const PDF_PARSER_TIMEOUT_MS = Number(process.env.PDF_PARSER_TIMEOUT_MS || 5000);
 const PDF_PARSER_RETRIES = Number(process.env.PDF_PARSER_RETRIES || 2);
+
+// Docker + node-fetch + HTTPS has IPv6/IPv4 resolution issues
+// Create agent only when needed (Docker environment + HTTPS URLs)
+const createHttpsAgent = () => new https.Agent({
+  rejectUnauthorized: true, // Keep SSL validation
+  timeout: PDF_PARSER_TIMEOUT_MS,
+  family: 4, // Force IPv4 to fix Docker networking
+});
 
 async function fetchWithTimeout(
   url: string,
@@ -20,7 +29,13 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    // Use HTTPS agent for Docker networking IPv4/IPv6 resolution
+    const isHttps = url.startsWith('https');
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      ...(isHttps && { agent: createHttpsAgent() }),
+    });
   } finally {
     clearTimeout(timeout);
   }
@@ -46,19 +61,26 @@ async function getFileFromStorage(fileKey: string): Promise<Buffer> {
 }
 
 async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId: string): Promise<string> {
-  const formData = new FormData();
-
-  formData.append('file', fileBuffer, {
-    filename: fileName,
-    contentType: 'application/pdf',
-  });
-  formData.append('user_id', userId);
-  formData.append('file_id', fileName);
-
   let lastErr: Error | unknown;
   for (let attempt = 0; attempt <= PDF_PARSER_RETRIES; attempt++) {
+    // Create fresh FormData for each retry to avoid listener accumulation
+    const formData = new FormData();
+    formData.append('file', fileBuffer, {
+      filename: fileName,
+      contentType: 'application/pdf',
+    });
+    formData.append('user_id', userId);
+    formData.append('file_id', fileName);
+
     try {
-      const response = await fetchWithTimeout(`${PDF_PARSER_API_BASE}/parse`, {
+      const targetUrl = `${PDF_PARSER_API_BASE}/parse`;
+      console.log(`\n🌐 REAL API CALL: Sending PDF to external parser`);
+      console.log(`   📍 URL: ${targetUrl}`);
+      console.log(`   📦 File: ${fileName} (${fileBuffer.length} bytes)`);
+      console.log(`   👤 User: ${userId}`);
+      console.log(`   🔄 Attempt: ${attempt + 1}/${PDF_PARSER_RETRIES + 1}`);
+
+      const response = await fetchWithTimeout(targetUrl, {
         method: 'POST',
         body: formData,
         headers: formData.getHeaders() as Record<string, string>,
@@ -66,10 +88,12 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
+        console.error(`   ❌ API Response: ${response.status} - ${errorText}`);
         throw new Error(`PDF Parser API error: ${response.status} - ${errorText}`);
       }
 
       const result = (await response.json()) as PdfParserSubmitResponse;
+      console.log(`   ✅ API Response: Task created with ID: ${result.task_id}`);
       return result.task_id;
     } catch (err) {
       lastErr = err;
@@ -89,11 +113,16 @@ async function getParsingResult(taskId: string): Promise<ParseResult> {
   let lastErr: Error | unknown;
   for (let attempt = 0; attempt <= PDF_PARSER_RETRIES; attempt++) {
     try {
-      const response = await fetchWithTimeout(`${PDF_PARSER_API_BASE}/task/${taskId}`);
+      const pollUrl = `${PDF_PARSER_API_BASE}/task/${taskId}`;
+      console.log(`🔍 Polling parser API: ${pollUrl}`);
+      const response = await fetchWithTimeout(pollUrl);
       if (!response.ok) {
+        console.error(`   ❌ Poll failed: ${response.status}`);
         throw new Error(`Failed to check task status: ${response.status}`);
       }
-      return (await response.json()) as ParseResult;
+      const result = (await response.json()) as ParseResult;
+      console.log(`   📊 Task status: ${result.status}`);
+      return result;
     } catch (err) {
       lastErr = err;
       // transient network error, small backoff and retry

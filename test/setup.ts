@@ -21,8 +21,22 @@ if (fs.existsSync(envPath)) {
 beforeAll(async () => {
   console.log('🚀 Starting test suite...');
 
-  // Start MSW server
-  server.listen({ onUnhandledRequest: 'error' });
+  // Use real APIs if USE_REAL_APIS environment variable is set
+  const useRealApis = process.env.USE_REAL_APIS === 'true';
+  if (useRealApis) {
+    console.log('⚠️  Using REAL external APIs (USE_REAL_APIS=true)');
+  } else {
+    console.log('✅ Using mocked APIs (set USE_REAL_APIS=true to use real APIs)');
+  }
+
+  // 🔧 FIX: Reset MSW handlers with fresh handlers that respect current environment
+  // This ensures that if environment variables are set before tests run,
+  // the correct mock handlers are used (or bypassed if USE_REAL_APIS=true)
+  const { handlers } = await import('./mocks/handlers');
+  server.resetHandlers(...handlers);
+
+  // Start MSW server - bypass unhandled requests if using real APIs
+  server.listen({ onUnhandledRequest: useRealApis ? 'bypass' : 'error' });
 
   // Verify database connection
   try {
