@@ -19,7 +19,9 @@ export default defineConfig({
       GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
       OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
       // PDF Parser API for document parsing tests
-      PDF_PARSER_API_URL: process.env.PDF_PARSER_API_URL || 'https://gradingpdf.grading.software',
+      PDF_PARSER_API_URL: process.env.PDF_PARSER_API_URL || 'https://devgradingpdf.grading.software',
+      // Use real APIs instead of MSW mocks when set to 'true'
+      USE_REAL_APIS: process.env.USE_REAL_APIS || 'false',
     },
     testTimeout: 60000, 
     poolOptions: {

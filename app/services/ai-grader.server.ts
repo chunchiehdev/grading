@@ -35,6 +35,9 @@ export class AIGrader {
   async grade(request: GradingRequest, userLanguage: 'zh' | 'en' = 'zh'): Promise<GradingResponse> {
     logger.info(`🎯 Starting AI grading for: ${request.fileName}`);
 
+    let geminiError: string | null = null;
+    let openaiError: string | null = null;
+
     // Try Gemini first
     try {
       const geminiService = getSimpleGeminiService();
@@ -53,9 +56,11 @@ export class AIGrader {
       }
 
       // Log Gemini failure but don't give up yet
-      logger.warn(`⚠️ Gemini failed: ${result.error}, trying OpenAI`);
+      geminiError = result.error || 'Unknown error';
+      logger.warn(`⚠️ Gemini failed: ${geminiError}, trying OpenAI`);
     } catch (error) {
-      logger.warn(`⚠️ Gemini error: ${error instanceof Error ? error.message : 'Unknown'}, trying OpenAI`);
+      geminiError = error instanceof Error ? error.message : 'Unknown error';
+      logger.warn(`⚠️ Gemini exception: ${geminiError}, trying OpenAI`);
     }
 
     // Fallback to OpenAI
@@ -74,20 +79,21 @@ export class AIGrader {
         };
       }
 
-      logger.error(`❌ OpenAI also failed: ${result.error}`);
+      openaiError = result.error || 'Unknown error';
+      logger.error(`❌ OpenAI also failed: ${openaiError}`);
 
       return {
         success: false,
-        error: `Both AI services failed. Gemini and OpenAI could not grade this document. Please try again later.`,
+        error: `Both AI services failed. Gemini: ${geminiError} | OpenAI: ${openaiError}`,
         provider: 'none',
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      logger.error(`❌ OpenAI error: ${errorMessage}`);
+      openaiError = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(`❌ OpenAI exception: ${openaiError}`);
 
       return {
         success: false,
-        error: `Both AI services failed with errors. Please check your API keys and try again.`,
+        error: `Both AI services failed with exceptions. Gemini: ${geminiError} | OpenAI: ${openaiError}`,
         provider: 'none',
       };
     }
