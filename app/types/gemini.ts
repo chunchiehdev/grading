@@ -58,5 +58,9 @@ export interface GeminiGradingResponse {
     model: string;
     tokens: number;
     duration: number;
+    // Multi-key rotation metadata (optional, only present when rotation enabled)
+    keyUsed?: string; // Which API key was used (1, 2, or 3)
+    attempts?: number; // Number of retry attempts
+    attemptedKeys?: string[]; // Keys that were tried before success
   };
 }

@@ -19,8 +19,8 @@
     "migrate:dev": "npx prisma migrate dev && npx prisma generate",
     "migrate:prod": "npx prisma migrate deploy && npx prisma generate",
     "version:patch": "npm version patch --no-git-tag-version",
-    "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
     "version:get": "node -p \"require('./package.json').version\""
   },
   "dependencies": {

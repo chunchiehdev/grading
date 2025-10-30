@@ -98,6 +98,7 @@ export default [
 
   // Admin API routes
   route('/api/admin/queue-status', './api/admin/queue-status.ts'),
+  route('/api/admin/gemini-health', './api/admin/gemini-health.ts'),
 
   // Auth API routes
   route('/api/auth/logout', './api/auth/logout.ts'),
@@ -121,6 +122,13 @@ export default [
   // Assignment API routes
   route('/api/assignments', './api/assignments/index.ts'),
   route('/api/assignments/:assignmentId', './api/assignments/$assignmentId.ts'),
+
+  // Teacher Submission API routes
+  route('/api/teacher/submissions/recent', './api/teacher/submissions/recent.ts'),
+
+  // Teacher Notification API routes
+  route('/api/teacher/notifications', './api/teacher/notifications.ts'),
+  route('/api/teacher/notifications/mark-read', './api/teacher/notifications/mark-read.ts'),
 
   // Student Submission API
   route('/api/student/submit', './api/student/submit.ts'),

@@ -38,6 +38,7 @@ export interface WebSocketEvents {
 
   // 通知事件
   'assignment-notification': (notification: AssignmentNotification) => void;
+  'submission-notification': (notification: SubmissionNotification) => void;
 
   // 系統事件
   'api-redirect': (data: { message: string; endpoint: string; method: string }) => void;
@@ -51,6 +52,20 @@ export interface AssignmentNotification {
   courseId: string;
   dueDate: Date | null;
   teacherName: string;
+  timestamp: string;
+}
+
+export interface SubmissionNotification {
+  type: 'SUBMISSION_CREATED' | 'SUBMISSION_GRADED';
+  notificationId: string | null; // ID of the notification record in database
+  submissionId: string;
+  assignmentId: string;
+  assignmentName: string;
+  courseId: string;
+  courseName: string;
+  studentId: string;
+  studentName: string;
+  submittedAt: string;
   timestamp: string;
 }
 

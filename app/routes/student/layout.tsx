@@ -1,4 +1,12 @@
-import { Outlet, useLocation, useNavigate, type LoaderFunctionArgs, Link } from 'react-router';
+import {
+  Outlet,
+  useLocation,
+  useNavigate,
+  useRouteLoaderData,
+  type LoaderFunctionArgs,
+  type ClientLoaderFunctionArgs,
+  Link,
+} from 'react-router';
 import { ModernNavigation } from '@/components/ui/modern-navigation';
 import { Button } from '@/components/ui/button';
 import { Compass } from 'lucide-react';
@@ -13,6 +21,10 @@ import {
 import { getStudentEnrolledCourses } from '@/services/enrollment.server';
 import { getSubmissionsByStudentId } from '@/services/submission.server';
 import type { CourseWithEnrollmentInfo } from '@/types/student';
+import { useEffect } from 'react';
+import { useAssignmentStore } from '@/stores/assignmentStore';
+import { useWebSocketEvent } from '@/lib/websocket';
+import type { AssignmentNotification } from '@/lib/websocket/types';
 
 export interface LoaderData {
   user: { id: string; email: string; role: string; name: string; picture?: string };
@@ -21,8 +33,10 @@ export interface LoaderData {
   submissions: (SubmissionInfo & { formattedUploadedDate: string })[];
   courses: (CourseWithEnrollmentInfo & { formattedEnrolledDate?: string })[];
   submissionHistory: any[];
+  _timestamp: number;
 }
 
+// Server loader - fetches data from database
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
   const student = await requireStudent(request);
   const [assignmentsRaw, submissionsRaw, coursesRaw, submissionHistoryRaw] = await Promise.all([
@@ -54,8 +68,31 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
     submissions,
     courses,
     submissionHistory: submissionHistoryRaw,
+    _timestamp: Date.now(),
   };
 }
+
+// Client-side cache with 30-second TTL
+let clientCache: LoaderData | null = null;
+const CACHE_TTL = 30000; // 30 seconds
+
+// Client loader - implements caching to avoid unnecessary refetches
+export async function clientLoader({ request, serverLoader }: ClientLoaderFunctionArgs) {
+  // Check if we have valid cached data
+  if (clientCache && Date.now() - clientCache._timestamp < CACHE_TTL) {
+    console.log('[Student Layout] Using cached data');
+    return clientCache;
+  }
+
+  // Fetch fresh data from server
+  console.log('[Student Layout] Fetching fresh data from server');
+  const data = await serverLoader<LoaderData>();
+  clientCache = data;
+  return data;
+}
+
+// Enable client loader hydration
+clientLoader.hydrate = true;
 
 /**
  * Student Layout - 管理 tab 導航的主容器
@@ -66,6 +103,26 @@ export default function StudentLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation(['course', 'dashboard', 'submissions']);
+  const data = useRouteLoaderData<LoaderData>('student-layout');
+  const handleNewAssignment = useAssignmentStore((state) => state.handleNewAssignment);
+
+  // Initialize assignment store at layout level (once for all student pages)
+  useEffect(() => {
+    if (data?.assignments) {
+      const setAssignments = useAssignmentStore.getState().setAssignments;
+      setAssignments(data.assignments);
+    }
+  }, [data?.assignments]);
+
+  // Monitor assignment notification events (connection managed at Root layout)
+  useWebSocketEvent(
+    'assignment-notification',
+    async (notification: AssignmentNotification) => {
+      console.log('[Student] 📝 New assignment notification received:', notification.assignmentName);
+      await handleNewAssignment(notification);
+    },
+    [handleNewAssignment]
+  );
 
   // 根據 URL 路徑判斷當前 tab
   const getActiveTab = (): string => {

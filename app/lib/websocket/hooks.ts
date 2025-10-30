@@ -70,10 +70,20 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
       console.error('[useWebSocket] Connection failed:', error);
     });
 
-    // 組件卸載時斷開連接
+    // 組件卸載時延遲斷開連接（防止路由切換時誤斷開）
     return () => {
-      websocketClient.disconnect();
-      userIdRef.current = null;
+      // 延遲 500ms 斷開，如果在這期間重新掛載就不斷開
+      const timeoutId = setTimeout(() => {
+        // 檢查是否真的需要斷開（可能已經重新連接了）
+        if (userIdRef.current === userId) {
+          websocketClient.disconnect();
+          userIdRef.current = null;
+          console.log('[useWebSocket] Disconnected after cleanup delay');
+        }
+      }, 500);
+
+      // 如果組件立即重新掛載，清除延遲斷開
+      return () => clearTimeout(timeoutId);
     };
   }, [userId]);
 
@@ -218,16 +228,26 @@ export function useWebSocketEvent<K extends keyof WebSocketEvents>(
 ) {
   const handlerRef = useRef(handler);
 
-  // 更新處理器參考
+  // 更新處理器參考 - 每次 handler 改變時更新 ref
   useEffect(() => {
     handlerRef.current = handler;
   }, [handler]);
 
+  // 訂閱事件 - 只在 event 名稱改變時重新訂閱
+  // 使用 wrapper 函數來確保總是調用最新的 handler
   useEffect(() => {
-    const unsubscribe = websocketClient.on(event, handlerRef.current);
+    const wrappedHandler = ((...args: any[]) => {
+      handlerRef.current(...args);
+    }) as WebSocketEvents[K];
 
-    return unsubscribe;
-  }, deps);
+    const unsubscribe = websocketClient.on(event, wrappedHandler);
+    console.log('[useWebSocketEvent] ✅ Subscribed to event:', event);
+
+    return () => {
+      console.log('[useWebSocketEvent] 🔌 Unsubscribing from event:', event);
+      unsubscribe();
+    };
+  }, [event]); // 只依賴 event 名稱，不依賴 handler 或 deps
 }
 
 /**

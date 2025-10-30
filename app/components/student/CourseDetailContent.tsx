@@ -1,11 +1,10 @@
-import { FileText, ArrowLeft } from 'lucide-react';
+import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import { Link } from 'react-router';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
-import { formatScheduleDisplay } from '@/constants/schedule';
 import type { StudentCourseDetailData } from '@/services/student-course-detail.server';
 import type { StudentInfo, StudentAssignmentInfo } from '@/types/student';
+import { useState, useMemo } from 'react';
 
 interface CourseDetailContentProps {
   data: StudentCourseDetailData & {
@@ -14,148 +13,230 @@ interface CourseDetailContentProps {
 }
 
 export function CourseDetailContent({ data }: CourseDetailContentProps) {
-  const { t, i18n } = useTranslation(['course', 'assignment', 'common']);
-  const { course, myClass, enrolledAt, assignments, stats, student } = data;
+  const { t } = useTranslation(['course', 'assignment', 'common']);
+  const { course, assignments, stats, student } = data;
 
-  // 當前語言
-  const currentLanguage = i18n.language.startsWith('zh') ? 'zh' : 'en';
+  // 分組作業：逾期 > 本週 > 稍後 > 已完成
+  const groupedAssignments = useMemo(() => {
+    const now = new Date();
+    const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-  // Format enrolled date
-  const formattedEnrolledDate = new Date(enrolledAt).toLocaleDateString(currentLanguage === 'zh' ? 'zh-TW' : 'en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+    const overdue: StudentAssignmentInfo[] = [];
+    const thisWeek: StudentAssignmentInfo[] = [];
+    const later: StudentAssignmentInfo[] = [];
+    const completed: StudentAssignmentInfo[] = [];
+
+    assignments.forEach((assignment) => {
+      const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
+      const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
+
+      // 已完成
+      if (submission?.status === 'GRADED') {
+        completed.push(assignment);
+        return;
+      }
+
+      // 未完成但有截止日期
+      if (assignment.dueDate) {
+        const dueDate = new Date(assignment.dueDate);
+        if (dueDate < now && !hasSubmission) {
+          overdue.push(assignment);
+        } else if (dueDate <= oneWeekLater) {
+          thisWeek.push(assignment);
+        } else {
+          later.push(assignment);
+        }
+      } else {
+        // 無截止日期
+        later.push(assignment);
+      }
+    });
+
+    // 排序：逾期和本週按日期升序，稍後和已完成按創建時間降序
+    overdue.sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0));
+    thisWeek.sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0));
+
+    return { overdue, thisWeek, later, completed };
+  }, [assignments, student.id]);
+
+  const [showLater, setShowLater] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  // 當沒有作業時，使用簡化版 header（不 sticky）
+  const hasAssignments = assignments.length > 0;
 
   return (
-    <div className="w-full bg-background">
-      {/* 返回按鈕 */}
-      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/student/courses" className="flex items-center gap-2">
-            <ArrowLeft className="w-4 h-4" />
-            {t('common:back')}
-          </Link>
-        </Button>
-      </div>
-
-      {/* 大標題區 - 居中，緊湊版 */}
-      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 lg:pt-8 xl:pt-10 pb-6 lg:pb-8 text-center">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium tracking-tight mb-2 lg:mb-3 text-foreground">
-          {course.name}
-        </h1>
-        {course.description && (
-          <p className="text-sm lg:text-base text-muted-foreground max-w-3xl mx-auto">{course.description}</p>
-        )}
-      </div>
-
-      {/* 內容區 - 列表盤模式 */}
-      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 lg:pb-24 space-y-0">
-        {/* 教師資訊 - 簡潔行樣式，無卡片背景 */}
-        <div className="py-4 border-b border-border hover:bg-accent/15 dark:hover:bg-accent/25 transition-colors duration-150">
-          <div className="flex items-start gap-3">
-            <img
-              src={course.teacher.picture || '/default-avatar.png'}
-              alt={course.teacher.name}
-              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover bg-muted dark:bg-muted flex-shrink-0"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <div className="text-base lg:text-lg font-medium text-foreground">{course.teacher.name}</div>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 font-medium">
-                  {t('course:detail.instructor')}
-                </span>
+    <div className="w-full bg-background min-h-screen">
+      {hasAssignments ? (
+        <>
+          {/* 有作業時：極簡 sticky header */}
+          <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-2xl font-semibold text-foreground truncate">{course.name}</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {course.teacher.name}
+                  {course.description && (
+                    <>
+                      {' '}
+                      • <span className="hidden sm:inline">{course.description}</span>
+                    </>
+                  )}
+                </p>
               </div>
-              <div className="text-xs lg:text-sm text-muted-foreground dark:text-muted-foreground mt-1 space-y-0.5">
-                {myClass && myClass.schedule && myClass.schedule.weekday && myClass.schedule.periodCode ? (
-                  <div>
-                    {t('course:detail.class')}：{myClass.name} •{' '}
-                    {formatScheduleDisplay(myClass.schedule.weekday, myClass.schedule.periodCode, currentLanguage)}
-                    {myClass.schedule.room && <span className="ml-1">• {myClass.schedule.room}</span>}
+              <div className="ml-4 text-right flex-shrink-0">
+                <div className="text-2xl font-bold text-foreground">
+                  {stats.completed}/{stats.total}
+                </div>
+                <div className="text-xs text-muted-foreground">{t('course:detail.completed')}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 作業列表 - 分層展示 */}
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+            <div className="space-y-8">
+              {/* 逾期作業 - 最突出 */}
+              {groupedAssignments.overdue.length > 0 && (
+                <section>
+                  <h2 className="text-sm font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-3">
+                    {t('assignment:status.overdue')} ({groupedAssignments.overdue.length})
+                  </h2>
+                  <div className="space-y-2">
+                    {groupedAssignments.overdue.map((assignment) => (
+                      <AssignmentItem
+                        key={assignment.id}
+                        assignment={assignment}
+                        studentId={student.id}
+                        priority="high"
+                      />
+                    ))}
                   </div>
-                ) : (
-                  <div>{t('course:detail.allCourse')}</div>
-                )}
-                <div>
-                  {t('course:detail.joined')}：{formattedEnrolledDate}
+                </section>
+              )}
+
+              {/* 本週截止 - 次明顯 */}
+              {groupedAssignments.thisWeek.length > 0 && (
+                <section>
+                  <h2 className="text-sm font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-3">
+                    {t('assignment:dueDate.thisWeek')} ({groupedAssignments.thisWeek.length})
+                  </h2>
+                  <div className="space-y-2">
+                    {groupedAssignments.thisWeek.map((assignment) => (
+                      <AssignmentItem
+                        key={assignment.id}
+                        assignment={assignment}
+                        studentId={student.id}
+                        priority="medium"
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* 稍後作業 - 可摺疊 */}
+              {groupedAssignments.later.length > 0 && (
+                <section>
+                  <button
+                    onClick={() => setShowLater(!showLater)}
+                    className="w-full flex items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3"
+                  >
+                    <span className="uppercase tracking-wider">
+                      {t('assignment:status.later')} ({groupedAssignments.later.length})
+                    </span>
+                    {showLater ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                  {showLater && (
+                    <div className="space-y-2">
+                      {groupedAssignments.later.map((assignment) => (
+                        <AssignmentItem key={assignment.id} assignment={assignment} studentId={student.id} priority="low" />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* 已完成 - 灰色、可摺疊 */}
+              {groupedAssignments.completed.length > 0 && (
+                <section>
+                  <button
+                    onClick={() => setShowCompleted(!showCompleted)}
+                    className="w-full flex items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3"
+                  >
+                    <span className="uppercase tracking-wider">
+                      {t('assignment:status.completed')} ({groupedAssignments.completed.length})
+                    </span>
+                    {showCompleted ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                  {showCompleted && (
+                    <div className="space-y-2 opacity-60">
+                      {groupedAssignments.completed.map((assignment) => (
+                        <AssignmentItem
+                          key={assignment.id}
+                          assignment={assignment}
+                          studentId={student.id}
+                          priority="completed"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* 沒有作業時：統一的簡潔 header */}
+          <div className="border-b border-border">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+              <div className="flex items-center gap-4">
+                <img
+                  src={course.teacher.picture || '/default-avatar.png'}
+                  alt={course.teacher.name}
+                  className="w-12 h-12 rounded-full object-cover bg-muted flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-2xl font-semibold text-foreground mb-1">{course.name}</h1>
+                  <p className="text-sm text-muted-foreground">
+                    {course.teacher.name}
+                    {course.description && (
+                      <>
+                        {' '}
+                        • <span className="hidden sm:inline">{course.description}</span>
+                      </>
+                    )}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* 作業列表 - 列表盤模式（無卡片背景） */}
-        {assignments.length === 0 ? (
-          <div className="py-8 text-center">
-            <FileText className="mx-auto h-10 w-10 lg:h-12 lg:w-12 text-muted-foreground mb-3" />
-            <h3 className="text-base lg:text-lg font-medium text-foreground mb-1">
-              {t('course:detail.noAssignments')}
-            </h3>
-            <p className="text-sm lg:text-base text-muted-foreground">{t('course:detail.noAssignmentsDescription')}</p>
+          {/* Empty state - 極簡 */}
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-24">
+            <div className="text-center space-y-3">
+              <p className="text-muted-foreground">{t('course:detail.noAssignmentsDescription')}</p>
+            </div>
           </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {assignments.map((assignment, index) => (
-              <AssignmentCard
-                key={assignment.id}
-                assignment={assignment}
-                studentId={student.id}
-                isLast={index === assignments.length - 1}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
 
-// Assignment List Item - Apple Style
-interface AssignmentCardProps {
+// Assignment Item - Canvas-inspired simple design
+interface AssignmentItemProps {
   assignment: StudentAssignmentInfo;
   studentId: string;
-  isLast: boolean;
+  priority: 'high' | 'medium' | 'low' | 'completed';
 }
 
-function AssignmentCard({ assignment, studentId, isLast }: AssignmentCardProps) {
+function AssignmentItem({ assignment, studentId, priority }: AssignmentItemProps) {
   const { t } = useTranslation('assignment');
-  const hasSubmission = assignment.submissions.some((sub: any) => sub.studentId === studentId);
-  const submission = assignment.submissions.find((sub: any) => sub.studentId === studentId);
-
-  const getStatusBadge = () => {
-    if (hasSubmission) {
-      if (submission?.status === 'GRADED') {
-        return (
-          <Badge className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-0 text-xs">
-            {t('status.graded')}
-          </Badge>
-        );
-      }
-      return (
-        <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-0 text-xs">
-          {t('status.submitted')}
-        </Badge>
-      );
-    }
-
-    const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
-    if (isOverdue) {
-      return (
-        <Badge className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 border-0 text-xs">
-          {t('status.overdue')}
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge className="bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-0 text-xs">
-        {t('status.pending')}
-      </Badge>
-    );
-  };
+  const submission = assignment.submissions.find((sub) => sub.studentId === studentId);
 
   const formatDueDate = (dueDate: Date | null) => {
-    if (!dueDate) return t('dueDate.noDueDate');
+    if (!dueDate) return null;
 
     const date = new Date(dueDate);
     const now = new Date();
@@ -168,42 +249,69 @@ function AssignmentCard({ assignment, studentId, isLast }: AssignmentCardProps) 
       return t('dueDate.dueToday');
     } else if (diffDays === 1) {
       return t('dueDate.dueTomorrow');
-    } else {
+    } else if (diffDays <= 7) {
       return t('dueDate.dueInDays', { days: diffDays });
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
+  // 根據優先級決定樣式
+  const getPriorityStyles = () => {
+    switch (priority) {
+      case 'high':
+        return 'border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-950/30';
+      case 'medium':
+        return 'border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-950/20 hover:bg-orange-100/50 dark:hover:bg-orange-950/30';
+      case 'low':
+        return 'border-l-4 border-l-border hover:bg-accent/50';
+      case 'completed':
+        return 'border-l-4 border-l-green-500 bg-muted/30 hover:bg-muted/50';
+      default:
+        return 'border-l-4 border-l-border hover:bg-accent/50';
     }
   };
 
   return (
     <Link
       to={`/student/assignments/${assignment.id}/submit`}
-      className="block group hover:bg-accent/15 dark:hover:bg-accent/25 transition-colors duration-150"
+      className={`block rounded-md transition-all duration-150 ${getPriorityStyles()}`}
     >
-      <div className="p-3 sm:p-4 lg:p-5">
-        {/* 標題和狀態行 */}
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm lg:text-base font-medium text-foreground dark:text-foreground group-hover:text-primary dark:group-hover:text-primary transition-colors duration-150">
-              {assignment.name}
-            </h3>
-            {assignment.description && (
-              <p className="text-xs lg:text-sm text-muted-foreground dark:text-muted-foreground line-clamp-2 mt-0.5">
-                {assignment.description}
-              </p>
-            )}
-          </div>
-          <div className="flex-shrink-0 ml-2">{getStatusBadge()}</div>
+      <div className="px-4 py-3">
+        {/* 標題行 */}
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h3
+            className={`text-base font-semibold ${priority === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}
+          >
+            {assignment.name}
+          </h3>
+          {submission?.status === 'GRADED' && submission.finalScore !== null && (
+            <span className="text-lg font-bold text-green-600 dark:text-green-400 flex-shrink-0">
+              {submission.finalScore}
+            </span>
+          )}
         </div>
 
-        {/* 底部資訊 - 單行緊湊 */}
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground dark:text-muted-foreground">
-          {assignment.class && <span className="text-blue-700 dark:text-blue-300">{assignment.class.name}</span>}
-          {!assignment.class && <span>{t('course:detail.allCourse')}</span>}
-          <span>•</span>
-          <span>{assignment.rubric.name}</span>
+        {/* 描述（如果有） */}
+        {assignment.description && priority !== 'completed' && (
+          <p className="text-sm text-muted-foreground line-clamp-1 mb-2">{assignment.description}</p>
+        )}
+
+        {/* 底部元資訊 - 極簡 */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {assignment.dueDate && (
             <>
+              <span className={priority === 'high' ? 'font-semibold text-red-600 dark:text-red-400' : ''}>
+                {formatDueDate(assignment.dueDate)}
+              </span>
               <span>•</span>
-              <span>{formatDueDate(assignment.dueDate)}</span>
+            </>
+          )}
+          <span>{assignment.rubric.name}</span>
+          {assignment.class && (
+            <>
+              <span>•</span>
+              <span>{assignment.class.name}</span>
             </>
           )}
         </div>

@@ -54,6 +54,10 @@ class SimpleGeminiService {
                 type: Type.STRING,
                 description: '評分標準的 ID，必須精確匹配提供的 ID',
               },
+              name: {
+                type: Type.STRING,
+                description: '評分標準的名稱',
+              },
               score: {
                 type: Type.NUMBER,
                 description: '此項目得分（0-滿分之間）',
@@ -63,7 +67,7 @@ class SimpleGeminiService {
                 description: '詳細反饋：引用原文、分析優點、給出改進建議、解釋分數',
               },
             },
-            required: ['criteriaId', 'score', 'feedback'],
+            required: ['criteriaId', 'name', 'score', 'feedback'],
           },
           minItems: criteriaCount,
           maxItems: criteriaCount,
@@ -156,8 +160,12 @@ class SimpleGeminiService {
 
       logger.error(`❌ Gemini grading failed: ${errorMessage}`);
 
+      // Always return fallback result to prevent null in database
+      const fallbackResult = this.generateFallbackResult(request.criteria, errorMessage);
+
       return {
         success: false,
+        result: fallbackResult,  // ✅ Include fallback result
         error: errorMessage,
         metadata: {
           model: this.model,
@@ -222,6 +230,26 @@ class SimpleGeminiService {
   }
 
   /**
+   * Generate fallback result structure when grading fails
+   * Reusable fallback logic to prevent null results in database
+   */
+  private generateFallbackResult(criteria: DbCriterion[], errorMessage: string): GradingResultData {
+    const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
+
+    return {
+      totalScore: 0,
+      maxScore,
+      breakdown: criteria.map((criterion) => ({
+        criteriaId: criterion.id,
+        name: criterion.name,
+        score: 0,
+        feedback: `Grading failed due to API error: ${errorMessage}`,
+      })),
+      overallFeedback: `Grading failed. Error: ${errorMessage}. Please try again or contact support.`,
+    };
+  }
+
+  /**
    * Parse Gemini response - simple and robust
    */
   private parseResponse(responseText: string, criteria: DbCriterion[]): GradingResultData {
@@ -267,20 +295,10 @@ class SimpleGeminiService {
       };
     } catch (error) {
       // Simple fallback - no complex repair logic
-      const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-      logger.error(`💥 Parse response error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error(`💥 Parse response error: ${errorMessage}`);
 
-      return {
-        totalScore: 0,
-        maxScore,
-        breakdown: criteria.map((criterion) => ({
-          criteriaId: criterion.id,
-          name: criterion.name,
-          score: 0,
-          feedback: `Grading failed due to response parsing error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        })),
-        overallFeedback: 'Grading failed. Please try again or contact support.',
-      };
+      return this.generateFallbackResult(criteria, `Response parsing error: ${errorMessage}`);
     }
   }
 }

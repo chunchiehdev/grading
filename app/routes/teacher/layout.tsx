@@ -1,13 +1,16 @@
-import { Outlet, useLocation, useNavigate, type LoaderFunctionArgs, Link } from 'react-router';
+import { Outlet, useLocation, useNavigate, type LoaderFunctionArgs, Link, useRouteLoaderData } from 'react-router';
 import { ModernNavigation } from '@/components/ui/modern-navigation';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useEffect, useRef } from 'react';
 import { requireTeacher } from '@/services/auth.server';
 import { getTeacherCourses, type CourseInfo } from '@/services/course.server';
 import { getRecentSubmissionsForTeacher, type SubmissionInfo } from '@/services/submission.server';
 import { listRubrics } from '@/services/rubric.server';
 import { getOverallTeacherStats, getCoursePerformance, getRubricUsage } from '@/services/analytics.server';
+import { useWebSocketStatus } from '@/lib/websocket';
+import { useSubmissionStore } from '@/stores/submissionStore';
 
 export interface TeacherLoaderData {
   user: { id: string; email: string; name: string; role: string; picture?: string };
@@ -56,6 +59,37 @@ export default function TeacherLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation(['course', 'dashboard', 'rubric']);
+  const fetchNotifications = useSubmissionStore((state) => state.fetchNotifications);
+  const hasFetchedRef = useRef(false);
+
+  // Monitor WebSocket connection status
+  const { isConnected, connectionState } = useWebSocketStatus();
+
+  // Fetch notifications from database on mount (only once, even in Strict Mode)
+  useEffect(() => {
+    if (!hasFetchedRef.current) {
+      console.log('[TeacherLayout] 🚀 Component mounted, fetching notifications...');
+      hasFetchedRef.current = true;
+      fetchNotifications();
+    }
+  }, [fetchNotifications]);
+
+  // Log when location changes (navigation)
+  useEffect(() => {
+    console.log('[TeacherLayout] 🗺️ Navigation to:', location.pathname);
+  }, [location.pathname]);
+
+  // Log WebSocket connection status
+  useEffect(() => {
+    console.log('[TeacherLayout] 🔌 WebSocket status:', {
+      isConnected,
+      connectionState,
+    });
+  }, [isConnected, connectionState]);
+
+  // NOTE: WebSocket event listener for submission-notification has been moved to root.tsx Layout
+  // This ensures it works on ALL teacher pages, including those outside TeacherLayout hierarchy
+  // (e.g., /teacher/submissions/:id/view)
 
   // 根據 URL 路徑判斷當前 tab
   const getActiveTab = (): string => {

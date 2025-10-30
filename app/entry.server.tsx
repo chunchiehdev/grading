@@ -9,15 +9,24 @@ import { renderToPipeableStream } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
 import i18nServer from './localization/i18n.server';
 import { StartupService } from '@/services/startup.server';
+import logger from '@/utils/logger';
 
 const ABORT_DELAY = 5_000;
 
-let startupPromise: Promise<void> | null = null;
-if (!startupPromise) {
-  startupPromise = StartupService.initialize().catch((error) => {
-    console.error('Startup initialization failed:', error);
+const STARTUP_PROMISE_KEY = '__grading_startup_promise__';
+type GlobalWithStartupPromise = typeof globalThis & {
+  [STARTUP_PROMISE_KEY]?: Promise<void>;
+};
+
+const globalStartup = globalThis as GlobalWithStartupPromise;
+
+if (!globalStartup[STARTUP_PROMISE_KEY]) {
+  globalStartup[STARTUP_PROMISE_KEY] = StartupService.initialize().catch((error) => {
+    logger.error('Startup initialization failed:', error);
   });
 }
+
+const startupPromise = globalStartup[STARTUP_PROMISE_KEY];
 
 export default async function handleRequest(
   request: Request,
@@ -31,7 +40,7 @@ export default async function handleRequest(
     await startupPromise;
   } catch (e) {
     // Do not fail the request if optional services fail to init
-    console.error('StartupService initialize error (continuing):', e);
+    logger.error('StartupService initialize error (continuing):', e);
   }
 
   const i18nInstance = await i18nServer(request, routerContext);

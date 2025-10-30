@@ -53,7 +53,10 @@
     "graded": "已評分",
     "submitted": "已繳交",
     "overdue": "已逾期",
-    "pending": "待繳交"
+    "pending": "待繳交",
+    "later": "稍後",
+    "completed": "已完成",
+    "thisWeek": "本週截止"
   },
   "dueDate": {
     "noDueDate": "無截止日期",

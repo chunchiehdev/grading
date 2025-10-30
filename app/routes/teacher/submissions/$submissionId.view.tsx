@@ -39,6 +39,9 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     throw new Response('Submission not found', { status: 404 });
   }
 
+  // Import date formatting utilities
+  const { formatDateForDisplay } = await import('@/lib/date.server');
+
   // Transform database structure into display-optimized structure
   const submission: TeacherSubmissionView = {
     student: {
@@ -52,6 +55,9 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
       name: rawSubmission.assignmentArea.name,
       description: rawSubmission.assignmentArea.description,
       dueDate: rawSubmission.assignmentArea.dueDate?.toISOString() ?? null,
+      formattedDueDate: rawSubmission.assignmentArea.dueDate
+        ? formatDateForDisplay(rawSubmission.assignmentArea.dueDate)
+        : null,
       course: {
         id: rawSubmission.assignmentArea.course.id,
         name: rawSubmission.assignmentArea.course.name,
@@ -61,6 +67,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
       finalScore: rawSubmission.finalScore,
       normalizedScore: rawSubmission.normalizedScore,
       uploadedAt: rawSubmission.uploadedAt.toISOString(),
+      formattedUploadedAt: formatDateForDisplay(rawSubmission.uploadedAt),
       filePath: rawSubmission.filePath,
       teacherFeedback: rawSubmission.teacherFeedback,
       aiAnalysisResult: rawSubmission.aiAnalysisResult,
@@ -107,16 +114,9 @@ export default function TeacherSubmissionView() {
   const actionData = useActionData<ActionData>();
   const { t } = useTranslation('teacher');
 
-  // Format date helper (client-side for i18n)
-  const formatDate = (date: string) => new Date(date).toLocaleString();
-
   return (
     <div className="bg-background">
-      <PageHeader
-        title={`${t('submissionReview')} - ${submission.student.name}`}
-        subtitle={`${submission.assignment.name} - ${submission.assignment.course.name}`}
-      />
-
+      
       <main className="max-w-7xl mx-auto px-4 pb-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2 space-y-6">
@@ -175,9 +175,6 @@ function AssignmentInfoCard({
 }) {
   const { t } = useTranslation('teacher');
 
-  // Format date on client-side for i18n
-  const formatDate = (date: string) => new Date(date).toLocaleString();
-
   return (
     <Card>
       <CardHeader>
@@ -187,9 +184,9 @@ function AssignmentInfoCard({
         <div className="text-sm text-muted-foreground">
           {t('course')}: {assignment.course.name}
         </div>
-        {assignment.dueDate && (
+        {assignment.formattedDueDate && (
           <div className="text-sm text-muted-foreground">
-            {t('dueDate')}: {formatDate(assignment.dueDate)}
+            {t('dueDate')}: {assignment.formattedDueDate}
           </div>
         )}
         {assignment.description && <div className="text-sm text-muted-foreground">{assignment.description}</div>}
@@ -242,9 +239,6 @@ function AIAnalysisCard({
 function GradingSummaryCard({ grading }: { grading: TeacherSubmissionView['grading'] }) {
   const { t } = useTranslation('teacher');
 
-  // Format date on client-side for i18n
-  const formatDate = (date: string) => new Date(date).toLocaleString();
-
   return (
     <Card>
       <CardHeader>
@@ -259,7 +253,7 @@ function GradingSummaryCard({ grading }: { grading: TeacherSubmissionView['gradi
         </div>
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">{t('submittedAt')}</span>
-          <span>{formatDate(grading.uploadedAt)}</span>
+          <span>{grading.formattedUploadedAt || grading.uploadedAt}</span>
         </div>
       </CardContent>
     </Card>

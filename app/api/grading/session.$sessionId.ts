@@ -67,7 +67,6 @@ export async function action({ request, params }: { request: Request; params: { 
     switch (action) {
       case 'start': {
         const userLanguage = getServerLocale(request) as 'zh' | 'en';
-        console.log(`🌐 [Session API] Detected user language: ${userLanguage}`);
         const result = await startGradingSession(sessionId, userId, userLanguage);
         if (!result.success) {
           return Response.json(

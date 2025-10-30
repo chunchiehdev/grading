@@ -81,6 +81,8 @@ export interface TeacherSubmissionView {
     description: string | null;
     /** Due date as ISO string, null if no deadline */
     dueDate: string | null;
+    /** Formatted due date for display (server-rendered to avoid hydration mismatch) */
+    formattedDueDate?: string | null;
     /** Parent course information */
     course: {
       /** Course ID */
@@ -97,6 +99,8 @@ export interface TeacherSubmissionView {
     normalizedScore: number | null;
     /** Upload timestamp as ISO string (format in UI with toLocaleString) */
     uploadedAt: string;
+    /** Formatted upload timestamp for display (server-rendered to avoid hydration mismatch) */
+    formattedUploadedAt?: string;
     /** File download URL, null if file not available */
     filePath: string | null;
     /** Teacher feedback text, null if not provided */

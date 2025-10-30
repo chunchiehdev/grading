@@ -19,7 +19,7 @@ export async function createNotifications(notifications: NotificationData[]): Pr
       assignmentId: notif.assignmentId,
       title: notif.title,
       message: notif.message,
-      data: notif.data || undefined,
+      data: notif.data as any || undefined,
     })),
   });
 }
@@ -85,6 +85,63 @@ export async function publishAssignmentCreatedNotification(
   await redis.publish('notifications:assignment', JSON.stringify(event));
 }
 
+export async function publishSubmissionCreatedNotification(submissionData: {
+  submissionId: string;
+  assignmentId: string;
+  assignmentName: string;
+  courseId: string;
+  courseName: string;
+  studentId: string;
+  studentName: string;
+  teacherId: string;
+  submittedAt: Date;
+}): Promise<void> {
+  console.log('📤 Publishing submission notification for teacher:', submissionData.teacherId);
+
+  // Create notification record in database
+  let notificationId: string | null = null;
+  try {
+    const notification = await db.notification.create({
+      data: {
+        type: 'SUBMISSION_GRADED', // Use existing enum value (we'll treat it as submission created)
+        userId: submissionData.teacherId,
+        courseId: submissionData.courseId,
+        assignmentId: submissionData.assignmentId,
+        title: '新作業提交',
+        message: `${submissionData.studentName} 已提交 ${submissionData.assignmentName}`,
+        isRead: false,
+        data: {
+          submissionId: submissionData.submissionId,
+          studentId: submissionData.studentId,
+          submittedAt: submissionData.submittedAt.toISOString(),
+        },
+      },
+    });
+    notificationId = notification.id;
+    console.log('✅ Created notification record in database:', notificationId);
+  } catch (error) {
+    console.error('⚠️ Failed to create notification record:', error);
+  }
+
+  // Publish WebSocket event with notification ID
+  const event = {
+    type: 'SUBMISSION_CREATED' as const,
+    notificationId, // Include notification ID for mark-as-read
+    submissionId: submissionData.submissionId,
+    assignmentId: submissionData.assignmentId,
+    assignmentName: submissionData.assignmentName,
+    courseId: submissionData.courseId,
+    courseName: submissionData.courseName,
+    studentId: submissionData.studentId,
+    studentName: submissionData.studentName,
+    teacherId: submissionData.teacherId,
+    submittedAt: submissionData.submittedAt.toISOString(),
+  };
+
+  await redis.publish('notifications:submission', JSON.stringify(event));
+  console.log('✅ Submission notification published');
+}
+
 export async function getUnreadNotifications(userId: string): Promise<UnreadNotification[]> {
   return db.notification.findMany({
     where: {
@@ -97,6 +154,25 @@ export async function getUnreadNotifications(userId: string): Promise<UnreadNoti
     },
     orderBy: { createdAt: 'desc' },
     take: 50,
+  }) as Promise<UnreadNotification[]>;
+}
+
+/**
+ * Get recent notifications for a teacher (both read and unread)
+ * This is used for initial page load to populate the notification center
+ */
+export async function getRecentNotifications(userId: string, limit: number = 50): Promise<UnreadNotification[]> {
+  return db.notification.findMany({
+    where: {
+      userId,
+      type: 'SUBMISSION_GRADED', // This is used for submission notifications
+    },
+    include: {
+      course: { select: { name: true } },
+      assignment: { select: { name: true, dueDate: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
   }) as Promise<UnreadNotification[]>;
 }
 

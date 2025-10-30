@@ -49,7 +49,12 @@ export class WebSocketClient {
     if (options?.onError) this.on('error', (error: { message: string }) => options.onError!(new Error(error.message)));
     if (options?.onMessage) this.on('new-msg', options.onMessage);
 
-    logger.debug('[WebSocket] Client initialized with config:', this.config);
+    // 在瀏覽器使用 console,在 Node.js 使用 logger
+    if (typeof window !== 'undefined') {
+      console.log('[WebSocket] Client initialized with config:', this.config);
+    } else {
+      logger.debug('[WebSocket] Client initialized with config:', this.config);
+    }
   }
 
   /**
@@ -180,6 +185,12 @@ export class WebSocketClient {
     this.socket.on('assignment-notification', (notification) => {
       logger.debug('[WebSocket] Received assignment notification:', notification);
       this.emit('assignment-notification', notification);
+    });
+
+    // 提交通知
+    this.socket.on('submission-notification', (notification) => {
+      logger.debug('[WebSocket] Received submission notification:', notification);
+      this.emit('submission-notification', notification);
     });
 
     // API 重定向 (廢棄功能警告)
@@ -324,14 +335,26 @@ export class WebSocketClient {
    */
   private emit<T extends keyof WebSocketEvents>(event: T, ...args: Parameters<WebSocketEvents[T]>): void {
     const handlers = this.eventHandlers.get(event);
+    const handlerCount = handlers?.length || 0;
+
+    console.log('[WebSocket Client] 📤 Emitting event:', event, 'to', handlerCount, 'handler(s)');
+
+    if (handlerCount === 0) {
+      console.warn('[WebSocket Client] ⚠️ No handlers registered for event:', event);
+      return;
+    }
+
     if (handlers) {
-      handlers.forEach((handler) => {
+      handlers.forEach((handler, index) => {
         try {
+          console.log(`[WebSocket Client] 🔄 Calling handler ${index + 1}/${handlerCount} for event:`, event);
           // TypeScript can't infer proper typing here due to the Map structure,
           // but the actual call is guaranteed to be correct by type system
           const typedHandler = handler as (...args: Parameters<WebSocketEvents[T]>) => void;
           typedHandler(...args);
+          console.log(`[WebSocket Client] ✅ Handler ${index + 1} completed for event:`, event);
         } catch (error) {
+          console.error(`[WebSocket Client] ❌ Handler ${index + 1} error for ${event}:`, error);
           logger.error(`[WebSocket] Event handler error for ${event}:`, error);
         }
       });

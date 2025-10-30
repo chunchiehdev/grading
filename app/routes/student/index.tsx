@@ -1,13 +1,14 @@
 import { useRouteLoaderData } from 'react-router';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { DashboardContent } from '@/components/student/DashboardContent';
-import { useAssignmentStore } from '@/stores/assignmentStore';
-import { useAssignmentWebSocket } from '@/hooks/useAssignmentWebSocket';
 import type { LoaderData } from './layout';
 
 /**
  * Student Dashboard - 首頁 tab
  * 顯示待交作業和最近繳交記錄
+ *
+ * Note: WebSocket connection and assignment store initialization
+ * are now handled in the parent layout to prevent reconnection on navigation.
  */
 export default function StudentDashboardPage() {
   // 從 parent layout 獲取 loader 數據
@@ -18,15 +19,6 @@ export default function StudentDashboardPage() {
   }
 
   const { student, assignments, submissions } = parentData;
-
-  // Initialize assignment store once on mount
-  const setAssignments = useAssignmentStore((state) => state.setAssignments);
-  useEffect(() => {
-    setAssignments(assignments);
-  }, [assignments, setAssignments]);
-
-  // Initialize WebSocket connection once
-  useAssignmentWebSocket(student.id);
 
   // Memoize props to prevent unnecessary re-renders
   const dashboardData = useMemo(

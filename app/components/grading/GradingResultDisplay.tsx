@@ -108,7 +108,7 @@ export function GradingResultDisplay({ result, normalizedScore, thoughtSummary, 
           <Collapsible defaultOpen={false}>
             <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors group">
               <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
-              <span>💭 {t('result.aiThinkingProcess', '思考過程')}</span>
+              <span>{t('grading:aiThinkingProcess')}</span>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3">
               <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-950/20 dark:to-blue-950/10 rounded-lg border border-blue-200 dark:border-blue-800">

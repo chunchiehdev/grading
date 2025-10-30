@@ -53,7 +53,10 @@
     "graded": "Graded",
     "submitted": "Submitted",
     "overdue": "Overdue",
-    "pending": "Pending"
+    "pending": "Pending",
+    "later": "Later",
+    "completed": "Completed",
+    "thisWeek": "This Week"
   },
   "dueDate": {
     "noDueDate": "No due date",

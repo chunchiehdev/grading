@@ -1,4 +1,5 @@
 import { getSimpleGeminiService } from './gemini-simple.server';
+import { getRotatingGeminiService, canUseRotation } from './gemini-rotating.server';
 import { getSimpleOpenAIService } from './openai-simple.server';
 import { GradingResultData } from '@/types/grading';
 import logger from '@/utils/logger';
@@ -23,24 +24,37 @@ export interface GradingResponse {
 }
 
 /**
- * Simple AI grader with 2-tier fallback
- * This is how you write good code: clear, direct, no bullshit
+ * Advanced AI grader with 2-tier fallback and optional multi-key rotation
+ * - Uses RotatingGeminiService if all 3 keys present (3x throughput + resilience)
+ * - Falls back to SimpleGeminiService if only 1 key configured
+ * - Falls back to OpenAI if Gemini fails
  */
 export class AIGrader {
   /**
-   * Grade a document using AI - the Linus way
-   * Try Gemini first, fallback to OpenAI if it fails
-   * That's it. No complex retry logic, no special cases, no 1500 lines of garbage.
+   * Grade a document using AI with intelligent service selection
+   *
+   * Service Selection Logic:
+   * 1. If all 3 Gemini keys configured → Use RotatingGeminiService (3x capacity)
+   * 2. If only 1 Gemini key configured → Use SimpleGeminiService (1x capacity)
+   * 3. If Gemini fails → Fallback to OpenAI
    */
   async grade(request: GradingRequest, userLanguage: 'zh' | 'en' = 'zh'): Promise<GradingResponse> {
-    logger.info(`🎯 Starting AI grading for: ${request.fileName}`);
+    const useRotation = canUseRotation();
+
+    logger.info(`🎯 Starting AI grading for: ${request.fileName}`, {
+      rotationEnabled: useRotation,
+    });
 
     let geminiError: string | null = null;
     let openaiError: string | null = null;
 
-    // Try Gemini first
+    // Try Gemini first (with rotation if available)
     try {
-      const geminiService = getSimpleGeminiService();
+      // Select service based on configuration
+      const geminiService = useRotation ? getRotatingGeminiService() : getSimpleGeminiService();
+
+      logger.info(`Using ${useRotation ? 'Rotating' : 'Simple'} Gemini service`);
+
       // Feature 004: Pass language in request object
       const result = await geminiService.gradeDocument({ ...request, language: userLanguage }, userLanguage);
 

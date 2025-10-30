@@ -1,0 +1,384 @@
+import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
+
+export interface TeacherSubmission {
+  id: string; // This is the notificationId (for mark-as-read operations)
+  submissionId: string; // The actual submission ID
+  assignmentId: string;
+  assignmentName: string;
+  courseId: string;
+  courseName: string;
+  studentId: string;
+  studentName: string;
+  submittedAt: string;
+  status: 'PENDING' | 'GRADING' | 'GRADED';
+  grade?: number;
+  feedback?: string;
+  isRead?: boolean; // Track read/unread state
+}
+
+interface SubmissionState {
+  // 狀態
+  submissions: TeacherSubmission[];
+  unreadCount: number;
+  isLoading: boolean;
+  error: string | null;
+  lastUpdated: Date | null;
+
+  // Actions
+  setSubmissions: (submissions: TeacherSubmission[]) => void;
+  addSubmission: (submission: TeacherSubmission) => void;
+  updateSubmission: (id: string, updates: Partial<TeacherSubmission>) => void;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  fetchNotifications: () => Promise<void>;
+  initializeFromServer: (notifications: any[]) => void;
+
+  // WebSocket integration
+  handleNewSubmission: (submissionData: any) => Promise<void>;
+
+  // Utilities
+  getPendingSubmissions: () => TeacherSubmission[];
+  getRecentSubmissions: (limit?: number) => TeacherSubmission[];
+  clearStore: () => void;
+}
+
+export const useSubmissionStore = create<SubmissionState>()(
+  subscribeWithSelector((set, get) => ({
+    // Initial state
+    submissions: [],
+    unreadCount: 0,
+    isLoading: false,
+    error: null,
+    lastUpdated: null,
+
+    // Set initial submissions (from server)
+    setSubmissions: (submissions) => {
+      const unreadCount = submissions.filter((s) => !s.isRead).length;
+      console.log('[SubmissionStore] 📥 setSubmissions called:', {
+        total: submissions.length,
+        unread: unreadCount,
+        submissions: submissions.map(s => ({ id: s.id, submissionId: s.submissionId, isRead: s.isRead }))
+      });
+      set({
+        submissions: submissions.sort(
+          (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+        ),
+        unreadCount,
+        lastUpdated: new Date(),
+        error: null,
+      });
+    },
+
+    // Add new submission (from WebSocket)
+    addSubmission: (submission) => {
+      const { submissions } = get();
+
+      console.log('[SubmissionStore] ➕ addSubmission called:', {
+        notificationId: submission.id,
+        submissionId: submission.submissionId,
+        studentName: submission.studentName
+      });
+
+      // Check if submission already exists
+      const exists = submissions.some((s) => s.id === submission.id);
+      if (exists) {
+        console.log('[SubmissionStore] ⚠️ Submission already exists, skipping:', submission.id);
+        return;
+      }
+
+      // Mark new submission as unread
+      const newSubmission = { ...submission, isRead: false };
+
+      // Add new submission and sort (newest first)
+      const updatedSubmissions = [newSubmission, ...submissions].sort(
+        (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+      );
+
+      // Calculate unread count
+      const unreadCount = updatedSubmissions.filter((s) => !s.isRead).length;
+
+      console.log('[SubmissionStore] ✅ Added submission. Total:', updatedSubmissions.length, 'Unread:', unreadCount);
+
+      set({
+        submissions: updatedSubmissions,
+        unreadCount,
+        lastUpdated: new Date(),
+      });
+    },
+
+    // Update existing submission
+    updateSubmission: (id, updates) => {
+      set((state) => ({
+        submissions: state.submissions.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+        lastUpdated: new Date(),
+      }));
+    },
+
+    // Mark single submission as read
+    markAsRead: async (id) => {
+      console.log('[SubmissionStore] 📖 markAsRead called for notificationId:', id);
+
+      // Save original state for rollback
+      const originalSubmissions = get().submissions;
+      const originalUnreadCount = get().unreadCount;
+
+      // Find the submission being marked
+      const submission = originalSubmissions.find(s => s.id === id);
+      if (!submission) {
+        console.error('[SubmissionStore] ❌ Notification not found:', id);
+        return;
+      }
+
+      console.log('[SubmissionStore] 🔍 Found submission:', {
+        notificationId: submission.id,
+        submissionId: submission.submissionId,
+        currentlyRead: submission.isRead,
+        studentName: submission.studentName
+      });
+
+      // Optimistically update UI first
+      set((state) => {
+        const updatedSubmissions = state.submissions.map((s) =>
+          s.id === id ? { ...s, isRead: true } : s
+        );
+        const unreadCount = updatedSubmissions.filter((s) => !s.isRead).length;
+        console.log('[SubmissionStore] 🎨 Optimistic update applied. New unread count:', unreadCount);
+        return {
+          submissions: updatedSubmissions,
+          unreadCount,
+        };
+      });
+
+      // Persist to database
+      try {
+        console.log('[SubmissionStore] 📡 Sending mark-as-read API request...');
+        const response = await fetch('/api/teacher/notifications/mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notificationIds: [id] }),
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}`);
+        }
+        console.log('[SubmissionStore] ✅ Mark-as-read API succeeded for:', id);
+      } catch (error) {
+        console.error('[SubmissionStore] ❌ Failed to persist mark-as-read:', error);
+        // Revert the optimistic update
+        set({
+          submissions: originalSubmissions,
+          unreadCount: originalUnreadCount,
+        });
+        console.log('[SubmissionStore] ⏪ Rolled back optimistic update');
+      }
+    },
+
+    // Mark all submissions as read
+    markAllAsRead: async () => {
+      // Save original state for rollback
+      const originalSubmissions = get().submissions;
+      const originalUnreadCount = get().unreadCount;
+
+      // Optimistically update UI first
+      set((state) => ({
+        submissions: state.submissions.map((s) => ({ ...s, isRead: true })),
+        unreadCount: 0,
+      }));
+
+      // Persist to database
+      try {
+        const response = await fetch('/api/teacher/notifications/mark-read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ markAll: true }),
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to mark all notifications as read');
+        }
+        console.log('✅ All notifications marked as read');
+      } catch (error) {
+        console.error('❌ Failed to persist mark-all-as-read:', error);
+        // Revert the optimistic update
+        set({
+          submissions: originalSubmissions,
+          unreadCount: originalUnreadCount,
+        });
+      }
+    },
+
+    // Initialize store from server-provided data (runs only once on initial load)
+    initializeFromServer: (notifications) => {
+      const currentState = get();
+
+      // Guard: If store is already initialized, skip to prevent overwriting during client-side navigation
+      // Exception: If notifications array is empty, this might be initial load, so allow initialization
+      if (currentState.lastUpdated !== null) {
+        console.log('[SubmissionStore] ⏭️ Store already initialized, skipping server hydration', {
+          currentSubmissions: currentState.submissions.length,
+          newNotifications: notifications.length,
+        });
+        return;
+      }
+
+      console.log('[SubmissionStore] 🌊 Hydrating store from server data:', {
+        notificationCount: notifications.length,
+      });
+
+      // Transform raw notification data into TeacherSubmission format
+      const transformedSubmissions: TeacherSubmission[] = notifications.map((notif: any) => {
+        const data = notif.data as any;
+        return {
+          id: notif.id, // This is the notificationId (for mark-as-read operations)
+          submissionId: data?.submissionId || '', // The actual submission ID
+          assignmentId: notif.assignmentId || '',
+          assignmentName: notif.assignment?.name || '',
+          courseId: notif.courseId || '',
+          courseName: notif.course?.name || '',
+          studentId: data?.studentId || '',
+          studentName: notif.message.split(' ')[0], // Extract student name from message
+          submittedAt: data?.submittedAt || notif.createdAt.toISOString(),
+          status: 'PENDING' as const,
+          isRead: notif.isRead,
+        };
+      });
+
+      // Sort by submission time (newest first)
+      const sortedSubmissions = transformedSubmissions.sort(
+        (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+      );
+
+      // Calculate unread count
+      const unreadCount = sortedSubmissions.filter((s) => !s.isRead).length;
+
+      console.log('[SubmissionStore] ✅ Server hydration complete:', {
+        total: sortedSubmissions.length,
+        unread: unreadCount,
+      });
+
+      // Update store
+      set({
+        submissions: sortedSubmissions,
+        unreadCount,
+        lastUpdated: new Date(),
+        error: null,
+        isLoading: false,
+      });
+    },
+
+    // Fetch notifications from database
+    fetchNotifications: async () => {
+      console.log('[SubmissionStore] 🔄 fetchNotifications called');
+      console.log('[SubmissionStore] 🔍 Current store state before fetch:', {
+        submissionsCount: get().submissions.length,
+        unreadCount: get().unreadCount,
+        isLoading: get().isLoading
+      });
+
+      set({ isLoading: true, error: null });
+      try {
+        const response = await fetch('/api/teacher/notifications?limit=50', {
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch notifications');
+        }
+
+        const result = await response.json();
+        console.log('[SubmissionStore] 📦 Received API response:', {
+          success: result.success,
+          count: result.data?.length,
+          unreadCount: result.unreadCount,
+          firstItem: result.data?.[0],
+          rawData: result.data
+        });
+
+        if (result.success) {
+          console.log('[SubmissionStore] 📝 Calling setSubmissions with', result.data.length, 'items');
+          get().setSubmissions(result.data);
+
+          // Verify state after update
+          console.log('[SubmissionStore] ✅ Store state after setSubmissions:', {
+            submissionsCount: get().submissions.length,
+            unreadCount: get().unreadCount,
+            firstSubmission: get().submissions[0]
+          });
+        } else {
+          throw new Error(result.error || 'Failed to fetch notifications');
+        }
+      } catch (error) {
+        console.error('[SubmissionStore] ❌ Failed to fetch notifications:', error);
+        set({ error: 'Failed to fetch notifications' });
+      } finally {
+        set({ isLoading: false });
+      }
+    },
+
+    // Handle new submission from WebSocket
+    handleNewSubmission: async (notificationData) => {
+      console.log('[SubmissionStore] 📨 handleNewSubmission called with:', notificationData);
+
+      try {
+        // Skip if no notificationId (shouldn't happen, but be defensive)
+        if (!notificationData.notificationId) {
+          console.warn('[SubmissionStore] ⚠️ Received submission notification without notificationId, skipping');
+          return;
+        }
+
+        // Create submission object from notification data
+        const newSubmission: TeacherSubmission = {
+          id: notificationData.notificationId, // Use notificationId as primary ID
+          submissionId: notificationData.submissionId, // Store actual submission ID
+          assignmentId: notificationData.assignmentId,
+          assignmentName: notificationData.assignmentName,
+          courseId: notificationData.courseId,
+          courseName: notificationData.courseName,
+          studentId: notificationData.studentId,
+          studentName: notificationData.studentName,
+          submittedAt: notificationData.submittedAt,
+          status: 'PENDING',
+          isRead: false,
+        };
+
+        console.log('[SubmissionStore] 🆕 Created submission object:', {
+          notificationId: newSubmission.id,
+          submissionId: newSubmission.submissionId,
+          studentName: newSubmission.studentName
+        });
+
+        // Add to store directly (will mark as unread and increment count)
+        get().addSubmission(newSubmission);
+      } catch (error) {
+        console.error('[SubmissionStore] ❌ Failed to handle new submission:', error);
+        set({ error: 'Failed to handle new submission' });
+      }
+    },
+
+    // Get pending submissions (not graded yet)
+    getPendingSubmissions: () => {
+      const { submissions } = get();
+      return submissions.filter((s) => s.status === 'PENDING' || s.status === 'GRADING');
+    },
+
+    // Get recent submissions
+    getRecentSubmissions: (limit = 10) => {
+      const { submissions } = get();
+      return submissions.slice(0, limit);
+    },
+
+    // Clear store (for logout, etc.)
+    clearStore: () => {
+      set({
+        submissions: [],
+        unreadCount: 0,
+        isLoading: false,
+        error: null,
+        lastUpdated: null,
+      });
+    },
+  }))
+);

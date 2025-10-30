@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { Share2, LogOut, User as UserIcon, Menu, Globe, Settings } from 'lucide-react';
+import { Share2, LogOut, User as UserIcon, Menu, Globe, Settings, Bell } from 'lucide-react';
 import { Link, useLoaderData } from 'react-router';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
@@ -15,6 +15,8 @@ import { useTranslation } from 'react-i18next';
 import { User } from '@/root';
 import type { VersionInfo } from '@/services/version.server';
 import { Badge } from '@/components/ui/badge';
+import { useSubmissionStore } from '@/stores/submissionStore';
+import { NotificationCenter } from '@/components/teacher/NotificationCenter';
 
 interface NavHeaderProps {
   title?: string;
@@ -28,6 +30,10 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
 
   // Use translation with error handling - always call this hook
   const { t, ready } = useTranslation('navigation', { useSuspense: false });
+
+  // Get unread count for teachers only
+  const unreadCount = useSubmissionStore((state) => state.unreadCount);
+  const isTeacher = user?.role === 'TEACHER';
 
   // Early return after all hooks are called
   if (!user) {
@@ -106,6 +112,26 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
               </Button>
             )}
             <ModeToggle />
+            {isTeacher && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="relative lg:h-10 2xl:h-11">
+                    <Bell className="w-4 h-4 lg:w-5 lg:h-5" />
+                    {unreadCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 p-0">
+                  <NotificationCenter />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2 px-3 lg:h-10 2xl:h-11 lg:px-4 2xl:px-5">
@@ -164,6 +190,26 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
           {/* Right Section - Mobile Menu */}
           <div className="flex md:hidden items-center gap-2">
             <ModeToggle />
+            {isTeacher && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="relative px-2">
+                    <Bell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 p-0">
+                  <NotificationCenter />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="px-2">

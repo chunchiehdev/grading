@@ -1,6 +1,20 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import fs from 'fs';
+import path from 'path';
+
+// Load .env file before config evaluation
+const envPath = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf-8');
+  envContent.split('\n').forEach((line) => {
+    const [key, ...values] = line.split('=');
+    if (key && !key.startsWith('#') && !process.env[key]) {
+      process.env[key] = values.join('=').trim().replace(/^"(.*)"$/, '$1');
+    }
+  });
+}
 
 export default defineConfig({
   plugins: [react(), tsconfigPaths()],
@@ -16,6 +30,8 @@ export default defineConfig({
       REDIS_PORT: process.env.REDIS_PORT || '6379',
       REDIS_PASSWORD: process.env.REDIS_PASSWORD || 'password',
       GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+      GEMINI_API_KEY2: process.env.GEMINI_API_KEY2 || '',
+      GEMINI_API_KEY3: process.env.GEMINI_API_KEY3 || '',
       GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
       OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
       // PDF Parser API for document parsing tests

@@ -87,8 +87,20 @@ export async function processGradingResult(
       );
     }
 
+    // Allow retries for FAILED or PROCESSING status (e.g., after throttle recovery)
+    // Only skip if already COMPLETED or SKIPPED
+    if (result.status === 'COMPLETED' || result.status === 'SKIPPED') {
+      logger.info(`Grading result ${resultId} already processed with status: ${result.status}`);
+      return { success: true }; // Already processed successfully
+    }
+
+    // Reset status to PENDING if it's FAILED or PROCESSING (retry scenario)
     if (result.status !== 'PENDING') {
-      return { success: true }; // Already processed
+      logger.info(`Resetting status from ${result.status} to PENDING for retry`);
+      await db.gradingResult.update({
+        where: { id: resultId },
+        data: { status: 'PENDING', progress: 0 },
+      });
     }
 
     // Type narrowing: explicit null checks so TypeScript knows fields are non-null
@@ -307,15 +319,29 @@ export async function processGradingResult(
 
       return { success: true };
     } else {
-      // Failure - save error
+      // Failure - save error AND fallback result (if available)
+      // The fallback result ensures we never have null in database
+      const updateData: any = {
+        status: 'FAILED',
+        progress: 100,
+        errorMessage: gradingResponse.error || 'AI grading failed',
+        completedAt: new Date(),
+      };
+
+      // Include fallback result if provided (prevents null in database)
+      if (gradingResponse.result) {
+        const overallFeedbackStr = extractOverallFeedback(gradingResponse.result) || '';
+        updateData.result = {
+          totalScore: gradingResponse.result.totalScore,
+          maxScore: gradingResponse.result.maxScore,
+          breakdown: gradingResponse.result.breakdown || [],
+          overallFeedback: overallFeedbackStr,
+        };
+      }
+
       await db.gradingResult.update({
         where: { id: resultId },
-        data: {
-          status: 'FAILED',
-          progress: 100,
-          errorMessage: gradingResponse.error || 'AI grading failed',
-          completedAt: new Date(),
-        },
+        data: updateData,
       });
 
       // Log grading failure

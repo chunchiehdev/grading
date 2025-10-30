@@ -6,7 +6,6 @@ import { NavHeader } from '@/components/navbar/NavHeader';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PUBLIC_PATHS } from '@/constants/auth';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useUiStore } from '@/stores/uiStore';
 import type { VersionInfo } from '@/services/version.server';
 import { useTranslation } from 'react-i18next';
 import { getServerLocale } from './localization/i18n';
@@ -14,6 +13,10 @@ import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { getSession, commitSession } from '@/sessions.server';
 import { toast as sonnerToast } from 'sonner';
+import { useWebSocket, useWebSocketEvent } from '@/lib/websocket';
+import type { SubmissionNotification } from '@/lib/websocket/types';
+import { StoreInitializer } from '@/components/store/StoreInitializer';
+import { useSubmissionStore } from '@/stores/submissionStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +46,7 @@ type LoaderData = {
     podIP: string | undefined;
     nodeName: string | undefined;
   };
+  unreadNotifications?: any[];
 };
 
 export const links = () => [
@@ -151,6 +155,33 @@ export async function loader({ request }: { request: Request }) {
   // Get user once for all paths
   const user = await getUserSafe(request);
 
+  // Fetch recent notifications for teachers (both read and unread)
+  let unreadNotifications: any[] = [];
+  if (user && user.role === 'TEACHER') {
+    try {
+      const { getRecentNotifications } = await import('@/services/notification.server');
+      const notifications = await getRecentNotifications(user.id, 50);
+      unreadNotifications = notifications.map((notif) => ({
+        id: notif.id,
+        type: notif.type,
+        userId: notif.userId,
+        title: notif.title,
+        message: notif.message,
+        courseId: notif.courseId,
+        assignmentId: notif.assignmentId,
+        course: notif.course,
+        assignment: notif.assignment,
+        isRead: notif.isRead,
+        createdAt: notif.createdAt,
+        data: notif.data,
+      }));
+      const unreadCount = notifications.filter(n => !n.isRead).length;
+      console.log(`[Root Loader] 📥 Fetched ${unreadNotifications.length} notifications (${unreadCount} unread) for teacher:`, user.id);
+    } catch (error) {
+      console.error('[Root Loader] ❌ Failed to fetch notifications:', error);
+    }
+  }
+
   // Handle public paths
   if (isPublicPath(path)) {
     if (user && path === '/auth/login') {
@@ -160,7 +191,7 @@ export async function loader({ request }: { request: Request }) {
       throw redirect('/auth/select-role');
     }
 
-    const body = { user, isPublicPath: true, versionInfo, locale, toast, podInfo };
+    const body = { user, isPublicPath: true, versionInfo, locale, toast, podInfo, unreadNotifications };
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (setCookie) headers['Set-Cookie'] = setCookie;
     return new Response(JSON.stringify(body), { headers });
@@ -181,7 +212,7 @@ export async function loader({ request }: { request: Request }) {
     throw redirect(getRoleBasedDashboard(user.role as string));
   }
 
-  const body = { user, isPublicPath: false, versionInfo, locale, toast, podInfo };
+  const body = { user, isPublicPath: false, versionInfo, locale, toast, podInfo, unreadNotifications };
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (setCookie) headers['Set-Cookie'] = setCookie;
   return new Response(JSON.stringify(body), { headers });
@@ -212,9 +243,45 @@ function Document({ children }: { children: React.ReactNode }) {
 }
 
 function Layout() {
-  const { user, isPublicPath, locale, toast } = useLoaderData() as LoaderData;
-  const { sidebarCollapsed, toggleSidebar } = useUiStore();
+  const { user, isPublicPath, locale, toast, unreadNotifications } = useLoaderData() as LoaderData;
   const { i18n } = useTranslation();
+
+  // WebSocket 連接 - 只在已登入且有角色時初始化
+  const { connectionState, isConnected } = useWebSocket(user?.id && user?.role ? user.id : undefined);
+
+  // Get submission store action for teachers
+  const handleNewSubmission = useSubmissionStore((state) => state.handleNewSubmission);
+
+  // 開發階段：監控 WebSocket 連接狀態
+  useEffect(() => {
+    if (user?.id && user?.role) {
+      console.log('[Root] WebSocket initialized for user:', user.id, 'Role:', user.role, 'State:', connectionState);
+    }
+  }, [user?.id, user?.role, connectionState]);
+
+  // Register WebSocket event listener for teachers (works on ALL pages)
+  useWebSocketEvent(
+    'submission-notification',
+    async (notification: SubmissionNotification) => {
+      console.log('[Root Layout] 📄 New submission notification received via WebSocket:', {
+        notificationId: notification.notificationId,
+        submissionId: notification.submissionId,
+        assignmentName: notification.assignmentName,
+        studentName: notification.studentName,
+      });
+
+      // Update submission store (will increment unread count)
+      await handleNewSubmission(notification);
+    },
+    [] // Empty array - handler updates via handlerRef
+  );
+
+  // Log when event listener should be active
+  useEffect(() => {
+    if (user?.role === 'TEACHER' && isConnected) {
+      console.log('[Root Layout] ✅ Teacher WebSocket listener is active');
+    }
+  }, [user?.role, isConnected]);
 
   // Change language when locale from server changes
   useEffect(() => {
@@ -246,6 +313,9 @@ function Layout() {
   // Unified layout structure for all route types
   return (
     <div className="h-screen w-full flex flex-col bg-background">
+      {/* Initialize Zustand store with server-provided notification data */}
+      {user?.role === 'TEACHER' && <StoreInitializer unreadNotifications={unreadNotifications} />}
+
       {/* Conditional NavHeader - only show for authenticated users or protected paths */}
       {(user || !isPublicPath) && <NavHeader className="flex-shrink-0" />}
 

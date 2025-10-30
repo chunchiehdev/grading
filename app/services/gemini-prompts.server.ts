@@ -164,6 +164,7 @@ export class GeminiPrompts {
           `
                 ${index + 1}. **${criterion.name}** (${criterion.maxScore || 0} 分)
                    ID: "${criterion.id}" ← 請在 JSON 中使用此 ID
+                   名稱: "${criterion.name}" ← 請在 JSON 的 name 欄位中使用此名稱
                    說明：${criterion.description || '無說明'}
                    ${levelsText ? `評分等級：${levelsText}` : ''}
             `
@@ -198,6 +199,7 @@ export class GeminiPrompts {
               `
                     ${criterionNumber} **${criterion.name}** (${criterion.maxScore || 0} 分)
                        ID: "${criterion.id}" ← 請在 JSON 中使用此 ID
+                       名稱: "${criterion.name}" ← 請在 JSON 的 name 欄位中使用此名稱
                        說明：${criterion.description || '無說明'}
                        ${levelsText ? `評分等級：${levelsText}` : ''}
                 `
@@ -232,7 +234,13 @@ export class GeminiPrompts {
     return this.dedent(`
             ## 輸出要求
 
-            提供詳細的 JSON 格式評分反饋。每個評分項目的 feedback 應包含：
+            提供詳細的 JSON 格式評分反饋。每個評分項目必須包含：
+
+            **JSON 結構要求：**
+            - breakdown 陣列中的每個項目必須包含：criteriaId（評分標準ID）、name（評分標準名稱）、score（分數）、feedback（反饋）
+            - 請確保 name 欄位完全匹配上方提供的評分標準名稱
+
+            **Feedback 內容要求：**
 
             1. **原文引用和分析**（150-200字）
                - 引用 2-3 處具體的學生原文，用「」標示
@@ -254,6 +262,7 @@ export class GeminiPrompts {
             - 所有字串用雙引號，內容引用用「」
             - 回應為有效的 JSON，可直接解析
             - 為每個評分項目提供詳細 feedback
+            - 每個 breakdown 項目都包含完整的 criteriaId、name、score、feedback 四個欄位
         `);
   }
 

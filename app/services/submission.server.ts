@@ -1,6 +1,7 @@
 import { db } from '@/lib/db.server';
 import type { SubmissionInfo, StudentAssignmentInfo } from '@/types/student';
 import { parseGradingResult, type GradingResultData, type UsedContext } from '@/utils/grading-helpers';
+import { publishSubmissionCreatedNotification } from './notification.server';
 
 export interface CreateSubmissionData {
   assignmentAreaId: string;
@@ -52,6 +53,8 @@ export async function createSubmission(
               include: {
                 teacher: {
                   select: {
+                    id: true,
+                    name: true,
                     email: true,
                   },
                 },
@@ -60,10 +63,36 @@ export async function createSubmission(
             rubric: true,
           },
         },
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 
     console.log('✅ Created submission:', submission.id, 'for student:', studentId);
+
+    // Send submission notification to teacher via WebSocket
+    try {
+      await publishSubmissionCreatedNotification({
+        submissionId: submission.id,
+        assignmentId: submission.assignmentAreaId,
+        assignmentName: assignmentArea.name,
+        courseId: assignmentArea.courseId,
+        courseName: assignmentArea.course.name,
+        studentId: submission.studentId,
+        studentName: submission.student.name,
+        teacherId: assignmentArea.course.teacher.id,
+        submittedAt: submission.createdAt,
+      });
+    } catch (notificationError) {
+      console.error('⚠️ Failed to send submission notification:', notificationError);
+      // Don't fail the entire submission creation if notification fails
+    }
+
     return submission;
   } catch (error) {
     console.error('❌ Error creating submission:', error);
@@ -121,17 +150,46 @@ export async function createSubmissionAndLinkGradingResult(
             course: {
               include: {
                 teacher: {
-                  select: { email: true },
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
                 },
               },
             },
             rubric: true,
           },
         },
+        student: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 
     console.log(`✅ Resubmission successful: Updated submission ${submission!.id}`);
+
+    // Send submission notification to teacher via WebSocket (for resubmission)
+    try {
+      await publishSubmissionCreatedNotification({
+        submissionId: submission.id,
+        assignmentId: submission.assignmentAreaId,
+        assignmentName: submission.assignmentArea.name,
+        courseId: submission.assignmentArea.course.id,
+        courseName: submission.assignmentArea.course.name,
+        studentId: submission.studentId,
+        studentName: submission.student.name,
+        teacherId: submission.assignmentArea.course.teacher.id,
+        submittedAt: submission.updatedAt, // Use updatedAt for resubmission
+      });
+    } catch (notificationError) {
+      console.error('⚠️ Failed to send resubmission notification:', notificationError);
+      // Don't fail the entire submission if notification fails
+    }
   } else {
     submission = await createSubmission(studentId, {
       assignmentAreaId,

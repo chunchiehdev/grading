@@ -55,4 +55,5 @@ export interface UnreadNotification {
   assignment?: { name: string; dueDate: Date | null };
   isRead: boolean;
   createdAt: Date;
+  data?: Record<string, unknown>;
 }

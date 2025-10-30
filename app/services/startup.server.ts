@@ -5,37 +5,51 @@ import { ProtectedAIService } from './ai-protected.server.js';
 import initializeGradingWorker from './worker-init.server.js';
 import logger from '@/utils/logger';
 
-/**
- * 系統啟動服務
- * 初始化所有性能優化組件和監控服務
- */
-export class StartupService {
-  private static initialized = false;
-  private static initializationInProgress = false;
+const STARTUP_STATE_KEY = '__grading_startup_state__';
 
-  /**
-   * 初始化所有系統組件
-   */
+type StartupState = {
+  initialized: boolean;
+  initializationInProgress: boolean;
+  gracefulShutdownRegistered: boolean;
+};
+
+type GlobalWithStartupState = typeof globalThis & {
+  [STARTUP_STATE_KEY]?: StartupState;
+};
+
+const globalStartupState = globalThis as GlobalWithStartupState;
+
+function getStartupState(): StartupState {
+  if (!globalStartupState[STARTUP_STATE_KEY]) {
+    globalStartupState[STARTUP_STATE_KEY] = {
+      initialized: false,
+      initializationInProgress: false,
+      gracefulShutdownRegistered: false,
+    };
+  }
+  return globalStartupState[STARTUP_STATE_KEY]!;
+}
+
+export class StartupService {
   static async initialize(): Promise<void> {
-    // 雙重檢查鎖定模式，防止並發初始化
-    if (this.initialized) {
-      // 靜默跳過已初始化的情況，避免 SSR 請求產生大量日誌
+    const state = getStartupState();
+
+    if (state.initialized) {
       return;
     }
 
-    if (this.initializationInProgress) {
-      logger.warn('🔄 StartupService initialization already in progress, waiting...');
-      // 等待初始化完成
+    if (state.initializationInProgress) {
+      logger.warn('StartupService initialization already in progress, waiting...');
       let attempts = 0;
-      while (this.initializationInProgress && attempts < 100) {
+      while (state.initializationInProgress && attempts < 100) {
         await new Promise((resolve) => setTimeout(resolve, 100));
         attempts++;
       }
       return;
     }
 
-    this.initializationInProgress = true;
-    logger.info('🚀 Initializing system components...');
+    state.initializationInProgress = true;
+    logger.info('Initializing system components...');
 
     try {
       // 1. 初始化快取預熱（非關鍵）
@@ -56,14 +70,14 @@ export class StartupService {
       // 6. 設置優雅關閉處理
       this.setupGracefulShutdown();
 
-      this.initialized = true;
-      this.initializationInProgress = false;
+      state.initialized = true;
+      state.initializationInProgress = false;
       logger.info('✅ System initialization completed successfully');
     } catch (error) {
       logger.error('System initialization failed:', error);
-      this.initializationInProgress = false;
+      state.initializationInProgress = false;
       // 不拋出錯誤，允許應用程式繼續運行
-      this.initialized = true; // 標記為已初始化以避免重複嘗試
+      state.initialized = true; // 標記為已初始化以避免重複嘗試
     }
   }
 
@@ -139,23 +153,42 @@ export class StartupService {
 
   /**
    * 設置優雅關閉處理
+   * 統一管理所有服務的關閉流程，包括 AI 服務和 BullMQ Worker
    */
   private static setupGracefulShutdown(): void {
+    const state = getStartupState();
+    if (state.gracefulShutdownRegistered) {
+      return;
+    }
+    state.gracefulShutdownRegistered = true;
+
     const gracefulShutdown = async (signal: string) => {
-      logger.info(`Received ${signal}, starting graceful shutdown...`);
+      logger.info(`📋 Received ${signal}, starting graceful shutdown...`);
 
       try {
-        // 停止 AI 處理服務
+        // 1. 停止 AI 處理服務
+        logger.info('⏳ Stopping AI Handler Service...');
         await aiHandlerService.stop();
-        logger.info('AI Handler Service stopped');
+        logger.info('✅ AI Handler Service stopped');
 
-        // 清理快取（可選）
+        // 2. 給 BullMQ Worker 時間完成當前處理的 jobs
+        const gracePeriod = 10000; // 10 秒
+        logger.info(`⏳ Grace period: ${gracePeriod}ms for running jobs to complete`);
+        await new Promise((resolve) => setTimeout(resolve, gracePeriod));
+
+        // 3. 關閉 BullMQ Worker 和相關服務
+        logger.info('⏳ Closing BullMQ grading services...');
+        const { closeGradingServices } = await import('./bullmq-grading.server.js');
+        await closeGradingServices();
+        logger.info('✅ BullMQ grading services closed');
+
+        // 4. 清理快取（可選）
         // await ChatCacheService.clearAllCache();
 
-        logger.info('Graceful shutdown completed');
+        logger.info('✅ Graceful shutdown completed successfully');
         process.exit(0);
       } catch (error) {
-        logger.error('Error during graceful shutdown:', error);
+        logger.error('❌ Error during graceful shutdown:', error);
         process.exit(1);
       }
     };
@@ -166,112 +199,22 @@ export class StartupService {
 
     // 處理未捕獲的異常
     process.on('unhandledRejection', (reason, promise) => {
-      logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      logger.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
     });
 
     process.on('uncaughtException', (error) => {
-      logger.error('Uncaught Exception:', error);
+      logger.error('❌ Uncaught Exception:', error);
       process.exit(1);
     });
 
-    logger.info('Graceful shutdown handlers registered');
+    logger.info('✅ Graceful shutdown handlers registered');
   }
 
   /**
    * 獲取系統初始化狀態
    */
   static isInitialized(): boolean {
-    return this.initialized;
+    const state = getStartupState();
+    return state.initialized;
   }
-
-  /**
-   * 執行健康檢查
-   */
-  static async healthCheck(): Promise<HealthCheckResult> {
-    try {
-      const [systemStatus, aiServicesHealth, cacheStats] = await Promise.all([
-        MonitoringService.getSystemStatusSummary(),
-        ProtectedAIService.getAIServicesHealth(),
-        ChatCacheService.getCacheStats(),
-      ]);
-
-      const allHealthy = systemStatus.healthy && aiServicesHealth.healthy && this.initialized;
-
-      return {
-        healthy: allHealthy,
-        timestamp: Date.now(),
-        components: {
-          system: {
-            healthy: this.initialized,
-            details: 'System initialization status',
-          },
-          database: {
-            healthy: systemStatus.metrics.totalUsers >= 0,
-            details: `${systemStatus.metrics.totalUsers} total users`,
-          },
-          aiServices: {
-            healthy: aiServicesHealth.healthy,
-            details: `${aiServicesHealth.healthyBreakers}/${aiServicesHealth.totalBreakers} services healthy`,
-          },
-          cache: {
-            healthy: cacheStats !== null,
-            details: cacheStats ? 'Cache operational' : 'Cache unavailable',
-          },
-          monitoring: {
-            healthy: systemStatus.timestamp > 0,
-            details: 'Monitoring service operational',
-          },
-        },
-        metrics: systemStatus.metrics,
-      };
-    } catch (error) {
-      logger.error('Health check failed:', error);
-      return {
-        healthy: false,
-        timestamp: Date.now(),
-        components: {
-          system: { healthy: false, details: 'Health check failed' },
-        },
-        metrics: {
-          totalUsers: 0,
-          activeUsers: 0,
-          totalChats: 0,
-          messagesLastHour: 0,
-          aiServicesHealthy: false,
-          memoryUsageMB: 0,
-          uptime: 0,
-        },
-      };
-    }
-  }
-
-  /**
-   * 強制重新初始化（開發/測試用）
-   */
-  static async forceReinitialize(): Promise<void> {
-    logger.warn('Force reinitializing system components...');
-    this.initialized = false;
-    await this.initialize();
-  }
-}
-
-interface HealthCheckResult {
-  healthy: boolean;
-  timestamp: number;
-  components: Record<
-    string,
-    {
-      healthy: boolean;
-      details: string;
-    }
-  >;
-  metrics: {
-    totalUsers: number;
-    activeUsers: number;
-    totalChats: number;
-    messagesLastHour: number;
-    aiServicesHealthy: boolean;
-    memoryUsageMB: number;
-    uptime: number;
-  };
 }

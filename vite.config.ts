@@ -18,4 +18,10 @@ export default defineConfig({
     host: '0.0.0.0',
     allowedHosts: ['app', 'localhost', '127.0.0.1', '.localhost'],
   },
+  // Fix "Cannot read properties of null (reading 'useMemo')" during HMR
+  // Force Vite to always resolve React to the same copy (prevent duplicate instances)
+  // Reference: https://vitejs.dev/config/shared-options.html#resolve-dedupe
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
 });

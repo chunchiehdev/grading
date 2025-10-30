@@ -22,6 +22,20 @@ export interface AssignmentNotificationEvent {
   teacherName: string;
 }
 
+export interface SubmissionNotificationEvent {
+  type: 'SUBMISSION_CREATED' | 'SUBMISSION_GRADED';
+  notificationId: string | null;
+  submissionId: string;
+  assignmentId: string;
+  assignmentName: string;
+  courseId: string;
+  courseName: string;
+  studentId: string;
+  studentName: string;
+  teacherId: string;
+  submittedAt: string;
+}
+
 /**
  * WebSocket 事件處理器
  * 只負責監聽 Redis 事件並廣播，不處理業務邏輯
@@ -40,7 +54,7 @@ export class WebSocketEventHandler {
    */
   async start(): Promise<void> {
     // 訂閱事件
-    await this.subscriber.subscribe('chat:events', 'notifications:assignment');
+    await this.subscriber.subscribe('chat:events', 'notifications:assignment', 'notifications:submission');
 
     this.subscriber.on('message', async (channel, message) => {
       try {
@@ -50,6 +64,9 @@ export class WebSocketEventHandler {
         } else if (channel === 'notifications:assignment') {
           const event: AssignmentNotificationEvent = JSON.parse(message);
           await this.handleAssignmentNotification(event);
+        } else if (channel === 'notifications:submission') {
+          const event: SubmissionNotificationEvent = JSON.parse(message);
+          await this.handleSubmissionNotification(event);
         }
       } catch (error) {
         logger.error(`Failed to handle ${channel} event: ${error}`);
@@ -182,6 +199,54 @@ export class WebSocketEventHandler {
       logger.info(`Assignment notification sent to ${event.studentIds.length} students for course ${event.courseId}`);
     } catch (error) {
       logger.error(`Failed to handle assignment notification: ${error}`);
+    }
+  }
+
+  /**
+   * 處理作業提交通知事件
+   */
+  private async handleSubmissionNotification(event: SubmissionNotificationEvent): Promise<void> {
+    try {
+      logger.info(`[WS EventHandler] 📨 Handling submission notification:`, {
+        notificationId: event.notificationId,
+        submissionId: event.submissionId,
+        teacherId: event.teacherId,
+        studentName: event.studentName,
+        assignmentName: event.assignmentName
+      });
+
+      const notificationData = {
+        type: event.type,
+        notificationId: event.notificationId, // Include notification ID
+        submissionId: event.submissionId,
+        assignmentId: event.assignmentId,
+        assignmentName: event.assignmentName,
+        courseId: event.courseId,
+        courseName: event.courseName,
+        studentId: event.studentId,
+        studentName: event.studentName,
+        submittedAt: event.submittedAt,
+        timestamp: new Date().toISOString(),
+      };
+
+      // 向教師發送通知
+      const roomName = `user:${event.teacherId}`;
+      logger.info(`[WS EventHandler] 📤 Emitting to room: ${roomName}`);
+      logger.debug(`[WS EventHandler] 📄 Full notification data: ${JSON.stringify(notificationData)}`);
+
+      this.io.to(roomName).emit('submission-notification', notificationData);
+
+      // 檢查房間中的連接數
+      const sockets = await this.io.in(roomName).fetchSockets();
+      logger.info(`[WS EventHandler] 🔗 Room ${roomName} has ${sockets.length} connected socket(s)`);
+
+      if (sockets.length === 0) {
+        logger.warn(`[WS EventHandler] ⚠️ No sockets connected to room ${roomName}, notification may not be received`);
+      } else {
+        logger.info(`[WS EventHandler] ✅ Notification emitted to ${sockets.length} socket(s) in room ${roomName}`);
+      }
+    } catch (error) {
+      logger.error(`[WS EventHandler] ❌ Failed to handle submission notification: ${error}`);
     }
   }
 

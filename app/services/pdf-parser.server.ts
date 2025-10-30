@@ -13,8 +13,8 @@ const PDF_PARSER_API_BASE = process.env.PDF_PARSER_API_URL || 'http://localhost:
 const PDF_PARSER_TIMEOUT_MS = Number(process.env.PDF_PARSER_TIMEOUT_MS || 5000);
 const PDF_PARSER_RETRIES = Number(process.env.PDF_PARSER_RETRIES || 2);
 
-// Docker + node-fetch + HTTPS has IPv6/IPv4 resolution issues
-// Create agent only when needed (Docker environment + HTTPS URLs)
+// Docker + node-fetch + HTTPS has IPv6/IPv6 resolution issues for localhost
+// Create agent only for localhost HTTPS URLs (not external APIs)
 const createHttpsAgent = () => new https.Agent({
   rejectUnauthorized: true, // Keep SSL validation
   timeout: PDF_PARSER_TIMEOUT_MS,
@@ -29,12 +29,15 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    // Use HTTPS agent for Docker networking IPv4/IPv6 resolution
+    // Only use HTTPS agent for localhost/Docker environments (not external APIs)
+    // External APIs (like Cloudflare-hosted services) may not work with family: 4
     const isHttps = url.startsWith('https');
+    const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1') || url.includes('host.docker.internal');
+
     return await fetch(url, {
       ...options,
       signal: controller.signal,
-      ...(isHttps && { agent: createHttpsAgent() }),
+      ...(isHttps && isLocalhost && { agent: createHttpsAgent() }),
     });
   } finally {
     clearTimeout(timeout);
