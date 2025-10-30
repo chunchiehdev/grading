@@ -65,8 +65,7 @@
     },
     "feedback": {
       "teacherFeedback": "教師回饋",
-      "aiAnalysisAvailable": "AI 分析可用",
-      "aiAnalysisDescription": "已為此提交生成自動批改和回饋。"
+      "aiAnalysisAvailable": "已完成 AI 分析"
     },
     "assignmentDetails": {
       "title": "作業詳情",

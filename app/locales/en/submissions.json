@@ -65,8 +65,7 @@
     },
     "feedback": {
       "teacherFeedback": "Teacher Feedback",
-      "aiAnalysisAvailable": "AI Analysis Available",
-      "aiAnalysisDescription": "Automated grading and feedback has been generated for this submission."
+      "aiAnalysisAvailable": "AI analysis completed"
     },
     "assignmentDetails": {
       "title": "Assignment Details",

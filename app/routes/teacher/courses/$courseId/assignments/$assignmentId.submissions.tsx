@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link } from 'react-router';
-import { Download, Eye, FileText, Calendar, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Download, Eye, FileText, Calendar, Clock, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getAssignmentAreaById } from '@/services/assignment-area.server';
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/ui/page-header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 import { useTranslation } from 'react-i18next';
 
@@ -223,6 +224,18 @@ export default function AssignmentSubmissions() {
                               <h3 className="text-sm font-medium text-foreground">
                                 {submission.student?.name || 'Unknown Student'}
                               </h3>
+                              {submission.aiAnalysisResult && (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Sparkles className="h-4 w-4 text-purple-600" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{t('teacher.feedback.aiAnalysisAvailable')}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              )}
                               {getStatusBadge(submission.status)}
                             </div>
                             <p className="text-sm text-muted-foreground">{submission.student?.email || 'No email'}</p>
@@ -275,16 +288,6 @@ export default function AssignmentSubmissions() {
                             {t('teacher.feedback.teacherFeedback')}
                           </h4>
                           <p className="text-sm text-muted-foreground">{submission.teacherFeedback}</p>
-                        </div>
-                      )}
-
-                      {/* AI Analysis Summary */}
-                      {submission.aiAnalysisResult && (
-                        <div className="mt-4 p-3 bg-accent/50 rounded-lg">
-                          <h4 className="text-sm font-medium text-foreground mb-1">
-                            {t('teacher.feedback.aiAnalysisAvailable')}
-                          </h4>
-                          <p className="text-sm text-muted-foreground">{t('teacher.feedback.aiAnalysisDescription')}</p>
                         </div>
                       )}
                     </div>
