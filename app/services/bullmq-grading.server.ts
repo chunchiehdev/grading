@@ -192,13 +192,22 @@ async function initializeBullMQ(): Promise<void> {
   await state.initializationPromise;
 }
 
-await initializeBullMQ();
+// Helper function to ensure BullMQ is initialized before use
+async function ensureInitialized(): Promise<void> {
+  if (state.initializationPromise) {
+    await state.initializationPromise;
+  }
+  if (!state.queue || !state.worker || !state.events) {
+    await initializeBullMQ();
+  }
+}
 
 export async function addGradingJobs(jobs: GradingJob[]): Promise<{
   success: boolean;
   addedCount: number;
   error?: string;
 }> {
+  await ensureInitialized();
   const queue = state.queue;
 
   if (!queue) {
@@ -235,6 +244,8 @@ export async function addGradingJobs(jobs: GradingJob[]): Promise<{
 }
 
 export async function getQueueStatus() {
+  await ensureInitialized();
+
   if (state.initializationError) {
     const msg = `BullMQ initialization failed: ${state.initializationError.message}`;
     console.error('[BullMQ] Init error:', msg);
