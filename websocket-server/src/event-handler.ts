@@ -207,13 +207,13 @@ export class WebSocketEventHandler {
    */
   private async handleSubmissionNotification(event: SubmissionNotificationEvent): Promise<void> {
     try {
-      logger.info(`[WS EventHandler] 📨 Handling submission notification:`, {
+      logger.info({
         notificationId: event.notificationId,
         submissionId: event.submissionId,
         teacherId: event.teacherId,
         studentName: event.studentName,
         assignmentName: event.assignmentName
-      });
+      }, `[WS EventHandler] 📨 Handling submission notification`);
 
       const notificationData = {
         type: event.type,
