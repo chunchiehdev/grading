@@ -1,5 +1,6 @@
 import { FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 import type { TeacherInfo, SubmissionInfo, CourseInfo } from '@/types/teacher';
 
@@ -27,20 +28,24 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
 
   const getScoreDisplay = (normalizedScore: number | null) => {
     if (normalizedScore === null) {
-      return <span className="text-sm text-muted-foreground">{t('teacher:dashboard.grading.grading')}</span>;
+      return (
+        <Badge variant="secondary" className="text-xs font-normal">
+          {t('teacher:dashboard.grading.grading')}
+        </Badge>
+      );
     }
     return (
-      <div className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-primary/10 text-primary">
-        <span className="text-sm font-medium">{normalizedScore.toFixed(1)}</span>
-      </div>
+      <Badge variant="default" className="text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20">
+        {normalizedScore.toFixed(1)}
+      </Badge>
     );
   };
 
   return (
     <div className="bg-background">
-      {/* Table Header Row - Only show when there are submissions */}
+      {/* Table Header Row - Hidden on mobile, visible on desktop */}
       {recentSubmissions.length > 0 && (
-        <div className="px-6 md:px-8 lg:px-10 py-4 border-b border-border">
+        <div className="hidden lg:block px-6 lg:px-8 xl:px-10 py-4 border-b border-border">
           <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
             <div className="col-span-4">{t('teacher:dashboard.tableHeaders.student')}</div>
             <div className="col-span-3">{t('teacher:dashboard.tableHeaders.assignment')}</div>
@@ -53,25 +58,69 @@ export function TeacherDashboardContent({ data }: TeacherDashboardContentProps) 
 
       {/* List Content */}
       {recentSubmissions.length === 0 ? (
-        <div className="text-center py-12 md:py-16 lg:py-20 px-6">
-          <FileText className="mx-auto h-16 md:h-20 lg:h-24 xl:h-28 w-16 md:w-20 lg:w-24 xl:w-28 text-muted-foreground" />
-          <h3 className="mt-6 md:mt-8 text-lg md:text-xl lg:text-2xl font-medium text-foreground">
-            {t('teacher:dashboard.emptyState.noSubmissions')}
-          </h3>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-8 max-w-md px-6">
+            {/* Icon */}
+            <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-muted/40 to-muted/20 flex items-center justify-center">
+              <FileText className="w-12 h-12 text-muted-foreground" />
+            </div>
+
+            {/* Main Content */}
+            <div className="space-y-3">
+              <h1 className="text-2xl font-semibold text-foreground">
+                {t('teacher:dashboard.emptyState.noSubmissions')}
+              </h1>
+              <p className="text-muted-foreground">{t('teacher:dashboard.emptyState.description')}</p>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="divide-y divide-border/50">
           {recentSubmissions.map((submission) => (
             <div
               key={submission.id}
-              className="px-6 md:px-8 lg:px-10 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
+              className="px-4 sm:px-6 lg:px-8 xl:px-10 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
               onClick={() => {
                 // Navigate to the specific submission detail page
                 const url = `/teacher/submissions/${submission.id}/view`;
                 window.location.href = url;
               }}
             >
-              <div className="grid grid-cols-12 gap-4 items-center">
+              {/* Mobile Layout */}
+              <div className="lg:hidden space-y-3">
+                {/* Row 1: Student + Score */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      <AvatarImage src={submission.student?.picture} alt={submission.student?.name} />
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                        {submission.student?.name?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {submission.student?.name || 'Unknown'}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{submission.student?.email || ''}</p>
+                    </div>
+                  </div>
+                  {getScoreDisplay(submission.normalizedScore)}
+                </div>
+
+                {/* Row 2: Assignment */}
+                <div>
+                  <p className="text-sm font-medium text-foreground">{submission.assignmentArea.name}</p>
+                </div>
+
+                {/* Row 3: Course + Time */}
+                <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+                  <span className="truncate">{submission.assignmentArea.course.name}</span>
+                  <span className="whitespace-nowrap flex-shrink-0">{formatTimeAgo(submission.uploadedAt)}</span>
+                </div>
+              </div>
+
+              {/* Desktop Layout */}
+              <div className="hidden lg:grid grid-cols-12 gap-4 items-center">
                 {/* Student Column */}
                 <div className="col-span-4 flex items-center gap-3">
                   <Avatar className="h-8 w-8 flex-shrink-0">
