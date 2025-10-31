@@ -70,7 +70,7 @@ function CourseCard({ course }: CourseCardProps) {
     <Link to={`/student/courses/${course.id}`} className="block group">
       <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
         {/* Header - 可變高度但有最小高度 */}
-        <CardHeader className="pb-3 min-h-[140px] flex flex-col justify-start">
+        <CardHeader className="p-4 sm:p-6 min-h-[140px] flex flex-col justify-start">
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
               <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
@@ -86,23 +86,23 @@ function CourseCard({ course }: CourseCardProps) {
         </CardHeader>
 
         {/* Course Stats - 固定高度區域 */}
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-start gap-8">
+        <div className="px-4 sm:px-6 py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-6">
             <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-muted-foreground" />
-              <span className="text-lg font-semibold text-muted-foreground">{totalAssignments}</span>
-              <span className="text-sm text-muted-foreground">{t('course:assignments')}</span>
+              <FileText className="w-4 h-4 text-muted-foreground" />
+              <span className="text-base font-semibold text-foreground">{totalAssignments}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('course:assignments')}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-muted-foreground" />
-              <span className="text-lg font-semibold text-muted-foreground">{totalEnrollments}</span>
-              <span className="text-sm text-muted-foreground">{t('course:students')}</span>
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <span className="text-base font-semibold text-foreground">{totalEnrollments}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('course:students')}</span>
             </div>
           </div>
         </div>
 
         {/* Teacher Info - 固定高度區域 */}
-        <div className="px-6 py-4">
+        <div className="px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3">
             <img
               src={course.teacher.picture}
@@ -120,10 +120,10 @@ function CourseCard({ course }: CourseCardProps) {
 
         {/* Enrolled Date - 固定高度區域 */}
         {enrolledDate && (
-          <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Calendar className="w-4 h-4 mr-2" />
-              <span>{t('course:joined', { date: enrolledDate })}</span>
+          <div className="mx-2 mb-2 px-3 sm:px-4 py-2 sm:py-3 bg-muted rounded-lg">
+            <div className="flex items-center text-xs sm:text-sm text-muted-foreground">
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
+              <span className="truncate">{t('course:joined', { date: enrolledDate })}</span>
             </div>
           </div>
         )}

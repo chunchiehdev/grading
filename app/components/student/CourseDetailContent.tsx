@@ -260,15 +260,15 @@ function AssignmentItem({ assignment, studentId, priority }: AssignmentItemProps
   const getPriorityStyles = () => {
     switch (priority) {
       case 'high':
-        return 'border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-950/30';
+        return 'border border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-950/30';
       case 'medium':
-        return 'border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-950/20 hover:bg-orange-100/50 dark:hover:bg-orange-950/30';
+        return 'border border-orange-200 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-950/20 hover:bg-orange-100/50 dark:hover:bg-orange-950/30';
       case 'low':
-        return 'border-l-4 border-l-border hover:bg-accent/50';
+        return 'border border-border hover:bg-accent/50';
       case 'completed':
-        return 'border-l-4 border-l-green-500 bg-muted/30 hover:bg-muted/50';
+        return 'border border-green-200 dark:border-green-900 bg-muted/30 hover:bg-muted/50';
       default:
-        return 'border-l-4 border-l-border hover:bg-accent/50';
+        return 'border border-border hover:bg-accent/50';
     }
   };
 

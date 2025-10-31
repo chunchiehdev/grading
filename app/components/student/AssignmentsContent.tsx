@@ -32,9 +32,9 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
     <Link to={`/student/assignments/${assignment.id}/submit`} className="block group">
       <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
         {/* Header*/}
-        <CardHeader className="p-6 min-h-[140px] flex flex-col justify-start">
-          <div className="flex justify-between items-start">
-            <div className="flex-1">
+        <CardHeader className="p-4 sm:p-6 min-h-[140px] flex flex-col justify-start">
+          <div className="flex justify-between items-start gap-2">
+            <div className="flex-1 min-w-0">
               <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                 {assignment.name}
               </CardTitle>
@@ -42,12 +42,12 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
                 <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{assignment.description}</p>
               )}
             </div>
-            <div className="ml-2">{getStatusBadge(assignment)}</div>
+            <div className="flex-shrink-0">{getStatusBadge(assignment)}</div>
           </div>
         </CardHeader>
 
         {/* Statistics - 固定高度區域 */}
-        <div className="px-6 py-4">
+        <div className="px-4 sm:px-6 py-4">
           <div className="flex flex-col gap-3">
             {/* Class Badge Row - 只顯示班級標籤 */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -66,37 +66,39 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
             {/* Score/Status Row - 獨立一行 */}
             {hasSubmission && submission?.finalScore !== null ? (
               <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold text-accent-foreground">
+                <span className="text-base sm:text-lg font-semibold text-accent-foreground">
                   {submission?.finalScore.toFixed(1)}
                 </span>
-                <span className="text-sm text-muted-foreground">/ 100</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">/ 100</span>
               </div>
             ) : hasSubmission ? (
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2">
+                <span className="text-base sm:text-lg font-semibold text-blue-600 dark:text-blue-400">
                   {t('assignmentCard.submitted')}
                 </span>
-                <span className="text-sm text-muted-foreground">{t('assignmentCard.awaitingGrading')}</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">{t('assignmentCard.awaitingGrading')}</span>
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{formatDueDate(assignment.dueDate)}</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">{formatDueDate(assignment.dueDate)}</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Teacher Info - 固定高度區域 */}
-        <div className="px-6 py-4">
+        <div className="px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3">
             <img
               src={assignment.course.teacher.picture}
               alt={assignment.course.teacher.name}
-              className="w-10 h-10 rounded-full object-cover bg-muted"
+              className="w-10 h-10 rounded-full object-cover bg-muted flex-shrink-0"
             />
-            <div className="flex-1">
-              <div className="text-base font-medium text-muted-foreground">{assignment.course.teacher.name}</div>
-              <div className="text-sm text-muted-foreground">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm sm:text-base font-medium text-muted-foreground truncate">
+                {assignment.course.teacher.name}
+              </div>
+              <div className="text-xs sm:text-sm text-muted-foreground truncate">
                 {t('assignmentCard.rubric')}: {assignment.rubric.name}
               </div>
             </div>
@@ -104,12 +106,12 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
         </div>
 
         {/* Due Date / Action - 固定高度區域 */}
-        <div className="mx-2 mb-2 px-4 py-3 bg-muted rounded-lg">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 text-sm">
-            <span className="text-muted-foreground">
+        <div className="mx-2 mb-2 px-3 sm:px-4 py-2 sm:py-3 bg-muted rounded-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 text-xs sm:text-sm">
+            <span className="text-muted-foreground truncate">
               {assignment.dueDate ? formatDueDate(assignment.dueDate) : t('assignmentCard.noDueDate')}
             </span>
-            <span className="text-primary font-medium">
+            <span className="text-primary font-medium whitespace-nowrap">
               {!hasSubmission ? t('assignmentCard.submit') : t('assignmentCard.viewSubmission')}
             </span>
           </div>
@@ -252,7 +254,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
   return (
     <div className="space-y-6">
       {/* Assignment Grid */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(400px,1fr))] gap-6">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
         {getFilteredAssignments().map((assignment) => (
           <AssignmentCard
             key={assignment.id}
