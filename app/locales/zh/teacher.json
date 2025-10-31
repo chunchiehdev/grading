@@ -27,7 +27,7 @@
     },
     "emptyState": {
       "noSubmissions": "目前沒有新的提交",
-      "noSubmissionsDescription": "當學生提交作業時，會顯示在這裡"
+      "description": "當學生提交作業時，會顯示在這裡"
     },
     "timeAgo": {
       "justNow": "剛剛",

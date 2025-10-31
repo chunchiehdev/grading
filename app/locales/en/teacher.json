@@ -27,7 +27,7 @@
     },
     "emptyState": {
       "noSubmissions": "No new submissions",
-      "noSubmissionsDescription": "Submissions will appear here when students submit assignments"
+      "description": "Submissions will appear here when students submit assignments"
     },
     "timeAgo": {
       "justNow": "Just now",
