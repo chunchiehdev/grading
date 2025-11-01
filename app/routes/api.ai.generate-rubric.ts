@@ -1,4 +1,5 @@
 import { ActionFunctionArgs } from 'react-router';
+import logger from '@/utils/logger';
 
 /**
  * 使用 AI 生成評分標準的主要函數
@@ -9,7 +10,7 @@ async function generateRubricWithAI(message: string, conversationHistory: any[] 
     // 導入真正的 AI 服務
     const { generateRubricResponse } = await import('@/services/ai-rubric.server');
 
-    console.log('🤖 調用 AI 服務生成評分標準', {
+    logger.info('調用 AI 服務生成評分標準', {
       message: message.substring(0, 100) + '...',
       hasHistory: conversationHistory.length > 0,
       hasContext: !!context,
@@ -22,10 +23,10 @@ async function generateRubricWithAI(message: string, conversationHistory: any[] 
       context,
     });
 
-    console.log('✅ AI 服務回應成功');
+    logger.info('AI 服務回應成功');
     return response;
   } catch (error) {
-    console.error('❌ AI 服務調用失敗:', error);
+    logger.error('AI 服務調用失敗:', error);
 
     // 當 AI 服務不可用時的友善回應
     return createFallbackResponse(message, error);
@@ -69,7 +70,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return Response.json({ response });
   } catch (error) {
-    console.error('AI API Error:', error);
+    logger.error('AI API Error:', error);
     return Response.json({ error: '生成評分標準時發生錯誤，請稍後再試' }, { status: 500 });
   }
 }

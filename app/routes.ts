@@ -104,12 +104,6 @@ export default [
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
 
-  route('/api/chat', './api/chat/index.ts'),
-  route('/api/chat/messages', './api/chat/messages.ts'),
-  route('/api/chat/:id/messages-since', './routes/api.chat.$id.messages-since.ts'),
-  // Use :chatId to match $chatId route module param name
-  route('/api/chat/:chatId', './api/chat/$chatId.ts'),
-
   // Message API routes
   route('/api/messages/:id', './routes/api.messages.$id.ts'),
 
@@ -117,7 +111,7 @@ export default [
   route('/api/version', './routes/api.version.ts'),
 
   // AI API routes
-  route('/api/ai/generate-rubric', './routes/api.ai.generate-rubric.ts'),
+  route('/api/ai/rubric-chat', './routes/api.ai.rubric-chat.ts'),
 
   // Assignment API routes
   route('/api/assignments', './api/assignments/index.ts'),

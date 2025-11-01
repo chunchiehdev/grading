@@ -84,7 +84,6 @@ export const useGradingStore = create<GradingState>()(
 
       setResult: (result) =>
         set((state) => {
-          console.log('Setting result in store:', result);
           state.result = result;
           state.isGrading = false;
           state.gradingProgress = { ...state.gradingProgress, progress: 100, phase: 'completed', message: '評分完成' };
@@ -109,19 +108,16 @@ export const useGradingStore = create<GradingState>()(
 
       setUploadedFiles: (files) =>
         set((state) => {
-          console.log('Setting uploaded files:', files);
           state.uploadedFiles = files;
         }),
 
       addUploadedFiles: (files) =>
         set((state) => {
-          console.log('Adding uploaded files:', files);
           state.uploadedFiles = [...state.uploadedFiles, ...files];
         }),
 
       setSelectedRubricId: (id) =>
         set((state) => {
-          console.log('Setting rubric ID:', id);
           state.selectedRubricId = id;
         }),
     })),
@@ -130,7 +126,6 @@ export const useGradingStore = create<GradingState>()(
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
         if (state) {
-          console.log('Rehydrated state:', state);
           state.setHasHydrated(true);
         }
       },

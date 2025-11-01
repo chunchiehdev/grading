@@ -1,17 +1,19 @@
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Sparkles, MoveUp, CheckCircle, Loader2, Plus, User as UserIcon } from 'lucide-react';
-import { useChatStore } from '@/stores/chatStore';
 import { useLoaderData } from 'react-router';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport, type UIMessage } from 'ai';
 import type { User } from '@/root';
+import { Markdown } from '@/components/ui/markdown';
+import { parseRubricFromMessage, type ParsedRubricContent } from '@/utils/rubric-parser';
 
 interface LoaderData {
   user: User | null;
   [key: string]: any;
 }
-import { Markdown } from '@/components/ui/markdown';
 
 interface Level {
   score: number;
@@ -38,24 +40,28 @@ interface GeneratedRubric {
 }
 
 interface MessageItemProps {
-  msg: {
-    id: string;
-    role: 'USER' | 'AI';
-    content: string;
-    parsedContent?: {
-      rubricData: GeneratedRubric | null;
-      displayText: string;
-    };
-  };
+  msg: UIMessage;
+  parsed?: ParsedRubricContent;
   index: number;
   user: any;
   onApplyRubric: (rubric: GeneratedRubric) => void;
 }
 
-const MessageItem = memo(({ msg, index, user, onApplyRubric }: MessageItemProps) => {
-  const isUser = msg.role === 'USER';
-  const rubricData = isUser ? null : msg.parsedContent?.rubricData;
-  const displayText = isUser ? msg.content : msg.parsedContent?.displayText || msg.content;
+/**
+ * Extract text content from UIMessage parts
+ */
+function getMessageContent(msg: UIMessage): string {
+  return msg.parts
+    .filter((part) => part.type === 'text')
+    .map((part) => (part as any).text)
+    .join('');
+}
+
+const MessageItem = memo(({ msg, parsed, index, user, onApplyRubric }: MessageItemProps) => {
+  const isUser = msg.role === 'user';
+  const rubricData = parsed?.rubricData;
+  const messageContent = getMessageContent(msg);
+  const displayText = parsed?.displayText || messageContent;
 
   return (
     <div key={msg.id} className="flex gap-4" role="group" aria-label={`${isUser ? '用戶' : 'AI'}訊息 ${index + 1}`}>
@@ -85,7 +91,7 @@ const MessageItem = memo(({ msg, index, user, onApplyRubric }: MessageItemProps)
             role="article"
             aria-label="您的訊息"
           >
-            <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+            <p className="text-sm whitespace-pre-wrap leading-relaxed">{messageContent}</p>
           </div>
         ) : (
           /* AI Message - Direct text with Markdown */
@@ -153,79 +159,42 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
   const loaderData = useLoaderData() as LoaderData | undefined;
   const user = loaderData?.user || null;
 
-  const { currentChat, isLoading, isConnected, error, connect, disconnect, createChat, openChat, sendMsg, clearError } =
-    useChatStore();
+  // Use Vercel AI SDK's useChat hook
+  const { messages, status, sendMessage: sendChatMessage, error } = useChat({
+    transport: new DefaultChatTransport({
+      api: '/api/ai/rubric-chat',
+      body: {
+        currentRubric,
+      },
+    }),
+    onError: (error) => {
+      console.error('Chat error:', error);
+    },
+  });
 
-  // Initialize chat when dialog opens
-  useEffect(() => {
-    const userId = user?.id;
-    console.log('userId', userId);
-
-    if (isOpen && userId) {
-      // 防止重複連接：只在用戶改變或未連接時才連接
-      if (userId !== currentUserId.current) {
-        console.log('[DEBUG] User changed, connecting to socket for user:', userId);
-        connect(userId);
-        currentUserId.current = userId;
-      } else if (!isConnected && currentUserId.current === userId) {
-        console.log('[DEBUG] Reconnecting to existing user:', userId);
-        connect(userId);
-      }
-
-      // 只在沒有當前聊天且不在載入狀態時才創建新聊天
-      if (!currentChat && !isLoading && isConnected) {
-        console.log('[DEBUG] Creating new chat...');
-        const initChat = async () => {
-          try {
-            const chatId = await createChat('評分標準生成', {
-              type: 'rubric_generation',
-              currentRubric,
-            });
-            if (chatId) {
-              await openChat(chatId);
-            }
-          } catch (error) {
-            console.error('[DEBUG] Failed to create/open chat:', error);
-          }
+  // Parse messages to extract rubric data
+  const parsedMessages = useMemo(() => {
+    return messages.map((msg) => {
+      if (msg.role === 'assistant') {
+        const content = getMessageContent(msg);
+        return {
+          ...msg,
+          parsed: parseRubricFromMessage(content),
         };
-        initChat();
       }
-    } else if (!isOpen && currentUserId.current) {
-      // 只在對話框關閉時斷開連接
-      console.log('[DEBUG] Dialog closed, disconnecting...');
-      disconnect();
-      currentUserId.current = null;
-    }
-  }, [isOpen, user?.id]);
-
-  // 獨立的 useEffect 處理連接狀態變化 - 減少依賴項
-  useEffect(() => {
-    const userId = user?.id;
-
-    // 只在真正需要時才重新連接，減少不必要的檢查
-    if (isOpen && userId && userId === currentUserId.current && !isConnected && !isLoading) {
-      console.log('[DEBUG] Connection lost, attempting reconnect for user:', userId);
-      const timeoutId = setTimeout(() => {
-        connect(userId);
-      }, 100); // 延遲 100ms 避免過於頻繁的重連嘗試
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [isConnected, isOpen]); // 移除不必要的依賴
-
-  // 用 useRef 追蹤當前用戶ID，避免重複連接
-  const currentUserId = useRef<string | null>(null);
+      return { ...msg, parsed: undefined };
+    });
+  }, [messages]);
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentChat?.msgs]);
+  }, [messages]);
 
-  // Auto-resize textarea - 使用 useCallback 和節流來優化性能
+  // Auto-resize textarea
   const handleTextareaResize = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea) {
-      // 使用 requestAnimationFrame 來避免阻塞輸入
       requestAnimationFrame(() => {
         textarea.style.height = 'auto';
         const newHeight = Math.min(textarea.scrollHeight, 144); // max 6 lines (24px * 6)
@@ -234,38 +203,33 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
     }
   }, []);
 
-  // 使用 useEffect 但頻率較低
   useEffect(() => {
     handleTextareaResize();
   }, [input, handleTextareaResize]);
 
-  // Clear error when dialog opens - 移除 clearError 依賴避免不必要的重新渲染
+  // Focus textarea when dialog opens
   useEffect(() => {
-    if (isOpen && error) {
-      clearError();
+    if (isOpen) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
     }
-  }, [isOpen, error]); // 移除 clearError 依賴
+  }, [isOpen]);
 
-  const sendMessage = () => {
-    if (!input.trim() || isLoading || !isConnected || !currentChat) {
-      console.log('[DEBUG] Cannot send message:', {
-        hasInput: !!input.trim(),
-        isLoading,
-        isConnected,
-        hasCurrentChat: !!currentChat,
-      });
+  const handleSendMessage = () => {
+    if (!input.trim() || status === 'submitted' || status === 'streaming') {
       return;
     }
 
-    console.log('[DEBUG] Sending message:', input.trim());
-    sendMsg(input.trim());
+    // Send message using AI SDK - sendMessage expects a message object
+    sendChatMessage({ text: input.trim() });
     setInput('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
     }
   };
 
@@ -277,9 +241,8 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
     [onApplyRubric, onClose]
   );
 
-  const handlePromptClick = (prompt: string) => {
-    setInput(prompt);
-  };
+  const isLoading = status === 'submitted' || status === 'streaming';
+  const isConnected = status === 'ready' || isLoading || messages.length > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -297,16 +260,31 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto pt-6 bg-background" role="log" aria-label="對話記錄" aria-live="polite">
           <div className="max-w-4xl mx-auto px-6">
-            {/* Connection Status */}
-            {!isConnected && (
-              <div
-                className="flex items-center justify-center p-4 rounded-lg bg-muted border border-border mb-6"
-                role="status"
-                aria-label="連接狀態"
-              >
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  連接中...
+            {/* Welcome Message */}
+            {messages.length === 0 && !isLoading && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <Sparkles className="w-8 h-8 text-primary" />
+                </div>
+                <h2 className="text-xl font-semibold mb-2">AI 評分標準助手</h2>
+                <p className="text-muted-foreground text-sm max-w-md">
+                  描述您需要的評分標準，我會幫您生成專業的評分項目和等級描述。
+                </p>
+                <div className="mt-6 grid gap-2 w-full max-w-md">
+                  <Button
+                    variant="outline"
+                    className="text-left justify-start h-auto py-3 px-4"
+                    onClick={() => setInput('幫我生成一個程式設計作業的評分標準，包含程式碼品質、功能完整性和創意性')}
+                  >
+                    <span className="text-sm">幫我生成一個程式設計作業的評分標準</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="text-left justify-start h-auto py-3 px-4"
+                    onClick={() => setInput('我需要一個寫作作業的評分標準，重點在內容深度和文字表達')}
+                  >
+                    <span className="text-sm">生成寫作作業的評分標準</span>
+                  </Button>
                 </div>
               </div>
             )}
@@ -319,23 +297,22 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
                 aria-label="錯誤訊息"
               >
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-destructive">{error}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearError}
-                    className="border-destructive/20 text-destructive hover:bg-destructive/10"
-                  >
-                    重試
-                  </Button>
+                  <p className="text-sm text-destructive">{error.message || '發生錯誤，請稍後再試'}</p>
                 </div>
               </div>
             )}
 
             {/* Messages */}
             <div className="space-y-8" role="group" aria-label="對話訊息">
-              {currentChat?.msgs.map((msg, index) => (
-                <MessageItem key={msg.id} msg={msg} index={index} user={user} onApplyRubric={handleApplyRubric} />
+              {parsedMessages.map((msg, index) => (
+                <MessageItem
+                  key={msg.id}
+                  msg={msg}
+                  parsed={msg.parsed}
+                  index={index}
+                  user={user}
+                  onApplyRubric={handleApplyRubric}
+                />
               ))}
 
               {/* Loading Message */}
@@ -365,17 +342,13 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
         <div className="sticky bottom-0 bg-background border-t border-border p-6">
           <div className="max-w-4xl mx-auto">
             <form
+              id="rubric-chat-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                sendMessage();
+                handleSendMessage();
               }}
               className="relative flex items-end gap-3 bg-muted/50 rounded-2xl p-3 border border-border shadow-lg"
             >
-              {/* Attachment Button */}
-              <Button type="button" variant="ghost" size="sm" className="h-8 w-8 rounded-lg p-0" aria-label="添加附件">
-                <Plus className="h-4 w-4" />
-              </Button>
-
               {/* Message Input */}
               <div className="flex-1">
                 <label htmlFor="message-input" className="sr-only">
@@ -387,7 +360,6 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
                   value={input}
                   onChange={(e) => {
                     setInput(e.target.value);
-                    // handleTextareaResize();
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder="描述您需要的評分標準..."
@@ -402,8 +374,9 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
 
               {/* Send Button */}
               <Button
-                type="submit"
-                disabled={!input.trim() || isLoading || !isConnected || !currentChat}
+                type="button"
+                onClick={handleSendMessage}
+                disabled={!input.trim() || isLoading}
                 className="h-8 w-8 rounded-lg p-0"
                 aria-label="發送訊息"
               >

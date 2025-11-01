@@ -1,6 +1,4 @@
 import { MonitoringService } from './monitoring.server.js';
-import { ChatCacheService } from './cache.server.js';
-import { aiHandlerService } from './ai-handler.server.js';
 import { ProtectedAIService } from './ai-protected.server.js';
 import initializeGradingWorker from './worker-init.server.js';
 import logger from '@/utils/logger';
@@ -52,22 +50,16 @@ export class StartupService {
     logger.info('Initializing system components...');
 
     try {
-      // 1. 初始化快取預熱（非關鍵）
-      await this.initializeCacheWarmup();
-
-      // 2. 啟動 AI 處理服務（關鍵服務）
-      await this.initializeAIHandlerService();
-
-      // 3. 初始化 Circuit Breakers（非關鍵）
+      // 1. 初始化 Circuit Breakers（非關鍵）
       await this.initializeCircuitBreakers();
 
-      // 4. 初始化 BullMQ Grading Worker（關鍵服務，用於 Gemini API rate limiting）
+      // 2. 初始化 BullMQ Grading Worker（關鍵服務，用於 Gemini API rate limiting）
       await initializeGradingWorker();
 
-      // 5. 啟動監控服務（非關鍵，暫時跳過）
+      // 3. 啟動監控服務（非關鍵，暫時跳過）
       // await this.initializeMonitoringService();
 
-      // 6. 設置優雅關閉處理
+      // 4. 設置優雅關閉處理
       this.setupGracefulShutdown();
 
       state.initialized = true;
@@ -81,33 +73,7 @@ export class StartupService {
     }
   }
 
-  /**
-   * 初始化快取預熱
-   */
-  private static async initializeCacheWarmup(): Promise<void> {
-    try {
-      logger.info('Starting cache warmup...');
-      await ChatCacheService.warmupCache();
-      logger.info('Cache warmup completed');
-    } catch (error) {
-      logger.error('Cache warmup failed:', error);
-      // 非關鍵錯誤，繼續啟動
-    }
-  }
 
-  /**
-   * 啟動 AI 處理服務
-   */
-  private static async initializeAIHandlerService(): Promise<void> {
-    try {
-      logger.info('🤖 Starting AI Handler Service...');
-      await aiHandlerService.start();
-      logger.info('✅ AI Handler Service started successfully');
-    } catch (error) {
-      logger.error('❌ Failed to start AI Handler Service:', error);
-      throw error; // AI 服務是關鍵組件，啟動失敗應該停止系統
-    }
-  }
 
   /**
    * 初始化 Circuit Breakers
@@ -166,24 +132,17 @@ export class StartupService {
       logger.info(`📋 Received ${signal}, starting graceful shutdown...`);
 
       try {
-        // 1. 停止 AI 處理服務
-        logger.info('⏳ Stopping AI Handler Service...');
-        await aiHandlerService.stop();
-        logger.info('✅ AI Handler Service stopped');
-
-        // 2. 給 BullMQ Worker 時間完成當前處理的 jobs
+        // 1. 給 BullMQ Worker 時間完成當前處理的 jobs
         const gracePeriod = 10000; // 10 秒
         logger.info(`⏳ Grace period: ${gracePeriod}ms for running jobs to complete`);
         await new Promise((resolve) => setTimeout(resolve, gracePeriod));
 
-        // 3. 關閉 BullMQ Worker 和相關服務
+        // 2. 關閉 BullMQ Worker 和相關服務
         logger.info('⏳ Closing BullMQ grading services...');
         const { closeGradingServices } = await import('./bullmq-grading.server.js');
         await closeGradingServices();
         logger.info('✅ BullMQ grading services closed');
 
-        // 4. 清理快取（可選）
-        // await ChatCacheService.clearAllCache();
 
         logger.info('✅ Graceful shutdown completed successfully');
         process.exit(0);
