@@ -1,5 +1,6 @@
 import { db } from '@/lib/db.server';
 import { publishAssignmentCreatedNotification } from '@/services/notification.server';
+import logger from '@/utils/logger';
 
 export interface AssignmentAreaInfo {
   id: string;
@@ -117,20 +118,20 @@ export async function createAssignmentArea(
       },
     });
 
-    console.log('✅ Created assignment area:', assignmentArea.name, 'for course:', courseId);
+    logger.info('✅ Created assignment area:', assignmentArea.name, 'for course:', courseId);
 
     // 發布作業通知事件
     try {
       await publishAssignmentCreatedNotification(assignmentArea);
-      console.log('✅ Assignment notification published for:', assignmentArea.name);
+      logger.info('✅ Assignment notification published for:', assignmentArea.name);
     } catch (notificationError) {
-      console.error('⚠️ Failed to publish assignment notification:', notificationError);
+      logger.error('⚠️ Failed to publish assignment notification:', notificationError);
       // 不阻斷作業建立流程，僅記錄錯誤
     }
 
     return assignmentArea;
   } catch (error) {
-    console.error('❌ Error creating assignment area:', error);
+    logger.error('❌ Error creating assignment area:', error);
     throw error;
   }
 }
@@ -182,7 +183,7 @@ export async function getAssignmentAreaById(
 
     return assignmentArea;
   } catch (error) {
-    console.error('❌ Error fetching assignment area:', error);
+    logger.error('❌ Error fetching assignment area:', error);
     return null;
   }
 }
@@ -228,7 +229,7 @@ export async function listAssignmentAreas(courseId: string, teacherId: string): 
 
     return assignmentAreas;
   } catch (error) {
-    console.error('❌ Error fetching assignment areas:', error);
+    logger.error('❌ Error fetching assignment areas:', error);
     return [];
   }
 }
@@ -301,10 +302,10 @@ export async function updateAssignmentArea(
       },
     });
 
-    console.log('✅ Updated assignment area:', updatedArea.name);
+    logger.info('✅ Updated assignment area:', updatedArea.name);
     return updatedArea;
   } catch (error) {
-    console.error('❌ Error updating assignment area:', error);
+    logger.error('❌ Error updating assignment area:', error);
     throw error;
   }
 }
@@ -342,10 +343,10 @@ export async function deleteAssignmentArea(assignmentId: string, teacherId: stri
       });
     });
 
-    console.log('✅ Deleted assignment area and all related data:', assignmentId);
+    logger.info('✅ Deleted assignment area and all related data:', assignmentId);
     return true;
   } catch (error) {
-    console.error('❌ Error deleting assignment area:', error);
+    logger.error('❌ Error deleting assignment area:', error);
     return false;
   }
 }
@@ -406,7 +407,7 @@ export async function getTeacherAssignmentStats(teacherId: string) {
       recentAreas,
     };
   } catch (error) {
-    console.error('❌ Error fetching teacher assignment stats:', error);
+    logger.error('❌ Error fetching teacher assignment stats:', error);
     return {
       totalAssignmentAreas: 0,
       totalSubmissions: 0,
@@ -443,7 +444,7 @@ export async function loadReferenceDocuments(
     try {
       fileIds = JSON.parse(assignmentArea.referenceFileIds);
     } catch (error) {
-      console.error('❌ Failed to parse referenceFileIds:', error);
+      logger.error('❌ Failed to parse referenceFileIds:', error);
       return [];
     }
 
@@ -477,7 +478,7 @@ export async function loadReferenceDocuments(
         if (wasTruncated) {
           truncatedContent = content.substring(0, MAX_CHARS_PER_FILE);
           truncatedContent += '\n\n[Note: Content truncated at 8,000 characters]';
-          console.log(
+          logger.warn(
             `⚠️ Reference file "${file.originalFileName}" truncated from ${content.length} to ${MAX_CHARS_PER_FILE} characters`
           );
         }
@@ -490,7 +491,7 @@ export async function loadReferenceDocuments(
         };
       });
   } catch (error) {
-    console.error('❌ Error loading reference documents:', error);
+    logger.error('❌ Error loading reference documents:', error);
     return [];
   }
 }
@@ -510,7 +511,7 @@ export async function getCustomGradingInstructions(assignmentAreaId: string): Pr
 
     return assignmentArea?.customGradingPrompt || null;
   } catch (error) {
-    console.error('❌ Error fetching custom grading instructions:', error);
+    logger.error('❌ Error fetching custom grading instructions:', error);
     return null;
   }
 }
@@ -564,7 +565,7 @@ export async function validateReferenceFiles(fileIds: string[]): Promise<{ valid
 
     return { validIds, errors };
   } catch (error) {
-    console.error('❌ Error validating reference files:', error);
+    logger.error('❌ Error validating reference files:', error);
     return { validIds: [], errors: ['Failed to validate reference files'] };
   }
 }

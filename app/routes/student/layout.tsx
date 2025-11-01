@@ -80,12 +80,10 @@ const CACHE_TTL = 30000; // 30 seconds
 export async function clientLoader({ request, serverLoader }: ClientLoaderFunctionArgs) {
   // Check if we have valid cached data
   if (clientCache && Date.now() - clientCache._timestamp < CACHE_TTL) {
-    console.log('[Student Layout] Using cached data');
     return clientCache;
   }
 
   // Fetch fresh data from server
-  console.log('[Student Layout] Fetching fresh data from server');
   const data = await serverLoader<LoaderData>();
   clientCache = data;
   return data;
@@ -118,7 +116,6 @@ export default function StudentLayout() {
   useWebSocketEvent(
     'assignment-notification',
     async (notification: AssignmentNotification) => {
-      console.log('[Student] 📝 New assignment notification received:', notification.assignmentName);
       await handleNewAssignment(notification);
     },
     [handleNewAssignment]

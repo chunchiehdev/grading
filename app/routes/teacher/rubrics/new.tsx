@@ -359,13 +359,13 @@ export default function NewRubricRoute() {
   return (
     <div className="min-h-screen bg-background">
       {/* 標題區 - 居中 */}
-      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 lg:pt-16 xl:pt-20 pb-8 lg:pb-12 text-center">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-semibold tracking-tight text-foreground">
+      <div className="max-w-2xl lg:max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 lg:pt-12 pb-4 sm:pb-6 lg:pb-8 text-center">
+        <div className="flex items-center justify-center gap-2 mb-3">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-foreground">
             {t('rubric:header.newRubricTitle')}
           </h1>
         </div>
-        <p className="text-base lg:text-lg xl:text-xl text-muted-foreground mb-4">{t('rubric:newRubricSubtitle')}</p>
+        <p className="text-sm sm:text-base lg:text-lg text-muted-foreground mb-3">{t('rubric:newRubricSubtitle')}</p>
         {/* Clear draft button */}
         {(rubricData.name || rubricData.categories.length > 0) && (
           <Button
@@ -395,23 +395,29 @@ export default function NewRubricRoute() {
 
           {/* Card 2: Categories */}
           <Card className="bg-card text-card-foreground border rounded-2xl shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between p-5 sm:p-6 lg:p-8 xl:p-10">
-              <CardTitle className="text-lg lg:text-xl xl:text-2xl font-semibold">{t('rubric:categories')}</CardTitle>
-              <div className="flex items-center gap-2 lg:gap-3">
+            <CardHeader className="flex flex-row items-center justify-between p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl font-semibold">{t('rubric:categories')}</CardTitle>
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setShowAIAssistant(true)}
-                  className="h-10 sm:h-11 lg:h-12 rounded-xl text-sm lg:text-base"
+                  className="h-9 sm:h-10 rounded-xl"
+                  size="icon"
+                  title={t('rubric:aiAssistant.generateStandards')}
                 >
-                  <Sparkles className="w-4 h-4 lg:w-5 lg:h-5 mr-2" /> {t('rubric:aiAssistant.generateStandards')}
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="sr-only">{t('rubric:aiAssistant.generateStandards')}</span>
                 </Button>
                 <Button
                   type="button"
                   onClick={() => addCategory()}
-                  className="h-10 sm:h-11 lg:h-12 rounded-xl text-sm lg:text-base"
+                  className="h-9 sm:h-10 rounded-xl"
+                  size="icon"
+                  title={t('rubric:addCategory')}
                 >
-                  <Plus className="w-4 h-4 lg:w-5 lg:h-5 mr-2" /> {t('rubric:addCategory')}
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="sr-only">{t('rubric:addCategory')}</span>
                 </Button>
               </div>
             </CardHeader>
@@ -428,21 +434,25 @@ export default function NewRubricRoute() {
 
           {/* Card 3: Criteria */}
           <Card className="bg-card text-card-foreground border rounded-2xl shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between p-5 sm:p-6 lg:p-8 xl:p-10">
-              <CardTitle className="text-lg lg:text-xl xl:text-2xl font-semibold">
+            <CardHeader className="flex flex-row items-center justify-between p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl font-semibold truncate min-w-0 flex-1">
                 {selectedCategory ? selectedCategory.name : t('rubric:criteria')}
               </CardTitle>
-              <Button
-                onClick={() => addCriterion()}
-                disabled={isLoading}
-                type="button"
-                className="h-10 sm:h-11 lg:h-12 rounded-xl text-sm lg:text-base"
-              >
-                <Plus className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
-                {t('rubric:addCriterion')}
-              </Button>
+              {selectedCategory && (
+                <Button
+                  onClick={() => addCriterion()}
+                  disabled={isLoading}
+                  type="button"
+                  className="h-9 sm:h-10 rounded-xl flex-shrink-0"
+                  size="icon"
+                  title={t('rubric:addCriterion')}
+                >
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="sr-only">{t('rubric:addCriterion')}</span>
+                </Button>
+              )}
             </CardHeader>
-            <CardContent className="p-5 sm:p-6 lg:p-8 xl:p-10 pt-0">
+            <CardContent className="p-4 sm:p-6 pt-0">
               {!selectedCategory ? (
                 <p className="text-base lg:text-lg text-muted-foreground">{t('rubric:emptyState.selectCategory')}</p>
               ) : selectedCategory.criteria.length === 0 ? (
@@ -466,14 +476,14 @@ export default function NewRubricRoute() {
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-5 xl:gap-6 pt-4 lg:pt-6 xl:pt-8">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4 sm:pt-6">
             <Button
               type="button"
               variant="secondary"
               onClick={handlePreview}
-              className="flex-1 h-11 sm:h-12 lg:h-14 xl:h-16 rounded-xl text-base lg:text-lg xl:text-xl font-medium"
+              className="flex-1 h-11 sm:h-12 rounded-xl text-sm sm:text-base font-medium"
             >
-              <Eye className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
+              <Eye className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
               {t('common:preview')}
             </Button>
             <Button
@@ -481,9 +491,9 @@ export default function NewRubricRoute() {
               variant="emphasis"
               onClick={handleSave}
               disabled={!canSave() || isLoading}
-              className="flex-1 h-11 sm:h-12 lg:h-14 xl:h-16 rounded-xl text-base lg:text-lg xl:text-xl font-medium"
+              className="flex-1 h-11 sm:h-12 rounded-xl text-sm sm:text-base font-medium"
             >
-              <Save className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
+              <Save className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
               {isLoading ? t('rubric:saving') : t('common:save')}
             </Button>
           </div>

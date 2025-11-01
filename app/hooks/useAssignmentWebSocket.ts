@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useWebSocket, useWebSocketEvent } from '@/lib/websocket';
 import { useAssignmentStore } from '@/stores/assignmentStore';
 import type { AssignmentNotification } from '@/lib/websocket/types';
@@ -9,21 +10,24 @@ import type { AssignmentNotification } from '@/lib/websocket/types';
 export function useAssignmentWebSocket(studentId: string) {
   const handleNewAssignment = useAssignmentStore((state) => state.handleNewAssignment);
 
-  // Establish WebSocket connection
-  useWebSocket(studentId);
+  // Establish WebSocket connection and get its status
+  const { isConnected } = useWebSocket(studentId);
 
-  // Listen for assignment notifications
-  useWebSocketEvent<AssignmentNotification>(
-    'assignment-notification',
-    async (notification) => {
-      console.log('📝 New assignment notification received:', notification.assignmentName);
+  // Wrap handler in useCallback to maintain stable reference
+  // This prevents unnecessary re-execution of useWebSocketEvent's internal useEffect
+  const onAssignmentNotification = useCallback(
+    async (notification: AssignmentNotification) => {
       await handleNewAssignment(notification);
     },
-    [studentId, handleNewAssignment]
+    [handleNewAssignment]
   );
 
+  // Listen for assignment notifications
+  // Note: The third 'deps' parameter exists in the API but is not used internally.
+  // useWebSocketEvent uses refs to always call the latest handler version.
+  useWebSocketEvent('assignment-notification', onAssignmentNotification);
+
   return {
-    // Could return connection status or other utilities if needed
-    isConnected: true, // Could get this from useWebSocket if needed
+    isConnected,
   };
 }

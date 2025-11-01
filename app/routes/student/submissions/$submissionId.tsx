@@ -22,7 +22,7 @@ export default function StudentSubmissionDetail() {
   const { submission } = useLoaderData<typeof loader>();
   const { t } = useTranslation(['submissions']);
   const a = submission.assignmentArea;
-  console.log('submission', submission);
+
   const renderStatus = (status?: string) => {
     const normalized = (status || '').toUpperCase();
     let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'outline';

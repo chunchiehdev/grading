@@ -9,7 +9,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import type { VersionInfo } from '@/services/version.server';
 import { useTranslation } from 'react-i18next';
 import { getServerLocale } from './localization/i18n';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { getSession, commitSession } from '@/sessions.server';
 import { toast as sonnerToast } from 'sonner';
@@ -176,7 +176,6 @@ export async function loader({ request }: { request: Request }) {
         data: notif.data,
       }));
       const unreadCount = notifications.filter(n => !n.isRead).length;
-      console.log(`[Root Loader] 📥 Fetched ${unreadNotifications.length} notifications (${unreadCount} unread) for teacher:`, user.id);
     } catch (error) {
       console.error('[Root Loader] ❌ Failed to fetch notifications:', error);
     }
@@ -246,40 +245,32 @@ function Layout() {
   const { user, isPublicPath, locale, toast, unreadNotifications } = useLoaderData() as LoaderData;
   const { i18n } = useTranslation();
 
-  // WebSocket 連接 - 只在已登入且有角色時初始化
   const { connectionState, isConnected } = useWebSocket(user?.id && user?.role ? user.id : undefined);
 
   // Get submission store action for teachers
   const handleNewSubmission = useSubmissionStore((state) => state.handleNewSubmission);
 
+  const onSubmissionNotification = useCallback(
+    async (notification: SubmissionNotification) => {
+      // Update submission store (will increment unread count)
+      await handleNewSubmission(notification);
+    },
+    [handleNewSubmission]
+  );
+  
   // 開發階段：監控 WebSocket 連接狀態
   useEffect(() => {
     if (user?.id && user?.role) {
-      console.log('[Root] WebSocket initialized for user:', user.id, 'Role:', user.role, 'State:', connectionState);
     }
   }, [user?.id, user?.role, connectionState]);
 
   // Register WebSocket event listener for teachers (works on ALL pages)
-  useWebSocketEvent(
-    'submission-notification',
-    async (notification: SubmissionNotification) => {
-      console.log('[Root Layout] 📄 New submission notification received via WebSocket:', {
-        notificationId: notification.notificationId,
-        submissionId: notification.submissionId,
-        assignmentName: notification.assignmentName,
-        studentName: notification.studentName,
-      });
-
-      // Update submission store (will increment unread count)
-      await handleNewSubmission(notification);
-    },
-    [] // Empty array - handler updates via handlerRef
-  );
+  
+  useWebSocketEvent('submission-notification', onSubmissionNotification);
 
   // Log when event listener should be active
   useEffect(() => {
     if (user?.role === 'TEACHER' && isConnected) {
-      console.log('[Root Layout] ✅ Teacher WebSocket listener is active');
     }
   }, [user?.role, isConnected]);
 

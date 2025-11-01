@@ -8,7 +8,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const limit = parseInt(url.searchParams.get('limit') || '50', 10);
 
-  console.log('[API /api/teacher/notifications] 📥 GET request from teacher:', teacher.id, 'limit:', limit);
 
   try {
     // Get submission notifications for this teacher
@@ -36,7 +35,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       take: limit,
     });
 
-    console.log('[API /api/teacher/notifications] 📊 Found', notifications.length, 'notifications');
 
     const formattedNotifications = notifications.map((notif) => {
       const data = notif.data as any;
@@ -58,17 +56,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Calculate unread count
     const unreadCount = notifications.filter((n) => !n.isRead).length;
-
-    console.log('[API /api/teacher/notifications] 📤 Sending response:', {
-      total: formattedNotifications.length,
-      unread: unreadCount,
-      notifications: formattedNotifications.map(n => ({
-        id: n.id,
-        submissionId: n.submissionId,
-        isRead: n.isRead,
-        studentName: n.studentName
-      }))
-    });
 
     return Response.json({
       success: true,

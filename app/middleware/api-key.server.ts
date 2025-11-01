@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
+import logger from '~/utils/logger';
 
 /**
  * Generate a secure API key
@@ -26,7 +27,7 @@ export function validateApiKey(request: Request): boolean {
   const apiKey = request.headers.get('x-api-key');
 
   if (!apiKey) {
-    console.log('No API key provided in request');
+    logger.warn('No API key provided in request');
     return false;
   }
 
@@ -34,13 +35,13 @@ export function validateApiKey(request: Request): boolean {
   const expectedApiKey = process.env.INTERNAL_API_KEY;
 
   if (!expectedApiKey) {
-    console.warn('INTERNAL_API_KEY not configured in environment');
+    logger.warn('INTERNAL_API_KEY not configured in environment');
     return false;
   }
 
   // Direct string comparison (API keys should be random enough)
   const isValid = apiKey === expectedApiKey;
-  console.log('API Key validation:', {
+  logger.debug('API Key validation', {
     provided: apiKey.substring(0, 8) + '...',
     expected: expectedApiKey.substring(0, 8) + '...',
     isValid,

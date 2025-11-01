@@ -85,15 +85,12 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       return data;
     },
     onSuccess: (uploadResponse) => {
-      console.log('🔍 Upload mutation onSuccess called with:', uploadResponse);
       const { results } = (uploadResponse?.data ?? uploadResponse) || {};
-      console.log('📋 Extracted results:', results);
       const successfulFiles: UploadedFileResult[] = [];
 
       // Process each upload result with safety checks
       if (Array.isArray(results)) {
         results.forEach((result: UploadedFileResult) => {
-          console.log('🔄 Processing result:', result);
           if (result.success) {
             setFileStatus(result.fileName, 'success', {
               fileId: result.fileId,
@@ -109,19 +106,13 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
         });
       }
 
-      console.log('✅ Successful files for callback:', successfulFiles);
-
       // Only notify if all files in this batch succeeded to align with parent expectations
       if (onUploadComplete && Array.isArray(results) && results.length > 0) {
         const allSucceeded = results.every((r: UploadedFileResult) => !!r && r.success === true);
-        console.log('🎯 All files succeeded?', allSucceeded);
         if (allSucceeded) {
-          console.log('📞 Calling onUploadComplete with:', successfulFiles);
           onUploadComplete(successfulFiles);
         }
       }
-
-      console.log(`✅ Upload completed: ${successfulFiles.length}/${results?.length || 0} files successful`);
     },
   });
 
@@ -162,44 +153,32 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
   const handleUpload = async (newFiles: File[]) => {
     // Safety check for input
     if (!Array.isArray(newFiles) || newFiles.length === 0) {
-      console.warn('handleUpload called with invalid files array:', newFiles);
       return;
     }
-
-    console.log(
-      '🚀 Starting handleUpload for files:',
-      newFiles.map((f) => f.name)
-    );
 
     // Clean up existing subscription before starting a new one
     const unsubscribe = progressSubscriptionRef.current;
     if (unsubscribe) {
-      console.log('🧹 Cleaning up existing SSE subscription');
       unsubscribe();
       progressSubscriptionRef.current = null;
     }
 
     try {
       // Create new uploadId
-      console.log('📝 Creating new uploadId...');
       const newUploadId = await createUploadIdMutation.mutateAsync();
-      console.log('✅ Got uploadId:', newUploadId);
       setUploadId(newUploadId);
       addFiles(newFiles);
 
       // Start SSE subscription for progress tracking
-      console.log('📡 Starting SSE subscription for:', newUploadId);
       const newUnsubscribe = uploadApi.subscribeToProgress(newUploadId, (progressData) => {
         // Safety check for progress data
         if (!progressData || typeof progressData !== 'object') {
-          console.warn('Invalid progress data received:', progressData);
           return;
         }
 
         Object.entries(progressData).forEach(([filename, data]: [string, any]) => {
           // Safety check for data
           if (!data || typeof data !== 'object') {
-            console.warn('Invalid file progress data:', filename, data);
             return;
           }
 
@@ -214,16 +193,13 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
       progressSubscriptionRef.current = newUnsubscribe;
 
       // Start file upload
-      console.log('📤 Starting file upload...');
       await uploadFilesMutation.mutateAsync(newFiles);
-      console.log('✅ File upload completed');
     } catch (error) {
       console.error('❌ Upload error:', error);
 
       // Clean up subscription on error
       const unsubscribe = progressSubscriptionRef.current;
       if (unsubscribe) {
-        console.log('🧹 Cleaning up SSE on error');
         unsubscribe();
         progressSubscriptionRef.current = null;
       }

@@ -2,6 +2,7 @@ import { db } from '@/lib/db.server';
 import type { SubmissionInfo, StudentAssignmentInfo } from '@/types/student';
 import { parseGradingResult, type GradingResultData, type UsedContext } from '@/utils/grading-helpers';
 import { publishSubmissionCreatedNotification } from './notification.server';
+import logger from '@/utils/logger';
 
 export interface CreateSubmissionData {
   assignmentAreaId: string;
@@ -73,7 +74,7 @@ export async function createSubmission(
       },
     });
 
-    console.log('✅ Created submission:', submission.id, 'for student:', studentId);
+    logger.info('✅ Created submission:', submission.id, 'for student:', studentId);
 
     // Send submission notification to teacher via WebSocket
     try {
@@ -128,7 +129,7 @@ export async function createSubmissionAndLinkGradingResult(
     }
 
     // Allow resubmission - update existing submission with new file
-    console.log(`🔄 Resubmitting: Updating existing submission ${existingSubmission.id} with new file`);
+    logger.info(`🔄 Resubmitting: Updating existing submission ${existingSubmission.id} with new file`);
 
     submission = await updateSubmission(existingSubmission.id, {
       // Update file path to new file
@@ -171,7 +172,7 @@ export async function createSubmissionAndLinkGradingResult(
       },
     });
 
-    console.log(`✅ Resubmission successful: Updated submission ${submission!.id}`);
+    logger.info(`✅ Resubmission successful: Updated submission ${submission!.id}`);
 
     // Send submission notification to teacher via WebSocket (for resubmission)
     try {
@@ -195,7 +196,7 @@ export async function createSubmissionAndLinkGradingResult(
       assignmentAreaId,
       filePath: filePathOrId,
     });
-    console.log(`✅ Created new submission ${submission.id}`);
+    logger.info(`✅ Created new submission ${submission.id}`);
   }
 
   if (!submission) {
@@ -203,7 +204,7 @@ export async function createSubmissionAndLinkGradingResult(
   }
 
   if (!sessionId) {
-    console.warn(`Submission ${submission.id} created without a sessionId. AI result will not be linked.`);
+    logger.warn(`Submission ${submission.id} created without a sessionId. AI result will not be linked.`);
     return { submissionId: submission.id };
   }
 
@@ -226,7 +227,7 @@ export async function createSubmissionAndLinkGradingResult(
       // Feature 004: Copy context transparency from GradingResult to Submission
       const usedContext = gradingResult.usedContext ?? null;
 
-      console.log(
+      logger.info(
         `🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult?.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}, context=${usedContext ? 'yes' : 'no'}`
       );
 
@@ -238,19 +239,19 @@ export async function createSubmissionAndLinkGradingResult(
         status: 'ANALYZED',
       });
 
-      console.log(`✅ Successfully linked AI result to submission ${submission.id}`);
+      logger.info(`✅ Successfully linked AI result to submission ${submission.id}`);
     } else {
-      console.warn(
+      logger.warn(
         `⚠️ Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`
       );
-      console.warn(`   Session exists: ${sessionId ? 'Yes' : 'No'}`);
-      console.warn(`   Grading result found: ${gradingResult ? 'Yes' : 'No'}`);
+      logger.warn(`   Session exists: ${sessionId ? 'Yes' : 'No'}`);
+      logger.warn(`   Grading result found: ${gradingResult ? 'Yes' : 'No'}`);
       if (gradingResult) {
-        console.warn(`   Result has data: ${gradingResult.result ? 'Yes' : 'No'}`);
+        logger.warn(`   Result has data: ${gradingResult.result ? 'Yes' : 'No'}`);
       }
     }
   } catch (error) {
-    console.error(`Error linking AI analysis for submission ${submission.id}:`, error);
+    logger.error(`Error linking AI analysis for submission ${submission.id}:`, error);
   }
 
   return { submissionId: submission.id };
@@ -811,7 +812,7 @@ export async function getDraftSubmission(
               };
             }
           } catch (e) {
-            console.warn('Could not resolve file metadata for submission:', e);
+            logger.warn('Could not resolve file metadata for submission:', e);
           }
         }
       }
@@ -921,7 +922,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       return null;
     }
 
-    console.log('✅ Saved draft submission:', submission.id);
+    logger.info('✅ Saved draft submission:', submission.id);
 
     return {
       id: submission.id,

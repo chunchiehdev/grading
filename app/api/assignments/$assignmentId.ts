@@ -9,6 +9,7 @@ import { updateAssignmentSchema } from '@/schemas/assignment';
 import { getAssignmentAreaById, updateAssignmentArea, validateReferenceFiles } from '@/services/assignment-area.server';
 import { db } from '@/lib/db.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
+import logger from '@/utils/logger';
 
 interface RouteParams {
   assignmentId?: string;
@@ -72,7 +73,7 @@ export async function loader({ request, params }: { request: Request; params: Ro
           });
         }
       } catch (error) {
-        console.error('Failed to parse referenceFileIds:', error);
+        logger.error('Failed to parse referenceFileIds:', error);
       }
     }
 
@@ -83,7 +84,7 @@ export async function loader({ request, params }: { request: Request; params: Ro
       })
     );
   } catch (error) {
-    console.error('❌ Error fetching assignment:', error);
+    logger.error('Error fetching assignment:', error);
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to fetch assignment',
@@ -171,7 +172,7 @@ export async function action({ request, params }: { request: Request; params: Ro
         data: updateData,
       });
 
-      console.log(`✅ Assignment "${updatedAssignment.name}" updated`);
+      logger.info(`Assignment "${updatedAssignment.name}" updated`);
     }
 
     // Fetch the updated assignment with reference files
@@ -209,7 +210,7 @@ export async function action({ request, params }: { request: Request; params: Ro
           },
         });
       } catch (error) {
-        console.error('Failed to parse referenceFileIds:', error);
+        logger.error('Failed to parse referenceFileIds:', error);
       }
     }
 
@@ -221,7 +222,7 @@ export async function action({ request, params }: { request: Request; params: Ro
       })
     );
   } catch (error) {
-    console.error('❌ Error updating assignment:', error);
+    logger.error('Error updating assignment:', error);
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to update assignment',

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db.server';
 import { redis } from '@/lib/redis';
+import logger from '@/utils/logger';
 import type { AssignmentArea } from '@/generated/prisma/client';
 import type {
   AssignmentNotificationEvent,
@@ -32,14 +33,14 @@ export async function publishAssignmentCreatedNotification(
     };
   }
 ): Promise<void> {
-  console.log('🔍 查找課程學生 - courseId:', assignment.courseId);
+  logger.info('🔍 查找課程學生 - courseId:', assignment.courseId);
 
   const courseStudents = await db.enrollment.findMany({
     where: { class: { courseId: assignment.courseId } },
     include: { student: true },
   });
 
-  console.log(
+  logger.info(
     '📋 課程學生名單:',
     courseStudents.map((e: EnrollmentWithStudent) => ({
       studentId: e.studentId,
@@ -49,12 +50,12 @@ export async function publishAssignmentCreatedNotification(
   );
 
   if (courseStudents.length === 0) {
-    console.log('⚠️ 沒有找到課程學生');
+    logger.warn('⚠️ 沒有找到課程學生');
     return;
   }
 
   const studentIds = courseStudents.map((enrollment: EnrollmentWithStudent) => enrollment.studentId);
-  console.log('📤 將發送通知給學生IDs:', studentIds);
+  logger.info('📤 將發送通知給學生IDs:', studentIds);
 
   const notifications: NotificationData[] = courseStudents.map((enrollment: EnrollmentWithStudent) => ({
     type: 'ASSIGNMENT_CREATED',
@@ -96,7 +97,7 @@ export async function publishSubmissionCreatedNotification(submissionData: {
   teacherId: string;
   submittedAt: Date;
 }): Promise<void> {
-  console.log('📤 Publishing submission notification for teacher:', submissionData.teacherId);
+  logger.info('📤 Publishing submission notification for teacher:', submissionData.teacherId);
 
   // Create notification record in database
   let notificationId: string | null = null;
@@ -118,9 +119,9 @@ export async function publishSubmissionCreatedNotification(submissionData: {
       },
     });
     notificationId = notification.id;
-    console.log('✅ Created notification record in database:', notificationId);
+    logger.info('✅ Created notification record in database:', notificationId);
   } catch (error) {
-    console.error('⚠️ Failed to create notification record:', error);
+    logger.error('⚠️ Failed to create notification record:', error);
   }
 
   // Publish WebSocket event with notification ID
@@ -139,7 +140,7 @@ export async function publishSubmissionCreatedNotification(submissionData: {
   };
 
   await redis.publish('notifications:submission', JSON.stringify(event));
-  console.log('✅ Submission notification published');
+  logger.info('✅ Submission notification published');
 }
 
 export async function getUnreadNotifications(userId: string): Promise<UnreadNotification[]> {

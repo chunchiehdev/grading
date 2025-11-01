@@ -2,6 +2,7 @@ import { requireStudent } from '@/services/auth.server';
 import { getDraftSubmission, saveDraftSubmission } from '@/services/submission.server';
 import { createErrorResponse } from '@/types/api';
 import { db } from '@/lib/db.server';
+import logger from '@/utils/logger';
 
 /**
  * GET /api/student/assignments/[assignmentId]/draft
@@ -23,7 +24,7 @@ export async function loader({ request, params }: { request: Request; params: an
       data: draftSubmission,
     });
   } catch (error) {
-    console.error('Failed to get draft submission:', error);
+    logger.error('Failed to get draft submission:', error);
     return Response.json(createErrorResponse('Failed to get draft submission'), { status: 500 });
   }
 }
@@ -59,12 +60,12 @@ export async function action({ request, params }: { request: Request; params: an
           await db.submission.delete({
             where: { id: submission.id },
           });
-          console.log('✅ Deleted draft submission:', submission.id);
+          logger.info('Deleted draft submission:', submission.id);
         }
 
         return Response.json({ success: true });
       } catch (error) {
-        console.error('Failed to delete draft submission:', error);
+        logger.error('Failed to delete draft submission:', error);
         return Response.json(createErrorResponse('Failed to delete draft submission'), { status: 500 });
       }
     }
@@ -84,14 +85,14 @@ export async function action({ request, params }: { request: Request; params: an
         try {
           body.fileMetadata = JSON.parse(body.fileMetadata);
         } catch (e) {
-          console.warn('Could not parse fileMetadata JSON:', e);
+          logger.warn('Could not parse fileMetadata JSON:', e);
         }
       }
       if (body.aiAnalysisResult && typeof body.aiAnalysisResult === 'string') {
         try {
           body.aiAnalysisResult = JSON.parse(body.aiAnalysisResult);
         } catch (e) {
-          console.warn('Could not parse aiAnalysisResult JSON:', e);
+          logger.warn('Could not parse aiAnalysisResult JSON:', e);
         }
       }
     }
@@ -117,7 +118,7 @@ export async function action({ request, params }: { request: Request; params: an
       data: savedDraft,
     });
   } catch (error) {
-    console.error('Failed to save draft submission:', error);
+    logger.error('Failed to save draft submission:', error);
     return Response.json(createErrorResponse('Failed to save draft submission'), { status: 500 });
   }
 }

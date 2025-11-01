@@ -3,7 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Download, Share2, FileText, Clock, Target, Trash2, Folder } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Edit, Download, Share2, FileText, Clock, Target, Trash2, Folder, MoreHorizontal } from 'lucide-react';
 import { format } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
 import { PageHeader } from '@/components/ui/page-header';
@@ -61,7 +68,6 @@ export const action = async ({ params, request }: { params: Record<string, strin
         );
       }
 
-      console.log('Rubric deleted successfully:', id);
       return redirect('/teacher/rubrics');
     }
 
@@ -93,7 +99,7 @@ export default function RubricDetailRoute() {
   const stats = calculateRubricStats(categories);
 
   const handleExport = () => {
-    console.log('Export rubric:', rubric);
+    // Export functionality to be implemented
   };
 
   const handleShare = () => {
@@ -115,35 +121,79 @@ export default function RubricDetailRoute() {
         title={rubric.name}
         subtitle={rubric.description}
         actions={
-          <>
-            <Button variant="outline" onClick={handleShare}>
-              <Share2 className="mr-2 h-4 w-4" /> {t('rubric:share')}
-            </Button>
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" /> {t('rubric:export')}
-            </Button>
-            <Form method="post" className="inline">
-              <input type="hidden" name="intent" value="delete" />
-              <Button
-                type="submit"
-                variant="outline"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (confirm(t('rubric:confirmDeleteRubric', { rubricName: rubric.name }))) {
-                    e.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> {t('common:delete')}
-              </Button>
-            </Form>
-            <Button asChild>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            {/* 主要按鈕 - 永遠顯示 */}
+            <Button asChild className="sm:order-last">
               <Link to={`/teacher/rubrics/${rubric.id}/edit`}>
                 <Edit className="mr-2 h-4 w-4" /> {t('rubric:edit')}
               </Link>
             </Button>
-          </>
+
+            {/* 次要按鈕 - 手機上隱藏，桌面顯示 */}
+            <div className="hidden sm:flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleShare}>
+                <Share2 className="mr-2 h-4 w-4" /> {t('rubric:share')}
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" /> {t('rubric:export')}
+              </Button>
+              <Form method="post" className="inline">
+                <input type="hidden" name="intent" value="delete" />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (confirm(t('rubric:confirmDeleteRubric', { rubricName: rubric.name }))) {
+                      e.currentTarget.form?.requestSubmit();
+                    }
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> {t('common:delete')}
+                </Button>
+              </Form>
+            </div>
+
+            {/* 手機版 - More 按鈕 */}
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full">
+                    <MoreHorizontal className="mr-2 h-4 w-4" /> {t('common:more')}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={handleShare}>
+                    <Share2 className="mr-2 h-4 w-4" /> {t('rubric:share')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExport}>
+                    <Download className="mr-2 h-4 w-4" /> {t('rubric:export')}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => {
+                      if (confirm(t('rubric:confirmDeleteRubric', { rubricName: rubric.name }))) {
+                        const form = document.createElement('form');
+                        form.method = 'post';
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'intent';
+                        input.value = 'delete';
+                        form.appendChild(input);
+                        document.body.appendChild(form);
+                        form.submit();
+                      }
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> {t('common:delete')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
         }
       />
 
@@ -164,26 +214,26 @@ export default function RubricDetailRoute() {
         )}
 
         {/* Top stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card className="bg-card text-card-foreground border">
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{t('rubric:totalCategories')}</p>
-                  <p className="text-2xl font-bold text-foreground">{stats.totalCategories}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">{stats.totalCategories}</p>
                 </div>
-                <Folder className="h-8 w-8 text-primary" />
+                <Folder className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
           <Card className="bg-card text-card-foreground border">
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 sm:pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">{t('rubric:totalCriteria')}</p>
-                  <p className="text-2xl font-bold text-foreground">{stats.totalCriteria}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">{stats.totalCriteria}</p>
                 </div>
-                <FileText className="h-8 w-8 text-primary" />
+                <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
               </div>
             </CardContent>
           </Card>
@@ -231,19 +281,21 @@ export default function RubricDetailRoute() {
           ) : (
             categories.map((category, categoryIndex) => (
               <Card key={category.id} className="overflow-hidden">
-                <CardHeader className="bg-muted/50">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-3">
-                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                <CardHeader className="bg-muted/50 p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                    <CardTitle className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold flex-shrink-0">
                         {categoryIndex + 1}
                       </span>
-                      {category.name}
+                      <span className="truncate">{category.name}</span>
                     </CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">
+                    <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                      <Badge variant="outline" className="text-xs whitespace-nowrap">
                         {category.criteria.length} {t('rubric:criteriaCount', { count: category.criteria.length })}
                       </Badge>
-                      <Badge variant="outline">{t('rubric:maxScore', { score: category.criteria.length * 4 })}</Badge>
+                      <Badge variant="outline" className="text-xs whitespace-nowrap">
+                        {t('rubric:maxScore', { score: category.criteria.length * 4 })}
+                      </Badge>
                     </div>
                   </div>
                 </CardHeader>
@@ -256,33 +308,33 @@ export default function RubricDetailRoute() {
                   ) : (
                     <div className="divide-y">
                       {category.criteria.map((criterion, criterionIndex) => (
-                        <div key={criterion.id} className="p-6 space-y-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-lg">
+                        <div key={criterion.id} className="p-4 sm:p-6 space-y-4">
+                          <div className="flex flex-col sm:flex-row gap-3 sm:items-start sm:justify-between">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-base sm:text-lg">
                                 {categoryIndex + 1}.{criterionIndex + 1} {criterion.name}
                               </h4>
                               {criterion.description && (
-                                <p className="text-muted-foreground mt-2 leading-relaxed">{criterion.description}</p>
+                                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{criterion.description}</p>
                               )}
                             </div>
-                            <Badge variant="outline" className="ml-4">
+                            <Badge variant="outline" className="text-xs whitespace-nowrap flex-shrink-0 self-start">
                               {t('rubric:maxPoints', { points: 4 })}
                             </Badge>
                           </div>
 
                           {/* 評分等級 */}
-                          <div className="space-y-3">
+                          <div className="space-y-2 sm:space-y-3">
                             <h5 className="font-medium text-sm text-muted-foreground">{t('rubric:gradingLevels')}</h5>
-                            <div className="grid gap-3">
+                            <div className="grid gap-2 sm:gap-3">
                               {[4, 3, 2, 1].map((score) => {
                                 const level = criterion.levels.find((l) => l.score === score);
                                 const description = level?.description || '';
 
                                 return (
-                                  <div key={score} className="flex items-start gap-4 p-4 rounded-lg bg-muted/30 border">
+                                  <div key={score} className="flex flex-col sm:flex-row items-start gap-2 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/30 border">
                                     <Badge
-                                      className={`${LEVEL_COLORS[score as keyof typeof LEVEL_COLORS]} border shrink-0`}
+                                      className={`${LEVEL_COLORS[score as keyof typeof LEVEL_COLORS]} border shrink-0 text-xs whitespace-nowrap`}
                                       variant="outline"
                                     >
                                       {score}

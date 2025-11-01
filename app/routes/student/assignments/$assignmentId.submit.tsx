@@ -42,8 +42,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   // Check for existing draft/submission to restore state
   const draftSubmission = await getDraftSubmission(assignmentId, student.id);
-  console.log('📋 [submit.tsx loader] Assignment:', assignmentId);
-  console.log('📋 [submit.tsx loader] DraftSubmission:', JSON.stringify(draftSubmission, null, 2));
 
   return { student, assignment, draftSubmission };
 }
@@ -264,7 +262,6 @@ export default function SubmitAssignment() {
         if (result?.result) {
           // Extract thought summary from grading result
           const thoughtSummary = result.thoughtSummary;
-          console.log(`💭 [pollSession] Retrieved thoughtSummary:`, !!thoughtSummary, thoughtSummary?.substring(0, 100));
 
           // Store both result and normalizedScore
           dispatch({
@@ -423,7 +420,6 @@ export default function SubmitAssignment() {
         await fetch(`/api/student/assignments/${assignment.id}/draft`, {
           method: 'DELETE',
         });
-        console.log('✅ Cleared draft submission from database');
       } catch (err) {
         console.error('Failed to clear draft submission:', err);
         // Non-critical error, UI already reset

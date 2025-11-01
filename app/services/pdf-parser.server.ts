@@ -8,6 +8,7 @@ import { s3Client } from '@/services/storage.server';
 import { storageConfig } from '@/config/storage';
 import type { FetchOptions, PdfParserSubmitResponse, ParseResult } from '@/types/pdf-parser';
 import https from 'https';
+import logger from '@/utils/logger';
 
 const PDF_PARSER_API_BASE = process.env.PDF_PARSER_API_URL || 'http://localhost:8000';
 const PDF_PARSER_TIMEOUT_MS = Number(process.env.PDF_PARSER_TIMEOUT_MS || 5000);
@@ -77,11 +78,11 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
 
     try {
       const targetUrl = `${PDF_PARSER_API_BASE}/parse`;
-      console.log(`\n🌐 REAL API CALL: Sending PDF to external parser`);
-      console.log(`   📍 URL: ${targetUrl}`);
-      console.log(`   📦 File: ${fileName} (${fileBuffer.length} bytes)`);
-      console.log(`   👤 User: ${userId}`);
-      console.log(`   🔄 Attempt: ${attempt + 1}/${PDF_PARSER_RETRIES + 1}`);
+      logger.info(`\n🌐 REAL API CALL: Sending PDF to external parser`);
+      logger.info(`   📍 URL: ${targetUrl}`);
+      logger.info(`   📦 File: ${fileName} (${fileBuffer.length} bytes)`);
+      logger.info(`   👤 User: ${userId}`);
+      logger.info(`   🔄 Attempt: ${attempt + 1}/${PDF_PARSER_RETRIES + 1}`);
 
       const response = await fetchWithTimeout(targetUrl, {
         method: 'POST',
@@ -96,7 +97,7 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
       }
 
       const result = (await response.json()) as PdfParserSubmitResponse;
-      console.log(`   ✅ API Response: Task created with ID: ${result.task_id}`);
+      logger.info(`   ✅ API Response: Task created with ID: ${result.task_id}`);
       return result.task_id;
     } catch (err) {
       lastErr = err;
@@ -117,14 +118,14 @@ async function getParsingResult(taskId: string): Promise<ParseResult> {
   for (let attempt = 0; attempt <= PDF_PARSER_RETRIES; attempt++) {
     try {
       const pollUrl = `${PDF_PARSER_API_BASE}/task/${taskId}`;
-      console.log(`🔍 Polling parser API: ${pollUrl}`);
+      logger.debug(`🔍 Polling parser API: ${pollUrl}`);
       const response = await fetchWithTimeout(pollUrl);
       if (!response.ok) {
-        console.error(`   ❌ Poll failed: ${response.status}`);
+        logger.error(`   ❌ Poll failed: ${response.status}`);
         throw new Error(`Failed to check task status: ${response.status}`);
       }
       const result = (await response.json()) as ParseResult;
-      console.log(`   📊 Task status: ${result.status}`);
+      logger.debug(`   📊 Task status: ${result.status}`);
       return result;
     } catch (err) {
       lastErr = err;
@@ -154,7 +155,7 @@ async function pollForResult(taskId: string, maxAttempts: number = 60, intervalM
     }
 
     if (result) {
-      console.log(`📋 Task ${taskId} status: ${result.status}, attempt ${attempt + 1}/${maxAttempts}`);
+      logger.debug(`📋 Task ${taskId} status: ${result.status}, attempt ${attempt + 1}/${maxAttempts}`);
     }
 
     if (attempt < maxAttempts - 1) {
@@ -172,7 +173,7 @@ export async function triggerPdfParsing(
   userId: string
 ): Promise<void> {
   try {
-    console.log(`🔄 Starting PDF parsing for file: ${fileName} (${fileId})`);
+    logger.info(`🔄 Starting PDF parsing for file: ${fileName} (${fileId})`);
 
     await db.uploadedFile.update({
       where: { id: fileId },
@@ -180,15 +181,15 @@ export async function triggerPdfParsing(
     });
 
     const fileBuffer = await getFileFromStorage(fileKey);
-    console.log(`📥 Retrieved file from storage: ${fileName} (${fileBuffer.length} bytes)`);
+    logger.info(`📥 Retrieved file from storage: ${fileName} (${fileBuffer.length} bytes)`);
 
     const taskId = await submitPdfForParsing(fileBuffer, fileName, userId);
-    console.log(`📤 PDF parsing task submitted: ${taskId} for file: ${fileName}`);
+    logger.info(`📤 PDF parsing task submitted: ${taskId} for file: ${fileName}`);
 
     // Await the long-running polling so we only return when complete
     const content = await pollForResult(taskId);
 
-    console.log(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
+    logger.info(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
     const sanitizedContent = content.replace(/\0/g, '');
 
     await db.uploadedFile.update({

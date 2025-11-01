@@ -18,7 +18,6 @@ export function FullScreenPdfViewer({ file, fileUrl, fileName }: FullScreenPdfVi
   const [pageNumber, setPageNumber] = useState(1);
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
-  console.log('fileUrl', fileUrl);
 
   useEffect(() => {
     setIsClient(true);

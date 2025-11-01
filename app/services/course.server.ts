@@ -1,4 +1,5 @@
 import { db } from '@/lib/db.server';
+import logger from '@/utils/logger';
 import type { AssignmentAreaInfo } from './assignment-area.server';
 import type { CourseSearchResult } from '@/contracts/search-api';
 import { SEARCH_CONSTRAINTS } from '@/contracts/search-api';
@@ -34,10 +35,10 @@ export async function createCourse(teacherId: string, courseData: CreateCourseDa
       },
     });
 
-    console.log('✅ Created course:', course.name, 'for teacher:', teacherId);
+    logger.info('✅ Created course:', course.name, 'for teacher:', teacherId);
     return course;
   } catch (error) {
-    console.error('❌ Error creating course:', error);
+    logger.error('❌ Error creating course:', error);
     throw new Error('Failed to create course');
   }
 }
@@ -74,7 +75,7 @@ export async function getTeacherCourses(teacherId: string): Promise<CourseInfo[]
 
     return courses;
   } catch (error) {
-    console.error('❌ Error fetching teacher courses:', error);
+    logger.error('❌ Error fetching teacher courses:', error);
     return [];
   }
 }
@@ -115,7 +116,7 @@ export async function getCourseById(courseId: string, teacherId: string): Promis
 
     return course;
   } catch (error) {
-    console.error('❌ Error fetching course:', error);
+    logger.error('❌ Error fetching course:', error);
     return null;
   }
 }
@@ -155,7 +156,7 @@ export async function updateCourse(
     // Return updated course
     return getCourseById(courseId, teacherId);
   } catch (error) {
-    console.error('❌ Error updating course:', error);
+    logger.error('❌ Error updating course:', error);
     return null;
   }
 }
@@ -177,12 +178,12 @@ export async function deleteCourse(courseId: string, teacherId: string): Promise
 
     const success = result.count > 0;
     if (success) {
-      console.log('Deleted course:', courseId);
+      logger.info('Deleted course:', courseId);
     }
 
     return success;
   } catch (error) {
-    console.error('Error deleting course:', error);
+    logger.error('Error deleting course:', error);
     return false;
   }
 }
@@ -333,7 +334,7 @@ export async function searchCourses(query: string, userId: string): Promise<Cour
 
     return formatCourseResults(results);
   } catch (error) {
-    console.error('Course search error:', error);
+    logger.error('Course search error:', error);
     throw new Error('Search failed. Please try again.');
   }
 }

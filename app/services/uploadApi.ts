@@ -52,11 +52,8 @@ export const uploadApi = {
 
   subscribeToProgress: (uploadId: string, onProgress: (data: any) => void): (() => void) => {
     if (!uploadId) {
-      console.error('No upload ID provided for SSE subscription');
       return () => {};
     }
-
-    console.log('📡 Subscribing to SSE:', API_ENDPOINTS.PROGRESS(uploadId));
 
     const eventSource = new EventSource(API_ENDPOINTS.PROGRESS(uploadId), {
       withCredentials: true,
@@ -66,44 +63,33 @@ export const uploadApi = {
 
     const cleanup = () => {
       if (closed) {
-        console.log('⚠️ SSE cleanup called but already closed');
         return;
       }
       closed = true;
-      console.log('🔌 Closing SSE connection for:', uploadId);
       eventSource.close();
-    };
-
-    eventSource.onopen = () => {
-      console.log('✅ SSE connection opened for:', uploadId);
     };
 
     eventSource.onerror = (error) => {
       const target = error.target as EventSource;
 
       if (closed) {
-        console.log('⚠️ SSE error on already closed connection');
         return;
       }
 
       // Check connection state
       if (target.readyState === EventSource.CLOSED) {
-        console.log('🔌 SSE connection closed by server for:', uploadId);
         cleanup();
         return;
       }
 
-      // Only log actual errors during connecting phase
-      if (target.readyState === EventSource.CONNECTING) {
-        console.log('🔄 SSE reconnecting for:', uploadId);
-      } else {
+      // Only log actual errors (not reconnect attempts)
+      if (target.readyState !== EventSource.CONNECTING) {
         console.error('❌ SSE connection error for:', uploadId, error);
       }
     };
 
     eventSource.onmessage = (event) => {
       if (closed) {
-        console.log('⚠️ SSE progress event on closed connection');
         return;
       }
 
@@ -121,7 +107,6 @@ export const uploadApi = {
           );
 
           if (allDone) {
-            console.log('🎉 All uploads completed for:', uploadId, '- closing SSE connection');
             setTimeout(cleanup, 1000); // Give time for any final updates
           }
         }
@@ -132,7 +117,6 @@ export const uploadApi = {
 
     // Handle complete event
     eventSource.addEventListener('complete', () => {
-      console.log('🎉 Upload session completed for:', uploadId);
       cleanup();
     });
 
@@ -140,7 +124,6 @@ export const uploadApi = {
     setTimeout(
       () => {
         if (!closed) {
-          console.log('⏰ SSE connection timeout for:', uploadId);
           cleanup();
         }
       },

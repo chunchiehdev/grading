@@ -1,4 +1,5 @@
 import { db } from '@/lib/db.server';
+import logger from '@/utils/logger';
 
 /**
  * Class/Section Information Interface
@@ -135,10 +136,10 @@ export async function createClass(teacherId: string, data: CreateClassData): Pro
       },
     });
 
-    console.log('✅ Created class:', classInstance.name, 'for course:', data.courseId);
+    logger.info('✅ Created class:', classInstance.name, 'for course:', data.courseId);
     return classInstance;
   } catch (error) {
-    console.error('❌ Error creating class:', error);
+    logger.error('❌ Error creating class:', error);
     throw error;
   }
 }
@@ -188,7 +189,7 @@ export async function getClassById(classId: string, teacherId: string): Promise<
 
     return classInstance;
   } catch (error) {
-    console.error('❌ Error fetching class:', error);
+    logger.error('❌ Error fetching class:', error);
     return null;
   }
 }
@@ -246,7 +247,7 @@ export async function listClassesByCourse(courseId: string, teacherId: string): 
 
     return classes;
   } catch (error) {
-    console.error('❌ Error fetching classes:', error);
+    logger.error('❌ Error fetching classes:', error);
     return [];
   }
 }
@@ -318,10 +319,10 @@ export async function updateClass(
       },
     });
 
-    console.log('✅ Updated class:', updatedClass.name);
+    logger.info('✅ Updated class:', updatedClass.name);
     return updatedClass;
   } catch (error) {
-    console.error('❌ Error updating class:', error);
+    logger.error('❌ Error updating class:', error);
     throw error;
   }
 }
@@ -354,10 +355,10 @@ export async function deleteClass(classId: string, teacherId: string): Promise<b
       where: { id: classId },
     });
 
-    console.log('✅ Deleted class:', classId);
+    logger.info('✅ Deleted class:', classId);
     return true;
   } catch (error) {
-    console.error('❌ Error deleting class:', error);
+    logger.error('❌ Error deleting class:', error);
     throw error;
   }
 }
@@ -419,7 +420,7 @@ export async function getClassStatistics(classId: string, teacherId: string) {
       capacityUtilization: classInstance.capacity ? (totalEnrollments / classInstance.capacity) * 100 : null,
     };
   } catch (error) {
-    console.error('❌ Error fetching class statistics:', error);
+    logger.error('❌ Error fetching class statistics:', error);
     throw error;
   }
 }
@@ -466,7 +467,7 @@ export async function getStudentClasses(studentId: string) {
       class: enrollment.class,
     }));
   } catch (error) {
-    console.error('❌ Error fetching student classes:', error);
+    logger.error('❌ Error fetching student classes:', error);
     return [];
   }
 }
@@ -509,7 +510,7 @@ export async function getClassStudents(classId: string, teacherId: string) {
       })),
     };
   } catch (error) {
-    console.error('❌ Error fetching class students:', error);
+    logger.error('❌ Error fetching class students:', error);
     throw error;
   }
 }

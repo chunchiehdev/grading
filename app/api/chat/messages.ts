@@ -5,6 +5,7 @@ import { getUser } from '../../services/auth.server.js';
 import { validateApiKey } from '../../middleware/api-key.server.js';
 import { EventPublisher } from '../../services/events.server.js';
 import { ChatCacheService } from '../../services/cache.server.js';
+import logger from '@/utils/logger';
 
 const CreateMessageSchema = z.object({
   chatId: z.string(),
@@ -21,7 +22,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const body = await request.json();
     const validatedData = CreateMessageSchema.parse(body);
 
-    console.log('Messages API called:', {
+    logger.info('Messages API called:', {
       method: request.method,
       hasApiKey: !!request.headers.get('x-api-key'),
       chatId: validatedData.chatId,
@@ -30,7 +31,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     // 檢查是否有有效的 API Key（內部服務）
     const hasValidApiKey = validateApiKey(request);
-    console.log('API Key validation result:', hasValidApiKey);
+    logger.info('API Key validation result:', hasValidApiKey);
 
     if (!hasValidApiKey) {
       // 沒有 API Key，需要用戶身份驗證
@@ -75,7 +76,7 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     if (recentMessage) {
-      console.log('Duplicate message detected, returning existing:', recentMessage.id);
+      logger.info('Duplicate message detected, returning existing:', recentMessage.id);
       return Response.json({
         success: true,
         data: {
@@ -115,7 +116,7 @@ export async function action({ request }: ActionFunctionArgs) {
         await ChatCacheService.invalidateChatCache(validatedData.chatId, currentUser.id);
       }
 
-      console.log(`Message created: ${message.id} in chat ${validatedData.chatId} by user ${userId}`);
+      logger.info(`Message created: ${message.id} in chat ${validatedData.chatId} by user ${userId}`);
 
       // 如果是用戶訊息，觸發 AI 回應（攜帶 messageId 供去重）
       if (validatedData.role === 'USER') {
@@ -135,7 +136,7 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
   } catch (error) {
-    console.error('Error creating message:', error);
+    logger.error('Error creating message:', error);
 
     if (error instanceof z.ZodError) {
       return Response.json(

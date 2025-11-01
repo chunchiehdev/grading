@@ -1,4 +1,5 @@
 import { db } from '@/lib/db.server';
+import logger from '@/utils/logger';
 
 /**
  * Enrollment information for a student in a class
@@ -121,10 +122,10 @@ export async function enrollStudentInClass(studentId: string, classId: string): 
       },
     });
 
-    console.log('✅ Student enrolled:', studentId, 'in class:', classId);
+    logger.info('✅ Student enrolled:', studentId, 'in class:', classId);
     return enrollment;
   } catch (error) {
-    console.error('❌ Error enrolling student in class:', error);
+    logger.error('❌ Error enrolling student in class:', error);
     throw error;
   }
 }
@@ -148,7 +149,7 @@ export async function isStudentEnrolledInClass(studentId: string, classId: strin
 
     return !!enrollment;
   } catch (error) {
-    console.error('❌ Error checking class enrollment:', error);
+    logger.error('❌ Error checking class enrollment:', error);
     return false;
   }
 }
@@ -207,7 +208,7 @@ export async function getClassEnrollments(classId: string, teacherId: string): P
 
     return enrollments;
   } catch (error) {
-    console.error('❌ Error fetching class enrollments:', error);
+    logger.error('❌ Error fetching class enrollments:', error);
     throw error;
   }
 }
@@ -250,10 +251,10 @@ export async function unenrollStudentFromClass(
       },
     });
 
-    console.log('✅ Student unenrolled:', studentId, 'from class:', classId);
+    logger.info('✅ Student unenrolled:', studentId, 'from class:', classId);
     return !!result;
   } catch (error) {
-    console.error('❌ Error unenrolling student from class:', error);
+    logger.error('❌ Error unenrolling student from class:', error);
     return false;
   }
 }
@@ -315,7 +316,7 @@ export async function getStudentEnrolledCourses(studentId: string) {
 
     return Array.from(courseMap.values());
   } catch (error) {
-    console.error('❌ Error fetching student enrolled courses:', error);
+    logger.error('❌ Error fetching student enrolled courses:', error);
     return [];
   }
 }
@@ -374,7 +375,7 @@ export async function getCourseEnrollments(courseId: string, teacherId: string) 
       })),
     }));
   } catch (error) {
-    console.error('❌ Error fetching course enrollments:', error);
+    logger.error('❌ Error fetching course enrollments:', error);
     throw error;
   }
 }
@@ -427,7 +428,7 @@ export async function getCourseStudents(courseId: string, teacherId: string) {
 
     return enrollments;
   } catch (error) {
-    console.error('❌ Error fetching course students:', error);
+    logger.error('❌ Error fetching course students:', error);
     throw error;
   }
 }
@@ -471,10 +472,10 @@ export async function unenrollStudent(studentId: string, courseId: string, teach
       },
     });
 
-    console.log(`✅ Removed student ${studentId} from ${result.count} class(es) in course ${courseId}`);
+    logger.info(`✅ Removed student ${studentId} from ${result.count} class(es) in course ${courseId}`);
     return result.count > 0;
   } catch (error) {
-    console.error('❌ Error removing student from course:', error);
+    logger.error('❌ Error removing student from course:', error);
     return false;
   }
 }
@@ -546,7 +547,7 @@ export async function getCourseEnrollmentStats(courseId: string, teacherId: stri
       })),
     };
   } catch (error) {
-    console.error('❌ Error fetching enrollment stats:', error);
+    logger.error('❌ Error fetching enrollment stats:', error);
     return {
       totalEnrollments: 0,
       recentEnrollments: [],

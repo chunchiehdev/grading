@@ -103,7 +103,6 @@ export const action = async ({ request, params }: { request: Request; params: Re
       return Response.json({ error: result.error || '更新評分標準失敗' });
     }
 
-    console.log('Rubric updated successfully:', id);
     return redirect(`/teacher/rubrics/${id}`);
   } catch (error) {
     console.error('Action error:', error);

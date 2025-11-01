@@ -18,10 +18,6 @@ export function WebSocketTest() {
   const user = loaderData?.user || null;
   const userId = user?.id;
 
-  console.log('WebSocketTest - loaderData:', loaderData);
-  console.log('WebSocketTest - user:', user);
-  console.log('WebSocketTest - userId:', userId);
-
   const { connectionState, isConnected, isHealthy, metrics, reconnect } = useWebSocketStatus();
 
   const [pingResult, setPingResult] = useState<string>('');

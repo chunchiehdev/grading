@@ -1,7 +1,6 @@
 /**
- * WebSocket 客戶端封裝
- * 單一職責：管理 WebSocket 連接和基本事件處理
- * 使用狀態機模式，消除複雜的條件分支
+ * WebSocket client wrapper.
+ * manage connection, reconnection and event handling.
  */
 
 import { io, Socket } from 'socket.io-client';
@@ -29,9 +28,9 @@ export class WebSocketClient {
       wsUrl: this.getWebSocketUrl(),
       transports: ['websocket', 'polling'],
       timeout: 15000,
-      forceNew: false, // 改為 false 提高穩定性
-      maxReconnectAttempts: 10, // 增加重連次數
-      reconnectDelay: 1000, // 減少重連延遲
+      forceNew: false,
+      maxReconnectAttempts: 10,
+      reconnectDelay: 1000,
       ...options?.config,
     };
 
@@ -43,45 +42,34 @@ export class WebSocketClient {
       isHealthy: false,
     };
 
-    // 綁定選項中的回調
     if (options?.onConnect) this.on('connect', options.onConnect);
     if (options?.onDisconnect) this.on('disconnect', options.onDisconnect);
     if (options?.onError) this.on('error', (error: { message: string }) => options.onError!(new Error(error.message)));
     if (options?.onMessage) this.on('new-msg', options.onMessage);
-
-    // 在瀏覽器使用 console,在 Node.js 使用 logger
-    if (typeof window !== 'undefined') {
-      console.log('[WebSocket] Client initialized with config:', this.config);
-    } else {
-      logger.debug('[WebSocket] Client initialized with config:', this.config);
-    }
   }
 
   /**
-   * 獲取 WebSocket URL (環境自適應)
+   * Get WebSocket url
    */
   private getWebSocketUrl(): string {
     if (typeof window === 'undefined') {
       return 'http://localhost:3001';
     }
 
-    // 在生產環境中使用 Ingress 路由，開發環境直連 WebSocket 服務
     return process.env.NODE_ENV === 'production'
       ? `${window.location.protocol}//${window.location.host}`
       : 'http://localhost:3001';
   }
 
   /**
-   * 連接到 WebSocket (主要入口點)
+   * Connect to WebSocket server
    */
   async connect(userId: string): Promise<void> {
-    // 防止重複連接到相同用戶
     if (this.state === ConnectionState.CONNECTED && this.userId === userId) {
       logger.debug('[WebSocket] Already connected to user:', userId);
       return;
     }
 
-    // 清理現有連接
     if (this.socket) {
       this.cleanup();
     }
@@ -100,7 +88,7 @@ export class WebSocketClient {
   }
 
   /**
-   * 創建 Socket.IO 連接
+   * Create Socket.IO connection
    */
   private async createConnection(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -112,7 +100,7 @@ export class WebSocketClient {
         forceNew: this.config.forceNew,
       });
 
-      // 連接成功
+      // Connection successful
       this.socket.on('connect', () => {
         this.setState(ConnectionState.CONNECTED);
         this.metrics.lastConnectTime = new Date();
@@ -127,23 +115,20 @@ export class WebSocketClient {
         resolve();
       });
 
-      // 連接失敗
+      // Connection error
       this.socket.on('connect_error', (error) => {
         this.setState(ConnectionState.ERROR);
         this.metrics.isHealthy = false;
         logger.error('[WebSocket] Connection error:', error);
         this.emit('error', error);
 
-        // 如果是初始連接失敗，拒絕 Promise
         if (this.metrics.connectionAttempts === 1) {
           reject(error);
         } else {
-          // 重連邏輯
           this.scheduleReconnect();
         }
       });
 
-      // 斷線處理
       this.socket.on('disconnect', (reason) => {
         this.setState(ConnectionState.DISCONNECTED);
         this.metrics.lastDisconnectTime = new Date();
@@ -152,54 +137,52 @@ export class WebSocketClient {
         logger.debug('[WebSocket] Disconnected:', reason);
         this.emit('disconnect', reason);
 
-        // 自動重連 (除非是手動斷線)
         if (reason !== 'io client disconnect') {
           this.scheduleReconnect();
         }
       });
 
-      // 業務事件處理
       this.setupBusinessEventHandlers();
     });
   }
 
   /**
-   * 設置業務事件處理器
+   * Set up business event handlers
    */
   private setupBusinessEventHandlers(): void {
     if (!this.socket) return;
 
-    // 新訊息
+    // New message
     this.socket.on('new-msg', (msg) => {
       logger.debug('[WebSocket] Received new message:', msg.id);
       this.emit('new-msg', msg);
     });
 
-    // 聊天同步
+    // Chat sync
     this.socket.on('chat-sync', (data) => {
       logger.debug('[WebSocket] Received chat sync:', data);
       this.emit('chat-sync', data);
     });
 
-    // 作業通知
+    // Assignment notification
     this.socket.on('assignment-notification', (notification) => {
       logger.debug('[WebSocket] Received assignment notification:', notification);
       this.emit('assignment-notification', notification);
     });
 
-    // 提交通知
+    // Submission notification
     this.socket.on('submission-notification', (notification) => {
       logger.debug('[WebSocket] Received submission notification:', notification);
       this.emit('submission-notification', notification);
     });
 
-    // API 重定向 (廢棄功能警告)
+    // API redirect (deprecated feature warning)
     this.socket.on('api-redirect', (data) => {
       logger.warn('[WebSocket] Deprecated API usage:', data);
       this.emit('api-redirect', data);
     });
 
-    // 錯誤處理
+    // Error handling
     this.socket.on('error', (error) => {
       logger.error('[WebSocket] Socket error:', error);
       this.emit('error', error);
@@ -207,7 +190,7 @@ export class WebSocketClient {
   }
 
   /**
-   * 安排重連
+   * Schedule reconnection
    */
   private scheduleReconnect(): void {
     if (this.metrics.totalReconnects >= this.config.maxReconnectAttempts) {
@@ -220,7 +203,7 @@ export class WebSocketClient {
       clearTimeout(this.reconnectTimer);
     }
 
-    // 指數退避延遲
+    // Exponential backoff delay
     const delay = Math.min(this.config.reconnectDelay * Math.pow(2, this.metrics.totalReconnects), 30000);
 
     logger.debug(`[WebSocket] Scheduling reconnect in ${delay}ms`);
@@ -237,7 +220,7 @@ export class WebSocketClient {
   }
 
   /**
-   * 手動重連
+   * Manual reconnect
    */
   async reconnect(): Promise<void> {
     if (this.state === ConnectionState.CONNECTING || this.state === ConnectionState.RECONNECTING) {
@@ -254,7 +237,7 @@ export class WebSocketClient {
   }
 
   /**
-   * 斷開連接
+   * Disconnect from WebSocket server
    */
   disconnect(): void {
     this.cleanup();
@@ -265,7 +248,7 @@ export class WebSocketClient {
   }
 
   /**
-   * 清理資源
+   * Clean up resources
    */
   private cleanup(): void {
     if (this.reconnectTimer) {
@@ -281,7 +264,7 @@ export class WebSocketClient {
   }
 
   /**
-   * 加入聊天室
+   * Join chat room
    */
   joinChat(chatId: string): void {
     if (this.socket?.connected) {
@@ -293,7 +276,7 @@ export class WebSocketClient {
   }
 
   /**
-   * 心跳檢測
+   * Heartbeat 
    */
   ping(): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -309,7 +292,7 @@ export class WebSocketClient {
   }
 
   /**
-   * 事件監聽器 (替代直接使用 socket.on)
+   * Event listener
    */
   on<T extends keyof WebSocketEvents>(event: T, handler: WebSocketEvents[T]): () => void {
     if (!this.eventHandlers.has(event)) {
@@ -318,7 +301,7 @@ export class WebSocketClient {
 
     this.eventHandlers.get(event)!.push(handler);
 
-    // 返回取消訂閱函數
+    
     return () => {
       const handlers = this.eventHandlers.get(event);
       if (handlers) {
@@ -331,38 +314,27 @@ export class WebSocketClient {
   }
 
   /**
-   * 觸發事件
+   *  Emit event to handlers
    */
   private emit<T extends keyof WebSocketEvents>(event: T, ...args: Parameters<WebSocketEvents[T]>): void {
     const handlers = this.eventHandlers.get(event);
-    const handlerCount = handlers?.length || 0;
 
-    console.log('[WebSocket Client] 📤 Emitting event:', event, 'to', handlerCount, 'handler(s)');
-
-    if (handlerCount === 0) {
-      console.warn('[WebSocket Client] ⚠️ No handlers registered for event:', event);
+    if (!handlers || handlers.length === 0) {
       return;
     }
 
-    if (handlers) {
-      handlers.forEach((handler, index) => {
-        try {
-          console.log(`[WebSocket Client] 🔄 Calling handler ${index + 1}/${handlerCount} for event:`, event);
-          // TypeScript can't infer proper typing here due to the Map structure,
-          // but the actual call is guaranteed to be correct by type system
-          const typedHandler = handler as (...args: Parameters<WebSocketEvents[T]>) => void;
-          typedHandler(...args);
-          console.log(`[WebSocket Client] ✅ Handler ${index + 1} completed for event:`, event);
-        } catch (error) {
-          console.error(`[WebSocket Client] ❌ Handler ${index + 1} error for ${event}:`, error);
-          logger.error(`[WebSocket] Event handler error for ${event}:`, error);
-        }
-      });
-    }
+    handlers.forEach((handler) => {
+      try {
+        const typedHandler = handler as (...args: Parameters<WebSocketEvents[T]>) => void;
+        typedHandler(...args);
+      } catch (error) {
+        logger.error(`[WebSocket] Event handler error for ${event}:`, error);
+      }
+    });
   }
 
   /**
-   * 設置狀態
+   * Set up event handlers
    */
   private setState(newState: ConnectionState): void {
     if (this.state !== newState) {

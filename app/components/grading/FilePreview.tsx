@@ -229,16 +229,6 @@ function ClientPdfViewer({
   const availableWidth = containerWidth - sidebarWidth - contentPadding;
   const pageWidth = Math.max(300, Math.min(availableWidth * 0.95, 800)); // Use 95% to ensure no overflow
 
-  // Debug logging to help troubleshoot
-  console.log('PDF width calculation:', {
-    containerWidth,
-    sidebarWidth,
-    contentPadding,
-    availableWidth,
-    pageWidth,
-    isSidebarOpen,
-  });
-
   const onLoadSuccess = ({ numPages }: { numPages: number }) => setNumPages(numPages);
   const scrollToPage = (index: number) =>
     pagesRef.current[index]?.scrollIntoView({ behavior: 'smooth', block: 'start' });

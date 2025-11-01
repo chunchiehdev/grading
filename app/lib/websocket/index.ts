@@ -1,15 +1,12 @@
 /**
- * WebSocket 模組統一入口
- * 提供全域 WebSocket 客戶端和便捷的匯出
+ * Central entry point for WebSocket.
  */
 
 import { WebSocketClient } from './client';
 import type { WebSocketEvents } from './types';
 
-// 全域 WebSocket 客戶端單例
 export const websocketClient = new WebSocketClient();
 
-// 重新匯出所有類型
 export type {
   ConnectionConfig,
   ConnectionMetrics,
@@ -22,10 +19,8 @@ export type {
 
 export { ConnectionState } from './types';
 
-// 重新匯出客戶端類別
 export { WebSocketClient } from './client';
 
-// 重新匯出所有 Hooks
 export {
   useWebSocket,
   useWebSocketStatus,
@@ -37,37 +32,37 @@ export {
 
 export const websocket = {
   /**
-   * 連接到 WebSocket
+   * Connect to WebSocket server
    */
   connect: (userId: string) => websocketClient.connect(userId),
 
   /**
-   * 斷開連接
-   */
+   * Disconnect from WebSocket server
+    */
   disconnect: () => websocketClient.disconnect(),
 
   /**
-   * 重新連接
+   * Reconnect to WebSocket server
    */
   reconnect: () => websocketClient.reconnect(),
 
   /**
-   * 加入聊天室
+   * Join chat room
    */
   joinChat: (chatId: string) => websocketClient.joinChat(chatId),
 
   /**
-   * 心跳檢測
+   * Heartbeat
    */
   ping: () => websocketClient.ping(),
 
   /**
-   * 事件監聽
+   * Event listener
    */
   on: <T extends keyof WebSocketEvents>(event: T, handler: WebSocketEvents[T]) => websocketClient.on(event, handler),
 
   /**
-   * 獲取連接狀態
+   * Get connection state
    */
   get connectionState() {
     return websocketClient.connectionState;

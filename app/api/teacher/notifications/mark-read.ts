@@ -9,12 +9,6 @@ export async function action({ request }: ActionFunctionArgs) {
     const body = await request.json();
     const { notificationIds, markAll } = body;
 
-    console.log('[API /api/teacher/notifications/mark-read] 📥 POST request:', {
-      teacherId: teacher.id,
-      markAll,
-      notificationIds
-    });
-
     if (markAll) {
       // Mark all notifications as read
       const result = await db.notification.updateMany({
@@ -27,7 +21,6 @@ export async function action({ request }: ActionFunctionArgs) {
           readAt: new Date(),
         },
       });
-      console.log('[API /api/teacher/notifications/mark-read] ✅ Marked all as read. Updated:', result.count);
     } else if (notificationIds && Array.isArray(notificationIds)) {
       // Mark specific notifications as read
       const result = await db.notification.updateMany({
@@ -39,10 +32,6 @@ export async function action({ request }: ActionFunctionArgs) {
           isRead: true,
           readAt: new Date(),
         },
-      });
-      console.log('[API /api/teacher/notifications/mark-read] ✅ Marked notifications as read:', {
-        notificationIds,
-        updated: result.count
       });
     } else {
       console.error('[API /api/teacher/notifications/mark-read] ❌ Invalid request body');

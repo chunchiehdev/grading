@@ -6,7 +6,7 @@ import logger from '@/utils/logger';
 
 let oauth2Client: OAuth2Client | null = null;
 
-console.log(
+logger.info(
   'Using Google redirect URI:',
   process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback'
 );
@@ -38,7 +38,7 @@ export async function getUserId(request: Request) {
  */
 export async function googleLogin() {
   if (!oauth2Client) {
-    console.warn('Google OAuth credentials not configured');
+    logger.warn('Google OAuth credentials not configured');
     return redirect('/auth/login?error=google-auth-unavailable');
   }
 
@@ -177,7 +177,7 @@ export async function logout(request: Request) {
   const session = await getSession(request);
   const userId = session.get('userId');
 
-  console.log('🗑️ logout - Destroying session for userId:', userId);
+  logger.info('🗑️ logout - Destroying session for userId:', userId);
 
   return destroySession(session);
 }

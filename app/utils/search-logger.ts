@@ -28,7 +28,6 @@ export function logSearchOperation(operation: SearchLog['operation'], details?: 
   // Log to console in development
   if (process.env.NODE_ENV === 'development') {
     const style = getLogStyle(operation);
-    console.log(`%c[Search] ${operation}`, style, log);
   }
 
   // In production, could send to analytics service

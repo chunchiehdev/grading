@@ -68,7 +68,6 @@ export default function TeacherLayout() {
   // Fetch notifications from database on mount (only once, even in Strict Mode)
   useEffect(() => {
     if (!hasFetchedRef.current) {
-      console.log('[TeacherLayout] 🚀 Component mounted, fetching notifications...');
       hasFetchedRef.current = true;
       fetchNotifications();
     }
@@ -76,15 +75,11 @@ export default function TeacherLayout() {
 
   // Log when location changes (navigation)
   useEffect(() => {
-    console.log('[TeacherLayout] 🗺️ Navigation to:', location.pathname);
   }, [location.pathname]);
 
   // Log WebSocket connection status
   useEffect(() => {
-    console.log('[TeacherLayout] 🔌 WebSocket status:', {
-      isConnected,
-      connectionState,
-    });
+    // Connection status monitoring can be added here if needed
   }, [isConnected, connectionState]);
 
   // NOTE: WebSocket event listener for submission-notification has been moved to root.tsx Layout

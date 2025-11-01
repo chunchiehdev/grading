@@ -14,6 +14,7 @@ import { websocketClient } from './index';
 export function useWebSocket(userId?: string, options?: WebSocketClientOptions) {
   const userIdRef = useRef<string | null>(null);
   const optionsRef = useRef(options);
+  const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 使用 state 來追蹤 WebSocket 狀態，確保 UI 能響應變化
   const [connectionState, setConnectionState] = useState(websocketClient.connectionState);
@@ -58,6 +59,12 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
   useEffect(() => {
     if (!userId) return;
 
+    // 如果有待執行的斷開操作,取消它
+    if (disconnectTimerRef.current) {
+      clearTimeout(disconnectTimerRef.current);
+      disconnectTimerRef.current = null;
+    }
+
     // 防止重複連接相同用戶
     if (userIdRef.current === userId && websocketClient.isConnected) {
       return;
@@ -73,17 +80,14 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
     // 組件卸載時延遲斷開連接（防止路由切換時誤斷開）
     return () => {
       // 延遲 500ms 斷開，如果在這期間重新掛載就不斷開
-      const timeoutId = setTimeout(() => {
+      disconnectTimerRef.current = setTimeout(() => {
         // 檢查是否真的需要斷開（可能已經重新連接了）
         if (userIdRef.current === userId) {
           websocketClient.disconnect();
           userIdRef.current = null;
-          console.log('[useWebSocket] Disconnected after cleanup delay');
         }
+        disconnectTimerRef.current = null;
       }, 500);
-
-      // 如果組件立即重新掛載，清除延遲斷開
-      return () => clearTimeout(timeoutId);
     };
   }, [userId]);
 
@@ -236,15 +240,15 @@ export function useWebSocketEvent<K extends keyof WebSocketEvents>(
   // 訂閱事件 - 只在 event 名稱改變時重新訂閱
   // 使用 wrapper 函數來確保總是調用最新的 handler
   useEffect(() => {
+    // Use type assertion to work around TypeScript's strict spread checking
     const wrappedHandler = ((...args: any[]) => {
+      // @ts-expect-error - Safe: handlerRef.current is always in sync with the correct handler type
       handlerRef.current(...args);
     }) as WebSocketEvents[K];
 
     const unsubscribe = websocketClient.on(event, wrappedHandler);
-    console.log('[useWebSocketEvent] ✅ Subscribed to event:', event);
 
     return () => {
-      console.log('[useWebSocketEvent] 🔌 Unsubscribing from event:', event);
       unsubscribe();
     };
   }, [event]); // 只依賴 event 名稱，不依賴 handler 或 deps

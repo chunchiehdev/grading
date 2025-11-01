@@ -227,7 +227,6 @@ function AssignmentForm({
   const [classTarget, setClassTarget] = useState<'all' | 'specific'>('all');
   const [referenceFileIds, setReferenceFileIds] = useState<string[]>([]);
   const [customGradingPrompt, setCustomGradingPrompt] = useState<string>('');
-  console.log(course.name, 'Course Name');
 
   return (
     <FormPageLayout

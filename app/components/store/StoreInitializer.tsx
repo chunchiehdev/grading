@@ -23,20 +23,13 @@ export function StoreInitializer({ unreadNotifications }: StoreInitializerProps)
   useEffect(() => {
     // Guard: Only run once per app lifetime
     if (hasInitializedRef.current) {
-      console.log('[StoreInitializer] ⏭️ Already initialized, skipping');
       return;
     }
 
     // Guard: Only initialize if we have notifications array (even if empty)
     if (!unreadNotifications) {
-      console.log('[StoreInitializer] ⚠️ No notification data provided');
       return;
     }
-
-    console.log('[StoreInitializer] 🚀 Initializing store with server data:', {
-      notificationCount: unreadNotifications.length,
-      hasData: unreadNotifications.length > 0,
-    });
 
     // Mark as initialized BEFORE calling the store action
     hasInitializedRef.current = true;

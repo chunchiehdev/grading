@@ -1,4 +1,5 @@
 import type { GeminiGradingRequest, GeminiFileGradingRequest } from '@/types/gemini';
+import logger from '@/utils/logger';
 
 /**
  * Gemini 評分 Prompt 管理
@@ -6,7 +7,6 @@ import type { GeminiGradingRequest, GeminiFileGradingRequest } from '@/types/gem
  */
 export class GeminiPrompts {
   static generateSystemInstruction(language: 'zh' | 'en' = 'zh'): string {
-    console.log(`🎯 [GeminiPrompts] Generating system instruction for language: ${language}`);
 
     // Linus Principle: 一個 system instruction 應該清晰、簡潔、不重複
     // 由 JSON Schema 和 User Prompt 負責細節
@@ -44,7 +44,7 @@ export class GeminiPrompts {
           - Ensure scores and feedback are consistent
         `);
 
-    console.log(
+    logger.debug(
       `🔍 [GeminiPrompts] Generated system instruction (${instruction.length} chars)`
     );
     return instruction;

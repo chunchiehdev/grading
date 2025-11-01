@@ -18,48 +18,24 @@ export function NotificationCenter() {
   const isLoading = useSubmissionStore((state) => state.isLoading);
   const lastUpdated = useSubmissionStore((state) => state.lastUpdated);
 
-  console.log('[NotificationCenter] 🔍 Component rendering:', {
-    submissionsLength: submissions.length,
-    unreadCount,
-    isLoading,
-    lastUpdated,
-    hasData: lastUpdated !== null
-  });
-
   // Use useMemo to prevent unnecessary re-renders
   const recentSubmissions = useMemo(() => {
-    console.log('[NotificationCenter] 📊 Computing recentSubmissions from:', {
-      total: submissions.length,
-      unread: unreadCount,
-      showing: Math.min(submissions.length, 20),
-      firstItem: submissions[0]
-    });
     return submissions.slice(0, 20);
-  }, [submissions, unreadCount]);
+  }, [submissions]);
 
   const locale = i18n.language === 'zh' ? zhTW : enUS;
 
   const handleNotificationClick = async (notificationId: string, submissionId: string) => {
-    console.log('═══════════════════════════════════════════════');
-    console.log('[NotificationCenter] 🖱️ NOTIFICATION CLICKED!');
-    console.log('[NotificationCenter] 📋 Details:', {
-      notificationId,
-      submissionId
-    });
-    console.log('═══════════════════════════════════════════════');
-
     // Wait for mark-as-read to complete before navigating
     // This ensures the database is updated before the loader runs
     await markAsRead(notificationId);
 
     // Navigate to submission view page
-    console.log('[NotificationCenter] 🚀 Navigating to:', `/teacher/submissions/${submissionId}/view`);
     navigate(`/teacher/submissions/${submissionId}/view`);
     // Dropdown will auto-close due to navigation
   };
 
   const handleMarkAllAsRead = () => {
-    console.log('[NotificationCenter] ✅ Mark all as read clicked');
     markAllAsRead();
   };
 

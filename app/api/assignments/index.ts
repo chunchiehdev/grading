@@ -9,6 +9,7 @@ import { createAssignmentSchema } from '@/schemas/assignment';
 import { createAssignmentArea, listAssignmentAreas, validateReferenceFiles } from '@/services/assignment-area.server';
 import { db } from '@/lib/db.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
+import logger from '@/utils/logger';
 
 /**
  * POST /api/assignments
@@ -67,8 +68,8 @@ export async function action({ request }: { request: Request }) {
         },
       });
 
-      console.log(
-        `✅ Assignment "${assignmentArea.name}" created with ${data.referenceFileIds?.length || 0} reference files`
+      logger.info(
+        `Assignment "${assignmentArea.name}" created with ${data.referenceFileIds?.length || 0} reference files`
       );
     }
 
@@ -106,7 +107,7 @@ export async function action({ request }: { request: Request }) {
           },
         });
       } catch (error) {
-        console.error('Failed to parse referenceFileIds:', error);
+        logger.error('Failed to parse referenceFileIds:', error);
       }
     }
 
@@ -127,7 +128,7 @@ export async function action({ request }: { request: Request }) {
       })
     );
   } catch (error) {
-    console.error('❌ Error creating assignment:', error);
+    logger.error('Error creating assignment:', error);
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to create assignment',
@@ -159,7 +160,7 @@ export async function loader({ request }: { request: Request }) {
 
     return Response.json(createSuccessResponse({ assignments }));
   } catch (error) {
-    console.error('❌ Error listing assignments:', error);
+    logger.error('Error listing assignments:', error);
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to list assignments',
