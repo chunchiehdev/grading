@@ -161,19 +161,32 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
                 {versionInfo && (
                   <>
                     <DropdownMenuItem disabled>
-                      <div className="flex items-center gap-2 text-xs">
-                        <Badge variant="outline" className="text-xs px-1 py-0">
-                          v{versionInfo.version}
-                        </Badge>
-                        <Badge
-                          variant={versionInfo.environment === 'production' ? 'default' : 'secondary'}
-                          className="text-xs px-1 py-0"
-                        >
-                          {versionInfo.environment === 'production' ? 'PROD' : 'DEV'}
-                        </Badge>
-                        <span className="text-muted-foreground" title={`Commit: ${versionInfo.commitHash}`}>
-                          {versionInfo.commitHash.substring(0, 7)}
-                        </span>
+                      <div className="flex flex-col gap-1.5 w-full">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Version</span>
+                          <Badge variant="outline" className="text-xs px-2 py-0.5 font-mono">
+                            v{versionInfo.version}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Environment</span>
+                          <Badge
+                            variant={versionInfo.environment === 'production' ? 'default' : 'secondary'}
+                            className="text-xs px-2 py-0.5"
+                          >
+                            {versionInfo.environment === 'production' ? 'Production' : 'Development'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Branch</span>
+                          <span className="text-xs font-mono text-foreground/70">{versionInfo.branch}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Commit</span>
+                          <span className="text-xs font-mono text-foreground/70" title={versionInfo.commitHash}>
+                            {versionInfo.commitHash.substring(0, 7)}
+                          </span>
+                        </div>
                       </div>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -231,19 +244,32 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
                 {versionInfo && (
                   <>
                     <DropdownMenuItem disabled>
-                      <div className="flex items-center gap-2 text-xs">
-                        <Badge variant="outline" className="text-xs px-1 py-0">
-                          v{versionInfo.version}
-                        </Badge>
-                        <Badge
-                          variant={versionInfo.environment === 'production' ? 'default' : 'secondary'}
-                          className="text-xs px-1 py-0"
-                        >
-                          {versionInfo.environment === 'production' ? 'PROD' : 'DEV'}
-                        </Badge>
-                        <span className="text-muted-foreground" title={`Commit: ${versionInfo.commitHash}`}>
-                          {versionInfo.commitHash.substring(0, 7)}
-                        </span>
+                      <div className="flex flex-col gap-1.5 w-full">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Version</span>
+                          <Badge variant="outline" className="text-xs px-2 py-0.5 font-mono">
+                            v{versionInfo.version}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Environment</span>
+                          <Badge
+                            variant={versionInfo.environment === 'production' ? 'default' : 'secondary'}
+                            className="text-xs px-2 py-0.5"
+                          >
+                            {versionInfo.environment === 'production' ? 'Production' : 'Development'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Branch</span>
+                          <span className="text-xs font-mono text-foreground/70">{versionInfo.branch}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground font-medium">Commit</span>
+                          <span className="text-xs font-mono text-foreground/70" title={versionInfo.commitHash}>
+                            {versionInfo.commitHash.substring(0, 7)}
+                          </span>
+                        </div>
                       </div>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
