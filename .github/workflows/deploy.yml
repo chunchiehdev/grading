@@ -1,8 +1,8 @@
 name: Docker CI/CD
 on:
   push:
-    branches: 
-      - "master" 
+    branches:
+      - "master"
       - "development"
 
 permissions:
@@ -18,74 +18,68 @@ jobs:
       run: |
         echo "Starting deployment process"
         echo "Branch: ${{ github.ref }}"
-        echo "Commit: ${GITHUB_SHA::7}" 
+        echo "Commit: ${GITHUB_SHA::7}"
 
     - uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
-    
+
     - name: Auto-update version based on commit message
       id: version-update
       run: |
-        # Use heredoc to safely handle multi-line commit messages
         COMMIT_MSG=$(cat <<'EOF'
         ${{ github.event.head_commit.message }}
         EOF
         )
-        # Extract only the first line for version bump detection (conventional commit format)
         COMMIT_FIRST_LINE=$(echo "$COMMIT_MSG" | head -n 1)
         echo "Commit message (first line): $COMMIT_FIRST_LINE"
-        
-        # Verify package.json exists
+
         if [ ! -f "package.json" ]; then
-          echo "❌ Error: package.json not found"
+          echo "Error: package.json not found"
           exit 1
         fi
-        
+
         if [ "${{ github.ref_name }}" = "master" ]; then
-          echo "🏭 Processing master branch - production versioning"
-          # Check for version bump indicators in commit message (using first line only)
+          echo "Processing master branch - production versioning"
           if [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?!: ]] || [[ "$COMMIT_FIRST_LINE" =~ BREAKING.CHANGE ]]; then
-            echo "🚀 BREAKING CHANGE detected - bumping major version"
+            echo "BREAKING CHANGE detected - bumping major version"
             npm run version:major
             echo "BUMP_TYPE=major" >> $GITHUB_OUTPUT
           elif [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?: ]]; then
-            echo "✨ Feature detected - bumping minor version"
+            echo "Feature detected - bumping minor version"
             npm run version:minor
             echo "BUMP_TYPE=minor" >> $GITHUB_OUTPUT
           elif [[ "$COMMIT_FIRST_LINE" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_FIRST_LINE" =~ ^perf(\(.+\))?: ]]; then
-            echo "🐛 Fix/perf detected - bumping patch version"
+            echo "Fix/perf detected - bumping patch version"
             npm run version:patch
             echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
           else
-            echo "📝 No version bump needed for this commit"
+            echo "No version bump needed for this commit"
             echo "BUMP_TYPE=none" >> $GITHUB_OUTPUT
           fi
         else
-          echo "🔧 Processing development branch - prerelease versioning"
-          
-          # For development, always create a prerelease version
+          echo "Processing development branch - prerelease versioning"
+
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           echo "Current version: $CURRENT_VERSION"
-          
-          # Remove any existing prerelease suffix and add new one
+
           BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-dev\.[0-9]*$//')
           TIMESTAMP=$(date +%Y%m%d%H%M)
           NEW_VERSION="${BASE_VERSION}-dev.${TIMESTAMP}"
-          
+
           echo "Creating development version: $NEW_VERSION"
           npm version "$NEW_VERSION" --no-git-tag-version
           echo "BUMP_TYPE=dev" >> $GITHUB_OUTPUT
         fi
-      
+
     - name: Get version from package.json
       id: package-version
       run: |
         VERSION=$(node -p "require('./package.json').version")
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
         echo "Package version: $VERSION"
-    
+
     - name: Commit version bump
       if: steps.version-update.outputs.BUMP_TYPE != 'none'
       run: |
@@ -97,14 +91,14 @@ jobs:
         else
           git commit -m "chore: bump dev version to ${{ steps.package-version.outputs.VERSION }} [development] [skip ci]"
         fi
-    
+
     - name: Push version bump
       if: steps.version-update.outputs.BUMP_TYPE != 'none'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git push origin ${{ github.ref_name }}
-      
+
     - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
@@ -138,12 +132,11 @@ jobs:
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         script: |
-          set +x  
+          set +x
           export KUBECONFIG=~/.kube/config
-          echo "Starting application deployment for ${{ github.ref_name }} "
+          echo "Starting application deployment for ${{ github.ref_name }}"
           echo "Version: ${{ steps.package-version.outputs.VERSION }}"
-          
-          # Set variables based on branch
+
           if [ "${{ github.ref_name }}" = "master" ]; then
             DEPLOYMENT_FILE="prod/deployment.yaml"
             SECRET_NAME="gradsystem-secret"
@@ -155,15 +148,15 @@ jobs:
             NAMESPACE="dev"
             DEPLOYMENT_NAME="gradsystem-dev"
           fi
-          
+
           echo "Using deployment file: $DEPLOYMENT_FILE"
           echo "Target namespace: $NAMESPACE"
           echo "Secret name: $SECRET_NAME"
-          
+
           cd ~/gradsystem
           if [ -f $DEPLOYMENT_FILE ]; then
-            
-            echo "Running database migrations ..."
+
+            echo "Running database migrations..."
             kubectl run migrate-$(date +%s) \
               --rm \
               --attach \
@@ -176,65 +169,136 @@ jobs:
 
             if [ $? -eq 0 ]; then
               echo "Migration successful, preparing application deployment..."
-              
-              # Create a temporary YAML file for substitution
+
               TEMP_DEPLOYMENT_FILE=$(mktemp)
               cp $DEPLOYMENT_FILE $TEMP_DEPLOYMENT_FILE
 
-              # Use sed to replace placeholders in the temporary file
               sed -i "s|__APP_VERSION__|${{ steps.package-version.outputs.VERSION }}|g" $TEMP_DEPLOYMENT_FILE
               sed -i "s|__APP_BRANCH__|${{ github.ref_name }}|g" $TEMP_DEPLOYMENT_FILE
               sed -i "s|__APP_COMMIT_HASH__|${{ github.sha }}|g" $TEMP_DEPLOYMENT_FILE
               sed -i "s|__APP_BUILD_TIME__|${{ github.event.head_commit.timestamp }}|g" $TEMP_DEPLOYMENT_FILE
 
-              echo "Applying final deployment configuration:"
-              
-              # Apply the deployment file
+              echo "Applying final deployment configuration"
+
               kubectl apply -f $TEMP_DEPLOYMENT_FILE
-              
-              # Remove the temporary file after deployment
+
               rm $TEMP_DEPLOYMENT_FILE
 
               echo "Triggering rollout restart to pull latest images..."
               kubectl rollout restart deployment $DEPLOYMENT_NAME -n $NAMESPACE
               kubectl rollout status deployment $DEPLOYMENT_NAME -n $NAMESPACE
 
-              # Deploy WebSocket service if exists
               if [ -f "${NAMESPACE}/websocket-deployment-dev.yaml" ]; then
                 echo "Deploying WebSocket service..."
                 kubectl apply -f ${NAMESPACE}/websocket-deployment-dev.yaml
                 kubectl apply -f ${NAMESPACE}/websocket-service-dev.yaml
                 kubectl rollout restart deployment websocket-dev -n $NAMESPACE
                 kubectl rollout status deployment websocket-dev -n $NAMESPACE
-                echo "WebSocket deployment completed!"
+                echo "WebSocket deployment completed"
               fi
 
-              echo "All deployments completed successfully!"
+              echo "All deployments completed successfully"
             else
-              echo "Migration failed!"
+              echo "Migration failed"
               exit 1
             fi
           else
             echo "Error: $DEPLOYMENT_FILE file not found"
             exit 1
           fi
-          
+
+    - name: Deploy to Mars K8s
+      if: github.ref_name == 'development'
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.MARS_SERVER_HOST }}
+        username: ${{ secrets.MARS_SERVER_USER }}
+        key: ${{ secrets.MARS_SERVER_SSH_KEY }}
+        script: |
+          set -e
+          export KUBECONFIG=~/.kube/config
+
+          echo "Starting deployment to Mars K8s"
+          echo "Version: ${{ steps.package-version.outputs.VERSION }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Namespace: gradsystem-dev"
+
+          NAMESPACE="gradsystem-dev"
+          SECRET_NAME="gradsystem-secret-dev"
+          DEPLOYMENT_DIR="~/gradsystem/dev"
+
+          cd $DEPLOYMENT_DIR
+
+          echo "Current directory: $(pwd)"
+          echo "Available files:"
+          ls -la
+
+          if [ ! -f deployment-dev.yaml ]; then
+            echo "Error: deployment-dev.yaml not found in $DEPLOYMENT_DIR"
+            exit 1
+          fi
+
+          echo "Current pod status:"
+          kubectl get pods -n $NAMESPACE
+
+          echo "Running database migrations..."
+          kubectl run migrate-$(date +%s) \
+            --rm \
+            --attach \
+            --restart=Never \
+            --namespace=$NAMESPACE \
+            --image=chunchiehdev/gradsystem:development \
+            --env="DATABASE_URL=$(kubectl get secret $SECRET_NAME -n $NAMESPACE -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
+            --env="NODE_ENV=development" \
+            -- npx prisma migrate deploy --schema=/app/prisma/schema.prisma
+
+          if [ $? -eq 0 ]; then
+            echo "Migration successful"
+
+            echo "Applying deployment configuration..."
+            kubectl apply -f deployment-dev.yaml
+
+            echo "Restarting gradsystem-dev deployment..."
+            kubectl rollout restart deployment gradsystem-dev -n $NAMESPACE
+
+            echo "Waiting for gradsystem-dev rollout to complete..."
+            kubectl rollout status deployment gradsystem-dev -n $NAMESPACE --timeout=300s
+
+            if [ -f websocket-deployment-dev.yaml ]; then
+              echo "Restarting websocket-dev deployment..."
+              kubectl apply -f websocket-deployment-dev.yaml
+              kubectl rollout restart deployment websocket-dev -n $NAMESPACE
+              kubectl rollout status deployment websocket-dev -n $NAMESPACE --timeout=300s
+              echo "WebSocket deployment completed"
+            else
+              echo "websocket-deployment-dev.yaml not found, skipping"
+            fi
+
+            echo "Final pod status:"
+            kubectl get pods -n $NAMESPACE
+
+            echo "Mars K8s deployment completed successfully"
+          else
+            echo "Migration failed, aborting deployment"
+            exit 1
+          fi
+
     - name: Create and push tag
       if: steps.version-update.outputs.BUMP_TYPE != 'none'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        
+
         if [ "${{ github.ref_name }}" = "master" ]; then
-          echo "🏷️ Creating production release tag"
+          echo "Creating production release tag"
           git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Release v${{ steps.package-version.outputs.VERSION }}"
           git push origin v${{ steps.package-version.outputs.VERSION }}
         else
-          echo "🏷️ Creating development tag"
+          echo "Creating development tag"
           git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Development release v${{ steps.package-version.outputs.VERSION }}"
           git push origin v${{ steps.package-version.outputs.VERSION }}
         fi
-    
+
     - name: Create tag for current version (master only, no version bump)
       if: github.ref_name == 'master' && steps.version-update.outputs.BUMP_TYPE == 'none'
       run: |
@@ -242,30 +306,30 @@ jobs:
         git config --local user.name "GitHub Action"
         git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Release v${{ steps.package-version.outputs.VERSION }}"
         git push origin v${{ steps.package-version.outputs.VERSION }}
-          
+
     - name: Deployment Summary
       run: |
-        echo "📝 Deployment Summary"
+        echo "Deployment Summary"
         echo "-------------------"
-        echo "✅ Pipeline completed successfully"
+        echo "Pipeline completed successfully"
         echo "Environment: ${{ github.ref_name == 'master' && 'production' || 'development' }}"
         echo "Branch: ${{ github.ref }}"
         echo "Version: ${{ steps.package-version.outputs.VERSION }}"
         echo "Version bump: ${{ steps.version-update.outputs.BUMP_TYPE }}"
         echo "Commit: ${{ github.sha }}"
         echo "Build time: ${{ github.event.head_commit.timestamp }}"
-        
+
         if [ "${{ github.ref_name }}" = "master" ]; then
-          echo "🏷️  Production release tag: v${{ steps.package-version.outputs.VERSION }}"
-          echo "🎯 Versioning: Semantic versioning based on commit messages"
+          echo "Production release tag: v${{ steps.package-version.outputs.VERSION }}"
+          echo "Versioning: Semantic versioning based on commit messages"
         else
           if [ "${{ steps.version-update.outputs.BUMP_TYPE }}" != "none" ]; then
-            echo "🏷️  Development tag: v${{ steps.package-version.outputs.VERSION }}"
+            echo "Development tag: v${{ steps.package-version.outputs.VERSION }}"
           fi
-          echo "🎯 Versioning: Prerelease with timestamp for development tracking"
+          echo "Versioning: Prerelease with timestamp for development tracking"
         fi
 
     - name: Handle Failure
       if: failure()
       run: |
-        echo "❌ Deployment encountered an issue"
+        echo "Deployment encountered an issue"
