@@ -153,6 +153,7 @@ jobs:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
+        command_timeout: 10m
         script: |
           set +x
           export KUBECONFIG=~/.kube/config
@@ -197,14 +198,14 @@ jobs:
 
               echo "Triggering rollout restart to pull latest images..."
               kubectl rollout restart deployment $DEPLOYMENT_NAME -n $NAMESPACE
-              kubectl rollout status deployment $DEPLOYMENT_NAME -n $NAMESPACE
+              kubectl rollout status deployment $DEPLOYMENT_NAME -n $NAMESPACE --timeout=5m
 
               if [ -f "${NAMESPACE}/websocket-deployment-dev.yaml" ]; then
                 echo "Deploying WebSocket service..."
                 kubectl apply -f ${NAMESPACE}/websocket-deployment-dev.yaml
                 kubectl apply -f ${NAMESPACE}/websocket-service-dev.yaml
                 kubectl rollout restart deployment websocket-dev -n $NAMESPACE
-                kubectl rollout status deployment websocket-dev -n $NAMESPACE
+                kubectl rollout status deployment websocket-dev -n $NAMESPACE --timeout=5m
                 echo "WebSocket deployment completed"
               fi
 
@@ -225,6 +226,7 @@ jobs:
         host: ${{ secrets.MARS_SERVER_HOST }}
         username: ${{ secrets.MARS_SERVER_USER }}
         key: ${{ secrets.MARS_SERVER_SSH_KEY }}
+        command_timeout: 10m
         script: |
           set -e
           export KUBECONFIG=~/.kube/config

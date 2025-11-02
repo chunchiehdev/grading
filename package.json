@@ -21,7 +21,8 @@
     "version:patch": "npm version patch --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
-    "version:get": "node -p \"require('./package.json').version\""
+    "version:get": "node -p \"require('./package.json').version\"",
+    "version:refresh": "node -e \"const fs=require('fs');const{execSync}=require('child_process');const pkg=require('./package.json');const branch=execSync('git rev-parse --abbrev-ref HEAD',{encoding:'utf8'}).trim();const commit=execSync('git rev-parse --short HEAD',{encoding:'utf8'}).trim();fs.writeFileSync('version.json',JSON.stringify({version:pkg.version,branch,commitHash:commit,buildTime:new Date().toISOString()},null,2))\""
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.26",
