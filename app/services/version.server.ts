@@ -1,3 +1,6 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
 export interface VersionInfo {
   version: string;
   branch: string;
@@ -7,26 +10,37 @@ export interface VersionInfo {
 }
 
 export function getVersionInfo(): VersionInfo {
-  let version: string;
+  const environment = process.env.NODE_ENV || 'development';
 
-  if (process.env.BUILD_VERSION) {
-    // Use version from build environment (Docker build args)
-    version = process.env.BUILD_VERSION;
-  } else {
-    // Fallback to package.json for local development
+  try {
+    const versionFile = join(process.cwd(), 'version.json');
+    const versionData = JSON.parse(readFileSync(versionFile, 'utf-8'));
+
+    return {
+      version: versionData.version,
+      branch: versionData.branch,
+      commitHash: versionData.commitHash,
+      buildTime: versionData.buildTime,
+      environment,
+    };
+  } catch (error) {
     try {
       const packageJson = require('../../package.json') as { version: string };
-      version = packageJson.version;
-    } catch (error) {
-      version = '1.0.0';
+      return {
+        version: packageJson.version,
+        branch: 'local',
+        commitHash: 'dev',
+        buildTime: new Date().toISOString(),
+        environment,
+      };
+    } catch {
+      return {
+        version: '1.0.0',
+        branch: 'unknown',
+        commitHash: 'unknown',
+        buildTime: new Date().toISOString(),
+        environment,
+      };
     }
   }
-
-  return {
-    version,
-    branch: process.env.BUILD_BRANCH || 'unknown',
-    commitHash: process.env.BUILD_COMMIT || 'unknown',
-    buildTime: process.env.BUILD_TIME || new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-  };
 }
