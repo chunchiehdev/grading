@@ -65,12 +65,29 @@ jobs:
           echo "Current version: $CURRENT_VERSION"
 
           BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-dev\.[0-9]*$//')
+          echo "Base version (without -dev suffix): $BASE_VERSION"
+
+          npm version "$BASE_VERSION" --no-git-tag-version --allow-same-version
+
+          if [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?: ]]; then
+            echo "Feature detected - bumping minor version"
+            npm version minor --no-git-tag-version
+            echo "BUMP_TYPE=minor" >> $GITHUB_OUTPUT
+          elif [[ "$COMMIT_FIRST_LINE" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_FIRST_LINE" =~ ^perf(\(.+\))?: ]]; then
+            echo "Fix/perf detected - bumping patch version"
+            npm version patch --no-git-tag-version
+            echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
+          else
+            echo "No semantic version bump, keeping base version"
+            echo "BUMP_TYPE=dev" >> $GITHUB_OUTPUT
+          fi
+
+          NEW_BASE_VERSION=$(node -p "require('./package.json').version")
           TIMESTAMP=$(date +%Y%m%d%H%M)
-          NEW_VERSION="${BASE_VERSION}-dev.${TIMESTAMP}"
+          NEW_VERSION="${NEW_BASE_VERSION}-dev.${TIMESTAMP}"
 
           echo "Creating development version: $NEW_VERSION"
           npm version "$NEW_VERSION" --no-git-tag-version
-          echo "BUMP_TYPE=dev" >> $GITHUB_OUTPUT
         fi
 
     - name: Get version from package.json
