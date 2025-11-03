@@ -9,7 +9,7 @@
     "**/.client/**/*.tsx",
     ".react-router/types/**/*"
   ],
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "**/*.test.ts"],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "isolatedModules": true,
