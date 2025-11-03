@@ -120,14 +120,15 @@ export default function TeacherLayout() {
           <>
             {currentTab === 'courses' && (
               <>
-                {/* 手機版：只顯示圖示 */}
-                <Button asChild size="icon" className="md:hidden">
+                {/* 手機版：圖示按鈕，增大觸控區域 */}
+                <Button asChild size="icon" className="md:hidden h-9 w-9">
                   <Link to="/teacher/courses/new">
                     <Plus className="w-5 h-5" />
+                    <span className="sr-only">{t('course:new')}</span>
                   </Link>
                 </Button>
-                {/* 桌面版：顯示圖示 + 文字 */}
-                <Button asChild className="hidden md:flex text-sm lg:text-base px-4 lg:px-6">
+                {/* 桌面版：圖示 + 文字 */}
+                <Button asChild className="hidden md:flex text-sm lg:text-base px-4 lg:px-6 h-9">
                   <Link to="/teacher/courses/new">
                     <Plus className="w-4 h-4 mr-2" />
                     {t('course:new')}
@@ -137,14 +138,15 @@ export default function TeacherLayout() {
             )}
             {currentTab === 'rubrics' && (
               <>
-                {/* 手機版：只顯示圖示 */}
-                <Button asChild size="icon" className="md:hidden">
+                {/* 手機版：圖示按鈕，增大觸控區域 */}
+                <Button asChild size="icon" className="md:hidden h-9 w-9">
                   <Link to="/teacher/rubrics/new">
                     <Plus className="w-5 h-5" />
+                    <span className="sr-only">{t('rubric:create')}</span>
                   </Link>
                 </Button>
-                {/* 桌面版：顯示圖示 + 文字 */}
-                <Button asChild className="hidden md:flex text-sm lg:text-base px-4 lg:px-6">
+                {/* 桌面版：圖示 + 文字 */}
+                <Button asChild className="hidden md:flex text-sm lg:text-base px-4 lg:px-6 h-9">
                   <Link to="/teacher/rubrics/new">
                     <Plus className="w-4 h-4 mr-2" />
                     {t('rubric:create')}

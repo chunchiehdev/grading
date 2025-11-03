@@ -119,7 +119,7 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
               {groupedAssignments.thisWeek.length > 0 && (
                 <section>
                   <h2 className="text-sm font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-3">
-                    {t('assignment:dueDate.thisWeek')} ({groupedAssignments.thisWeek.length})
+                    {t('assignment:status.thisWeek')} ({groupedAssignments.thisWeek.length})
                   </h2>
                   <div className="space-y-2">
                     {groupedAssignments.thisWeek.map((assignment) => (

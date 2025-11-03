@@ -12,7 +12,6 @@ import {
   flattenCategoriesToCriteria,
   type DbCriterion,
 } from '@/schemas/rubric-data';
-import type { UsedContext } from '@/utils/grading-helpers';
 import { extractOverallFeedback } from '@/utils/grading-helpers';
 
 /**
