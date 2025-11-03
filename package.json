@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.26",
+    "@ai-sdk/openai": "^2.0.60",
     "@ai-sdk/react": "^2.0.86",
     "@aws-sdk/client-s3": "^3.802.0",
     "@aws-sdk/s3-request-presigner": "^3.758.0",
