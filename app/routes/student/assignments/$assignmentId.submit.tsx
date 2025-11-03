@@ -7,6 +7,7 @@ import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useTranslation } from 'react-i18next';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -42,6 +43,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   // Check for existing draft/submission to restore state
   const draftSubmission = await getDraftSubmission(assignmentId, student.id);
+
+  console.log('Draft Submission', draftSubmission)
 
   return { student, assignment, draftSubmission };
 }
@@ -86,6 +89,9 @@ export default function SubmitAssignment() {
   const { t, i18n } = useTranslation(['assignment', 'grading', 'common']);
   const { assignment, draftSubmission } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+
+  // Check if submission is past due date
+  const isOverdue = assignment.dueDate ? new Date() > new Date(assignment.dueDate) : false;
 
   // Clear upload store only if there's no draft submission to restore
   const clearFiles = useUploadStore((state) => state.clearFiles);
@@ -451,14 +457,27 @@ export default function SubmitAssignment() {
 
         {/* Submit Assignment - Only show when analysis is complete */}
         {state.phase === 'submit' && state.session?.result && (
-          <Button
-            onClick={submitFinal}
-            disabled={state.loading}
-            variant="emphasis"
-            className="w-full font-semibold py-3"
-          >
-            {t('assignment:submit.submitAssignment')}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="block w-full">
+                  <Button
+                    onClick={submitFinal}
+                    disabled={state.loading || isOverdue}
+                    variant="emphasis"
+                    className="w-full font-semibold py-3"
+                  >
+                    {isOverdue ? '已逾期' : t('assignment:submit.submitAssignment')}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {isOverdue && (
+                <TooltipContent>
+                  <p>作業已逾期，無法提交</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         )}
 
         {/* Secondary Actions */}

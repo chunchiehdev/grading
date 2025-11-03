@@ -1,6 +1,6 @@
 import type { Route } from './+types/api.ai.rubric-chat';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { streamText, convertToCoreMessages } from 'ai';
+import { streamText, convertToCoreMessages, convertToModelMessages  } from 'ai';
 import { getUserId } from '@/services/auth.server';
 import logger from '@/utils/logger';
 
@@ -97,7 +97,7 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     // 4. Convert messages to AI SDK format
-    const coreMessages = convertToCoreMessages(messages);
+    const coreMessages = convertToModelMessages(messages);
 
     // 5. Create Google provider with explicit API key
     const googleProvider = createGoogleGenerativeAI({

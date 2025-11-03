@@ -46,6 +46,11 @@ export async function createSubmission(
       throw new Error('Assignment area not found');
     }
 
+    // Check if submission is past due date
+    if (assignmentArea.dueDate && new Date() > assignmentArea.dueDate) {
+      throw new Error('提交期限已過，無法再提交作業');
+    }
+
     const submission = await db.submission.create({
       data: {
         studentId,
@@ -156,6 +161,11 @@ export async function createSubmissionAndLinkGradingResult(
 
     if (!assignmentArea) {
       throw new Error('Assignment area not found');
+    }
+
+    // Check if submission is past due date
+    if (assignmentArea.dueDate && new Date() > assignmentArea.dueDate) {
+      throw new Error('提交期限已過，無法再提交作業');
     }
 
     // Update filePath directly since updateSubmission doesn't support it
@@ -884,7 +894,7 @@ export async function getDraftSubmission(
         assignmentAreaId,
         studentId,
         fileMetadata,
-        sessionId: null, // We don't store sessionId in submissions currently
+        sessionId: existingSubmission.sessionId ?? null,
         aiAnalysisResult: existingSubmission.aiAnalysisResult,
         thoughtSummary: existingSubmission.thoughtSummary,
         lastState,
@@ -939,6 +949,11 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
         updateData.filePath = fileMetadata.fileId;
       }
 
+      // Update sessionId if provided
+      if (sessionId !== undefined) {
+        updateData.sessionId = sessionId ?? undefined;
+      }
+
       // Update AI analysis result if provided
       if (aiAnalysisResult !== undefined) {
         updateData.aiAnalysisResult = aiAnalysisResult ?? undefined;
@@ -970,6 +985,9 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       };
 
       // Only include optional fields if they have non-null values
+      if (sessionId !== null && sessionId !== undefined) {
+        createData.sessionId = sessionId;
+      }
       if (aiAnalysisResult !== null && aiAnalysisResult !== undefined) {
         createData.aiAnalysisResult = aiAnalysisResult;
       }
@@ -1009,10 +1027,10 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
 /**
  * Gets recent submissions for teacher dashboard (from teacher's courses)
  * @param {string} teacherId - Teacher's user ID
- * @param {number} limit - Maximum number of submissions to return (default: 10)
+ * @param {number} limit - Optional maximum number of submissions to return (no limit if not provided)
  * @returns {Promise<SubmissionInfo[]>} List of recent submissions from teacher's courses
  */
-export async function getRecentSubmissionsForTeacher(teacherId: string, limit: number = 10): Promise<SubmissionInfo[]> {
+export async function getRecentSubmissionsForTeacher(teacherId: string, limit?: number): Promise<SubmissionInfo[]> {
   try {
     const submissions = await db.submission.findMany({
       where: {
@@ -1048,7 +1066,7 @@ export async function getRecentSubmissionsForTeacher(teacherId: string, limit: n
         },
       },
       orderBy: { uploadedAt: 'desc' },
-      take: limit,
+      ...(limit ? { take: limit } : {}),
     });
 
     return submissions;

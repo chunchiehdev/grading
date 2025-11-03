@@ -148,6 +148,7 @@ model Submission {
   uploadedAt       DateTime      @default(now())
   
   // AI analysis and grading
+  sessionId        String?       // GradingSession ID for linking AI results
   aiAnalysisResult Json?         // AI analysis results
   thoughtSummary   String?       @db.Text // AI 思考摘要，用於恢復草稿
   finalScore       Int?          // Final score

@@ -129,11 +129,12 @@ export const useAssignmentStore = create<AssignmentState>()(
       );
     },
 
-    // Get upcoming deadlines (pending + has due date, sorted by date)
+    // Get upcoming deadlines (pending + has due date + not overdue, sorted by date)
     getUpcomingDeadlines: (studentId) => {
       const pendingAssignments = get().getPendingAssignments(studentId);
+      const now = new Date();
       return pendingAssignments
-        .filter((assignment) => assignment.dueDate)
+        .filter((assignment) => assignment.dueDate && new Date(assignment.dueDate) > now)
         .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
     },
 

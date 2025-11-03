@@ -4,6 +4,7 @@ import { requireStudent } from '@/services/auth.server';
 import { getSubmissionById } from '@/services/submission.server';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
@@ -24,32 +25,9 @@ export default function StudentSubmissionDetail() {
   const { t } = useTranslation(['submissions']);
   const a = submission.assignmentArea;
 
-  const renderStatus = (status?: string) => {
-    const normalized = (status || '').toUpperCase();
-    let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'outline';
-    let label = status || 'Unknown';
-    switch (normalized) {
-      case 'GRADED':
-        variant = 'default';
-        label = 'Graded';
-        break;
-      case 'ANALYZED':
-      case 'PENDING':
-        variant = 'secondary';
-        label = 'Pending';
-        break;
-      case 'SUBMITTED':
-        variant = 'outline';
-        label = 'Submitted';
-        break;
-      case 'FAILED':
-        variant = 'destructive';
-        label = 'Failed';
-        break;
-    }
-    return <Badge variant={variant}>{label}</Badge>;
-  };
-
+  // Check if submission is past due date
+  const isOverdue = a.dueDate ? new Date() > new Date(a.dueDate) : false;
+  
   return (
     <div className="min-h-screen bg-background">
       <main className="w-full px-6 lg:px-12 xl:px-16 2xl:px-20 pb-8 space-y-8">
@@ -82,12 +60,25 @@ export default function StudentSubmissionDetail() {
 
               {/* 重新繳交按鈕 - 僅未評分時顯示 */}
               {submission.status !== 'GRADED' && submission.status !== 'ANALYZED' && (
-                <Link to={`/student/assignments/${submission.assignmentAreaId}/submit`}>
-                  <Button variant="outline" size="sm">
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    {t('submissions:resubmit')}
-                  </Button>
-                </Link>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Link to={isOverdue ? '#' : `/student/assignments/${submission.assignmentAreaId}/submit`}>
+                          <Button variant="outline" size="sm" disabled={isOverdue}>
+                            <RotateCcw className="w-4 h-4 mr-2" />
+                            {isOverdue ? '已逾期' : t('submissions:resubmit')}
+                          </Button>
+                        </Link>
+                      </span>
+                    </TooltipTrigger>
+                    {isOverdue && (
+                      <TooltipContent>
+                        <p>作業已逾期，無法重新提交</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
           </div>
