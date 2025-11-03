@@ -25,6 +25,7 @@ import { useEffect } from 'react';
 import { useAssignmentStore } from '@/stores/assignmentStore';
 import { useWebSocketEvent } from '@/lib/websocket';
 import type { AssignmentNotification } from '@/lib/websocket/types';
+import { perfMonitor } from '@/utils/performance-monitor';
 
 export interface LoaderData {
   user: { id: string; email: string; role: string; name: string; picture?: string };
@@ -38,14 +39,33 @@ export interface LoaderData {
 
 // Server loader - fetches data from database
 export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderData> {
-  const student = await requireStudent(request);
-  const [assignmentsRaw, submissionsRaw, coursesRaw, submissionHistoryRaw] = await Promise.all([
-    getStudentAssignments(student.id),
-    getStudentSubmissions(student.id),
-    getStudentEnrolledCourses(student.id),
-    getSubmissionsByStudentId(student.id),
-  ]);
+  perfMonitor.start('student-layout-loader', { type: 'server' });
 
+  perfMonitor.start('student-layout-auth');
+  const student = await requireStudent(request);
+  perfMonitor.end('student-layout-auth');
+
+  perfMonitor.start('student-layout-data-fetch');
+  const [assignmentsRaw, submissionsRaw, coursesRaw, submissionHistoryRaw] = await Promise.all([
+    perfMonitor.measure('fetch-student-assignments', () => getStudentAssignments(student.id), {
+      studentId: student.id,
+    }),
+    perfMonitor.measure('fetch-student-submissions', () => getStudentSubmissions(student.id), {
+      studentId: student.id,
+    }),
+    perfMonitor.measure('fetch-student-courses', () => getStudentEnrolledCourses(student.id), { studentId: student.id }),
+    perfMonitor.measure('fetch-submission-history', () => getSubmissionsByStudentId(student.id), {
+      studentId: student.id,
+    }),
+  ]);
+  perfMonitor.end('student-layout-data-fetch', {
+    assignmentsCount: assignmentsRaw.length,
+    submissionsCount: submissionsRaw.length,
+    coursesCount: coursesRaw.length,
+    historyCount: submissionHistoryRaw.length,
+  });
+
+  perfMonitor.start('student-layout-data-transform');
   const assignments = assignmentsRaw.map((a) => ({
     ...a,
     formattedDueDate: a.dueDate ? new Date(a.dueDate).toLocaleDateString('en-CA') : undefined,
@@ -60,6 +80,9 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
     ...c,
     formattedEnrolledDate: c.enrolledAt ? new Date(c.enrolledAt).toLocaleDateString('en-CA') : undefined,
   }));
+  perfMonitor.end('student-layout-data-transform');
+
+  perfMonitor.end('student-layout-loader');
 
   return {
     user: student,
@@ -72,25 +95,39 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   };
 }
 
-// Client-side cache with 30-second TTL
+// Client-side cache with 5-minute TTL
+// Student data doesn't change frequently, longer cache improves UX
 let clientCache: LoaderData | null = null;
-const CACHE_TTL = 30000; // 30 seconds
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes (was 30s)
 
 // Client loader - implements caching to avoid unnecessary refetches
 export async function clientLoader({ request, serverLoader }: ClientLoaderFunctionArgs) {
+  perfMonitor.start('student-layout-client-loader');
+
   // Check if we have valid cached data
   if (clientCache && Date.now() - clientCache._timestamp < CACHE_TTL) {
+    perfMonitor.mark('student-layout-cache-hit', { age: Date.now() - clientCache._timestamp });
+    perfMonitor.end('student-layout-client-loader', { cached: true });
     return clientCache;
   }
 
+  perfMonitor.mark('student-layout-cache-miss');
+
   // Fetch fresh data from server
+  perfMonitor.start('student-layout-server-fetch');
   const data = await serverLoader<LoaderData>();
+  perfMonitor.end('student-layout-server-fetch', {
+    assignmentsCount: data.assignments.length,
+    coursesCount: data.courses.length,
+  });
+
   clientCache = data;
+  perfMonitor.end('student-layout-client-loader', { cached: false });
   return data;
 }
 
-// Enable client loader hydration
-clientLoader.hydrate = true;
+// No hydration needed - server data is fresh enough and we have client-side cache
+// Omitting `clientLoader.hydrate` (defaults to false) to prevent double loading
 
 /**
  * Student Layout - 管理 tab 導航的主容器
@@ -104,11 +141,23 @@ export default function StudentLayout() {
   const data = useRouteLoaderData<LoaderData>('student-layout');
   const handleNewAssignment = useAssignmentStore((state) => state.handleNewAssignment);
 
+  // Track component mount
+  useEffect(() => {
+    perfMonitor.mark('student-layout-mounted', { pathname: location.pathname });
+  }, []);
+
+  // Track route changes
+  useEffect(() => {
+    perfMonitor.mark('student-layout-route-change', { pathname: location.pathname });
+  }, [location.pathname]);
+
   // Initialize assignment store at layout level (once for all student pages)
   useEffect(() => {
     if (data?.assignments) {
+      perfMonitor.start('student-layout-init-store');
       const setAssignments = useAssignmentStore.getState().setAssignments;
       setAssignments(data.assignments);
+      perfMonitor.end('student-layout-init-store', { count: data.assignments.length });
     }
   }, [data?.assignments]);
 
@@ -119,6 +168,19 @@ export default function StudentLayout() {
       await handleNewAssignment(notification);
     },
     [handleNewAssignment]
+  );
+
+  // Handle WebSocket reconnection - clear cache to force data reload
+  useWebSocketEvent(
+    'connect',
+    () => {
+      perfMonitor.mark('websocket-reconnected', { pathname: location.pathname });
+      // Clear cache to force fresh data on next navigation
+      // This ensures we don't miss any updates during disconnection
+      clientCache = null;
+      console.log('[Student WebSocket] Reconnected - cache cleared for fresh data');
+    },
+    []
   );
 
   // 根據 URL 路徑判斷當前 tab
@@ -146,6 +208,7 @@ export default function StudentLayout() {
 
   // 處理 tab 變化 - 導航到對應的路由
   const handleTabChange = (tab: string) => {
+    perfMonitor.start(`student-tab-change-to-${tab}`, { from: currentTab, to: tab });
     const routes: Record<string, string> = {
       dashboard: '/student',
       courses: '/student/courses',
@@ -153,6 +216,7 @@ export default function StudentLayout() {
       submissions: '/student/submissions',
     };
     navigate(routes[tab] || '/student');
+    // Note: Navigation performance will be tracked by route change effect
   };
 
   return (

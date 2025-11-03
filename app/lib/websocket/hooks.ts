@@ -41,9 +41,6 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
     const unsubscribeDisconnect = websocketClient.on('disconnect', updateState);
     const unsubscribeError = websocketClient.on('error', updateState);
 
-    // 定期更新狀態以確保同步
-    const interval = setInterval(updateState, 1000);
-
     // 初始狀態更新
     updateState();
 
@@ -51,7 +48,6 @@ export function useWebSocket(userId?: string, options?: WebSocketClientOptions) 
       unsubscribeConnect();
       unsubscribeDisconnect();
       unsubscribeError();
-      clearInterval(interval);
     };
   }, []);
 
@@ -304,9 +300,6 @@ export function useWebSocketStatus() {
     const unsubscribeDisconnect = websocketClient.on('disconnect', updateState);
     const unsubscribeError = websocketClient.on('error', updateState);
 
-    // 定期更新狀態以確保同步
-    const interval = setInterval(updateState, 1000);
-
     // 初始狀態更新
     updateState();
 
@@ -314,7 +307,6 @@ export function useWebSocketStatus() {
       unsubscribeConnect();
       unsubscribeDisconnect();
       unsubscribeError();
-      clearInterval(interval);
     };
   }, []);
 

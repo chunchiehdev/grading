@@ -5,6 +5,8 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 import type { CourseWithEnrollmentInfo, StudentInfo } from '@/types/student';
+import { useEffect } from 'react';
+import { perfMonitor } from '@/utils/performance-monitor';
 
 interface CoursesContentProps {
   data: {
@@ -16,6 +18,10 @@ interface CoursesContentProps {
 export function CoursesContent({ data }: CoursesContentProps) {
   const { courses } = data;
   const { t } = useTranslation(['course', 'common']);
+
+  useEffect(() => {
+    perfMonitor.mark('courses-content-rendered', { coursesCount: courses.length });
+  }, [courses.length]);
 
   // If no courses enrolled
   if (courses.length === 0) {

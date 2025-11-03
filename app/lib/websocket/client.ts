@@ -13,6 +13,7 @@ import {
   type WebSocketClientOptions,
 } from './types';
 import logger from '@/utils/logger';
+import { perfMonitor } from '@/utils/performance-monitor';
 
 export class WebSocketClient {
   private socket: Socket<WebSocketEvents, WebSocketEmitEvents> | null = null;
@@ -65,8 +66,11 @@ export class WebSocketClient {
    * Connect to WebSocket server
    */
   async connect(userId: string): Promise<void> {
+    perfMonitor.start('websocket-connect', { userId, attempt: this.metrics.connectionAttempts + 1 });
+
     if (this.state === ConnectionState.CONNECTED && this.userId === userId) {
       logger.debug('[WebSocket] Already connected to user:', userId);
+      perfMonitor.end('websocket-connect', { status: 'already-connected' });
       return;
     }
 
@@ -80,9 +84,11 @@ export class WebSocketClient {
 
     try {
       await this.createConnection();
+      perfMonitor.end('websocket-connect', { status: 'success' });
     } catch (error) {
       this.setState(ConnectionState.ERROR);
       logger.error('[WebSocket] Connection failed:', error);
+      perfMonitor.end('websocket-connect', { status: 'error', error: String(error) });
       throw error;
     }
   }
@@ -154,24 +160,34 @@ export class WebSocketClient {
 
     // New message
     this.socket.on('new-msg', (msg) => {
+      perfMonitor.mark('websocket-event-new-msg', { msgId: msg.id });
       logger.debug('[WebSocket] Received new message:', msg.id);
       this.emit('new-msg', msg);
     });
 
     // Chat sync
     this.socket.on('chat-sync', (data) => {
+      perfMonitor.mark('websocket-event-chat-sync');
       logger.debug('[WebSocket] Received chat sync:', data);
       this.emit('chat-sync', data);
     });
 
     // Assignment notification
     this.socket.on('assignment-notification', (notification) => {
+      perfMonitor.mark('websocket-event-assignment-notification', {
+        assignmentId: notification.assignmentId,
+        type: notification.type,
+      });
       logger.debug('[WebSocket] Received assignment notification:', notification);
       this.emit('assignment-notification', notification);
     });
 
     // Submission notification
     this.socket.on('submission-notification', (notification) => {
+      perfMonitor.mark('websocket-event-submission-notification', {
+        submissionId: notification.submissionId,
+        type: notification.type,
+      });
       logger.debug('[WebSocket] Received submission notification:', notification);
       this.emit('submission-notification', notification);
     });
@@ -184,6 +200,7 @@ export class WebSocketClient {
 
     // Error handling
     this.socket.on('error', (error) => {
+      perfMonitor.mark('websocket-event-error', { error: String(error) });
       logger.error('[WebSocket] Socket error:', error);
       this.emit('error', error);
     });

@@ -369,24 +369,14 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
             studentId,
             status: { not: 'DRAFT' }, // Exclude draft submissions
           },
-          include: {
-            assignmentArea: {
-              include: {
-                course: {
-                  include: {
-                    teacher: {
-                      select: {
-                        id: true,
-                        email: true,
-                        name: true,
-                        picture: true,
-                      },
-                    },
-                  },
-                },
-                rubric: true,
-              },
-            },
+          select: {
+            id: true,
+            studentId: true,
+            assignmentAreaId: true,
+            status: true,
+            finalScore: true,
+            uploadedAt: true,
+            // Don't include assignmentArea - we already have course, class, rubric in parent
           },
         },
       },
