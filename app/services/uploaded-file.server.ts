@@ -249,7 +249,7 @@ export async function updateFileParseStatus(
 export async function getUserFiles(
   userId: string,
   options?: {
-    parseStatus?: FileParseStatus;
+    parseStatus?: FileParseStatus | null;
     limit?: number;
     offset?: number;
     includeDeleted?: boolean;
@@ -262,7 +262,7 @@ export async function getUserFiles(
       userId,
       ...(includeDeleted ? {} : { isDeleted: false }),
     };
-    if (parseStatus) {
+    if (parseStatus !== undefined) {
       whereClause.parseStatus = parseStatus;
     }
 

@@ -55,7 +55,6 @@ export class GeminiPrompts {
     const {
       content,
       criteria,
-      categories,
       fileName,
       rubricName,
       referenceDocuments,
@@ -63,9 +62,7 @@ export class GeminiPrompts {
       language = 'zh',
     } = request;
     const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-    const criteriaDescription = categories
-      ? this.formatCategorizedCriteriaDescription(categories)
-      : this.formatCriteriaDescription(criteria);
+    const criteriaDescription = this.formatCriteriaDescription(criteria);
 
     // Feature 004: Format reference documents and custom instructions
     const referenceSection = referenceDocuments ? this.formatReferenceDocuments(referenceDocuments) : '';

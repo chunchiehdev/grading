@@ -205,10 +205,13 @@ export async function loader({ request }: { request: Request }): Promise<Discove
     const enrolledCourseIds = await getStudentEnrolledCourseIds(userId);
 
     // Add enrollment status to courses
-    const coursesWithStatus = courses.map((course) => ({
-      ...course,
-      enrollmentStatus: enrolledCourseIds.has(course.id) ? 'enrolled' : ('not_enrolled' as const),
-    }));
+    const coursesWithStatus: DiscoverableCourse[] = courses.map((course) => {
+      const enrollmentStatus: 'enrolled' | 'not_enrolled' = enrolledCourseIds.has(course.id) ? 'enrolled' : 'not_enrolled';
+      return {
+        ...course,
+        enrollmentStatus,
+      };
+    });
 
     return {
       success: true,

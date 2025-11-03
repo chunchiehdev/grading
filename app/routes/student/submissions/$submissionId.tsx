@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
+import type { GradingResultData } from '@/types/grading';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -106,7 +107,7 @@ export default function StudentSubmissionDetail() {
           <div>
             {submission.aiAnalysisResult ? (
               <GradingResultDisplay
-                result={submission.aiAnalysisResult as Record<string, unknown>}
+                result={submission.aiAnalysisResult as GradingResultData}
                 normalizedScore={submission.normalizedScore}
               />
             ) : (

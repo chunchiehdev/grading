@@ -1,6 +1,7 @@
 import { getUserFiles } from '@/services/uploaded-file.server';
 import { createPaginatedResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 import { withAuth } from '@/middleware/api.server';
+import { FileParseStatus } from '@/types/database';
 
 /**
  * API endpoint to get user's uploaded files with parsing status
@@ -9,15 +10,19 @@ import { withAuth } from '@/middleware/api.server';
  * @param {Object} params.user - Authenticated user object
  * @returns {Promise<Response>} JSON response with user's files
  */
-// Valid parse status values based on application logic
-type ParseStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | null;
 
 export const loader = withAuth(async ({ request, user }) => {
   const url = new URL(request.url);
   const parseStatusParam = url.searchParams.get('parseStatus');
-  // Validate parseStatus is one of the expected values
-  const validStatuses: ParseStatus[] = ['PENDING', 'SUCCESS', 'FAILED', null];
-  const parseStatus: ParseStatus = (parseStatusParam && validStatuses.includes(parseStatusParam as ParseStatus) ? parseStatusParam : null) as ParseStatus;
+  // Map web API status names to Prisma enum values
+  const statusMap: Record<string, FileParseStatus> = {
+    'PENDING': 'PENDING',
+    'SUCCESS': 'COMPLETED',  // Map SUCCESS to COMPLETED
+    'FAILED': 'FAILED',
+  };
+  const parseStatus: FileParseStatus | null = parseStatusParam && parseStatusParam in statusMap
+    ? statusMap[parseStatusParam]
+    : null;
   const limit = parseInt(url.searchParams.get('limit') || '50');
   const offset = parseInt(url.searchParams.get('offset') || '0');
 

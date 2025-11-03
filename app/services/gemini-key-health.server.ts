@@ -46,6 +46,7 @@ export class KeyHealthTracker {
   private readonly KEY_TTL_SECONDS = 86400; // 24 hours
   private readonly BASE_COOLDOWN_MS = 10000; // 10 seconds base cooldown
   private readonly MAX_COOLDOWN_MS = 120000; // 2 minutes max cooldown
+  private readonly DEFAULT_COOLDOWN_MS = 30000; // 30 seconds default cooldown
 
   /**
    * Get Redis key for a specific key's health data

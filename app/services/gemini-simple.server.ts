@@ -128,7 +128,12 @@ class SimpleGeminiService {
 
       // Extract thought parts from response
       // Gemini returns thinking in candidates[0].content.parts as separate parts with thought: true
-      const thoughtSummary = this.extractThoughtSummary(response);
+      // Convert SDK response to our GeminiResponse type
+      const geminiResponse: GeminiResponse = {
+        text: response.text,
+        candidates: response.candidates as any, // Type conversion - SDK types differ slightly
+      };
+      const thoughtSummary = this.extractThoughtSummary(geminiResponse);
       if (thoughtSummary) {
         logger.info(`💭 Thought summary extracted (${thoughtSummary.length} chars)`);
       }

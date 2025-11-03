@@ -443,6 +443,7 @@
     "codeValidated": "邀請碼驗證成功！",
     "validateButton": "驗證邀請碼",
     "invitationCodeLength": "通常為大寫字母和數字",
+    "courseInfo": "課程資訊",
     "joinCourse": "您將被新增到此課程，並可存取所有作業",
     "searchFailed": "搜尋失敗"
   }

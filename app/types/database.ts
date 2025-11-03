@@ -18,6 +18,7 @@ export type {
   UploadedFile,
   GradingSession,
   GradingResult,
+  AssignmentArea,
   Prisma,
 } from '../generated/prisma/client';
 

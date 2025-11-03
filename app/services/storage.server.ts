@@ -50,7 +50,7 @@ function createStorageError(error: S3Error | unknown, operation: string): Storag
   } else if (statusCode === 413 || errorCode === 'EntityTooLarge') {
     type = StorageErrorType.QUOTA;
     retryable = false;
-  } else if (statusCode >= 500 || errorCode === 'InternalError' || errorCode === 'ServiceUnavailable') {
+  } else if ((statusCode !== undefined && statusCode >= 500) || errorCode === 'InternalError' || errorCode === 'ServiceUnavailable') {
     type = StorageErrorType.NETWORK;
     retryable = true;
   } else if (statusCode === 429 || errorCode === 'SlowDown') {
@@ -59,7 +59,7 @@ function createStorageError(error: S3Error | unknown, operation: string): Storag
   } else if (message.includes('network') || message.includes('timeout') || message.includes('ECONNRESET')) {
     type = StorageErrorType.NETWORK;
     retryable = true;
-  } else if (statusCode >= 400 && statusCode < 500) {
+  } else if (statusCode !== undefined && statusCode >= 400 && statusCode < 500) {
     type = StorageErrorType.VALIDATION;
     retryable = false;
   }
@@ -68,7 +68,10 @@ function createStorageError(error: S3Error | unknown, operation: string): Storag
   storageError.type = type;
   storageError.retryable = retryable;
   storageError.statusCode = statusCode;
-  storageError.originalError = error;
+  // Only assign originalError if error is an Error instance (type guard)
+  if (error instanceof Error) {
+    storageError.originalError = error;
+  }
 
   return storageError;
 }

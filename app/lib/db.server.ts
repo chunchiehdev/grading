@@ -6,8 +6,8 @@ import { PrismaClient, Prisma } from '../generated/prisma/client';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-// Valid Prisma log levels
-const validLogLevels: Prisma.LogLevel[] = ['error', 'warn', 'info', 'query', 'debug'];
+// Valid Prisma log levels (note: Prisma doesn't support 'debug', only 'info', 'query', 'warn', 'error')
+const validLogLevels: Prisma.LogLevel[] = ['error', 'warn', 'info', 'query'];
 
 // Get log level from environment, validating it
 const getLogLevels = (): Prisma.LogLevel[] => {

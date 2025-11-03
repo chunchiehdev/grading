@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import type { FileParseStatus } from '~/generated/prisma/client';
+import { FileParseStatus } from '@/types/database';
 
 interface FileUploadStatus {
   fileId: string;

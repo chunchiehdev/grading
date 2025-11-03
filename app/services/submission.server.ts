@@ -1,6 +1,7 @@
-import { db } from '@/lib/db.server';
+import { db, type Prisma } from '@/types/database';
 import type { SubmissionInfo, StudentAssignmentInfo } from '@/types/student';
 import { parseGradingResult, type GradingResultData, type UsedContext } from '@/utils/grading-helpers';
+import { UsedContextSchema } from '@/schemas/grading';
 import { publishSubmissionCreatedNotification } from './notification.server';
 import logger from '@/utils/logger';
 
@@ -29,7 +30,12 @@ export async function createSubmission(
       include: {
         course: {
           include: {
-            teacher: true,
+            teacher: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
           },
         },
         rubric: true,
@@ -131,10 +137,26 @@ export async function createSubmissionAndLinkGradingResult(
     // Allow resubmission - update existing submission with new file
     logger.info(`🔄 Resubmitting: Updating existing submission ${existingSubmission.id} with new file`);
 
-    submission = await updateSubmission(existingSubmission.id, {
-      // Update file path to new file
-      // Note: updateSubmission doesn't support filePath update, need to use direct db.update
+    // Fetch assignmentArea with teacher info for notification
+    const assignmentArea = await db.assignmentArea.findUnique({
+      where: { id: assignmentAreaId },
+      include: {
+        course: {
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
     });
+
+    if (!assignmentArea) {
+      throw new Error('Assignment area not found');
+    }
 
     // Update filePath directly since updateSubmission doesn't support it
     submission = await db.submission.update({
@@ -176,17 +198,19 @@ export async function createSubmissionAndLinkGradingResult(
 
     // Send submission notification to teacher via WebSocket (for resubmission)
     try {
-      await publishSubmissionCreatedNotification({
-        submissionId: submission.id,
-        assignmentId: submission.assignmentAreaId,
-        assignmentName: submission.assignmentArea.name,
-        courseId: submission.assignmentArea.course.id,
-        courseName: submission.assignmentArea.course.name,
-        studentId: submission.studentId,
-        studentName: submission.student.name,
-        teacherId: submission.assignmentArea.course.teacher.id,
-        submittedAt: submission.updatedAt, // Use updatedAt for resubmission
-      });
+      if (submission.student) {
+        await publishSubmissionCreatedNotification({
+          submissionId: submission.id,
+          assignmentId: submission.assignmentAreaId,
+          assignmentName: assignmentArea.name,
+          courseId: assignmentArea.courseId,
+          courseName: assignmentArea.course.name,
+          studentId: submission.studentId,
+          studentName: submission.student.name,
+          teacherId: assignmentArea.course.teacher.id, // Use teacher.id from independent query
+          submittedAt: submission.updatedAt, // Use updatedAt for resubmission
+        });
+      }
     } catch (notificationError) {
       console.error('⚠️ Failed to send resubmission notification:', notificationError);
       // Don't fail the entire submission if notification fails
@@ -225,17 +249,26 @@ export async function createSubmissionAndLinkGradingResult(
       const normalizedScore = gradingResult.normalizedScore ?? null;
 
       // Feature 004: Copy context transparency from GradingResult to Submission
-      const usedContext = gradingResult.usedContext ?? null;
+      // Validate and parse usedContext from JsonValue to UsedContext type
+      let usedContext: UsedContext | null = null;
+      if (gradingResult.usedContext) {
+        const parseResult = UsedContextSchema.safeParse(gradingResult.usedContext);
+        if (parseResult.success) {
+          usedContext = parseResult.data;
+        } else {
+          logger.warn(`⚠️ Invalid usedContext format in grading result ${gradingResult.id}:`, parseResult.error);
+        }
+      }
 
       logger.info(
         `🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult?.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}, context=${usedContext ? 'yes' : 'no'}`
       );
 
       await updateSubmission(submission.id, {
-        aiAnalysisResult: aiAnalysisResult,
+        aiAnalysisResult: aiAnalysisResult ?? undefined,
         finalScore: finalScore ?? undefined,
         normalizedScore: normalizedScore ?? undefined,
-        usedContext: usedContext ?? undefined, // Feature 004
+        usedContext: usedContext ?? undefined, // Feature 004: Now properly typed
         status: 'ANALYZED',
       });
 
@@ -533,6 +566,7 @@ export async function getStudentSubmissions(studentId: string): Promise<Submissi
               include: {
                 teacher: {
                   select: {
+                    id: true,
                     email: true,
                   },
                 },
@@ -570,7 +604,10 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
             course: {
               include: {
                 teacher: {
-                  select: { email: true },
+                  select: {
+                    id: true,
+                    email: true
+                  },
                 },
               },
             },
@@ -621,7 +658,10 @@ export async function getSubmissionByIdForTeacher(
             course: {
               include: {
                 teacher: {
-                  select: { email: true },
+                  select: {
+                    id: true,
+                    email: true
+                  },
                 },
               },
             },
@@ -657,6 +697,7 @@ export async function getSubmissionById(submissionId: string, studentId: string)
               include: {
                 teacher: {
                   select: {
+                    id: true,
                     email: true,
                   },
                 },
@@ -695,9 +736,19 @@ export async function updateSubmission(
   updateData: UpdateSubmissionOptions
 ): Promise<SubmissionInfo | null> {
   try {
+    // Convert UpdateSubmissionOptions to Prisma input
+    const prismaData: any = {
+      ...(updateData.aiAnalysisResult !== undefined && { aiAnalysisResult: updateData.aiAnalysisResult }),
+      ...(updateData.finalScore !== undefined && { finalScore: updateData.finalScore }),
+      ...(updateData.normalizedScore !== undefined && { normalizedScore: updateData.normalizedScore }),
+      ...(updateData.usedContext !== undefined && { usedContext: updateData.usedContext }),
+      ...(updateData.teacherFeedback !== undefined && { teacherFeedback: updateData.teacherFeedback }),
+      ...(updateData.status !== undefined && { status: updateData.status }),
+    };
+
     const submission = await db.submission.update({
       where: { id: submissionId },
-      data: updateData,
+      data: prismaData,
       include: {
         assignmentArea: {
           include: {
@@ -705,6 +756,7 @@ export async function updateSubmission(
               include: {
                 teacher: {
                   select: {
+                    id: true,
                     email: true,
                   },
                 },
@@ -716,7 +768,7 @@ export async function updateSubmission(
       },
     });
 
-    return submission;
+    return submission as SubmissionInfo;
   } catch (error) {
     console.error('❌ Error updating submission:', error);
     return null;
@@ -734,7 +786,8 @@ export interface DraftSubmissionData {
     mimeType: string;
   } | null;
   sessionId?: string | null;
-  aiAnalysisResult?: unknown;
+  // Use Prisma's JsonValue type for proper JSON handling
+  aiAnalysisResult?: Prisma.JsonValue | null;
   thoughtSummary?: string | null;
   lastState?: 'idle' | 'ready' | 'grading' | 'completed' | 'error';
 }
@@ -772,6 +825,7 @@ export async function getDraftSubmission(
               include: {
                 teacher: {
                   select: {
+                    id: true,
                     email: true,
                   },
                 },
@@ -878,7 +932,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
 
     if (existingSubmission) {
       // Update existing submission
-      const updateData: Record<string, unknown> = {};
+      const updateData: any = {};
 
       // Update file path if new file metadata provided
       if (fileMetadata?.fileId) {
@@ -887,14 +941,14 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
 
       // Update AI analysis result if provided
       if (aiAnalysisResult !== undefined) {
-        updateData.aiAnalysisResult = aiAnalysisResult;
+        updateData.aiAnalysisResult = aiAnalysisResult ?? undefined;
         // Keep status as DRAFT - AI result doesn't mean submission is complete
         // Status should only change to SUBMITTED when user explicitly submits
         // (Don't auto-change to ANALYZED - that's for submitted assignments only)
       }
 
       if (thoughtSummary !== undefined) {
-        updateData.thoughtSummary = thoughtSummary;
+        updateData.thoughtSummary = thoughtSummary ?? undefined;
       }
 
       if (Object.keys(updateData).length > 0) {
@@ -907,15 +961,24 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       }
     } else if (fileMetadata?.fileId) {
       // Create new submission only if we have file metadata
+      // Build data object conditionally to avoid null vs undefined issues with Prisma
+      const createData: Prisma.SubmissionCreateInput = {
+        student: { connect: { id: studentId } },
+        assignmentArea: { connect: { id: assignmentAreaId } },
+        filePath: fileMetadata.fileId,
+        status: 'DRAFT', // Always create as DRAFT - user hasn't submitted yet
+      };
+
+      // Only include optional fields if they have non-null values
+      if (aiAnalysisResult !== null && aiAnalysisResult !== undefined) {
+        createData.aiAnalysisResult = aiAnalysisResult;
+      }
+      if (thoughtSummary !== null && thoughtSummary !== undefined) {
+        createData.thoughtSummary = thoughtSummary;
+      }
+
       submission = await db.submission.create({
-        data: {
-          studentId,
-          assignmentAreaId,
-          filePath: fileMetadata.fileId,
-          status: 'DRAFT', // Always create as DRAFT - user hasn't submitted yet
-          aiAnalysisResult: aiAnalysisResult || null,
-          thoughtSummary: thoughtSummary || null,
-        },
+        data: createData,
       });
     } else {
       // No file to save yet, return null
@@ -973,7 +1036,10 @@ export async function getRecentSubmissionsForTeacher(teacherId: string, limit: n
             course: {
               include: {
                 teacher: {
-                  select: { email: true },
+                  select: {
+                    id: true,
+                    email: true
+                  },
                 },
               },
             },

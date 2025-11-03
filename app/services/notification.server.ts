@@ -1,7 +1,6 @@
-import { db } from '@/lib/db.server';
+import { db, type AssignmentArea } from '@/types/database';
 import { redis } from '@/lib/redis';
 import logger from '@/utils/logger';
-import type { AssignmentArea } from '@/generated/prisma/client';
 import type {
   AssignmentNotificationEvent,
   NotificationData,

@@ -1,6 +1,3 @@
-/**
- * 統一的API回應格式
- */
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -17,9 +14,6 @@ export interface ApiResponse<T = any> {
   };
 }
 
-/**
- * API錯誤類型
- */
 export enum ApiErrorCode {
   UNAUTHORIZED = 'UNAUTHORIZED',
   FORBIDDEN = 'FORBIDDEN',
@@ -30,9 +24,6 @@ export enum ApiErrorCode {
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
 }
 
-/**
- * 輔助函數：創建成功回應
- */
 export function createSuccessResponse<T>(data: T, meta?: ApiResponse<T>['meta']): ApiResponse<T> {
   return {
     success: true,
@@ -41,9 +32,6 @@ export function createSuccessResponse<T>(data: T, meta?: ApiResponse<T>['meta'])
   };
 }
 
-/**
- * 輔助函數：創建錯誤回應
- */
 export function createErrorResponse(message: string, code?: ApiErrorCode, details?: any): ApiResponse<never> {
   return {
     success: false,
@@ -55,9 +43,6 @@ export function createErrorResponse(message: string, code?: ApiErrorCode, detail
   };
 }
 
-/**
- * 輔助函數：創建分頁成功回應
- */
 export function createPaginatedResponse<T>(
   data: T[],
   total: number,

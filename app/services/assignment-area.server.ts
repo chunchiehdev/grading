@@ -11,6 +11,8 @@ export interface AssignmentAreaInfo {
   dueDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  referenceFileIds?: string | null; // Feature 004: JSON string of file IDs
+  customGradingPrompt?: string | null; // Feature 004: Custom instructions
   course?: {
     id: string;
     name: string;

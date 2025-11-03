@@ -3,7 +3,7 @@
  * Feature 004: AI Grading with Knowledge Base Context
  */
 
-import type { AssignmentArea, UploadedFile } from '@/generated/prisma/client';
+import type { AssignmentArea, UploadedFile } from '@/types/database';
 
 /**
  * Assignment with populated reference files

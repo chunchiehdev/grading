@@ -1,4 +1,4 @@
-import { json, type LoaderFunctionArgs } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
 import { validateInvitationCode } from '@/services/invitation.server';
 import { getUserId } from '@/services/auth.server';
 
@@ -18,7 +18,7 @@ import { getUserId } from '@/services/auth.server';
 export async function loader({ request }: LoaderFunctionArgs) {
   // Only allow GET requests
   if (request.method !== 'GET') {
-    return json({ error: 'Method not allowed' }, { status: 405 });
+    return Response.json({ error: 'Method not allowed' }, { status: 405 });
   }
 
   try {
@@ -27,7 +27,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const code = url.searchParams.get('code');
 
     if (!code) {
-      return json(
+      return Response.json(
         { isValid: false, error: 'Invitation code is required' },
         { status: 400 }
       );
@@ -39,10 +39,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Validate the invitation code
     const validation = await validateInvitationCode(code, studentId || undefined);
 
-    return json(validation);
+    return Response.json(validation);
   } catch (error) {
     console.error('Error validating invitation code:', error);
-    return json(
+    return Response.json(
       { isValid: false, error: 'Failed to validate invitation code' },
       { status: 500 }
     );

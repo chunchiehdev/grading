@@ -302,11 +302,11 @@ export async function processGradingResult(
       // Log AI response (rawResponse only - avoid duplication with "result")
       gradingLogger.addAIResponse(
         sessionId,
-        gradingResponse.provider,
+        gradingResponse.provider || 'unknown',
         gradingResponse.result, // This is the rawResponse from Gemini
         gradingResponse.metadata?.tokens,
         gradingResponse.metadata?.duration,
-        gradingResponse.metadata?.model || undefined
+        gradingResponse.metadata?.model
       );
 
       // Update session progress

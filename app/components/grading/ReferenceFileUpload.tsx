@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { UploadedFile } from '@/generated/prisma/client';
+import type { UploadedFile } from '@/types/database';
 
 interface ReferenceFileUploadProps {
   value: string[]; // Array of file IDs

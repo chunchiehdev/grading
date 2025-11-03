@@ -49,10 +49,9 @@ export async function loader({ request, params }: { request: Request; params: Ro
     let referenceFiles: ReferenceFile[] = [];
 
     // Check if assignment has referenceFileIds field
-    const assignmentWithFiles = assignment as Record<string, unknown>;
-    if (assignmentWithFiles.referenceFileIds && typeof assignmentWithFiles.referenceFileIds === 'string') {
+    if (assignment.referenceFileIds && typeof assignment.referenceFileIds === 'string') {
       try {
-        const fileIds: string[] = JSON.parse(assignmentWithFiles.referenceFileIds);
+        const fileIds: string[] = JSON.parse(assignment.referenceFileIds);
         if (fileIds.length > 0) {
           referenceFiles = await db.uploadedFile.findMany({
             where: {
@@ -190,11 +189,19 @@ export async function action({ request, params }: { request: Request; params: Ro
     });
 
     // Parse and fetch reference files
+    interface ReferenceFile {
+      id: string;
+      originalFileName: string;
+      fileSize: number;
+      parseStatus: string | null;
+      parseError: string | null;
+      createdAt: Date;
+    }
+
     let referenceFiles: ReferenceFile[] = [];
-    const finalAssignmentWithFiles = finalAssignment as Record<string, unknown>;
-    if (finalAssignmentWithFiles?.referenceFileIds && typeof finalAssignmentWithFiles.referenceFileIds === 'string') {
+    if (finalAssignment?.referenceFileIds && typeof finalAssignment.referenceFileIds === 'string') {
       try {
-        const fileIds: string[] = JSON.parse(finalAssignmentWithFiles.referenceFileIds);
+        const fileIds: string[] = JSON.parse(finalAssignment.referenceFileIds);
         referenceFiles = await db.uploadedFile.findMany({
           where: {
             id: { in: fileIds },

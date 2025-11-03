@@ -8,7 +8,6 @@ import { requireTeacher } from '@/services/auth.server';
 import { getTeacherCourses, type CourseInfo } from '@/services/course.server';
 import { getRecentSubmissionsForTeacher, type SubmissionInfo } from '@/services/submission.server';
 import { listRubrics } from '@/services/rubric.server';
-import { getOverallTeacherStats, getCoursePerformance, getRubricUsage } from '@/services/analytics.server';
 import { useWebSocketStatus } from '@/lib/websocket';
 import { useSubmissionStore } from '@/stores/submissionStore';
 
@@ -18,23 +17,16 @@ export interface TeacherLoaderData {
   courses: CourseInfo[];
   recentSubmissions: SubmissionInfo[];
   rubrics: any[];
-  analyticsStats: Awaited<ReturnType<typeof getOverallTeacherStats>>;
-  analyticsCourses: Awaited<ReturnType<typeof getCoursePerformance>>;
-  analyticsRubrics: Awaited<ReturnType<typeof getRubricUsage>>;
 }
 
 export async function loader({ request }: LoaderFunctionArgs): Promise<TeacherLoaderData> {
   const teacher = await requireTeacher(request);
 
-  const [courses, recentSubmissions, rubricsData, analyticsStats, analyticsCourses, analyticsRubrics] =
-    await Promise.all([
-      getTeacherCourses(teacher.id),
-      getRecentSubmissionsForTeacher(teacher.id),
-      listRubrics(teacher.id),
-      getOverallTeacherStats(teacher.id),
-      getCoursePerformance(teacher.id),
-      getRubricUsage(teacher.id),
-    ]);
+  const [courses, recentSubmissions, rubricsData] = await Promise.all([
+    getTeacherCourses(teacher.id),
+    getRecentSubmissionsForTeacher(teacher.id),
+    listRubrics(teacher.id),
+  ]);
 
   const rubrics = rubricsData.rubrics || [];
 
@@ -44,9 +36,6 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<TeacherLo
     courses,
     recentSubmissions,
     rubrics,
-    analyticsStats,
-    analyticsCourses,
-    analyticsRubrics,
   };
 }
 

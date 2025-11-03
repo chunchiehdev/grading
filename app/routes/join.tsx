@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { getSession, commitSession } from '@/sessions.server';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { CheckCircle, Users, User, Clock, MapPin, GraduationCap } from 'lucide-react';
+import { CheckCircle, Users, User, Clock, MapPin, GraduationCap, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import { getUser } from '@/services/auth.server';
