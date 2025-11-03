@@ -1,6 +1,6 @@
 import type { Route } from './+types/api.ai.rubric-chat';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { streamText, convertToCoreMessages, convertToModelMessages  } from 'ai';
+import { streamText, convertToModelMessages  } from 'ai';
 import { getUserId } from '@/services/auth.server';
 import logger from '@/utils/logger';
 

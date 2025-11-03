@@ -1,5 +1,6 @@
 import { db, GradingStatus } from '@/types/database';
 import { getAIGrader } from './ai-grader.server';
+import { gradeWithAI, convertToLegacyFormat, isAISDKGradingEnabled } from './ai-grader-sdk.server';
 import { SimpleProgressService } from './progress-simple.server';
 import { loadReferenceDocuments, getCustomGradingInstructions } from './assignment-area.server';
 import { getGradingLogger } from './grading-logger.server';
@@ -205,8 +206,9 @@ export async function processGradingResult(
       }
     }
 
-    // Grade with AI - simple and direct with optional context
-    const aiGrader = getAIGrader();
+    // Grade with AI - check feature flag for new AI SDK grading
+    const useAISDK = isAISDKGradingEnabled();
+    logger.info(`🤖 Using ${useAISDK ? 'AI SDK' : 'Legacy'} grading system`);
 
     // Log prompt information for complete traceability
     const gradingRequest = {
@@ -214,8 +216,8 @@ export async function processGradingResult(
       criteria: criteria,
       fileName: result.uploadedFile.originalFileName,
       rubricName: result.rubric.name,
-      
-      // options field 
+
+      // options field
       ...(referenceDocuments.length > 0 && { referenceDocuments }),
       ...(customInstructions && { customInstructions }),
     };
@@ -225,7 +227,54 @@ export async function processGradingResult(
     const promptTokenEstimate = Math.ceil(prompt.length / 3.5); // Simple token estimate
     gradingLogger.addPromptInfo(sessionId, prompt, promptTokenEstimate, userLanguage);
 
-    const gradingResponse = await aiGrader.grade(gradingRequest, userLanguage);
+    let gradingResponse;
+
+    if (useAISDK) {
+      // New AI SDK grading path
+      const sdkResult = await gradeWithAI({
+        prompt,
+        userId: _userId,
+        resultId,
+      });
+
+      if (sdkResult.success) {
+        // Convert AI SDK result to legacy format
+        const legacyFormat = convertToLegacyFormat(sdkResult.data);
+
+        // Calculate total and max scores from breakdown
+        const totalScore = legacyFormat.breakdown.reduce((sum, item) => sum + item.score, 0);
+        const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
+
+        gradingResponse = {
+          success: true,
+          result: {
+            breakdown: legacyFormat.breakdown,
+            totalScore,
+            maxScore,
+            overallFeedback: legacyFormat.overallFeedback,
+          },
+          thoughtSummary: sdkResult.thoughtSummary,
+          provider: sdkResult.provider,
+          metadata: {
+            model: sdkResult.provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini',
+            tokens: sdkResult.usage.totalTokens,
+            duration: sdkResult.responseTimeMs,
+          },
+        };
+        logger.info(`✅ AI SDK grading succeeded with ${sdkResult.provider}`);
+      } else {
+        // AI SDK failed, return error
+        gradingResponse = {
+          success: false,
+          error: sdkResult.error,
+        };
+        logger.error(`❌ AI SDK grading failed: ${sdkResult.error}`);
+      }
+    } else {
+      // Legacy grading path
+      const aiGrader = getAIGrader();
+      gradingResponse = await aiGrader.grade(gradingRequest, userLanguage);
+    }
 
     // Update progress
     await SimpleProgressService.updateGradingProgress(resultId, 80);
@@ -306,7 +355,7 @@ export async function processGradingResult(
         gradingResponse.result, // This is the rawResponse from Gemini
         gradingResponse.metadata?.tokens,
         gradingResponse.metadata?.duration,
-        gradingResponse.metadata?.model
+        gradingResponse.metadata?.model || undefined
       );
 
       // Update session progress

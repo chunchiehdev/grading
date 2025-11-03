@@ -6,13 +6,11 @@ import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/s
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useTranslation } from 'react-i18next';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useUploadStore } from '@/stores/uploadStore';
-import { AlertCircle } from 'lucide-react';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -56,30 +54,34 @@ interface SubmissionState {
   session: { id: string; result: any; thoughtSummary?: string } | null;
   error: string | null;
   loading: boolean;
+  // Track the last submitted sessionId to prevent duplicate submissions
+  lastSubmittedSessionId: string | null;
 }
 
 type Action =
   | { type: 'file_uploaded'; file: { id: string; name: string; size: number } }
   | { type: 'analysis_started'; sessionId: string }
   | { type: 'analysis_completed'; result: any; thoughtSummary?: string }
-  | { type: 'submission_completed' }
+  | { type: 'submission_completed'; sessionId: string }
   | { type: 'error'; message: string }
   | { type: 'reset' };
 
 function submissionReducer(state: SubmissionState, action: Action): SubmissionState {
   switch (action.type) {
     case 'file_uploaded':
-      return { ...state, phase: 'analyze', file: action.file, error: null };
+      // New file uploaded - clear session to force re-analysis
+      return { ...state, phase: 'analyze', file: action.file, session: null, error: null };
     case 'analysis_started':
       return { ...state, loading: true, session: { id: action.sessionId, result: null } };
     case 'analysis_completed':
       return { ...state, phase: 'submit', loading: false, session: { ...state.session!, result: action.result, thoughtSummary: action.thoughtSummary } };
     case 'submission_completed':
-      return { ...state, phase: 'done', loading: false };
+      // Store the submitted sessionId to prevent duplicate submissions
+      return { ...state, phase: 'done', loading: false, lastSubmittedSessionId: action.sessionId };
     case 'error':
       return { ...state, error: action.message, loading: false };
     case 'reset':
-      return { phase: 'upload', file: null, session: null, error: null, loading: false };
+      return { phase: 'upload', file: null, session: null, error: null, loading: false, lastSubmittedSessionId: null };
     default:
       return state;
   }
@@ -142,6 +144,11 @@ export default function SubmitAssignment() {
         : null,
     error: null,
     loading: false,
+    // If status is SUBMITTED/ANALYZED/GRADED, this sessionId has been submitted
+    lastSubmittedSessionId:
+      draftSubmission?.status && draftSubmission.status !== 'DRAFT'
+        ? draftSubmission.sessionId || null
+        : null,
   });
 
   // GSAP animations
@@ -403,7 +410,7 @@ export default function SubmitAssignment() {
 
       const data = await res.json();
       if (data.success && data.submissionId) {
-        dispatch({ type: 'submission_completed' });
+        dispatch({ type: 'submission_completed', sessionId: state.session.id });
         navigate(`/student/submissions/${data.submissionId}`);
       } else {
         throw new Error(data.error);
@@ -443,37 +450,74 @@ export default function SubmitAssignment() {
     </div>
   );
 
+  // Compute current submission status for clear state identification
+  const getSubmissionStatus = () => {
+    return {
+      // 情況一：未上傳作業
+      hasFile: !!state.file,
+      // 情況二、三：是否已評分
+      hasAnalysis: !!state.session?.result,
+      // 情況三、四、五、六：是否有新的分析（尚未提交）
+      hasNewAnalysis: state.session?.id && state.session.id !== state.lastSubmittedSessionId,
+      // 情況四：已提交（包含 SUBMITTED/ANALYZED/GRADED 狀態）
+      isSubmitted: !!state.lastSubmittedSessionId ||
+                   (draftSubmission?.status && draftSubmission.status !== 'DRAFT'),
+      // 逾期狀態
+      isOverdue: isOverdue,
+    };
+  };
+
   const renderActions = () => {
     if (state.phase === 'upload') return null;
 
+    const status = getSubmissionStatus();
+
+    // 根據六種情況決定按鈕樣式和文字
+    // 情況一：未上傳 -> 不顯示按鈕（phase === 'upload'）
+    // 情況二：已上傳，未評分 -> 顯示「AI 評分分析」
+    // 情況三：已上傳，已評分，未提交 -> 顯示「提交作業」+ 「重新評分」
+    // 情況四：已提交（查看模式）-> 顯示「重新評分」（灰色）+ 「重新選擇檔案」
+    // 情況五：已提交，想重選檔案 -> 由「重新選擇檔案」按鈕觸發重置
+    // 情況六：已提交，想重新評分 -> 由「AI 評分分析」按鈕觸發
+
     return (
       <div className="space-y-3">
-        {/* Primary Action: AI Analysis */}
+        {/* Primary Action: AI Analysis or Re-analysis */}
         {(state.phase === 'analyze' || state.phase === 'submit') && (
-          <Button onClick={startAnalysis} disabled={state.loading} className="w-full font-semibold py-3">
-            {state.loading ? t('grading:ai.analyzing') : t('assignment:submit.analyzeWithAI')}
+          <Button
+            onClick={startAnalysis}
+            disabled={state.loading}
+            variant={status.isSubmitted && !status.hasNewAnalysis ? "outline" : "default"}
+            className="w-full font-semibold py-3"
+          >
+            {state.loading
+              ? t('grading:ai.analyzing')
+              : status.isSubmitted && !status.hasNewAnalysis
+                ? t('assignment:submit.regrade') // 情況四、六：已提交，顯示「重新評分」
+                : t('assignment:submit.analyzeWithAI') // 情況二、三：顯示「AI 評分分析」
+            }
           </Button>
         )}
 
-        {/* Submit Assignment - Only show when analysis is complete */}
-        {state.phase === 'submit' && state.session?.result && (
+        {/* Submit Assignment - Only show when there's new analysis that hasn't been submitted */}
+        {state.phase === 'submit' && status.hasAnalysis && status.hasNewAnalysis && (
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="block w-full">
                   <Button
                     onClick={submitFinal}
-                    disabled={state.loading || isOverdue}
+                    disabled={state.loading || status.isOverdue}
                     variant="emphasis"
                     className="w-full font-semibold py-3"
                   >
-                    {isOverdue ? '已逾期' : t('assignment:submit.submitAssignment')}
+                    {status.isOverdue ? t('assignment:submit.overdueCannotSubmit') : t('assignment:submit.submitAssignment')}
                   </Button>
                 </span>
               </TooltipTrigger>
-              {isOverdue && (
+              {status.isOverdue && (
                 <TooltipContent>
-                  <p>作業已逾期，無法提交</p>
+                  <p>{t('assignment:submit.overdueTooltip')}</p>
                 </TooltipContent>
               )}
             </Tooltip>
@@ -531,20 +575,6 @@ export default function SubmitAssignment() {
           <div ref={leftPanelRef} className="order-1 lg:order-2 flex flex-col">
             <div className="h-full overflow-y-auto">
               <div className="space-y-6 p-6">
-                {/* Resubmission Warning - Only show if there's a non-DRAFT submission */}
-                {assignment.submissions && assignment.submissions.length > 0 && (
-                  <Alert
-                    variant="default"
-                    className="border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-950/30"
-                  >
-                    <AlertCircle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-
-                    <AlertDescription className="text-orange-700 dark:text-orange-300">
-                      {t('assignment:submit.resubmitWarningDescription')}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
                 {/* Compact Upload Section */}
                 <div>
                   {/* <h3 className="text-lg font-semibold mb-4">{t('assignment:submit.uploadDocument')}</h3> */}
