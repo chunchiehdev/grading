@@ -7,6 +7,9 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
+    "dev:clean": "docker compose -f docker-compose.dev.yaml exec app rm -rf /app/node_modules/.vite && docker compose -f docker-compose.dev.yaml restart app",
+    "dev:clean:full": "docker compose -f docker-compose.dev.yaml down && docker volume rm grading_app_node_modules 2>/dev/null || true && docker compose -f docker-compose.dev.yaml up -d",
+    "dev:check": "bash scripts/check-vite-status.sh",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "lint:fix": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint . --ext .ts,.tsx --report-unused-disable-directives --fix",
     "start": "react-router-serve ./build/server/index.js",
@@ -18,6 +21,7 @@
     "test:coverage": "vitest run --coverage",
     "migrate:dev": "npx prisma migrate dev && npx prisma generate",
     "migrate:prod": "npx prisma migrate deploy && npx prisma generate",
+    "cleanup:jobs": "tsx scripts/cleanup-bullmq-jobs.ts",
     "test:rate-limits": "bash scripts/run-rate-limit-test.sh",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",

@@ -41,10 +41,10 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
               <p className="text-muted-foreground">{t('dashboard:emptyState.noCoursesDescription')}</p>
             </div>
 
-            {/* Action Button */}
-            <Button asChild size="lg">
+            {/* Action Button - Larger with full rounded corners */}
+            <Button asChild variant="emphasis" size="lg" className="rounded-full px-8 py-6 text-base">
               <Link to="/teacher/courses/new">
-                <Plus className="w-5 h-5 mr-2" />
+                <Plus className="w-6 h-6 mr-2" />
                 {t('dashboard:teacher.createCourse')}
               </Link>
             </Button>
@@ -53,7 +53,7 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
       ) : (
         /* Courses Grid */
         <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-6">
-          {courses.map((course) => {
+            {courses.map((course) => {
             const totalSubmissions =
               course.assignmentAreas?.reduce(
                 (total: number, area: any) => total + (area._count?.submissions || 0),

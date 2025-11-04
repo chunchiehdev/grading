@@ -193,7 +193,7 @@ function AssignmentInfoCard({
         {grading.filePath && (
           <div className="pt-2">
             <Button asChild variant="outline" size="sm">
-              <a href={grading.filePath} target="_blank" rel="noopener noreferrer">
+              <a href={`/api/files/${grading.filePath}/download`} target="_blank" rel="noopener noreferrer">
                 {t('downloadFile')}
               </a>
             </Button>

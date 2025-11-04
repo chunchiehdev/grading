@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, BookOpen, Users, Clock, MapPin } from 'lucide-react';
+import { Loader2, BookOpen, Users, Clock, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import type { CourseDiscoveryContentProps } from '@/types/course';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -25,9 +25,23 @@ export function CourseDiscoveryContent({
   const { t } = useTranslation(['course']);
   const [enrollingClassId, setEnrollingClassId] = useState<string | null>(null);
   const [locallyEnrolled, setLocallyEnrolled] = useState<Set<string>>(new Set());
+  const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
 
   // 合併從 props 來的 enrolledCourseIds 和本地新增的
   const enrolledClasses = new Set([...enrolledCourseIds, ...locallyEnrolled]);
+
+  // Toggle course expansion
+  const toggleCourse = (courseId: string) => {
+    setExpandedCourses((prev) => {
+      const next = new Set(prev);
+      if (next.has(courseId)) {
+        next.delete(courseId);
+      } else {
+        next.add(courseId);
+      }
+      return next;
+    });
+  };
 
   // Handle enrollment
   const handleEnroll = async (classId: string, courseName: string) => {
@@ -72,9 +86,9 @@ export function CourseDiscoveryContent({
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6">
         <BookOpen className="h-16 w-16 text-amber-300 mb-4" />
-        <h3 className="text-lg font-semibold text-foreground mb-2">No Courses Found</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-2">{t('course:discovery.noCoursesFoundTitle')}</h3>
         <p className="text-muted-foreground max-w-sm">
-          No courses match your search for <strong>"{searchQuery}"</strong>. Try a different search term.
+          {t('course:discovery.noCoursesFoundMessage', { query: searchQuery })}
         </p>
       </div>
     );
@@ -83,10 +97,17 @@ export function CourseDiscoveryContent({
   // Empty state (no search, no courses)
   if (courses.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6">
-        <BookOpen className="h-16 w-16 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold text-foreground mb-2">{t('course:discovery.empty')}</h3>
-        <p className="text-muted-foreground max-w-sm">{t('course:discovery.emptyDescription')}</p>
+      <div className="flex flex-col items-center justify-center min-h-[500px] text-center p-6">
+        {/* Icon */}
+        <BookOpen className="h-16 w-16 text-muted-foreground mb-6" />
+
+        {/* Main Content */}
+        <div className="space-y-3 mb-8 max-w-md">
+          <h3 className="text-2xl font-semibold text-foreground">{t('course:discovery.empty')}</h3>
+          <p className="text-muted-foreground">{t('course:discovery.emptyDescription')}</p>
+        </div>
+
+        
       </div>
     );
   }
@@ -155,7 +176,7 @@ export function CourseDiscoveryContent({
                                   <span className="font-semibold text-foreground">{cls.name}</span>
                                   {isFull && (
                                     <Badge variant="destructive" className="text-xs">
-                                      Full
+                                      {t('course:discovery.classFull')}
                                     </Badge>
                                   )}
                                 </div>
@@ -197,7 +218,7 @@ export function CourseDiscoveryContent({
                               <div className="text-xs space-y-1">
                                 <p className="font-semibold">{cls.name}</p>
                                 <p>{cls.schedule?.weekday} • {cls.schedule?.room}</p>
-                                <p>{cls.enrollmentCount}/{cls.capacity} students</p>
+                                <p>{cls.enrollmentCount}/{cls.capacity} {t('course:discovery.students')}</p>
                               </div>
                             </TooltipContent>
                           </Tooltip>
@@ -215,7 +236,7 @@ export function CourseDiscoveryContent({
                       const firstClass = course.classes[0];
                       if (firstClass) handleEnroll(firstClass.id, course.name);
                     }}
-                    variant={enrolledClasses.has(course.id) ? 'outline' : 'default'}
+                    variant={enrolledClasses.has(course.id) ? 'outline' : 'emphasis'}
                   >
                     {enrollingClassId === course.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     {enrolledClasses.has(course.id)
@@ -231,112 +252,239 @@ export function CourseDiscoveryContent({
 
       {/* List View */}
       {viewMode === 'list' && (
-        <div className="animate-in fade-in-50 duration-300">
-          <div className="rounded-lg border border-border/50 overflow-hidden bg-card">
-            <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow className="hover:bg-muted/30">
-                  <TableHead className="font-semibold">{t('course:discovery.courseName')}</TableHead>
-                  <TableHead className="font-semibold">{t('course:instructorLabel')}</TableHead>
-                  <TableHead className="font-semibold">{t('course:discovery.class')}</TableHead>
-                  <TableHead className="font-semibold text-center">{t('course:discovery.capacity')}</TableHead>
-                  <TableHead className="font-semibold text-right w-[140px]">{t('common:edit')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {courses.map((course) =>
-                  course.classes.map((cls) => {
-                    const capacityPercent = cls.capacity ? (cls.enrollmentCount / cls.capacity) * 100 : 0;
-                    const isFull = cls.isFull || capacityPercent >= 100;
+        <div className="animate-in fade-in-50 duration-300 bg-background">
+          {/* Header Row - Hidden on mobile */}
+          <div className="hidden md:block px-6 md:px-8 lg:px-10 py-4 border-b border-border">
+            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
+              <div className="col-span-3">{t('course:discovery.courseName')}</div>
+              <div className="col-span-2">{t('course:instructorLabel')}</div>
+              <div className="col-span-3">{t('course:discovery.class')}</div>
+              <div className="col-span-2 text-center">{t('course:discovery.capacity')}</div>
+              <div className="col-span-2 text-right">{t('common:edit')}</div>
+            </div>
+          </div>
 
-                    return (
-                      <TableRow
-                        key={`${course.id}-${cls.id}`}
-                        className="hover:bg-muted/40 transition-colors border-b border-border/30 last:border-b-0"
-                      >
-                        <TableCell>
-                          <div className="flex flex-col gap-2">
-                            <span className="font-semibold text-sm line-clamp-1">{course.name}</span>
+          {/* List Content */}
+          <div className="divide-y divide-border/50">
+            {courses.map((course) => {
+              const isExpanded = expandedCourses.has(course.id);
+
+              return (
+                <div key={course.id}>
+                  {/* Mobile Layout - Course Level */}
+                  <div className="md:hidden">
+                    {/* Course Header - Always clickable */}
+                    <div
+                      className="px-4 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => toggleCourse(course.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Teacher Avatar */}
+                        <Avatar className="h-12 w-12 flex-shrink-0 ring-2 ring-primary/20">
+                          {course.teacher.picture && (
+                            <AvatarImage src={course.teacher.picture} alt={course.teacher.name} />
+                          )}
+                          <AvatarFallback className="text-sm font-semibold bg-gradient-to-br from-primary/20 to-accent/20">
+                            {course.teacher.name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        {/* Course Info */}
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm">{course.name}</span>
                             {course.code && (
-                              <Badge variant="secondary" className="w-fit text-xs font-mono">
+                              <Badge variant="secondary" className="text-xs font-mono">
                                 {course.code}
                               </Badge>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8 flex-shrink-0 ring-1 ring-border/50">
-                              {course.teacher.picture && (
-                                <AvatarImage src={course.teacher.picture} alt={course.teacher.name} />
-                              )}
-                              <AvatarFallback className="text-xs font-semibold">
-                                {course.teacher.name.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm font-medium truncate">{course.teacher.name}</span>
+                          <div className="text-xs text-muted-foreground">{course.teacher.name}</div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{course.classes.length} {t('course:discovery.class')}</span>
+                            {enrolledClasses.has(course.id) && (
+                              <Badge variant="outline" className="text-xs">
+                                {t('course:discovery.enrolled')}
+                              </Badge>
+                            )}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1.5">
-                            <span className="font-semibold text-sm">{cls.name}</span>
-                            {cls.schedule && (
-                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3 flex-shrink-0" />
-                                <span>{cls.schedule.weekday}</span>
-                                {cls.schedule.room && (
-                                  <>
-                                    <span>•</span>
-                                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                                    <span>{cls.schedule.room}</span>
-                                  </>
-                                )}
+                        </div>
+
+                        {/* Expand Icon - Always shown */}
+                        <div className="flex-shrink-0 pt-1">
+                          {isExpanded ? (
+                            <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Class List - Expandable for all courses */}
+                    {isExpanded && (
+                      <div className="bg-muted/20 border-t border-border/50">
+                        {course.classes.map((cls, index) => {
+                          const capacityPercent = cls.capacity ? (cls.enrollmentCount / cls.capacity) * 100 : 0;
+                          const isFull = cls.isFull || capacityPercent >= 100;
+
+                          return (
+                            <div
+                              key={cls.id}
+                              className={`px-4 py-3 ${index !== course.classes.length - 1 ? 'border-b border-border/30' : ''}`}
+                            >
+                              <div className="space-y-2.5">
+                                {/* Class Name */}
+                                <div className="font-medium text-sm">{cls.name}</div>
+
+                                {/* Schedule and Capacity */}
+                                <div className="space-y-1">
+                                  {cls.schedule && (
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                      <Clock className="h-3 w-3" />
+                                      <span>{cls.schedule.weekday}</span>
+                                      {cls.schedule.room && (
+                                        <>
+                                          <span>•</span>
+                                          <MapPin className="h-3 w-3" />
+                                          <span>{cls.schedule.room}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Users className="h-3 w-3" />
+                                    <span>
+                                      {cls.enrollmentCount}
+                                      {cls.capacity && `/${cls.capacity}`}
+                                    </span>
+                                    {cls.capacity && (
+                                      <Progress value={capacityPercent} className="h-1 w-20" />
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Enroll Button */}
+                                <Button
+                                  size="sm"
+                                  disabled={enrolledClasses.has(course.id) || isFull || enrollingClassId === cls.id}
+                                  onClick={() => handleEnroll(cls.id, course.name)}
+                                  variant={enrolledClasses.has(course.id) || isFull ? 'outline' : 'emphasis'}
+                                  className="w-full"
+                                >
+                                  {enrollingClassId === cls.id && (
+                                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                                  )}
+                                  <span className="text-xs">
+                                    {enrolledClasses.has(course.id)
+                                      ? t('course:discovery.enrolled')
+                                      : isFull
+                                        ? t('course:discovery.classFull')
+                                        : t('course:discovery.enroll')}
+                                  </span>
+                                </Button>
                               </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col items-center gap-1.5">
-                            <div className={`text-sm font-semibold ${isFull ? 'text-destructive' : 'text-foreground'}`}>
-                              {cls.enrollmentCount}
-                              {cls.capacity && <span className="text-muted-foreground">/{cls.capacity}</span>}
                             </div>
-                            {cls.capacity && (
-                              <Progress
-                                value={capacityPercent}
-                                className="h-1 w-16"
-                              />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Desktop Layout - Keep per-class rows */}
+                  {course.classes.map((cls) => {
+                    const capacityPercent = cls.capacity ? (cls.enrollmentCount / cls.capacity) * 100 : 0;
+                    const isFull = cls.isFull || capacityPercent >= 100;
+
+                    return (
+                      <div
+                        key={`${course.id}-${cls.id}`}
+                        className="hidden md:block px-6 md:px-8 lg:px-10 py-4 hover:bg-muted/30 transition-colors"
+                      >
+                    <div className="grid grid-cols-12 gap-4 items-center">
+                      {/* Course Name */}
+                      <div className="col-span-3">
+                        <div className="flex flex-col gap-1.5">
+                          <span className="font-semibold text-sm">{course.name}</span>
+                          {course.code && (
+                            <Badge variant="secondary" className="w-fit text-xs font-mono">
+                              {course.code}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Teacher */}
+                      <div className="col-span-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-8 w-8 flex-shrink-0 ring-1 ring-border/50">
+                            {course.teacher.picture && (
+                              <AvatarImage src={course.teacher.picture} alt={course.teacher.name} />
                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            disabled={enrolledClasses.has(course.id) || isFull || enrollingClassId === cls.id}
-                            onClick={() => handleEnroll(cls.id, course.name)}
-                            variant={enrolledClasses.has(course.id) || isFull ? 'outline' : 'default'}
-                          >
-                            {enrollingClassId === cls.id && (
-                              <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                            )}
-                            <span className="hidden sm:inline text-xs">
-                              {enrolledClasses.has(course.id)
-                                ? t('course:discovery.enrolled')
-                                : isFull
-                                  ? t('course:discovery.classFull')
-                                  : t('course:discovery.enroll')}
-                            </span>
-                            <span className="sm:hidden text-xs">
-                              {enrolledClasses.has(course.id) ? '✓' : isFull ? 'Full' : '+'}
-                            </span>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                            <AvatarFallback className="text-xs font-semibold">
+                              {course.teacher.name.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium truncate">{course.teacher.name}</span>
+                        </div>
+                      </div>
+
+                      {/* Class */}
+                      <div className="col-span-3">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-semibold text-sm">{cls.name}</span>
+                          {cls.schedule && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              <span>{cls.schedule.weekday}</span>
+                              {cls.schedule.room && (
+                                <>
+                                  <span>•</span>
+                                  <MapPin className="h-3 w-3" />
+                                  <span>{cls.schedule.room}</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Capacity */}
+                      <div className="col-span-2 flex flex-col items-center gap-1.5">
+                        <div className={`text-sm font-semibold ${isFull ? 'text-destructive' : 'text-foreground'}`}>
+                          {cls.enrollmentCount}
+                          {cls.capacity && <span className="text-muted-foreground">/{cls.capacity}</span>}
+                        </div>
+                        {cls.capacity && <Progress value={capacityPercent} className="h-1 w-16" />}
+                      </div>
+
+                      {/* Action */}
+                      <div className="col-span-2 text-right">
+                        <Button
+                          size="sm"
+                          disabled={enrolledClasses.has(course.id) || isFull || enrollingClassId === cls.id}
+                          onClick={() => handleEnroll(cls.id, course.name)}
+                          variant={enrolledClasses.has(course.id) || isFull ? 'outline' : 'emphasis'}
+                        >
+                          {enrollingClassId === cls.id && (
+                            <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                          )}
+                          <span className="text-xs">
+                            {enrolledClasses.has(course.id)
+                              ? t('course:discovery.enrolled')
+                              : isFull
+                                ? t('course:discovery.classFull')
+                                : t('course:discovery.enroll')}
+                          </span>
+                        </Button>
+                      </div>
+                    </div>
+                      </div>
                     );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                  })}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

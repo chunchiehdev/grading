@@ -5,8 +5,6 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 import type { CourseWithEnrollmentInfo, StudentInfo } from '@/types/student';
-import { useEffect } from 'react';
-import { perfMonitor } from '@/utils/performance-monitor';
 
 interface CoursesContentProps {
   data: {
@@ -18,10 +16,6 @@ interface CoursesContentProps {
 export function CoursesContent({ data }: CoursesContentProps) {
   const { courses } = data;
   const { t } = useTranslation(['course', 'common']);
-
-  useEffect(() => {
-    perfMonitor.mark('courses-content-rendered', { coursesCount: courses.length });
-  }, [courses.length]);
 
   // If no courses enrolled
   if (courses.length === 0) {
@@ -39,10 +33,10 @@ export function CoursesContent({ data }: CoursesContentProps) {
             <p className="text-muted-foreground">{t('course:emptyState.description')}</p>
           </div>
 
-          {/* Action Button */}
-          <Button asChild size="lg">
+          {/* Action Button - 更大、更圓、更突出 */}
+          <Button asChild variant="emphasis" size="lg" className="rounded-full px-8 py-6 text-base">
             <Link to="/student/courses/discover">
-              <Compass className="w-5 h-5 mr-2" />
+              <Compass className="w-6 h-6 mr-2" />
               {t('course:discovery.discover')}
             </Link>
           </Button>
@@ -53,6 +47,17 @@ export function CoursesContent({ data }: CoursesContentProps) {
 
   return (
     <div className="space-y-6">
+      {/* 探索課程按鈕 - 在課程列表上方 */}
+      <div className="flex justify-start">
+        <Button asChild variant="emphasis" className="rounded-full px-6 py-5">
+          <Link to="/student/courses/discover">
+            <Compass className="w-5 h-5 mr-2" />
+            {t('course:discovery.discover')}
+          </Link>
+        </Button>
+      </div>
+
+      {/* 課程列表 */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
         {courses.map((course) => (
           <CourseCard key={course.id} course={course} />

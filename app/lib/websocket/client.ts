@@ -12,8 +12,6 @@ import {
   type WebSocketEmitEvents,
   type WebSocketClientOptions,
 } from './types';
-import logger from '@/utils/logger';
-import { perfMonitor } from '@/utils/performance-monitor';
 
 export class WebSocketClient {
   private socket: Socket<WebSocketEvents, WebSocketEmitEvents> | null = null;
@@ -66,11 +64,8 @@ export class WebSocketClient {
    * Connect to WebSocket server
    */
   async connect(userId: string): Promise<void> {
-    perfMonitor.start('websocket-connect', { userId, attempt: this.metrics.connectionAttempts + 1 });
-
     if (this.state === ConnectionState.CONNECTED && this.userId === userId) {
-      logger.debug('[WebSocket] Already connected to user:', userId);
-      perfMonitor.end('websocket-connect', { status: 'already-connected' });
+      console.debug('[WebSocket] Already connected to user:', userId);
       return;
     }
 
@@ -84,11 +79,9 @@ export class WebSocketClient {
 
     try {
       await this.createConnection();
-      perfMonitor.end('websocket-connect', { status: 'success' });
     } catch (error) {
       this.setState(ConnectionState.ERROR);
-      logger.error('[WebSocket] Connection failed:', error);
-      perfMonitor.end('websocket-connect', { status: 'error', error: String(error) });
+      console.error('[WebSocket] Connection failed:', error);
       throw error;
     }
   }
@@ -98,7 +91,7 @@ export class WebSocketClient {
    */
   private async createConnection(): Promise<void> {
     return new Promise((resolve, reject) => {
-      logger.debug('[WebSocket] Creating connection to:', this.config.wsUrl);
+      console.debug('[WebSocket] Creating connection to:', this.config.wsUrl);
 
       this.socket = io(this.config.wsUrl, {
         transports: (this.config.transports || ['websocket', 'polling']) as ['websocket', 'polling'],
@@ -114,7 +107,7 @@ export class WebSocketClient {
 
         if (this.userId) {
           this.socket!.emit('join-user', this.userId);
-          logger.debug('[WebSocket] Joined user room:', this.userId);
+      console.debug('[WebSocket] Joined user room:', this.userId);
         }
 
         this.emit('connect');
@@ -125,7 +118,7 @@ export class WebSocketClient {
       this.socket.on('connect_error', (error) => {
         this.setState(ConnectionState.ERROR);
         this.metrics.isHealthy = false;
-        logger.error('[WebSocket] Connection error:', error);
+      console.error('[WebSocket] Connection error:', error);
         this.emit('error', error);
 
         if (this.metrics.connectionAttempts === 1) {
@@ -140,7 +133,7 @@ export class WebSocketClient {
         this.metrics.lastDisconnectTime = new Date();
         this.metrics.isHealthy = false;
 
-        logger.debug('[WebSocket] Disconnected:', reason);
+      console.debug('[WebSocket] Disconnected:', reason);
         this.emit('disconnect', reason);
 
         if (reason !== 'io client disconnect') {
@@ -160,48 +153,37 @@ export class WebSocketClient {
 
     // New message
     this.socket.on('new-msg', (msg) => {
-      perfMonitor.mark('websocket-event-new-msg', { msgId: msg.id });
-      logger.debug('[WebSocket] Received new message:', msg.id);
+      console.debug('[WebSocket] Received new message:', msg.id);
       this.emit('new-msg', msg);
     });
 
     // Chat sync
     this.socket.on('chat-sync', (data) => {
-      perfMonitor.mark('websocket-event-chat-sync');
-      logger.debug('[WebSocket] Received chat sync:', data);
+      console.debug('[WebSocket] Received chat sync:', data);
       this.emit('chat-sync', data);
     });
 
     // Assignment notification
     this.socket.on('assignment-notification', (notification) => {
-      perfMonitor.mark('websocket-event-assignment-notification', {
-        assignmentId: notification.assignmentId,
-        type: notification.type,
-      });
-      logger.debug('[WebSocket] Received assignment notification:', notification);
+      console.debug('[WebSocket] Received assignment notification:', notification);
       this.emit('assignment-notification', notification);
     });
 
     // Submission notification
     this.socket.on('submission-notification', (notification) => {
-      perfMonitor.mark('websocket-event-submission-notification', {
-        submissionId: notification.submissionId,
-        type: notification.type,
-      });
-      logger.debug('[WebSocket] Received submission notification:', notification);
+      console.debug('[WebSocket] Received submission notification:', notification);
       this.emit('submission-notification', notification);
     });
 
     // API redirect (deprecated feature warning)
     this.socket.on('api-redirect', (data) => {
-      logger.warn('[WebSocket] Deprecated API usage:', data);
+      console.warn('[WebSocket] Deprecated API usage:', data);
       this.emit('api-redirect', data);
     });
 
     // Error handling
     this.socket.on('error', (error) => {
-      perfMonitor.mark('websocket-event-error', { error: String(error) });
-      logger.error('[WebSocket] Socket error:', error);
+      console.error('[WebSocket] Socket error:', error);
       this.emit('error', error);
     });
   }
@@ -211,7 +193,7 @@ export class WebSocketClient {
    */
   private scheduleReconnect(): void {
     if (this.metrics.totalReconnects >= this.config.maxReconnectAttempts) {
-      logger.error('[WebSocket] Max reconnect attempts reached');
+      console.error('[WebSocket] Max reconnect attempts reached');
       this.setState(ConnectionState.ERROR);
       return;
     }
@@ -223,14 +205,14 @@ export class WebSocketClient {
     // Exponential backoff delay
     const delay = Math.min(this.config.reconnectDelay * Math.pow(2, this.metrics.totalReconnects), 30000);
 
-    logger.debug(`[WebSocket] Scheduling reconnect in ${delay}ms`);
+      console.debug(`[WebSocket] Scheduling reconnect in ${delay}ms`);
 
     this.setState(ConnectionState.RECONNECTING);
     this.reconnectTimer = setTimeout(() => {
       if (this.userId) {
         this.metrics.totalReconnects++;
         this.connect(this.userId).catch((error) => {
-          logger.error('[WebSocket] Reconnect failed:', error);
+      console.error('[WebSocket] Reconnect failed:', error);
         });
       }
     }, delay);
@@ -241,7 +223,7 @@ export class WebSocketClient {
    */
   async reconnect(): Promise<void> {
     if (this.state === ConnectionState.CONNECTING || this.state === ConnectionState.RECONNECTING) {
-      logger.debug('[WebSocket] Already attempting to connect');
+      console.debug('[WebSocket] Already attempting to connect');
       return;
     }
 
@@ -249,7 +231,7 @@ export class WebSocketClient {
       throw new Error('No userId available for reconnection');
     }
 
-    logger.debug('[WebSocket] Manual reconnect requested');
+      console.debug('[WebSocket] Manual reconnect requested');
     return this.connect(this.userId);
   }
 
@@ -261,7 +243,7 @@ export class WebSocketClient {
     this.setState(ConnectionState.DISCONNECTED);
     this.userId = null;
     this.metrics.isHealthy = false;
-    logger.debug('[WebSocket] Manually disconnected');
+      console.debug('[WebSocket] Manually disconnected');
   }
 
   /**
@@ -286,9 +268,9 @@ export class WebSocketClient {
   joinChat(chatId: string): void {
     if (this.socket?.connected) {
       this.socket.emit('join-chat', chatId);
-      logger.debug('[WebSocket] Joined chat room:', chatId);
+      console.debug('[WebSocket] Joined chat room:', chatId);
     } else {
-      logger.warn('[WebSocket] Cannot join chat - not connected');
+      console.warn('[WebSocket] Cannot join chat - not connected');
     }
   }
 
@@ -345,7 +327,7 @@ export class WebSocketClient {
         const typedHandler = handler as (...args: Parameters<WebSocketEvents[T]>) => void;
         typedHandler(...args);
       } catch (error) {
-        logger.error(`[WebSocket] Event handler error for ${event}:`, error);
+      console.error(`[WebSocket] Event handler error for ${event}:`, error);
       }
     });
   }
@@ -355,7 +337,7 @@ export class WebSocketClient {
    */
   private setState(newState: ConnectionState): void {
     if (this.state !== newState) {
-      logger.debug(`[WebSocket] State changed: ${this.state} -> ${newState}`);
+      console.debug(`[WebSocket] State changed: ${this.state} -> ${newState}`);
       this.state = newState;
     }
   }

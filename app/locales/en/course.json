@@ -58,7 +58,7 @@
     "create": "Create Assignment",
     "edit": "Edit Assignment",
     "delete": "Delete Assignment",
-    "manage": "Manage Assignment",
+    "manageAction": "Manage Assignment",
     "submit": "Submit Assignment",
     "name": "Assignment Name",
     "description": "Assignment Description",
@@ -432,6 +432,10 @@
     "invitationCodeLength": "Usually uppercase letters and numbers",
     "courseInfo": "Course Information",
     "joinCourse": "You will be added to this course and can access all assignments",
-    "searchFailed": "Search failed"
+    "searchFailed": "Search failed",
+    "noCoursesFoundTitle": "No Courses Found",
+    "noCoursesFoundMessage": "No courses match your search for \"{{query}}\". Try a different search term.",
+    "moreClasses": "+{{count}} more class",
+    "moreClassesPlural": "+{{count}} more classes"
   }
 }

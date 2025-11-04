@@ -1,5 +1,6 @@
 import { createCookieSessionStorage } from 'react-router';
 import { AUTH_COOKIE_NAME, AUTH_COOKIE_MAX_AGE } from '@/constants/auth';
+import logger from '@/utils/logger';
 
 // Auth session storage
 export const sessionStorage = createCookieSessionStorage({
@@ -23,7 +24,6 @@ export async function getSession(request: Request) {
 }
 
 export async function commitSession(session: any) {
-  console.error('💾 Committing session with userId:', session.get('userId'));
   const cookieHeader = await sessionStorage.commitSession(session, {
     expires: new Date(Date.now() + AUTH_COOKIE_MAX_AGE * 1000),
   });

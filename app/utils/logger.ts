@@ -2,11 +2,18 @@ import pino from 'pino';
 
 /**
  * Configured Pino logger instance with environment-based settings
- * - Production: info level logging
- * - Development: debug level logging with pretty printing
+ *
+ * Log levels (from lowest to highest):
+ * - trace: 最詳細的追蹤資訊
+ * - debug: 除錯資訊
+ * - info: 一般資訊（預設）
+ * - warn: 警告訊息
+ * - error: 錯誤訊息
+ * - fatal: 致命錯誤
+ *
  */
 const logger = pino({
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
   transport: {
     target: 'pino-pretty',
     options: {

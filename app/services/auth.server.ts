@@ -6,16 +6,15 @@ import logger from '@/utils/logger';
 
 let oauth2Client: OAuth2Client | null = null;
 
-logger.info(
-  'Using Google redirect URI:',
-  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback'
-);
-
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
   oauth2Client = new OAuth2Client(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback'
+  );
+  logger.info(
+    { redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/auth/google/callback' },
+    'OAuth2Client initialized'
   );
 }
 
@@ -58,15 +57,14 @@ export async function googleLogin() {
  */
 export async function handleGoogleCallback(request: Request) {
   if (!oauth2Client) {
-    console.warn('Google OAuth credentials not configured');
+    logger.warn('Google OAuth credentials not configured');
     return redirect('/login?error=google-auth-unavailable');
   }
 
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
 
-  console.error('🔍 Google callback - URL:', url.toString());
-  console.error('🔍 Google callback - Code present:', !!code);
+  logger.info({ codePresent: !!code }, 'Google OAuth callback received');
 
   if (!code) {
     throw new Error('Missing authorization code');
@@ -91,7 +89,7 @@ export async function handleGoogleCallback(request: Request) {
     const isFirstTimeUser = !user;
 
     if (!user) {
-      console.error('📝 Creating new user:', payload.email);
+      logger.info({ email: payload.email }, 'Creating new user');
       user = await db.user.create({
         data: {
           email: payload.email,
@@ -101,7 +99,7 @@ export async function handleGoogleCallback(request: Request) {
       });
     }
 
-    console.error('🍪 Creating session for user:', user.id);
+    logger.info({ userId: user.id }, 'Creating session for user');
     const session = await createUserSession(user.id, request);
 
     let redirectPath;
@@ -116,10 +114,10 @@ export async function handleGoogleCallback(request: Request) {
     const response = redirect(redirectPath);
     response.headers.set('Set-Cookie', session);
 
-    console.error('🔄 Redirecting to:', redirectPath);
+    logger.info({ redirectPath }, 'Redirecting user');
     return response;
   } catch (error) {
-    console.error('❌ Google authentication error:', error);
+    logger.error({ error }, 'Google authentication error');
     return redirect('/login?error=google-auth-failed');
   }
 }
@@ -146,7 +144,6 @@ export async function getUser(request: Request) {
   const userId = session.get('userId');
 
   if (!userId || typeof userId !== 'string') {
-    logger.debug('getUser - No valid userId in session');
     return null;
   }
 
@@ -157,13 +154,13 @@ export async function getUser(request: Request) {
     });
 
     if (!user) {
-      logger.warn('getUser - User not found in database with id:', userId);
+      logger.warn({ userId }, 'getUser - User not found in database');
       return null;
     }
 
     return user;
   } catch (error) {
-    logger.error('getUser - Database error:', error);
+    logger.error({ error }, 'getUser - Database error');
     return null;
   }
 }
@@ -177,7 +174,7 @@ export async function logout(request: Request) {
   const session = await getSession(request);
   const userId = session.get('userId');
 
-  logger.info('🗑️ logout - Destroying session for userId:', userId);
+  logger.info({ userId }, 'Destroying session');
 
   return destroySession(session);
 }
@@ -199,10 +196,10 @@ export async function updateUserRole(userId: string, role: 'TEACHER' | 'STUDENT'
       select: { id: true, email: true, role: true, hasSelectedRole: true },
     });
 
-    console.error('👤 Updated user role:', user.email, 'to', role, '(hasSelectedRole:', user.hasSelectedRole, ')');
+    logger.info({ email: user.email, role, hasSelectedRole: user.hasSelectedRole }, 'Updated user role');
     return user;
   } catch (error) {
-    console.error('❌ Error updating user role:', error);
+    logger.error({ error }, 'Error updating user role');
     throw error;
   }
 }

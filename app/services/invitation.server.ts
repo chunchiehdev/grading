@@ -175,7 +175,7 @@ export async function createInvitationCode(
       },
     });
 
-    logger.info('✅ Created invitation code:', code, 'for course:', courseId);
+    logger.info({ code, courseId }, 'Created invitation code');
 
     return {
       ...invitationCode,
@@ -183,7 +183,7 @@ export async function createInvitationCode(
       usedBy: null,
     };
   } catch (error) {
-    logger.error('❌ Error creating invitation code:', error);
+    logger.error({ error }, 'Error creating invitation code');
     throw error;
   }
 }
@@ -258,7 +258,7 @@ export async function validateInvitationCode(code: string, studentId?: string): 
       isAlreadyEnrolled,
     };
   } catch (error) {
-    logger.error('❌ Error validating invitation code:', error);
+    logger.error({ error }, 'Error validating invitation code');
     return {
       isValid: false,
       error: 'Failed to validate invitation code',
@@ -341,14 +341,14 @@ export async function useInvitationCode(
       return enrollment;
     });
 
-    logger.info('✅ Invitation code used:', code, 'student enrolled:', studentId);
+    logger.info({ code, studentId }, 'Invitation code used successfully');
 
     return {
       success: true,
       enrollmentId: result.id,
     };
   } catch (error) {
-    logger.error('❌ Error using invitation code:', error);
+    logger.error({ error }, 'Error using invitation code');
     return {
       success: false,
       error: 'Failed to use invitation code',
@@ -404,7 +404,7 @@ export async function getCourseInvitationCodes(courseId: string, teacherId: stri
       course,
     }));
   } catch (error) {
-    logger.error('❌ Error fetching invitation codes:', error);
+    logger.error({ error }, 'Error fetching invitation codes');
     return [];
   }
 }
@@ -422,11 +422,9 @@ export async function generateInvitationQRCode(
   try {
     const invitationUrl = `${baseUrl}/join?code=${code}`;
     const qrCodeDataUrl = await QRCode.toDataURL(invitationUrl, INVITATION_CONFIG.QR_OPTIONS);
-
-    logger.info('✅ Generated QR code for invitation:', code);
     return qrCodeDataUrl;
   } catch (error) {
-    logger.error('❌ Error generating QR code:', error);
+    logger.error({ error, code }, 'Error generating QR code');
     throw new Error('Failed to generate QR code');
   }
 }
@@ -484,7 +482,7 @@ export async function getActiveCourseInvitation(
       usedBy: null,
     };
   } catch (error) {
-    logger.error('❌ Error fetching active invitation:', error);
+    logger.error({ error }, 'Error fetching active invitation');
     return null;
   }
 }
@@ -520,10 +518,10 @@ export async function revokeInvitationCode(code: string, teacherId: string): Pro
       },
     });
 
-    logger.info('✅ Revoked invitation code:', code);
+    logger.info({ code }, 'Revoked invitation code');
     return true;
   } catch (error) {
-    logger.error('❌ Error revoking invitation code:', error);
+    logger.error({ error }, 'Error revoking invitation code');
     return false;
   }
 }

@@ -44,10 +44,10 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
               <p className="text-muted-foreground">{t('rubric:emptyState.noRubricsDescription')}</p>
             </div>
 
-            {/* Action Button */}
-            <Button asChild size="lg">
+            {/* Action Button - Larger with full rounded corners */}
+            <Button asChild variant="emphasis" size="lg" className="rounded-full px-8 py-6 text-base">
               <Link to="/teacher/rubrics/new">
-                <Plus className="w-5 h-5 mr-2" />
+                <Plus className="w-6 h-6 mr-2" />
                 {t('rubric:createFirst')}
               </Link>
             </Button>

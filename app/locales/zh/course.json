@@ -58,7 +58,7 @@
     "create": "建立作業",
     "edit": "編輯作業",
     "delete": "刪除作業",
-    "manage": "管理作業",
+    "manageAction": "管理作業",
     "submit": "提交作業",
     "name": "作業名稱",
     "description": "作業說明",
@@ -445,6 +445,10 @@
     "invitationCodeLength": "通常為大寫字母和數字",
     "courseInfo": "課程資訊",
     "joinCourse": "您將被新增到此課程，並可存取所有作業",
-    "searchFailed": "搜尋失敗"
+    "searchFailed": "搜尋失敗",
+    "noCoursesFoundTitle": "未找到課程",
+    "noCoursesFoundMessage": "未找到符合您搜尋的 \"{{query}}\" 課程。請嘗試其他搜尋詞。",
+    "moreClasses": "還有 {{count}} 個時段",
+    "moreClassesPlural": "還有 {{count}} 個時段"
   }
 }

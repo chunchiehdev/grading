@@ -291,6 +291,9 @@ export async function getUserFiles(
 
 /**
  * Gets a single file by ID
+ * Allows access if:
+ * 1. User owns the file, OR
+ * 2. User is a teacher and the file is from a student submission in their course
  */
 export async function getFile(
   fileId: string,
@@ -298,6 +301,7 @@ export async function getFile(
   includeDeleted: boolean = false
 ): Promise<{ file?: UploadedFile; error?: string }> {
   try {
+    // First, try to get the file if user owns it
     const file = await db.uploadedFile.findFirst({
       where: {
         id: fileId,
@@ -306,11 +310,36 @@ export async function getFile(
       },
     });
 
-    if (!file) {
-      return { error: 'File not found' };
+    if (file) {
+      return { file };
     }
 
-    return { file };
+    // If not owned, check if user is a teacher accessing a student's submission file
+    const teacherAccessFile = await db.uploadedFile.findFirst({
+      where: {
+        id: fileId,
+        ...(includeDeleted ? {} : { isDeleted: false }),
+        // Check if this file is used in a submission where the requesting user is the teacher
+        user: {
+          submissions: {
+            some: {
+              filePath: fileId,
+              assignmentArea: {
+                course: {
+                  teacherId: userId,
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (teacherAccessFile) {
+      return { file: teacherAccessFile };
+    }
+
+    return { error: 'File not found' };
   } catch (error) {
     logger.error('Failed to get file:', error);
     return {

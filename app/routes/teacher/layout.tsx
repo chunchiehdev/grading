@@ -1,11 +1,11 @@
 import {
   Outlet,
-  useLocation,
-  useNavigate,
   type LoaderFunctionArgs,
   type ClientLoaderFunctionArgs,
-  Link,
   useRouteLoaderData,
+  useNavigation,
+  useLocation,
+  Link,
 } from 'react-router';
 import { ModernNavigation } from '@/components/ui/modern-navigation';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,6 @@ import { getRecentSubmissionsForTeacher, type SubmissionInfo } from '@/services/
 import { listRubrics } from '@/services/rubric.server';
 import { useWebSocketStatus, useWebSocketEvent } from '@/lib/websocket';
 import { useSubmissionStore } from '@/stores/submissionStore';
-import { perfMonitor } from '@/utils/performance-monitor';
 
 export interface TeacherLoaderData {
   user: { id: string; email: string; name: string; role: string; picture?: string };
@@ -31,29 +30,15 @@ export interface TeacherLoaderData {
 
 // Server loader - fetches data from database
 export async function loader({ request }: LoaderFunctionArgs): Promise<TeacherLoaderData> {
-  perfMonitor.start('teacher-layout-loader', { type: 'server' });
-
-  perfMonitor.start('teacher-layout-auth');
   const teacher = await requireTeacher(request);
-  perfMonitor.end('teacher-layout-auth');
 
-  perfMonitor.start('teacher-layout-data-fetch');
   const [courses, recentSubmissions, rubricsData] = await Promise.all([
-    perfMonitor.measure('fetch-teacher-courses', () => getTeacherCourses(teacher.id), { teacherId: teacher.id }),
-    perfMonitor.measure('fetch-recent-submissions', () => getRecentSubmissionsForTeacher(teacher.id), {
-      teacherId: teacher.id,
-    }),
-    perfMonitor.measure('fetch-teacher-rubrics', () => listRubrics(teacher.id), { teacherId: teacher.id }),
+    getTeacherCourses(teacher.id),
+    getRecentSubmissionsForTeacher(teacher.id),
+    listRubrics(teacher.id),
   ]);
-  perfMonitor.end('teacher-layout-data-fetch', {
-    coursesCount: courses.length,
-    submissionsCount: recentSubmissions.length,
-    rubricsCount: rubricsData.rubrics?.length || 0,
-  });
 
   const rubrics = rubricsData.rubrics || [];
-
-  perfMonitor.end('teacher-layout-loader');
 
   return {
     user: teacher,
@@ -68,32 +53,31 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<TeacherLo
 // Client-side cache with 5-minute TTL
 // Teacher data doesn't change frequently, longer cache improves UX
 let clientCache: TeacherLoaderData | null = null;
+let pendingRequest: Promise<TeacherLoaderData> | null = null;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Client loader - implements caching to avoid unnecessary refetches
+// Also prevents duplicate requests during navigation
 export async function clientLoader({ request, serverLoader }: ClientLoaderFunctionArgs) {
-  perfMonitor.start('teacher-layout-client-loader');
-
   // Check if we have valid cached data
   if (clientCache && Date.now() - clientCache._timestamp < CACHE_TTL) {
-    perfMonitor.mark('teacher-layout-cache-hit', { age: Date.now() - clientCache._timestamp });
-    perfMonitor.end('teacher-layout-client-loader', { cached: true });
     return clientCache;
   }
 
-  perfMonitor.mark('teacher-layout-cache-miss');
+  // If there's already a pending request, wait for it instead of creating a new one
+  // This prevents the "canceled + 200" pattern in Network tab
+  if (pendingRequest) {
+    return pendingRequest;
+  }
 
   // Fetch fresh data from server
-  perfMonitor.start('teacher-layout-server-fetch');
-  const data = await serverLoader<TeacherLoaderData>();
-  perfMonitor.end('teacher-layout-server-fetch', {
-    coursesCount: data.courses.length,
-    rubricsCount: data.rubrics.length,
+  pendingRequest = serverLoader<TeacherLoaderData>().then((data) => {
+    clientCache = data;
+    pendingRequest = null;
+    return data;
   });
 
-  clientCache = data;
-  perfMonitor.end('teacher-layout-client-loader', { cached: false });
-  return data;
+  return pendingRequest;
 }
 
 // No hydration needed - server data is fresh enough and we have client-side cache
@@ -101,37 +85,34 @@ export async function clientLoader({ request, serverLoader }: ClientLoaderFuncti
 
 /**
  * Teacher Layout - 管理 tab 導航的主容器
- * 根據 URL 路徑決定當前 active tab
+ * 使用 NavLink 自動處理 active state
  * 使用 <Outlet /> 渲染子路由內容
  */
 export default function TeacherLayout() {
-  const location = useLocation();
-  const navigate = useNavigate();
   const { t } = useTranslation(['course', 'dashboard', 'rubric']);
+  const navigation = useNavigation();
+  const location = useLocation();
+  const data = useRouteLoaderData<TeacherLoaderData>('teacher-layout');
   const fetchNotifications = useSubmissionStore((state) => state.fetchNotifications);
   const hasFetchedRef = useRef(false);
 
+  // Track navigation loading state
+  const isNavigating = navigation.state === 'loading';
+
+  // Check if we have courses and if we're on the courses page
+  const hasCourses = data?.courses && data.courses.length > 0;
+  const isCoursesPage = location.pathname === '/teacher/courses';
+  const hasRubrics = data?.rubrics && data.rubrics.length > 0;
+  const isRubricsPage = location.pathname === '/teacher/rubrics';
+
   // Monitor WebSocket connection status (for future use)
   useWebSocketStatus();
-
-  // Track component mount
-  useEffect(() => {
-    perfMonitor.mark('teacher-layout-mounted', { pathname: location.pathname });
-  }, []);
-
-  // Track route changes
-  useEffect(() => {
-    perfMonitor.mark('teacher-layout-route-change', { pathname: location.pathname });
-  }, [location.pathname]);
 
   // Fetch notifications from database on mount (only once, even in Strict Mode)
   useEffect(() => {
     if (!hasFetchedRef.current) {
       hasFetchedRef.current = true;
-      perfMonitor.start('teacher-fetch-notifications');
-      fetchNotifications().finally(() => {
-        perfMonitor.end('teacher-fetch-notifications');
-      });
+      fetchNotifications();
     }
   }, [fetchNotifications]);
 
@@ -143,7 +124,6 @@ export default function TeacherLayout() {
   useWebSocketEvent(
     'connect',
     () => {
-      perfMonitor.mark('websocket-reconnected', { pathname: location.pathname });
       // Clear cache to force fresh data on next navigation
       // This ensures we don't miss any updates during disconnection
       clientCache = null;
@@ -154,62 +134,36 @@ export default function TeacherLayout() {
     [fetchNotifications]
   );
 
-  // 根據 URL 路徑判斷當前 tab
-  const getActiveTab = (): string => {
-    const pathname = location.pathname;
-
-    if (pathname === '/teacher' || pathname === '/teacher/') {
-      return 'dashboard';
-    }
-    if (pathname === '/teacher/courses') {
-      return 'courses';
-    }
-    if (pathname === '/teacher/rubrics') {
-      return 'rubrics';
-    }
-
-    // 默認返回 dashboard
-    return 'dashboard';
-  };
-
-  const currentTab = getActiveTab();
-
-  // 處理 tab 變化 - 導航到對應的路由
-  const handleTabChange = (tab: string) => {
-    perfMonitor.start(`teacher-tab-change-to-${tab}`, { from: currentTab, to: tab });
-    const routes: Record<string, string> = {
-      dashboard: '/teacher',
-      courses: '/teacher/courses',
-      rubrics: '/teacher/rubrics',
-    };
-    navigate(routes[tab] || '/teacher');
-    // Note: Navigation performance will be tracked by route change effect
-  };
-
   return (
     <div>
+      {/* Loading indicator */}
+      {isNavigating && (
+        <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-primary/20">
+          <div className="h-full bg-primary animate-pulse w-full" />
+        </div>
+      )}
+
       {/* Modern Navigation */}
       <ModernNavigation
         tabs={[
-          { label: t('dashboard:title'), value: 'dashboard' },
-          { label: t('course:courses'), value: 'courses' },
-          { label: t('rubric:title'), value: 'rubrics' },
+          { label: t('dashboard:title'), value: 'dashboard', to: '/teacher' },
+          { label: t('course:courses'), value: 'courses', to: '/teacher/courses' },
+          { label: t('rubric:title'), value: 'rubrics', to: '/teacher/rubrics' },
         ]}
-        currentTab={currentTab}
-        onTabChange={handleTabChange}
         actions={
           <>
-            {currentTab === 'courses' && (
+            {/* Show Create Course button only when courses exist */}
+            {hasCourses && isCoursesPage && (
               <>
-                {/* 手機版：圖示按鈕，增大觸控區域 */}
-                <Button asChild size="icon" className="md:hidden h-9 w-9">
+                {/* Mobile: Icon only */}
+                <Button asChild variant="emphasis" size="icon-lg" className="md:hidden rounded-2xl">
                   <Link to="/teacher/courses/new">
                     <Plus className="w-5 h-5" />
                     <span className="sr-only">{t('course:new')}</span>
                   </Link>
                 </Button>
-                {/* 桌面版：圖示 + 文字 */}
-                <Button asChild className="hidden md:flex text-sm lg:text-base px-4 lg:px-6 h-9">
+                {/* Desktop: Icon + Text */}
+                <Button asChild variant="emphasis" className="hidden md:flex text-sm lg:text-base px-6 lg:px-8 h-10">
                   <Link to="/teacher/courses/new">
                     <Plus className="w-4 h-4 mr-2" />
                     {t('course:new')}
@@ -217,17 +171,19 @@ export default function TeacherLayout() {
                 </Button>
               </>
             )}
-            {currentTab === 'rubrics' && (
+
+            {/* Show Create Rubric button only when rubrics exist */}
+            {hasRubrics && isRubricsPage && (
               <>
-                {/* 手機版：圖示按鈕，增大觸控區域 */}
-                <Button asChild size="icon" className="md:hidden h-9 w-9">
+                {/* Mobile: Icon only */}
+                <Button asChild variant="emphasis" size="icon-lg" className="md:hidden rounded-2xl">
                   <Link to="/teacher/rubrics/new">
                     <Plus className="w-5 h-5" />
                     <span className="sr-only">{t('rubric:create')}</span>
                   </Link>
                 </Button>
-                {/* 桌面版：圖示 + 文字 */}
-                <Button asChild className="hidden md:flex text-sm lg:text-base px-4 lg:px-6 h-9">
+                {/* Desktop: Icon + Text */}
+                <Button asChild variant="emphasis" className="hidden md:flex text-sm lg:text-base px-6 lg:px-8 h-10">
                   <Link to="/teacher/rubrics/new">
                     <Plus className="w-4 h-4 mr-2" />
                     {t('rubric:create')}

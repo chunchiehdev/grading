@@ -1,16 +1,18 @@
-import { useLoaderData, redirect, useFetcher, useSearchParams } from 'react-router';
-import { useState } from 'react';
+import { useLoaderData, redirect, useSearchParams } from 'react-router';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CourseDiscoveryContent } from '@/components/student/CourseDiscoveryContent';
-import { CourseSearchModal } from '@/components/discover/CourseSearchModal';
 import { InvitationCodeModal } from '@/components/discover/InvitationCodeModal';
 import { SearchErrorBoundary } from '@/components/discover/SearchErrorBoundary';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Ticket, Grid3x3, List } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, Search, Ticket, Grid3x3, List, X } from 'lucide-react';
 import { getUserId } from '@/services/auth.server';
 import { createEnrollmentSchema } from '@/schemas/enrollment';
 import { getDiscoverableCourses, getStudentEnrolledCourseIds } from '@/services/course-discovery.server';
-import type { DiscoveryResponse, DiscoverableCourse } from '@/types/course';
+import type { DiscoverableCourse } from '@/types/course';
+import { gsap } from 'gsap';
+import { useGSAP } from '@gsap/react';
 
 interface DiscoverLoaderData {
   success: boolean;
@@ -26,20 +28,130 @@ interface DiscoverLoaderData {
 /**
  * Course Discovery Page - /student/courses/discover
  * Independent page for browsing and enrolling in courses
- * Has its own loader to avoid impacting other tabs' performance
- * Includes search filtering via URL parameters and React Router
+ * Uses React Router's official recommended approach with setSearchParams
+ * Includes expandable search with GSAP animation
  */
 export default function CourseDiscoveryPage() {
   const { t } = useTranslation(['course']);
   const loaderData = useLoaderData<DiscoverLoaderData>();
-  const searchFetcher = useFetcher<DiscoveryResponse>();
-  const [searchParams] = useSearchParams();
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [invitationModalOpen, setInvitationModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  // Search expansion state
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const buttonsContainerRef = useRef<HTMLDivElement>(null);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Read searchQuery from URL - single source of truth
   const searchQuery = searchParams.get('search') || '';
+
+  // Sync local search value with URL on mount and URL changes
+  useEffect(() => {
+    setSearchValue(searchQuery);
+    if (searchQuery) {
+      setSearchExpanded(true);
+    }
+  }, [searchQuery]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // GSAP animation for search expansion
+  useGSAP(() => {
+    if (!searchContainerRef.current || !buttonsContainerRef.current) return;
+
+    if (searchExpanded) {
+      // Expand animation
+      const tl = gsap.timeline({
+        onComplete: () => {
+          searchInputRef.current?.focus();
+        }
+      });
+
+      tl.to(searchContainerRef.current, {
+        width: 160,
+        duration: 0.4,
+        ease: 'power2.out',
+      })
+      .to(buttonsContainerRef.current, {
+        x: 0,
+        duration: 0.4,
+        ease: 'power2.out',
+      }, '<');
+    } else {
+      // Collapse animation
+      const tl = gsap.timeline();
+
+      tl.to(searchContainerRef.current, {
+        width: 0,
+        duration: 0.3,
+        ease: 'power2.in',
+      })
+      .to(buttonsContainerRef.current, {
+        x: 0,
+        duration: 0.3,
+        ease: 'power2.in',
+      }, '<');
+    }
+  }, { dependencies: [searchExpanded], scope: searchContainerRef });
+
+  // Handle search input change with debounce
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchValue(value);
+
+    // Clear existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Debounce search parameter update
+    debounceTimerRef.current = setTimeout(() => {
+      setSearchParams((prev) => {
+        const newParams = new URLSearchParams(prev);
+        if (value.trim()) {
+          newParams.set('search', value.trim());
+        } else {
+          newParams.delete('search');
+        }
+        newParams.set('offset', '0'); // Reset pagination
+        return newParams;
+      });
+    }, 400);
+  }, [setSearchParams]);
+
+  // Clear search
+  const handleClearSearch = useCallback(() => {
+    setSearchValue('');
+    setSearchParams((prev) => {
+      const newParams = new URLSearchParams(prev);
+      newParams.delete('search');
+      newParams.set('offset', '0');
+      return newParams;
+    });
+    setSearchExpanded(false);
+  }, [setSearchParams]);
+
+  // Toggle search expansion
+  const handleSearchToggle = useCallback(() => {
+    if (searchExpanded && searchValue.trim()) {
+      // If expanded with value, clear search
+      handleClearSearch();
+    } else {
+      // Toggle expansion
+      setSearchExpanded(!searchExpanded);
+    }
+  }, [searchExpanded, searchValue, handleClearSearch]);
 
   if (!loaderData?.success) {
     return (
@@ -49,17 +161,8 @@ export default function CourseDiscoveryPage() {
     );
   }
 
-  const { student } = loaderData;
-
-  // Parse API response correctly
-  // Type is already known from useFetcher<DiscoveryResponse>(), no assertion needed
-  const searchData = searchFetcher.data;
-  const searchError = searchData && !searchData.success ? searchData.error : null;
-  const courses = searchData?.success && searchData.data
-    ? searchData.data.courses  // Search results
-    : loaderData.data.courses || [];  // Initial data or empty array
-
-  const isSearching = searchFetcher.state === 'loading';
+  const { student, data } = loaderData;
+  const courses = data.courses || [];
 
   // Calculate enrolled course IDs
   const enrolledCourseIds = new Set(
@@ -68,21 +171,44 @@ export default function CourseDiscoveryPage() {
 
   return (
     <div className="space-y-6">
-      {/* Action Buttons - Icon Triggers for Modals and View Mode */}
-      <div className="flex items-center justify-between gap-2">
-        {/* Left: Search and Invitation Buttons */}
+      {/* Action Buttons with Expandable Search */}
+      <div className="flex items-center gap-2">
+        {/* Search Button and Expandable Input */}
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setSearchModalOpen(true)}
+            onClick={handleSearchToggle}
             aria-label={t('course:discovery.openSearchModal')}
             title={t('course:discovery.openSearchModal')}
-            className="h-10 w-10 rounded-lg"
+            className="h-10 w-10 rounded-lg flex-shrink-0"
           >
-            <Search className="h-5 w-5" />
+            {searchExpanded && searchValue.trim() ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Search className="h-5 w-5" />
+            )}
           </Button>
 
+          {/* Expandable Search Input Container */}
+          <div
+            ref={searchContainerRef}
+            className="overflow-hidden"
+            style={{ width: 0 }}
+          >
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder={t('course:discovery.search')}
+              value={searchValue}
+              onChange={handleSearchChange}
+              className="h-10 w-full border-b-2 border-t-0 border-l-0 border-r-0 rounded-none focus-visible:ring-0 focus-visible:border-primary px-2"
+            />
+          </div>
+        </div>
+
+        {/* Other Buttons Container - will shift right when search expands */}
+        <div ref={buttonsContainerRef} className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
@@ -93,42 +219,34 @@ export default function CourseDiscoveryPage() {
           >
             <Ticket className="h-5 w-5" />
           </Button>
-        </div>
 
-        {/* Right: View Mode Toggle */}
-        <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+          {/* Divider */}
+          <div className="w-px h-6 bg-border mx-1" />
+
+          {/* View Mode Toggle */}
           <Button
-            variant={viewMode === 'grid' ? 'default' : 'ghost'}
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
             size="icon"
             onClick={() => setViewMode('grid')}
             aria-label={t('course:discovery.gridView')}
             title={t('course:discovery.gridView')}
-            className="h-8 w-8"
+            className="h-10 w-10 rounded-lg"
           >
-            <Grid3x3 className="h-4 w-4" />
+            <Grid3x3 className="h-5 w-5" />
           </Button>
 
           <Button
-            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            variant={viewMode === 'list' ? 'default' : 'outline'}
             size="icon"
             onClick={() => setViewMode('list')}
             aria-label={t('course:discovery.listView')}
             title={t('course:discovery.listView')}
-            className="h-8 w-8"
+            className="h-10 w-10 rounded-lg"
           >
-            <List className="h-4 w-4" />
+            <List className="h-5 w-5" />
           </Button>
         </div>
       </div>
-
-      {/* Search Modal */}
-      <SearchErrorBoundary>
-        <CourseSearchModal
-          open={searchModalOpen}
-          onOpenChange={setSearchModalOpen}
-          fetcher={searchFetcher}
-        />
-      </SearchErrorBoundary>
 
       {/* Invitation Code Modal */}
       <SearchErrorBoundary>
@@ -138,35 +256,17 @@ export default function CourseDiscoveryPage() {
         />
       </SearchErrorBoundary>
 
-      {/* Search Error Alert (if any) */}
-      {searchError && (
-        <div className="flex items-start gap-3 p-4 rounded-lg border border-destructive/50 bg-destructive/5 text-destructive animate-in fade-in-50">
-          <div className="mt-0.5 text-lg">⚠️</div>
-          <div className="flex-1">
-            <p className="font-medium">{t('course:discovery.errorFetching')}</p>
-            <p className="text-sm opacity-75">{searchError}</p>
-          </div>
-        </div>
-      )}
-
       {/* Course Content Section */}
       <SearchErrorBoundary>
-        <div className="relative">
-          {isSearching && (
-            <div className="absolute top-4 right-4 z-10">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            </div>
-          )}
-          <CourseDiscoveryContent
-            student={student}
-            courses={courses}
-            enrolledCourseIds={enrolledCourseIds}
-            searchQuery={searchQuery}
-            isSearching={isSearching}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
-        </div>
+        <CourseDiscoveryContent
+          student={student}
+          courses={courses}
+          enrolledCourseIds={enrolledCourseIds}
+          searchQuery={searchQuery}
+          isSearching={false}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
       </SearchErrorBoundary>
     </div>
   );
