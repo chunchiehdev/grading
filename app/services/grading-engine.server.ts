@@ -205,9 +205,11 @@ export async function processGradingResult(
       }
     }
 
-    // Grade with AI - check feature flag for new AI SDK grading
+    // Grade with AI - check feature flags
+    const useAgentGrading = process.env.USE_AGENT_GRADING === 'true';
     const useAISDK = isAISDKGradingEnabled();
-    logger.info(`🤖 Using ${useAISDK ? 'AI SDK' : 'Legacy'} grading system`);
+
+    logger.info(`🤖 Using ${useAgentGrading ? 'Agent' : useAISDK ? 'AI SDK' : 'Legacy'} grading system`);
 
     // Log prompt information for complete traceability
     const gradingRequest = {
@@ -228,7 +230,120 @@ export async function processGradingResult(
 
     let gradingResponse;
 
-    if (useAISDK) {
+    if (useAgentGrading) {
+      // Agent-based grading path (AI SDK 6 beta)
+      const { executeGradingAgent } = await import('./agent-executor.server');
+      const { saveAgentExecution } = await import('./agent-logger.server');
+
+      logger.info('🤖 Starting Agent-based grading', { resultId });
+
+      const agentResult = await executeGradingAgent({
+        submissionId: result.uploadedFile.id,
+        uploadedFileId: result.uploadedFile.id,
+        fileName: result.uploadedFile.originalFileName,
+        content: result.uploadedFile.parsedContent,
+        rubricId: result.rubric.id,
+        rubricName: result.rubric.name,
+        criteria: criteria.map(c => ({
+          criteriaId: c.id,
+          name: c.name,
+          description: c.description,
+          maxScore: c.maxScore,
+          levels: c.levels?.map(l => ({
+            score: l.score,
+            description: l.description
+          }))
+        })),
+        referenceDocuments: referenceDocuments.length > 0 ? referenceDocuments.map(ref => ({
+          fileId: ref.fileId,
+          fileName: ref.fileName,
+          content: ref.content,
+          contentLength: ref.content.length,
+          wasTruncated: ref.wasTruncated,
+        })) : undefined,
+        customInstructions: customInstructions || undefined,
+        assignmentType: 'other', // TODO: detect from assignment
+        userId: _userId,
+        resultId,
+        userLanguage,
+        maxSteps: 15,
+        confidenceThreshold: parseFloat(process.env.AGENT_CONFIDENCE_THRESHOLD || '0.7'),
+        enableSimilarityCheck: result.assignmentAreaId !== null,
+      });
+
+      // Save Agent execution to database
+      await saveAgentExecution(resultId, agentResult);
+
+      if (agentResult.success && agentResult.data) {
+        // 🔍 Log the agentResult.data structure for debugging
+        logger.info('🔍 [Grading Engine] agentResult.data structure:', {
+          resultId,
+          data: JSON.stringify(agentResult.data, null, 2),
+          hasBreakdown: !!agentResult.data.breakdown,
+          breakdownType: agentResult.data.breakdown ? typeof agentResult.data.breakdown : 'undefined',
+          breakdownIsArray: Array.isArray(agentResult.data.breakdown),
+          breakdownLength: agentResult.data.breakdown?.length,
+        });
+
+        // Convert to standard format with null safety
+        if (!agentResult.data.breakdown || !Array.isArray(agentResult.data.breakdown)) {
+          logger.error('❌ [Grading Engine] Invalid breakdown structure', {
+            resultId,
+            breakdown: agentResult.data.breakdown,
+          });
+          throw new Error('Agent returned invalid breakdown structure (not an array)');
+        }
+
+        const totalScore = agentResult.data.breakdown.reduce((sum, item) => sum + item.score, 0);
+        const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
+
+        gradingResponse = {
+          success: true,
+          result: {
+            breakdown: agentResult.data.breakdown,
+            totalScore,
+            maxScore,
+            overallFeedback: agentResult.data.overallFeedback,
+          },
+          thoughtSummary: `Agent Confidence: ${(agentResult.confidenceScore * 100).toFixed(1)}%`,
+          provider: 'gemini-agent',
+          metadata: {
+            model: 'gemini-2.5-flash-agent',
+            tokens: agentResult.totalTokens,
+            duration: agentResult.executionTimeMs,
+            agentSteps: agentResult.steps.length,
+            confidenceScore: agentResult.confidenceScore,
+            requiresReview: agentResult.requiresReview,
+          },
+        };
+
+        logger.info(`✅ Agent grading succeeded`, {
+          resultId,
+          confidence: agentResult.confidenceScore,
+          requiresReview: agentResult.requiresReview,
+          steps: agentResult.steps.length,
+        });
+
+        // If requires review, send notification to teacher
+        if (agentResult.requiresReview) {
+          logger.warn(`⚠️ Low confidence grading - requires human review`, {
+            resultId,
+            confidence: agentResult.confidenceScore,
+          });
+          // TODO: Send WebSocket notification to teacher
+        }
+      } else {
+        // Agent failed, fallback to AI SDK or Legacy
+        logger.error(`❌ Agent grading failed, falling back`, {
+          resultId,
+          error: agentResult.error,
+        });
+        gradingResponse = {
+          success: false,
+          error: agentResult.error || 'Agent grading failed',
+        };
+      }
+    } else if (useAISDK) {
       // New AI SDK grading path
       const sdkResult = await gradeWithAI({
         prompt,

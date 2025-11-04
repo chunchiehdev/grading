@@ -44,6 +44,8 @@ services:
       - PRISMA_LOG_LEVEL=error
       # Internal API Key
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
+      - USE_AGENT_GRADING=${USE_AGENT_GRADING:-true}
+      - AGENT_CONFIDENCE_THRESHOLD=${AGENT_CONFIDENCE_THRESHOLD:-0.7}
     volumes:
       - .:/app
       - /app/node_modules

@@ -289,16 +289,48 @@ model GradingResult {
   gradingTokens     Int?     // 消耗的tokens數量
   gradingDuration   Int?     // 評分耗時(毫秒)
 
+  // Agent-based grading fields (AI SDK 6)
+  agentSteps        Json?    // Agent 執行的所有步驟記錄
+  toolCalls         Json?    // 所有工具調用的詳細記錄
+  confidenceScore   Float?   // 0-1 信心度分數
+  requiresReview    Boolean  @default(false) // 是否需要人工審核
+  reviewedBy        String?  // 審核者 userId
+  reviewedAt        DateTime? // 審核時間
+  agentModel        String?  @db.VarChar(100) // Agent 使用的模型
+  agentExecutionTime Int?    // Agent 總執行時間(毫秒)
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   completedAt       DateTime? // 評分完成時間
+
+  // Relations
+  agentLogs         AgentExecutionLog[]
 
   @@index([gradingSessionId, status])
   @@index([uploadedFileId])
   @@index([rubricId])
   @@index([assignmentAreaId])  // NEW: Index for JOIN performance
   @@index([normalizedScore])
+  @@index([requiresReview, createdAt]) // NEW: For review queue
   @@map("grading_results")
+}
+
+// Agent執行記錄 - 詳細追蹤每個步驟
+model AgentExecutionLog {
+  id                String        @id @default(uuid())
+  gradingResultId   String
+  gradingResult     GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
+
+  stepNumber        Int           // 步驟編號
+  toolName          String?       @db.VarChar(100) // 工具名稱（null = 純推理步驟）
+  toolInput         Json?         // 工具輸入參數
+  toolOutput        Json?         // 工具輸出結果
+  reasoning         String?       @db.Text // AI 的推理過程
+  durationMs        Int?          // 此步驟耗時
+  timestamp         DateTime      @default(now())
+
+  @@index([gradingResultId, stepNumber])
+  @@map("agent_execution_logs")
 }
 
 // 評分會話狀態

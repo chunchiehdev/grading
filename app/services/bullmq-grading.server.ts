@@ -152,7 +152,7 @@ async function initializeBullMQ(): Promise<void> {
         },
         {
           connection: bullmqRedis,
-          concurrency: 3,
+          concurrency: 1,  // 改為 1，避免同時多個任務消耗 API 配額
         }
       );
       state.worker = worker;

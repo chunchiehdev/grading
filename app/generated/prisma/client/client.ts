@@ -60,6 +60,11 @@ export type UploadedFile = runtime.Types.Result.DefaultSelection<Prisma.$Uploade
  */
 export type GradingResult = runtime.Types.Result.DefaultSelection<Prisma.$GradingResultPayload>
 /**
+ * Model AgentExecutionLog
+ * 
+ */
+export type AgentExecutionLog = runtime.Types.Result.DefaultSelection<Prisma.$AgentExecutionLogPayload>
+/**
  * Model Enrollment
  * 
  */
@@ -227,17 +232,16 @@ const config: runtime.GetPrismaClientConfig = {
     "db"
   ],
   "activeProvider": "postgresql",
-  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
         "fromEnvVar": "DATABASE_URL",
-        "value": null
+        "value": "postgresql://grading_admin:password@localhost:5432/grading_db"
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id              String   @id @default(uuid())\n  email           String   @unique\n  role            UserRole @default(STUDENT) // New role field with default to STUDENT\n  hasSelectedRole Boolean  @default(false) // Track if user has explicitly selected a role\n  name            String   @db.VarChar(255)\n  picture         String   @db.VarChar(500)\n  createdAt       DateTime @default(now())\n  updatedAt       DateTime @updatedAt\n\n  // Relations\n  rubrics         Rubric[]\n  gradingSessions GradingSession[]\n  uploadedFiles   UploadedFile[]\n\n  // Teacher-specific relations\n  courses          Course[]\n  teacherRubrics   Rubric[] @relation(\"TeacherRubrics\")\n  assistantClasses Class[]  @relation(\"ClassAssistants\")\n\n  // Student-specific relations\n  submissions     Submission[]\n  enrollments     Enrollment[]\n  usedInvitations InvitationCode[] @relation(\"InvitationCodeUsage\")\n\n  // Chat relations\n  chats Chat[]\n\n  // Notification relations\n  notifications Notification[] @relation(\"UserNotifications\")\n\n  @@map(\"users\")\n}\n\n// Course management for teachers\nmodel Course {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  code        String? @db.VarChar(50) // Course code (e.g., \"CS 201\", \"MATH 101\")\n  description String? @db.Text\n  teacherId   String\n  teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)\n\n  // Course-level settings (shared across all classes)\n  syllabus String? @db.Text // Course syllabus\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  classes         Class[] // A course can have multiple classes/sections\n  assignmentAreas AssignmentArea[]\n  invitationCodes InvitationCode[]\n  notifications   Notification[]   @relation(\"CourseNotifications\")\n\n  @@index([teacherId])\n  @@index([code])\n  @@map(\"courses\")\n}\n\n// Class/Section within a course (班次/班級)\nmodel Class {\n  id       String @id @default(uuid())\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  name String @db.VarChar(100) // \"101班\", \"Section A\", \"週五下午班\"\n\n  // Schedule information (JSON structure for flexibility)\n  // Format: { weekday: string, periodCode: string, room?: string }\n  schedule Json?\n\n  capacity Int? // Maximum number of students (null = unlimited)\n\n  // Optional: Teaching assistant for this class\n  assistantId String?\n  assistant   User?   @relation(\"ClassAssistants\", fields: [assistantId], references: [id], onDelete: SetNull)\n\n  isActive Boolean @default(true) // Whether this class is currently active\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  enrollments     Enrollment[] // Students enrolled in this class\n  assignmentAreas AssignmentArea[] // Assignments specific to this class\n  invitationCodes InvitationCode[] // Invitation codes for this class\n\n  @@index([courseId])\n  @@index([assistantId])\n  @@map(\"classes\")\n}\n\n// Assignment areas within courses\nmodel AssignmentArea {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  description String? @db.Text\n  courseId    String\n  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Assignment can be specific to a class (null = all classes)\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric    @relation(\"AssignmentAreaRubrics\", fields: [rubricId], references: [id], onDelete: Restrict)\n  dueDate  DateTime?\n\n  // AI Grading Context (Feature 004)\n  referenceFileIds    String? @db.Text // JSON array of UploadedFile IDs (max 5 files)\n  customGradingPrompt String? @db.Text // Custom grading instructions (max 5000 chars)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  submissions    Submission[]\n  notifications  Notification[]  @relation(\"AssignmentNotifications\")\n  gradingResults GradingResult[] // NEW: Reverse relation for context-aware grading\n\n  @@index([courseId])\n  @@index([classId])\n  @@index([rubricId])\n  @@map(\"assignment_areas\")\n}\n\n// Student submissions to assignment areas\nmodel Submission {\n  id               String         @id @default(uuid())\n  studentId        String\n  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)\n  assignmentAreaId String\n  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)\n\n  filePath   String   @db.VarChar(500) // Path/URL of uploaded assignment\n  uploadedAt DateTime @default(now())\n\n  // AI analysis and grading\n  sessionId        String? // GradingSession ID for linking AI results\n  aiAnalysisResult Json? // AI analysis results\n  thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿\n  finalScore       Int? // Final score\n  normalizedScore  Float? // 100-point normalized score from AI grading\n\n  // Context transparency (Feature 004) - copied from GradingResult\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  teacherFeedback String?          @db.Text\n  status          SubmissionStatus @default(SUBMITTED)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([studentId])\n  @@index([assignmentAreaId])\n  @@index([status])\n  @@map(\"submissions\")\n}\n\n// 評分標準表\nmodel Rubric {\n  id        String  @id @default(uuid())\n  userId    String\n  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  teacherId String? // New field for teacher-created rubrics\n  teacher   User?   @relation(\"TeacherRubrics\", fields: [teacherId], references: [id], onDelete: Cascade)\n\n  name        String  @db.VarChar(255)\n  description String  @db.Text\n  version     Int     @default(1) // 版本號\n  isActive    Boolean @default(true) // 是否為當前版本\n  isTemplate  Boolean @default(false) // Whether it's a reusable template\n\n  // 評分標準結構 (JSON)\n  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults  GradingResult[]\n  assignmentAreas AssignmentArea[] @relation(\"AssignmentAreaRubrics\")\n\n  @@index([userId, isActive])\n  @@index([teacherId, isTemplate])\n  @@map(\"rubrics\")\n}\n\n// 評分對話 - 一次評分請求可包含多個檔案\nmodel GradingSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  status   GradingSessionStatus @default(PENDING)\n  progress Int                  @default(0) // 整體進度 0-100\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, status])\n  @@map(\"grading_sessions\")\n}\n\n// 上傳的檔案記錄\nmodel UploadedFile {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  fileName         String @db.VarChar(500)\n  originalFileName String @db.VarChar(500)\n  fileKey          String @unique // S3 key\n  fileSize         Int\n  mimeType         String @db.VarChar(100)\n\n  // 檔案處理狀態\n  parseStatus   FileParseStatus @default(PENDING)\n  parsedContent String?         @db.Text // 解析後的文字內容\n  parseError    String? // 解析錯誤訊息\n\n  // 軟刪除標記\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime? // 刪除時間\n\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  expiresAt DateTime? // 檔案過期時間，用於自動清理\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, parseStatus])\n  @@index([userId, isDeleted]) // 用於過濾已刪除檔案\n  @@index([expiresAt]) // 用於清理過期檔案\n  @@map(\"uploaded_files\")\n}\n\n// 評分結果 - 每個檔案對應一個評分標準的結果\nmodel GradingResult {\n  id               String         @id @default(uuid())\n  gradingSessionId String\n  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)\n\n  uploadedFileId String\n  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // AI Grading Context (Feature 004)\n  assignmentAreaId String?\n  assignmentArea   AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)\n\n  // 評分狀態和結果\n  status   GradingStatus @default(PENDING)\n  progress Int           @default(0) // 此項評分進度 0-100\n\n  // LLM評分結果 (JSON結構)\n  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }\n  errorMessage String? // 評分失敗時的錯誤訊息\n\n  // AI Thinking Process (Feature 005: Thinking Models)\n  thoughtSummary String? @db.Text // AI 的思考過程摘要\n\n  // Context transparency (Feature 004)\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  // 100 分制正規化分數\n  normalizedScore Float? // (totalScore / maxScore) * 100\n\n  // 評分原始數據\n  gradingModel    String? @db.VarChar(100) // 使用的模型名稱\n  gradingTokens   Int? // 消耗的tokens數量\n  gradingDuration Int? // 評分耗時(毫秒)\n\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime? // 評分完成時間\n\n  @@index([gradingSessionId, status])\n  @@index([uploadedFileId])\n  @@index([rubricId])\n  @@index([assignmentAreaId]) // NEW: Index for JOIN performance\n  @@index([normalizedScore])\n  @@map(\"grading_results\")\n}\n\n// 評分會話狀態\nenum GradingSessionStatus {\n  PENDING // 等待開始\n  PROCESSING // 評分中\n  COMPLETED // 全部完成\n  FAILED // 失敗\n  CANCELLED // 已取消\n}\n\n// 單項評分狀態\nenum GradingStatus {\n  PENDING // 等待評分\n  PROCESSING // 評分中\n  COMPLETED // 評分完成\n  FAILED // 評分失敗\n  SKIPPED // 跳過(檔案解析失敗等)\n}\n\n// 檔案解析狀態\nenum FileParseStatus {\n  PENDING // 等待解析\n  PROCESSING // 解析中\n  COMPLETED // 解析完成\n  FAILED // 解析失敗\n}\n\n// User roles\nenum UserRole {\n  STUDENT\n  TEACHER\n}\n\n// Submission status\nenum SubmissionStatus {\n  DRAFT // File uploaded but not yet submitted\n  SUBMITTED // Just submitted\n  ANALYZED // AI analysis complete\n  GRADED // Teacher has provided feedback/grade\n}\n\n// Course enrollment for students\nmodel Enrollment {\n  id        String @id @default(uuid())\n  studentId String\n  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)\n\n  // Student enrolls in a specific class\n  classId String\n  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  enrolledAt DateTime @default(now())\n\n  // Optional: Track student performance in this enrollment\n  finalGrade Float?\n  attendance Json? // Attendance records\n\n  @@unique([studentId, classId])\n  @@index([studentId])\n  @@index([classId])\n  @@map(\"enrollments\")\n}\n\n// Course invitation codes\nmodel InvitationCode {\n  id       String @id @default(uuid())\n  code     String @unique @db.VarChar(50)\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Invitation code can be specific to a class\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime  @default(now())\n  expiresAt DateTime\n  isUsed    Boolean   @default(false)\n  usedAt    DateTime?\n  usedById  String?\n  usedBy    User?     @relation(\"InvitationCodeUsage\", fields: [usedById], references: [id])\n\n  @@index([code])\n  @@index([courseId])\n  @@index([classId])\n  @@index([expiresAt])\n  @@map(\"invitation_codes\")\n}\n\n// AI Chat system\nmodel Chat {\n  id        String   @id @default(uuid())\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  title     String?  @db.VarChar(100)\n  context   Json? // {courseId, assignmentId, type}\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  msgs Msg[]\n\n  @@index([userId])\n  @@index([createdAt])\n  @@map(\"chats\")\n}\n\nmodel Msg {\n  id      String   @id @default(uuid())\n  chatId  String\n  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)\n  role    Role\n  content String   @db.Text\n  data    Json? // Generated rubric data, error info, etc\n  time    DateTime @default(now())\n\n  @@index([chatId])\n  @@index([time])\n  @@map(\"messages\")\n}\n\nenum Role {\n  USER\n  AI\n}\n\n// Real-time notifications for course activities\nmodel Notification {\n  id           String           @id @default(uuid())\n  type         NotificationType\n  userId       String\n  user         User             @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  courseId     String?\n  course       Course?          @relation(\"CourseNotifications\", fields: [courseId], references: [id], onDelete: Cascade)\n  assignmentId String?\n  assignment   AssignmentArea?  @relation(\"AssignmentNotifications\", fields: [assignmentId], references: [id], onDelete: Cascade)\n  title        String           @db.VarChar(255)\n  message      String           @db.Text\n  isRead       Boolean          @default(false)\n  readAt       DateTime?\n  data         Json? // Additional notification data\n  createdAt    DateTime         @default(now())\n\n  @@index([userId, isRead])\n  @@index([courseId])\n  @@index([type])\n  @@index([createdAt])\n  @@map(\"notifications\")\n}\n\nenum NotificationType {\n  ASSIGNMENT_CREATED // New assignment published\n  ASSIGNMENT_DUE_SOON // Assignment due in 24 hours\n  SUBMISSION_GRADED // Teacher graded submission\n  COURSE_ANNOUNCEMENT // General course announcement\n}\n",
-  "inlineSchemaHash": "b8b1c60b5c2361c9cf2b26acd8ef77289b3ac852e860ccafe04726b71ff94d50",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id              String   @id @default(uuid())\n  email           String   @unique\n  role            UserRole @default(STUDENT) // New role field with default to STUDENT\n  hasSelectedRole Boolean  @default(false) // Track if user has explicitly selected a role\n  name            String   @db.VarChar(255)\n  picture         String   @db.VarChar(500)\n  createdAt       DateTime @default(now())\n  updatedAt       DateTime @updatedAt\n\n  // Relations\n  rubrics         Rubric[]\n  gradingSessions GradingSession[]\n  uploadedFiles   UploadedFile[]\n\n  // Teacher-specific relations\n  courses          Course[]\n  teacherRubrics   Rubric[] @relation(\"TeacherRubrics\")\n  assistantClasses Class[]  @relation(\"ClassAssistants\")\n\n  // Student-specific relations\n  submissions     Submission[]\n  enrollments     Enrollment[]\n  usedInvitations InvitationCode[] @relation(\"InvitationCodeUsage\")\n\n  // Chat relations\n  chats Chat[]\n\n  // Notification relations\n  notifications Notification[] @relation(\"UserNotifications\")\n\n  @@map(\"users\")\n}\n\n// Course management for teachers\nmodel Course {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  code        String? @db.VarChar(50) // Course code (e.g., \"CS 201\", \"MATH 101\")\n  description String? @db.Text\n  teacherId   String\n  teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)\n\n  // Course-level settings (shared across all classes)\n  syllabus String? @db.Text // Course syllabus\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  classes         Class[] // A course can have multiple classes/sections\n  assignmentAreas AssignmentArea[]\n  invitationCodes InvitationCode[]\n  notifications   Notification[]   @relation(\"CourseNotifications\")\n\n  @@index([teacherId])\n  @@index([code])\n  @@map(\"courses\")\n}\n\n// Class/Section within a course (班次/班級)\nmodel Class {\n  id       String @id @default(uuid())\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  name String @db.VarChar(100) // \"101班\", \"Section A\", \"週五下午班\"\n\n  // Schedule information (JSON structure for flexibility)\n  // Format: { weekday: string, periodCode: string, room?: string }\n  schedule Json?\n\n  capacity Int? // Maximum number of students (null = unlimited)\n\n  // Optional: Teaching assistant for this class\n  assistantId String?\n  assistant   User?   @relation(\"ClassAssistants\", fields: [assistantId], references: [id], onDelete: SetNull)\n\n  isActive Boolean @default(true) // Whether this class is currently active\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  enrollments     Enrollment[] // Students enrolled in this class\n  assignmentAreas AssignmentArea[] // Assignments specific to this class\n  invitationCodes InvitationCode[] // Invitation codes for this class\n\n  @@index([courseId])\n  @@index([assistantId])\n  @@map(\"classes\")\n}\n\n// Assignment areas within courses\nmodel AssignmentArea {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  description String? @db.Text\n  courseId    String\n  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Assignment can be specific to a class (null = all classes)\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric    @relation(\"AssignmentAreaRubrics\", fields: [rubricId], references: [id], onDelete: Restrict)\n  dueDate  DateTime?\n\n  // AI Grading Context (Feature 004)\n  referenceFileIds    String? @db.Text // JSON array of UploadedFile IDs (max 5 files)\n  customGradingPrompt String? @db.Text // Custom grading instructions (max 5000 chars)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  submissions    Submission[]\n  notifications  Notification[]  @relation(\"AssignmentNotifications\")\n  gradingResults GradingResult[] // NEW: Reverse relation for context-aware grading\n\n  @@index([courseId])\n  @@index([classId])\n  @@index([rubricId])\n  @@map(\"assignment_areas\")\n}\n\n// Student submissions to assignment areas\nmodel Submission {\n  id               String         @id @default(uuid())\n  studentId        String\n  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)\n  assignmentAreaId String\n  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)\n\n  filePath   String   @db.VarChar(500) // Path/URL of uploaded assignment\n  uploadedAt DateTime @default(now())\n\n  // AI analysis and grading\n  sessionId        String? // GradingSession ID for linking AI results\n  aiAnalysisResult Json? // AI analysis results\n  thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿\n  finalScore       Int? // Final score\n  normalizedScore  Float? // 100-point normalized score from AI grading\n\n  // Context transparency (Feature 004) - copied from GradingResult\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  teacherFeedback String?          @db.Text\n  status          SubmissionStatus @default(SUBMITTED)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([studentId])\n  @@index([assignmentAreaId])\n  @@index([status])\n  @@map(\"submissions\")\n}\n\n// 評分標準表\nmodel Rubric {\n  id        String  @id @default(uuid())\n  userId    String\n  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  teacherId String? // New field for teacher-created rubrics\n  teacher   User?   @relation(\"TeacherRubrics\", fields: [teacherId], references: [id], onDelete: Cascade)\n\n  name        String  @db.VarChar(255)\n  description String  @db.Text\n  version     Int     @default(1) // 版本號\n  isActive    Boolean @default(true) // 是否為當前版本\n  isTemplate  Boolean @default(false) // Whether it's a reusable template\n\n  // 評分標準結構 (JSON)\n  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults  GradingResult[]\n  assignmentAreas AssignmentArea[] @relation(\"AssignmentAreaRubrics\")\n\n  @@index([userId, isActive])\n  @@index([teacherId, isTemplate])\n  @@map(\"rubrics\")\n}\n\n// 評分對話 - 一次評分請求可包含多個檔案\nmodel GradingSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  status   GradingSessionStatus @default(PENDING)\n  progress Int                  @default(0) // 整體進度 0-100\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, status])\n  @@map(\"grading_sessions\")\n}\n\n// 上傳的檔案記錄\nmodel UploadedFile {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  fileName         String @db.VarChar(500)\n  originalFileName String @db.VarChar(500)\n  fileKey          String @unique // S3 key\n  fileSize         Int\n  mimeType         String @db.VarChar(100)\n\n  // 檔案處理狀態\n  parseStatus   FileParseStatus @default(PENDING)\n  parsedContent String?         @db.Text // 解析後的文字內容\n  parseError    String? // 解析錯誤訊息\n\n  // 軟刪除標記\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime? // 刪除時間\n\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  expiresAt DateTime? // 檔案過期時間，用於自動清理\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, parseStatus])\n  @@index([userId, isDeleted]) // 用於過濾已刪除檔案\n  @@index([expiresAt]) // 用於清理過期檔案\n  @@map(\"uploaded_files\")\n}\n\n// 評分結果 - 每個檔案對應一個評分標準的結果\nmodel GradingResult {\n  id               String         @id @default(uuid())\n  gradingSessionId String\n  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)\n\n  uploadedFileId String\n  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // AI Grading Context (Feature 004)\n  assignmentAreaId String?\n  assignmentArea   AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)\n\n  // 評分狀態和結果\n  status   GradingStatus @default(PENDING)\n  progress Int           @default(0) // 此項評分進度 0-100\n\n  // LLM評分結果 (JSON結構)\n  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }\n  errorMessage String? // 評分失敗時的錯誤訊息\n\n  // AI Thinking Process (Feature 005: Thinking Models)\n  thoughtSummary String? @db.Text // AI 的思考過程摘要\n\n  // Context transparency (Feature 004)\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  // 100 分制正規化分數\n  normalizedScore Float? // (totalScore / maxScore) * 100\n\n  // 評分原始數據\n  gradingModel    String? @db.VarChar(100) // 使用的模型名稱\n  gradingTokens   Int? // 消耗的tokens數量\n  gradingDuration Int? // 評分耗時(毫秒)\n\n  // Agent-based grading fields (AI SDK 6)\n  agentSteps         Json? // Agent 執行的所有步驟記錄\n  toolCalls          Json? // 所有工具調用的詳細記錄\n  confidenceScore    Float? // 0-1 信心度分數\n  requiresReview     Boolean   @default(false) // 是否需要人工審核\n  reviewedBy         String? // 審核者 userId\n  reviewedAt         DateTime? // 審核時間\n  agentModel         String?   @db.VarChar(100) // Agent 使用的模型\n  agentExecutionTime Int? // Agent 總執行時間(毫秒)\n\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime? // 評分完成時間\n\n  // Relations\n  agentLogs AgentExecutionLog[]\n\n  @@index([gradingSessionId, status])\n  @@index([uploadedFileId])\n  @@index([rubricId])\n  @@index([assignmentAreaId]) // NEW: Index for JOIN performance\n  @@index([normalizedScore])\n  @@index([requiresReview, createdAt]) // NEW: For review queue\n  @@map(\"grading_results\")\n}\n\n// Agent執行記錄 - 詳細追蹤每個步驟\nmodel AgentExecutionLog {\n  id              String        @id @default(uuid())\n  gradingResultId String\n  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)\n\n  stepNumber Int // 步驟編號\n  toolName   String?  @db.VarChar(100) // 工具名稱（null = 純推理步驟）\n  toolInput  Json? // 工具輸入參數\n  toolOutput Json? // 工具輸出結果\n  reasoning  String?  @db.Text // AI 的推理過程\n  durationMs Int? // 此步驟耗時\n  timestamp  DateTime @default(now())\n\n  @@index([gradingResultId, stepNumber])\n  @@map(\"agent_execution_logs\")\n}\n\n// 評分會話狀態\nenum GradingSessionStatus {\n  PENDING // 等待開始\n  PROCESSING // 評分中\n  COMPLETED // 全部完成\n  FAILED // 失敗\n  CANCELLED // 已取消\n}\n\n// 單項評分狀態\nenum GradingStatus {\n  PENDING // 等待評分\n  PROCESSING // 評分中\n  COMPLETED // 評分完成\n  FAILED // 評分失敗\n  SKIPPED // 跳過(檔案解析失敗等)\n}\n\n// 檔案解析狀態\nenum FileParseStatus {\n  PENDING // 等待解析\n  PROCESSING // 解析中\n  COMPLETED // 解析完成\n  FAILED // 解析失敗\n}\n\n// User roles\nenum UserRole {\n  STUDENT\n  TEACHER\n}\n\n// Submission status\nenum SubmissionStatus {\n  DRAFT // File uploaded but not yet submitted\n  SUBMITTED // Just submitted\n  ANALYZED // AI analysis complete\n  GRADED // Teacher has provided feedback/grade\n}\n\n// Course enrollment for students\nmodel Enrollment {\n  id        String @id @default(uuid())\n  studentId String\n  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)\n\n  // Student enrolls in a specific class\n  classId String\n  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  enrolledAt DateTime @default(now())\n\n  // Optional: Track student performance in this enrollment\n  finalGrade Float?\n  attendance Json? // Attendance records\n\n  @@unique([studentId, classId])\n  @@index([studentId])\n  @@index([classId])\n  @@map(\"enrollments\")\n}\n\n// Course invitation codes\nmodel InvitationCode {\n  id       String @id @default(uuid())\n  code     String @unique @db.VarChar(50)\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Invitation code can be specific to a class\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime  @default(now())\n  expiresAt DateTime\n  isUsed    Boolean   @default(false)\n  usedAt    DateTime?\n  usedById  String?\n  usedBy    User?     @relation(\"InvitationCodeUsage\", fields: [usedById], references: [id])\n\n  @@index([code])\n  @@index([courseId])\n  @@index([classId])\n  @@index([expiresAt])\n  @@map(\"invitation_codes\")\n}\n\n// AI Chat system\nmodel Chat {\n  id        String   @id @default(uuid())\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  title     String?  @db.VarChar(100)\n  context   Json? // {courseId, assignmentId, type}\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  msgs Msg[]\n\n  @@index([userId])\n  @@index([createdAt])\n  @@map(\"chats\")\n}\n\nmodel Msg {\n  id      String   @id @default(uuid())\n  chatId  String\n  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)\n  role    Role\n  content String   @db.Text\n  data    Json? // Generated rubric data, error info, etc\n  time    DateTime @default(now())\n\n  @@index([chatId])\n  @@index([time])\n  @@map(\"messages\")\n}\n\nenum Role {\n  USER\n  AI\n}\n\n// Real-time notifications for course activities\nmodel Notification {\n  id           String           @id @default(uuid())\n  type         NotificationType\n  userId       String\n  user         User             @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  courseId     String?\n  course       Course?          @relation(\"CourseNotifications\", fields: [courseId], references: [id], onDelete: Cascade)\n  assignmentId String?\n  assignment   AssignmentArea?  @relation(\"AssignmentNotifications\", fields: [assignmentId], references: [id], onDelete: Cascade)\n  title        String           @db.VarChar(255)\n  message      String           @db.Text\n  isRead       Boolean          @default(false)\n  readAt       DateTime?\n  data         Json? // Additional notification data\n  createdAt    DateTime         @default(now())\n\n  @@index([userId, isRead])\n  @@index([courseId])\n  @@index([type])\n  @@index([createdAt])\n  @@map(\"notifications\")\n}\n\nenum NotificationType {\n  ASSIGNMENT_CREATED // New assignment published\n  ASSIGNMENT_DUE_SOON // Assignment due in 24 hours\n  SUBMISSION_GRADED // Teacher graded submission\n  COURSE_ANNOUNCEMENT // General course announcement\n}\n",
+  "inlineSchemaHash": "8ddf398e66e45f9c5ea73ea627b5a31c008632d5bdde461f8794183b86a10be5",
   "copyEngine": true,
   "runtimeDataModel": {
     "models": {},
@@ -248,7 +252,7 @@ const config: runtime.GetPrismaClientConfig = {
 }
 config.dirname = __dirname
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UserRole\",\"nativeType\":null,\"default\":\"STUDENT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"hasSelectedRole\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"picture\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFiles\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherRubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantClasses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedInvitations\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chats\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Course\":{\"dbName\":\"courses\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"syllabus\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"classes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Class\":{\"dbName\":\"classes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"schedule\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"capacity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistant\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[\"assistantId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AssignmentArea\":{\"dbName\":\"assignment_areas\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"referenceFileIds\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"customGradingPrompt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Submission\":{\"dbName\":\"submissions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"filePath\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiAnalysisResult\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherFeedback\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"SubmissionStatus\",\"nativeType\":null,\"default\":\"SUBMITTED\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isTemplate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingSession\":{\"dbName\":\"grading_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingSessionStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"UploadedFile\":{\"dbName\":\"uploaded_files\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseStatus\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"FileParseStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContent\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseError\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingResult\":{\"dbName\":\"grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSession\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[\"gradingSessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFileId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFile\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[\"uploadedFileId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"errorMessage\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Enrollment\":{\"dbName\":\"enrollments\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrolledAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalGrade\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"attendance\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"studentId\",\"classId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"studentId\",\"classId\"]}],\"isGenerated\":false},\"InvitationCode\":{\"dbName\":\"invitation_codes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isUsed\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedById\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedBy\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[\"usedById\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Chat\":{\"dbName\":\"chats\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"context\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"msgs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Msg\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Msg\":{\"dbName\":\"messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chatId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chat\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[\"chatId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Role\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"time\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Notification\":{\"dbName\":\"notifications\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"type\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"NotificationType\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[\"assignmentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"message\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isRead\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"readAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"GradingSessionStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"CANCELLED\",\"dbName\":null}],\"dbName\":null},\"GradingStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"SKIPPED\",\"dbName\":null}],\"dbName\":null},\"FileParseStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null}],\"dbName\":null},\"UserRole\":{\"values\":[{\"name\":\"STUDENT\",\"dbName\":null},{\"name\":\"TEACHER\",\"dbName\":null}],\"dbName\":null},\"SubmissionStatus\":{\"values\":[{\"name\":\"DRAFT\",\"dbName\":null},{\"name\":\"SUBMITTED\",\"dbName\":null},{\"name\":\"ANALYZED\",\"dbName\":null},{\"name\":\"GRADED\",\"dbName\":null}],\"dbName\":null},\"Role\":{\"values\":[{\"name\":\"USER\",\"dbName\":null},{\"name\":\"AI\",\"dbName\":null}],\"dbName\":null},\"NotificationType\":{\"values\":[{\"name\":\"ASSIGNMENT_CREATED\",\"dbName\":null},{\"name\":\"ASSIGNMENT_DUE_SOON\",\"dbName\":null},{\"name\":\"SUBMISSION_GRADED\",\"dbName\":null},{\"name\":\"COURSE_ANNOUNCEMENT\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UserRole\",\"nativeType\":null,\"default\":\"STUDENT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"hasSelectedRole\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"picture\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFiles\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherRubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantClasses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedInvitations\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chats\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Course\":{\"dbName\":\"courses\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"syllabus\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"classes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Class\":{\"dbName\":\"classes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"schedule\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"capacity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistant\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[\"assistantId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AssignmentArea\":{\"dbName\":\"assignment_areas\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"referenceFileIds\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"customGradingPrompt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Submission\":{\"dbName\":\"submissions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"filePath\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiAnalysisResult\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherFeedback\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"SubmissionStatus\",\"nativeType\":null,\"default\":\"SUBMITTED\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isTemplate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingSession\":{\"dbName\":\"grading_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingSessionStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"UploadedFile\":{\"dbName\":\"uploaded_files\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseStatus\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"FileParseStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContent\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseError\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingResult\":{\"dbName\":\"grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSession\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[\"gradingSessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFileId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFile\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[\"uploadedFileId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"errorMessage\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentSteps\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolCalls\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"confidenceScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requiresReview\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedBy\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentExecutionTime\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentLogs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentExecutionLog\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentExecutionLog\":{\"dbName\":\"agent_execution_logs\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResultId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResult\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[\"gradingResultId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepNumber\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolInput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolOutput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reasoning\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"durationMs\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Enrollment\":{\"dbName\":\"enrollments\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrolledAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalGrade\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"attendance\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"studentId\",\"classId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"studentId\",\"classId\"]}],\"isGenerated\":false},\"InvitationCode\":{\"dbName\":\"invitation_codes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isUsed\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedById\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedBy\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[\"usedById\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Chat\":{\"dbName\":\"chats\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"context\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"msgs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Msg\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Msg\":{\"dbName\":\"messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chatId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chat\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[\"chatId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Role\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"time\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Notification\":{\"dbName\":\"notifications\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"type\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"NotificationType\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[\"assignmentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"message\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isRead\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"readAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"GradingSessionStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"CANCELLED\",\"dbName\":null}],\"dbName\":null},\"GradingStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"SKIPPED\",\"dbName\":null}],\"dbName\":null},\"FileParseStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null}],\"dbName\":null},\"UserRole\":{\"values\":[{\"name\":\"STUDENT\",\"dbName\":null},{\"name\":\"TEACHER\",\"dbName\":null}],\"dbName\":null},\"SubmissionStatus\":{\"values\":[{\"name\":\"DRAFT\",\"dbName\":null},{\"name\":\"SUBMITTED\",\"dbName\":null},{\"name\":\"ANALYZED\",\"dbName\":null},{\"name\":\"GRADED\",\"dbName\":null}],\"dbName\":null},\"Role\":{\"values\":[{\"name\":\"USER\",\"dbName\":null},{\"name\":\"AI\",\"dbName\":null}],\"dbName\":null},\"NotificationType\":{\"values\":[{\"name\":\"ASSIGNMENT_CREATED\",\"dbName\":null},{\"name\":\"ASSIGNMENT_DUE_SOON\",\"dbName\":null},{\"name\":\"SUBMISSION_GRADED\",\"dbName\":null},{\"name\":\"COURSE_ANNOUNCEMENT\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
 config.engineWasm = undefined
 config.compilerWasm = undefined
 
@@ -484,6 +488,16 @@ export interface PrismaClient<
     * ```
     */
   get gradingResult(): Prisma.GradingResultDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.agentExecutionLog`: Exposes CRUD operations for the **AgentExecutionLog** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AgentExecutionLogs
+    * const agentExecutionLogs = await prisma.agentExecutionLog.findMany()
+    * ```
+    */
+  get agentExecutionLog(): Prisma.AgentExecutionLogDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.enrollment`: Exposes CRUD operations for the **Enrollment** model.
@@ -923,6 +937,7 @@ export namespace Prisma {
     GradingSession: 'GradingSession',
     UploadedFile: 'UploadedFile',
     GradingResult: 'GradingResult',
+    AgentExecutionLog: 'AgentExecutionLog',
     Enrollment: 'Enrollment',
     InvitationCode: 'InvitationCode',
     Chat: 'Chat',
@@ -946,7 +961,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification"
+      modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1616,6 +1631,80 @@ export namespace Prisma {
           }
         }
       }
+      AgentExecutionLog: {
+        payload: Prisma.$AgentExecutionLogPayload<ExtArgs>
+        fields: Prisma.AgentExecutionLogFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AgentExecutionLogFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AgentExecutionLogFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload>
+          }
+          findFirst: {
+            args: Prisma.AgentExecutionLogFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AgentExecutionLogFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload>
+          }
+          findMany: {
+            args: Prisma.AgentExecutionLogFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload>[]
+          }
+          create: {
+            args: Prisma.AgentExecutionLogCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload>
+          }
+          createMany: {
+            args: Prisma.AgentExecutionLogCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AgentExecutionLogCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload>[]
+          }
+          delete: {
+            args: Prisma.AgentExecutionLogDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload>
+          }
+          update: {
+            args: Prisma.AgentExecutionLogUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload>
+          }
+          deleteMany: {
+            args: Prisma.AgentExecutionLogDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AgentExecutionLogUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AgentExecutionLogUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload>[]
+          }
+          upsert: {
+            args: Prisma.AgentExecutionLogUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentExecutionLogPayload>
+          }
+          aggregate: {
+            args: Prisma.AgentExecutionLogAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateAgentExecutionLog>
+          }
+          groupBy: {
+            args: Prisma.AgentExecutionLogGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AgentExecutionLogGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AgentExecutionLogCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AgentExecutionLogCountAggregateOutputType> | number
+          }
+        }
+      }
       Enrollment: {
         payload: Prisma.$EnrollmentPayload<ExtArgs>
         fields: Prisma.EnrollmentFieldRefs
@@ -2079,6 +2168,7 @@ export namespace Prisma {
     gradingSession?: GradingSessionOmit
     uploadedFile?: UploadedFileOmit
     gradingResult?: GradingResultOmit
+    agentExecutionLog?: AgentExecutionLogOmit
     enrollment?: EnrollmentOmit
     invitationCode?: InvitationCodeOmit
     chat?: ChatOmit
@@ -2546,6 +2636,37 @@ export namespace Prisma {
    */
   export type UploadedFileCountOutputTypeCountGradingResultsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     where?: GradingResultWhereInput
+  }
+
+
+  /**
+   * Count Type GradingResultCountOutputType
+   */
+
+  export type GradingResultCountOutputType = {
+    agentLogs: number
+  }
+
+  export type GradingResultCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    agentLogs?: boolean | GradingResultCountOutputTypeCountAgentLogsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * GradingResultCountOutputType without action
+   */
+  export type GradingResultCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GradingResultCountOutputType
+     */
+    select?: GradingResultCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * GradingResultCountOutputType without action
+   */
+  export type GradingResultCountOutputTypeCountAgentLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: AgentExecutionLogWhereInput
   }
 
 
@@ -12575,6 +12696,8 @@ export namespace Prisma {
     normalizedScore: number | null
     gradingTokens: number | null
     gradingDuration: number | null
+    confidenceScore: number | null
+    agentExecutionTime: number | null
   }
 
   export type GradingResultSumAggregateOutputType = {
@@ -12582,6 +12705,8 @@ export namespace Prisma {
     normalizedScore: number | null
     gradingTokens: number | null
     gradingDuration: number | null
+    confidenceScore: number | null
+    agentExecutionTime: number | null
   }
 
   export type GradingResultMinAggregateOutputType = {
@@ -12598,6 +12723,12 @@ export namespace Prisma {
     gradingModel: string | null
     gradingTokens: number | null
     gradingDuration: number | null
+    confidenceScore: number | null
+    requiresReview: boolean | null
+    reviewedBy: string | null
+    reviewedAt: Date | null
+    agentModel: string | null
+    agentExecutionTime: number | null
     createdAt: Date | null
     updatedAt: Date | null
     completedAt: Date | null
@@ -12617,6 +12748,12 @@ export namespace Prisma {
     gradingModel: string | null
     gradingTokens: number | null
     gradingDuration: number | null
+    confidenceScore: number | null
+    requiresReview: boolean | null
+    reviewedBy: string | null
+    reviewedAt: Date | null
+    agentModel: string | null
+    agentExecutionTime: number | null
     createdAt: Date | null
     updatedAt: Date | null
     completedAt: Date | null
@@ -12638,6 +12775,14 @@ export namespace Prisma {
     gradingModel: number
     gradingTokens: number
     gradingDuration: number
+    agentSteps: number
+    toolCalls: number
+    confidenceScore: number
+    requiresReview: number
+    reviewedBy: number
+    reviewedAt: number
+    agentModel: number
+    agentExecutionTime: number
     createdAt: number
     updatedAt: number
     completedAt: number
@@ -12650,6 +12795,8 @@ export namespace Prisma {
     normalizedScore?: true
     gradingTokens?: true
     gradingDuration?: true
+    confidenceScore?: true
+    agentExecutionTime?: true
   }
 
   export type GradingResultSumAggregateInputType = {
@@ -12657,6 +12804,8 @@ export namespace Prisma {
     normalizedScore?: true
     gradingTokens?: true
     gradingDuration?: true
+    confidenceScore?: true
+    agentExecutionTime?: true
   }
 
   export type GradingResultMinAggregateInputType = {
@@ -12673,6 +12822,12 @@ export namespace Prisma {
     gradingModel?: true
     gradingTokens?: true
     gradingDuration?: true
+    confidenceScore?: true
+    requiresReview?: true
+    reviewedBy?: true
+    reviewedAt?: true
+    agentModel?: true
+    agentExecutionTime?: true
     createdAt?: true
     updatedAt?: true
     completedAt?: true
@@ -12692,6 +12847,12 @@ export namespace Prisma {
     gradingModel?: true
     gradingTokens?: true
     gradingDuration?: true
+    confidenceScore?: true
+    requiresReview?: true
+    reviewedBy?: true
+    reviewedAt?: true
+    agentModel?: true
+    agentExecutionTime?: true
     createdAt?: true
     updatedAt?: true
     completedAt?: true
@@ -12713,6 +12874,14 @@ export namespace Prisma {
     gradingModel?: true
     gradingTokens?: true
     gradingDuration?: true
+    agentSteps?: true
+    toolCalls?: true
+    confidenceScore?: true
+    requiresReview?: true
+    reviewedBy?: true
+    reviewedAt?: true
+    agentModel?: true
+    agentExecutionTime?: true
     createdAt?: true
     updatedAt?: true
     completedAt?: true
@@ -12821,6 +12990,14 @@ export namespace Prisma {
     gradingModel: string | null
     gradingTokens: number | null
     gradingDuration: number | null
+    agentSteps: JsonValue | null
+    toolCalls: JsonValue | null
+    confidenceScore: number | null
+    requiresReview: boolean
+    reviewedBy: string | null
+    reviewedAt: Date | null
+    agentModel: string | null
+    agentExecutionTime: number | null
     createdAt: Date
     updatedAt: Date
     completedAt: Date | null
@@ -12861,6 +13038,14 @@ export namespace Prisma {
     gradingModel?: boolean
     gradingTokens?: boolean
     gradingDuration?: boolean
+    agentSteps?: boolean
+    toolCalls?: boolean
+    confidenceScore?: boolean
+    requiresReview?: boolean
+    reviewedBy?: boolean
+    reviewedAt?: boolean
+    agentModel?: boolean
+    agentExecutionTime?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     completedAt?: boolean
@@ -12868,6 +13053,8 @@ export namespace Prisma {
     uploadedFile?: boolean | UploadedFileDefaultArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
     assignmentArea?: boolean | GradingResult$assignmentAreaArgs<ExtArgs>
+    agentLogs?: boolean | GradingResult$agentLogsArgs<ExtArgs>
+    _count?: boolean | GradingResultCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["gradingResult"]>
 
   export type GradingResultSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -12886,6 +13073,14 @@ export namespace Prisma {
     gradingModel?: boolean
     gradingTokens?: boolean
     gradingDuration?: boolean
+    agentSteps?: boolean
+    toolCalls?: boolean
+    confidenceScore?: boolean
+    requiresReview?: boolean
+    reviewedBy?: boolean
+    reviewedAt?: boolean
+    agentModel?: boolean
+    agentExecutionTime?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     completedAt?: boolean
@@ -12911,6 +13106,14 @@ export namespace Prisma {
     gradingModel?: boolean
     gradingTokens?: boolean
     gradingDuration?: boolean
+    agentSteps?: boolean
+    toolCalls?: boolean
+    confidenceScore?: boolean
+    requiresReview?: boolean
+    reviewedBy?: boolean
+    reviewedAt?: boolean
+    agentModel?: boolean
+    agentExecutionTime?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     completedAt?: boolean
@@ -12936,17 +13139,27 @@ export namespace Prisma {
     gradingModel?: boolean
     gradingTokens?: boolean
     gradingDuration?: boolean
+    agentSteps?: boolean
+    toolCalls?: boolean
+    confidenceScore?: boolean
+    requiresReview?: boolean
+    reviewedBy?: boolean
+    reviewedAt?: boolean
+    agentModel?: boolean
+    agentExecutionTime?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     completedAt?: boolean
   }
 
-  export type GradingResultOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "gradingSessionId" | "uploadedFileId" | "rubricId" | "assignmentAreaId" | "status" | "progress" | "result" | "errorMessage" | "thoughtSummary" | "usedContext" | "normalizedScore" | "gradingModel" | "gradingTokens" | "gradingDuration" | "createdAt" | "updatedAt" | "completedAt", ExtArgs["result"]["gradingResult"]>
+  export type GradingResultOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "gradingSessionId" | "uploadedFileId" | "rubricId" | "assignmentAreaId" | "status" | "progress" | "result" | "errorMessage" | "thoughtSummary" | "usedContext" | "normalizedScore" | "gradingModel" | "gradingTokens" | "gradingDuration" | "agentSteps" | "toolCalls" | "confidenceScore" | "requiresReview" | "reviewedBy" | "reviewedAt" | "agentModel" | "agentExecutionTime" | "createdAt" | "updatedAt" | "completedAt", ExtArgs["result"]["gradingResult"]>
   export type GradingResultInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     gradingSession?: boolean | GradingSessionDefaultArgs<ExtArgs>
     uploadedFile?: boolean | UploadedFileDefaultArgs<ExtArgs>
     rubric?: boolean | RubricDefaultArgs<ExtArgs>
     assignmentArea?: boolean | GradingResult$assignmentAreaArgs<ExtArgs>
+    agentLogs?: boolean | GradingResult$agentLogsArgs<ExtArgs>
+    _count?: boolean | GradingResultCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type GradingResultIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     gradingSession?: boolean | GradingSessionDefaultArgs<ExtArgs>
@@ -12968,6 +13181,7 @@ export namespace Prisma {
       uploadedFile: Prisma.$UploadedFilePayload<ExtArgs>
       rubric: Prisma.$RubricPayload<ExtArgs>
       assignmentArea: Prisma.$AssignmentAreaPayload<ExtArgs> | null
+      agentLogs: Prisma.$AgentExecutionLogPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
@@ -12985,6 +13199,14 @@ export namespace Prisma {
       gradingModel: string | null
       gradingTokens: number | null
       gradingDuration: number | null
+      agentSteps: Prisma.JsonValue | null
+      toolCalls: Prisma.JsonValue | null
+      confidenceScore: number | null
+      requiresReview: boolean
+      reviewedBy: string | null
+      reviewedAt: Date | null
+      agentModel: string | null
+      agentExecutionTime: number | null
       createdAt: Date
       updatedAt: Date
       completedAt: Date | null
@@ -13386,6 +13608,7 @@ export namespace Prisma {
     uploadedFile<T extends UploadedFileDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UploadedFileDefaultArgs<ExtArgs>>): Prisma__UploadedFileClient<runtime.Types.Result.GetResult<Prisma.$UploadedFilePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     rubric<T extends RubricDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RubricDefaultArgs<ExtArgs>>): Prisma__RubricClient<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     assignmentArea<T extends GradingResult$assignmentAreaArgs<ExtArgs> = {}>(args?: Subset<T, GradingResult$assignmentAreaArgs<ExtArgs>>): Prisma__AssignmentAreaClient<runtime.Types.Result.GetResult<Prisma.$AssignmentAreaPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    agentLogs<T extends GradingResult$agentLogsArgs<ExtArgs> = {}>(args?: Subset<T, GradingResult$agentLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -13430,6 +13653,14 @@ export namespace Prisma {
     readonly gradingModel: FieldRef<"GradingResult", 'String'>
     readonly gradingTokens: FieldRef<"GradingResult", 'Int'>
     readonly gradingDuration: FieldRef<"GradingResult", 'Int'>
+    readonly agentSteps: FieldRef<"GradingResult", 'Json'>
+    readonly toolCalls: FieldRef<"GradingResult", 'Json'>
+    readonly confidenceScore: FieldRef<"GradingResult", 'Float'>
+    readonly requiresReview: FieldRef<"GradingResult", 'Boolean'>
+    readonly reviewedBy: FieldRef<"GradingResult", 'String'>
+    readonly reviewedAt: FieldRef<"GradingResult", 'DateTime'>
+    readonly agentModel: FieldRef<"GradingResult", 'String'>
+    readonly agentExecutionTime: FieldRef<"GradingResult", 'Int'>
     readonly createdAt: FieldRef<"GradingResult", 'DateTime'>
     readonly updatedAt: FieldRef<"GradingResult", 'DateTime'>
     readonly completedAt: FieldRef<"GradingResult", 'DateTime'>
@@ -13848,6 +14079,30 @@ export namespace Prisma {
   }
 
   /**
+   * GradingResult.agentLogs
+   */
+  export type GradingResult$agentLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    where?: AgentExecutionLogWhereInput
+    orderBy?: AgentExecutionLogOrderByWithRelationInput | AgentExecutionLogOrderByWithRelationInput[]
+    cursor?: AgentExecutionLogWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AgentExecutionLogScalarFieldEnum | AgentExecutionLogScalarFieldEnum[]
+  }
+
+  /**
    * GradingResult without action
    */
   export type GradingResultDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -13863,6 +14118,1146 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: GradingResultInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AgentExecutionLog
+   */
+
+  export type AggregateAgentExecutionLog = {
+    _count: AgentExecutionLogCountAggregateOutputType | null
+    _avg: AgentExecutionLogAvgAggregateOutputType | null
+    _sum: AgentExecutionLogSumAggregateOutputType | null
+    _min: AgentExecutionLogMinAggregateOutputType | null
+    _max: AgentExecutionLogMaxAggregateOutputType | null
+  }
+
+  export type AgentExecutionLogAvgAggregateOutputType = {
+    stepNumber: number | null
+    durationMs: number | null
+  }
+
+  export type AgentExecutionLogSumAggregateOutputType = {
+    stepNumber: number | null
+    durationMs: number | null
+  }
+
+  export type AgentExecutionLogMinAggregateOutputType = {
+    id: string | null
+    gradingResultId: string | null
+    stepNumber: number | null
+    toolName: string | null
+    reasoning: string | null
+    durationMs: number | null
+    timestamp: Date | null
+  }
+
+  export type AgentExecutionLogMaxAggregateOutputType = {
+    id: string | null
+    gradingResultId: string | null
+    stepNumber: number | null
+    toolName: string | null
+    reasoning: string | null
+    durationMs: number | null
+    timestamp: Date | null
+  }
+
+  export type AgentExecutionLogCountAggregateOutputType = {
+    id: number
+    gradingResultId: number
+    stepNumber: number
+    toolName: number
+    toolInput: number
+    toolOutput: number
+    reasoning: number
+    durationMs: number
+    timestamp: number
+    _all: number
+  }
+
+
+  export type AgentExecutionLogAvgAggregateInputType = {
+    stepNumber?: true
+    durationMs?: true
+  }
+
+  export type AgentExecutionLogSumAggregateInputType = {
+    stepNumber?: true
+    durationMs?: true
+  }
+
+  export type AgentExecutionLogMinAggregateInputType = {
+    id?: true
+    gradingResultId?: true
+    stepNumber?: true
+    toolName?: true
+    reasoning?: true
+    durationMs?: true
+    timestamp?: true
+  }
+
+  export type AgentExecutionLogMaxAggregateInputType = {
+    id?: true
+    gradingResultId?: true
+    stepNumber?: true
+    toolName?: true
+    reasoning?: true
+    durationMs?: true
+    timestamp?: true
+  }
+
+  export type AgentExecutionLogCountAggregateInputType = {
+    id?: true
+    gradingResultId?: true
+    stepNumber?: true
+    toolName?: true
+    toolInput?: true
+    toolOutput?: true
+    reasoning?: true
+    durationMs?: true
+    timestamp?: true
+    _all?: true
+  }
+
+  export type AgentExecutionLogAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which AgentExecutionLog to aggregate.
+     */
+    where?: AgentExecutionLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentExecutionLogs to fetch.
+     */
+    orderBy?: AgentExecutionLogOrderByWithRelationInput | AgentExecutionLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AgentExecutionLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentExecutionLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentExecutionLogs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AgentExecutionLogs
+    **/
+    _count?: true | AgentExecutionLogCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AgentExecutionLogAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AgentExecutionLogSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AgentExecutionLogMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AgentExecutionLogMaxAggregateInputType
+  }
+
+  export type GetAgentExecutionLogAggregateType<T extends AgentExecutionLogAggregateArgs> = {
+        [P in keyof T & keyof AggregateAgentExecutionLog]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAgentExecutionLog[P]>
+      : GetScalarType<T[P], AggregateAgentExecutionLog[P]>
+  }
+
+
+
+
+  export type AgentExecutionLogGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: AgentExecutionLogWhereInput
+    orderBy?: AgentExecutionLogOrderByWithAggregationInput | AgentExecutionLogOrderByWithAggregationInput[]
+    by: AgentExecutionLogScalarFieldEnum[] | AgentExecutionLogScalarFieldEnum
+    having?: AgentExecutionLogScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AgentExecutionLogCountAggregateInputType | true
+    _avg?: AgentExecutionLogAvgAggregateInputType
+    _sum?: AgentExecutionLogSumAggregateInputType
+    _min?: AgentExecutionLogMinAggregateInputType
+    _max?: AgentExecutionLogMaxAggregateInputType
+  }
+
+  export type AgentExecutionLogGroupByOutputType = {
+    id: string
+    gradingResultId: string
+    stepNumber: number
+    toolName: string | null
+    toolInput: JsonValue | null
+    toolOutput: JsonValue | null
+    reasoning: string | null
+    durationMs: number | null
+    timestamp: Date
+    _count: AgentExecutionLogCountAggregateOutputType | null
+    _avg: AgentExecutionLogAvgAggregateOutputType | null
+    _sum: AgentExecutionLogSumAggregateOutputType | null
+    _min: AgentExecutionLogMinAggregateOutputType | null
+    _max: AgentExecutionLogMaxAggregateOutputType | null
+  }
+
+  type GetAgentExecutionLogGroupByPayload<T extends AgentExecutionLogGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AgentExecutionLogGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AgentExecutionLogGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AgentExecutionLogGroupByOutputType[P]>
+            : GetScalarType<T[P], AgentExecutionLogGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AgentExecutionLogSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    gradingResultId?: boolean
+    stepNumber?: boolean
+    toolName?: boolean
+    toolInput?: boolean
+    toolOutput?: boolean
+    reasoning?: boolean
+    durationMs?: boolean
+    timestamp?: boolean
+    gradingResult?: boolean | GradingResultDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentExecutionLog"]>
+
+  export type AgentExecutionLogSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    gradingResultId?: boolean
+    stepNumber?: boolean
+    toolName?: boolean
+    toolInput?: boolean
+    toolOutput?: boolean
+    reasoning?: boolean
+    durationMs?: boolean
+    timestamp?: boolean
+    gradingResult?: boolean | GradingResultDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentExecutionLog"]>
+
+  export type AgentExecutionLogSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    gradingResultId?: boolean
+    stepNumber?: boolean
+    toolName?: boolean
+    toolInput?: boolean
+    toolOutput?: boolean
+    reasoning?: boolean
+    durationMs?: boolean
+    timestamp?: boolean
+    gradingResult?: boolean | GradingResultDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentExecutionLog"]>
+
+  export type AgentExecutionLogSelectScalar = {
+    id?: boolean
+    gradingResultId?: boolean
+    stepNumber?: boolean
+    toolName?: boolean
+    toolInput?: boolean
+    toolOutput?: boolean
+    reasoning?: boolean
+    durationMs?: boolean
+    timestamp?: boolean
+  }
+
+  export type AgentExecutionLogOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "gradingResultId" | "stepNumber" | "toolName" | "toolInput" | "toolOutput" | "reasoning" | "durationMs" | "timestamp", ExtArgs["result"]["agentExecutionLog"]>
+  export type AgentExecutionLogInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    gradingResult?: boolean | GradingResultDefaultArgs<ExtArgs>
+  }
+  export type AgentExecutionLogIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    gradingResult?: boolean | GradingResultDefaultArgs<ExtArgs>
+  }
+  export type AgentExecutionLogIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    gradingResult?: boolean | GradingResultDefaultArgs<ExtArgs>
+  }
+
+  export type $AgentExecutionLogPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "AgentExecutionLog"
+    objects: {
+      gradingResult: Prisma.$GradingResultPayload<ExtArgs>
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      gradingResultId: string
+      stepNumber: number
+      toolName: string | null
+      toolInput: Prisma.JsonValue | null
+      toolOutput: Prisma.JsonValue | null
+      reasoning: string | null
+      durationMs: number | null
+      timestamp: Date
+    }, ExtArgs["result"]["agentExecutionLog"]>
+    composites: {}
+  }
+
+  export type AgentExecutionLogGetPayload<S extends boolean | null | undefined | AgentExecutionLogDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload, S>
+
+  export type AgentExecutionLogCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<AgentExecutionLogFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AgentExecutionLogCountAggregateInputType | true
+    }
+
+  export interface AgentExecutionLogDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AgentExecutionLog'], meta: { name: 'AgentExecutionLog' } }
+    /**
+     * Find zero or one AgentExecutionLog that matches the filter.
+     * @param {AgentExecutionLogFindUniqueArgs} args - Arguments to find a AgentExecutionLog
+     * @example
+     * // Get one AgentExecutionLog
+     * const agentExecutionLog = await prisma.agentExecutionLog.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AgentExecutionLogFindUniqueArgs>(args: SelectSubset<T, AgentExecutionLogFindUniqueArgs<ExtArgs>>): Prisma__AgentExecutionLogClient<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AgentExecutionLog that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AgentExecutionLogFindUniqueOrThrowArgs} args - Arguments to find a AgentExecutionLog
+     * @example
+     * // Get one AgentExecutionLog
+     * const agentExecutionLog = await prisma.agentExecutionLog.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AgentExecutionLogFindUniqueOrThrowArgs>(args: SelectSubset<T, AgentExecutionLogFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AgentExecutionLogClient<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AgentExecutionLog that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentExecutionLogFindFirstArgs} args - Arguments to find a AgentExecutionLog
+     * @example
+     * // Get one AgentExecutionLog
+     * const agentExecutionLog = await prisma.agentExecutionLog.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AgentExecutionLogFindFirstArgs>(args?: SelectSubset<T, AgentExecutionLogFindFirstArgs<ExtArgs>>): Prisma__AgentExecutionLogClient<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AgentExecutionLog that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentExecutionLogFindFirstOrThrowArgs} args - Arguments to find a AgentExecutionLog
+     * @example
+     * // Get one AgentExecutionLog
+     * const agentExecutionLog = await prisma.agentExecutionLog.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AgentExecutionLogFindFirstOrThrowArgs>(args?: SelectSubset<T, AgentExecutionLogFindFirstOrThrowArgs<ExtArgs>>): Prisma__AgentExecutionLogClient<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AgentExecutionLogs that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentExecutionLogFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AgentExecutionLogs
+     * const agentExecutionLogs = await prisma.agentExecutionLog.findMany()
+     * 
+     * // Get first 10 AgentExecutionLogs
+     * const agentExecutionLogs = await prisma.agentExecutionLog.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const agentExecutionLogWithIdOnly = await prisma.agentExecutionLog.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AgentExecutionLogFindManyArgs>(args?: SelectSubset<T, AgentExecutionLogFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AgentExecutionLog.
+     * @param {AgentExecutionLogCreateArgs} args - Arguments to create a AgentExecutionLog.
+     * @example
+     * // Create one AgentExecutionLog
+     * const AgentExecutionLog = await prisma.agentExecutionLog.create({
+     *   data: {
+     *     // ... data to create a AgentExecutionLog
+     *   }
+     * })
+     * 
+     */
+    create<T extends AgentExecutionLogCreateArgs>(args: SelectSubset<T, AgentExecutionLogCreateArgs<ExtArgs>>): Prisma__AgentExecutionLogClient<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AgentExecutionLogs.
+     * @param {AgentExecutionLogCreateManyArgs} args - Arguments to create many AgentExecutionLogs.
+     * @example
+     * // Create many AgentExecutionLogs
+     * const agentExecutionLog = await prisma.agentExecutionLog.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AgentExecutionLogCreateManyArgs>(args?: SelectSubset<T, AgentExecutionLogCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AgentExecutionLogs and returns the data saved in the database.
+     * @param {AgentExecutionLogCreateManyAndReturnArgs} args - Arguments to create many AgentExecutionLogs.
+     * @example
+     * // Create many AgentExecutionLogs
+     * const agentExecutionLog = await prisma.agentExecutionLog.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AgentExecutionLogs and only return the `id`
+     * const agentExecutionLogWithIdOnly = await prisma.agentExecutionLog.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AgentExecutionLogCreateManyAndReturnArgs>(args?: SelectSubset<T, AgentExecutionLogCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AgentExecutionLog.
+     * @param {AgentExecutionLogDeleteArgs} args - Arguments to delete one AgentExecutionLog.
+     * @example
+     * // Delete one AgentExecutionLog
+     * const AgentExecutionLog = await prisma.agentExecutionLog.delete({
+     *   where: {
+     *     // ... filter to delete one AgentExecutionLog
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AgentExecutionLogDeleteArgs>(args: SelectSubset<T, AgentExecutionLogDeleteArgs<ExtArgs>>): Prisma__AgentExecutionLogClient<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AgentExecutionLog.
+     * @param {AgentExecutionLogUpdateArgs} args - Arguments to update one AgentExecutionLog.
+     * @example
+     * // Update one AgentExecutionLog
+     * const agentExecutionLog = await prisma.agentExecutionLog.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AgentExecutionLogUpdateArgs>(args: SelectSubset<T, AgentExecutionLogUpdateArgs<ExtArgs>>): Prisma__AgentExecutionLogClient<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AgentExecutionLogs.
+     * @param {AgentExecutionLogDeleteManyArgs} args - Arguments to filter AgentExecutionLogs to delete.
+     * @example
+     * // Delete a few AgentExecutionLogs
+     * const { count } = await prisma.agentExecutionLog.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AgentExecutionLogDeleteManyArgs>(args?: SelectSubset<T, AgentExecutionLogDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AgentExecutionLogs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentExecutionLogUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AgentExecutionLogs
+     * const agentExecutionLog = await prisma.agentExecutionLog.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AgentExecutionLogUpdateManyArgs>(args: SelectSubset<T, AgentExecutionLogUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AgentExecutionLogs and returns the data updated in the database.
+     * @param {AgentExecutionLogUpdateManyAndReturnArgs} args - Arguments to update many AgentExecutionLogs.
+     * @example
+     * // Update many AgentExecutionLogs
+     * const agentExecutionLog = await prisma.agentExecutionLog.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AgentExecutionLogs and only return the `id`
+     * const agentExecutionLogWithIdOnly = await prisma.agentExecutionLog.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AgentExecutionLogUpdateManyAndReturnArgs>(args: SelectSubset<T, AgentExecutionLogUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AgentExecutionLog.
+     * @param {AgentExecutionLogUpsertArgs} args - Arguments to update or create a AgentExecutionLog.
+     * @example
+     * // Update or create a AgentExecutionLog
+     * const agentExecutionLog = await prisma.agentExecutionLog.upsert({
+     *   create: {
+     *     // ... data to create a AgentExecutionLog
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AgentExecutionLog we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AgentExecutionLogUpsertArgs>(args: SelectSubset<T, AgentExecutionLogUpsertArgs<ExtArgs>>): Prisma__AgentExecutionLogClient<runtime.Types.Result.GetResult<Prisma.$AgentExecutionLogPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AgentExecutionLogs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentExecutionLogCountArgs} args - Arguments to filter AgentExecutionLogs to count.
+     * @example
+     * // Count the number of AgentExecutionLogs
+     * const count = await prisma.agentExecutionLog.count({
+     *   where: {
+     *     // ... the filter for the AgentExecutionLogs we want to count
+     *   }
+     * })
+    **/
+    count<T extends AgentExecutionLogCountArgs>(
+      args?: Subset<T, AgentExecutionLogCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AgentExecutionLogCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AgentExecutionLog.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentExecutionLogAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AgentExecutionLogAggregateArgs>(args: Subset<T, AgentExecutionLogAggregateArgs>): Prisma.PrismaPromise<GetAgentExecutionLogAggregateType<T>>
+
+    /**
+     * Group by AgentExecutionLog.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentExecutionLogGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AgentExecutionLogGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AgentExecutionLogGroupByArgs['orderBy'] }
+        : { orderBy?: AgentExecutionLogGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AgentExecutionLogGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAgentExecutionLogGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AgentExecutionLog model
+   */
+  readonly fields: AgentExecutionLogFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AgentExecutionLog.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AgentExecutionLogClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    gradingResult<T extends GradingResultDefaultArgs<ExtArgs> = {}>(args?: Subset<T, GradingResultDefaultArgs<ExtArgs>>): Prisma__GradingResultClient<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AgentExecutionLog model
+   */
+  export interface AgentExecutionLogFieldRefs {
+    readonly id: FieldRef<"AgentExecutionLog", 'String'>
+    readonly gradingResultId: FieldRef<"AgentExecutionLog", 'String'>
+    readonly stepNumber: FieldRef<"AgentExecutionLog", 'Int'>
+    readonly toolName: FieldRef<"AgentExecutionLog", 'String'>
+    readonly toolInput: FieldRef<"AgentExecutionLog", 'Json'>
+    readonly toolOutput: FieldRef<"AgentExecutionLog", 'Json'>
+    readonly reasoning: FieldRef<"AgentExecutionLog", 'String'>
+    readonly durationMs: FieldRef<"AgentExecutionLog", 'Int'>
+    readonly timestamp: FieldRef<"AgentExecutionLog", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AgentExecutionLog findUnique
+   */
+  export type AgentExecutionLogFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentExecutionLog to fetch.
+     */
+    where: AgentExecutionLogWhereUniqueInput
+  }
+
+  /**
+   * AgentExecutionLog findUniqueOrThrow
+   */
+  export type AgentExecutionLogFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentExecutionLog to fetch.
+     */
+    where: AgentExecutionLogWhereUniqueInput
+  }
+
+  /**
+   * AgentExecutionLog findFirst
+   */
+  export type AgentExecutionLogFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentExecutionLog to fetch.
+     */
+    where?: AgentExecutionLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentExecutionLogs to fetch.
+     */
+    orderBy?: AgentExecutionLogOrderByWithRelationInput | AgentExecutionLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AgentExecutionLogs.
+     */
+    cursor?: AgentExecutionLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentExecutionLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentExecutionLogs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AgentExecutionLogs.
+     */
+    distinct?: AgentExecutionLogScalarFieldEnum | AgentExecutionLogScalarFieldEnum[]
+  }
+
+  /**
+   * AgentExecutionLog findFirstOrThrow
+   */
+  export type AgentExecutionLogFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentExecutionLog to fetch.
+     */
+    where?: AgentExecutionLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentExecutionLogs to fetch.
+     */
+    orderBy?: AgentExecutionLogOrderByWithRelationInput | AgentExecutionLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AgentExecutionLogs.
+     */
+    cursor?: AgentExecutionLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentExecutionLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentExecutionLogs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AgentExecutionLogs.
+     */
+    distinct?: AgentExecutionLogScalarFieldEnum | AgentExecutionLogScalarFieldEnum[]
+  }
+
+  /**
+   * AgentExecutionLog findMany
+   */
+  export type AgentExecutionLogFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentExecutionLogs to fetch.
+     */
+    where?: AgentExecutionLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentExecutionLogs to fetch.
+     */
+    orderBy?: AgentExecutionLogOrderByWithRelationInput | AgentExecutionLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AgentExecutionLogs.
+     */
+    cursor?: AgentExecutionLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentExecutionLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentExecutionLogs.
+     */
+    skip?: number
+    distinct?: AgentExecutionLogScalarFieldEnum | AgentExecutionLogScalarFieldEnum[]
+  }
+
+  /**
+   * AgentExecutionLog create
+   */
+  export type AgentExecutionLogCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AgentExecutionLog.
+     */
+    data: XOR<AgentExecutionLogCreateInput, AgentExecutionLogUncheckedCreateInput>
+  }
+
+  /**
+   * AgentExecutionLog createMany
+   */
+  export type AgentExecutionLogCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AgentExecutionLogs.
+     */
+    data: AgentExecutionLogCreateManyInput | AgentExecutionLogCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AgentExecutionLog createManyAndReturn
+   */
+  export type AgentExecutionLogCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * The data used to create many AgentExecutionLogs.
+     */
+    data: AgentExecutionLogCreateManyInput | AgentExecutionLogCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AgentExecutionLog update
+   */
+  export type AgentExecutionLogUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AgentExecutionLog.
+     */
+    data: XOR<AgentExecutionLogUpdateInput, AgentExecutionLogUncheckedUpdateInput>
+    /**
+     * Choose, which AgentExecutionLog to update.
+     */
+    where: AgentExecutionLogWhereUniqueInput
+  }
+
+  /**
+   * AgentExecutionLog updateMany
+   */
+  export type AgentExecutionLogUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AgentExecutionLogs.
+     */
+    data: XOR<AgentExecutionLogUpdateManyMutationInput, AgentExecutionLogUncheckedUpdateManyInput>
+    /**
+     * Filter which AgentExecutionLogs to update
+     */
+    where?: AgentExecutionLogWhereInput
+    /**
+     * Limit how many AgentExecutionLogs to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AgentExecutionLog updateManyAndReturn
+   */
+  export type AgentExecutionLogUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * The data used to update AgentExecutionLogs.
+     */
+    data: XOR<AgentExecutionLogUpdateManyMutationInput, AgentExecutionLogUncheckedUpdateManyInput>
+    /**
+     * Filter which AgentExecutionLogs to update
+     */
+    where?: AgentExecutionLogWhereInput
+    /**
+     * Limit how many AgentExecutionLogs to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AgentExecutionLog upsert
+   */
+  export type AgentExecutionLogUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AgentExecutionLog to update in case it exists.
+     */
+    where: AgentExecutionLogWhereUniqueInput
+    /**
+     * In case the AgentExecutionLog found by the `where` argument doesn't exist, create a new AgentExecutionLog with this data.
+     */
+    create: XOR<AgentExecutionLogCreateInput, AgentExecutionLogUncheckedCreateInput>
+    /**
+     * In case the AgentExecutionLog was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AgentExecutionLogUpdateInput, AgentExecutionLogUncheckedUpdateInput>
+  }
+
+  /**
+   * AgentExecutionLog delete
+   */
+  export type AgentExecutionLogDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
+    /**
+     * Filter which AgentExecutionLog to delete.
+     */
+    where: AgentExecutionLogWhereUniqueInput
+  }
+
+  /**
+   * AgentExecutionLog deleteMany
+   */
+  export type AgentExecutionLogDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which AgentExecutionLogs to delete
+     */
+    where?: AgentExecutionLogWhereInput
+    /**
+     * Limit how many AgentExecutionLogs to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AgentExecutionLog without action
+   */
+  export type AgentExecutionLogDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentExecutionLog
+     */
+    select?: AgentExecutionLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentExecutionLog
+     */
+    omit?: AgentExecutionLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentExecutionLogInclude<ExtArgs> | null
   }
 
 
@@ -19650,12 +21045,35 @@ export namespace Prisma {
     gradingModel: 'gradingModel',
     gradingTokens: 'gradingTokens',
     gradingDuration: 'gradingDuration',
+    agentSteps: 'agentSteps',
+    toolCalls: 'toolCalls',
+    confidenceScore: 'confidenceScore',
+    requiresReview: 'requiresReview',
+    reviewedBy: 'reviewedBy',
+    reviewedAt: 'reviewedAt',
+    agentModel: 'agentModel',
+    agentExecutionTime: 'agentExecutionTime',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt',
     completedAt: 'completedAt'
   } as const
 
   export type GradingResultScalarFieldEnum = (typeof GradingResultScalarFieldEnum)[keyof typeof GradingResultScalarFieldEnum]
+
+
+  export const AgentExecutionLogScalarFieldEnum = {
+    id: 'id',
+    gradingResultId: 'gradingResultId',
+    stepNumber: 'stepNumber',
+    toolName: 'toolName',
+    toolInput: 'toolInput',
+    toolOutput: 'toolOutput',
+    reasoning: 'reasoning',
+    durationMs: 'durationMs',
+    timestamp: 'timestamp'
+  } as const
+
+  export type AgentExecutionLogScalarFieldEnum = (typeof AgentExecutionLogScalarFieldEnum)[keyof typeof AgentExecutionLogScalarFieldEnum]
 
 
   export const EnrollmentScalarFieldEnum = {
@@ -20728,6 +22146,14 @@ export namespace Prisma {
     gradingModel?: StringNullableFilter<"GradingResult"> | string | null
     gradingTokens?: IntNullableFilter<"GradingResult"> | number | null
     gradingDuration?: IntNullableFilter<"GradingResult"> | number | null
+    agentSteps?: JsonNullableFilter<"GradingResult">
+    toolCalls?: JsonNullableFilter<"GradingResult">
+    confidenceScore?: FloatNullableFilter<"GradingResult"> | number | null
+    requiresReview?: BoolFilter<"GradingResult"> | boolean
+    reviewedBy?: StringNullableFilter<"GradingResult"> | string | null
+    reviewedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
+    agentModel?: StringNullableFilter<"GradingResult"> | string | null
+    agentExecutionTime?: IntNullableFilter<"GradingResult"> | number | null
     createdAt?: DateTimeFilter<"GradingResult"> | Date | string
     updatedAt?: DateTimeFilter<"GradingResult"> | Date | string
     completedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
@@ -20735,6 +22161,7 @@ export namespace Prisma {
     uploadedFile?: XOR<UploadedFileScalarRelationFilter, UploadedFileWhereInput>
     rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
     assignmentArea?: XOR<AssignmentAreaNullableScalarRelationFilter, AssignmentAreaWhereInput> | null
+    agentLogs?: AgentExecutionLogListRelationFilter
   }
 
   export type GradingResultOrderByWithRelationInput = {
@@ -20753,6 +22180,14 @@ export namespace Prisma {
     gradingModel?: SortOrderInput | SortOrder
     gradingTokens?: SortOrderInput | SortOrder
     gradingDuration?: SortOrderInput | SortOrder
+    agentSteps?: SortOrderInput | SortOrder
+    toolCalls?: SortOrderInput | SortOrder
+    confidenceScore?: SortOrderInput | SortOrder
+    requiresReview?: SortOrder
+    reviewedBy?: SortOrderInput | SortOrder
+    reviewedAt?: SortOrderInput | SortOrder
+    agentModel?: SortOrderInput | SortOrder
+    agentExecutionTime?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     completedAt?: SortOrderInput | SortOrder
@@ -20760,6 +22195,7 @@ export namespace Prisma {
     uploadedFile?: UploadedFileOrderByWithRelationInput
     rubric?: RubricOrderByWithRelationInput
     assignmentArea?: AssignmentAreaOrderByWithRelationInput
+    agentLogs?: AgentExecutionLogOrderByRelationAggregateInput
   }
 
   export type GradingResultWhereUniqueInput = Prisma.AtLeast<{
@@ -20781,6 +22217,14 @@ export namespace Prisma {
     gradingModel?: StringNullableFilter<"GradingResult"> | string | null
     gradingTokens?: IntNullableFilter<"GradingResult"> | number | null
     gradingDuration?: IntNullableFilter<"GradingResult"> | number | null
+    agentSteps?: JsonNullableFilter<"GradingResult">
+    toolCalls?: JsonNullableFilter<"GradingResult">
+    confidenceScore?: FloatNullableFilter<"GradingResult"> | number | null
+    requiresReview?: BoolFilter<"GradingResult"> | boolean
+    reviewedBy?: StringNullableFilter<"GradingResult"> | string | null
+    reviewedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
+    agentModel?: StringNullableFilter<"GradingResult"> | string | null
+    agentExecutionTime?: IntNullableFilter<"GradingResult"> | number | null
     createdAt?: DateTimeFilter<"GradingResult"> | Date | string
     updatedAt?: DateTimeFilter<"GradingResult"> | Date | string
     completedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
@@ -20788,6 +22232,7 @@ export namespace Prisma {
     uploadedFile?: XOR<UploadedFileScalarRelationFilter, UploadedFileWhereInput>
     rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
     assignmentArea?: XOR<AssignmentAreaNullableScalarRelationFilter, AssignmentAreaWhereInput> | null
+    agentLogs?: AgentExecutionLogListRelationFilter
   }, "id">
 
   export type GradingResultOrderByWithAggregationInput = {
@@ -20806,6 +22251,14 @@ export namespace Prisma {
     gradingModel?: SortOrderInput | SortOrder
     gradingTokens?: SortOrderInput | SortOrder
     gradingDuration?: SortOrderInput | SortOrder
+    agentSteps?: SortOrderInput | SortOrder
+    toolCalls?: SortOrderInput | SortOrder
+    confidenceScore?: SortOrderInput | SortOrder
+    requiresReview?: SortOrder
+    reviewedBy?: SortOrderInput | SortOrder
+    reviewedAt?: SortOrderInput | SortOrder
+    agentModel?: SortOrderInput | SortOrder
+    agentExecutionTime?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     completedAt?: SortOrderInput | SortOrder
@@ -20835,9 +22288,94 @@ export namespace Prisma {
     gradingModel?: StringNullableWithAggregatesFilter<"GradingResult"> | string | null
     gradingTokens?: IntNullableWithAggregatesFilter<"GradingResult"> | number | null
     gradingDuration?: IntNullableWithAggregatesFilter<"GradingResult"> | number | null
+    agentSteps?: JsonNullableWithAggregatesFilter<"GradingResult">
+    toolCalls?: JsonNullableWithAggregatesFilter<"GradingResult">
+    confidenceScore?: FloatNullableWithAggregatesFilter<"GradingResult"> | number | null
+    requiresReview?: BoolWithAggregatesFilter<"GradingResult"> | boolean
+    reviewedBy?: StringNullableWithAggregatesFilter<"GradingResult"> | string | null
+    reviewedAt?: DateTimeNullableWithAggregatesFilter<"GradingResult"> | Date | string | null
+    agentModel?: StringNullableWithAggregatesFilter<"GradingResult"> | string | null
+    agentExecutionTime?: IntNullableWithAggregatesFilter<"GradingResult"> | number | null
     createdAt?: DateTimeWithAggregatesFilter<"GradingResult"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"GradingResult"> | Date | string
     completedAt?: DateTimeNullableWithAggregatesFilter<"GradingResult"> | Date | string | null
+  }
+
+  export type AgentExecutionLogWhereInput = {
+    AND?: AgentExecutionLogWhereInput | AgentExecutionLogWhereInput[]
+    OR?: AgentExecutionLogWhereInput[]
+    NOT?: AgentExecutionLogWhereInput | AgentExecutionLogWhereInput[]
+    id?: StringFilter<"AgentExecutionLog"> | string
+    gradingResultId?: StringFilter<"AgentExecutionLog"> | string
+    stepNumber?: IntFilter<"AgentExecutionLog"> | number
+    toolName?: StringNullableFilter<"AgentExecutionLog"> | string | null
+    toolInput?: JsonNullableFilter<"AgentExecutionLog">
+    toolOutput?: JsonNullableFilter<"AgentExecutionLog">
+    reasoning?: StringNullableFilter<"AgentExecutionLog"> | string | null
+    durationMs?: IntNullableFilter<"AgentExecutionLog"> | number | null
+    timestamp?: DateTimeFilter<"AgentExecutionLog"> | Date | string
+    gradingResult?: XOR<GradingResultScalarRelationFilter, GradingResultWhereInput>
+  }
+
+  export type AgentExecutionLogOrderByWithRelationInput = {
+    id?: SortOrder
+    gradingResultId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrderInput | SortOrder
+    toolInput?: SortOrderInput | SortOrder
+    toolOutput?: SortOrderInput | SortOrder
+    reasoning?: SortOrderInput | SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    timestamp?: SortOrder
+    gradingResult?: GradingResultOrderByWithRelationInput
+  }
+
+  export type AgentExecutionLogWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: AgentExecutionLogWhereInput | AgentExecutionLogWhereInput[]
+    OR?: AgentExecutionLogWhereInput[]
+    NOT?: AgentExecutionLogWhereInput | AgentExecutionLogWhereInput[]
+    gradingResultId?: StringFilter<"AgentExecutionLog"> | string
+    stepNumber?: IntFilter<"AgentExecutionLog"> | number
+    toolName?: StringNullableFilter<"AgentExecutionLog"> | string | null
+    toolInput?: JsonNullableFilter<"AgentExecutionLog">
+    toolOutput?: JsonNullableFilter<"AgentExecutionLog">
+    reasoning?: StringNullableFilter<"AgentExecutionLog"> | string | null
+    durationMs?: IntNullableFilter<"AgentExecutionLog"> | number | null
+    timestamp?: DateTimeFilter<"AgentExecutionLog"> | Date | string
+    gradingResult?: XOR<GradingResultScalarRelationFilter, GradingResultWhereInput>
+  }, "id">
+
+  export type AgentExecutionLogOrderByWithAggregationInput = {
+    id?: SortOrder
+    gradingResultId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrderInput | SortOrder
+    toolInput?: SortOrderInput | SortOrder
+    toolOutput?: SortOrderInput | SortOrder
+    reasoning?: SortOrderInput | SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    timestamp?: SortOrder
+    _count?: AgentExecutionLogCountOrderByAggregateInput
+    _avg?: AgentExecutionLogAvgOrderByAggregateInput
+    _max?: AgentExecutionLogMaxOrderByAggregateInput
+    _min?: AgentExecutionLogMinOrderByAggregateInput
+    _sum?: AgentExecutionLogSumOrderByAggregateInput
+  }
+
+  export type AgentExecutionLogScalarWhereWithAggregatesInput = {
+    AND?: AgentExecutionLogScalarWhereWithAggregatesInput | AgentExecutionLogScalarWhereWithAggregatesInput[]
+    OR?: AgentExecutionLogScalarWhereWithAggregatesInput[]
+    NOT?: AgentExecutionLogScalarWhereWithAggregatesInput | AgentExecutionLogScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"AgentExecutionLog"> | string
+    gradingResultId?: StringWithAggregatesFilter<"AgentExecutionLog"> | string
+    stepNumber?: IntWithAggregatesFilter<"AgentExecutionLog"> | number
+    toolName?: StringNullableWithAggregatesFilter<"AgentExecutionLog"> | string | null
+    toolInput?: JsonNullableWithAggregatesFilter<"AgentExecutionLog">
+    toolOutput?: JsonNullableWithAggregatesFilter<"AgentExecutionLog">
+    reasoning?: StringNullableWithAggregatesFilter<"AgentExecutionLog"> | string | null
+    durationMs?: IntNullableWithAggregatesFilter<"AgentExecutionLog"> | number | null
+    timestamp?: DateTimeWithAggregatesFilter<"AgentExecutionLog"> | Date | string
   }
 
   export type EnrollmentWhereInput = {
@@ -22050,6 +23588,14 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
@@ -22057,6 +23603,7 @@ export namespace Prisma {
     uploadedFile: UploadedFileCreateNestedOneWithoutGradingResultsInput
     rubric: RubricCreateNestedOneWithoutGradingResultsInput
     assignmentArea?: AssignmentAreaCreateNestedOneWithoutGradingResultsInput
+    agentLogs?: AgentExecutionLogCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultUncheckedCreateInput = {
@@ -22075,9 +23622,18 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultUpdateInput = {
@@ -22092,6 +23648,14 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -22099,6 +23663,7 @@ export namespace Prisma {
     uploadedFile?: UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
     rubric?: RubricUpdateOneRequiredWithoutGradingResultsNestedInput
     assignmentArea?: AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
+    agentLogs?: AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultUncheckedUpdateInput = {
@@ -22117,9 +23682,18 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultCreateManyInput = {
@@ -22138,6 +23712,14 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
@@ -22155,6 +23737,14 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -22176,9 +23766,100 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type AgentExecutionLogCreateInput = {
+    id?: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+    gradingResult: GradingResultCreateNestedOneWithoutAgentLogsInput
+  }
+
+  export type AgentExecutionLogUncheckedCreateInput = {
+    id?: string
+    gradingResultId: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentExecutionLogUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    gradingResult?: GradingResultUpdateOneRequiredWithoutAgentLogsNestedInput
+  }
+
+  export type AgentExecutionLogUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    gradingResultId?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentExecutionLogCreateManyInput = {
+    id?: string
+    gradingResultId: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentExecutionLogUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentExecutionLogUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    gradingResultId?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type EnrollmentCreateInput = {
@@ -23454,6 +25135,16 @@ export namespace Prisma {
     isNot?: AssignmentAreaWhereInput | null
   }
 
+  export type AgentExecutionLogListRelationFilter = {
+    every?: AgentExecutionLogWhereInput
+    some?: AgentExecutionLogWhereInput
+    none?: AgentExecutionLogWhereInput
+  }
+
+  export type AgentExecutionLogOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type GradingResultCountOrderByAggregateInput = {
     id?: SortOrder
     gradingSessionId?: SortOrder
@@ -23470,6 +25161,14 @@ export namespace Prisma {
     gradingModel?: SortOrder
     gradingTokens?: SortOrder
     gradingDuration?: SortOrder
+    agentSteps?: SortOrder
+    toolCalls?: SortOrder
+    confidenceScore?: SortOrder
+    requiresReview?: SortOrder
+    reviewedBy?: SortOrder
+    reviewedAt?: SortOrder
+    agentModel?: SortOrder
+    agentExecutionTime?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     completedAt?: SortOrder
@@ -23480,6 +25179,8 @@ export namespace Prisma {
     normalizedScore?: SortOrder
     gradingTokens?: SortOrder
     gradingDuration?: SortOrder
+    confidenceScore?: SortOrder
+    agentExecutionTime?: SortOrder
   }
 
   export type GradingResultMaxOrderByAggregateInput = {
@@ -23496,6 +25197,12 @@ export namespace Prisma {
     gradingModel?: SortOrder
     gradingTokens?: SortOrder
     gradingDuration?: SortOrder
+    confidenceScore?: SortOrder
+    requiresReview?: SortOrder
+    reviewedBy?: SortOrder
+    reviewedAt?: SortOrder
+    agentModel?: SortOrder
+    agentExecutionTime?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     completedAt?: SortOrder
@@ -23515,6 +25222,12 @@ export namespace Prisma {
     gradingModel?: SortOrder
     gradingTokens?: SortOrder
     gradingDuration?: SortOrder
+    confidenceScore?: SortOrder
+    requiresReview?: SortOrder
+    reviewedBy?: SortOrder
+    reviewedAt?: SortOrder
+    agentModel?: SortOrder
+    agentExecutionTime?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     completedAt?: SortOrder
@@ -23525,6 +25238,8 @@ export namespace Prisma {
     normalizedScore?: SortOrder
     gradingTokens?: SortOrder
     gradingDuration?: SortOrder
+    confidenceScore?: SortOrder
+    agentExecutionTime?: SortOrder
   }
 
   export type EnumGradingStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -23535,6 +25250,53 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumGradingStatusFilter<$PrismaModel>
     _max?: NestedEnumGradingStatusFilter<$PrismaModel>
+  }
+
+  export type GradingResultScalarRelationFilter = {
+    is?: GradingResultWhereInput
+    isNot?: GradingResultWhereInput
+  }
+
+  export type AgentExecutionLogCountOrderByAggregateInput = {
+    id?: SortOrder
+    gradingResultId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrder
+    toolInput?: SortOrder
+    toolOutput?: SortOrder
+    reasoning?: SortOrder
+    durationMs?: SortOrder
+    timestamp?: SortOrder
+  }
+
+  export type AgentExecutionLogAvgOrderByAggregateInput = {
+    stepNumber?: SortOrder
+    durationMs?: SortOrder
+  }
+
+  export type AgentExecutionLogMaxOrderByAggregateInput = {
+    id?: SortOrder
+    gradingResultId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrder
+    reasoning?: SortOrder
+    durationMs?: SortOrder
+    timestamp?: SortOrder
+  }
+
+  export type AgentExecutionLogMinOrderByAggregateInput = {
+    id?: SortOrder
+    gradingResultId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrder
+    reasoning?: SortOrder
+    durationMs?: SortOrder
+    timestamp?: SortOrder
+  }
+
+  export type AgentExecutionLogSumOrderByAggregateInput = {
+    stepNumber?: SortOrder
+    durationMs?: SortOrder
   }
 
   export type ClassScalarRelationFilter = {
@@ -25068,6 +26830,20 @@ export namespace Prisma {
     connect?: AssignmentAreaWhereUniqueInput
   }
 
+  export type AgentExecutionLogCreateNestedManyWithoutGradingResultInput = {
+    create?: XOR<AgentExecutionLogCreateWithoutGradingResultInput, AgentExecutionLogUncheckedCreateWithoutGradingResultInput> | AgentExecutionLogCreateWithoutGradingResultInput[] | AgentExecutionLogUncheckedCreateWithoutGradingResultInput[]
+    connectOrCreate?: AgentExecutionLogCreateOrConnectWithoutGradingResultInput | AgentExecutionLogCreateOrConnectWithoutGradingResultInput[]
+    createMany?: AgentExecutionLogCreateManyGradingResultInputEnvelope
+    connect?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+  }
+
+  export type AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput = {
+    create?: XOR<AgentExecutionLogCreateWithoutGradingResultInput, AgentExecutionLogUncheckedCreateWithoutGradingResultInput> | AgentExecutionLogCreateWithoutGradingResultInput[] | AgentExecutionLogUncheckedCreateWithoutGradingResultInput[]
+    connectOrCreate?: AgentExecutionLogCreateOrConnectWithoutGradingResultInput | AgentExecutionLogCreateOrConnectWithoutGradingResultInput[]
+    createMany?: AgentExecutionLogCreateManyGradingResultInputEnvelope
+    connect?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+  }
+
   export type EnumGradingStatusFieldUpdateOperationsInput = {
     set?: $Enums.GradingStatus
   }
@@ -25104,6 +26880,48 @@ export namespace Prisma {
     delete?: AssignmentAreaWhereInput | boolean
     connect?: AssignmentAreaWhereUniqueInput
     update?: XOR<XOR<AssignmentAreaUpdateToOneWithWhereWithoutGradingResultsInput, AssignmentAreaUpdateWithoutGradingResultsInput>, AssignmentAreaUncheckedUpdateWithoutGradingResultsInput>
+  }
+
+  export type AgentExecutionLogUpdateManyWithoutGradingResultNestedInput = {
+    create?: XOR<AgentExecutionLogCreateWithoutGradingResultInput, AgentExecutionLogUncheckedCreateWithoutGradingResultInput> | AgentExecutionLogCreateWithoutGradingResultInput[] | AgentExecutionLogUncheckedCreateWithoutGradingResultInput[]
+    connectOrCreate?: AgentExecutionLogCreateOrConnectWithoutGradingResultInput | AgentExecutionLogCreateOrConnectWithoutGradingResultInput[]
+    upsert?: AgentExecutionLogUpsertWithWhereUniqueWithoutGradingResultInput | AgentExecutionLogUpsertWithWhereUniqueWithoutGradingResultInput[]
+    createMany?: AgentExecutionLogCreateManyGradingResultInputEnvelope
+    set?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+    disconnect?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+    delete?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+    connect?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+    update?: AgentExecutionLogUpdateWithWhereUniqueWithoutGradingResultInput | AgentExecutionLogUpdateWithWhereUniqueWithoutGradingResultInput[]
+    updateMany?: AgentExecutionLogUpdateManyWithWhereWithoutGradingResultInput | AgentExecutionLogUpdateManyWithWhereWithoutGradingResultInput[]
+    deleteMany?: AgentExecutionLogScalarWhereInput | AgentExecutionLogScalarWhereInput[]
+  }
+
+  export type AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput = {
+    create?: XOR<AgentExecutionLogCreateWithoutGradingResultInput, AgentExecutionLogUncheckedCreateWithoutGradingResultInput> | AgentExecutionLogCreateWithoutGradingResultInput[] | AgentExecutionLogUncheckedCreateWithoutGradingResultInput[]
+    connectOrCreate?: AgentExecutionLogCreateOrConnectWithoutGradingResultInput | AgentExecutionLogCreateOrConnectWithoutGradingResultInput[]
+    upsert?: AgentExecutionLogUpsertWithWhereUniqueWithoutGradingResultInput | AgentExecutionLogUpsertWithWhereUniqueWithoutGradingResultInput[]
+    createMany?: AgentExecutionLogCreateManyGradingResultInputEnvelope
+    set?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+    disconnect?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+    delete?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+    connect?: AgentExecutionLogWhereUniqueInput | AgentExecutionLogWhereUniqueInput[]
+    update?: AgentExecutionLogUpdateWithWhereUniqueWithoutGradingResultInput | AgentExecutionLogUpdateWithWhereUniqueWithoutGradingResultInput[]
+    updateMany?: AgentExecutionLogUpdateManyWithWhereWithoutGradingResultInput | AgentExecutionLogUpdateManyWithWhereWithoutGradingResultInput[]
+    deleteMany?: AgentExecutionLogScalarWhereInput | AgentExecutionLogScalarWhereInput[]
+  }
+
+  export type GradingResultCreateNestedOneWithoutAgentLogsInput = {
+    create?: XOR<GradingResultCreateWithoutAgentLogsInput, GradingResultUncheckedCreateWithoutAgentLogsInput>
+    connectOrCreate?: GradingResultCreateOrConnectWithoutAgentLogsInput
+    connect?: GradingResultWhereUniqueInput
+  }
+
+  export type GradingResultUpdateOneRequiredWithoutAgentLogsNestedInput = {
+    create?: XOR<GradingResultCreateWithoutAgentLogsInput, GradingResultUncheckedCreateWithoutAgentLogsInput>
+    connectOrCreate?: GradingResultCreateOrConnectWithoutAgentLogsInput
+    upsert?: GradingResultUpsertWithoutAgentLogsInput
+    connect?: GradingResultWhereUniqueInput
+    update?: XOR<XOR<GradingResultUpdateToOneWithWhereWithoutAgentLogsInput, GradingResultUpdateWithoutAgentLogsInput>, GradingResultUncheckedUpdateWithoutAgentLogsInput>
   }
 
   export type UserCreateNestedOneWithoutEnrollmentsInput = {
@@ -27256,12 +29074,21 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
     gradingSession: GradingSessionCreateNestedOneWithoutGradingResultsInput
     uploadedFile: UploadedFileCreateNestedOneWithoutGradingResultsInput
     rubric: RubricCreateNestedOneWithoutGradingResultsInput
+    agentLogs?: AgentExecutionLogCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultUncheckedCreateWithoutAssignmentAreaInput = {
@@ -27279,9 +29106,18 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultCreateOrConnectWithoutAssignmentAreaInput = {
@@ -27480,6 +29316,14 @@ export namespace Prisma {
     gradingModel?: StringNullableFilter<"GradingResult"> | string | null
     gradingTokens?: IntNullableFilter<"GradingResult"> | number | null
     gradingDuration?: IntNullableFilter<"GradingResult"> | number | null
+    agentSteps?: JsonNullableFilter<"GradingResult">
+    toolCalls?: JsonNullableFilter<"GradingResult">
+    confidenceScore?: FloatNullableFilter<"GradingResult"> | number | null
+    requiresReview?: BoolFilter<"GradingResult"> | boolean
+    reviewedBy?: StringNullableFilter<"GradingResult"> | string | null
+    reviewedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
+    agentModel?: StringNullableFilter<"GradingResult"> | string | null
+    agentExecutionTime?: IntNullableFilter<"GradingResult"> | number | null
     createdAt?: DateTimeFilter<"GradingResult"> | Date | string
     updatedAt?: DateTimeFilter<"GradingResult"> | Date | string
     completedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
@@ -27771,12 +29615,21 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
     gradingSession: GradingSessionCreateNestedOneWithoutGradingResultsInput
     uploadedFile: UploadedFileCreateNestedOneWithoutGradingResultsInput
     assignmentArea?: AssignmentAreaCreateNestedOneWithoutGradingResultsInput
+    agentLogs?: AgentExecutionLogCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultUncheckedCreateWithoutRubricInput = {
@@ -27794,9 +29647,18 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultCreateOrConnectWithoutRubricInput = {
@@ -28048,12 +29910,21 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
     uploadedFile: UploadedFileCreateNestedOneWithoutGradingResultsInput
     rubric: RubricCreateNestedOneWithoutGradingResultsInput
     assignmentArea?: AssignmentAreaCreateNestedOneWithoutGradingResultsInput
+    agentLogs?: AgentExecutionLogCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultUncheckedCreateWithoutGradingSessionInput = {
@@ -28071,9 +29942,18 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultCreateOrConnectWithoutGradingSessionInput = {
@@ -28214,12 +30094,21 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
     gradingSession: GradingSessionCreateNestedOneWithoutGradingResultsInput
     rubric: RubricCreateNestedOneWithoutGradingResultsInput
     assignmentArea?: AssignmentAreaCreateNestedOneWithoutGradingResultsInput
+    agentLogs?: AgentExecutionLogCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultUncheckedCreateWithoutUploadedFileInput = {
@@ -28237,9 +30126,18 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedCreateNestedManyWithoutGradingResultInput
   }
 
   export type GradingResultCreateOrConnectWithoutUploadedFileInput = {
@@ -28457,6 +30355,38 @@ export namespace Prisma {
     create: XOR<AssignmentAreaCreateWithoutGradingResultsInput, AssignmentAreaUncheckedCreateWithoutGradingResultsInput>
   }
 
+  export type AgentExecutionLogCreateWithoutGradingResultInput = {
+    id?: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentExecutionLogUncheckedCreateWithoutGradingResultInput = {
+    id?: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentExecutionLogCreateOrConnectWithoutGradingResultInput = {
+    where: AgentExecutionLogWhereUniqueInput
+    create: XOR<AgentExecutionLogCreateWithoutGradingResultInput, AgentExecutionLogUncheckedCreateWithoutGradingResultInput>
+  }
+
+  export type AgentExecutionLogCreateManyGradingResultInputEnvelope = {
+    data: AgentExecutionLogCreateManyGradingResultInput | AgentExecutionLogCreateManyGradingResultInput[]
+    skipDuplicates?: boolean
+  }
+
   export type GradingSessionUpsertWithoutGradingResultsInput = {
     update: XOR<GradingSessionUpdateWithoutGradingResultsInput, GradingSessionUncheckedUpdateWithoutGradingResultsInput>
     create: XOR<GradingSessionCreateWithoutGradingResultsInput, GradingSessionUncheckedCreateWithoutGradingResultsInput>
@@ -28615,6 +30545,169 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     submissions?: SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
+  }
+
+  export type AgentExecutionLogUpsertWithWhereUniqueWithoutGradingResultInput = {
+    where: AgentExecutionLogWhereUniqueInput
+    update: XOR<AgentExecutionLogUpdateWithoutGradingResultInput, AgentExecutionLogUncheckedUpdateWithoutGradingResultInput>
+    create: XOR<AgentExecutionLogCreateWithoutGradingResultInput, AgentExecutionLogUncheckedCreateWithoutGradingResultInput>
+  }
+
+  export type AgentExecutionLogUpdateWithWhereUniqueWithoutGradingResultInput = {
+    where: AgentExecutionLogWhereUniqueInput
+    data: XOR<AgentExecutionLogUpdateWithoutGradingResultInput, AgentExecutionLogUncheckedUpdateWithoutGradingResultInput>
+  }
+
+  export type AgentExecutionLogUpdateManyWithWhereWithoutGradingResultInput = {
+    where: AgentExecutionLogScalarWhereInput
+    data: XOR<AgentExecutionLogUpdateManyMutationInput, AgentExecutionLogUncheckedUpdateManyWithoutGradingResultInput>
+  }
+
+  export type AgentExecutionLogScalarWhereInput = {
+    AND?: AgentExecutionLogScalarWhereInput | AgentExecutionLogScalarWhereInput[]
+    OR?: AgentExecutionLogScalarWhereInput[]
+    NOT?: AgentExecutionLogScalarWhereInput | AgentExecutionLogScalarWhereInput[]
+    id?: StringFilter<"AgentExecutionLog"> | string
+    gradingResultId?: StringFilter<"AgentExecutionLog"> | string
+    stepNumber?: IntFilter<"AgentExecutionLog"> | number
+    toolName?: StringNullableFilter<"AgentExecutionLog"> | string | null
+    toolInput?: JsonNullableFilter<"AgentExecutionLog">
+    toolOutput?: JsonNullableFilter<"AgentExecutionLog">
+    reasoning?: StringNullableFilter<"AgentExecutionLog"> | string | null
+    durationMs?: IntNullableFilter<"AgentExecutionLog"> | number | null
+    timestamp?: DateTimeFilter<"AgentExecutionLog"> | Date | string
+  }
+
+  export type GradingResultCreateWithoutAgentLogsInput = {
+    id?: string
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    thoughtSummary?: string | null
+    usedContext?: NullableJsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+    gradingSession: GradingSessionCreateNestedOneWithoutGradingResultsInput
+    uploadedFile: UploadedFileCreateNestedOneWithoutGradingResultsInput
+    rubric: RubricCreateNestedOneWithoutGradingResultsInput
+    assignmentArea?: AssignmentAreaCreateNestedOneWithoutGradingResultsInput
+  }
+
+  export type GradingResultUncheckedCreateWithoutAgentLogsInput = {
+    id?: string
+    gradingSessionId: string
+    uploadedFileId: string
+    rubricId: string
+    assignmentAreaId?: string | null
+    status?: $Enums.GradingStatus
+    progress?: number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: string | null
+    thoughtSummary?: string | null
+    usedContext?: NullableJsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    completedAt?: Date | string | null
+  }
+
+  export type GradingResultCreateOrConnectWithoutAgentLogsInput = {
+    where: GradingResultWhereUniqueInput
+    create: XOR<GradingResultCreateWithoutAgentLogsInput, GradingResultUncheckedCreateWithoutAgentLogsInput>
+  }
+
+  export type GradingResultUpsertWithoutAgentLogsInput = {
+    update: XOR<GradingResultUpdateWithoutAgentLogsInput, GradingResultUncheckedUpdateWithoutAgentLogsInput>
+    create: XOR<GradingResultCreateWithoutAgentLogsInput, GradingResultUncheckedCreateWithoutAgentLogsInput>
+    where?: GradingResultWhereInput
+  }
+
+  export type GradingResultUpdateToOneWithWhereWithoutAgentLogsInput = {
+    where?: GradingResultWhereInput
+    data: XOR<GradingResultUpdateWithoutAgentLogsInput, GradingResultUncheckedUpdateWithoutAgentLogsInput>
+  }
+
+  export type GradingResultUpdateWithoutAgentLogsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    usedContext?: NullableJsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    gradingSession?: GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
+    uploadedFile?: UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutGradingResultsNestedInput
+    assignmentArea?: AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
+  }
+
+  export type GradingResultUncheckedUpdateWithoutAgentLogsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    gradingSessionId?: StringFieldUpdateOperationsInput | string
+    uploadedFileId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumGradingStatusFieldUpdateOperationsInput | $Enums.GradingStatus
+    progress?: IntFieldUpdateOperationsInput | number
+    result?: NullableJsonNullValueInput | InputJsonValue
+    errorMessage?: NullableStringFieldUpdateOperationsInput | string | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    usedContext?: NullableJsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type UserCreateWithoutEnrollmentsInput = {
@@ -30418,6 +32511,14 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
@@ -30525,12 +32626,21 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     gradingSession?: GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
     uploadedFile?: UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
     rubric?: RubricUpdateOneRequiredWithoutGradingResultsNestedInput
+    agentLogs?: AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultUncheckedUpdateWithoutAssignmentAreaInput = {
@@ -30548,9 +32658,18 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultUncheckedUpdateManyWithoutAssignmentAreaInput = {
@@ -30568,6 +32687,14 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30588,6 +32715,14 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
@@ -30618,12 +32753,21 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     gradingSession?: GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
     uploadedFile?: UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
     assignmentArea?: AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
+    agentLogs?: AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultUncheckedUpdateWithoutRubricInput = {
@@ -30641,9 +32785,18 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultUncheckedUpdateManyWithoutRubricInput = {
@@ -30661,6 +32814,14 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30726,6 +32887,14 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
@@ -30743,12 +32912,21 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     uploadedFile?: UploadedFileUpdateOneRequiredWithoutGradingResultsNestedInput
     rubric?: RubricUpdateOneRequiredWithoutGradingResultsNestedInput
     assignmentArea?: AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
+    agentLogs?: AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultUncheckedUpdateWithoutGradingSessionInput = {
@@ -30766,9 +32944,18 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultUncheckedUpdateManyWithoutGradingSessionInput = {
@@ -30786,6 +32973,14 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30806,6 +33001,14 @@ export namespace Prisma {
     gradingModel?: string | null
     gradingTokens?: number | null
     gradingDuration?: number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: number | null
+    requiresReview?: boolean
+    reviewedBy?: string | null
+    reviewedAt?: Date | string | null
+    agentModel?: string | null
+    agentExecutionTime?: number | null
     createdAt?: Date | string
     updatedAt?: Date | string
     completedAt?: Date | string | null
@@ -30823,12 +33026,21 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     gradingSession?: GradingSessionUpdateOneRequiredWithoutGradingResultsNestedInput
     rubric?: RubricUpdateOneRequiredWithoutGradingResultsNestedInput
     assignmentArea?: AssignmentAreaUpdateOneWithoutGradingResultsNestedInput
+    agentLogs?: AgentExecutionLogUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultUncheckedUpdateWithoutUploadedFileInput = {
@@ -30846,9 +33058,18 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentLogs?: AgentExecutionLogUncheckedUpdateManyWithoutGradingResultNestedInput
   }
 
   export type GradingResultUncheckedUpdateManyWithoutUploadedFileInput = {
@@ -30866,9 +33087,61 @@ export namespace Prisma {
     gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
     gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
     gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    agentSteps?: NullableJsonNullValueInput | InputJsonValue
+    toolCalls?: NullableJsonNullValueInput | InputJsonValue
+    confidenceScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    requiresReview?: BoolFieldUpdateOperationsInput | boolean
+    reviewedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    agentModel?: NullableStringFieldUpdateOperationsInput | string | null
+    agentExecutionTime?: NullableIntFieldUpdateOperationsInput | number | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type AgentExecutionLogCreateManyGradingResultInput = {
+    id?: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentExecutionLogUpdateWithoutGradingResultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentExecutionLogUncheckedUpdateWithoutGradingResultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentExecutionLogUncheckedUpdateManyWithoutGradingResultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type MsgCreateManyChatInput = {
