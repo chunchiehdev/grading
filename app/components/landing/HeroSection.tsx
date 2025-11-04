@@ -1,7 +1,8 @@
-import { useNavigate, useLoaderData } from 'react-router';
+import { Link, useLoaderData } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { getRoleBasedDashboard, type User } from '@/root';
 import { AnimatedTitle } from '@/components/ui/animated-title';
+import { useMemo } from 'react';
 
 interface LoaderData {
   user: User | null;
@@ -13,20 +14,20 @@ interface LoaderData {
  */
 const HeroSection = () => {
   const { t } = useTranslation(['common', 'auth', 'landing']);
-  const navigate = useNavigate();
   const loaderData = useLoaderData() as LoaderData | undefined;
   const user = loaderData?.user || null;
   const isLoggedIn = Boolean(user);
 
-  const handleGetStarted = () => {
+  // Calculate target route for primary CTA button
+  const primaryButtonTarget = useMemo(() => {
     if (user && user.role) {
-      navigate(getRoleBasedDashboard(user.role));
+      return getRoleBasedDashboard(user.role);
     } else if (user) {
-      navigate('/auth/select-role');
+      return '/auth/select-role';
     } else {
-      navigate('/auth/login');
+      return '/auth/login';
     }
-  };
+  }, [user]);
 
   return (
     <section className="h-full flex flex-col justify-center">
@@ -48,22 +49,23 @@ const HeroSection = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 pt-6">
-              <button
-                onClick={handleGetStarted}
-                disabled={false}
+              <Link
+                to={primaryButtonTarget}
+                prefetch="viewport"
                 className="group bg-primary text-primary-foreground px-8 py-4 text-sm font-light tracking-wide transition-all duration-300 hover:bg-primary/90 min-w-[180px] text-center"
               >
                 <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">
                   {isLoggedIn ? t('landing:hero.enterSystem') : t('landing:hero.getStarted')}
                 </span>
-              </button>
+              </Link>
 
-              <button
-                onClick={() => navigate('/auth/login')}
+              {/* <Link
+                to="/auth/login"
+                prefetch="viewport"
                 className="text-muted-foreground hover:text-foreground px-8 py-4 text-sm font-light tracking-wide border border-border transition-all duration-300 hover:border-muted-foreground"
               >
                 {t('landing:hero.learnMore')}
-              </button>
+              </Link> */}
             </div>
           </div>
 
