@@ -229,7 +229,6 @@ ${params.content}
       tools: agentTools,
       stopWhen: stepCountIs(params.maxSteps || 15),  // Use stopWhen instead of maxSteps
       temperature: 0.3,
-      maxTokens: 8192,
       onStepFinish: ({ text, toolCalls, toolResults, usage, finishReason }: any) => {
         // Record each step
         const stepStartTime = Date.now();

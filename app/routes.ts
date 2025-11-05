@@ -5,6 +5,7 @@ export default [
   index('./routes/index.tsx'),
   route('/join', './routes/join.tsx'),
   route('/settings', './routes/settings.tsx'),
+  route('/agent-playground', './routes/agent-playground.tsx'),
 
   route('/auth', './routes/auth/layout.tsx', [
     route('login', './routes/auth/login.tsx'),
@@ -114,6 +115,7 @@ export default [
 
   // AI API routes
   route('/api/ai/rubric-chat', './routes/api.ai.rubric-chat.ts'),
+  route('/api/agent-chat', './routes/api.agent-chat.ts'),
 
   // Assignment API routes
   route('/api/assignments', './api/assignments/index.ts'),

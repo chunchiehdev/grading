@@ -13,6 +13,7 @@ const logger = pino({
       colorize: true,
       translateTime: 'SYS:standard',
       ignore: 'pid,hostname',
+      singleLine: false, // Allow multi-line output for better readability
     },
   },
 });
