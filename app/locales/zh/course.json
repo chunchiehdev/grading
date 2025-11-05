@@ -106,7 +106,7 @@
         "status": "狀態",
         "active": "進行中",
         "overdue": "已逾期",
-        "daysUntilDue": "距離截止",
+        "daysUntilDue": "{{count}} 天後",
         "daysOverdue": "已逾期 {{days}} 天",
         "noDueDate": "無截止日期",
         "rubric": "評分標準"
@@ -127,6 +127,8 @@
         "updateError": "作業區更新失敗",
         "deleteConfirm": "確定要刪除此作業區嗎？此操作無法復原。",
         "deleteButton": "刪除作業",
+        "deleteWarning": "此操作無法復原，所有相關的提交資料將被永久刪除",
+        "deleteButtonText": "刪除",
         "deleteError": "刪除作業區失敗",
         "cancelButton": "取消",
         "saveButton": "儲存變更"

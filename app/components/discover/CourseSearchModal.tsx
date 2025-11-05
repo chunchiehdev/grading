@@ -27,7 +27,8 @@ interface CourseSearchModalProps {
   fetcher: FetcherWithComponents<DiscoveryResponse>;
 }
 
-/**
+/** 
+ * @deprecated This component is deprecated and will be removed in future releases.
  * CourseSearchModal
  * Full-featured search modal for discovering courses
  *

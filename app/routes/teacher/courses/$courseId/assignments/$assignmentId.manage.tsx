@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { Save, Trash2, Calendar, FileText, Users, Settings } from 'lucide-react';
+import { Save, Trash2, Calendar, FileText, Users, Settings, ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { requireTeacher } from '@/services/auth.server';
@@ -18,7 +18,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PageHeader } from '@/components/ui/page-header';
 import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@/components/ui/DatePicker';
 
@@ -142,131 +141,103 @@ export default function ManageAssignmentArea() {
     ? Math.ceil((new Date(assignmentArea.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
-  const headerActions = (
-    <div className="flex gap-2">
-      <Button asChild variant="outline">
-        <Link to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/submissions`}>
-          <Users className="w-4 h-4 mr-2" />
-          {t('course:assignment.manage.viewSubmissions')}
-        </Link>
-      </Button>
-    </div>
-  );
-
   return (
-    <div className="bg-background text-foreground">
-      <PageHeader
-        title={assignmentArea.name}
-        subtitle={t('course:assignment.manage.pageSubtitle', { courseName: assignmentArea.course.name })}
-        actions={headerActions}
-      />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {t('course:assignment.manage.stats.submissions')}
-                    </p>
-                    <p className="text-2xl font-bold text-foreground">{assignmentArea._count.submissions}</p>
-                  </div>
-                  <FileText className="w-8 h-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {t('course:assignment.manage.stats.status')}
-                    </p>
-                    <p className="text-2xl font-bold text-foreground">
-                      {isOverdue
-                        ? t('course:assignment.manage.stats.overdue')
-                        : t('course:assignment.manage.stats.active')}
-                    </p>
-                  </div>
-                  <Calendar className="w-8 h-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {t('course:assignment.manage.stats.daysUntilDue')}
-                    </p>
-                    <p className="text-xl font-bold text-foreground">
-                      {daysUntilDue !== null
-                        ? daysUntilDue < 0
-                          ? t('course:assignment.manage.stats.daysOverdue', { days: Math.abs(daysUntilDue) })
-                          : daysUntilDue.toString()
-                        : t('course:assignment.manage.stats.noDueDate')}
-                    </p>
-                  </div>
-                  <Calendar className="w-8 h-8 text-orange-600" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {t('course:assignment.manage.stats.rubric')}
-                    </p>
-                    <p className="text-xl font-bold text-foreground">{assignmentArea.rubric.name}</p>
-                  </div>
-                  <Settings className="w-8 h-8 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-3xl font-bold text-foreground mb-2 truncate">{assignmentArea.name}</h1>
+              <p className="text-muted-foreground">
+                {t('course:assignment.manage.settings.description')}
+              </p>
+            </div>
+            <Button asChild>
+              <Link to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/submissions`}>
+                <Users className="w-4 h-4 mr-2" />
+                {t('course:assignment.manage.viewSubmissions')}
+              </Link>
+            </Button>
           </div>
 
-          {/* Management Form */}
-          <Card className="bg-card text-card-foreground border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                {t('course:assignment.manage.settings.title')}
-              </CardTitle>
-              <CardDescription>{t('course:assignment.manage.settings.description')}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form id="update-assignment-form" method="post" className="space-y-6">
-                <input type="hidden" name="intent" value="update" />
+          {/* Quick Stats */}
+          <div className="flex flex-wrap gap-2">
+            {isOverdue ? (
+              <Badge variant="destructive" className="flex items-center gap-1.5">
+                <Calendar className="w-3 h-3" />
+                {t('course:assignment.manage.stats.overdue')}
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="flex items-center gap-1.5">
+                <Calendar className="w-3 h-3" />
+                {t('course:assignment.manage.stats.active')}
+              </Badge>
+            )}
+            <Badge variant="outline" className="flex items-center gap-1.5">
+              <Users className="w-3 h-3" />
+              {assignmentArea._count.submissions} {t('course:assignment.manage.stats.submissions')}
+            </Badge>
+            {assignmentArea.dueDate && (
+              <Badge variant="outline" className="flex items-center gap-1.5">
+                <Calendar className="w-3 h-3" />
+                {new Date(assignmentArea.dueDate).toLocaleDateString('zh-TW', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+                {daysUntilDue !== null && daysUntilDue >= 0 && (
+                  <span className="text-muted-foreground">
+                    • {t('course:assignment.manage.stats.daysUntilDue', { count: daysUntilDue })}
+                  </span>
+                )}
+              </Badge>
+            )}
+            <Badge variant="outline" className="flex items-center gap-1.5">
+              <FileText className="w-3 h-3" />
+              {assignmentArea.rubric.name}
+            </Badge>
+          </div>
+        </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="name">
-                    {t('course:assignment.manage.settings.nameLabel')} <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    required
-                    defaultValue={assignmentArea.name}
-                    className="bg-background border-border focus:ring-ring"
-                  />
-                </div>
+        {/* Main Form Card */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              {t('course:assignment.manage.settings.title')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Form id="update-assignment-form" method="post" className="space-y-6">
+              <input type="hidden" name="intent" value="update" />
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">{t('course:assignment.manage.settings.descriptionLabel')}</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    rows={20}
-                    defaultValue={assignmentArea.description || ''}
-                    placeholder={t('course:assignment.manage.settings.descriptionPlaceholder')}
-                    className="bg-background border-border focus:ring-ring"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">
+                  {t('course:assignment.manage.settings.nameLabel')} <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="name"
+                  name="name"
+                  required
+                  defaultValue={assignmentArea.name}
+                  className="bg-background border-border focus:ring-ring"
+                />
+              </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="description">{t('course:assignment.manage.settings.descriptionLabel')}</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  rows={20}
+                  defaultValue={assignmentArea.description || ''}
+                  placeholder={t('course:assignment.manage.settings.descriptionPlaceholder')}
+                  className="bg-background border-border focus:ring-ring"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="rubricId">
                     {t('course:assignment.manage.settings.rubricLabel')} <span className="text-destructive">*</span>
@@ -306,80 +277,64 @@ export default function ManageAssignmentArea() {
                     }
                   />
                 </div>
-
-                {actionData?.error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{actionData.error}</AlertDescription>
-                  </Alert>
-                )}
-
-                {actionData?.success && actionData.action === 'update' && (
-                  <Alert>
-                    <AlertDescription>{t('course:assignment.manage.settings.updateSuccess')}</AlertDescription>
-                  </Alert>
-                )}
-              </Form>
-
-              <div className="flex justify-between pt-4">
-                <Form method="post">
-                  <input type="hidden" name="intent" value="delete" />
-                  <Button
-                    type="submit"
-                    variant="destructive"
-                    onClick={(e) => {
-                      if (!confirm(t('course:assignment.manage.settings.deleteConfirm'))) {
-                        e.preventDefault();
-                      }
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    {t('course:assignment.manage.settings.deleteButton')}
-                  </Button>
-                </Form>
-
-                <div className="flex gap-2">
-                  <Button asChild variant="outline">
-                    <Link to={`/teacher/courses/${assignmentArea.courseId}`}>
-                      {t('course:assignment.manage.settings.cancelButton')}
-                    </Link>
-                  </Button>
-                  <Button type="submit" form="update-assignment-form">
-                    <Save className="w-4 h-4 mr-2" />
-                    {t('course:assignment.manage.settings.saveButton')}
-                  </Button>
-                </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Assignment Info */}
-          <Card className="bg-card text-card-foreground border">
-            <CardHeader>
-              <CardTitle>{t('course:assignment.manage.info.title')}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="font-medium text-foreground">{t('course:assignment.manage.info.created')}</h4>
-                  <p className="text-muted-foreground">{formattedCreatedAt}</p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground">{t('course:assignment.manage.info.lastUpdated')}</h4>
-                  <p className="text-muted-foreground">{formattedUpdatedAt}</p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground">{t('course:assignment.manage.info.course')}</h4>
-                  <p className="text-muted-foreground">{assignmentArea.course.name}</p>
-                </div>
-                <div>
-                  <h4 className="font-medium text-foreground">{t('course:assignment.manage.info.currentRubric')}</h4>
-                  <p className="text-muted-foreground">{assignmentArea.rubric.name}</p>
-                </div>
+              {actionData?.error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{actionData.error}</AlertDescription>
+                </Alert>
+              )}
+
+              {actionData?.success && actionData.action === 'update' && (
+                <Alert>
+                  <AlertDescription>{t('course:assignment.manage.settings.updateSuccess')}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-4 border-t">
+                <Button asChild variant="outline" className="w-full sm:w-auto">
+                  <Link to={`/teacher/courses/${assignmentArea.courseId}`}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    {t('course:assignment.manage.settings.cancelButton')}
+                  </Link>
+                </Button>
+                <Button type="submit" className="w-full sm:w-auto">
+                  <Save className="w-4 h-4 mr-2" />
+                  {t('course:assignment.manage.settings.saveButton')}
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+            </Form>
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone */}
+        <Card className="border-destructive/50">
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              {t('course:assignment.manage.settings.deleteButton')}
+            </CardTitle>
+            <CardDescription>{t('course:assignment.manage.settings.deleteWarning')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form method="post">
+              <input type="hidden" name="intent" value="delete" />
+              <Button
+                type="submit"
+                variant="destructive"
+                onClick={(e) => {
+                  if (!confirm(t('course:assignment.manage.settings.deleteConfirm'))) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {t('course:assignment.manage.settings.deleteButtonText')}
+              </Button>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

@@ -106,7 +106,7 @@
         "status": "Status",
         "active": "Active",
         "overdue": "Overdue",
-        "daysUntilDue": "Days Until Due",
+        "daysUntilDue": "{{count}} days left",
         "daysOverdue": "{{days}} overdue",
         "noDueDate": "No due date",
         "rubric": "Rubric"
@@ -127,6 +127,8 @@
         "updateError": "Failed to update assignment area",
         "deleteConfirm": "Are you sure you want to delete this assignment area? This action cannot be undone.",
         "deleteButton": "Delete Assignment",
+        "deleteWarning": "This action cannot be undone and all related submission data will be permanently deleted",
+        "deleteButtonText": "Delete",
         "deleteError": "Failed to delete assignment area",
         "cancelButton": "Cancel",
         "saveButton": "Save Changes"
