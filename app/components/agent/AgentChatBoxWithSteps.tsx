@@ -8,8 +8,17 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
 import {
-  Send, Bot, User, Loader2, Wrench, CheckCircle,
-  AlertCircle, Clock, ChevronRight, Brain, Zap
+  Send,
+  Bot,
+  User,
+  Loader2,
+  Wrench,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  ChevronRight,
+  Brain,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,7 +62,7 @@ function groupPartsBySteps(parts: any[]): Step[] {
       currentStep = {
         stepNumber: steps.length,
         textParts: [],
-        toolInvocations: []
+        toolInvocations: [],
       };
     } else if (part.type === 'text') {
       currentStep.textParts.push(part);
@@ -69,8 +78,8 @@ function groupPartsBySteps(parts: any[]): Step[] {
 
   // If no step-start markers, treat all content as single step
   if (steps.length === 0 && parts.length > 0) {
-    const textParts = parts.filter(p => p.type === 'text');
-    const toolInvocations = parts.filter(p => p.type?.includes('tool') || p.type === 'dynamic-tool');
+    const textParts = parts.filter((p) => p.type === 'text');
+    const toolInvocations = parts.filter((p) => p.type?.includes('tool') || p.type === 'dynamic-tool');
     if (textParts.length > 0 || toolInvocations.length > 0) {
       steps.push({ stepNumber: 0, textParts, toolInvocations });
     }
@@ -141,69 +150,61 @@ export function AgentChatBoxWithSteps() {
       {/* Messages Area */}
       <ScrollArea className="h-full" ref={scrollRef}>
         <div className="mx-auto max-w-4xl px-[var(--content-margin)] pt-4 pb-32">
-        {showWelcome && messages.length === 0 && (
-          <Card className="mb-4">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Brain className="h-5 w-5" />
-                Welcome to the AI SDK Learning Playground!
-              </CardTitle>
-              <CardDescription>
-                This agent demonstrates multi-step reasoning - you can see each step!
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm">Try asking me:</p>
-              <div className="grid gap-2">
-                <ExamplePrompt text="Search for Claude AI and explain what you find" onClick={handleExampleClick} />
-                <ExamplePrompt
-                  text="Calculate 234 * 567 and explain the result"
-                  onClick={handleExampleClick}
-                />
-                <ExamplePrompt
-                  text="Search for React 19 features and summarize them"
-                  onClick={handleExampleClick}
-                />
-                <ExamplePrompt
-                  text="Read https://ai.google.dev/gemini-api/docs and give me a summary in Chinese"
-                  onClick={handleExampleClick}
-                />
-              </div>
-
-              <div className="mt-4 rounded-lg border bg-muted/50 p-3">
-                <p className="text-xs font-medium mb-2">🛠️ Available Tools:</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">Calculator</Badge>
-                  <Badge variant="outline">Code Explainer</Badge>
-                  <Badge variant="outline">Memory Saver</Badge>
-                  <Badge variant="outline">Web Search</Badge>
-                  <Badge variant="outline">Web Content Fetcher</Badge>
+          {showWelcome && messages.length === 0 && (
+            <Card className="mb-4">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  Welcome to the AI SDK Learning Playground!
+                </CardTitle>
+                <CardDescription>This agent demonstrates multi-step reasoning - you can see each step!</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm">Try asking me:</p>
+                <div className="grid gap-2">
+                  <ExamplePrompt text="Search for Claude AI and explain what you find" onClick={handleExampleClick} />
+                  <ExamplePrompt text="Calculate 234 * 567 and explain the result" onClick={handleExampleClick} />
+                  <ExamplePrompt text="Search for React 19 features and summarize them" onClick={handleExampleClick} />
+                  <ExamplePrompt
+                    text="Read https://ai.google.dev/gemini-api/docs and give me a summary in Chinese"
+                    onClick={handleExampleClick}
+                  />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        <div className="space-y-4">
-          {messages.map((message) => (
-            <MessageBubbleWithSteps key={message.id} message={message} user={user} />
-          ))}
-
-          {isLoading && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Agent is thinking...</span>
-            </div>
-          )}
-
-          {error && (
-            <Card className="border-destructive">
-              <CardContent className="pt-4">
-                <p className="text-sm text-destructive">Error: {error.message}</p>
+                <div className="mt-4 rounded-lg border bg-muted/50 p-3">
+                  <p className="text-xs font-medium mb-2">🛠️ Available Tools:</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">Calculator</Badge>
+                    <Badge variant="outline">Code Explainer</Badge>
+                    <Badge variant="outline">Memory Saver</Badge>
+                    <Badge variant="outline">Web Search</Badge>
+                    <Badge variant="outline">Web Content Fetcher</Badge>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
-        </div>
+
+          <div className="space-y-4">
+            {messages.map((message) => (
+              <MessageBubbleWithSteps key={message.id} message={message} user={user} />
+            ))}
+
+            {isLoading && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Agent is thinking...</span>
+              </div>
+            )}
+
+            {error && (
+              <Card className="border-destructive">
+                <CardContent className="pt-4">
+                  <p className="text-sm text-destructive">Error: {error.message}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
       </ScrollArea>
 
@@ -228,7 +229,11 @@ export function AgentChatBoxWithSteps() {
               size="icon"
               className="h-10 w-10 sm:h-11 sm:w-11 rounded-full shrink-0"
             >
-              {isLoading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : <Send className="h-4 w-4 sm:h-5 sm:w-5" />}
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+              )}
             </Button>
           </form>
         </div>
@@ -259,11 +264,7 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
         </div>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground overflow-hidden">
           {user?.picture ? (
-            <img
-              src={user.picture}
-              alt={user.email}
-              className="w-full h-full object-cover"
-            />
+            <img src={user.picture} alt={user.email} className="w-full h-full object-cover" />
           ) : (
             <User className="h-4 w-4" />
           )}
@@ -283,7 +284,6 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
         <div className="max-w-[85%] sm:max-w-[80%] lg:max-w-[70%] space-y-3">
           {/* Step indicator */}
           <div className="flex items-center gap-2 mb-2">
-            <Zap className="h-4 w-4 text-amber-500" />
             <span className="text-xs font-medium text-muted-foreground">
               Multi-step reasoning ({steps.length} steps)
             </span>
@@ -326,9 +326,7 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
 function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const stepText = step.textParts
-    .map((part) => part.text || '')
-    .join('');
+  const stepText = step.textParts.map((part) => part.text || '').join('');
 
   const hasTools = step.toolInvocations.length > 0;
 
@@ -351,10 +349,7 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
               onClick={() => setIsExpanded(!isExpanded)}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              <ChevronRight className={cn(
-                "h-4 w-4 transition-transform",
-                isExpanded && "rotate-90"
-              )} />
+              <ChevronRight className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-90')} />
             </button>
           )}
         </div>
@@ -362,16 +357,12 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
 
       <CardContent className="space-y-3">
         {/* Step text content with Markdown support */}
-        {stepText && (
-          <Markdown className="prose-sm">{stepText}</Markdown>
-        )}
+        {stepText && <Markdown className="prose-sm">{stepText}</Markdown>}
 
         {/* Tool invocations */}
         {hasTools && isExpanded && (
           <div className="space-y-2 pt-2 border-t">
-            <p className="text-xs font-medium text-muted-foreground mb-2">
-              🔧 Tool Executions:
-            </p>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Tool Executions:</p>
             {step.toolInvocations.map((tool: any, idx: number) => (
               <ToolInvocationCard key={idx} tool={tool} />
             ))}
@@ -401,7 +392,7 @@ function ToolInvocationCard({ tool }: { tool: any }) {
     web_content_fetcher: '📄',
   };
 
-  const icon = toolIcons[toolName] || '🔧';
+  const icon = toolIcons[toolName] || '';
 
   // Determine status icon and color
   const getStatusInfo = () => {
@@ -429,13 +420,9 @@ function ToolInvocationCard({ tool }: { tool: any }) {
             <span className="text-lg shrink-0">{icon}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-medium capitalize truncate">
-                  {toolName.replace(/_/g, ' ')}
-                </span>
-                <StatusIcon className={cn("h-3 w-3 shrink-0", statusInfo.color)} />
-                <span className={cn("text-xs shrink-0", statusInfo.color)}>
-                  {statusInfo.label}
-                </span>
+                <span className="text-xs font-medium capitalize truncate">{toolName.replace(/_/g, ' ')}</span>
+                <StatusIcon className={cn('h-3 w-3 shrink-0', statusInfo.color)} />
+                <span className={cn('text-xs shrink-0', statusInfo.color)}>{statusInfo.label}</span>
               </div>
 
               {/* Tool input */}
@@ -446,7 +433,12 @@ function ToolInvocationCard({ tool }: { tool: any }) {
                     {typeof input === 'string' ? (
                       <code className="text-[11px] sm:text-xs break-all block">{input}</code>
                     ) : (
-                      <pre className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{JSON.stringify(input, null, 2)}</pre>
+                      <pre
+                        className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words"
+                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                      >
+                        {JSON.stringify(input, null, 2)}
+                      </pre>
                     )}
                   </div>
                 </div>
@@ -456,11 +448,19 @@ function ToolInvocationCard({ tool }: { tool: any }) {
               {output && state === 'output-available' && (
                 <div className="text-xs">
                   <span className="font-medium text-muted-foreground block mb-1">Output:</span>
-                  <div className="p-2 sm:p-3 bg-muted/30 rounded overflow-x-auto max-h-60 sm:max-h-80" style={{ maxWidth: '100%' }}>
+                  <div
+                    className="p-2 sm:p-3 bg-muted/30 rounded overflow-x-auto max-h-60 sm:max-h-80"
+                    style={{ maxWidth: '100%' }}
+                  >
                     {typeof output === 'string' ? (
                       <div className="text-[11px] sm:text-xs whitespace-pre-wrap break-words">{output}</div>
                     ) : (
-                      <pre className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{JSON.stringify(output, null, 2)}</pre>
+                      <pre
+                        className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words"
+                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                      >
+                        {JSON.stringify(output, null, 2)}
+                      </pre>
                     )}
                   </div>
                 </div>

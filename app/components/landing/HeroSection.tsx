@@ -62,7 +62,7 @@ const HeroSection = () => {
                 onClick={() => navigate('/agent-playground')}
                 className="text-primary hover:text-primary/80 px-8 py-4 text-sm font-light tracking-wide border border-primary transition-all duration-300 hover:bg-primary/5"
               >
-                🤖 Try AI Agent
+                Try AI Agent
               </button>
 
               <button

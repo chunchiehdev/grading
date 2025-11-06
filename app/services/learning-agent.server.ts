@@ -12,6 +12,7 @@ import { streamText, tool, stepCountIs } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { z } from 'zod';
 import logger from '@/utils/logger';
+import { executeDatabaseQuery, type QueryType } from './database-query.server';
 
 /**
  * Tool 1: Calculator - Demonstrates basic tool calling
@@ -315,6 +316,103 @@ const webSearchTool = tool({
 });
 
 /**
+ * Tool 6: Database Query - Query user's data from the database
+ */
+const databaseQueryTool = tool({
+  description: `Query the grading system database to retrieve user-related information.
+
+  Supported query types:
+  - user_profile: Get basic user information (name, role, email)
+  - user_statistics: Get statistics (courses count, submissions count, etc.)
+  - student_courses: List student's enrolled courses
+  - teacher_courses: List teacher's courses
+  - course_students: List students in a course (teacher only)
+  - student_assignments: List student's assignments
+  - assignment_submissions: List submissions for an assignment (teacher only)
+  - student_submissions: List student's submission history
+  - submission_detail: Get detailed information about a specific submission
+  - grading_statistics: Get grading statistics
+
+  Use this tool when the user asks about:
+  - Their personal information
+  - Their courses or assignments
+  - Their grades or submissions
+  - Statistics about their activity
+
+  IMPORTANT: This tool respects user permissions. Students can only query their own data,
+  teachers can query their courses and students.`,
+  inputSchema: z.object({
+    queryType: z.enum([
+      'user_profile',
+      'user_statistics',
+      'student_courses',
+      'teacher_courses',
+      'course_students',
+      'student_assignments',
+      'assignment_submissions',
+      'student_submissions',
+      'submission_detail',
+      'grading_statistics',
+    ] as const).describe('The type of query to execute'),
+    params: z.object({
+      userId: z.string().optional().describe('User ID (usually the current user)'),
+      studentId: z.string().optional().describe('Student ID for student-specific queries'),
+      teacherId: z.string().optional().describe('Teacher ID for teacher-specific queries'),
+      courseId: z.string().optional().describe('Course ID for course-specific queries'),
+      assignmentId: z.string().optional().describe('Assignment ID for assignment-specific queries'),
+      submissionId: z.string().optional().describe('Submission ID for submission detail query'),
+      limit: z.number().optional().describe('Maximum number of results to return (default: 50)'),
+    }).describe('Query parameters'),
+  }),
+  execute: async ({ queryType, params }) => {
+    logger.info({
+      queryType,
+      hasUserId: !!params.userId,
+    }, '[Learning Agent] Database query tool called');
+
+    try {
+      const result = await executeDatabaseQuery(queryType as QueryType, params);
+
+      if (!result.success) {
+        logger.error({
+          queryType,
+          error: result.error,
+        }, '[Learning Agent] Database query failed');
+
+        return {
+          success: false,
+          error: result.error,
+          message: 'Failed to query database. The user might not have permission or the data does not exist.',
+        };
+      }
+
+      logger.info({
+        queryType,
+        dataSize: JSON.stringify(result.data).length,
+      }, '[Learning Agent] Database query successful');
+
+      return {
+        success: true,
+        queryType,
+        data: result.data,
+        timestamp: result.timestamp,
+      };
+    } catch (error) {
+      logger.error({
+        queryType,
+        error: error instanceof Error ? error.message : String(error),
+      }, '[Learning Agent] Database query exception');
+
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        message: 'An unexpected error occurred while querying the database.',
+      };
+    }
+  },
+});
+
+/**
  * All learning agent tools
  */
 export const learningAgentTools = {
@@ -323,6 +421,7 @@ export const learningAgentTools = {
   memory_saver: memorySaverTool,
   web_content_fetcher: webContentFetcherTool,
   web_search: webSearchTool,
+  database_query: databaseQueryTool,
 };
 
 /**
@@ -336,6 +435,7 @@ Your capabilities:
 3. **Memory Saver** - Remember important information during the conversation
 4. **Web Content Fetcher** - Read and analyze content from specific URLs
 5. **Web Search** - Search the web using Google Custom Search API for real, up-to-date information
+6. **Database Query** - Query the grading system database for user information, courses, assignments, and grades
 
 Guidelines:
 - Be conversational and friendly
@@ -362,6 +462,25 @@ Guidelines:
   2. Use web_content_fetcher to read the most relevant URLs from search results
   3. Then analyze the full content
 - Don't make conclusions based only on snippets - read the full articles for accuracy!
+
+**IMPORTANT - Using Database Query Tool:**
+- Use database_query when users ask about their personal information, courses, assignments, or grades
+- You have access to query the grading system database for user-related information
+- Always provide the userId in params when querying (this is usually provided to you)
+- Supported queries:
+  - user_profile: Get user's basic information
+  - user_statistics: Get activity statistics (course count, submission count)
+  - student_courses: List enrolled courses (for students)
+  - teacher_courses: List teaching courses (for teachers)
+  - student_assignments: List available assignments
+  - student_submissions: List submission history
+  - grading_statistics: Get grading statistics
+- Examples of when to use:
+  - "What courses am I enrolled in?" → use student_courses
+  - "What assignments do I have?" → use student_assignments
+  - "What's my average grade?" → use student_submissions + grading_statistics
+  - "Show me my submission history" → use student_submissions
+- IMPORTANT: Respect user privacy - only query data the user has permission to access
 
 **IMPORTANT - Providing Detailed Responses:**
 When analyzing articles, documents, or answering questions, provide COMPREHENSIVE and DETAILED responses:
@@ -423,10 +542,16 @@ export async function createLearningAgentStream(params: {
   // Messages are already in ModelMessage format from convertToModelMessages
   // No need to transform them again
 
+  // Build system prompt with user context
+  let systemPrompt = LEARNING_AGENT_SYSTEM_PROMPT;
+  if (userId) {
+    systemPrompt += `\n\n**Current User Context:**\n- User ID: ${userId}\n- When using database_query tool, always include this userId in the params`;
+  }
+
   // Create streaming response
   const result = streamText({
     model,
-    system: LEARNING_AGENT_SYSTEM_PROMPT,
+    system: systemPrompt,
     messages: messages,
     tools: learningAgentTools,
     stopWhen: stepCountIs(10), // Allow up to 10 reasoning steps
