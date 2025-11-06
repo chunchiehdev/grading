@@ -91,6 +91,11 @@ export default [
   route('/api/files/:fileId/reparse', './api/files/$fileId.reparse.ts'),
   route('/api/files/:fileId/download', './routes/api.files.$fileId.download.ts'),
 
+  // Report download API route
+  route('/api/reports/download', './routes/api.reports.download.ts'),
+
+
+
   // Rubric API routes
   route('/api/rubrics', './api/rubrics/index.ts'),
 
@@ -144,4 +149,5 @@ export default [
 
   // 404 route
   route('*', './routes/_404.tsx'),
+
 ] satisfies RouteConfig;

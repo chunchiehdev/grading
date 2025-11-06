@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 import { storageConfig } from '@/config/storage';
 import logger from '@/utils/logger';
@@ -349,6 +350,37 @@ export async function streamFromStorage(key: string) {
     1000,
     `Stream file ${key}`
   );
+}
+
+/**
+ * Generates a presigned URL for temporary file download access
+ * @param {string} key - Storage key/path of the file
+ * @param {number} expiresIn - URL expiration time in seconds (default: 3600 = 1 hour)
+ * @returns {Promise<string>} Presigned URL for file download
+ * @throws {StorageError} Categorized error with retry information
+ */
+export async function getPresignedDownloadUrl(key: string, expiresIn: number = 3600): Promise<string> {
+  if (!key || key.trim() === '') {
+    const error = new Error('Storage key is required for presigned URL') as StorageError;
+    error.type = StorageErrorType.VALIDATION;
+    error.retryable = false;
+    throw error;
+  }
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: storageConfig.bucket,
+      Key: key,
+    });
+
+    const url = await getSignedUrl(s3Client, command, { expiresIn });
+
+    logger.info(`Generated presigned URL for ${key} (expires in ${expiresIn}s)`);
+    return url;
+  } catch (error) {
+    logger.error({ error, key }, 'Failed to generate presigned URL');
+    throw createStorageError(error, 'Generate presigned URL');
+  }
 }
 
 /**

@@ -2,12 +2,14 @@
  * API Route: Agent Chat
  *
  * Streaming chat endpoint for the learning agent
+ * Now using V2 with Gemini's built-in Google Search
  */
 
 import type { ActionFunctionArgs } from 'react-router';
-import { createLearningAgentStream } from '@/services/learning-agent.server';
+import { createLearningAgentV2Stream } from '@/services/learning-agent-v2.server';
 import { getUserId } from '@/services/auth.server';
 import { convertToModelMessages, type UIMessage } from 'ai';
+import type { GoogleGenerativeAIProviderMetadata } from '@ai-sdk/google';
 import logger from '@/utils/logger';
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -45,15 +47,17 @@ export async function action({ request }: ActionFunctionArgs) {
     // useChat sends UIMessage[] format, but streamText expects ModelMessage[]
     const modelMessages = convertToModelMessages(messages as UIMessage[]);
 
-    // Create streaming agent response
-    const result = await createLearningAgentStream({
+    // Create streaming agent response (using V2 with built-in Google Search)
+    const result = await createLearningAgentV2Stream({
       messages: modelMessages,
       userId,
     });
 
     // Return UI message stream response (for useChat hook compatibility)
-    // toUIMessageStreamResponse() is specifically designed for useChat hook
-    return result.toUIMessageStreamResponse();
+    // IMPORTANT: Set sendSources: true to include sources in the stream!
+    return result.toUIMessageStreamResponse({
+      sendSources: true, // Enable sources streaming
+    });
   } catch (error) {
     logger.error('[Agent Chat API] Error processing chat', {
       error: error instanceof Error ? error.message : String(error),

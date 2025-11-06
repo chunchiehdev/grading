@@ -19,6 +19,8 @@ import {
   ChevronRight,
   Brain,
   Zap,
+  ExternalLink,
+  Link2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,16 +48,17 @@ interface Step {
   stepNumber: number;
   textParts: any[];
   toolInvocations: any[];
+  sources: any[]; // Sources from google_search
 }
 
 function groupPartsBySteps(parts: any[]): Step[] {
   const steps: Step[] = [];
-  let currentStep: Step = { stepNumber: 0, textParts: [], toolInvocations: [] };
+  let currentStep: Step = { stepNumber: 0, textParts: [], toolInvocations: [], sources: [] };
 
   for (const part of parts) {
     if (part.type === 'step-start') {
       // Save previous step if it has content
-      if (currentStep.textParts.length > 0 || currentStep.toolInvocations.length > 0) {
+      if (currentStep.textParts.length > 0 || currentStep.toolInvocations.length > 0 || currentStep.sources.length > 0) {
         steps.push(currentStep);
       }
       // Start new step
@@ -63,16 +66,20 @@ function groupPartsBySteps(parts: any[]): Step[] {
         stepNumber: steps.length,
         textParts: [],
         toolInvocations: [],
+        sources: [],
       };
     } else if (part.type === 'text') {
       currentStep.textParts.push(part);
     } else if (part.type?.includes('tool') || part.type === 'dynamic-tool') {
       currentStep.toolInvocations.push(part);
+    } else if (part.type === 'source-url') {
+      // Capture sources from google_search
+      currentStep.sources.push(part);
     }
   }
 
   // Add the last step
-  if (currentStep.textParts.length > 0 || currentStep.toolInvocations.length > 0) {
+  if (currentStep.textParts.length > 0 || currentStep.toolInvocations.length > 0 || currentStep.sources.length > 0) {
     steps.push(currentStep);
   }
 
@@ -80,8 +87,9 @@ function groupPartsBySteps(parts: any[]): Step[] {
   if (steps.length === 0 && parts.length > 0) {
     const textParts = parts.filter((p) => p.type === 'text');
     const toolInvocations = parts.filter((p) => p.type?.includes('tool') || p.type === 'dynamic-tool');
-    if (textParts.length > 0 || toolInvocations.length > 0) {
-      steps.push({ stepNumber: 0, textParts, toolInvocations });
+    const sources = parts.filter((p) => p.type === 'source-url');
+    if (textParts.length > 0 || toolInvocations.length > 0 || sources.length > 0) {
+      steps.push({ stepNumber: 0, textParts, toolInvocations, sources });
     }
   }
 
@@ -162,23 +170,22 @@ export function AgentChatBoxWithSteps() {
               <CardContent className="space-y-3">
                 <p className="text-sm">Try asking me:</p>
                 <div className="grid gap-2">
-                  <ExamplePrompt text="Search for Claude AI and explain what you find" onClick={handleExampleClick} />
+                  <ExamplePrompt text="What's the latest news about AI in 2025?" onClick={handleExampleClick} />
                   <ExamplePrompt text="Calculate 234 * 567 and explain the result" onClick={handleExampleClick} />
-                  <ExamplePrompt text="Search for React 19 features and summarize them" onClick={handleExampleClick} />
+                  <ExamplePrompt text="Search for React 19 features and summarize them in detail" onClick={handleExampleClick} />
                   <ExamplePrompt
-                    text="Read https://ai.google.dev/gemini-api/docs and give me a summary in Chinese"
+                    text="Read https://ai.google.dev/gemini-api/docs/google-search and explain in Chinese"
                     onClick={handleExampleClick}
                   />
                 </div>
 
                 <div className="mt-4 rounded-lg border bg-muted/50 p-3">
-                  <p className="text-xs font-medium mb-2">🛠️ Available Tools:</p>
+                  <p className="text-xs font-medium mb-2">Available Tools:</p>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline">Calculator</Badge>
-                    <Badge variant="outline">Code Explainer</Badge>
-                    <Badge variant="outline">Memory Saver</Badge>
-                    <Badge variant="outline">Web Search</Badge>
-                    <Badge variant="outline">Web Content Fetcher</Badge>
+                    <Badge variant="outline">Google Search</Badge>
+                    <Badge variant="outline">URL Content Fetcher</Badge>
+                    <Badge variant="outline">Database Query</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -211,7 +218,7 @@ export function AgentChatBoxWithSteps() {
       {/* Sticky Input Area */}
       <div className="sticky bottom-0 z-30">
         <div className="mx-auto max-w-4xl px-[var(--content-margin)] py-3 sm:py-4">
-          <form onSubmit={handleSubmit} className="flex gap-2 bg-background rounded-full shadow-lg p-1">
+          <form onSubmit={handleSubmit} className="flex gap-2 bg-background rounded-full shadow-lg p-1 transition-all duration-200 focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white">
             <div className="flex-1 relative min-w-0">
               <input
                 ref={inputRef}
@@ -307,6 +314,11 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
       <div className="max-w-[85%] sm:max-w-[80%] lg:max-w-[70%] rounded-lg px-3 sm:px-4 py-3 bg-muted">
         <Markdown className="prose-sm">{messageContent}</Markdown>
 
+        {/* Show sources if any */}
+        {steps.length === 1 && steps[0].sources.length > 0 && (
+          <SourcesList sources={steps[0].sources} />
+        )}
+
         {/* Show tool calls if any */}
         {steps.length === 1 && steps[0].toolInvocations.length > 0 && (
           <div className="mt-3 space-y-2">
@@ -329,6 +341,7 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
   const stepText = step.textParts.map((part) => part.text || '').join('');
 
   const hasTools = step.toolInvocations.length > 0;
+  const hasSources = step.sources.length > 0;
 
   return (
     <Card className="border-l-0">
@@ -341,6 +354,11 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
             {hasTools && (
               <Badge variant="secondary" className="text-xs">
                 {step.toolInvocations.length} tool{step.toolInvocations.length > 1 ? 's' : ''}
+              </Badge>
+            )}
+            {hasSources && (
+              <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+                📚 {step.sources.length} source{step.sources.length > 1 ? 's' : ''}
               </Badge>
             )}
           </div>
@@ -358,6 +376,9 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
       <CardContent className="space-y-3">
         {/* Step text content with Markdown support */}
         {stepText && <Markdown className="prose-sm">{stepText}</Markdown>}
+
+        {/* Sources */}
+        {hasSources && <SourcesList sources={step.sources} />}
 
         {/* Tool invocations */}
         {hasTools && isExpanded && (
@@ -390,6 +411,8 @@ function ToolInvocationCard({ tool }: { tool: any }) {
     memory_saver: '💾',
     web_search: '🔍',
     web_content_fetcher: '📄',
+    google_search: '🌐', // Gemini's built-in Google Search
+    database_query: '🗄️',
   };
 
   const icon = toolIcons[toolName] || '';
@@ -488,6 +511,102 @@ function extractToolName(type: string): string {
     return type.substring(5);
   }
   return type || 'unknown';
+}
+
+/**
+ * Helper function to get domain from URL
+ */
+function getDomainFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.replace('www.', '');
+  } catch {
+    return 'Unknown';
+  }
+}
+
+/**
+ * Helper function to truncate text
+ */
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + '...';
+}
+
+/**
+ * Sources List Component - Shows all sources with better UI
+ */
+function SourcesList({ sources }: { sources: any[] }) {
+  if (!sources || sources.length === 0) return null;
+
+  return (
+    <div className="mt-3 space-y-2">
+      <div className="flex items-center gap-2 mb-2">
+        <Link2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+        <span className="text-xs font-medium text-blue-900 dark:text-blue-100">
+          參考來源 ({sources.length})
+        </span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {sources.map((source: any, idx: number) => (
+          <SourceCard key={idx} source={source} index={idx + 1} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Source Card Component - Individual source with favicon and better styling
+ */
+function SourceCard({ source, index }: { source: any; index: number }) {
+  const domain = getDomainFromUrl(source.url);
+  const title = source.title || domain;
+  const displayTitle = truncateText(title, 50);
+
+  // Use Google's favicon service (reliable and fast)
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+
+  return (
+    <a
+      href={source.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-start gap-2 p-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200"
+      title={title}
+    >
+      {/* Citation Number */}
+      <div className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 dark:bg-blue-500 text-white text-[10px] font-bold mt-0.5">
+        {index}
+      </div>
+
+      {/* Favicon */}
+      <div className="flex-shrink-0 mt-0.5">
+        <img
+          src={faviconUrl}
+          alt=""
+          className="w-4 h-4 rounded"
+          onError={(e) => {
+            // Fallback to a default icon if favicon fails to load
+            e.currentTarget.style.display = 'none';
+          }}
+        />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-medium text-blue-900 dark:text-blue-100 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors line-clamp-2">
+          {displayTitle}
+        </div>
+        <div className="text-[10px] text-blue-600/70 dark:text-blue-400/70 mt-0.5 truncate">
+          {domain}
+        </div>
+      </div>
+
+      {/* External Link Icon */}
+      <ExternalLink className="flex-shrink-0 w-3 h-3 text-blue-600/50 dark:text-blue-400/50 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mt-1" />
+    </a>
+  );
 }
 
 /**

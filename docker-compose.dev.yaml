@@ -54,7 +54,7 @@ services:
       - AGENT_CONFIDENCE_THRESHOLD=${AGENT_CONFIDENCE_THRESHOLD:-0.7}
     volumes:
       - .:/app
-      - app_node_modules:/app/node_modules
+      # - app_node_modules:/app/node_modules
     command: npx react-router dev --host 0.0.0.0
     depends_on:
       db:
@@ -182,4 +182,4 @@ volumes:
   postgres_data:
   minio_data:
   pgadmin_data:
-  app_node_modules:  # Named volume for app dependencies 
+  # app_node_modules:  # Named volume for app dependencies 

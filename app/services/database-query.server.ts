@@ -43,11 +43,40 @@ export interface QueryParams {
 }
 
 /**
+ * Typed data structures for query results
+ */
+export interface StudentCoursesData {
+  totalCourses: number;
+  courses: Array<{
+    courseId: string;
+    courseName: string;
+    courseCode: string | null;
+    classNames: string | null;
+    teacherName: string;
+    enrolledAt: string | null;
+    totalClasses: number;
+  }>;
+}
+
+export interface StudentSubmissionsData {
+  totalSubmissions: number;
+  submissions: Array<{
+    submissionId: string;
+    assignmentName: string;
+    courseName: string;
+    submittedAt: string | null;
+    status: string;
+    finalScore: number | null;
+    normalizedScore: number | null;
+  }>;
+}
+
+/**
  * Query result interface
  */
 export interface QueryResult {
   success: boolean;
-  data?: any;
+  data?: any; // TODO: Can be further typed based on queryType
   error?: string;
   queryType: QueryType;
   timestamp: string;
