@@ -39,11 +39,19 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_API_KEY2=${GEMINI_API_KEY2}
       - GEMINI_API_KEY3=${GEMINI_API_KEY3}
-      # OpenAI API 
+      # OpenAI API
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       # Internal API Key
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Google Custom Search API (for Learning Agent)
+      - GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY}
+      - GOOGLE_SEARCH_ENGINE_ID=${GOOGLE_SEARCH_ENGINE_ID}
+      # Prisma
+      - PRISMA_LOG_LEVEL=error
+      
+      - USE_AGENT_GRADING=${USE_AGENT_GRADING:-false}
+      - AGENT_CONFIDENCE_THRESHOLD=${AGENT_CONFIDENCE_THRESHOLD:-0.7}
     volumes:
       - .:/app
       - app_node_modules:/app/node_modules
@@ -74,6 +82,8 @@ services:
       - GEMINI_API_KEY2=${GEMINI_API_KEY2}
       - GEMINI_API_KEY3=${GEMINI_API_KEY3}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY}
+      - GOOGLE_SEARCH_ENGINE_ID=${GOOGLE_SEARCH_ENGINE_ID}
       - ALLOWED_ORIGINS=${WEBSOCKET_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
       - MAIN_APP_URL=${MAIN_APP_URL}
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}

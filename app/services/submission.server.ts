@@ -993,7 +993,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       return null;
     }
 
-    logger.info('✅ Saved draft submission:', submission.id);
+    logger.info({ submissionId: submission.id, assignmentAreaId, studentId }, '✅ Saved draft submission');
 
     return {
       id: submission.id,

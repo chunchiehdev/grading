@@ -5,6 +5,7 @@ export default [
   index('./routes/index.tsx'),
   route('/join', './routes/join.tsx'),
   route('/settings', './routes/settings.tsx'),
+  route('/agent-playground', './routes/agent-playground.tsx'),
 
   route('/auth', './routes/auth/layout.tsx', [
     route('login', './routes/auth/login.tsx'),
@@ -25,6 +26,8 @@ export default [
   // Teacher Platform - Additional routes (outside layout)
   ...prefix('/teacher', [
     route('analytics', './routes/teacher/analytics.tsx'),
+    route('agent-review', './routes/teacher.agent-review.tsx'),
+    route('grading/:sessionId/result/:resultId', './routes/teacher.grading.$sessionId.result.$resultId.tsx'),
     route('courses/new', './routes/teacher/courses/new.tsx'),
     route('courses/:courseId/edit', './routes/teacher/courses/$courseId/edit.tsx'),
     route('courses/:courseId/students', './routes/teacher/courses/$courseId/students.tsx'),
@@ -112,6 +115,7 @@ export default [
 
   // AI API routes
   route('/api/ai/rubric-chat', './routes/api.ai.rubric-chat.ts'),
+  route('/api/agent-chat', './routes/api.agent-chat.ts'),
 
   // Assignment API routes
   route('/api/assignments', './api/assignments/index.ts'),

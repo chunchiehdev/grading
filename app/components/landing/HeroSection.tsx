@@ -59,13 +59,13 @@ const HeroSection = () => {
                 </span>
               </Link>
 
-              {/* <Link
-                to="/auth/login"
+              <Link
+                to="/agent-playground"
                 prefetch="viewport"
-                className="text-muted-foreground hover:text-foreground px-8 py-4 text-sm font-light tracking-wide border border-border transition-all duration-300 hover:border-muted-foreground"
+                className="text-primary hover:text-primary/80 px-8 py-4 text-sm font-light tracking-wide border border-primary transition-all duration-300 hover:bg-primary/5"
               >
-                {t('landing:hero.learnMore')}
-              </Link> */}
+                Try AI Agent
+              </Link>
             </div>
           </div>
 
