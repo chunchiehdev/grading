@@ -15,12 +15,10 @@ work/
 logs/
 sec/
 
-k8s/
-k8s/gradsystem/prod/secret.yaml
-k8s/gradsystem/dev/secret-dev.yaml
+cicd/
 
 # Cursor agent artifacts (may contain tokens/credentials)
 .cursor/
 
-grading-pdf/
+grading-pdf-cicd/
 version.json
