@@ -99,8 +99,10 @@ function groupPartsBySteps(parts: any[]): Step[] {
 export function AgentChatBoxWithSteps() {
   const [input, setInput] = useState('');
   const [showWelcome, setShowWelcome] = useState(true);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
 
   // Get user data from loader
   const { user } = useLoaderData() as { user: UserType | null };
@@ -132,6 +134,35 @@ export function AgentChatBoxWithSteps() {
     }, 100);
   }, []);
 
+  // Handle Visual Viewport for mobile keyboard
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleViewportResize = () => {
+      const viewport = window.visualViewport!;
+      const windowHeight = window.innerHeight;
+      const viewportHeight = viewport.height;
+      const calculatedKeyboardHeight = windowHeight - viewportHeight;
+
+      setKeyboardHeight(calculatedKeyboardHeight);
+
+      // Scroll input into view when keyboard appears
+      if (calculatedKeyboardHeight > 0 && inputRef.current) {
+        requestAnimationFrame(() => {
+          inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    window.visualViewport.addEventListener('scroll', handleViewportResize);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleViewportResize);
+      window.visualViewport?.removeEventListener('scroll', handleViewportResize);
+    };
+  }, []);
+
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -156,7 +187,13 @@ export function AgentChatBoxWithSteps() {
   return (
     <div className="relative h-full [--content-margin:0.75rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
       {/* Messages Area */}
-      <ScrollArea className="h-full" ref={scrollRef}>
+      <ScrollArea
+        className="h-full"
+        ref={scrollRef}
+        style={{
+          height: keyboardHeight > 0 ? `calc(100% - ${keyboardHeight}px)` : '100%'
+        }}
+      >
         <div className="mx-auto max-w-4xl px-[var(--content-margin)] pt-2 sm:pt-4 pb-36 sm:pb-32">
           {showWelcome && messages.length === 0 && (
             <Card className="mb-3 sm:mb-4">
@@ -221,7 +258,14 @@ export function AgentChatBoxWithSteps() {
       </ScrollArea>
 
       {/* Sticky Input Area */}
-      <div className="sticky bottom-0 z-30 bg-gradient-to-t from-background via-background to-transparent pt-2 sm:pt-0">
+      <div
+        ref={inputContainerRef}
+        className="sticky bottom-0 z-30 bg-gradient-to-t from-background via-background to-transparent pt-2 sm:pt-0 safe-area-inset-bottom"
+        style={{
+          bottom: keyboardHeight > 0 ? `${keyboardHeight}px` : undefined,
+          transform: keyboardHeight > 0 ? 'translateY(-100%)' : undefined
+        }}
+      >
         <div className="mx-auto max-w-4xl px-[var(--content-margin)] pb-2 sm:pb-3 pt-2 sm:pt-4">
           <form
             onSubmit={handleSubmit}
@@ -238,8 +282,12 @@ export function AgentChatBoxWithSteps() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask me anything..."
-                className="w-full rounded-full border-0 bg-transparent px-3 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-full border-0 bg-transparent px-3 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 tap-highlight-transparent"
                 disabled={isLoading}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
               />
             </div>
             <Button
