@@ -154,38 +154,43 @@ export function AgentChatBoxWithSteps() {
   const isLoading = status === 'submitted' || status === 'streaming';
 
   return (
-    <div className="relative h-full [--content-margin:1rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
+    <div className="relative h-full [--content-margin:0.75rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
       {/* Messages Area */}
       <ScrollArea className="h-full" ref={scrollRef}>
-        <div className="mx-auto max-w-4xl px-[var(--content-margin)] pt-4 pb-32">
+        <div className="mx-auto max-w-4xl px-[var(--content-margin)] pt-2 sm:pt-4 pb-36 sm:pb-32">
           {showWelcome && messages.length === 0 && (
-            <Card className="mb-4">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  Welcome to the AI SDK Learning Playground!
+            <Card className="mb-3 sm:mb-4">
+              <CardHeader className="pb-3 sm:pb-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Brain className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <span className="line-clamp-2 sm:line-clamp-1">Welcome to the Playground!</span>
                 </CardTitle>
-                <CardDescription>This agent demonstrates multi-step reasoning - you can see each step!</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
+                  This agent demonstrates multi-step reasoning - you can see each step!
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm">Try asking me:</p>
+              <CardContent className="space-y-3 pt-0">
+                <p className="text-xs sm:text-sm font-medium">Try asking me:</p>
                 <div className="grid gap-2">
                   <ExamplePrompt text="What's the latest news about AI in 2025?" onClick={handleExampleClick} />
                   <ExamplePrompt text="Calculate 234 * 567 and explain the result" onClick={handleExampleClick} />
-                  <ExamplePrompt text="Search for React 19 features and summarize them in detail" onClick={handleExampleClick} />
                   <ExamplePrompt
-                    text="Read https://ai.google.dev/gemini-api/docs/google-search and explain in Chinese"
+                    text="Search for React 19 features and summarize them"
+                    onClick={handleExampleClick}
+                  />
+                  <ExamplePrompt
+                    text="Read https://ai.google.dev/gemini-api/docs/google-search and explain"
                     onClick={handleExampleClick}
                   />
                 </div>
 
-                <div className="mt-4 rounded-lg border bg-muted/50 p-3">
+                <div className="mt-3 sm:mt-4 rounded-lg border bg-muted/50 p-2.5 sm:p-3">
                   <p className="text-xs font-medium mb-2">Available Tools:</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">Calculator</Badge>
-                    <Badge variant="outline">Google Search</Badge>
-                    <Badge variant="outline">URL Content Fetcher</Badge>
-                    <Badge variant="outline">Database Query</Badge>
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    <Badge variant="outline" className="text-xs">Calculator</Badge>
+                    <Badge variant="outline" className="text-xs">Google Search</Badge>
+                    <Badge variant="outline" className="text-xs">URL Fetcher</Badge>
+                    <Badge variant="outline" className="text-xs">Database</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -216,9 +221,16 @@ export function AgentChatBoxWithSteps() {
       </ScrollArea>
 
       {/* Sticky Input Area */}
-      <div className="sticky bottom-0 z-30">
-        <div className="mx-auto max-w-4xl px-[var(--content-margin)] py-3 sm:py-4">
-          <form onSubmit={handleSubmit} className="flex gap-2 bg-background rounded-full shadow-lg p-1 transition-all duration-200 focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white">
+      <div className="sticky bottom-0 z-30 bg-gradient-to-t from-background via-background to-transparent pt-2 sm:pt-0">
+        <div className="mx-auto max-w-4xl px-[var(--content-margin)] pb-2 sm:pb-3 pt-2 sm:pt-4">
+          <form
+            onSubmit={handleSubmit}
+            className={cn(
+              "flex gap-2 bg-muted/30 dark:bg-card rounded-full p-1 transition-all duration-200 border border-border/40",
+              "focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white focus-within:border-transparent",
+              !input.trim() ? "shadow-2xl" : "shadow-lg"
+            )}
+          >
             <div className="flex-1 relative min-w-0">
               <input
                 ref={inputRef}
@@ -226,7 +238,7 @@ export function AgentChatBoxWithSteps() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask me anything..."
-                className="w-full rounded-full border-0 bg-transparent px-4 sm:px-6 py-2.5 sm:py-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-full border-0 bg-transparent px-3 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isLoading}
               />
             </div>
@@ -617,10 +629,10 @@ function ExamplePrompt({ text, onClick }: { text: string; onClick: (text: string
     <button
       type="button"
       onClick={() => onClick(text)}
-      className="flex items-center gap-2 rounded-md border border-dashed border-muted-foreground/25 bg-muted/50 px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
+      className="flex items-start sm:items-center gap-2 rounded-md border border-dashed border-muted-foreground/25 bg-muted/50 px-2.5 sm:px-3 py-2 text-left text-xs sm:text-sm hover:bg-muted transition-colors active:scale-[0.98]"
     >
-      <Wrench className="h-4 w-4 text-muted-foreground" />
-      <span>{text}</span>
+      <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0 mt-0.5 sm:mt-0" />
+      <span className="line-clamp-2 sm:line-clamp-1">{text}</span>
     </button>
   );
 }

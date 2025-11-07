@@ -26,7 +26,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function AgentPlayground() {
   return (
-    <div className="fixed inset-0" style={{ top: '73px' }}>
+    <div className="fixed inset-0 top-[73px] md:top-[73px]">
       <AgentChatBoxWithSteps />
     </div>
   );
