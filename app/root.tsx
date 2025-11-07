@@ -226,7 +226,9 @@ function Document({ children }: { children: React.ReactNode }) {
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual"
         />
-        <meta name="theme-color" content="#000000" />
+        {/* Theme color for Safari toolbar - matches page background */}
+        <meta name="theme-color" content="#EDEBE8" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#1A1A1A" media="(prefers-color-scheme: dark)" />
         <Meta />
         <Links />
         <script
@@ -306,15 +308,15 @@ function Layout() {
 
   // Unified layout structure for all route types
   return (
-    <div className="h-screen w-full flex flex-col bg-background">
+    <div className="min-h-screen w-full flex flex-col bg-background">
       {/* Initialize Zustand store with server-provided notification data */}
       {user?.role === 'TEACHER' && <StoreInitializer unreadNotifications={unreadNotifications} />}
 
       {/* Conditional NavHeader - only show for authenticated users or protected paths */}
       {(user || !isPublicPath) && <NavHeader className="flex-shrink-0" />}
 
-      {/* Main content area with proper scrolling */}
-      <main className="flex-1 overflow-y-auto">
+      {/* Main content area - body-level scrolling for iOS Safari toolbar collapse */}
+      <main className="flex-1">
         {!isPublicPath ? (
           // Protected paths get responsive horizontal padding and can scroll
           <div className="px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">
@@ -322,7 +324,7 @@ function Layout() {
           </div>
         ) : (
           // Public paths get full control over their layout
-          <div className="h-full">
+          <div className="min-h-screen">
             <Outlet />
           </div>
         )}

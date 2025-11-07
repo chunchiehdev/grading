@@ -52,7 +52,7 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
         </div>
       ) : (
         /* Courses Grid */
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(340px,1fr))] gap-6">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
             {courses.map((course) => {
             const totalSubmissions =
               course.assignmentAreas?.reduce(

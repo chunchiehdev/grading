@@ -62,9 +62,9 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
 
             return (
               <Link key={rubric.id} to={`/teacher/rubrics/${rubric.id}`} className="block">
-                <Card className="group hover:shadow-lg transition-all duration-200 border-2 hover:border-primary/20 h-full grid grid-rows-[1fr_auto_auto_auto]">
+                <Card className="group hover:-translate-y-1 hover:bg-accent/5 transition-[transform,background-color] duration-200 border-2 h-full grid grid-rows-[1fr_auto_auto_auto]">
                   {/* Header - 可變高度但有最小高度 */}
-                  <CardHeader className="p-6 min-h-[140px] flex flex-col justify-start">
+                  <CardHeader className="p-4 sm:p-6 min-h-[140px] flex flex-col justify-start">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
@@ -106,25 +106,25 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                   </CardHeader>
 
                   {/* Statistics - 固定高度區域 */}
-                  <div className="px-6 py-4">
-                    <div className="flex items-center justify-start gap-8">
+                  <div className="px-4 sm:px-6 py-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-6">
                       <div className="flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-muted-foreground" />
-                        <span className="text-lg font-semibold text-muted-foreground">
+                        <FileText className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-base font-semibold text-foreground">
                           {rubric.criteria?.length || 0}
                         </span>
-                        <span className="text-sm text-muted-foreground">{t('rubric:criteria')}</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">{t('rubric:criteria')}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Star className="w-5 h-5 text-muted-foreground" />
-                        <span className="text-lg font-semibold text-muted-foreground">{totalMaxScore}</span>
-                        <span className="text-sm text-muted-foreground">{t('rubric:totalPoints')}</span>
+                        <Star className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-base font-semibold text-foreground">{totalMaxScore}</span>
+                        <span className="text-xs sm:text-sm text-muted-foreground">{t('rubric:totalPoints')}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Criteria Preview - 固定高度區域 */}
-                  <div className="px-6 py-4 min-h-[120px] flex flex-col justify-start">
+                  <div className="px-4 sm:px-6 py-4 min-h-[120px] flex flex-col justify-start">
                     {rubric.criteria && rubric.criteria.length > 0 ? (
                       <div className="space-y-2">
                         <h4 className="text-sm font-medium text-foreground">{t('rubric:criteriaPreview')}:</h4>
@@ -147,12 +147,10 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                   </div>
 
                   {/* Meta Info - 固定高度區域 */}
-                  <div className="px-6 pb-6">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground bg-muted rounded-lg px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{formatDateForDisplay(rubric.createdAt)}</span>
-                      </div>
+                  <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+                    <div className="flex items-center text-xs sm:text-sm text-muted-foreground bg-muted rounded-lg px-3 py-2">
+                      <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
+                      <span className="truncate">{formatDateForDisplay(rubric.createdAt)}</span>
                     </div>
                   </div>
                 </Card>

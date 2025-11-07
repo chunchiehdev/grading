@@ -78,8 +78,8 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
 
   return (
     <>
-      <header className={cn('sticky top-0 z-50 bg-background ', className)}>
-        <nav className="relative w-full flex items-center justify-between py-3 px-4 sm:px-6 lg:px-8">
+      <header className={cn('sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80', className)}>
+        <nav className="relative w-full flex items-center justify-between py-3 px-4 sm:px-6 lg:px-8 border-b border-border/40">
           {/* Left Section - Logo & Title */}
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-3">
