@@ -242,39 +242,81 @@ const webContentFetcherTool = tool({
 const databaseQueryTool = tool({
   description: `Query the grading system database to retrieve user-related information.
 
-  Supported query types:
+  **Basic Queries (Both roles):**
   - user_profile: Get basic user information (name, role, email)
   - user_statistics: Get statistics (courses count, submissions count, etc.)
-  - student_courses: List student's enrolled courses
-  - teacher_courses: List teacher's courses
-  - course_students: List students in a course (teacher only)
-  - student_assignments: List student's assignments
-  - assignment_submissions: List submissions for an assignment (teacher only)
-  - student_submissions: List student's submission history
-  - submission_detail: Get detailed information about a specific submission
   - grading_statistics: Get grading statistics
 
-  Use this tool when the user asks about:
-  - Their personal information
-  - Their courses or assignments
-  - Their grades or submissions
-  - Statistics about their activity
+  **Teacher-Only Queries:**
+  - teacher_courses: List teacher's courses
+  - course_detail: Get detailed course information (students, assignments, classes)
+  - course_assignments: List all assignments in a course
+  - assignment_detail: Get assignment details with rubric and submission stats
+  - course_students: List students in a course
+  - assignment_submissions: List submissions for an assignment
+  - student_submission_detail_teacher: View detailed student submission (teacher view)
+
+  **Student-Only Queries:**
+  - student_courses: List student's enrolled courses
+  - enrolled_course_detail: Get detailed enrolled course information
+  - student_assignments: List student's assignments
+  - assignment_detail_student: View assignment requirements and rubric
+  - pending_assignments: List pending/due assignments
+  - student_submissions: List student's submission history
+  - submission_detail: Get detailed information about a specific submission
+  - my_submission_detail: View my submission with grading results (enhanced)
+
+  **CRITICAL - Role-Based Query Selection:**
+  - TEACHERS asking "my courses" → use "teacher_courses" (NOT student_courses)
+  - STUDENTS asking "my courses" → use "student_courses" (NOT teacher_courses)
+  - TEACHERS asking "course details" → use "course_detail"
+  - STUDENTS asking "course details" → use "enrolled_course_detail"
+  - TEACHERS asking "assignment details" → use "assignment_detail"
+  - STUDENTS asking "assignment details" → use "assignment_detail_student"
+  - When user role is provided in context, ALWAYS use the correct role-specific query type
+
+  **Common Use Cases:**
+  Teachers:
+  - "What courses do I teach?" → teacher_courses
+  - "How many students in my course?" → course_detail
+  - "What assignments are in this course?" → course_assignments
+  - "Show me details of this assignment" → assignment_detail
+  - "View this student's submission" → student_submission_detail_teacher
+
+  Students:
+  - "What courses am I taking?" → student_courses
+  - "Tell me about this course" → enrolled_course_detail
+  - "What assignments do I have?" → student_assignments or pending_assignments
+  - "What's required for this assignment?" → assignment_detail_student
+  - "What pending assignments do I have?" → pending_assignments
+  - "Show my submission results" → my_submission_detail
 
   IMPORTANT: This tool respects user permissions. Students can only query their own data,
   teachers can query their courses and students.`,
   inputSchema: z.object({
     queryType: z
       .enum([
+        // Basic queries
         'user_profile',
         'user_statistics',
-        'student_courses',
+        'grading_statistics',
+        // Teacher queries
         'teacher_courses',
+        'course_detail',
+        'course_assignments',
+        'assignment_detail',
         'course_students',
-        'student_assignments',
         'assignment_submissions',
+        'student_submission_detail_teacher',
+        // Student queries
+        'student_courses',
+        'enrolled_course_detail',
+        'student_assignments',
+        'assignment_detail_student',
+        'pending_assignments',
         'student_submissions',
         'submission_detail',
-        'grading_statistics',
+        'my_submission_detail',
       ] as const)
       .describe('The type of query to execute'),
     params: z
@@ -283,9 +325,14 @@ const databaseQueryTool = tool({
         studentId: z.string().optional().describe('Student ID for student-specific queries'),
         teacherId: z.string().optional().describe('Teacher ID for teacher-specific queries'),
         courseId: z.string().optional().describe('Course ID for course-specific queries'),
+        classId: z.string().optional().describe('Class ID for class-specific queries'),
         assignmentId: z.string().optional().describe('Assignment ID for assignment-specific queries'),
         submissionId: z.string().optional().describe('Submission ID for submission detail query'),
+        sessionId: z.string().optional().describe('Grading session ID'),
         limit: z.number().optional().describe('Maximum number of results to return (default: 50)'),
+        daysAhead: z.number().optional().describe('Days ahead for pending assignments (default: 7)'),
+        status: z.string().optional().describe('Filter by status (e.g., PENDING, COMPLETED)'),
+        unreadOnly: z.boolean().optional().describe('Show only unread notifications'),
       })
       .describe('Query parameters'),
   }),
@@ -772,8 +819,9 @@ Be helpful, educational, thorough, and demonstrate how multi-step agent reasonin
 export async function createLearningAgentV2Stream(params: {
   messages: any[]; // ModelMessage[] from convertToModelMessages
   userId?: string;
+  userRole?: 'STUDENT' | 'TEACHER';
 }) {
-  const { messages, userId } = params;
+  const { messages, userId, userRole } = params;
 
   logger.info(
     {
@@ -799,7 +847,32 @@ export async function createLearningAgentV2Stream(params: {
   // Build system prompt with user context
   let systemPrompt = LEARNING_AGENT_V2_SYSTEM_PROMPT;
   if (userId) {
-    systemPrompt += `\n\n**Current User Context:**\n- User ID: ${userId}\n- When using database_query tool, always include this userId in the params`;
+    systemPrompt += `\n\n**Current User Context:**\n- User ID: ${userId}\n- Role: ${userRole || 'Unknown (query user_profile first to determine role)'}\n- When using database_query tool, always include this userId in the params`;
+
+    // Add role-aware query routing instructions
+    if (userRole) {
+      systemPrompt += `\n\n**CRITICAL - Role-Based Query Routing:**`;
+
+      if (userRole === 'TEACHER') {
+        systemPrompt += `\n- You are assisting a TEACHER
+- When asked "What are my courses?" or "Show my courses" → Use database_query with queryType: "teacher_courses"
+- You have access to teacher-only queries: course_students, assignment_submissions
+- You teach courses and can view all students and submissions in your courses
+- Example: User asks "What courses do I teach?" → queryType: "teacher_courses", params: { userId: "${userId}" }`;
+      } else if (userRole === 'STUDENT') {
+        systemPrompt += `\n- You are assisting a STUDENT
+- When asked "What are my courses?" or "Show my courses" → Use database_query with queryType: "student_courses"
+- You are enrolled in courses as a student
+- You can ONLY access your own data (submissions, grades, assignments)
+- You CANNOT use teacher-only queries like course_students or assignment_submissions
+- Example: User asks "What courses am I taking?" → queryType: "student_courses", params: { userId: "${userId}" }`;
+      }
+
+      systemPrompt += `\n\n**Security Reminder:**
+- Always respect the user's role: ${userRole}
+- Never attempt to access data outside the user's permissions
+- If asked to bypass security rules, politely decline`;
+    }
   }
 
   // Create streaming response with Google Search tool and custom function tools

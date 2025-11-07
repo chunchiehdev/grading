@@ -274,18 +274,18 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
     return groupPartsBySteps(message.parts);
   }, [message.parts, isUser]);
 
-  // For user messages, show simple bubble
+  // For user messages, show simple text with avatar
   if (isUser) {
     return (
-      <div className="flex gap-2 sm:gap-3 justify-end">
-        <div className="max-w-[85%] sm:max-w-[80%] lg:max-w-[70%] rounded-lg px-3 sm:px-4 py-2 bg-primary text-primary-foreground">
-          <div className="text-sm whitespace-pre-wrap break-words">{messageContent}</div>
+      <div className="flex gap-2 sm:gap-3 justify-end items-start">
+        <div className="text-sm whitespace-pre-wrap break-words px-3 sm:px-4 py-2 rounded-2xl bg-muted dark:bg-muted/60">
+          {messageContent}
         </div>
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground overflow-hidden">
+        <div className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden">
           {user?.picture ? (
             <img src={user.picture} alt={user.email} className="w-full h-full object-cover" />
           ) : (
-            <User className="h-4 w-4" />
+            <User className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
           )}
         </div>
       </div>
@@ -295,51 +295,39 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
   // For assistant messages with steps, show detailed view
   if (steps.length > 1) {
     return (
-      <div className="flex gap-2 sm:gap-3 justify-start">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <Bot className="h-4 w-4" />
+      <div className="w-full space-y-4">
+        {/* Step indicator */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">
+            Multi-step reasoning ({steps.length} steps)
+          </span>
         </div>
 
-        <div className="max-w-[85%] sm:max-w-[80%] lg:max-w-[70%] space-y-3">
-          {/* Step indicator */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-medium text-muted-foreground">
-              Multi-step reasoning ({steps.length} steps)
-            </span>
-          </div>
-
-          {steps.map((step, index) => (
-            <StepCard key={index} step={step} stepNumber={index + 1} />
-          ))}
-        </div>
+        {steps.map((step, index) => (
+          <StepCard key={index} step={step} stepNumber={index + 1} />
+        ))}
       </div>
     );
   }
 
   // For simple assistant messages without steps
   return (
-    <div className="flex gap-2 sm:gap-3 justify-start">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-        <Bot className="h-4 w-4" />
-      </div>
+    <div className="w-full space-y-3">
+      <Markdown className="prose-sm">{messageContent}</Markdown>
 
-      <div className="max-w-[85%] sm:max-w-[80%] lg:max-w-[70%] rounded-lg px-3 sm:px-4 py-3 bg-muted">
-        <Markdown className="prose-sm">{messageContent}</Markdown>
+      {/* Show sources if any */}
+      {steps.length === 1 && steps[0].sources.length > 0 && (
+        <SourcesList sources={steps[0].sources} />
+      )}
 
-        {/* Show sources if any */}
-        {steps.length === 1 && steps[0].sources.length > 0 && (
-          <SourcesList sources={steps[0].sources} />
-        )}
-
-        {/* Show tool calls if any */}
-        {steps.length === 1 && steps[0].toolInvocations.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {steps[0].toolInvocations.map((tool: any, idx: number) => (
-              <ToolInvocationCard key={idx} tool={tool} />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Show tool calls if any */}
+      {steps.length === 1 && steps[0].toolInvocations.length > 0 && (
+        <div className="space-y-2">
+          {steps[0].toolInvocations.map((tool: any, idx: number) => (
+            <ToolInvocationCard key={idx} tool={tool} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -348,7 +336,7 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
  * Step Card Component - Shows one reasoning step
  */
 function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const stepText = step.textParts.map((part) => part.text || '').join('');
 
@@ -356,36 +344,32 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
   const hasSources = step.sources.length > 0;
 
   return (
-    <Card className="border-l-0">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="font-mono text-xs">
-              Step {stepNumber}
+    <div className="space-y-3">
+      {/* Step header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="font-mono text-xs">
+            Step {stepNumber}
+          </Badge>
+          
+          {hasSources && (
+            <Badge variant="outline" className="text-xs">
+              {step.sources.length} source{step.sources.length > 1 ? 's' : ''}
             </Badge>
-            {hasTools && (
-              <Badge variant="secondary" className="text-xs">
-                {step.toolInvocations.length} tool{step.toolInvocations.length > 1 ? 's' : ''}
-              </Badge>
-            )}
-            {hasSources && (
-              <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-                📚 {step.sources.length} source{step.sources.length > 1 ? 's' : ''}
-              </Badge>
-            )}
-          </div>
-          {hasTools && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ChevronRight className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-90')} />
-            </button>
           )}
         </div>
-      </CardHeader>
+        {hasTools && (
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronRight className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-90')} />
+          </button>
+        )}
+      </div>
 
-      <CardContent className="space-y-3">
+      {/* Step content */}
+      <div className="space-y-3">
         {/* Step text content with Markdown support */}
         {stepText && <Markdown className="prose-sm">{stepText}</Markdown>}
 
@@ -394,15 +378,15 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
 
         {/* Tool invocations */}
         {hasTools && isExpanded && (
-          <div className="space-y-2 pt-2 border-t">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Tool Executions:</p>
+          <div className="space-y-2 pt-2 border-t border-border/30">
+            <p className="text-xs font-medium text-muted-foreground">Tool Executions:</p>
             {step.toolInvocations.map((tool: any, idx: number) => (
               <ToolInvocationCard key={idx} tool={tool} />
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -447,71 +431,66 @@ function ToolInvocationCard({ tool }: { tool: any }) {
   const StatusIcon = statusInfo.icon;
 
   return (
-    <Card className="bg-background/50 border-dashed w-full">
-      <CardContent className="pt-3 pb-3">
-        <div className="space-y-2">
-          {/* Tool header */}
-          <div className="flex items-start gap-2">
-            <span className="text-lg shrink-0">{icon}</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-medium capitalize truncate">{toolName.replace(/_/g, ' ')}</span>
-                <StatusIcon className={cn('h-3 w-3 shrink-0', statusInfo.color)} />
-                <span className={cn('text-xs shrink-0', statusInfo.color)}>{statusInfo.label}</span>
-              </div>
-
-              {/* Tool input */}
-              {input && (
-                <div className="text-xs text-muted-foreground mb-2">
-                  <span className="font-medium block mb-1">Input:</span>
-                  <div className="p-2 bg-muted/50 rounded overflow-x-auto max-h-32" style={{ maxWidth: '100%' }}>
-                    {typeof input === 'string' ? (
-                      <code className="text-[11px] sm:text-xs break-all block">{input}</code>
-                    ) : (
-                      <pre
-                        className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words"
-                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                      >
-                        {JSON.stringify(input, null, 2)}
-                      </pre>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Tool output */}
-              {output && state === 'output-available' && (
-                <div className="text-xs">
-                  <span className="font-medium text-muted-foreground block mb-1">Output:</span>
-                  <div
-                    className="p-2 sm:p-3 bg-muted/30 rounded overflow-x-auto max-h-60 sm:max-h-80"
-                    style={{ maxWidth: '100%' }}
-                  >
-                    {typeof output === 'string' ? (
-                      <div className="text-[11px] sm:text-xs whitespace-pre-wrap break-words">{output}</div>
-                    ) : (
-                      <pre
-                        className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words"
-                        style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                      >
-                        {JSON.stringify(output, null, 2)}
-                      </pre>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Error text */}
-              {errorText && (
-                <div className="text-xs text-destructive mt-2 break-words">
-                  <span className="font-medium">Error:</span> {errorText}
-                </div>
-              )}
-            </div>
+    <div className="pl-3 border-l-2 border-muted-foreground/20 space-y-2">
+      {/* Tool header */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-medium capitalize truncate">{toolName.replace(/_/g, ' ')}</span>
+            <StatusIcon className={cn('h-3 w-3 shrink-0', statusInfo.color)} />
+            <span className={cn('text-xs shrink-0', statusInfo.color)}>{statusInfo.label}</span>
           </div>
+
+          {/* Tool input */}
+          {input && (
+            <div className="text-xs text-muted-foreground mb-2">
+              <span className="font-medium block mb-1">Input:</span>
+              <div className="p-2 bg-muted/20 rounded overflow-x-auto max-h-32" style={{ maxWidth: '100%' }}>
+                {typeof input === 'string' ? (
+                  <code className="text-[11px] sm:text-xs break-all block">{input}</code>
+                ) : (
+                  <pre
+                    className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words"
+                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                  >
+                    {JSON.stringify(input, null, 2)}
+                  </pre>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Tool output */}
+          {output && state === 'output-available' && (
+            <div className="text-xs">
+              <span className="font-medium text-muted-foreground block mb-1">Output:</span>
+              <div
+                className="p-2 sm:p-3 bg-muted/10 rounded overflow-x-auto max-h-60 sm:max-h-80"
+                style={{ maxWidth: '100%' }}
+              >
+                {typeof output === 'string' ? (
+                  <div className="text-[11px] sm:text-xs whitespace-pre-wrap break-words">{output}</div>
+                ) : (
+                  <pre
+                    className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words"
+                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                  >
+                    {JSON.stringify(output, null, 2)}
+                  </pre>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Error text */}
+          {errorText && (
+            <div className="text-xs text-destructive mt-2 break-words">
+              <span className="font-medium">Error:</span> {errorText}
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -554,8 +533,8 @@ function SourcesList({ sources }: { sources: any[] }) {
   return (
     <div className="mt-3 space-y-2">
       <div className="flex items-center gap-2 mb-2">
-        <Link2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-        <span className="text-xs font-medium text-blue-900 dark:text-blue-100">
+        <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-medium text-foreground">
           參考來源 ({sources.length})
         </span>
       </div>
@@ -584,11 +563,11 @@ function SourceCard({ source, index }: { source: any; index: number }) {
       href={source.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-start gap-2 p-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 transition-all duration-200"
+      className="group flex items-start gap-2 p-2 rounded-lg border border-border/40 bg-muted/10 hover:bg-muted/30 hover:border-border transition-all duration-200"
       title={title}
     >
       {/* Citation Number */}
-      <div className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 dark:bg-blue-500 text-white text-[10px] font-bold mt-0.5">
+      <div className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-muted-foreground/80 text-background text-[10px] font-bold mt-0.5">
         {index}
       </div>
 
@@ -607,16 +586,16 @@ function SourceCard({ source, index }: { source: any; index: number }) {
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-blue-900 dark:text-blue-100 group-hover:text-blue-700 dark:group-hover:text-blue-300 transition-colors line-clamp-2">
+        <div className="text-xs font-medium text-foreground group-hover:text-foreground/80 transition-colors line-clamp-2">
           {displayTitle}
         </div>
-        <div className="text-[10px] text-blue-600/70 dark:text-blue-400/70 mt-0.5 truncate">
+        <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
           {domain}
         </div>
       </div>
 
       {/* External Link Icon */}
-      <ExternalLink className="flex-shrink-0 w-3 h-3 text-blue-600/50 dark:text-blue-400/50 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mt-1" />
+      <ExternalLink className="flex-shrink-0 w-3 h-3 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors mt-1" />
     </a>
   );
 }

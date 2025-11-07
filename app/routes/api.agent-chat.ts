@@ -9,19 +9,30 @@ import type { ActionFunctionArgs } from 'react-router';
 import { createLearningAgentV2Stream } from '@/services/learning-agent-v2.server';
 import { getUserId } from '@/services/auth.server';
 import { convertToModelMessages, type UIMessage } from 'ai';
-import type { GoogleGenerativeAIProviderMetadata } from '@ai-sdk/google';
 import logger from '@/utils/logger';
 
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    // Get user ID (optional - agent works without auth)
+    // Get user ID and role (optional - agent works without auth)
     let userId: string | undefined = undefined;
+    let userRole: 'STUDENT' | 'TEACHER' | undefined = undefined;
     try {
       const id = await getUserId(request);
       userId = id || undefined;
+
+      // Fetch user role if authenticated
+      if (userId) {
+        const { db } = await import('@/lib/db.server');
+        const user = await db.user.findUnique({
+          where: { id: userId },
+          select: { role: true },
+        });
+        userRole = user?.role as 'STUDENT' | 'TEACHER' | undefined;
+      }
     } catch {
       // Guest mode - no auth required
       userId = undefined;
+      userRole = undefined;
     }
 
     // Parse request body
@@ -40,6 +51,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     logger.info('[Agent Chat API] Processing chat request', {
       userId,
+      userRole,
       messageCount: messages.length,
     });
 
@@ -51,6 +63,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const result = await createLearningAgentV2Stream({
       messages: modelMessages,
       userId,
+      userRole,
     });
 
     // Return UI message stream response (for useChat hook compatibility)

@@ -198,4 +198,4 @@ API routes follow REST conventions:
 5. Handle database operations in service layer, not directly in routes
 6. Use transactions for multi-step database operations
 7. Tests run against development database with cleanup - ensure Docker is running
-
+- Use npm run typecheck do not use npx tsc and do not use npm run build.
