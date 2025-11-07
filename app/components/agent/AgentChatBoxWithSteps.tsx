@@ -156,8 +156,13 @@ export function AgentChatBoxWithSteps() {
   return (
     <div className="relative h-full [--content-margin:0.75rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
       {/* Messages Area */}
-      <ScrollArea className="h-full" ref={scrollRef}>
-        <div className="mx-auto max-w-4xl px-[var(--content-margin)] pt-2 sm:pt-4 pb-36 sm:pb-32">
+      <ScrollArea className="h-full touch-scroll-smooth" ref={scrollRef}>
+        <div
+          className="mx-auto max-w-4xl px-[var(--content-margin)] pt-2 sm:pt-4"
+          style={{
+            paddingBottom: 'calc(9rem + env(safe-area-inset-bottom, 0.5rem))'
+          }}
+        >
           {showWelcome && messages.length === 0 && (
             <Card className="mb-3 sm:mb-4">
               <CardHeader className="pb-3 sm:pb-6">
@@ -222,8 +227,11 @@ export function AgentChatBoxWithSteps() {
 
       {/* Fixed Input Area - positioned above iOS Safari bottom address bar */}
       <div
-        className="fixed left-0 right-0 z-30 bg-gradient-to-t from-background via-background to-transparent pt-2 sm:pt-0 bottom-safe"
-        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+        className="fixed left-0 right-0 z-30 bg-gradient-to-t from-background via-background to-transparent pt-2 sm:pt-0"
+        style={{
+          bottom: '0',
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
+        }}
       >
         <div className="mx-auto max-w-4xl px-[var(--content-margin)] pb-2 sm:pb-3 pt-2 sm:pt-4">
           <form
@@ -247,6 +255,9 @@ export function AgentChatBoxWithSteps() {
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck="false"
+                style={{
+                  fontSize: '16px' // Prevent iOS zoom on focus
+                }}
               />
             </div>
             <Button

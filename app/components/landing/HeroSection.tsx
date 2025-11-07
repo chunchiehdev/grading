@@ -62,7 +62,7 @@ const HeroSection = () => {
               <Link
                 to="/agent-playground"
                 prefetch="viewport"
-                className="text-primary hover:text-primary/80 px-8 py-4 text-sm font-light tracking-wide border border-primary transition-all duration-300 hover:bg-primary/5"
+                className="text-primary hover:text-primary/80 px-8 py-4 text-sm font-light tracking-wide border border-primary transition-all duration-300 hover:bg-primary/5 min-w-[180px] text-center"
               >
                 Try AI Agent
               </Link>
