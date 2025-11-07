@@ -30,7 +30,9 @@ export default function AgentPlayground() {
       className="fixed inset-0 top-[73px] md:top-[73px]"
       style={{
         height: 'calc(100dvh - 73px)',
-        maxHeight: '-webkit-fill-available'
+        maxHeight: '-webkit-fill-available',
+        // Ensure native scroll behavior for iOS Safari toolbar collapse
+        overflow: 'hidden'
       }}
     >
       <AgentChatBoxWithSteps />

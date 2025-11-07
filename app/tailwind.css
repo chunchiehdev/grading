@@ -145,6 +145,7 @@
   }
     * {
       @apply border-border;
+      /* Use standard scrollbar styling - respects OS theme and accessibility settings */
       scrollbar-width: thin;
       scrollbar-color: hsl(var(--border)) hsl(var(--background));
     }
@@ -153,26 +154,8 @@
     }
 
     ::selection {
-      background-color: #2563eb !important; 
-      color: white !important; 
-    }
-
-    ::-webkit-scrollbar {
-      width: 100px;
-      height: 100px;
-    }
-    
-    ::-webkit-scrollbar-track {
-      background: hsl(var(--background));
-    }
-    
-    ::-webkit-scrollbar-thumb {
-      background: hsl(var(--border));
-      border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-      background: hsl(var(--muted-foreground));
+      background-color: #2563eb !important;
+      color: white !important;
     }
 }
 @keyframes float {

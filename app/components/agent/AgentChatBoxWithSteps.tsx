@@ -25,7 +25,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { Markdown } from '@/components/ui/markdown';
 import { useLoaderData } from 'react-router';
@@ -99,7 +98,7 @@ function groupPartsBySteps(parts: any[]): Step[] {
 export function AgentChatBoxWithSteps() {
   const [input, setInput] = useState('');
   const [showWelcome, setShowWelcome] = useState(true);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Get user data from loader
@@ -117,12 +116,7 @@ export function AgentChatBoxWithSteps() {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    if (scrollRef.current) {
-      const scrollElement = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollElement) {
-        scrollElement.scrollTop = scrollElement.scrollHeight;
-      }
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   // Focus input when component mounts
@@ -155,8 +149,14 @@ export function AgentChatBoxWithSteps() {
 
   return (
     <div className="relative h-full [--content-margin:0.75rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
-      {/* Messages Area */}
-      <ScrollArea className="h-full touch-scroll-smooth" ref={scrollRef}>
+      {/* Messages Area - using native scroll for iOS Safari toolbar collapse */}
+      <div
+        className="h-full overflow-y-auto overflow-x-hidden"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain'
+        }}
+      >
         <div
           className="mx-auto max-w-4xl px-[var(--content-margin)] pt-2 sm:pt-4"
           style={{
@@ -221,9 +221,12 @@ export function AgentChatBoxWithSteps() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Scroll anchor */}
+            <div ref={messagesEndRef} />
           </div>
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Fixed Input Area - positioned above iOS Safari bottom address bar */}
       <div
