@@ -14,11 +14,7 @@ export default function WabiSabiLanding() {
   return (
     <>
       {/* {isLoading && <LoadingScreen onComplete={handleLoadingComplete} />} */}
-      <div className="h-full w-full flex items-center justify-center bg-background">
-        <div className="w-full">
-          <HeroSection />
-        </div>
-      </div>
+      <HeroSection />
     </>
   );
 }

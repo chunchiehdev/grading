@@ -315,22 +315,17 @@ function Layout() {
       {/* Conditional NavHeader - only show for authenticated users or protected paths */}
       {(user || !isPublicPath) && <NavHeader className="flex-shrink-0" />}
 
-      {/* Main content area - body-level scrolling for iOS Safari toolbar collapse */}
+      {/* Main content area - fills remaining viewport space */}
       <main className="flex-1">
         {!isPublicPath ? (
-          // Protected paths get responsive horizontal padding and can scroll
-          <div className="px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">
+          // Protected paths: add consistent padding
+          <div className="h-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">
             <Outlet />
           </div>
         ) : (
-          // Public paths get full control over their layout
-          <div className="min-h-screen">
-            <Outlet />
-          </div>
+          // Public paths: full control, no extra wrapper
+          <Outlet />
         )}
-        {/* <div className="debug-info fixed bottom-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-50 hover:opacity-100 transition-opacity z-50">
-          Pod: {podInfo.podName} | IP: {podInfo.podIP} | Node: {nodeName}
-        </div> */}
       </main>
 
       {/* Footer - always present but flexible */}

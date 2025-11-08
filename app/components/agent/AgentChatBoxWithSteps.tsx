@@ -148,15 +148,9 @@ export function AgentChatBoxWithSteps() {
   const isLoading = status === 'submitted' || status === 'streaming';
 
   return (
-    <div className="relative h-full [--content-margin:0.75rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
-      {/* Messages Area - using native scroll for iOS Safari toolbar collapse */}
-      <div
-        className="h-full overflow-y-auto overflow-x-hidden"
-        style={{
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehavior: 'contain'
-        }}
-      >
+    <div className="relative h-full w-full flex flex-col [--content-margin:0.75rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
+      {/* Messages Area - scrollable content */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         <div
           className="mx-auto max-w-4xl px-[var(--content-margin)] pt-2 sm:pt-4"
           style={{
@@ -228,11 +222,11 @@ export function AgentChatBoxWithSteps() {
         </div>
       </div>
 
-      {/* Fixed Input Area - positioned above iOS Safari bottom address bar */}
+      {/* Fixed Input Area - stays at bottom */}
       <div
-        className="fixed left-0 right-0 z-30 bg-gradient-to-t from-background via-background to-transparent pt-2 sm:pt-0"
+        className="flex-shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40"
         style={{
-          bottom: '0',
+          paddingTop: '0.5rem',
           paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
         }}
       >

@@ -145,7 +145,15 @@
   }
     * {
       @apply border-border;
-      /* Use standard scrollbar styling - respects OS theme and accessibility settings */
+      /*
+       * Standard scrollbar styling per W3C spec (Firefox, Chrome 121+, Edge 121+)
+       * Respects:
+       * - Windows High Contrast Mode
+       * - macOS/Windows system themes
+       * - User OS accessibility preferences
+       * - WCAG accessibility guidelines
+       * Reference: https://ericwbailey.website/published/dont-use-custom-css-scrollbars/
+       */
       scrollbar-width: thin;
       scrollbar-color: hsl(var(--border)) hsl(var(--background));
     }

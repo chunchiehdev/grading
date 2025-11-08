@@ -27,13 +27,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function AgentPlayground() {
   return (
     <div
-      className="fixed inset-0 top-[73px] md:top-[73px]"
-      style={{
-        height: 'calc(100dvh - 73px)',
-        maxHeight: '-webkit-fill-available',
-        // Ensure native scroll behavior for iOS Safari toolbar collapse
-        overflow: 'hidden'
-      }}
+      className="h-full w-full"
     >
       <AgentChatBoxWithSteps />
     </div>
