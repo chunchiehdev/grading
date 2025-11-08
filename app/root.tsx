@@ -1,10 +1,10 @@
 // root.tsx
-import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, redirect } from 'react-router';
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, redirect, useLocation } from 'react-router';
 import { ThemeProvider } from '@/theme-provider';
 import './tailwind.css';
 import { NavHeader } from '@/components/navbar/NavHeader';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PUBLIC_PATHS } from '@/constants/auth';
+import { PUBLIC_PATHS, FULL_WIDTH_PROTECTED_PATHS } from '@/constants/auth';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import type { VersionInfo } from '@/services/version.server';
 import { useTranslation } from 'react-i18next';
@@ -115,6 +115,12 @@ function isPublicPath(path: string): boolean {
     }
     // For other paths, use startsWith
     return path.startsWith(publicPath);
+  });
+}
+
+function isFullWidthPath(path: string): boolean {
+  return FULL_WIDTH_PROTECTED_PATHS.some((fullWidthPath) => {
+    return path.startsWith(fullWidthPath);
   });
 }
 
@@ -249,6 +255,9 @@ function Document({ children }: { children: React.ReactNode }) {
 function Layout() {
   const { user, isPublicPath, locale, toast, unreadNotifications } = useLoaderData() as LoaderData;
   const { i18n } = useTranslation();
+  const location = useLocation();
+  const currentPath = location.pathname;
+  const isFullWidth = isFullWidthPath(currentPath);
 
   const { connectionState, isConnected } = useWebSocket(user?.id && user?.role ? user.id : undefined);
 
@@ -308,7 +317,7 @@ function Layout() {
 
   // Unified layout structure for all route types
   return (
-    <div className="min-h-screen w-full flex flex-col bg-background">
+    <div className="h-screen w-full flex flex-col bg-background">
       {/* Initialize Zustand store with server-provided notification data */}
       {user?.role === 'TEACHER' && <StoreInitializer unreadNotifications={unreadNotifications} />}
 
@@ -317,13 +326,13 @@ function Layout() {
 
       {/* Main content area - fills remaining viewport space */}
       <main className="flex-1">
-        {!isPublicPath ? (
-          // Protected paths: add consistent padding
+        {!isPublicPath && !isFullWidth ? (
+          // Protected paths with padding: standard layout with responsive padding
           <div className="h-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">
             <Outlet />
           </div>
         ) : (
-          // Public paths: full control, no extra wrapper
+          // Public paths OR full-width protected paths: full control, no extra wrapper
           <Outlet />
         )}
       </main>
