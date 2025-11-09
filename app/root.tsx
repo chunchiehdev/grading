@@ -181,7 +181,6 @@ export async function loader({ request }: { request: Request }) {
         createdAt: notif.createdAt,
         data: notif.data,
       }));
-      const unreadCount = notifications.filter(n => !n.isRead).length;
     } catch (error) {
       console.error('[Root Loader] ❌ Failed to fetch notifications:', error);
     }
@@ -214,7 +213,9 @@ export async function loader({ request }: { request: Request }) {
 
   // Handle legacy dashboard route
   if (path === '/dashboard') {
-    throw redirect(getRoleBasedDashboard(user.role as string));
+    if (user.role) {
+      throw redirect(getRoleBasedDashboard(user.role));
+    }
   }
 
   const body = { user, isPublicPath: false, versionInfo, locale, toast, podInfo, unreadNotifications };
@@ -271,22 +272,9 @@ function Layout() {
     },
     [handleNewSubmission]
   );
-  
-  // 開發階段：監控 WebSocket 連接狀態
-  useEffect(() => {
-    if (user?.id && user?.role) {
-    }
-  }, [user?.id, user?.role, connectionState]);
 
   // Register WebSocket event listener for teachers (works on ALL pages)
-  
   useWebSocketEvent('submission-notification', onSubmissionNotification);
-
-  // Log when event listener should be active
-  useEffect(() => {
-    if (user?.role === 'TEACHER' && isConnected) {
-    }
-  }, [user?.role, isConnected]);
 
   // Change language when locale from server changes
   useEffect(() => {
@@ -317,7 +305,7 @@ function Layout() {
 
   // Unified layout structure for all route types
   return (
-    <div className="h-screen w-full flex flex-col bg-background">
+    <div className="h-dvh w-full flex flex-col bg-background">
       {/* Initialize Zustand store with server-provided notification data */}
       {user?.role === 'TEACHER' && <StoreInitializer unreadNotifications={unreadNotifications} />}
 
