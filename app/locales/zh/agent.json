@@ -1,8 +1,8 @@
 {
   "welcome": {
     "title": "{{name}}，今天有什麼可以幫助你的嗎？",
-    "subtitle": "我是你的學習夥伴 - 問我關於作業、課程等相關問題！",
-    "tryAsking": "試試問我："
+    "subtitle": "我是你的學伴 - 問我關於作業、課程等相關問題！",
+    "tryAsking": "試試："
   },
   "examples": {
     "pendingAssignments": "我有多少作業還沒交？",
@@ -27,7 +27,7 @@
     "statusProcessing": "處理中"
   },
   "input": {
-    "placeholder": "詢問我關於課程和作業的任何問題..."
+    "placeholder": "詢問關於課程和作業的問題..."
   },
   "error": {
     "title": "錯誤：",

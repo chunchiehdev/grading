@@ -7,7 +7,6 @@ import { useMemo } from 'react';
 interface LoaderData {
   user: User | null;
   isPublicPath: boolean;
-  [key: string]: any;
 }
 /**
  * Modern Minimal Landing Page - Full screen width
@@ -30,8 +29,8 @@ const HeroSection = () => {
   }, [user]);
 
   return (
-    <section className="min-h-screen w-full flex flex-col justify-center">
-      <div className="w-full px-6 lg:px-12 xl:px-20 py-12 sm:py-16 lg:py-20">
+    <section className="h-full w-full flex flex-col justify-center">
+      <div className="w-full px-6 lg:px-12 xl:px-20 py-4 sm:py-12 lg:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center">
           {/* Text Content */}
           <div className="lg:col-span-7 space-y-10 order-2 lg:order-1">
@@ -62,25 +61,22 @@ const HeroSection = () => {
               <Link
                 to="/agent-playground"
                 prefetch="viewport"
-                className="text-primary hover:text-primary/80 px-8 py-4 text-sm font-light tracking-wide border border-primary transition-all duration-300 hover:bg-primary/5 min-w-[180px] text-center"
+                className="group text-primary hover:text-primary/80 px-8 py-4 text-sm font-light tracking-wide border border-primary transition-all duration-300 hover:bg-primary/5 min-w-[180px] text-center"
               >
-                Try AI Agent
+                <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">
+                  {t('landing:hero.tryAIAgent')}
+                </span>
               </Link>
             </div>
           </div>
 
           {/* Visual Element */}
           <div className="lg:col-span-5 flex items-center justify-center order-1 lg:order-2 mb-8 lg:mb-0">
-            <div className="relative w-full max-w-lg xl:max-w-xl 2xl:max-w-2xl">
-              {/* Main Image */}
-              <div className="relative overflow-hidden">
-                <img
-                  src="/writing_rm_background.png"
-                  alt="grading_picture"
-                  className="w-full h-auto object-cover xl:scale-110 2xl:scale-125"
-                />
-              </div>
-            </div>
+            <img
+              src="/writing_rm_background.png"
+              alt={t('landing:hero.heroImageAlt')}
+              className="w-full h-auto max-h-[40vh] sm:max-h-none object-cover xl:scale-110 2xl:scale-125 max-w-lg xl:max-w-xl 2xl:max-w-2xl"
+            />
           </div>
         </div>
       </div>

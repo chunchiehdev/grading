@@ -4,8 +4,10 @@
     "subtitle": "AI 幫老師輕鬆評分，學生即時收到回饋，加快學習速度。",
     "getStarted": "開始使用",
     "enterSystem": "進入系統",
+    "tryAIAgent": "AI 學伴",
     "learnMore": "了解更多",
-    "reLogin": "重新登入"
+    "reLogin": "重新登入",
+    "heroImageAlt": "學生撰寫作業，搭配 AI 智慧評分輔助"
   },
   "features": {
     "title": "主要功能",

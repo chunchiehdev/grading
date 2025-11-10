@@ -35,9 +35,9 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
   const unreadCount = useSubmissionStore((state) => state.unreadCount);
   const isTeacher = user?.role === 'TEACHER';
 
-  // Early return after all hooks are called
+  // Early return after all hooks are called - root.tsx already handles conditional rendering
   if (!user) {
-    return <div className="hidden">{/* Empty component to maintain consistent hook calls */}</div>;
+    return null;
   }
 
   // Fallback function for when i18n isn't ready

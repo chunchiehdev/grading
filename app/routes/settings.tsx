@@ -22,38 +22,36 @@ export default function Settings() {
   const { t } = useTranslation(['settings', 'common']);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Title */}
-        <div className="border-b border-border pb-4 mb-8">
-          <h1 className="text-3xl font-bold text-foreground">{t('settings:title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('settings:subtitle')}</p>
-        </div>
+    <div className="max-w-4xl mx-auto">
+      {/* Page Title */}
+      <div className="border-b border-border pb-4 mb-8">
+        <h1 className="text-3xl font-bold text-foreground">{t('settings:title')}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t('settings:subtitle')}</p>
+      </div>
 
-        {/* Personal Information Card */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={user.picture} alt={user.name} />
-                <AvatarFallback className="text-2xl">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 text-center sm:text-left space-y-2">
-                <h2 className="text-2xl font-semibold text-foreground">{user.name}</h2>
-                <div className="flex items-center gap-2 justify-center sm:justify-start text-muted-foreground">
-                  <Mail className="w-4 h-4" />
-                  <span className="text-sm">{user.email}</span>
-                </div>
-                <div>
-                  <Badge variant="secondary" className="text-sm">
-                    {t(`common:roles.${user.role.toLowerCase()}`)}
-                  </Badge>
-                </div>
+      {/* Personal Information Card */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+            <Avatar className="w-24 h-24">
+              <AvatarImage src={user.picture} alt={user.name} />
+              <AvatarFallback className="text-2xl">{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 text-center sm:text-left space-y-2">
+              <h2 className="text-2xl font-semibold text-foreground">{user.name}</h2>
+              <div className="flex items-center gap-2 justify-center sm:justify-start text-muted-foreground">
+                <Mail className="w-4 h-4" />
+                <span className="text-sm">{user.email}</span>
+              </div>
+              <div>
+                <Badge variant="secondary" className="text-sm">
+                  {t(`common:roles.${user.role.toLowerCase()}`)}
+                </Badge>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -4,8 +4,10 @@
     "subtitle": " AI grading for teachers, realtime feedback for students.",
     "getStarted": "Get Started",
     "enterSystem": "Enter System",
+    "tryAIAgent": "Try AI Companion",
     "learnMore": "Learn More",
-    "reLogin": "Re-login"
+    "reLogin": "Re-login",
+    "heroImageAlt": "Student writing assignment with AI-powered grading assistance"
   },
   "features": {
     "title": "Key Features",
