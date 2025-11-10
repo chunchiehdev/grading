@@ -535,7 +535,7 @@ export default function SubmitAssignment() {
   return (
     <div ref={containerRef} className="bg-background">
       {/* Header */}
-      <div ref={headerRef} className="border-b bg-background sticky top-0 z-10">
+      <div ref={headerRef} className="border-b bg-background ">
         <div className="px-6 md:px-8 lg:px-10 py-6">
           <div className="flex items-center justify-between">
             <div>
