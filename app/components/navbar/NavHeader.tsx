@@ -78,7 +78,7 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
 
   return (
     <>
-      <header className={cn('sticky top-0 z-50', className)}>
+      <header className={cn(className)}>
         <nav className="relative w-full flex items-center justify-between py-3 px-4 sm:px-6 lg:px-8">
           {/* Left Section - Logo & Title */}
           <div className="flex items-center gap-3">

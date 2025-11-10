@@ -1,0 +1,41 @@
+{
+  "welcome": {
+    "title": "How can I help you today, {{name}}?",
+    "subtitle": "I'm your learning companions - ask me about assignments, courses, and more!",
+    "tryAsking": "Try asking me:"
+  },
+  "examples": {
+    "pendingAssignments": "How many assignments do I have pending?",
+    "upcomingDeadlines": "What assignments are due soon?",
+    "courses": "What courses do I have?",
+    "recentGrades": "How are my recent grades?"
+  },
+  "status": {
+    "thinking": "Thinking...",
+    "multiStepReasoning": "Reasoning ({{count}} steps)"
+  },
+  "sources": {
+    "title": "References ({{count}})"
+  },
+  "toolExecution": {
+    "title": "Tool Execution:",
+    "input": "Input:",
+    "output": "Output:",
+    "error": "Error:",
+    "statusCompleted": "Completed",
+    "statusRunning": "Running",
+    "statusProcessing": "Processing"
+  },
+  "input": {
+    "placeholder": "Ask me anything about your courses and assignments..."
+  },
+  "error": {
+    "title": "Error:",
+    "prefix": "Error:"
+  },
+  "step": {
+    "label": "Step {{number}}",
+    "sources_one": "source",
+    "sources_other": "sources"
+  }
+}

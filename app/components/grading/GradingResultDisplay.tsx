@@ -4,7 +4,6 @@ import { EmptyGradingState } from './EmptyGradingState';
 import { LoadingAnalysisIcon } from './LoadingAnalysisIcon';
 import { CompactStructuredFeedback } from './StructuredFeedback';
 import { GradingResultData } from '@/types/grading';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown } from 'lucide-react';
@@ -30,21 +29,22 @@ const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdo
   if (!breakdown || breakdown.length === 0) return null;
 
   return (
-    <div className="space-y-4 mt-4">
+    <div className="space-y-3 mt-4">
       {breakdown.map((criteria, index) => (
-        <Card key={criteria.criteriaId || index}>
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-semibold">
+        <div
+          key={criteria.criteriaId || index}
+          className="rounded-lg p-2 space-y-2 border-b border-border/30 last:border-b-0"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-base font-semibold">
               {criteria.name || t('result.criteriaItem', { index: index + 1 })}
-            </CardTitle>
+            </h4>
             <Badge variant="secondary">{t('result.scorePoints', { score: criteria.score })}</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm text-muted-foreground leading-relaxed">
-              <Markdown>{criteria.feedback}</Markdown>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="text-sm text-muted-foreground leading-relaxed">
+            <Markdown>{criteria.feedback}</Markdown>
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -76,15 +76,15 @@ export function GradingResultDisplay({ result, normalizedScore, thoughtSummary, 
   const displayScore = normalizedScore ?? Math.round((safeResult.totalScore / safeResult.maxScore) * 100);
 
   return (
-    <div className={cn('space-y-6', className)}>
+    <div className={cn('space-y-6 pb-6', className)}>
       {/* Compact score header - 100-point scale */}
-      <div className="flex items-center gap-3 h-10">
+      <div className="p-2 flex items-center gap-3 h-10">
         <span className="text-2xl font-semibold leading-none">{displayScore.toFixed(1)}</span>
         <span className="text-sm text-muted-foreground">/ 100</span>
       </div>
 
       {/* Feedback (compact) */}
-      <section className="space-y-2">
+      <section className="p-2 space-y-2">
         <h3 className="text-sm font-medium">{t('result.overallFeedback')}</h3>
         <div className="text-sm text-muted-foreground">
           <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
@@ -93,7 +93,7 @@ export function GradingResultDisplay({ result, normalizedScore, thoughtSummary, 
 
       {/* Detailed criteria: direct stack */}
       <section>
-        <h3 className="text-sm font-medium mb-2">{t('result.criteriaDetails')}</h3>
+        <h3 className="p-2 text-sm font-medium mb-2">{t('result.criteriaDetails')}</h3>
         <div className="space-y-3 overflow-auto pr-1">
           <CriteriaDetails breakdown={safeResult.breakdown} />
           {safeResult.breakdown.length === 0 && (

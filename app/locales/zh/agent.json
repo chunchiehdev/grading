@@ -1,0 +1,41 @@
+{
+  "welcome": {
+    "title": "{{name}}，今天有什麼可以幫助你的嗎？",
+    "subtitle": "我是你的學習夥伴 - 問我關於作業、課程等相關問題！",
+    "tryAsking": "試試問我："
+  },
+  "examples": {
+    "pendingAssignments": "我有多少作業還沒交？",
+    "upcomingDeadlines": "我即將截止的作業有哪些？",
+    "courses": "我有哪些課程？",
+    "recentGrades": "我最近的成績如何？"
+  },
+  "status": {
+    "thinking": "思考中...",
+    "multiStepReasoning": "推理（{{count}} 步）"
+  },
+  "sources": {
+    "title": "參考來源（{{count}}）"
+  },
+  "toolExecution": {
+    "title": "執行工具：",
+    "input": "輸入：",
+    "output": "輸出：",
+    "error": "錯誤：",
+    "statusCompleted": "已完成",
+    "statusRunning": "執行中",
+    "statusProcessing": "處理中"
+  },
+  "input": {
+    "placeholder": "詢問我關於課程和作業的任何問題..."
+  },
+  "error": {
+    "title": "錯誤：",
+    "prefix": "錯誤："
+  },
+  "step": {
+    "label": "步驟 {{number}}",
+    "sources_one": "個來源",
+    "sources_other": "個來源"
+  }
+}

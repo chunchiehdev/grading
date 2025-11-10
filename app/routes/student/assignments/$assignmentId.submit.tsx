@@ -525,11 +525,9 @@ export default function SubmitAssignment() {
         )}
 
         {/* Secondary Actions */}
-        <div className="space-y-2">
-          <Button variant="outline" onClick={handleResetFile} className="w-full text-sm">
-            {t('assignment:submit.reselectFile')}
-          </Button>
-        </div>
+        <Button variant="outline" onClick={handleResetFile} className="w-full text-sm">
+          {t('assignment:submit.reselectFile')}
+        </Button>
       </div>
     );
   };
@@ -551,66 +549,56 @@ export default function SubmitAssignment() {
       </div>
 
       {/* Main Content - AI Results First */}
-      <main className="px-6 md:px-8 lg:px-10 py-8 h-[calc(100vh-180px)] md:h-[calc(100vh-200px)] lg:h-[calc(100vh-230px)]">
-        <div className="grid lg:grid-cols-[1fr_320px] gap-8 lg:gap-10 h-full">
+      <main className="px-0 md:px-8 lg:px-10 py-8">
+        <div className="grid lg:grid-cols-[1fr_320px] gap-8 lg:gap-10">
           {/* Primary: AI Grading Results */}
-          <div ref={rightPanelRef} className="order-2 lg:order-1 flex flex-col">
-            <div className="h-full bg-gradient-to-br from-background to-muted/30 rounded-2xl border border-border/50 overflow-hidden">
-              <div className="h-full overflow-y-auto p-6">
-                {state.session?.result ? (
-                  <GradingResultDisplay
-                    result={state.session.result}
-                    normalizedScore={state.session.result._normalizedScore}
-                    thoughtSummary={state.session.thoughtSummary}
-                    isLoading={state.loading}
-                  />
-                ) : (
-                  <GradingResultDisplay isLoading={state.loading} />
-                )}
-              </div>
-            </div>
+          <div ref={rightPanelRef} className="order-1 lg:order-1 flex flex-col">
+            {state.session?.result ? (
+              <GradingResultDisplay
+                result={state.session.result}
+                normalizedScore={state.session.result._normalizedScore}
+                thoughtSummary={state.session.thoughtSummary}
+                isLoading={state.loading}
+              />
+            ) : (
+              <GradingResultDisplay isLoading={state.loading} />
+            )}
           </div>
 
           {/* Secondary: Upload & Actions */}
-          <div ref={leftPanelRef} className="order-1 lg:order-2 flex flex-col">
-            <div className="h-full overflow-y-auto">
-              <div className="space-y-6 p-6">
-                {/* Compact Upload Section */}
-                <div>
-                  {/* <h3 className="text-lg font-semibold mb-4">{t('assignment:submit.uploadDocument')}</h3> */}
-
-                  {state.phase === 'upload' ? (
-                    renderUploadPhase()
-                  ) : (
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 dark:text-blue-400 text-lg font-bold">✓</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-blue-900 dark:text-blue-100 truncate">{state.file?.name}</h4>
-                          <p className="text-sm text-blue-700 dark:text-blue-300">
-                            {Math.round((state.file?.size || 0) / 1024)} KB
-                          </p>
-                        </div>
-                      </div>
+          <div ref={leftPanelRef} className="order-2 lg:order-2 flex flex-col">
+            <div className="space-y-6 px-4 py-6 md:p-6">
+              {/* Compact Upload Section */}
+              {state.phase === 'upload' ? (
+                renderUploadPhase()
+              ) : (
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 dark:text-blue-400 text-lg font-bold">✓</span>
                     </div>
-                  )}
-                </div>
-
-                {/* Compact Actions */}
-                {renderActions()}
-
-                {/* Error Display */}
-                {state.error && (
-                  <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
-                    <div className="flex items-start gap-3">
-                      <span className="text-red-500 dark:text-red-400 text-lg">⚠</span>
-                      <p className="text-sm text-red-700 dark:text-red-300 font-medium">{state.error}</p>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium text-blue-900 dark:text-blue-100 truncate">{state.file?.name}</h4>
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        {Math.round((state.file?.size || 0) / 1024)} KB
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Compact Actions */}
+              {renderActions()}
+
+              {/* Error Display */}
+              {state.error && (
+                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-red-500 dark:text-red-400 text-lg">⚠</span>
+                    <p className="text-sm text-red-700 dark:text-red-300 font-medium">{state.error}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -23,12 +23,12 @@ import {
   Link2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Markdown } from '@/components/ui/markdown';
 import { useLoaderData } from 'react-router';
 import type { User as UserType } from '@/root';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Extract text content from UIMessage parts
@@ -104,6 +104,9 @@ export function AgentChatBoxWithSteps() {
   // Get user data from loader
   const { user } = useLoaderData() as { user: UserType | null };
 
+  // Translation
+  const { t } = useTranslation('agent');
+
   // Use Vercel AI SDK's useChat hook
   const { messages, status, sendMessage, error } = useChat({
     transport: new DefaultChatTransport({
@@ -158,42 +161,31 @@ export function AgentChatBoxWithSteps() {
           }}
         >
           {showWelcome && messages.length === 0 && (
-            <Card className="mb-3 sm:mb-4">
-              <CardHeader className="pb-3 sm:pb-6">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <Brain className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-                  <span className="line-clamp-2 sm:line-clamp-1">Welcome to the Playground!</span>
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  This agent demonstrates multi-step reasoning - you can see each step!
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                <p className="text-xs sm:text-sm font-medium">Try asking me:</p>
-                <div className="grid gap-2">
-                  <ExamplePrompt text="What's the latest news about AI in 2025?" onClick={handleExampleClick} />
-                  <ExamplePrompt text="Calculate 234 * 567 and explain the result" onClick={handleExampleClick} />
-                  <ExamplePrompt
-                    text="Search for React 19 features and summarize them"
-                    onClick={handleExampleClick}
-                  />
-                  <ExamplePrompt
-                    text="Read https://ai.google.dev/gemini-api/docs/google-search and explain"
-                    onClick={handleExampleClick}
-                  />
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="max-w-2xl w-full space-y-6 text-center">
+                {/* Welcome Header */}
+                <div className="space-y-3">
+                  
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold">
+                    {t('welcome.title', { name: user?.name || user?.email?.split('@')[0] || 'there' })}
+                  </h1>
+                  <p className="text-sm sm:text-base text-muted-foreground">
+                    {t('welcome.subtitle')}
+                  </p>
                 </div>
 
-                <div className="mt-3 sm:mt-4 rounded-lg border bg-muted/50 p-2.5 sm:p-3">
-                  <p className="text-xs font-medium mb-2">Available Tools:</p>
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    <Badge variant="outline" className="text-xs">Calculator</Badge>
-                    <Badge variant="outline" className="text-xs">Google Search</Badge>
-                    <Badge variant="outline" className="text-xs">URL Fetcher</Badge>
-                    <Badge variant="outline" className="text-xs">Database</Badge>
+                {/* Example Prompts */}
+                <div className="space-y-3">
+                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">{t('welcome.tryAsking')}</p>
+                  <div className="grid gap-2">
+                    <ExamplePrompt text={t('examples.pendingAssignments')} onClick={handleExampleClick} />
+                    <ExamplePrompt text={t('examples.upcomingDeadlines')} onClick={handleExampleClick} />
+                    <ExamplePrompt text={t('examples.courses')} onClick={handleExampleClick} />
+                    <ExamplePrompt text={t('examples.recentGrades')} onClick={handleExampleClick} />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           <div className="space-y-4">
@@ -204,16 +196,14 @@ export function AgentChatBoxWithSteps() {
             {isLoading && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Agent is thinking...</span>
+                <span className="text-sm">{t('status.thinking')}</span>
               </div>
             )}
 
             {error && (
-              <Card className="border-destructive">
-                <CardContent className="pt-4">
-                  <p className="text-sm text-destructive">Error: {error.message}</p>
-                </CardContent>
-              </Card>
+              <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+                <p className="text-sm text-destructive">{t('error.prefix')} {error.message}</p>
+              </div>
             )}
 
             {/* Scroll anchor */}
@@ -224,7 +214,7 @@ export function AgentChatBoxWithSteps() {
 
       {/* Fixed Input Area - stays at bottom */}
       <div
-        className="flex-shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t border-border/40"
+        className="flex-shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80  border-border/40"
         style={{
           paddingTop: '0.5rem',
           paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
@@ -245,7 +235,7 @@ export function AgentChatBoxWithSteps() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask me anything..."
+                placeholder={t('input.placeholder')}
                 className="w-full rounded-full border-0 bg-transparent px-3 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 tap-highlight-transparent"
                 disabled={isLoading}
                 autoComplete="off"
@@ -307,6 +297,9 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
     );
   }
 
+  // Translation for MessageBubble
+  const { t } = useTranslation('agent');
+
   // For assistant messages with steps, show detailed view
   if (steps.length > 1) {
     return (
@@ -314,7 +307,7 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
         {/* Step indicator */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-muted-foreground">
-            Multi-step reasoning ({steps.length} steps)
+            {t('status.multiStepReasoning', { count: steps.length })}
           </span>
         </div>
 
@@ -351,6 +344,7 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
  * Step Card Component - Shows one reasoning step
  */
 function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
+  const { t } = useTranslation('agent');
   const [isExpanded, setIsExpanded] = useState(false);
 
   const stepText = step.textParts.map((part) => part.text || '').join('');
@@ -364,12 +358,12 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="font-mono text-xs">
-            Step {stepNumber}
+            {t('step.label', { number: stepNumber })}
           </Badge>
-          
+
           {hasSources && (
             <Badge variant="outline" className="text-xs">
-              {step.sources.length} source{step.sources.length > 1 ? 's' : ''}
+              {step.sources.length} {t(`step.sources_${step.sources.length === 1 ? 'one' : 'other'}`)}
             </Badge>
           )}
         </div>
@@ -394,7 +388,7 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
         {/* Tool invocations */}
         {hasTools && isExpanded && (
           <div className="space-y-2 pt-2 border-t border-border/30">
-            <p className="text-xs font-medium text-muted-foreground">Tool Executions:</p>
+            <p className="text-xs font-medium text-muted-foreground">{t('toolExecution.title')}</p>
             {step.toolInvocations.map((tool: any, idx: number) => (
               <ToolInvocationCard key={idx} tool={tool} />
             ))}
@@ -409,6 +403,8 @@ function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
  * Tool Invocation Card Component
  */
 function ToolInvocationCard({ tool }: { tool: any }) {
+  const { t } = useTranslation('agent');
+
   // Handle both ToolUIPart and DynamicToolUIPart
   const toolName = tool.toolName || extractToolName(tool.type);
   const state = tool.state || 'unknown';
@@ -431,15 +427,15 @@ function ToolInvocationCard({ tool }: { tool: any }) {
   // Determine status icon and color
   const getStatusInfo = () => {
     if (errorText) {
-      return { icon: AlertCircle, color: 'text-destructive', label: 'Error' };
+      return { icon: AlertCircle, color: 'text-destructive', label: t('toolExecution.error') };
     }
     if (state === 'output-available') {
-      return { icon: CheckCircle, color: 'text-green-500', label: 'Completed' };
+      return { icon: CheckCircle, color: 'text-green-500', label: t('toolExecution.statusCompleted') };
     }
     if (state === 'input-streaming' || state === 'input-available') {
-      return { icon: Clock, color: 'text-amber-500', label: 'Running' };
+      return { icon: Clock, color: 'text-amber-500', label: t('toolExecution.statusRunning') };
     }
-    return { icon: Loader2, color: 'text-muted-foreground', label: 'Processing' };
+    return { icon: Loader2, color: 'text-muted-foreground', label: t('toolExecution.statusProcessing') };
   };
 
   const statusInfo = getStatusInfo();
@@ -459,7 +455,7 @@ function ToolInvocationCard({ tool }: { tool: any }) {
           {/* Tool input */}
           {input && (
             <div className="text-xs text-muted-foreground mb-2">
-              <span className="font-medium block mb-1">Input:</span>
+              <span className="font-medium block mb-1">{t('toolExecution.input')}</span>
               <div className="p-2 bg-muted/20 rounded overflow-x-auto max-h-32" style={{ maxWidth: '100%' }}>
                 {typeof input === 'string' ? (
                   <code className="text-[11px] sm:text-xs break-all block">{input}</code>
@@ -478,7 +474,7 @@ function ToolInvocationCard({ tool }: { tool: any }) {
           {/* Tool output */}
           {output && state === 'output-available' && (
             <div className="text-xs">
-              <span className="font-medium text-muted-foreground block mb-1">Output:</span>
+              <span className="font-medium text-muted-foreground block mb-1">{t('toolExecution.output')}</span>
               <div
                 className="p-2 sm:p-3 bg-muted/10 rounded overflow-x-auto max-h-60 sm:max-h-80"
                 style={{ maxWidth: '100%' }}
@@ -500,7 +496,7 @@ function ToolInvocationCard({ tool }: { tool: any }) {
           {/* Error text */}
           {errorText && (
             <div className="text-xs text-destructive mt-2 break-words">
-              <span className="font-medium">Error:</span> {errorText}
+              <span className="font-medium">{t('toolExecution.error')}</span> {errorText}
             </div>
           )}
         </div>
@@ -543,6 +539,8 @@ function truncateText(text: string, maxLength: number): string {
  * Sources List Component - Shows all sources with better UI
  */
 function SourcesList({ sources }: { sources: any[] }) {
+  const { t } = useTranslation('agent');
+
   if (!sources || sources.length === 0) return null;
 
   return (
@@ -550,7 +548,7 @@ function SourcesList({ sources }: { sources: any[] }) {
       <div className="flex items-center gap-2 mb-2">
         <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-xs font-medium text-foreground">
-          參考來源 ({sources.length})
+          {t('sources.title', { count: sources.length })}
         </span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -623,9 +621,9 @@ function ExamplePrompt({ text, onClick }: { text: string; onClick: (text: string
     <button
       type="button"
       onClick={() => onClick(text)}
-      className="flex items-start sm:items-center gap-2 rounded-md border border-dashed border-muted-foreground/25 bg-muted/50 px-2.5 sm:px-3 py-2 text-left text-xs sm:text-sm hover:bg-muted transition-colors active:scale-[0.98]"
+      className="flex items-start sm:items-center gap-2 rounded-xl border border-dashed border-muted-foreground/25 bg-muted/50 px-2.5 sm:px-3 py-2 text-left text-xs sm:text-sm hover:bg-muted transition-colors active:scale-[0.98]"
     >
-      <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground shrink-0 mt-0.5 sm:mt-0" />
+      
       <span className="line-clamp-2 sm:line-clamp-1">{text}</span>
     </button>
   );
