@@ -199,3 +199,4 @@ API routes follow REST conventions:
 6. Use transactions for multi-step database operations
 7. Tests run against development database with cleanup - ensure Docker is running
 - Use npm run typecheck do not use npx tsc and do not use npm run build.
+- never use 'any' type for type declarations. create type interface. before create type interface you have to make sure there is no the same interface in our codebase.
