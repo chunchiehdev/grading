@@ -47,7 +47,7 @@ const HeroSection = () => {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 pt-6">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 lg:pt-6">
               <Link
                 to={primaryButtonTarget}
                 prefetch="viewport"
@@ -71,7 +71,7 @@ const HeroSection = () => {
           </div>
 
           {/* Visual Element */}
-          <div className="lg:col-span-5 flex items-center justify-center order-1 lg:order-2 mb-8 lg:mb-0">
+          <div className="lg:col-span-5 flex items-center justify-center order-1 lg:order-2 lg:mb-0">
             <img
               src="/writing_rm_background.png"
               alt={t('landing:hero.heroImageAlt')}
