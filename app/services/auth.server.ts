@@ -100,21 +100,42 @@ export async function handleGoogleCallback(request: Request) {
     }
 
     logger.info({ userId: user.id }, 'Creating session for user');
-    const session = await createUserSession(user.id, request);
+
+    // Get session to check for redirectTo and create user session
+    const session = await getSession(request);
+    const savedRedirectTo = session.get('redirectTo');
+    session.set('userId', user.id);
 
     let redirectPath;
+
     if (!user.hasSelectedRole) {
-      // User hasn't selected a role yet (either new user or upgrading from old system)
+      // User hasn't selected a role yet - must go to role selection
+      // Keep redirectTo in session for after role selection
       redirectPath = '/auth/select-role';
+      logger.info({ redirectPath, hasRedirectTo: !!savedRedirectTo }, 'Redirecting new user to role selection');
     } else {
-      // User has selected a role - redirect based on their role
-      redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
+      // User has selected a role
+      // Check if we have a saved redirect path from before OAuth flow
+      if (savedRedirectTo && typeof savedRedirectTo === 'string') {
+        const { isSafeRedirectPath } = await import('@/utils/redirect.server');
+        if (isSafeRedirectPath(savedRedirectTo)) {
+          redirectPath = savedRedirectTo;
+          session.unset('redirectTo'); // Clear redirectTo after using it
+          logger.info({ redirectPath, source: 'savedRedirectTo' }, 'Redirecting user to saved path');
+        }
+      }
+
+      // If no valid redirectTo, use role-based default
+      if (!redirectPath) {
+        redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
+        logger.info({ redirectPath, source: 'roleBased' }, 'Redirecting user to role-based dashboard');
+      }
     }
 
+    const sessionCookie = await commitSession(session);
     const response = redirect(redirectPath);
-    response.headers.set('Set-Cookie', session);
+    response.headers.set('Set-Cookie', sessionCookie);
 
-    logger.info({ redirectPath }, 'Redirecting user');
     return response;
   } catch (error) {
     logger.error({ error }, 'Google authentication error');

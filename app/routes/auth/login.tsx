@@ -7,6 +7,7 @@ export default function LoginPage() {
   const { t } = useTranslation('auth');
 
   const error = searchParams.get('error');
+  const redirectTo = searchParams.get('redirectTo');
   const googleError =
     error === 'google-auth-unavailable'
       ? t('loginPage.errors.googleAuthUnavailable')
@@ -299,7 +300,10 @@ export default function LoginPage() {
             {/* Google Sign-in Button */}
 
             <button
-              onClick={() => navigate('/auth/google')}
+              onClick={() => {
+                const url = redirectTo ? `/auth/google?redirectTo=${encodeURIComponent(redirectTo)}` : '/auth/google';
+                navigate(url);
+              }}
               className="w-full bg-black text-white font-medium py-4 px-6 rounded-xl transition-all duration-200 hover:bg-gray-900 active:scale-[0.98] flex items-center justify-center space-x-3"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5">

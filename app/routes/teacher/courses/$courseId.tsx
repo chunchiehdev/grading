@@ -179,12 +179,28 @@ export default function CourseDetail() {
                 {classes.map((cls) => {
                   const isFull = cls.capacity && cls._count.enrollments >= cls.capacity;
                   return (
-                    <div key={cls.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold">{cls.name}</h3>
+                    <Link
+                      key={cls.id}
+                      to={`/teacher/courses/${course.id}/classes/${cls.id}/students`}
+                      className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
+                              {cls.name}
+                            </h3>
+                            <Link
+                              to={`/teacher/courses/${course.id}/classes/${cls.id}/edit`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                              title={t('course:classManagement.editClass')}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Link>
+                          </div>
                           {cls.schedule && (
-                            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                            <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-0.5">
                               <Clock className="w-3 h-3 flex-shrink-0" />
                               <span>{formatClassSchedule(cls.schedule)}</span>
                               {cls.schedule.room && (
@@ -204,20 +220,8 @@ export default function CourseDetail() {
                             </span>
                           </div> */}
                         </div>
-                        <div className="flex gap-2">
-                          <Button asChild variant="ghost" size="sm">
-                            <Link to={`/teacher/courses/${course.id}/classes/${cls.id}/students`}>
-                              {t('course:classManagement.viewStudents')}
-                            </Link>
-                          </Button>
-                          <Button asChild variant="ghost" size="sm" title={t('course:classManagement.editClass')}>
-                            <Link to={`/teacher/courses/${course.id}/classes/${cls.id}/edit`}>
-                              <Pencil className="w-4 h-4" />
-                            </Link>
-                          </Button>
-                        </div>
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -313,22 +317,22 @@ export default function CourseDetail() {
               <div className="divide-y divide-border">
                 {course.assignmentAreas.map((area) => (
                   <div key={area.id} className="px-6 py-4 hover:bg-muted transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div className="flex-1 min-w-0">
                         <Link
                           to={`/teacher/courses/${course.id}/assignments/${area.id}/manage`}
                           className="block hover:text-primary transition-colors"
                         >
                           <h3 className="text-lg font-medium text-foreground">{area.name}</h3>
-                          {area.description && <p className="text-sm text-muted-foreground mt-1">{area.description}</p>}
+                          {area.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{area.description}</p>}
                         </Link>
-                        <div className="flex items-center mt-2 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-sm text-muted-foreground">
                           <span>
                             {area._count?.submissions || 0} {t('course:assignmentSection.submissions')}
                           </span>
                           {area.formattedDueDate && (
                             <>
-                              <span className="mx-2">•</span>
+                              <span>•</span>
                               <span>
                                 {t('course:assignmentSection.due')} {area.formattedDueDate}
                               </span>
@@ -336,7 +340,7 @@ export default function CourseDetail() {
                           )}
                           {area.rubricId && (
                             <>
-                              <span className="mx-2">•</span>
+                              <span>•</span>
                               <span className="text-green-600 dark:text-green-500">
                                 {t('course:assignmentSection.hasRubric')}
                               </span>
@@ -344,13 +348,13 @@ export default function CourseDetail() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Button asChild variant="ghost" size="sm">
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button asChild variant="ghost" size="sm" className="flex-1 sm:flex-none">
                           <Link to={`/teacher/courses/${course.id}/assignments/${area.id}/submissions`}>
                             {t('course:assignmentSection.viewSubmissions')}
                           </Link>
                         </Button>
-                        <Button asChild variant="outline" size="sm">
+                        <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none">
                           <Link to={`/teacher/courses/${course.id}/assignments/${area.id}/manage`}>
                             {t('course:assignmentSection.manage')}
                           </Link>

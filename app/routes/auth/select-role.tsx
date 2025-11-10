@@ -23,8 +23,26 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
   // If user has already selected a role, redirect them to the appropriate dashboard
   if (user.hasSelectedRole) {
-    const redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
-    throw redirect(redirectPath);
+    const { getSession, commitSession } = await import('@/sessions.server');
+    const { isSafeRedirectPath } = await import('@/utils/redirect.server');
+
+    const session = await getSession(request);
+    const savedRedirectTo = session.get('redirectTo');
+
+    let redirectPath;
+    if (savedRedirectTo && typeof savedRedirectTo === 'string' && isSafeRedirectPath(savedRedirectTo)) {
+      redirectPath = savedRedirectTo;
+      session.unset('redirectTo');
+    } else {
+      redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
+    }
+
+    const response = redirect(redirectPath);
+    if (savedRedirectTo) {
+      const cookie = await commitSession(session);
+      response.headers.set('Set-Cookie', cookie);
+    }
+    throw response;
   }
 
   return { user };
@@ -58,9 +76,27 @@ export async function action({ request }: ActionFunctionArgs) {
     });
   }
 
-  // Redirect to appropriate dashboard after successful role update
-  const redirectPath = selectedRole === 'TEACHER' ? '/teacher' : '/student';
-  throw redirect(redirectPath);
+  // Check for saved redirectTo in session
+  const { getSession, commitSession } = await import('@/sessions.server');
+  const { isSafeRedirectPath } = await import('@/utils/redirect.server');
+
+  const session = await getSession(request);
+  const savedRedirectTo = session.get('redirectTo');
+
+  let redirectPath;
+  if (savedRedirectTo && typeof savedRedirectTo === 'string' && isSafeRedirectPath(savedRedirectTo)) {
+    redirectPath = savedRedirectTo;
+    session.unset('redirectTo');
+  } else {
+    redirectPath = selectedRole === 'TEACHER' ? '/teacher' : '/student';
+  }
+
+  const response = redirect(redirectPath);
+  if (savedRedirectTo) {
+    const cookie = await commitSession(session);
+    response.headers.set('Set-Cookie', cookie);
+  }
+  throw response;
 }
 
 export interface SelectRoleProps {}

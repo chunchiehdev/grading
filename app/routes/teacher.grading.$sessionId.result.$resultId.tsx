@@ -193,9 +193,8 @@ export default function GradingResultDetail() {
       {hasAgentExecution && (
         <AgentExecutionTimeline
           steps={result.agentSteps as any}
-          logs={result.agentLogs}
-          confidenceScore={result.confidenceScore}
-          executionTimeMs={result.agentExecutionTime}
+          confidenceScore={result.confidenceScore ?? undefined}
+          totalExecutionTimeMs={result.agentExecutionTime ?? undefined}
         />
       )}
 

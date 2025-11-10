@@ -111,7 +111,10 @@ export function GradingResultDisplay({ result, normalizedScore, thoughtSummary, 
               <span>{t('grading:aiThinkingProcess')}</span>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-3">
-              <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-950/20 dark:to-blue-950/10 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div
+                className="p-4 bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-950/20 dark:to-blue-950/10 rounded-lg border border-blue-200 dark:border-blue-800 overflow-x-auto"
+                style={{ maxWidth: '100%' }}
+              >
                 <div className="text-sm text-muted-foreground leading-relaxed">
                   <Markdown>{thoughtSummary}</Markdown>
                 </div>

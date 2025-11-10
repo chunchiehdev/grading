@@ -202,9 +202,9 @@ export async function loader({ request }: { request: Request }) {
   }
 
   // Handle protected paths - require authentication
-  // If authentication failed, redirect to login
+  // If authentication failed, redirect to login with redirectTo
   if (!user) {
-    throw redirect('/auth/login');
+    throw redirect(`/auth/login?redirectTo=${encodeURIComponent(path)}`);
   }
 
   if (!user.role && path !== '/auth/select-role') {
