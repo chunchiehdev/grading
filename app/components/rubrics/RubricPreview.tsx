@@ -1,7 +1,5 @@
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface Level {
@@ -34,13 +32,6 @@ interface RubricPreviewProps {
   rubricData: RubricData;
 }
 
-const LEVEL_LABELS = {
-  4: 'Excellent',
-  3: 'Good',
-  2: 'Fair',
-  1: 'Poor',
-};
-
 export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProps) => {
   const { t } = useTranslation('rubric');
 
@@ -49,116 +40,119 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] h-[95vh] max-w-5xl p-0 overflow-hidden flex flex-col">
-        {/* Header - Apple style */}
-        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-200 dark:border-gray-800 flex-shrink-0">
-          <div className="flex-1">
-            <h2 className="text-3xl font-semibold text-foreground mb-2">{rubricData.name || 'Rubric Preview'}</h2>
+      <DialogContent className="fixed inset-0 max-w-none h-screen p-0 flex flex-col bg-background border-0 translate-x-0 translate-y-0 left-0 top-0 sm:rounded-none">
+        <DialogTitle className="sr-only">評分標準預覽</DialogTitle>
+
+        {/* Header */}
+        <div className="flex-shrink-0 border-b border-border bg-background">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+            <h2 className="text-2xl sm:text-3xl font-semibold text-foreground mb-2">
+              {rubricData.name || t('rubric:preview')}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              {rubricData.categories.length} {rubricData.categories.length === 1 ? 'category' : 'categories'} · {totalCriteria} {totalCriteria === 1 ? 'criterion' : 'criteria'}
+              {rubricData.categories.length} {rubricData.categories.length === 1 ? t('rubric:category') : t('rubric:categories')} · {' '}
+              {totalCriteria} {totalCriteria === 1 ? t('rubric:criterion') : t('rubric:criteria')}
             </p>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full flex-shrink-0">
-            <X className="h-5 w-5" />
-          </Button>
         </div>
 
         {/* Content */}
         <ScrollArea className="flex-1">
-          <div className="px-8 py-8 space-y-10">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
             {/* Description */}
             {rubricData.description && (
               <div>
-                <p className="text-base text-muted-foreground leading-relaxed">{rubricData.description}</p>
+                <p className="text-base text-foreground leading-relaxed">{rubricData.description}</p>
               </div>
             )}
 
             {/* Categories and Criteria */}
             {rubricData.categories.length === 0 ? (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-semibold text-foreground mb-2">No Categories Yet</h3>
-                <p className="text-muted-foreground">Add categories and criteria to preview the rubric</p>
+              <div className="flex items-center justify-center py-12">
+                <p className="text-muted-foreground">{t('rubric:emptyState.noCategories')}</p>
               </div>
             ) : (
-              <div className="space-y-10">
-                {rubricData.categories.map((category, categoryIndex) => (
-                  <div key={category.id}>
+              <div className="space-y-6">
+                {rubricData.categories.map((category) => (
+                  <div key={category.id} className="space-y-3">
                     {/* Category Title */}
-                    <h3 className="text-xl font-semibold text-foreground mb-6">{category.name}</h3>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {category.name}
+                    </h3>
 
                     {/* Criteria List */}
                     {category.criteria.length === 0 ? (
-                      <p className="text-sm text-muted-foreground italic py-4">No criteria added</p>
+                      <p className="text-sm text-muted-foreground italic py-2">
+                        {t('rubric:emptyState.noCriteria')}
+                      </p>
                     ) : (
-                      <div className="space-y-8">
-                        {category.criteria.map((criterion, criterionIndex) => (
-                          <div key={criterion.id} className="space-y-4">
-                            {/* Criterion Name and Description */}
-                            <div>
-                              <h4 className="text-base font-semibold text-foreground">
+                      <div className="divide-y divide-border rounded-lg border border-border bg-card overflow-hidden">
+                        {category.criteria.map((criterion) => (
+                          <div key={criterion.id} className="p-4 sm:p-6 hover:bg-muted/30 transition-colors">
+                            {/* Criterion Header */}
+                            <div className="mb-4">
+                              <h4 className="text-base font-medium text-foreground">
                                 {criterion.name}
                               </h4>
                               {criterion.description && (
-                                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                                   {criterion.description}
                                 </p>
                               )}
                             </div>
 
-                            {/* Scoring Levels - Enhanced Table */}
-                            <div className="border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
-                              <div className="divide-y divide-gray-200 dark:divide-gray-800 bg-white dark:bg-slate-950">
-                                {[4, 3, 2, 1].map((score, index) => {
-                                  const level = criterion.levels.find((l) => l.score === score);
-                                  const description = level?.description || '';
+                            {/* Scoring Levels - Simple List */}
+                            <div className="space-y-2">
+                              {[4, 3, 2, 1].map((score) => {
+                                const level = criterion.levels.find((l) => l.score === score);
+                                const description = level?.description || '';
+                                const scoreLabels = {
+                                  4: 'Excellent',
+                                  3: 'Good',
+                                  2: 'Fair',
+                                  1: 'Poor',
+                                };
 
-                                  // Color coding for scores
-                                  const scoreColor = {
-                                    4: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30',
-                                    3: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30',
-                                    2: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30',
-                                    1: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30',
-                                  }[score] || '';
-
-                                  return (
-                                    <div
-                                      key={score}
-                                      className="px-5 py-4 flex items-start gap-4 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
-                                    >
-                                      {/* Score Column */}
-                                      <div className={`flex-shrink-0 px-3 py-2 rounded-md font-semibold ${scoreColor}`}>
-                                        <div className="text-lg">{score}</div>
-                                        <div className="text-xs font-medium mt-0.5">
-                                          {LEVEL_LABELS[score as keyof typeof LEVEL_LABELS]}
-                                        </div>
-                                      </div>
-
-                                      {/* Description Column */}
-                                      <div className="flex-1 min-w-0 py-1">
-                                        {description ? (
-                                          <p className="text-sm text-foreground leading-relaxed">{description}</p>
-                                        ) : (
-                                          <p className="text-sm text-muted-foreground italic">No description provided</p>
-                                        )}
-                                      </div>
+                                return (
+                                  <div
+                                    key={score}
+                                    className="flex gap-3 text-sm py-2"
+                                  >
+                                    {/* Score Badge */}
+                                    <div className="flex-shrink-0 w-8 flex items-center justify-center rounded bg-muted text-foreground font-semibold">
+                                      {score}
                                     </div>
-                                  );
-                                })}
-                              </div>
+
+                                    {/* Description */}
+                                    <div className="flex-1 min-w-0">
+                                      <div className="font-medium text-foreground">
+                                        {scoreLabels[score as keyof typeof scoreLabels]}
+                                      </div>
+                                      {description ? (
+                                        <p className="text-muted-foreground leading-relaxed">
+                                          {description}
+                                        </p>
+                                      ) : (
+                                        <p className="text-muted-foreground italic">
+                                          {t('rubric:noDescription')}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
-
-                    {/* Divider between categories */}
-                    {categoryIndex < rubricData.categories.length - 1 && (
-                      <div className="mt-10 pt-10 border-t border-gray-200 dark:border-gray-800" />
-                    )}
                   </div>
                 ))}
               </div>
             )}
+
+            {/* Bottom spacing */}
+            <div className="pb-4" />
           </div>
         </ScrollArea>
       </DialogContent>

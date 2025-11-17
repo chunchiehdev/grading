@@ -23,11 +23,71 @@ export interface ParsedRubricContent {
 }
 
 /**
+ * Helper function to find the end of a JSON object
+ * Handles nested braces correctly with string escape awareness
+ */
+function findJsonObjectEnd(text: string): number {
+  let depth = 0;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\' && inString) {
+      escapeNext = true;
+      continue;
+    }
+
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') depth++;
+      if (char === '}') {
+        depth--;
+        if (depth === 0) return i;
+      }
+    }
+  }
+
+  return -1;
+}
+
+/**
  * Extracts JSON code blocks from markdown text
- * Supports both ```json and ``` formats
+ * Priority order for better generateObject support:
+ * 1. Pure JSON object at text start (from generateObject)
+ * 2. ```json code blocks
+ * 3. Generic ``` code blocks with JSON
+ * 4. Raw JSON objects in text
  */
 function extractJsonFromMarkdown(text: string): string | null {
-  // Try to find ```json code blocks first
+  const trimmed = text.trim();
+
+  // First, try to find pure JSON object at the very start (highest priority)
+  // This handles responses from generateObject which return pure JSON
+  if (trimmed.startsWith('{')) {
+    try {
+      const endBracket = findJsonObjectEnd(trimmed);
+      if (endBracket > 0) {
+        const jsonStr = trimmed.substring(0, endBracket + 1);
+        JSON.parse(jsonStr); // Verify it's valid
+        return jsonStr;
+      }
+    } catch {
+      // Not valid JSON at start, continue to other strategies
+    }
+  }
+
+  // Try to find ```json code blocks
   const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)```/);
   if (jsonBlockMatch) {
     return jsonBlockMatch[1].trim();
@@ -43,7 +103,7 @@ function extractJsonFromMarkdown(text: string): string | null {
     }
   }
 
-  // Try to find raw JSON objects in the text
+  // Try to find raw JSON objects in the text (fallback)
   const jsonObjectMatch = text.match(/(\{[\s\S]*\})/);
   if (jsonObjectMatch) {
     try {
