@@ -48,6 +48,10 @@ export interface GradeWithAIParams {
    * If true, skip OpenAI fallback and return immediately on Gemini failure
    */
   skipFallback?: boolean;
+  /**
+   * User language for formatting thought summary
+   */
+  language?: 'zh' | 'en';
 }
 
 export interface GradeWithAISuccess {
@@ -87,12 +91,13 @@ export type GradeWithAIResult = GradeWithAISuccess | GradeWithAIFailure;
  * @returns Grading result with success/failure status
  */
 export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithAIResult> {
-  const { prompt, userId, resultId, temperature, skipFallback = false } = params;
+  const { prompt, userId, resultId, temperature, skipFallback = false, language = 'zh' } = params;
 
   logger.info('Starting AI grading', {
     userId,
     resultId,
     promptLength: prompt.length,
+    language,
   });
 
   // Step 1: Try Gemini (with KeyHealthTracker)
@@ -101,6 +106,7 @@ export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithA
     userId,
     resultId,
     temperature,
+    language,
   });
 
   if (geminiResult.success) {
@@ -144,6 +150,7 @@ export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithA
     userId,
     resultId,
     temperature,
+    language,
   });
 
   if (openaiResult.success) {

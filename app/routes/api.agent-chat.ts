@@ -1,12 +1,12 @@
 /**
  * API Route: Agent Chat
  *
- * Streaming chat endpoint for the learning agent
- * Now using V2 with Gemini's built-in Google Search
+ * Streaming chat endpoint for the grading agent
+ * Using V3 with official Vercel AI SDK Agent class for production-grade agent management
  */
 
 import type { ActionFunctionArgs } from 'react-router';
-import { createLearningAgentV2Stream } from '@/services/learning-agent-v2.server';
+import { streamWithGradingAgent } from '@/lib/grading-agent-v3.server';
 import { getUserId } from '@/services/auth.server';
 import { convertToModelMessages, type UIMessage } from 'ai';
 import logger from '@/utils/logger';
@@ -56,21 +56,31 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     // Convert UIMessages to ModelMessages
-    // useChat sends UIMessage[] format, but streamText expects ModelMessage[]
     const modelMessages = convertToModelMessages(messages as UIMessage[]);
-
-    // Create streaming agent response (using V2 with built-in Google Search)
-    const result = await createLearningAgentV2Stream({
-      messages: modelMessages,
-      userId,
-      userRole,
+    
+    logger.debug('[Agent Chat API] Converted messages', {
+      modelMessageCount: modelMessages.length,
+      roles: modelMessages.map(m => m.role),
     });
 
-    // Return UI message stream response (for useChat hook compatibility)
-    // IMPORTANT: Set sendSources: true to include sources in the stream!
-    return result.toUIMessageStreamResponse({
-      sendSources: true, // Enable sources streaming
+    // Create streaming agent response (using V3 with Agent class)
+    const finalUserRole = userRole || 'STUDENT';
+    logger.info('[Agent Chat API] Creating agent stream', {
+      userRole: finalUserRole,
+      hasUserId: !!userId,
     });
+    
+    try {
+      const response = await streamWithGradingAgent(finalUserRole, modelMessages, userId);
+      logger.info('[Agent Chat API] Agent response created successfully');
+      return response;
+    } catch (streamError) {
+      logger.error('[Agent Chat API] Error creating stream', {
+        error: streamError instanceof Error ? streamError.message : String(streamError),
+        stack: streamError instanceof Error ? streamError.stack : undefined,
+      });
+      throw streamError;
+    }
   } catch (error) {
     logger.error('[Agent Chat API] Error processing chat', {
       error: error instanceof Error ? error.message : String(error),

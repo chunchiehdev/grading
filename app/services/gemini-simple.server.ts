@@ -4,6 +4,7 @@ import { GradingResultData } from '@/types/grading';
 import { GeminiGradingRequest, GeminiGradingResponse, type GeminiResponse, type GeminiContentPart } from '@/types/gemini';
 import type { DbCriterion } from '@/schemas/rubric-data';
 import { GeminiPrompts } from './gemini-prompts.server';
+import { formatThoughtSummary } from './thought-formatter.server';
 
 /**
  * Simple, reliable Gemini service following Linus principles:
@@ -133,9 +134,26 @@ class SimpleGeminiService {
         text: response.text,
         candidates: response.candidates as any, // Type conversion - SDK types differ slightly
       };
-      const thoughtSummary = this.extractThoughtSummary(geminiResponse);
-      if (thoughtSummary) {
-        logger.info(`💭 Thought summary extracted (${thoughtSummary.length} chars)`);
+      const rawThought = this.extractThoughtSummary(geminiResponse);
+      let thoughtSummary: string | undefined;
+
+      if (rawThought) {
+        logger.info(`💭 Raw thought summary extracted (${rawThought.length} chars)`);
+
+        // Format thought summary using AI to make it student-friendly
+        const formatResult = await formatThoughtSummary({
+          rawThought,
+          language: userLanguage,
+        });
+
+        if (formatResult.success && formatResult.formattedThought) {
+          thoughtSummary = formatResult.formattedThought;
+          logger.info(`✨ Thought summary formatted successfully (${thoughtSummary.length} chars) using ${formatResult.provider}`);
+        } else {
+          // If formatting fails, use raw thought as fallback
+          thoughtSummary = rawThought;
+          logger.warn(`⚠️ Thought formatting failed, using raw version: ${formatResult.error}`);
+        }
       }
 
       const result = this.parseResponse(response.text, request.criteria);

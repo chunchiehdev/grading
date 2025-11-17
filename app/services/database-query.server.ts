@@ -21,7 +21,7 @@ import { listAssignmentAreas, getAssignmentAreaById } from './assignment-area.se
 import logger from '@/utils/logger';
 
 /**
- * Query types supported by the database query tool
+ * Query types supported by the database query tool - All queries
  */
 export type QueryType =
   // Existing queries
@@ -44,6 +44,34 @@ export type QueryType =
   | 'my_submission_detail' // Student: View my submission with grading results
   | 'pending_assignments' // Student: List pending/due assignments
   | 'enrolled_course_detail'; // Student: View enrolled course details
+
+/**
+ * Teacher-specific query types (read-only, teacher access only)
+ */
+export type TeacherQueryType =
+  | 'user_profile'
+  | 'user_statistics'
+  | 'grading_statistics'
+  | 'teacher_courses' // List all courses the teacher is instructing
+  | 'course_detail' // Get detailed info about a specific course
+  | 'course_students' // List all students in a course
+  | 'course_assignments' // List all assignments in a course
+  | 'assignment_detail' // Get assignment details with rubric
+  | 'assignment_submissions' // Get all submissions for an assignment
+  | 'student_submission_detail_teacher'; // View a student's detailed submission
+
+/**
+ * Student-specific query types (read-only, student access only)
+ */
+export type StudentQueryType =
+  | 'user_profile'
+  | 'user_statistics'
+  | 'student_courses' // List all enrolled courses
+  | 'student_assignments' // List all assignments across courses
+  | 'student_submissions' // List all submissions with submission IDs
+  | 'my_submission_detail' // View my submission with grading results
+  | 'pending_assignments' // List unsubmitted assignments
+  | 'enrolled_course_detail'; // View details of an enrolled course
 
 /**
  * Query parameters
@@ -234,12 +262,14 @@ export async function executeDatabaseQuery(queryType: QueryType, params: QueryPa
  * Query user profile information
  */
 async function queryUserProfile(params: QueryParams) {
-  if (!params.userId) {
-    throw new Error('userId is required for user_profile query');
+  // Accept userId, studentId, or teacherId - all refer to the same user
+  const id = params.userId || params.studentId || params.teacherId;
+  if (!id) {
+    throw new Error('userId, studentId, or teacherId is required for user_profile query');
   }
 
   const user = await db.user.findUnique({
-    where: { id: params.userId },
+    where: { id },
     select: {
       id: true,
       name: true,
@@ -269,12 +299,13 @@ async function queryUserProfile(params: QueryParams) {
  * Query user statistics
  */
 async function queryUserStatistics(params: QueryParams) {
-  if (!params.userId) {
-    throw new Error('userId is required for user_statistics query');
+  const userId = params.userId || params.studentId || params.teacherId;
+  if (!userId) {
+    throw new Error('userId, studentId, or teacherId is required for user_statistics query');
   }
 
   const user = await db.user.findUnique({
-    where: { id: params.userId },
+    where: { id: userId },
     select: { role: true },
   });
 
@@ -285,10 +316,10 @@ async function queryUserStatistics(params: QueryParams) {
   if (user.role === 'STUDENT') {
     // Student statistics
     const [enrollments, submissions] = await Promise.all([
-      db.enrollment.count({ where: { studentId: params.userId } }),
+      db.enrollment.count({ where: { studentId: userId } }),
       db.submission.count({
         where: {
-          studentId: params.userId,
+          studentId: userId,
           status: { not: 'DRAFT' },
         },
       }),
@@ -302,14 +333,14 @@ async function queryUserStatistics(params: QueryParams) {
   } else if (user.role === 'TEACHER') {
     // Teacher statistics
     const [courses, assignments, submissions] = await Promise.all([
-      db.course.count({ where: { teacherId: params.userId } }),
+      db.course.count({ where: { teacherId: userId } }),
       db.assignmentArea.count({
-        where: { course: { teacherId: params.userId } },
+        where: { course: { teacherId: userId } },
       }),
       db.submission.count({
         where: {
           assignmentArea: {
-            course: { teacherId: params.userId },
+            course: { teacherId: userId },
           },
           status: { not: 'DRAFT' },
         },
@@ -385,17 +416,17 @@ async function queryCourseStudents(params: QueryParams) {
     throw new Error('courseId and teacherId are required for course_students query');
   }
 
-  const students = await getCourseStudents(params.courseId, params.teacherId);
+  const enrollments = await getCourseStudents(params.courseId, params.teacherId);
 
   return {
     courseId: params.courseId,
-    totalStudents: students.length,
-    students: students.slice(0, params.limit || 50).map((student: any) => ({
-      studentId: student.id,
-      studentName: student.name,
-      className: student.class?.name || null,
-      enrolledAt: student.enrolledAt?.toISOString().split('T')[0] || null,
-      finalGrade: student.finalGrade !== undefined ? student.finalGrade : null,
+    totalStudents: enrollments.length,
+    students: enrollments.slice(0, params.limit || 50).map((enrollment: any) => ({
+      studentId: enrollment.student.id,
+      studentName: enrollment.student.name || 'Unknown',
+      className: enrollment.class?.name || null,
+      enrolledAt: enrollment.enrolledAt?.toISOString().split('T')[0] || null,
+      finalGrade: enrollment.finalGrade !== undefined ? enrollment.finalGrade : null,
     })),
   };
 }
@@ -510,9 +541,9 @@ async function querySubmissionDetail(params: QueryParams) {
  * Query grading statistics
  */
 async function queryGradingStatistics(params: QueryParams) {
-  const userId = params.userId;
+  const userId = params.userId || params.studentId || params.teacherId;
   if (!userId) {
-    throw new Error('userId is required for grading_statistics query');
+    throw new Error('userId, studentId, or teacherId is required for grading_statistics query');
   }
 
   const stats = await getGradingStatistics(userId);
@@ -600,24 +631,56 @@ async function queryCourseDetail(params: QueryParams) {
  */
 async function queryCourseAssignments(params: QueryParams) {
   const teacherId = params.teacherId || params.userId;
-  if (!params.courseId || !teacherId) {
-    throw new Error('courseId and teacherId are required for course_assignments query');
+  if (!teacherId) {
+    throw new Error('teacherId is required for course_assignments query');
   }
 
-  const assignments = await listAssignmentAreas(params.courseId, teacherId);
+  // If courseId provided: get assignments for specific course
+  if (params.courseId) {
+    const assignments = await listAssignmentAreas(params.courseId, teacherId);
+
+    return {
+      totalAssignments: assignments.length,
+      courseId: params.courseId,
+      assignments: assignments.slice(0, params.limit || 50).map((assignment: any) => ({
+        assignmentId: assignment.id,
+        assignmentName: assignment.name,
+        description: assignment.description || null,
+        className: assignment.class?.name || 'All Classes',
+        dueDate: assignment.dueDate?.toISOString().split('T')[0] || null,
+        rubricName: assignment.rubric?.name || 'Unknown',
+        totalSubmissions: assignment._count?.submissions || 0,
+        createdAt: assignment.createdAt.toISOString().split('T')[0],
+      })),
+    };
+  }
+
+  // If NO courseId: get assignments from ALL teacher's courses (single step!)
+  const courses = await getTeacherCourses(teacherId);
+  const allAssignments: any[] = [];
+  
+  for (const course of courses) {
+    const courseAssignments = await listAssignmentAreas(course.id, teacherId);
+    allAssignments.push(
+      ...courseAssignments.map((assignment: any) => ({
+        assignmentId: assignment.id,
+        assignmentName: assignment.name,
+        description: assignment.description || null,
+        courseName: course.name,
+        courseId: course.id,
+        className: assignment.class?.name || 'All Classes',
+        dueDate: assignment.dueDate?.toISOString().split('T')[0] || null,
+        rubricName: assignment.rubric?.name || 'Unknown',
+        totalSubmissions: assignment._count?.submissions || 0,
+        createdAt: assignment.createdAt.toISOString().split('T')[0],
+      }))
+    );
+  }
 
   return {
-    totalAssignments: assignments.length,
-    assignments: assignments.slice(0, params.limit || 50).map((assignment: any) => ({
-      assignmentId: assignment.id,
-      assignmentName: assignment.name,
-      description: assignment.description || null,
-      className: assignment.class?.name || 'All Classes',
-      dueDate: assignment.dueDate?.toISOString().split('T')[0] || null,
-      rubricName: assignment.rubric?.name || 'Unknown',
-      totalSubmissions: assignment._count?.submissions || 0,
-      createdAt: assignment.createdAt.toISOString().split('T')[0],
-    })),
+    totalAssignments: allAssignments.length,
+    totalCourses: courses.length,
+    assignments: allAssignments.slice(0, params.limit || 100),
   };
 }
 
@@ -789,8 +852,11 @@ async function queryAssignmentDetailStudent(params: QueryParams) {
  */
 async function queryMySubmissionDetail(params: QueryParams) {
   const studentId = params.studentId || params.userId;
-  if (!params.submissionId || !studentId) {
-    throw new Error('submissionId and userId are required for my_submission_detail query');
+  if (!params.submissionId) {
+    throw new Error('submissionId is required for my_submission_detail query');
+  }
+  if (!studentId) {
+    throw new Error('studentId or userId is required for my_submission_detail query');
   }
 
   const submission = await getSubmissionById(params.submissionId, studentId);
@@ -829,8 +895,11 @@ async function queryPendingAssignments(params: QueryParams) {
   futureDate.setDate(futureDate.getDate() + daysAhead);
 
   // Get all assignments for courses the student is enrolled in
+  // Pending = NOT submitted yet (no submission with status SUBMITTED/ANALYZED/GRADED)
+  // Includes: no submission record OR submission is DRAFT (saved but not submitted)
   const assignments = await db.assignmentArea.findMany({
     where: {
+      // Assignment must be in a course/class the student is enrolled in
       OR: [
         // Assignments for all classes in enrolled courses
         {
@@ -854,20 +923,25 @@ async function queryPendingAssignments(params: QueryParams) {
           },
         },
       ],
+      // AND must have NO actual submission (either no record OR only DRAFT)
       AND: [
         {
           OR: [
-            // Not submitted yet
+            // Case 1: No submission record at all
             {
               submissions: {
                 none: { studentId },
               },
             },
-            // Or due soon (within daysAhead)
+            // Case 2: Only has DRAFT submission (not actually submitted yet)
             {
-              dueDate: {
-                lte: futureDate,
-                gte: new Date(),
+              submissions: {
+                none: {
+                  studentId,
+                  status: {
+                    in: ['SUBMITTED', 'ANALYZED', 'GRADED'],
+                  },
+                },
               },
             },
           ],

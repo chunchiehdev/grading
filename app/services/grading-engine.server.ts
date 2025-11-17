@@ -349,6 +349,7 @@ export async function processGradingResult(
         prompt,
         userId: _userId,
         resultId,
+        language: userLanguage,
       });
 
       if (sdkResult.success) {

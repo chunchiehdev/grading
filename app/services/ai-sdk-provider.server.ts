@@ -23,6 +23,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import logger from '@/utils/logger';
 import { getKeyHealthTracker, type ErrorType } from './gemini-key-health.server';
+import { formatThoughtSummary } from './thought-formatter.server';
 
 // Zod schema for grading result (matching legacy GradingResultData format)
 const CriterionGradeSchema = z.object({
@@ -45,6 +46,7 @@ interface GradingParams {
   userId: string;
   resultId: string;
   temperature?: number;
+  language?: 'zh' | 'en';
 }
 
 interface GradingSuccess {
@@ -135,7 +137,7 @@ function hasMultipleGeminiKeys(): boolean {
  * Grade with Gemini using AI SDK and KeyHealthTracker
  */
 export async function gradeWithGemini(params: GradingParams): Promise<GradingResult> {
-  const { prompt, userId, resultId, temperature = 0.3 } = params;
+  const { prompt, userId, resultId, temperature = 0.3, language = 'zh' } = params;
   const healthTracker = getKeyHealthTracker();
 
   // Select best key using KeyHealthTracker
@@ -201,12 +203,29 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
     });
 
     // Log actual reasoning content if available
+    let formattedThoughtSummary: string | undefined;
+
     if (result.reasoning) {
       logger.debug('[AI SDK Reasoning]', {
         resultId,
         reasoning: result.reasoning.substring(0, 500), // First 500 chars
         fullLength: result.reasoning.length,
       });
+
+      // Format the thought summary to make it student-friendly
+      const formatResult = await formatThoughtSummary({
+        rawThought: result.reasoning,
+        language: language || 'zh',
+      });
+
+      if (formatResult.success && formatResult.formattedThought) {
+        formattedThoughtSummary = formatResult.formattedThought;
+        logger.info(`✨ [AI SDK] Thought summary formatted (${formattedThoughtSummary.length} chars) using ${formatResult.provider}`);
+      } else {
+        // Fallback to raw reasoning if formatting fails
+        formattedThoughtSummary = result.reasoning;
+        logger.warn(`⚠️ [AI SDK] Thought formatting failed, using raw: ${formatResult.error}`);
+      }
     } else {
       logger.warn('[AI SDK] No reasoning returned - thinkingConfig may not be working', {
         resultId,
@@ -225,7 +244,7 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
       provider: 'gemini',
       keyId: selectedKeyId,
       responseTimeMs,
-      thoughtSummary: result.reasoning, // Extract AI reasoning/thinking process
+      thoughtSummary: formattedThoughtSummary, // Use formatted thought summary
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;
@@ -277,7 +296,7 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
  * Grade with OpenAI using AI SDK (fallback provider)
  */
 export async function gradeWithOpenAI(params: GradingParams): Promise<GradingResult> {
-  const { prompt, userId, resultId, temperature = 0.1 } = params;
+  const { prompt, userId, resultId, temperature = 0.1, language = 'zh' } = params;
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -316,6 +335,25 @@ export async function gradeWithOpenAI(params: GradingParams): Promise<GradingRes
       hasReasoning: !!result.reasoning,
     });
 
+    // Format thought summary if available
+    let formattedThoughtSummary: string | undefined;
+
+    if (result.reasoning) {
+      const formatResult = await formatThoughtSummary({
+        rawThought: result.reasoning,
+        language,
+      });
+
+      if (formatResult.success && formatResult.formattedThought) {
+        formattedThoughtSummary = formatResult.formattedThought;
+        logger.info(`✨ [OpenAI] Thought summary formatted (${formattedThoughtSummary.length} chars) using ${formatResult.provider}`);
+      } else {
+        // Fallback to raw reasoning if formatting fails
+        formattedThoughtSummary = result.reasoning;
+        logger.warn(`⚠️ [OpenAI] Thought formatting failed, using raw: ${formatResult.error}`);
+      }
+    }
+
     return {
       success: true,
       data: result.object,
@@ -326,7 +364,7 @@ export async function gradeWithOpenAI(params: GradingParams): Promise<GradingRes
       },
       provider: 'openai',
       responseTimeMs,
-      thoughtSummary: result.reasoning, // Extract AI reasoning (if available)
+      thoughtSummary: formattedThoughtSummary, // Use formatted thought summary
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;
