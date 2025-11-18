@@ -3,7 +3,6 @@ import {
   useRouteLoaderData,
   useNavigation,
   type LoaderFunctionArgs,
-  type ClientLoaderFunctionArgs,
 } from 'react-router';
 import { ModernNavigation } from '@/components/ui/modern-navigation';
 import { useTranslation } from 'react-i18next';
@@ -69,39 +68,6 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   };
 }
 
-// Client-side cache with 5-minute TTL
-// Student data doesn't change frequently, longer cache improves UX
-let clientCache: LoaderData | null = null;
-let pendingRequest: Promise<LoaderData> | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes (was 30s)
-
-// Client loader - implements caching to avoid unnecessary refetches
-// Also prevents duplicate requests during navigation
-export async function clientLoader({ request, serverLoader }: ClientLoaderFunctionArgs) {
-  // Check if we have valid cached data
-  if (clientCache && Date.now() - clientCache._timestamp < CACHE_TTL) {
-    return clientCache;
-  }
-
-  // If there's already a pending request, wait for it instead of creating a new one
-  // This prevents the "canceled + 200" pattern in Network tab
-  if (pendingRequest) {
-    return pendingRequest;
-  }
-
-  // Fetch fresh data from server
-  pendingRequest = serverLoader<LoaderData>().then((data) => {
-    clientCache = data;
-    pendingRequest = null;
-    return data;
-  });
-
-  return pendingRequest;
-}
-
-// No hydration needed - server data is fresh enough and we have client-side cache
-// Omitting `clientLoader.hydrate` (defaults to false) to prevent double loading
-
 /**
  * Student Layout - 管理 tab 導航的主容器
  * 使用 NavLink 自動處理 active state
@@ -131,18 +97,6 @@ export default function StudentLayout() {
       await handleNewAssignment(notification);
     },
     [handleNewAssignment]
-  );
-
-  // Handle WebSocket reconnection - clear cache to force data reload
-  useWebSocketEvent(
-    'connect',
-    () => {
-      // Clear cache to force fresh data on next navigation
-      // This ensures we don't miss any updates during disconnection
-      clientCache = null;
-      console.log('[Student WebSocket] Reconnected - cache cleared for fresh data');
-    },
-    []
   );
 
   return (

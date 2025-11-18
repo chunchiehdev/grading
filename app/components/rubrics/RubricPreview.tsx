@@ -1,6 +1,6 @@
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface Level {
   score: number;
@@ -38,26 +38,46 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
   // Calculate statistics
   const totalCriteria = rubricData.categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="fixed inset-0 max-w-none h-screen p-0 flex flex-col bg-background border-0 translate-x-0 translate-y-0 left-0 top-0 sm:rounded-none">
-        <DialogTitle className="sr-only">評分標準預覽</DialogTitle>
+  // ESC key to close
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
 
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-border bg-background">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-            <h2 className="text-2xl sm:text-3xl font-semibold text-foreground mb-2">
-              {rubricData.name || t('rubric:preview')}
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-40 bg-background flex flex-col [--content-margin:1rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
+      {/* Header with close button */}
+      <div className="flex-shrink-0 border-b border-border bg-background px-[var(--content-margin)] py-3 sm:py-4">
+        <div className="mx-auto max-w-4xl flex justify-between items-center">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-1">
+              {rubricData.name || t('preview.dialogTitle')}
             </h2>
-            <p className="text-sm text-muted-foreground">
-              {rubricData.categories.length} {rubricData.categories.length === 1 ? t('rubric:category') : t('rubric:categories')} · {' '}
-              {totalCriteria} {totalCriteria === 1 ? t('rubric:criterion') : t('rubric:criteria')}
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {rubricData.categories.length} {rubricData.categories.length === 1 ? t('category') : t('categories')} · {' '}
+              {totalCriteria} {totalCriteria === 1 ? t('criterion') : t('criteria')}
             </p>
           </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-muted rounded-lg transition-colors touch-manipulation ml-4"
+            aria-label="關閉預覽"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+          </button>
         </div>
+      </div>
 
-        {/* Content */}
-        <ScrollArea className="flex-1">
+      {/* Content - native scroll */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
             {/* Description */}
             {rubricData.description && (
@@ -154,8 +174,7 @@ export const RubricPreview = ({ isOpen, onClose, rubricData }: RubricPreviewProp
             {/* Bottom spacing */}
             <div className="pb-4" />
           </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 };

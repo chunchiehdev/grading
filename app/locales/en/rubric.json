@@ -73,15 +73,20 @@
     "noRubrics": "No rubrics yet",
     "noRubricsDescription": "Create your first rubric to get started with structured grading"
   },
+  "welcome": {
+    "title": "How can I help you today, {{name}}?",
+    "subtitle": "I'm your rubric assistant - tell me what type of rubric you'd like to create!",
+    "tryAsking": "Try these examples:"
+  },
   "aiAssistant": {
     "title": "AI Rubric Assistant",
     "greeting": "Hello! I'm your rubric assistant ✨\n\nTell me what type of rubric you'd like to create, and I'll automatically generate detailed criteria and level descriptions for you.\n\nTry the quick start options below, or describe your needs directly!",
     "placeholder": "e.g., Personal statement rubric",
     "examples": [
-      "Personal statement rubric",
-      "Programming assignment rubric",
-      "Presentation rubric",
-      "Academic paper rubric"
+      "Generate a programming assignment rubric with code quality and functionality",
+      "Create a writing rubric focusing on content depth and expression",
+      "Make a presentation rubric",
+      "Build an academic paper rubric"
     ],
     "generating": "Generating rubric...",
     "apply": "Apply this rubric",

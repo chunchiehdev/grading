@@ -1,7 +1,6 @@
 import {
   Outlet,
   type LoaderFunctionArgs,
-  type ClientLoaderFunctionArgs,
   useRouteLoaderData,
   useNavigation,
   useLocation,
@@ -50,38 +49,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<TeacherLo
   };
 }
 
-// Client-side cache with 5-minute TTL
-// Teacher data doesn't change frequently, longer cache improves UX
-let clientCache: TeacherLoaderData | null = null;
-let pendingRequest: Promise<TeacherLoaderData> | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-// Client loader - implements caching to avoid unnecessary refetches
-// Also prevents duplicate requests during navigation
-export async function clientLoader({ request, serverLoader }: ClientLoaderFunctionArgs) {
-  // Check if we have valid cached data
-  if (clientCache && Date.now() - clientCache._timestamp < CACHE_TTL) {
-    return clientCache;
-  }
-
-  // If there's already a pending request, wait for it instead of creating a new one
-  // This prevents the "canceled + 200" pattern in Network tab
-  if (pendingRequest) {
-    return pendingRequest;
-  }
-
-  // Fetch fresh data from server
-  pendingRequest = serverLoader<TeacherLoaderData>().then((data) => {
-    clientCache = data;
-    pendingRequest = null;
-    return data;
-  });
-
-  return pendingRequest;
-}
-
-// No hydration needed - server data is fresh enough and we have client-side cache
-// Omitting `clientLoader.hydrate` (defaults to false) to prevent double loading
 
 /**
  * Teacher Layout - 管理 tab 導航的主容器
@@ -120,16 +88,13 @@ export default function TeacherLayout() {
   // This ensures it works on ALL teacher pages, including those outside TeacherLayout hierarchy
   // (e.g., /teacher/submissions/:id/view)
 
-  // Handle WebSocket reconnection - clear cache to force data reload
+  // Handle WebSocket reconnection - refetch notifications immediately
   useWebSocketEvent(
     'connect',
     () => {
-      // Clear cache to force fresh data on next navigation
-      // This ensures we don't miss any updates during disconnection
-      clientCache = null;
-      // Also refetch notifications immediately
+      // Refetch notifications immediately on reconnection
       fetchNotifications();
-      console.log('[Teacher WebSocket] Reconnected - cache cleared and notifications refetched');
+      console.log('[Teacher WebSocket] Reconnected - notifications refetched');
     },
     [fetchNotifications]
   );
