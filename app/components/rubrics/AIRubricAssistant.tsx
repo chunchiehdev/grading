@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Send, CheckCircle, Loader2, X } from 'lucide-react';
+import { Send, CheckCircle, Loader2, Sparkles, User as UserIcon, Bot, X } from 'lucide-react';
 import { useLoaderData } from 'react-router';
 import { experimental_useObject as useObject } from '@ai-sdk/react';
 import type { User } from '@/root';
@@ -8,6 +8,33 @@ import { Markdown } from '@/components/ui/markdown';
 import { UIRubricDataSchema } from '@/schemas/rubric';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetClose,
+} from '@/components/ui/sheet';
+
+// Simple hook for media query
+function useMediaQuery(query: string) {
+  const [value, setValue] = useState(false);
+
+  useEffect(() => {
+    function onChange(event: MediaQueryListEvent) {
+      setValue(event.matches);
+    }
+
+    const result = matchMedia(query);
+    result.addEventListener("change", onChange);
+    setValue(result.matches);
+
+    return () => result.removeEventListener("change", onChange);
+  }, [query]);
+
+  return value;
+}
 
 interface LoaderData {
   user: User | null;
@@ -53,44 +80,71 @@ const MessageItem = memo(({ role, content, rubric, index, user, onApplyRubric }:
 
   if (isUser) {
     return (
-      <div className="flex gap-2 sm:gap-3 justify-end items-start">
-        <div className="text-sm whitespace-pre-wrap break-words px-3 sm:px-4 py-2 rounded-2xl bg-muted dark:bg-muted/60">
+      <div className="flex gap-3 justify-end items-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="text-sm whitespace-pre-wrap break-words px-4 py-2.5 rounded-2xl bg-primary text-primary-foreground shadow-sm max-w-[85%]">
           {content}
+        </div>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden border border-border">
+          {user?.picture ? (
+            <img src={user.picture} alt={user.email} className="w-full h-full object-cover" />
+          ) : (
+            <UserIcon className="h-4 w-4 text-muted-foreground" />
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full space-y-3">
-      <Markdown className="prose-sm">{content}</Markdown>
+    <div className="flex gap-3 justify-start items-start w-full animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 border border-primary/20 mt-0.5">
+        <Sparkles className="h-4 w-4 text-primary" />
+      </div>
+      
+      <div className="flex-1 space-y-3 max-w-[90%]">
+        <div className="text-sm text-foreground/90 bg-muted/50 px-4 py-3 rounded-2xl rounded-tl-none">
+          <Markdown className="prose-sm dark:prose-invert max-w-none">{content}</Markdown>
+        </div>
 
-      {/* Rubric Preview Card */}
-      {rubric && (
-        <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 max-w-md">
-          <div className="flex items-center gap-2 text-primary mb-3">
-            <CheckCircle className="h-4 w-4" aria-hidden="true" />
-            <span className="font-medium text-sm">{t('aiAssistant.apply')}</span>
-          </div>
+        {/* Rubric Preview Card */}
+        {rubric && (
+          <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-all hover:shadow-md">
+            <div className="p-4 border-b border-border/50 bg-muted/30">
+              <div className="flex items-center gap-2 text-primary mb-1">
+                <CheckCircle className="h-4 w-4" aria-hidden="true" />
+                <span className="font-medium text-xs uppercase tracking-wider">{t('aiAssistant.generatedRubric')}</span>
+              </div>
+              <div className="font-semibold text-base text-foreground">{rubric.name}</div>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              <div className="text-sm text-muted-foreground">
+                {rubric.description || t('noDescription')}
+              </div>
+              
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
+                  <span>{rubric.categories.length} {t('categories')}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-green-500" />
+                  <span>{rubric.categories.reduce((acc, cat) => acc + cat.criteria.length, 0)} {t('criteria')}</span>
+                </div>
+              </div>
 
-          <div className="mb-4">
-            <div className="font-medium text-base text-foreground">{rubric.name}</div>
-            <div className="text-sm text-muted-foreground mt-2">
-              {rubric.categories.length} {t('categories')} •{' '}
-              {rubric.categories.reduce((acc, cat) => acc + cat.criteria.length, 0)} {t('criteria')}
+              <Button
+                size="sm"
+                className="w-full rounded-lg gap-2"
+                onClick={() => onApplyRubric(rubric)}
+              >
+                <CheckCircle className="h-4 w-4" />
+                {t('aiAssistant.apply')}
+              </Button>
             </div>
           </div>
-
-          <Button
-            size="sm"
-            className="w-full rounded-lg touch-manipulation"
-            onClick={() => onApplyRubric(rubric)}
-          >
-            <CheckCircle className="h-4 w-4 mr-2" aria-hidden="true" />
-            {t('aiAssistant.apply')}
-          </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 });
@@ -116,6 +170,9 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
   const inputRef = useRef<HTMLInputElement>(null);
   const loaderData = useLoaderData() as LoaderData | undefined;
   const user = loaderData?.user || null;
+  
+  // Responsive check
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   // Use experimental_useObject for structured rubric generation
   const { object: rubric, isLoading, error, submit } = useObject({
@@ -142,7 +199,7 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
     if (isOpen) {
       setTimeout(() => {
         inputRef.current?.focus();
-      }, 100);
+      }, 300); // Slightly longer delay for Sheet animation
     }
   }, [isOpen]);
 
@@ -191,181 +248,168 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
     inputRef.current?.focus();
   }, []);
 
-  // ESC key to close
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
   // Get user name with fallback
   const userName = user?.name || user?.email?.split('@')[0] || '';
 
   return (
-    <div className="fixed inset-0 z-40 bg-background flex flex-col [--content-margin:0.75rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
-      {/* Close button - top right */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 p-2 hover:bg-muted rounded-lg transition-colors touch-manipulation"
-        aria-label="關閉對話"
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetHeader>
+        
+      </SheetHeader>
+      <SheetContent 
+        side={isDesktop ? "right" : "bottom"} 
+        className={cn(
+          "flex flex-col gap-0 p-0 border-l shadow-2xl transition-all duration-300",
+          isDesktop ? "sm:max-w-md md:max-w-lg lg:max-w-xl w-full h-full" : "h-[100dvh] w-full rounded-none border-t-0"
+        )}
       >
-        <X className="w-5 h-5" />
-      </button>
+        {/* Header */}
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-muted/10">
+          <div className="flex flex-col min-h-full">
+            <div className="flex-1 px-4 py-6 space-y-6">
+              {/* Welcome Message */}
+              {messages.length === 0 && !isLoading && (
+                <div className="flex flex-col items-center justify-center py-10 text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold">
+                      {t('welcome.title', { name: userName })}
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                      {t('welcome.subtitle')}
+                    </p>
+                  </div>
 
-      {/* Messages Area - scrollable content */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div
-          className="mx-auto max-w-4xl px-[var(--content-margin)] pt-2 sm:pt-4"
-          style={{
-            paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0.5rem))'
-          }}
-        >
-          {/* Welcome Message */}
-          {messages.length === 0 && !isLoading && (
-            <div className="flex items-center justify-center py-12 sm:py-16">
-              <div className="max-w-2xl w-full space-y-6 text-center">
-                <div className="space-y-3">
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold">
-                    {t('welcome.title', { name: userName })}
-                  </h1>
-                  <p className="text-sm sm:text-base text-muted-foreground">
-                    {t('welcome.subtitle')}
-                  </p>
-                </div>
-
-                {/* Example Prompts */}
-                <div className="space-y-3">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">{t('welcome.tryAsking')}</p>
-                  <div className="grid gap-2">
-                    {(t('aiAssistant.examples', { returnObjects: true }) as string[]).map((example, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => handleExampleClick(example)}
-                        className="flex items-start sm:items-center gap-2 rounded-xl border border-dashed border-muted-foreground/25 bg-muted/50 px-2.5 sm:px-3 py-2 text-left text-xs sm:text-sm hover:bg-muted transition-colors active:scale-[0.98] touch-manipulation"
-                      >
-                        <span className="line-clamp-2 sm:line-clamp-1">{example}</span>
-                      </button>
-                    ))}
+                  {/* Example Prompts */}
+                  <div className="w-full max-w-sm space-y-3">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('welcome.tryAsking')}</p>
+                    <div className="grid gap-2">
+                      {(t('aiAssistant.examples', { returnObjects: true }) as string[]).map((example, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => handleExampleClick(example)}
+                          className="flex items-center gap-3 rounded-xl border bg-background px-4 py-3 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+                        >
+                          <Sparkles className="w-4 h-4 text-primary/60" />
+                          <span className="line-clamp-1">{example}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {/* Error Display */}
-          {error && (
-            <div
-              className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 mb-4"
-              role="alert"
-            >
-              <p className="text-sm text-destructive">{error instanceof Error ? error.message : t('aiAssistant.error')}</p>
-            </div>
-          )}
-
-          {/* Messages */}
-          <div className="space-y-4" role="log" aria-label="對話記錄" aria-live="polite">
-            {messages.map((msg, index) => (
-              <MessageItem
-                key={index}
-                role={msg.role}
-                content={msg.content}
-                rubric={msg.rubric}
-                index={index}
-                user={user}
-                onApplyRubric={handleApplyRubric}
-              />
-            ))}
-
-            {/* Loading State - unified */}
-            {isLoading && (
-              <div 
-                className="rounded-xl border border-primary/30 bg-primary/10 p-4 sm:p-5"
-                role="status"
-                aria-label="AI 正在處理中"
-              >
-                <div className="flex items-center gap-2 text-primary mb-4">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  <span className="font-medium text-sm">{t('aiAssistant.generating')}</span>
+              {/* Error Display */}
+              {error && (
+                <div
+                  className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive flex items-start gap-3"
+                  role="alert"
+                >
+                  <div className="p-1 rounded-full bg-destructive/20 shrink-0">
+                    <span className="block w-1.5 h-1.5 rounded-full bg-destructive" />
+                  </div>
+                  <p className="text-sm font-medium">{error instanceof Error ? error.message : t('aiAssistant.error')}</p>
                 </div>
-                {rubric?.name && (
-                  <div>
-                    <div className="font-medium text-sm text-foreground">{rubric.name}</div>
-                    {rubric.description && (
-                      <div className="text-xs text-muted-foreground mt-2">{rubric.description}</div>
+              )}
+
+              {/* Messages List */}
+              {messages.map((msg, index) => (
+                <MessageItem
+                  key={index}
+                  role={msg.role}
+                  content={msg.content}
+                  rubric={msg.rubric}
+                  index={index}
+                  user={user}
+                  onApplyRubric={handleApplyRubric}
+                />
+              ))}
+
+              {/* Loading State */}
+              {isLoading && (
+                <div className="flex gap-3 justify-start items-start w-full animate-in fade-in slide-in-from-bottom-2">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 border border-primary/20 mt-0.5">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="animate-pulse">{t('aiAssistant.generating')}</span>
+                    </div>
+                    {rubric?.name && (
+                      <div className="text-xs bg-muted/50 px-3 py-2 rounded-lg border border-border/50 animate-pulse">
+                        <span className="font-medium">{rubric.name}</span>
+                        {rubric.categories?.length > 0 && (
+                          <span className="ml-2 opacity-70">
+                            ({rubric.categories.length} {t('categories')})
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Scroll anchor */}
-            <div ref={messagesEndRef} />
+                </div>
+              )}
+              
+              <div ref={messagesEndRef} className="h-1" />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Sticky Input Area */}
-      <div 
-        className="flex-shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80"
-        style={{
-          paddingTop: '0.5rem',
-          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
-        }}
-      >
-        <div className="mx-auto max-w-4xl px-[var(--content-margin)] pb-2 sm:pb-3 pt-2 sm:pt-4">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className={cn(
-              "flex gap-2 bg-muted/30 dark:bg-card rounded-full p-1 transition-all duration-200 border border-border/40",
-              "focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white focus-within:border-transparent",
-              !input.trim() ? "shadow-2xl" : "shadow-lg"
-            )}
-          >
-            <div className="flex-1 relative min-w-0">
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={t('aiAssistant.placeholder')}
-                className="w-full rounded-full border-0 bg-transparent px-3 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 tap-highlight-transparent"
-                disabled={isLoading}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
-                style={{
-                  fontSize: '16px' // Prevent iOS zoom on focus
-                }}
-              />
-            </div>
-            <Button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              size="icon"
-              className="h-10 w-10 sm:h-11 sm:w-11 rounded-full shrink-0 touch-manipulation"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+        {/* Sticky Input Area */}
+        <div
+          className="flex-shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-border/40"
+          style={{
+            paddingTop: '0.5rem',
+            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
+          }}
+        >
+          <div className="px-4 pb-2 sm:pb-3 pt-2 sm:pt-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
+              className={cn(
+                "flex gap-2 bg-muted/30 dark:bg-card rounded-full p-1 transition-all duration-200 border border-border/40",
+                "focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white focus-within:border-transparent",
+                !input.trim() ? "shadow-2xl" : "shadow-lg"
               )}
-            </Button>
-          </form>
+            >
+              <div className="flex-1 relative min-w-0">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={t('aiAssistant.placeholder')}
+                  className="w-full rounded-full border-0 bg-transparent px-3 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 tap-highlight-transparent"
+                  disabled={isLoading}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  style={{
+                    fontSize: '16px' // Prevent iOS zoom on focus
+                  }}
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={!input.trim() || isLoading}
+                size="icon"
+                className="h-10 w-10 sm:h-11 sm:w-11 rounded-full shrink-0 touch-manipulation"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+                )}
+              </Button>
+            </form>
+          </div>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 };
