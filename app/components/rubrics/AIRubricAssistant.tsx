@@ -260,7 +260,7 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
         side={isDesktop ? "right" : "bottom"} 
         className={cn(
           "flex flex-col gap-0 p-0 border-l shadow-2xl transition-all duration-300",
-          isDesktop ? "sm:max-w-md md:max-w-lg lg:max-w-xl w-full h-full" : "h-[100dvh] w-full rounded-none border-t-0"
+          isDesktop ? "sm:max-w-md md:max-w-lg lg:max-w-xl w-full h-full" : "h-full w-full rounded-none border-t-0"
         )}
       >
         {/* Header */}
@@ -357,22 +357,21 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
 
         {/* Sticky Input Area */}
         <div
-          className="flex-shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-border/40"
+          className="flex-shrink-0 z-10"
           style={{
-            paddingTop: '0.5rem',
-            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
+            paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)'
           }}
         >
-          <div className="px-4 pb-2 sm:pb-3 pt-2 sm:pt-4">
+          <div className="px-4 pt-2">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendMessage();
               }}
               className={cn(
-                "flex gap-2 bg-muted/30 dark:bg-card rounded-full p-1 transition-all duration-200 border border-border/40",
-                "focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white focus-within:border-transparent",
-                !input.trim() ? "shadow-2xl" : "shadow-lg"
+                "flex gap-2 bg-background/80 backdrop-blur-xl shadow-lg rounded-full p-1 transition-all duration-200 border border-border/40",
+                "focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50",
+                !input.trim() ? "shadow-xl" : "shadow-lg"
               )}
             >
               <div className="flex-1 relative min-w-0">
@@ -383,7 +382,7 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={t('aiAssistant.placeholder')}
-                  className="w-full rounded-full border-0 bg-transparent px-3 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 tap-highlight-transparent"
+                  className="w-full rounded-full border-0 bg-transparent px-4 py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 tap-highlight-transparent"
                   disabled={isLoading}
                   autoComplete="off"
                   autoCorrect="off"

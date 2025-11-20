@@ -513,7 +513,10 @@ export default function NewRubricRoute() {
 
       {/* Error Toast */}
       {actionData?.error && (
-        <div className="fixed bottom-4 right-4 bg-destructive text-destructive-foreground px-6 py-3 rounded-lg shadow-lg z-50 max-w-md">
+        <div
+          className="fixed right-4 bg-destructive text-destructive-foreground px-6 py-3 rounded-lg shadow-lg z-50 max-w-md"
+          style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+        >
           <div className="font-medium">{t('rubric:messages.saveError')}</div>
           <div className="text-sm opacity-90 mt-1">{actionData.error}</div>
         </div>
