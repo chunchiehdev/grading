@@ -76,7 +76,7 @@ describe('Authentication Logic', () => {
       expect(getSession).toHaveBeenCalledWith(mockRequest);
       expect(mockSession.get).toHaveBeenCalledWith('userId');
 
-      console.log('✅ User ID extracted successfully from session');
+      console.log('  User ID extracted successfully from session');
     });
 
     it('should return null for invalid session data', async () => {
@@ -99,7 +99,7 @@ describe('Authentication Logic', () => {
         const userId = await getUserId(mockRequest);
 
         expect(userId).toBeNull();
-        console.log(`✅ Invalid session data handled correctly: ${testCase.description}`);
+        console.log(`  Invalid session data handled correctly: ${testCase.description}`);
       }
     });
 
@@ -121,7 +121,7 @@ describe('Authentication Logic', () => {
       expect(mockSession.set).toHaveBeenCalledWith('userId', 'user123');
       expect(commitSession).toHaveBeenCalledWith(mockSession);
 
-      console.log('✅ User session created with proper cookie');
+      console.log('  User session created with proper cookie');
     });
 
     it('should destroy session on logout', async () => {
@@ -139,7 +139,7 @@ describe('Authentication Logic', () => {
       expect(getSession).toHaveBeenCalledWith(mockRequest);
       expect(destroySession).toHaveBeenCalledWith(mockSession);
 
-      console.log('✅ Session destroyed successfully on logout');
+      console.log('  Session destroyed successfully on logout');
     });
   });
 
@@ -171,7 +171,7 @@ describe('Authentication Logic', () => {
         select: { id: true, email: true, role: true, name: true, picture: true },
       });
 
-      console.log('✅ User retrieved successfully from database');
+      console.log('  User retrieved successfully from database');
     });
 
     it('should handle missing user in database', async () => {
@@ -189,7 +189,7 @@ describe('Authentication Logic', () => {
 
       expect(user).toBeNull();
 
-      console.log('✅ Missing user in database handled correctly');
+      console.log('  Missing user in database handled correctly');
     });
 
     it('should handle database errors gracefully', async () => {
@@ -207,7 +207,7 @@ describe('Authentication Logic', () => {
 
       expect(user).toBeNull();
 
-      console.log('✅ Database errors handled gracefully');
+      console.log('  Database errors handled gracefully');
     });
 
     it('should update user role correctly', async () => {
@@ -230,7 +230,7 @@ describe('Authentication Logic', () => {
         select: { id: true, email: true, role: true },
       });
 
-      console.log('✅ User role updated successfully');
+      console.log('  User role updated successfully');
     });
 
     it('should handle role update failures', async () => {
@@ -240,7 +240,7 @@ describe('Authentication Logic', () => {
 
       await expect(updateUserRole('user123', 'STUDENT')).rejects.toThrow('Database update failed');
 
-      console.log('✅ Role update failure handled with proper error');
+      console.log('  Role update failure handled with proper error');
     });
   });
 
@@ -259,7 +259,7 @@ describe('Authentication Logic', () => {
       expect(result).toBe('oauth-unavailable-redirect');
       expect(redirect).toHaveBeenCalledWith('/auth/login?error=google-auth-unavailable');
 
-      console.log('✅ Unconfigured OAuth environment handled correctly');
+      console.log('  Unconfigured OAuth environment handled correctly');
     });
 
     it('should handle OAuth callback error when credentials not configured', async () => {
@@ -278,7 +278,7 @@ describe('Authentication Logic', () => {
       expect(result).toBe('oauth-unavailable-redirect');
       expect(redirect).toHaveBeenCalledWith('/login?error=google-auth-unavailable');
 
-      console.log('✅ OAuth callback without configuration handled correctly');
+      console.log('  OAuth callback without configuration handled correctly');
     });
 
     it('should validate OAuth integration requirements', async () => {
@@ -302,7 +302,7 @@ describe('Authentication Logic', () => {
       const callbackResult = await handleGoogleCallback(mockRequest);
       expect(callbackResult).toBe('config-error-redirect');
 
-      console.log('✅ OAuth configuration requirements validated');
+      console.log('  OAuth configuration requirements validated');
     });
   });
 
@@ -325,7 +325,7 @@ describe('Authentication Logic', () => {
 
       expect(user).toEqual(mockUser);
 
-      console.log('✅ Authentication requirement satisfied');
+      console.log('  Authentication requirement satisfied');
     });
 
     it('should redirect to login when not authenticated', async () => {
@@ -342,7 +342,7 @@ describe('Authentication Logic', () => {
       await expect(requireAuth(mockRequest)).rejects.toThrow();
       expect(redirect).toHaveBeenCalledWith('/auth/login');
 
-      console.log('✅ Unauthenticated access redirected to login');
+      console.log('  Unauthenticated access redirected to login');
     });
 
     it('should allow teacher access to teacher-only resources', async () => {
@@ -364,7 +364,7 @@ describe('Authentication Logic', () => {
       expect(user).toEqual(mockTeacher);
       expect(user.role).toBe('TEACHER');
 
-      console.log('✅ Teacher access granted to teacher-only resource');
+      console.log('  Teacher access granted to teacher-only resource');
     });
 
     it('should deny student access to teacher-only resources', async () => {
@@ -388,7 +388,7 @@ describe('Authentication Logic', () => {
       await expect(requireTeacher(mockRequest)).rejects.toThrow();
       expect(redirect).toHaveBeenCalledWith('/auth/unauthorized');
 
-      console.log('✅ Student access denied to teacher-only resource');
+      console.log('  Student access denied to teacher-only resource');
     });
 
     it('should allow student access to student-only resources', async () => {
@@ -410,7 +410,7 @@ describe('Authentication Logic', () => {
       expect(user).toEqual(mockStudent);
       expect(user.role).toBe('STUDENT');
 
-      console.log('✅ Student access granted to student-only resource');
+      console.log('  Student access granted to student-only resource');
     });
 
     it('should deny teacher access to student-only resources', async () => {
@@ -434,7 +434,7 @@ describe('Authentication Logic', () => {
       await expect(requireStudent(mockRequest)).rejects.toThrow();
       expect(redirect).toHaveBeenCalledWith('/auth/unauthorized');
 
-      console.log('✅ Teacher access denied to student-only resource');
+      console.log('  Teacher access denied to student-only resource');
     });
   });
 
@@ -456,7 +456,7 @@ describe('Authentication Logic', () => {
       expect(result).toBe('oauth-error-redirect');
       expect(redirect).toHaveBeenCalledWith('/login?error=google-auth-unavailable');
 
-      console.log('✅ Missing authorization code handled with proper error');
+      console.log('  Missing authorization code handled with proper error');
     });
 
     it('should handle OAuth verification failures', async () => {
@@ -475,7 +475,7 @@ describe('Authentication Logic', () => {
       expect(result).toBe('error-redirect');
       expect(redirect).toHaveBeenCalledWith('/login?error=google-auth-unavailable');
 
-      console.log('✅ OAuth verification failure handled with error redirect');
+      console.log('  OAuth verification failure handled with error redirect');
     });
 
     it('should handle unconfigured OAuth environment', async () => {
@@ -495,7 +495,7 @@ describe('Authentication Logic', () => {
       expect(result).toBe('oauth-unavailable-redirect');
       expect(redirect).toHaveBeenCalledWith('/auth/login?error=google-auth-unavailable');
 
-      console.log('✅ Unconfigured OAuth environment handled gracefully');
+      console.log('  Unconfigured OAuth environment handled gracefully');
     });
   });
 });

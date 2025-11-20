@@ -30,32 +30,32 @@ npm run dev
 ```
 [PERF START] student-layout-loader
   [PERF START] student-layout-auth
-  [PERF END] ✅ student-layout-auth | Duration: XXms
+  [PERF END]   student-layout-auth | Duration: XXms
 
   [PERF START] student-layout-data-fetch
     [PERF START] fetch-student-assignments
-    [PERF END] ✅ fetch-student-assignments | Duration: XXms
+    [PERF END]   fetch-student-assignments | Duration: XXms
     [PERF START] fetch-student-submissions
-    [PERF END] ✅ fetch-student-submissions | Duration: XXms
+    [PERF END]   fetch-student-submissions | Duration: XXms
     [PERF START] fetch-student-courses
-    [PERF END] ✅ fetch-student-courses | Duration: XXms
+    [PERF END]   fetch-student-courses | Duration: XXms
     [PERF START] fetch-submission-history
-    [PERF END] ✅ fetch-submission-history | Duration: XXms
-  [PERF END] ✅ student-layout-data-fetch | Duration: XXms
+    [PERF END]   fetch-submission-history | Duration: XXms
+  [PERF END]   student-layout-data-fetch | Duration: XXms
 
   [PERF START] student-layout-data-transform
-  [PERF END] ✅ student-layout-data-transform | Duration: XXms
+  [PERF END]   student-layout-data-transform | Duration: XXms
 
-[PERF END] ✅ student-layout-loader | Duration: XXXms
+[PERF END]   student-layout-loader | Duration: XXXms
 
 [PERF MARK] 📍 student-layout-mounted
 [PERF START] websocket-connect
-[PERF END] ✅ websocket-connect | Duration: XXXXms
+[PERF END]   websocket-connect | Duration: XXXXms
 ```
 
 **預期結果**：
-- ✅ `student-layout-loader` < 500ms
-- ✅ `websocket-connect` < 2000ms
+-   `student-layout-loader` < 500ms
+-   `websocket-connect` < 2000ms
 - ⚠️ 如果 > 1000ms，需要優化
 
 ---
@@ -72,15 +72,15 @@ npm run dev
 [PERF START] student-tab-change-to-courses
 [PERF MARK] 📍 student-layout-route-change | pathname: /student/courses
 [PERF MARK] 📍 student-layout-cache-hit (或 cache-miss)
-[PERF END] ✅ student-layout-client-loader | Duration: XXms
+[PERF END]   student-layout-client-loader | Duration: XXms
 [PERF MARK] 📍 student-courses-page-mounted
 [PERF START] student-courses-memo
-[PERF END] ✅ student-courses-memo | Duration: XXms
+[PERF END]   student-courses-memo | Duration: XXms
 [PERF MARK] 📍 courses-content-rendered
 ```
 
 **預期結果**：
-- ✅ Cache hit: 整個切換 < 100ms
+-   Cache hit: 整個切換 < 100ms
 - ⚠️ Cache miss: 可能需要 300-500ms
 - ❌ 如果 > 1000ms，有嚴重問題
 
@@ -98,11 +98,11 @@ npm run dev
 [PERF START] student-tab-change-to-assignments
 [PERF MARK] 📍 student-layout-route-change | pathname: /student/assignments
 [PERF MARK] 📍 student-layout-cache-hit
-[PERF END] ✅ student-layout-client-loader | Duration: XXms
+[PERF END]   student-layout-client-loader | Duration: XXms
 ```
 
 **預期結果**：
-- ✅ 應該都是 cache hit（< 50ms）
+-   應該都是 cache hit（< 50ms）
 - ❌ 如果經常 cache miss，檢查快取策略
 
 ---
@@ -115,7 +115,7 @@ npm run dev
 3. 點擊「儀表板」Tab
 
 **預期結果**：
-- ✅ 類似場景 2/3，應該很快
+-   類似場景 2/3，應該很快
 
 ---
 
@@ -132,7 +132,7 @@ npm run dev
 ```
 
 **預期結果**：
-- ✅ 如果有獨立的 loader，會顯示載入時間
+-   如果有獨立的 loader，會顯示載入時間
 - 注意：這個頁面可能沒有 heavy loader
 
 ---
@@ -180,7 +180,7 @@ perfMonitor.clear()
 
 ## 性能基準對照表
 
-| 指標 | 良好 ✅ | 可接受 ⚠️ | 需優化 ❌ |
+| 指標 | 良好   | 可接受 ⚠️ | 需優化 ❌ |
 |------|---------|-----------|-----------|
 | **整體載入** |
 | student-layout-loader | < 300ms | 300-800ms | > 800ms |

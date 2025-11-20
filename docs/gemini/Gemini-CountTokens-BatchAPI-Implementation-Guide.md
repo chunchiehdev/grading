@@ -119,7 +119,7 @@ async function optimizeRequest(
 | 特性 | 标准 API | Batch API |
 |------|---------|----------|
 | 响应时间 | 实时（秒级） | 异步（24 小时内） |
-| 成本 | 100% | **50%** ✅ |
+| 成本 | 100% | **50%**   |
 | 使用场景 | 实时交互 | 批量/非紧急任务 |
 | 请求数 | 单个或少量 | 成百上千 |
 
@@ -448,7 +448,7 @@ async function gradeSubmissionsInBatch(
     // 步骤 1-3: 提交批处理
     console.log('📤 提交批处理任务...');
     const batchInfo = await submitGradingBatch(submissions, rubric);
-    console.log(`✅ 任务已提交: ${batchInfo.jobId}`);
+    console.log(`  任务已提交: ${batchInfo.jobId}`);
 
     // 步骤 4: 轮询状态
     console.log('⏳ 等待批处理完成...');
@@ -487,7 +487,7 @@ async function gradeSubmissionsInBatch(
 enum BatchJobState {
   JOB_STATE_PENDING = 'JOB_STATE_PENDING',      // 待处理
   JOB_STATE_RUNNING = 'JOB_STATE_RUNNING',      // 运行中
-  JOB_STATE_SUCCEEDED = 'JOB_STATE_SUCCEEDED',  // ✅ 成功
+  JOB_STATE_SUCCEEDED = 'JOB_STATE_SUCCEEDED',  //   成功
   JOB_STATE_FAILED = 'JOB_STATE_FAILED',        // ❌ 失败
   JOB_STATE_CANCELLED = 'JOB_STATE_CANCELLED',  // 已取消
   JOB_STATE_EXPIRED = 'JOB_STATE_EXPIRED'       // 已过期（> 48 小时）
@@ -496,7 +496,7 @@ enum BatchJobState {
 
 **状态转换图**:
 ```
-PENDING → RUNNING → SUCCEEDED ✅
+PENDING → RUNNING → SUCCEEDED  
                   → FAILED ❌
                   → CANCELLED ❌
                   → EXPIRED ❌
@@ -637,7 +637,7 @@ export function BatchGradingStatus({ jobId }: { jobId: string }) {
     <div>
       {job?.status === 'JOB_STATE_SUCCEEDED' && (
         <div className="text-green-600">
-          ✅ 批处理完成！{job.successCount} 个评分成功
+            批处理完成！{job.successCount} 个评分成功
         </div>
       )}
       {job?.status === 'JOB_STATE_FAILED' && (
@@ -667,7 +667,7 @@ export function BatchGradingStatus({ jobId }: { jobId: string }) {
 │ 方式           │ 费用        │ 响应时间     │ 适用场景      │
 ├─────────────────────────────────────────────────────────────┤
 │ 标准 API       │ $0.015      │ 实时(秒级)   │ 单个/少量评分 │
-│ Batch API      │ $0.0075 ✅  │ 异步(24h)    │ 批量/非紧急   │
+│ Batch API      │ $0.0075    │ 异步(24h)    │ 批量/非紧急   │
 │ 节省比例       │ 50% 节省    │             │             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -678,7 +678,7 @@ export function BatchGradingStatus({ jobId }: { jobId: string }) {
 Token 计数影响：
 - countTokens API 调用: ~100ms per request
 - 100 个作业: +10 秒开销
-- 但能精确预测成本和防止超配额 ✅
+- 但能精确预测成本和防止超配额  
 
 Batch API 权衡：
 - 提交: 立即完成
@@ -851,8 +851,8 @@ export async function monitorBatchJob(jobId: string) {
 - ⚠️ **Batch API 不是幂等的**: 重复提交会创建多个批处理任务
 - ⚠️ **超过 48 小时的任务会过期**: 需要重新提交
 - ⚠️ **缓存可用**: 即使在批处理中也能使用上下文缓存（成本不变）
-- ✅ **立即实施**: Token 计数（无缺点，只有收益）
-- ✅ **灵活选择**: 为不同的评分场景选择合适的 API
+-   **立即实施**: Token 计数（无缺点，只有收益）
+-   **灵活选择**: 为不同的评分场景选择合适的 API
 
 ---
 

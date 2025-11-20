@@ -116,7 +116,7 @@ describe('Complete Grading System Workflow Demo', () => {
       21
     ); // Due in 3 weeks
 
-    console.log(`✅ Academic setup complete:`);
+    console.log(`  Academic setup complete:`);
     console.log(`   • Professor: ${professor.name} (${professor.email})`);
     console.log(`   • Students enrolled: ${students.length}`);
     console.log(`   • Course: "${course.name}"`);
@@ -197,7 +197,7 @@ In conclusion, environmental policies are necessary to protect the environment a
 
     submissions.push(excellentSubmission, averageSubmission, weakSubmission);
 
-    console.log(`✅ Student submissions received:`);
+    console.log(`  Student submissions received:`);
     submissions.forEach((submission, index) => {
       console.log(
         `   • Student ${index + 1}: ${submission.originalFileName} (${Math.round(submission.fileSize / 1024)}KB)`
@@ -225,7 +225,7 @@ In conclusion, environmental policies are necessary to protect the environment a
       gradingResults.push(result);
     }
 
-    console.log(`✅ Grading session created:`);
+    console.log(`  Grading session created:`);
     console.log(`   • Session ID: ${gradingSession.id}`);
     console.log(`   • Results to process: ${gradingResults.length}`);
 
@@ -373,7 +373,7 @@ In conclusion, environmental policies are necessary to protect the environment a
       }
     );
 
-    console.log(`✅ AI grading simulation complete:`);
+    console.log(`  AI grading simulation complete:`);
     console.log(`   • Excellent paper: ${extractTotalScore(excellentGrading.result) ?? '?'}/100`);
     console.log(`   • Average paper: ${extractTotalScore(averageGrading.result) ?? '?'}/100`);
     console.log(`   • Weak paper: ${extractTotalScore(weakGrading.result) ?? '?'}/100`);
@@ -392,7 +392,7 @@ In conclusion, environmental policies are necessary to protect the environment a
       );
     });
 
-    console.log(`✅ Results validation:`);
+    console.log(`  Results validation:`);
     console.log(`   • Total results processed: ${allResults.length}`);
     console.log(`   • Valid results: ${validResults.length}`);
     const scores = allResults.map((r) => extractTotalScore(r.result) ?? 0);
@@ -452,7 +452,7 @@ In conclusion, environmental policies are necessary to protect the environment a
       },
     });
 
-    console.log(`✅ Data integrity verification:`);
+    console.log(`  Data integrity verification:`);
     console.log(`   • Course has ${courseCheck?.assignmentAreas.length} assignment areas`);
     console.log(`   • Rubric used in ${rubricCheck?.gradingResults.length} grading results`);
     console.log(`   • Session contains ${sessionCheck?.gradingResults.length} results`);
@@ -470,10 +470,10 @@ In conclusion, environmental policies are necessary to protect the environment a
     expect(validResults).toHaveLength(3);
 
     console.log('\n🎉 COMPLETE WORKFLOW VALIDATION SUCCESS!');
-    console.log('   ✅ All academic processes validated');
-    console.log('   ✅ Data relationships intact');
-    console.log('   ✅ AI grading simulation functional');
-    console.log('   ✅ Results quality verification passed');
-    console.log('   ✅ TDD infrastructure fully operational');
+    console.log('     All academic processes validated');
+    console.log('     Data relationships intact');
+    console.log('     AI grading simulation functional');
+    console.log('     Results quality verification passed');
+    console.log('     TDD infrastructure fully operational');
   });
 });

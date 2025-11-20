@@ -35,7 +35,7 @@ export async function createCourse(teacherId: string, courseData: CreateCourseDa
       },
     });
 
-    logger.info('✅ Created course:', course.name, 'for teacher:', teacherId);
+    logger.info('  Created course:', course.name, 'for teacher:', teacherId);
     return course;
   } catch (error) {
     logger.error('❌ Error creating course:', error);

@@ -57,7 +57,7 @@ class SimpleOpenAIService {
       const result = this.parseResponse(content, request.criteria);
       const duration = Date.now() - startTime;
 
-      logger.info(`✅ OpenAI grading completed in ${duration}ms`);
+      logger.info(`  OpenAI grading completed in ${duration}ms`);
 
       return {
         success: true,

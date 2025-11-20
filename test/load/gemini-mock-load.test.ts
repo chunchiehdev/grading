@@ -130,7 +130,7 @@ describe('Gemini Mock Load Tests', () => {
             responseTime,
           });
 
-          console.log(`✅ Request ${i + 1}: Success (${rateLimitTracker.getRequestsInCurrentMinute()}/15)`);
+          console.log(`  Request ${i + 1}: Success (${rateLimitTracker.getRequestsInCurrentMinute()}/15)`);
         } catch (error) {
           const responseTime = Date.now() - startTime;
           const isRateLimitError = error instanceof Error && error.message.includes('Rate limit');
@@ -158,7 +158,7 @@ describe('Gemini Mock Load Tests', () => {
       const averageResponseTime = results.reduce((sum, r) => sum + r.responseTime, 0) / results.length;
 
       console.log('\\n📊 Mock Rate Limit Test Results:');
-      console.log(`✅ Successful requests: ${successfulRequests}/${results.length}`);
+      console.log(`  Successful requests: ${successfulRequests}/${results.length}`);
       console.log(`⚠️  Rate limited requests: ${rateLimitedRequests}`);
       console.log(`⏱️  Average response time: ${Math.round(averageResponseTime)}ms`);
 
@@ -169,7 +169,7 @@ describe('Gemini Mock Load Tests', () => {
       expect(rateLimitedRequests).toBe(5); // Last 5 should be rate limited
       expect(rateLimitTracker.getRequestsInCurrentMinute()).toBeGreaterThanOrEqual(15);
 
-      console.log('✅ Mock rate limit detection test completed');
+      console.log('  Mock rate limit detection test completed');
     });
 
     it('should simulate fallback mechanism when rate limited', async () => {
@@ -261,7 +261,7 @@ describe('Gemini Mock Load Tests', () => {
       }
 
       console.log('📊 Fallback Test Results:');
-      console.log(`✅ Successful requests: ${results.filter((r) => r.success).length}/${results.length}`);
+      console.log(`  Successful requests: ${results.filter((r) => r.success).length}/${results.length}`);
       console.log(`🔄 Fallback requests: ${results.filter((r) => r.fallbackUsed).length}`);
       console.log(`📞 Gemini attempts: ${geminiCalls}`);
       console.log(`📞 OpenAI calls: ${openaiCalls}`);
@@ -271,7 +271,7 @@ describe('Gemini Mock Load Tests', () => {
       expect(openaiCalls).toBe(3); // All should use OpenAI (including fallbacks)
       expect(results.filter((r) => r.fallbackUsed).length).toBeGreaterThan(0); // Files with "gemini-fail" should use fallback
 
-      console.log('✅ Fallback mechanism test completed');
+      console.log('  Fallback mechanism test completed');
     });
   });
 
@@ -360,7 +360,7 @@ describe('Gemini Mock Load Tests', () => {
 
         const batchTime = Date.now() - batchStartTime;
         console.log(
-          `✅ Batch completed in ${batchTime}ms: ${batchResults.filter((r) => r.success).length}/${batchResults.length} successful`
+          `  Batch completed in ${batchTime}ms: ${batchResults.filter((r) => r.success).length}/${batchResults.length} successful`
         );
       }
 
@@ -368,8 +368,8 @@ describe('Gemini Mock Load Tests', () => {
       const averageResponseTime = results.reduce((sum, r) => sum + r.responseTime, 0) / results.length;
 
       console.log('\\n📊 Concurrent Processing Results:');
-      console.log(`✅ Total requests: ${results.length}`);
-      console.log(`✅ Successful requests: ${successfulRequests}`);
+      console.log(`  Total requests: ${results.length}`);
+      console.log(`  Successful requests: ${successfulRequests}`);
       console.log(`⏱️  Average response time: ${Math.round(averageResponseTime)}ms`);
       console.log(`👥 Max concurrent requests: ${maxConcurrent}`);
 
@@ -379,7 +379,7 @@ describe('Gemini Mock Load Tests', () => {
       expect(maxConcurrent).toBeLessThanOrEqual(batchSize); // Should respect batching
       expect(averageResponseTime).toBeLessThan(500); // Should be fast in mock
 
-      console.log('✅ Concurrent processing test completed');
+      console.log('  Concurrent processing test completed');
     });
   });
 
@@ -419,7 +419,7 @@ describe('Gemini Mock Load Tests', () => {
       expect(status.averageCostPerRequest).toBe(status.totalCost / 4);
       expect(status.isOverBudget).toBe(status.totalCost > status.budget);
 
-      console.log('✅ Cost tracking test completed');
+      console.log('  Cost tracking test completed');
     });
   });
 });

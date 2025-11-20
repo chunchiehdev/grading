@@ -428,9 +428,9 @@ For forms with custom internal structure (like rubrics with nested categories), 
 
 **What to use**:
 
-- ✅ FormPageLayout for outer structure
-- ✅ FormSection for top-level cards
-- ✅ Semantic tokens throughout
+-   FormPageLayout for outer structure
+-   FormSection for top-level cards
+-   Semantic tokens throughout
 
 **What to skip**:
 
@@ -506,56 +506,56 @@ Refactoring an existing form? Follow these steps:
 1. **Replace page wrapper**:
 
    - ❌ Remove manual `<div className="min-h-screen...">`
-   - ✅ Add `<FormPageLayout title={...} subtitle={...}>`
+   -   Add `<FormPageLayout title={...} subtitle={...}>`
 
 2. **Replace section cards**:
 
    - ❌ Remove `<div className="bg-card rounded-2xl shadow-sm p-5...">`
-   - ✅ Add `<FormSection>` around each section
+   -   Add `<FormSection>` around each section
 
 3. **Replace action buttons**:
 
    - ❌ Remove manual button layout divs
-   - ✅ Add `<FormActionButtons cancelTo={...} submitText={...} cancelText={...} />`
+   -   Add `<FormActionButtons cancelTo={...} submitText={...} cancelText={...} />`
 
 4. **Update input classes**:
 
-   - ✅ Apply standard input className (see Styling Guidelines)
+   -   Apply standard input className (see Styling Guidelines)
 
 5. **Update label classes**:
 
-   - ✅ Apply standard label className (see Styling Guidelines)
+   -   Apply standard label className (see Styling Guidelines)
 
 6. **Verify semantic tokens**:
 
-   - ✅ Check for hard-coded colors (`text-gray-700`, `bg-white`)
-   - ✅ Replace with semantic tokens (`text-muted-foreground`, `bg-background`)
+   -   Check for hard-coded colors (`text-gray-700`, `bg-white`)
+   -   Replace with semantic tokens (`text-muted-foreground`, `bg-background`)
 
 7. **Test responsive behavior**:
 
-   - ✅ View at 375px, 768px, 1280px, 1920px
-   - ✅ Verify buttons stack on mobile, side-by-side on desktop
-   - ✅ Check text scaling at each breakpoint
+   -   View at 375px, 768px, 1280px, 1920px
+   -   Verify buttons stack on mobile, side-by-side on desktop
+   -   Check text scaling at each breakpoint
 
 8. **Test dark mode**:
 
-   - ✅ Toggle theme and verify all colors adapt correctly
-   - ✅ Check contrast for labels, inputs, buttons
+   -   Toggle theme and verify all colors adapt correctly
+   -   Check contrast for labels, inputs, buttons
 
 9. **Verify functionality**:
 
-   - ✅ Submit form (ensure action still works)
-   - ✅ Test validation errors (ensure alerts display)
-   - ✅ Test cancel navigation (ensure Link works)
+   -   Submit form (ensure action still works)
+   -   Test validation errors (ensure alerts display)
+   -   Test cancel navigation (ensure Link works)
 
 10. **Clean up**:
-    - ✅ Remove unused className constants
-    - ✅ Remove commented-out old code
-    - ✅ Format with Prettier
+    -   Remove unused className constants
+    -   Remove commented-out old code
+    -   Format with Prettier
 
 ## Best Practices
 
-### DO ✅
+### DO  
 
 - Use semantic tokens for all colors
 - Apply standard input/label classes consistently

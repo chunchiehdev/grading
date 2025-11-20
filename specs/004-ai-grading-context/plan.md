@@ -65,12 +65,12 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 **Default Engineering Principles Applied**:
 
-- ✅ **Backward Compatibility**: All new schema fields nullable, existing workflows unchanged
-- ✅ **Graceful Degradation**: System proceeds with grading even if references fail to load
-- ✅ **Reuse Existing Infrastructure**: Leveraging current upload, parsing, AI, and i18n systems
-- ✅ **Simple Data Model**: JSON array for file IDs, text field for instructions (no new tables)
-- ✅ **Testing Strategy**: Contract tests for new API endpoints, integration tests for AI prompt composition
-- ✅ **Observability**: Logging for reference loading, token usage, and truncation events
+-   **Backward Compatibility**: All new schema fields nullable, existing workflows unchanged
+-   **Graceful Degradation**: System proceeds with grading even if references fail to load
+-   **Reuse Existing Infrastructure**: Leveraging current upload, parsing, AI, and i18n systems
+-   **Simple Data Model**: JSON array for file IDs, text field for instructions (no new tables)
+-   **Testing Strategy**: Contract tests for new API endpoints, integration tests for AI prompt composition
+-   **Observability**: Logging for reference loading, token usage, and truncation events
 
 **Architecture Decisions**:
 

@@ -13,10 +13,10 @@
 
 ### 使用者體驗
 
-- ✅ 點擊按鈕立即響應（< 10ms）
-- ✅ Tab 切換流暢無延遲
-- ✅ 資料始終保持同步
-- ✅ 斷線重連自動恢復
+-   點擊按鈕立即響應（< 10ms）
+-   Tab 切換流暢無延遲
+-   資料始終保持同步
+-   斷線重連自動恢復
 
 ---
 
@@ -39,7 +39,7 @@
 // ❌ 移除
 // const interval = setInterval(updateState, 1000);
 
-// ✅ 保留事件驅動
+//   保留事件驅動
 const unsubscribeConnect = websocketClient.on('connect', updateState);
 const unsubscribeDisconnect = websocketClient.on('disconnect', updateState);
 const unsubscribeError = websocketClient.on('error', updateState);
@@ -116,7 +116,7 @@ export async function clientLoader({ serverLoader }: ClientLoaderFunctionArgs) {
 // ❌ 移除或設為 false
 // clientLoader.hydrate = true;
 
-// ✅ 不設定（預設 false）
+//   不設定（預設 false）
 // 或明確註釋
 // Note: hydrate is intentionally omitted (defaults to false)
 // to prevent double loading on first render
@@ -222,9 +222,9 @@ useWebSocketEvent('connect', () => {
 ```
 
 **效果**：
-- ✅ 斷線重連後自動同步資料
-- ✅ 教師立即看到新通知
-- ✅ 不會遺漏任何更新
+-   斷線重連後自動同步資料
+-   教師立即看到新通知
+-   不會遺漏任何更新
 
 ---
 
@@ -301,9 +301,9 @@ perfMonitor.clear()
 **預期結果**：
 ```javascript
 [PERF START] xxx-layout-loader
-[PERF END] ✅ xxx-layout-auth | Duration: 10-20ms
-[PERF END] ✅ fetch-xxx-courses | Duration: 20-30ms
-[PERF END] ✅ xxx-layout-loader | Duration: 50-100ms
+[PERF END]   xxx-layout-auth | Duration: 10-20ms
+[PERF END]   fetch-xxx-courses | Duration: 20-30ms
+[PERF END]   xxx-layout-loader | Duration: 50-100ms
 
 // 只執行一次，沒有重複！
 ```
@@ -327,7 +327,7 @@ perfMonitor.clear()
 // 第二次切換（5分鐘內）
 [PERF START] xxx-tab-change-to-assignments
 [PERF MARK] 📍 xxx-layout-cache-hit | age: 5000ms
-[PERF END] ✅ xxx-layout-client-loader | Duration: 0.5ms
+[PERF END]   xxx-layout-client-loader | Duration: 0.5ms
 
 // 超快！
 ```
@@ -446,11 +446,11 @@ return () => {
 
 ### 解決方案
 
-✅ 移除 WebSocket 輪詢，改為事件驅動
-✅ 實作 5 分鐘 client-side cache
-✅ 移除 hydration 雙重載入
-✅ 優化 Prisma 查詢結構
-✅ WebSocket 重連後清除 cache 並重新獲取資料
+  移除 WebSocket 輪詢，改為事件驅動
+  實作 5 分鐘 client-side cache
+  移除 hydration 雙重載入
+  優化 Prisma 查詢結構
+  WebSocket 重連後清除 cache 並重新獲取資料
 
 ### 最終效果
 
@@ -462,11 +462,11 @@ return () => {
 
 ### 學生與教師平台一致性
 
-- ✅ 相同的 cache 策略（5 分鐘 TTL）
-- ✅ 相同的性能監控系統
-- ✅ 相同的 WebSocket 重連保護
-- ✅ 統一的優化手法
-- ✅ 一致的高性能表現
+-   相同的 cache 策略（5 分鐘 TTL）
+-   相同的性能監控系統
+-   相同的 WebSocket 重連保護
+-   統一的優化手法
+-   一致的高性能表現
 
 ---
 
@@ -547,7 +547,7 @@ GET /api/updates?since=1699999999999
 
 ---
 
-## ✅ 結論
+##   結論
 
 這次性能優化工作成功將平台的響應速度提升了 **90-99%**，並且建立了完整的性能監控系統。
 

@@ -2,16 +2,16 @@
 
 ## 完成的改進
 
-### 1. ✅ 移除 Debug Logs
+### 1.   移除 Debug Logs
 - 移除所有 `console.log` debug 語句
 - 保持代碼整潔
 
-### 2. ✅ 新增 Favicon 顯示
+### 2.   新增 Favicon 顯示
 - 使用 Google Favicon Service: `https://www.google.com/s2/favicons?domain={domain}&sz=32`
 - 可靠且快速
 - 自動 fallback（如果 favicon 載入失敗會隱藏）
 
-### 3. ✅ 改進的 UI 設計
+### 3.   改進的 UI 設計
 
 #### 新的組件結構
 
@@ -29,7 +29,7 @@
 - Hover 效果
 - 完整的無障礙支援（title attribute）
 
-### 4. ✅ URL 處理
+### 4.   URL 處理
 
 **Domain 提取**：
 ```typescript
@@ -152,12 +152,12 @@ grid grid-cols-1 sm:grid-cols-2
 - 沒有 hover 效果
 
 **現在**：
-- ✅ 視覺化卡片
-- ✅ Favicon 顯示
-- ✅ 清晰的引用編號
-- ✅ 完整的 hover 互動
-- ✅ 響應式佈局
-- ✅ Dark mode 支援
+-   視覺化卡片
+-   Favicon 顯示
+-   清晰的引用編號
+-   完整的 hover 互動
+-   響應式佈局
+-   Dark mode 支援
 
 ---
 

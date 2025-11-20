@@ -243,7 +243,7 @@ export class WebSocketEventHandler {
       if (sockets.length === 0) {
         logger.warn(`[WS EventHandler] ⚠️ No sockets connected to room ${roomName}, notification may not be received`);
       } else {
-        logger.info(`[WS EventHandler] ✅ Notification emitted to ${sockets.length} socket(s) in room ${roomName}`);
+        logger.info(`[WS EventHandler]   Notification emitted to ${sockets.length} socket(s) in room ${roomName}`);
       }
     } catch (error) {
       logger.error(`[WS EventHandler] ❌ Failed to handle submission notification: ${error}`);

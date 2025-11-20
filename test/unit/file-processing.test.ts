@@ -168,7 +168,7 @@ describe('File Processing Logic', () => {
         'user123'
       );
 
-      console.log('✅ File upload workflow completed successfully');
+      console.log('  File upload workflow completed successfully');
     });
 
     it('should handle file validation errors', async () => {
@@ -203,7 +203,7 @@ describe('File Processing Logic', () => {
         expect(result.errorType).toBe(testCase.expectedErrorType);
         expect(result.retryable).toBe(false);
 
-        console.log(`✅ Validation error handled correctly for ${testCase.description}`);
+        console.log(`  Validation error handled correctly for ${testCase.description}`);
       }
     });
 
@@ -259,7 +259,7 @@ describe('File Processing Logic', () => {
         expect(result.errorType).toBe(errorCase.expectedErrorType);
         expect(result.retryable).toBe(errorCase.retryable);
 
-        console.log(`✅ Storage error mapped correctly: ${errorCase.type} -> ${errorCase.expectedErrorType}`);
+        console.log(`  Storage error mapped correctly: ${errorCase.type} -> ${errorCase.expectedErrorType}`);
       }
     });
 
@@ -297,7 +297,7 @@ describe('File Processing Logic', () => {
       // Verify cleanup was attempted (the actual filename includes timestamp)
       expect(deleteFromStorage).toHaveBeenCalledWith(expect.stringMatching(/^uploads\/user123\/\d+-test\.pdf$/));
 
-      console.log('✅ Database error handled with storage cleanup');
+      console.log('  Database error handled with storage cleanup');
     });
 
     it('should handle unsupported file types correctly', async () => {
@@ -336,7 +336,7 @@ describe('File Processing Logic', () => {
       // Verify PDF parsing was NOT triggered for unsupported type
       expect(triggerPdfParsing).not.toHaveBeenCalled();
 
-      console.log('✅ Unsupported file type handled correctly (no parsing triggered)');
+      console.log('  Unsupported file type handled correctly (no parsing triggered)');
     });
 
     it('should handle file name sanitization properly', async () => {
@@ -379,7 +379,7 @@ describe('File Processing Logic', () => {
           expect(sanitizedFileName).not.toContain('  '); // No double spaces
           expect(sanitizedFileName.length).toBeLessThanOrEqual(255);
 
-          console.log(`✅ File name sanitized: "${unsafeName}" -> "${sanitizedFileName}"`);
+          console.log(`  File name sanitized: "${unsafeName}" -> "${sanitizedFileName}"`);
         }
       }
     });
@@ -407,7 +407,7 @@ describe('File Processing Logic', () => {
         },
       });
 
-      console.log('✅ File parse status updated successfully');
+      console.log('  File parse status updated successfully');
     });
 
     it('should handle parse status update failures', async () => {
@@ -418,7 +418,7 @@ describe('File Processing Logic', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Database update failed');
 
-      console.log('✅ Parse status update failure handled correctly');
+      console.log('  Parse status update failure handled correctly');
     });
 
     it('should get user files with filtering and pagination', async () => {
@@ -452,7 +452,7 @@ describe('File Processing Logic', () => {
         skip: 0,
       });
 
-      console.log('✅ User files retrieved with filtering and pagination');
+      console.log('  User files retrieved with filtering and pagination');
     });
 
     it('should get single file with proper authorization', async () => {
@@ -477,7 +477,7 @@ describe('File Processing Logic', () => {
         },
       });
 
-      console.log('✅ Single file retrieved with authorization check');
+      console.log('  Single file retrieved with authorization check');
     });
 
     it('should handle file not found scenarios', async () => {
@@ -488,7 +488,7 @@ describe('File Processing Logic', () => {
       expect(result.file).toBeUndefined();
       expect(result.error).toBe('File not found');
 
-      console.log('✅ File not found scenario handled correctly');
+      console.log('  File not found scenario handled correctly');
     });
   });
 
@@ -523,7 +523,7 @@ describe('File Processing Logic', () => {
         },
       });
 
-      console.log('✅ Soft delete performed for file used in grading');
+      console.log('  Soft delete performed for file used in grading');
     });
 
     it('should perform hard delete for files not used in grading', async () => {
@@ -547,7 +547,7 @@ describe('File Processing Logic', () => {
         where: { id: 'file123' },
       });
 
-      console.log('✅ Hard delete performed for file not used in grading');
+      console.log('  Hard delete performed for file not used in grading');
     });
 
     it('should restore soft-deleted files', async () => {
@@ -574,7 +574,7 @@ describe('File Processing Logic', () => {
         },
       });
 
-      console.log('✅ Soft-deleted file restored successfully');
+      console.log('  Soft-deleted file restored successfully');
     });
   });
 
@@ -601,7 +601,7 @@ describe('File Processing Logic', () => {
         orderBy: { createdAt: 'desc' },
       });
 
-      console.log('✅ Ready files for grading retrieved correctly');
+      console.log('  Ready files for grading retrieved correctly');
     });
 
     it('should cleanup expired files', async () => {
@@ -633,7 +633,7 @@ describe('File Processing Logic', () => {
         },
       });
 
-      console.log('✅ Expired files cleaned up successfully');
+      console.log('  Expired files cleaned up successfully');
     });
 
     it('should handle cleanup when no expired files exist', async () => {
@@ -647,7 +647,7 @@ describe('File Processing Logic', () => {
       // Should not attempt deleteMany when no files found
       expect(db.uploadedFile.deleteMany).not.toHaveBeenCalled();
 
-      console.log('✅ No expired files cleanup handled correctly');
+      console.log('  No expired files cleanup handled correctly');
     });
   });
 
@@ -671,7 +671,7 @@ describe('File Processing Logic', () => {
       expect(result.errorType).toBe('validation');
       expect(result.retryable).toBe(false);
 
-      console.log('✅ File read error handled gracefully');
+      console.log('  File read error handled gracefully');
     });
 
     it('should handle database query failures', async () => {
@@ -683,7 +683,7 @@ describe('File Processing Logic', () => {
       expect(result.total).toBe(0);
       expect(result.error).toBe('Database connection lost');
 
-      console.log('✅ Database query failure handled with fallback values');
+      console.log('  Database query failure handled with fallback values');
     });
 
     it('should validate file authorization correctly', async () => {
@@ -695,7 +695,7 @@ describe('File Processing Logic', () => {
       expect(result.file).toBeUndefined();
       expect(result.error).toBe('File not found');
 
-      console.log('✅ File authorization properly enforced');
+      console.log('  File authorization properly enforced');
     });
   });
 });

@@ -15,11 +15,11 @@ description: Generate a custom checklist for the current feature based on user r
 
 **FOR requirements quality validation**:
 
-- ✅ "Are visual hierarchy requirements defined for all card types?" (completeness)
-- ✅ "Is 'prominent display' quantified with specific sizing/positioning?" (clarity)
-- ✅ "Are hover state requirements consistent across all interactive elements?" (consistency)
-- ✅ "Are accessibility requirements defined for keyboard navigation?" (coverage)
-- ✅ "Does the spec define what happens when logo image fails to load?" (edge cases)
+-   "Are visual hierarchy requirements defined for all card types?" (completeness)
+-   "Is 'prominent display' quantified with specific sizing/positioning?" (clarity)
+-   "Are hover state requirements consistent across all interactive elements?" (consistency)
+-   "Are accessibility requirements defined for keyboard navigation?" (coverage)
+-   "Does the spec define what happens when logo image fails to load?" (edge cases)
 
 **Metaphor**: If your spec is code written in English, the checklist is its unit test suite. You're testing whether the requirements are well-written, complete, unambiguous, and ready for implementation - NOT whether the implementation works.
 
@@ -133,7 +133,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - "Test hover states work on desktop"
    - "Confirm logo click navigates home"
 
-   ✅ **CORRECT** (Testing requirements quality):
+     **CORRECT** (Testing requirements quality):
 
    - "Are the exact number and layout of featured episodes specified?" [Completeness]
    - "Is 'prominent display' quantified with specific sizing/positioning?" [Clarity]
@@ -219,14 +219,14 @@ You **MUST** consider the user input before proceeding (if not empty).
    - ❌ Test cases, test plans, QA procedures
    - ❌ Implementation details (frameworks, APIs, algorithms)
 
-   **✅ REQUIRED PATTERNS** - These test requirements quality:
+   **  REQUIRED PATTERNS** - These test requirements quality:
 
-   - ✅ "Are [requirement type] defined/specified/documented for [scenario]?"
-   - ✅ "Is [vague term] quantified/clarified with specific criteria?"
-   - ✅ "Are requirements consistent between [section A] and [section B]?"
-   - ✅ "Can [requirement] be objectively measured/verified?"
-   - ✅ "Are [edge cases/scenarios] addressed in requirements?"
-   - ✅ "Does the spec define [missing aspect]?"
+   -   "Are [requirement type] defined/specified/documented for [scenario]?"
+   -   "Is [vague term] quantified/clarified with specific criteria?"
+   -   "Are requirements consistent between [section A] and [section B]?"
+   -   "Can [requirement] be objectively measured/verified?"
+   -   "Are [edge cases/scenarios] addressed in requirements?"
+   -   "Does the spec define [missing aspect]?"
 
 6. **Structure Reference**: Generate the checklist following the canonical template in `.specify/templates/checklist-template.md` for title, meta section, category headings, and ID formatting. If template is unavailable, use: H1 title, purpose/created meta lines, `##` category sections containing `- [ ] CHK### <requirement item>` lines with globally incrementing IDs starting at CHK001.
 
@@ -298,7 +298,7 @@ Sample items:
 - [ ] CHK004 - Check that related episodes section shows 3-5 items [Spec §FR-005]
 ```
 
-**✅ CORRECT - These test requirements quality:**
+**  CORRECT - These test requirements quality:**
 
 ```markdown
 - [ ] CHK001 - Are the number and layout of featured episodes explicitly specified? [Completeness, Spec §FR-001]

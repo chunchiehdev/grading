@@ -280,7 +280,7 @@ return {
     chartsCount: chartConfigs.length,
   },
   downloadInstructions: '點擊下載連結即可取得報告 PDF 檔案',
-  markdownResponse: `✅ **學習報告已生成完成！**
+  markdownResponse: `  **學習報告已生成完成！**
 
 📊 **報告內容：**
 - ${userProfile.data ? '✓' : '✗'} 個人檔案
@@ -783,13 +783,13 @@ async function generateMonthlyReports() {
 
 This implementation provides a complete, production-ready student report generation system with:
 
-- ✅ AI-powered content generation
-- ✅ Professional PDF output with charts
-- ✅ Full Chinese/UTF-8 support
-- ✅ Secure download with permission checking
-- ✅ Environment-independent URLs
-- ✅ Scalable storage with MinIO
-- ✅ Comprehensive error handling
-- ✅ Detailed logging and monitoring
+-   AI-powered content generation
+-   Professional PDF output with charts
+-   Full Chinese/UTF-8 support
+-   Secure download with permission checking
+-   Environment-independent URLs
+-   Scalable storage with MinIO
+-   Comprehensive error handling
+-   Detailed logging and monitoring
 
 The system is designed to work seamlessly in both development and production environments, with proper security, performance, and maintainability considerations.

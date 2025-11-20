@@ -149,16 +149,16 @@ Component Re-renders with parseRubricFromMessage()
 
 ### 5. Benefits
 
-✅ **70% Less Code**: From ~1200 lines to ~600 lines
-✅ **No WebSocket Server Required**: Removes entire separate service
-✅ **No Redis Pub/Sub**: Eliminates event-driven complexity
-✅ **Built-in State Management**: `useChat` handles everything
-✅ **Simpler Error Handling**: Direct HTTP error responses
-✅ **Session-based Chat**: No database persistence needed
-✅ **Automatic Retries**: Built into AI SDK
-✅ **Type Safety**: Full TypeScript support
-✅ **Better UX**: No "連接中..." hang issues
-✅ **JSON Parsing Works**: Rubric preview card now appears correctly
+  **70% Less Code**: From ~1200 lines to ~600 lines
+  **No WebSocket Server Required**: Removes entire separate service
+  **No Redis Pub/Sub**: Eliminates event-driven complexity
+  **Built-in State Management**: `useChat` handles everything
+  **Simpler Error Handling**: Direct HTTP error responses
+  **Session-based Chat**: No database persistence needed
+  **Automatic Retries**: Built into AI SDK
+  **Type Safety**: Full TypeScript support
+  **Better UX**: No "連接中..." hang issues
+  **JSON Parsing Works**: Rubric preview card now appears correctly
 
 ### 6. What Was Removed (To Be Cleaned Up Later)
 
@@ -229,11 +229,11 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ### 12. Code Quality
 
-- **Type Safety**: ✅ Full TypeScript coverage
-- **Error Handling**: ✅ Comprehensive error states
-- **Accessibility**: ✅ ARIA labels preserved
-- **Code Style**: ✅ Follows project prettier/eslint config
-- **Documentation**: ✅ Inline comments and JSDoc
+- **Type Safety**:   Full TypeScript coverage
+- **Error Handling**:   Comprehensive error states
+- **Accessibility**:   ARIA labels preserved
+- **Code Style**:   Follows project prettier/eslint config
+- **Documentation**:   Inline comments and JSDoc
 
 ## Conclusion
 

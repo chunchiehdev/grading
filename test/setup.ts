@@ -26,7 +26,7 @@ beforeAll(async () => {
   if (useRealApis) {
     console.log('⚠️  Using REAL external APIs (USE_REAL_APIS=true)');
   } else {
-    console.log('✅ Using mocked APIs (set USE_REAL_APIS=true to use real APIs)');
+    console.log('  Using mocked APIs (set USE_REAL_APIS=true to use real APIs)');
   }
 
   // 🔧 FIX: Reset MSW handlers with fresh handlers that respect current environment
@@ -41,7 +41,7 @@ beforeAll(async () => {
   // Verify database connection
   try {
     await db.$connect();
-    console.log('✅ Database connected successfully');
+    console.log('  Database connected successfully');
   } catch (error) {
     console.error('❌ Database connection failed:', error);
     process.exit(1);

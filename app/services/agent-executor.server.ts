@@ -255,7 +255,7 @@ ${params.content}
             });
 
             if (toolResult) {
-              logger.info(`✅ [Tool Result] ${call.toolName}`, {
+              logger.info(`  [Tool Result] ${call.toolName}`, {
                 success: !toolResult.error,
                 result: toolResult.result,
                 error: toolResult.error,

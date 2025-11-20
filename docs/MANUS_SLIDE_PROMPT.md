@@ -115,10 +115,10 @@
     - QR code for student enrollment
     - Student roster list
     **Key Features** (text on right):
-    - ✅ Create multiple courses
-    - ✅ Set up flexible class times
-    - ✅ Share with QR code or invitation link
-    - ✅ View complete student roster
+    -   Create multiple courses
+    -   Set up flexible class times
+    -   Share with QR code or invitation link
+    -   View complete student roster
     **Animation**: Dashboard elements appear, showing workflow
     **Speaker Notes**: "Teachers can easily create courses, organize multiple class sections, and invite students through QR codes. Everything is centralized in one intuitive dashboard..."
 
@@ -153,7 +153,7 @@
     3. 🎯 Set custom focus areas ("Pay attention to thesis clarity")
     4. 📤 Students submit
     5. 🤖 AI analyzes instantly
-    6. ✅ Detailed feedback appears
+    6.   Detailed feedback appears
     7. ✏️ Teacher adds personal comment
     **Timeline/Process arrows** connecting each step
     **Color**: Alternating card colors, flowing left to right
@@ -187,7 +187,7 @@
     - 🔎 Browse available courses
     - 🔐 Secure enrollment with codes
     - 📱 Scan QR code instantly
-    - ✅ Join in seconds
+    -   Join in seconds
     **Animation**: Course cards appear, search filters work, QR code scans, success checkmark
     **Speaker Notes**: "Students can easily explore courses, search for what interests them, and join using a simple invitation code or by scanning a QR code. Enrollment takes seconds..."
 
@@ -266,7 +266,7 @@
     **AFTER (Right side - Blue/Green tones):**
     - 💻 Clean dashboard
     - ⚡ "15 minutes per assignment"
-    - ✅ Consistent rubric-based feedback
+    -   Consistent rubric-based feedback
     - ⏱️ Instant results for students
     - 😊 Teachers reclaim time for teaching
 

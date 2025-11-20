@@ -93,7 +93,7 @@ async function processQueue() {
       const result = await processGradingResult(job.resultId, job.userId, job.sessionId, job.userLanguage || 'zh');
 
       if (result.success) {
-        logger.info(`✅ Completed grading job for result ${job.resultId}`);
+        logger.info(`  Completed grading job for result ${job.resultId}`);
         consecutive503Errors = 0; // Reset 503 error count on success
         lastProcessingError = null;
       } else {

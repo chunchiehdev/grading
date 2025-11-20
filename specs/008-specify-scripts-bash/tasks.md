@@ -344,9 +344,9 @@ Each task maps to Feature Specification success criteria (SC-001 through SC-009)
 
 **For this sprint, focus on**:
 
-1. ✅ Phase 1-2 (Setup & Foundational) - Foundation must be solid
-2. ✅ Phase 3 (User Story 1) - MVP launchable feature
-3. ✅ Phase 7 (Integration) - Make sure everything works together
+1.   Phase 1-2 (Setup & Foundational) - Foundation must be solid
+2.   Phase 3 (User Story 1) - MVP launchable feature
+3.   Phase 7 (Integration) - Make sure everything works together
 4. Defer Phase 8 (Polish) to next sprint if time-constrained
 
 **Always start with**:

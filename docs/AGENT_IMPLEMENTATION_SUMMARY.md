@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ 已完成的工作
+##   已完成的工作
 
 ### 1. 資料庫層 (Database)
 
@@ -43,7 +43,7 @@ model AgentExecutionLog {
 }
 ```
 
-✅ **Migration 已執行：** `20251103191540_add_agent_grading_fields`
+  **Migration 已執行：** `20251103191540_add_agent_grading_fields`
 
 ---
 
@@ -67,11 +67,11 @@ app/schemas/
 #### 核心功能
 
 **1. Agent 執行器** (`agent-executor.server.ts`)
-- ✅ 使用 AI SDK 6 `generateText()` + tools
-- ✅ 支援最多 15 步驟的多步驟推理
-- ✅ Gemini 2.5 Flash with thinking mode
-- ✅ 完整錯誤處理與 fallback
-- ✅ KeyHealthTracker 整合（多 API Key 支援）
+-   使用 AI SDK 6 `generateText()` + tools
+-   支援最多 15 步驟的多步驟推理
+-   Gemini 2.5 Flash with thinking mode
+-   完整錯誤處理與 fallback
+-   KeyHealthTracker 整合（多 API Key 支援）
 
 **2. 6 個核心工具** (`agent-tools.server.ts`)
 
@@ -85,15 +85,15 @@ app/schemas/
 | `generate_feedback`       | 生成結構化評分反饋             |
 
 **3. Agent Logger** (`agent-logger.server.ts`)
-- ✅ 保存 Agent 執行到資料庫
-- ✅ 提供統計查詢功能
-- ✅ 支援審核記錄
+-   保存 Agent 執行到資料庫
+-   提供統計查詢功能
+-   支援審核記錄
 
 **4. 評分引擎整合** (`grading-engine.server.ts`)
-- ✅ Feature flag 控制（`USE_AGENT_GRADING`）
-- ✅ 與現有流程並行運行
-- ✅ 低信心度自動標記審核
-- ✅ 完整向後相容
+-   Feature flag 控制（`USE_AGENT_GRADING`）
+-   與現有流程並行運行
+-   低信心度自動標記審核
+-   完整向後相容
 
 ---
 
@@ -104,23 +104,23 @@ app/schemas/
 **1. AgentExecutionTimeline** (`app/components/grading/AgentExecutionTimeline.tsx`)
 
 功能：
-- ✅ 步驟式時間軸顯示
-- ✅ 每步驟顯示工具名稱、耗時、推理過程
-- ✅ 工具輸入/輸出可摺疊查看
-- ✅ 信心度徽章（極高/高/中/低）
-- ✅ 統計摘要（總步驟、工具調用、執行時間）
-- ✅ 緊湊版本 `AgentExecutionSummary`（用於列表）
+-   步驟式時間軸顯示
+-   每步驟顯示工具名稱、耗時、推理過程
+-   工具輸入/輸出可摺疊查看
+-   信心度徽章（極高/高/中/低）
+-   統計摘要（總步驟、工具調用、執行時間）
+-   緊湊版本 `AgentExecutionSummary`（用於列表）
 
 **2. 審核佇列頁面** (`app/routes/teacher.agent-review.tsx`)
 
 功能：
-- ✅ 統計面板（待審核、已審核、平均信心度）
-- ✅ 篩選器（pending/reviewed/all）
-- ✅ 評分列表（按信心度升序）
-- ✅ 完整 Agent 執行記錄展示
-- ✅ 批准/重新評分操作
-- ✅ 審核歷史記錄
-- ✅ 即時反饋提示
+-   統計面板（待審核、已審核、平均信心度）
+-   篩選器（pending/reviewed/all）
+-   評分列表（按信心度升序）
+-   完整 Agent 執行記錄展示
+-   批准/重新評分操作
+-   審核歷史記錄
+-   即時反饋提示
 
 **3. 路由註冊** (`app/routes.ts`)
 ```typescript
@@ -156,7 +156,7 @@ GEMINI_API_KEY=your_key_here
 
 2. **[AGENT_QUICK_START.md](./docs/AGENT_QUICK_START.md)**
    - 🚀 5 分鐘快速啟用
-   - ✅ 驗證成功檢查清單
+   -   驗證成功檢查清單
    - ❌ 常見問題排除
    - 📊 查看執行記錄
 
@@ -275,7 +275,7 @@ npm run dev
 ```
 ┌──────────────┬──────────────┬──────────────┐
 │ 待審核       │ 已審核       │ 平均信心度   │
-│ 🕐 12       │ ✅ 45       │ 78.5%        │
+│ 🕐 12       │   45       │ 78.5%        │
 └──────────────┴──────────────┴──────────────┘
 ```
 
@@ -289,7 +289,7 @@ npm run dev
 - Agent 執行摘要（步驟數、信心度）
 - 完整執行時間軸
 - 操作按鈕：
-  - ✅ **批准評分** - 學生立即可見
+  -   **批准評分** - 學生立即可見
   - ❌ **重新評分** - 重新進入評分佇列
   - 👁️ **查看詳情** - 開啟完整評分頁面
 
@@ -311,11 +311,11 @@ npm run dev
 | Token 消耗     | 1000-3000      | 5000-15000          |
 | 成本           | $0.0003        | $0.003 (10x)        |
 | 準確度         | 中等           | 高                  |
-| 透明度         | ❌ 黑盒        | ✅ 完整軌跡         |
-| 信心度評分     | ❌ 無          | ✅ 0-1 分數         |
-| 抄襲檢測       | ❌ 無          | ✅ 內建相似度檢測   |
-| 參考資料整合   | 靜態加入       | ✅ 動態搜尋         |
-| 人工審核機制   | ❌ 無          | ✅ 低信心度自動標記 |
+| 透明度         | ❌ 黑盒        |   完整軌跡         |
+| 信心度評分     | ❌ 無          |   0-1 分數         |
+| 抄襲檢測       | ❌ 無          |   內建相似度檢測   |
+| 參考資料整合   | 靜態加入       |   動態搜尋         |
+| 人工審核機制   | ❌ 無          |   低信心度自動標記 |
 
 ### 效能指標
 
@@ -403,9 +403,9 @@ const tools = {
 ### 短期（1-2 週）
 
 1. **測試與驗證**
-   - ✅ 使用真實作業測試
-   - ✅ 收集老師反饋
-   - ✅ 調整信心度閾值
+   -   使用真實作業測試
+   -   收集老師反饋
+   -   調整信心度閾值
 
 2. **UI 優化**
    - 添加鍵盤快捷鍵（審核佇列）

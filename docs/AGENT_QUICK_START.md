@@ -4,7 +4,7 @@
 
 ---
 
-## ✅ 前置檢查
+##   前置檢查
 
 確保你已完成：
 
@@ -83,7 +83,7 @@ npm run dev
 
 ### 評分結果頁面
 
-✅ **應該看到：**
+  **應該看到：**
 - 🧠 「AI Agent 執行過程」卡片
 - 📊 步驟時間軸（步驟 1、步驟 2、...）
 - 🎯 信心度徽章（極高/高/中/低）
@@ -92,15 +92,15 @@ npm run dev
 
 ### 審核佇列頁面
 
-✅ **應該看到：**
+  **應該看到：**
 - 📋 待審核/已審核/全部 分頁
 - 📊 統計卡片（待審核數量、已審核數量、平均信心度）
 - 📝 評分列表（包含完整 Agent 執行記錄）
-- ✅ 批准/重新評分按鈕
+-   批准/重新評分按鈕
 
 ### Console 日誌
 
-✅ **應該看到：**
+  **應該看到：**
 ```
 🤖 Using Agent grading system
 [Agent Executor] Starting Agent grading
@@ -108,7 +108,7 @@ npm run dev
 [Agent Step] stepNumber: 2, toolName: parse_content
 [Agent Step] stepNumber: 3, toolName: check_similarity
 ...
-✅ Agent grading succeeded
+  Agent grading succeeded
 ```
 
 ---
@@ -232,9 +232,9 @@ AGENT_CONFIDENCE_THRESHOLD=0.6
 ### 2. 優化 Rubric
 
 確保評分標準：
-- ✅ 具體明確（避免「好/不好」等模糊詞）
-- ✅ 有量化指標（例如：「至少 5 個參考文獻」）
-- ✅ 分級描述清楚
+-   具體明確（避免「好/不好」等模糊詞）
+-   有量化指標（例如：「至少 5 個參考文獻」）
+-   分級描述清楚
 
 ### 3. 提供參考資料
 
@@ -247,7 +247,7 @@ AGENT_CONFIDENCE_THRESHOLD=0.6
 
 制定團隊 SOP：
 - 📅 每日檢查審核佇列
-- ✅ 優先處理低信心度評分
+-   優先處理低信心度評分
 - 📊 定期檢視統計數據
 
 ---

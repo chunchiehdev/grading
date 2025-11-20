@@ -114,8 +114,8 @@ return result.toTextStreamResponse();
 **關鍵差異：**
 - ❌ **不需要**系統提示詞要求 JSON 格式
 - ❌ **不需要**在 JSON 外包裹 markdown 代碼塊
-- ✅ AI SDK 自動告訴 AI 要輸出什麼結構
-- ✅ AI SDK 自動驗證輸出
+-   AI SDK 自動告訴 AI 要輸出什麼結構
+-   AI SDK 自動驗證輸出
 
 ### 前端實作 (替代方案)
 ```typescript
@@ -127,7 +127,7 @@ const { object, submit, isLoading } = useObject({
   schema: CourseCreationSchema,  // 👈 直接傳 schema
 });
 
-// ✅ 直接使用，無需解析！
+//   直接使用，無需解析！
 console.log(object?.name);       // 即時更新
 console.log(object?.description); // 即時更新
 console.log(object?.classes);     // 即時更新
@@ -154,8 +154,8 @@ console.log(object?.classes);     // 即時更新
 | **類型安全** | 部分（解析後） | 完全（從頭到尾） |
 | **程式碼複雜度** | 高（需要 parser） | 低（無需 parser） |
 | **穩定性** | 高（標準 API） | 中（experimental） |
-| **訊息歷史** | ✅ 支援多輪對話 | ❌ 單次生成 |
-| **AI 說明文字** | ✅ 可在 JSON 外說明 | ❌ 只有結構化資料 |
+| **訊息歷史** |   支援多輪對話 | ❌ 單次生成 |
+| **AI 說明文字** |   可在 JSON 外說明 | ❌ 只有結構化資料 |
 
 ---
 
@@ -211,10 +211,10 @@ console.log(object?.classes);     // 即時更新
 ```
 
 **前端處理：**
-1. ✅ 直接收到驗證過的物件
-2. ✅ 欄位逐個更新（可以看到 name → code → description 依序出現）
-3. ✅ 無需任何解析
-4. ✅ 顯示預覽卡片
+1.   直接收到驗證過的物件
+2.   欄位逐個更新（可以看到 name → code → description 依序出現）
+3.   無需任何解析
+4.   顯示預覽卡片
 
 **但是：**
 - ❌ 沒有 AI 的說明文字（「這門課程適合大學新生...」）
@@ -224,7 +224,7 @@ console.log(object?.classes);     // 即時更新
 
 ## 為什麼我選擇 streamText() + 手動解析？
 
-### ✅ 優點
+###   優點
 1. **穩定性**：`useChat` 是穩定 API，`experimental_useObject` 可能變更
 2. **一致性**：與現有 Rubric 助手相同模式
 3. **彈性**：AI 可以在 JSON 外提供說明和建議
@@ -241,7 +241,7 @@ console.log(object?.classes);     // 即時更新
 
 ## 什麼情況下應該用 streamObject()？
 
-### ✅ 適合場景
+###   適合場景
 1. **單次生成**：不需要對話，一次就生成完整資料
 2. **純資料輸出**：不需要 AI 的解釋和說明文字
 3. **即時回饋**：想看到欄位逐個填入的效果
@@ -304,7 +304,7 @@ rm app/utils/course-parser.ts
 
 | 方案 | 適用情境 | 程式碼量 | 穩定性 |
 |------|---------|---------|--------|
-| **streamText() + 手動解析**（當前） | 對話式、需要說明、生產環境 | 中 | 高 ✅ |
+| **streamText() + 手動解析**（當前） | 對話式、需要說明、生產環境 | 中 | 高   |
 | **streamObject() + 自動解析** | 單次生成、純資料、快速原型 | 低 | 中 ⚠️ |
 
 **建議：**

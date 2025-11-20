@@ -67,7 +67,7 @@ describe('Student Submission Workflow Integration', () => {
       expect(uploadedFile.parsedContent).toContain('artificial intelligence');
       expect(uploadedFile.mimeType).toBe('application/pdf');
 
-      console.log('✅ Student file upload test passed');
+      console.log('  Student file upload test passed');
     });
 
     it('should handle different file types with appropriate parsing', async () => {
@@ -94,7 +94,7 @@ describe('Student Submission Workflow Integration', () => {
       expect(pdfFile.parsedContent).toBeTruthy();
       expect(wordFile.parsedContent).toBeTruthy();
 
-      console.log('✅ Multiple file type test passed');
+      console.log('  Multiple file type test passed');
     });
   });
 
@@ -128,7 +128,7 @@ describe('Student Submission Workflow Integration', () => {
       expect(uploadedFile.parseStatus).toBe('COMPLETED');
       expect(uploadedFile.parsedContent).toContain('function factorial');
 
-      console.log('✅ Grading session creation test passed');
+      console.log('  Grading session creation test passed');
     });
 
     it('should progress through grading session states', async () => {
@@ -154,7 +154,7 @@ describe('Student Submission Workflow Integration', () => {
       expect(completedSession.status).toBe('COMPLETED');
       expect(completedSession.progress).toBe(100);
 
-      console.log('✅ Grading session states test passed');
+      console.log('  Grading session states test passed');
     });
   });
 
@@ -180,7 +180,7 @@ describe('Student Submission Workflow Integration', () => {
       expect(completedFile.parsedContent).toBeTruthy();
       expect(completedFile.parseError).toBeNull();
 
-      console.log('✅ File parsing error handling test passed');
+      console.log('  File parsing error handling test passed');
     });
   });
 
@@ -258,7 +258,7 @@ describe('Student Submission Workflow Integration', () => {
       expect(gradingSession.userId).toBe(student.id);
       expect(gradingSession.status).toBe('PENDING');
 
-      console.log('✅ Complete assignment workflow test passed');
+      console.log('  Complete assignment workflow test passed');
     });
   });
 });

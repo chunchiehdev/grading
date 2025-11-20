@@ -61,10 +61,10 @@ const gradingTools = [
 - **總計**: ~10 hours (1.5 days)
 
 #### 預期收益
-- ✅ 評分準確度 +20−25% (結構化輸出)
-- ✅ Token 節省 −30% (不再傳整份 rubric)
-- ✅ 錯誤率降 −80% (無 JSON parse 失敗)
-- ✅ 除錯時間 −60% (清晰的 tool call logs)
+-   評分準確度 +20−25% (結構化輸出)
+-   Token 節省 −30% (不再傳整份 rubric)
+-   錯誤率降 −80% (無 JSON parse 失敗)
+-   除錯時間 −60% (清晰的 tool call logs)
 
 #### 代碼改造位置
 ```
@@ -115,10 +115,10 @@ emit("grading_complete", { score: 85, feedback: "..." })
 - **總計**: ~10 hours (1.5 days)
 
 #### 預期收益
-- ✅ 異常評分率 −80% (自檢機制)
-- ✅ 用戶體驗 +50% (即時進度反饋)
-- ✅ 教師信心度 +30% (看到評分過程)
-- ✅ 人工審查工作量 −40% (高品質初評)
+-   異常評分率 −80% (自檢機制)
+-   用戶體驗 +50% (即時進度反饋)
+-   教師信心度 +30% (看到評分過程)
+-   人工審查工作量 −40% (高品質初評)
 
 #### 代碼改造位置
 ```
@@ -174,10 +174,10 @@ const result = await generateObject({
 - **總計**: ~8 hours (1 day)
 
 #### 預期收益
-- ✅ 數據可用性 +100% (結構化評分)
-- ✅ 班級分析時間 −70% (可快速查詢)
-- ✅ 報告生成自動化 +80% (直接 export)
-- ✅ 異常檢測 +50% (confidence score)
+-   數據可用性 +100% (結構化評分)
+-   班級分析時間 −70% (可快速查詢)
+-   報告生成自動化 +80% (直接 export)
+-   異常檢測 +50% (confidence score)
 
 ---
 
@@ -218,8 +218,8 @@ const analysisResult = await generateText({
 - **總計**: ~4 hours (半天)
 
 #### 預期收益
-- ✅ 可評分作業類型 +40% (添加設計/圖像類)
-- ✅ 評分自動化率 +20−30%
+-   可評分作業類型 +40% (添加設計/圖像類)
+-   評分自動化率 +20−30%
 
 ---
 
@@ -261,9 +261,9 @@ const analysisResult = await generateText({
 - **總計**: ~13 hours (2 days)
 
 #### 預期收益
-- ✅ 教師決策時間 −50% (快速找到對標)
-- ✅ 評分一致性 +25−35%
-- ✅ 課程改進建議 +40% (數據驅動)
+-   教師決策時間 −50% (快速找到對標)
+-   評分一致性 +25−35%
+-   課程改進建議 +40% (數據驅動)
 
 #### 優化方向
 ```
@@ -336,8 +336,8 @@ await executeWorkflow(gradingWorkflow, submission);
 - **總計**: ~24 hours (3 days)
 
 #### 預期收益
-- ✅ 靈活性 +100% (教師可自訂工作流)
-- ✅ 人工審查效率 +60% (自動路由)
+-   靈活性 +100% (教師可自訂工作流)
+-   人工審查效率 +60% (自動路由)
 
 ---
 
@@ -405,10 +405,10 @@ await executeWorkflow(gradingWorkflow, submission);
 ### 代碼改動最小化
 
 **不需要改動:**
-- ✅ WebSocket 架構 (已完善)
-- ✅ BullMQ 隊列 (只改 job handler)
-- ✅ 數據庫 schema (Structured Output 用額外欄位)
-- ✅ React Router v7 (新增 API endpoint)
+-   WebSocket 架構 (已完善)
+-   BullMQ 隊列 (只改 job handler)
+-   數據庫 schema (Structured Output 用額外欄位)
+-   React Router v7 (新增 API endpoint)
 
 **需要新增:**
 - ⚠️ Tool definitions (JSON schema)
@@ -496,7 +496,7 @@ Day 3:
 
 ---
 
-## ✅ 檢查清單
+##   檢查清單
 
 - [ ] 安裝 AI SDK v6 (`npm install ai`)
 - [ ] 確認 Gemini API key 有 Tool Calling 權限
@@ -529,7 +529,7 @@ Day 3:
 **預期投資回報率 (ROI)**:
 - 工作量: 28−40 小時 (1 週集中開發)
 - 收益: 評分品質 +40−60%，用戶體驗 +50%，人工審查 −40%
-- **值得做** ✅
+- **值得做**  
 
 ---
 

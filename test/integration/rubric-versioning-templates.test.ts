@@ -88,7 +88,7 @@ describe('Rubric Versioning & Templates Integration', () => {
       expect(templates).toHaveLength(1);
       expect(templates[0].id).toBe(templateRubric.id);
 
-      console.log('✅ Rubric template creation test passed');
+      console.log('  Rubric template creation test passed');
       console.log(`   • Template: "${templateRubric.name}"`);
       console.log(`   • Criteria count: ${templateRubric.criteria.length}`);
       console.log(`   • Template ID: ${templateRubric.id}`);
@@ -201,7 +201,7 @@ describe('Rubric Versioning & Templates Integration', () => {
       const uniqueCourseIds = new Set(courseIds);
       expect(uniqueCourseIds.size).toBe(3); // Template used in 3 different courses
 
-      console.log('✅ Template reuse across courses test passed');
+      console.log('  Template reuse across courses test passed');
       console.log(`   • Template used in ${assignments.length} assignments`);
       console.log(`   • Across ${uniqueCourseIds.size} different courses`);
       console.log(`   • Courses: ${templateWithUsage!.assignmentAreas.map((a) => a.course.name).join(', ')}`);
@@ -262,7 +262,7 @@ describe('Rubric Versioning & Templates Integration', () => {
 
       expect(allTeacherRubrics).toHaveLength(3);
 
-      console.log('✅ Template vs regular rubric distinction test passed');
+      console.log('  Template vs regular rubric distinction test passed');
       console.log(`   • Templates: ${templates.length}`);
       console.log(`   • Regular rubrics: ${regularRubrics.length}`);
       console.log(`   • Total rubrics: ${allTeacherRubrics.length}`);
@@ -397,7 +397,7 @@ describe('Rubric Versioning & Templates Integration', () => {
       expect(v1MaxScore).toBe(70); // 30 + 40
       expect(v2MaxScore).toBe(100); // 25 + 35 + 25 + 15
 
-      console.log('✅ Rubric versioning test passed');
+      console.log('  Rubric versioning test passed');
       console.log(`   • v1.0: ${originalRubric.criteria.length} criteria, ${v1MaxScore} points total`);
       console.log(`   • v2.0: ${improvedRubric.criteria.length} criteria, ${v2MaxScore} points total`);
       console.log(`   • Added: Data Visualization, Interpretation & Conclusions`);
@@ -479,7 +479,7 @@ describe('Rubric Versioning & Templates Integration', () => {
       expect(fallAssignment.rubricId).toBe(rubricV1.id);
       expect(springAssignment.rubricId).toBe(rubricV2.id);
 
-      console.log('✅ Multi-version usage tracking test passed');
+      console.log('  Multi-version usage tracking test passed');
       console.log(`   • V1 used in: ${v1Usage!.assignmentAreas[0].course.name}`);
       console.log(`   • V2 used in: ${v2Usage!.assignmentAreas[0].course.name}`);
     });
@@ -611,7 +611,7 @@ describe('Rubric Versioning & Templates Integration', () => {
         expect(template.criteria.length).toBeGreaterThan(0);
       });
 
-      console.log('✅ Template discovery test passed');
+      console.log('  Template discovery test passed');
       console.log(`   • Total discoverable templates: ${allTemplates.length}`);
       console.log(`   • Disciplines: Math, Science, English`);
       console.log(`   • Template creators: ${new Set(teacherEmails).size} different teachers`);
@@ -730,7 +730,7 @@ describe('Rubric Versioning & Templates Integration', () => {
       // Verify template criteria integrity - check we have 2 criteria
       expect(templateAfterUse!.criteria).toHaveLength(2);
 
-      console.log('✅ Template integrity across multiple users test passed');
+      console.log('  Template integrity across multiple users test passed');
       console.log(`   • Template owner: ${originalTeacher.email}`);
       console.log(`   • Users: ${usingTeachers.join(', ')}`);
       console.log(`   • Total usage: ${templateAfterUse!.assignmentAreas.length} assignments`);

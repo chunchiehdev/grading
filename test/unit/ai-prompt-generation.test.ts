@@ -35,24 +35,24 @@ describe('AI Prompt Generation Logic', () => {
       expect(instruction).toContain('具體建議');
       expect(instruction).toContain('建設性回饋');
 
-      console.log('✅ System instruction contains all required elements');
+      console.log('  System instruction contains all required elements');
     });
 
     it('should contain specific JSON formatting guidelines', () => {
       const instruction = GeminiPrompts.generateSystemInstruction();
 
       // JSON syntax requirements
-      expect(instruction).toContain('✅ 雙引號包圍所有屬性名和字串值');
-      expect(instruction).toContain('✅ 引用內容使用「」而非""');
-      expect(instruction).toContain('✅ 所有括號必須正確閉合');
-      expect(instruction).toContain('✅ 語法完全有效，可直接解析');
+      expect(instruction).toContain('  雙引號包圍所有屬性名和字串值');
+      expect(instruction).toContain('  引用內容使用「」而非""');
+      expect(instruction).toContain('  所有括號必須正確閉合');
+      expect(instruction).toContain('  語法完全有效，可直接解析');
 
       // Common error prevention
       expect(instruction).toContain('最後一個數組或對象項目後不要加逗號');
       expect(instruction).toContain('避免在字串內使用換行符');
       expect(instruction).toContain('使用 \\n 代替');
 
-      console.log('✅ JSON formatting guidelines are comprehensive');
+      console.log('  JSON formatting guidelines are comprehensive');
     });
 
     it('should maintain consistent language and tone', () => {
@@ -70,9 +70,9 @@ describe('AI Prompt Generation Logic', () => {
       // Traditional Chinese consistency (check for simplified Chinese characters)
       // Note: Skipping this test as the implementation uses traditional Chinese correctly
       // and the false positive might be due to a unicode character issue
-      console.log('✅ Skipping traditional Chinese character check (implementation verified)');
+      console.log('  Skipping traditional Chinese character check (implementation verified)');
 
-      console.log('✅ Language and tone are consistent and professional');
+      console.log('  Language and tone are consistent and professional');
     });
   });
 
@@ -144,7 +144,7 @@ describe('AI Prompt Generation Logic', () => {
       expect(prompt).toContain('breakdown');
       expect(prompt).toContain('criteriaId');
 
-      console.log('✅ File grading prompt includes all required elements');
+      console.log('  File grading prompt includes all required elements');
     });
 
     it('should handle criteria with categories', () => {
@@ -230,7 +230,7 @@ describe('AI Prompt Generation Logic', () => {
       expect(prompt).toContain('按照類別結構理解評分標準的邏輯分組');
       expect(prompt).toContain('更有組織性的評分分析');
 
-      console.log('✅ Categorized criteria are properly formatted');
+      console.log('  Categorized criteria are properly formatted');
     });
 
     it('should calculate total score correctly', () => {
@@ -258,7 +258,7 @@ describe('AI Prompt Generation Logic', () => {
       expect(prompt).toContain('100 分');
       expect(prompt).toContain('"maxScore": 100');
 
-      console.log('✅ Total score calculation is accurate');
+      console.log('  Total score calculation is accurate');
     });
 
     it('should handle edge cases gracefully', () => {
@@ -296,7 +296,7 @@ describe('AI Prompt Generation Logic', () => {
         expect(prompt).toContain('Simple Criterion');
       }).not.toThrow();
 
-      console.log('✅ Edge cases handled without errors');
+      console.log('  Edge cases handled without errors');
     });
   });
 
@@ -365,7 +365,7 @@ describe('AI Prompt Generation Logic', () => {
       expect(prompt).toContain('breakdown');
       expect(prompt).toContain('overallFeedback');
 
-      console.log('✅ Text grading prompt includes content and requirements');
+      console.log('  Text grading prompt includes content and requirements');
     });
 
     it('should use simple output format for text grading', () => {
@@ -391,7 +391,7 @@ describe('AI Prompt Generation Logic', () => {
       expect(prompt).toContain('feedback');
       expect(prompt).toContain('overallFeedback');
 
-      console.log('✅ Text grading uses simplified output format');
+      console.log('  Text grading uses simplified output format');
     });
   });
 
@@ -427,7 +427,7 @@ describe('AI Prompt Generation Logic', () => {
       expect(estimatedTokens).toBeLessThan(8000);
       expect(prompt.length).toBeGreaterThan(1000); // Should be substantial
 
-      console.log(`✅ Large prompt size: ${prompt.length} chars (~${Math.round(estimatedTokens)} tokens)`);
+      console.log(`  Large prompt size: ${prompt.length} chars (~${Math.round(estimatedTokens)} tokens)`);
     });
 
     it('should maintain prompt clarity regardless of complexity', () => {
@@ -481,7 +481,7 @@ describe('AI Prompt Generation Logic', () => {
       expect(prompt).toContain(`"${c3Id}"`);
       expect(prompt).toContain(`"${c4Id}"`);
 
-      console.log('✅ Complex prompts maintain clear structure');
+      console.log('  Complex prompts maintain clear structure');
     });
 
     it('should include all critical elements consistently', () => {
@@ -519,7 +519,7 @@ describe('AI Prompt Generation Logic', () => {
           expect(prompt).toContain(element);
         });
 
-        console.log(`✅ Request ${index + 1} contains all critical elements`);
+        console.log(`  Request ${index + 1} contains all critical elements`);
       });
     });
   });
@@ -546,7 +546,7 @@ describe('AI Prompt Generation Logic', () => {
       // Should start with proper content (dedented)
       expect(prompt).toContain('請對上傳的文件進行專業評分分析：');
 
-      console.log('✅ Text dedenting works correctly');
+      console.log('  Text dedenting works correctly');
     });
 
     it('should handle empty or whitespace-only input', () => {
@@ -560,7 +560,7 @@ describe('AI Prompt Generation Logic', () => {
       // Should have meaningful content
       expect(instruction.trim().length).toBeGreaterThan(0);
 
-      console.log('✅ Empty/whitespace handling is correct');
+      console.log('  Empty/whitespace handling is correct');
     });
   });
 });

@@ -36,7 +36,7 @@ React Router v7 application structure:
 - [x] T003 [P] Create TypeScript type definitions in app/types/assignment.ts (AssignmentAreaWithReferences, ReferenceFileUsage)
 - [x] T004 [P] Extend GradingRequest interface in app/types/grading.ts (add assignmentAreaId and language fields)
 
-**Checkpoint**: Schema and types ready for implementation ✅
+**Checkpoint**: Schema and types ready for implementation  
 
 ---
 
@@ -51,7 +51,7 @@ React Router v7 application structure:
 - [x] T007 [P] Update Zod validation schema in app/schemas/assignment.ts (add referenceFileIds array validation, customGradingPrompt length validation)
 - [x] T008 [P] Create assignment-area service in app/services/assignment-area.server.ts (CRUD operations for reference files and instructions)
 
-**Checkpoint**: Foundation ready - user story implementation can now begin in parallel ✅
+**Checkpoint**: Foundation ready - user story implementation can now begin in parallel  
 
 ---
 
@@ -73,7 +73,7 @@ React Router v7 application structure:
 - [x] T016 [US1] Add error handling for failed file parsing in ReferenceFileUpload component (show retry/remove buttons)
 - [x] T017 [US1] Add logging for reference file operations in app/services/assignment-area.server.ts (upload, parse, associate)
 
-**Checkpoint**: Teachers can upload reference materials and view parsing status - US1 complete ✅
+**Checkpoint**: Teachers can upload reference materials and view parsing status - US1 complete  
 
 ---
 
@@ -94,7 +94,7 @@ React Router v7 application structure:
 - [x] T024 [US2] Update assignment detail view in app/routes/teacher/assignments.$id.tsx (display custom instructions if present)
 - [x] T025 [US2] Add logging for custom instruction operations in app/services/assignment-area.server.ts
 
-**Checkpoint**: Teachers can provide and edit custom grading instructions - US2 complete ✅
+**Checkpoint**: Teachers can provide and edit custom grading instructions - US2 complete  
 
 ---
 
@@ -122,7 +122,7 @@ React Router v7 application structure:
 - [x] T039 [US3] Update GET /api/grading/session/:sessionId endpoint in app/api/grading/session.ts (return usedContext in response)
 - [x] T040 [US3] Add context transparency fields to grading result display in app/routes/teacher/submissions.$id.tsx (show which references were used)
 
-**Checkpoint**: AI grading now uses full context - feedback references uploaded materials - US3 complete ✅
+**Checkpoint**: AI grading now uses full context - feedback references uploaded materials - US3 complete  
 
 ---
 
@@ -142,7 +142,7 @@ React Router v7 application structure:
 - [x] T046 [US4] Add language fallback logic in app/services/grading-engine.server.ts (default to 'zh' if language not provided)
 - [x] T047 [US4] Add logging for language detection in processGradingResult (log "Grading with language: [zh/en]")
 
-**Checkpoint**: AI feedback language matches user interface language - US4 complete ✅
+**Checkpoint**: AI feedback language matches user interface language - US4 complete  
 
 ---
 
@@ -161,7 +161,7 @@ React Router v7 application structure:
 - [x] T052 [US5] Update submission detail view to show teacher-reviewed status when teacher modifies AI grade
 - [x] T053 [US5] Add logging for teacher overrides in app/services/grading-engine.server.ts (track when teacher changes AI grade)
 
-**Checkpoint**: Teachers have full transparency and control over AI grading - US5 complete ✅
+**Checkpoint**: Teachers have full transparency and control over AI grading - US5 complete  
 
 ---
 

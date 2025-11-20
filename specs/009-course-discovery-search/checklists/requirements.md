@@ -31,7 +31,7 @@
 
 ## Validation Summary
 
-**Status**: ✅ READY FOR PLANNING
+**Status**:   READY FOR PLANNING
 
 All checklist items have passed validation. The specification is complete, unambiguous, and ready to proceed with `/speckit.plan`.
 

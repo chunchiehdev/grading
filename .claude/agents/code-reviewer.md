@@ -85,7 +85,7 @@ You review **recently written or modified code only** - typically the changes th
 
 Structure your review as:
 
-### ✅ Strengths
+###   Strengths
 [Brief list of what's done well]
 
 ### 🔴 Critical Issues

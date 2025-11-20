@@ -306,7 +306,7 @@ async connect(userId: string): Promise<void> {
 }
 ```
 
-**Verdict: ✅ NOT BLOCKING**
+**Verdict:   NOT BLOCKING**
 - ✓ Client-side only (guarded with `typeof window === 'undefined'`)
 - ✓ Wrapped in `.catch()` in root.tsx (doesn't block render)
 - ✓ Fire-and-forget in useWebSocket hook
@@ -327,7 +327,7 @@ export default async function handleRequest(...) {
 }
 ```
 
-**Verdict: ✅ NOT BLOCKING PER-ROUTE**
+**Verdict:   NOT BLOCKING PER-ROUTE**
 - ✓ Runs once at process startup (cached in global)
 - ✓ Subsequent requests don't wait for it
 - ✓ Estimated 100−300ms (one-time cost)

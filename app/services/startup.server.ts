@@ -64,7 +64,7 @@ export class StartupService {
 
       state.initialized = true;
       state.initializationInProgress = false;
-      logger.info('✅ System initialization completed successfully');
+      logger.info('System initialization completed successfully');
     } catch (error) {
       logger.error('System initialization failed:', error);
       state.initializationInProgress = false;
@@ -141,10 +141,10 @@ export class StartupService {
         logger.info('⏳ Closing BullMQ grading services...');
         const { closeGradingServices } = await import('./bullmq-grading.server.js');
         await closeGradingServices();
-        logger.info('✅ BullMQ grading services closed');
+        logger.info('  BullMQ grading services closed');
 
 
-        logger.info('✅ Graceful shutdown completed successfully');
+        logger.info('  Graceful shutdown completed successfully');
         process.exit(0);
       } catch (error) {
         logger.error('❌ Error during graceful shutdown:', error);
@@ -166,7 +166,7 @@ export class StartupService {
       process.exit(1);
     });
 
-    logger.info('✅ Graceful shutdown handlers registered');
+    logger.info('Graceful shutdown handlers registered');
   }
 
   /**

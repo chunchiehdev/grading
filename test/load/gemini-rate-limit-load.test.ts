@@ -137,7 +137,7 @@ describe('Gemini 2.0 Flash Rate Limit Load Tests', () => {
               );
             } else {
               console.log(
-                `✅ Request ${i + 1}: Success (${rateLimitTracker.getRequestsInCurrentMinute()}/15 this minute)`
+                `  Request ${i + 1}: Success (${rateLimitTracker.getRequestsInCurrentMinute()}/15 this minute)`
               );
             }
           } catch (error) {
@@ -170,7 +170,7 @@ describe('Gemini 2.0 Flash Rate Limit Load Tests', () => {
         const averageResponseTime = results.reduce((sum, r) => sum + r.responseTime, 0) / results.length;
 
         console.log('\n📊 Rate Limit Test Results:');
-        console.log(`✅ Successful requests: ${successfulRequests}/${results.length}`);
+        console.log(`  Successful requests: ${successfulRequests}/${results.length}`);
         console.log(`⚠️  Rate limited requests: ${rateLimitedRequests}`);
         console.log(`⏱️  Average response time: ${Math.round(averageResponseTime)}ms`);
         console.log(`🔄 Rate limit hit: ${rateLimitHit}`);
@@ -181,7 +181,7 @@ describe('Gemini 2.0 Flash Rate Limit Load Tests', () => {
         expect(rateLimitedRequests).toBeGreaterThan(0); // Some requests should be rate limited
         expect(successfulRequests).toBeGreaterThan(10); // At least some should succeed
 
-        console.log('✅ Rate limit validation test completed');
+        console.log('  Rate limit validation test completed');
       },
       180000
     ); // 3 minute timeout
@@ -224,12 +224,12 @@ describe('Gemini 2.0 Flash Rate Limit Load Tests', () => {
         rateLimitTracker.recordRequest(150);
         costTracker.recordRequest(100, 50);
 
-        console.log(`✅ Recovery test: ${result.success ? 'Success' : 'Failed'} in ${responseTime}ms`);
+        console.log(`  Recovery test: ${result.success ? 'Success' : 'Failed'} in ${responseTime}ms`);
 
         expect(result.success).toBe(true);
         expect(responseTime).toBeLessThan(15000); // Should be faster after recovery
 
-        console.log('✅ Rate limit recovery test completed');
+        console.log('  Rate limit recovery test completed');
       },
       60000
     );
@@ -330,7 +330,7 @@ describe('Gemini 2.0 Flash Rate Limit Load Tests', () => {
           results.push(...batchResults);
 
           console.log(
-            `✅ Batch ${Math.floor(i / concurrencyLimit) + 1} completed: ${batchResults.filter((r) => r.success).length}/${batchResults.length} successful`
+            `  Batch ${Math.floor(i / concurrencyLimit) + 1} completed: ${batchResults.filter((r) => r.success).length}/${batchResults.length} successful`
           );
 
           // Wait between batches to respect rate limits
@@ -352,7 +352,7 @@ describe('Gemini 2.0 Flash Rate Limit Load Tests', () => {
         const averageResponseTime = results.reduce((sum, r) => sum + r.responseTime, 0) / results.length;
 
         console.log('\n📊 Concurrent Processing Results:');
-        console.log(`✅ Successful submissions: ${successfulSubmissions}/${results.length}`);
+        console.log(`  Successful submissions: ${successfulSubmissions}/${results.length}`);
         console.log(`❌ Failed submissions: ${failedSubmissions}`);
         console.log(`⏱️  Average response time: ${Math.round(averageResponseTime)}ms`);
         console.log(`🔄 Rate limit status:`, rateLimitTracker.getStatus());
@@ -363,7 +363,7 @@ describe('Gemini 2.0 Flash Rate Limit Load Tests', () => {
         expect(successfulSubmissions).toBeGreaterThan(10); // At least half should succeed
         expect(averageResponseTime).toBeLessThan(30000); // Average under 30 seconds
 
-        console.log('✅ Concurrent PDF processing test completed');
+        console.log('  Concurrent PDF processing test completed');
       },
       600000
     ); // 10 minute timeout for full concurrent test
@@ -425,7 +425,7 @@ describe('Gemini 2.0 Flash Rate Limit Load Tests', () => {
         const averageOpTime = results.filter((r) => r.success).reduce((sum, r) => sum + r.time, 0) / successful;
 
         console.log('\n📊 Database Load Results:');
-        console.log(`✅ Successful operations: ${successful}/${results.length}`);
+        console.log(`  Successful operations: ${successful}/${results.length}`);
         console.log(`❌ Failed operations: ${failed}`);
         console.log(`⏱️  Total time: ${totalTime}ms`);
         console.log(`⏱️  Average operation time: ${Math.round(averageOpTime)}ms`);
@@ -435,7 +435,7 @@ describe('Gemini 2.0 Flash Rate Limit Load Tests', () => {
         expect(averageOpTime).toBeLessThan(5000); // Under 5 seconds per operation
         expect(totalTime).toBeLessThan(30000); // Total under 30 seconds
 
-        console.log('✅ Database connection load test completed');
+        console.log('  Database connection load test completed');
       },
       60000
     );

@@ -54,8 +54,8 @@ type UIToolInvocation = {
   // 狀態可以是：
   state:
     | 'input-streaming'      // ⏳ 輸入正在串流
-    | 'input-available'      // ✅ 輸入完成
-    | 'output-available'     // ✅ 輸出可用
+    | 'input-available'      //   輸入完成
+    | 'output-available'     //   輸出可用
     | 'error';               // ❌ 執行錯誤
 
   input: any;     // 工具的輸入參數
@@ -475,7 +475,7 @@ const currentStepNumber = stepStartIndices.length;
 
 使用不同顏色和圖示：
 - ⏳ 黃色：執行中 (`input-streaming`, `input-available`)
-- ✅ 綠色：完成 (`output-available`)
+-   綠色：完成 (`output-available`)
 - ❌ 紅色：錯誤 (`error`)
 
 ### 3. **漸進式顯示**

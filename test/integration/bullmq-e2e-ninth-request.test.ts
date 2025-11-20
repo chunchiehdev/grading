@@ -93,7 +93,7 @@ describe('BullMQ E2E - Ninth Request Rate Limiting', () => {
       7
     );
 
-    console.log(`✅ Test setup complete:`);
+    console.log(`  Test setup complete:`);
     console.log(`   • Teacher: ${teacher.email}`);
     console.log(`   • Students: ${students.length}`);
     console.log(`   • Course: ${course.name}`);
@@ -218,11 +218,11 @@ describe('BullMQ E2E - Ninth Request Rate Limiting', () => {
       // at least some should be delayed or waiting
       if (totalJobs >= 9) {
         const hasBottleneck = status.waiting > 0 || status.delayed > 0;
-        console.log(`\n   ✅ Has bottleneck (9th+ job delayed/waiting): ${hasBottleneck}`);
+        console.log(`\n     Has bottleneck (9th+ job delayed/waiting): ${hasBottleneck}`);
         expect(hasBottleneck).toBe(true);
 
         // Verify rate limiting was detected
-        console.log(`   ✅ isRateLimited detected: ${status.isRateLimited}`);
+        console.log(`     isRateLimited detected: ${status.isRateLimited}`);
         expect(status.isRateLimited).toBe(true);
       }
 
@@ -250,7 +250,7 @@ describe('BullMQ E2E - Ninth Request Rate Limiting', () => {
       }
 
       // STEP 7: Show expected outcomes
-      console.log('\n✅ STEP 7: Test Results');
+      console.log('\n  STEP 7: Test Results');
 
       console.log(`\n   Queue Configuration:`);
       console.log(`   • Max concurrent: 8`);
@@ -261,7 +261,7 @@ describe('BullMQ E2E - Ninth Request Rate Limiting', () => {
       console.log(`   • Jobs submitted: 9`);
       console.log(`   • Jobs active: ${status.active} (≤ 8 ✓)`);
       console.log(`   • Jobs bottlenecked: ${status.waiting + status.delayed}`);
-      console.log(`   • Rate limit active: ${status.isRateLimited ? '✅ YES' : '❌ NO'}`);
+      console.log(`   • Rate limit active: ${status.isRateLimited ? '  YES' : '❌ NO'}`);
 
       // Note about API calls
       console.log(`\n   API Calls Status:`);
@@ -318,9 +318,9 @@ describe('BullMQ E2E - Ninth Request Rate Limiting', () => {
       console.log('\n📚 How to Enable Real Gemini API Calls');
 
       console.log(`\n   Current setup:`);
-      console.log(`   • Database: ✅ Connected (Postgres)`);
-      console.log(`   • Queue: ✅ Connected (Redis BullMQ)`);
-      console.log(`   • API Key: ${process.env.GEMINI_API_KEY ? '✅ Set' : '❌ Not set'}`);
+      console.log(`   • Database:   Connected (Postgres)`);
+      console.log(`   • Queue:   Connected (Redis BullMQ)`);
+      console.log(`   • API Key: ${process.env.GEMINI_API_KEY ? '  Set' : '❌ Not set'}`);
 
       console.log(`\n   To enable Gemini API calls:`);
       console.log(`   1. Get your API key from: https://ai.google.dev`);

@@ -59,7 +59,7 @@ Since we migrated to direct HTTP streaming with Vercel AI SDK, this service is *
 -   try {
 -     logger.info('🤖 Starting AI Handler Service...');
 -     await aiHandlerService.start();
--     logger.info('✅ AI Handler Service started successfully');
+-     logger.info('  AI Handler Service started successfully');
 -   } catch (error) {
 -     logger.error('❌ Failed to start AI Handler Service:', error);
 -     throw error; // AI 服務是關鍵組件，啟動失敗應該停止系統
@@ -76,7 +76,7 @@ Since we migrated to direct HTTP streaming with Vercel AI SDK, this service is *
 -     // 1. 停止 AI 處理服務
 -     logger.info('⏳ Stopping AI Handler Service...');
 -     await aiHandlerService.stop();
--     logger.info('✅ AI Handler Service stopped');
+-     logger.info('  AI Handler Service stopped');
 -
 -     // 2. 給 BullMQ Worker 時間完成當前處理的 jobs
 +     // 1. 給 BullMQ Worker 時間完成當前處理的 jobs

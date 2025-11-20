@@ -21,7 +21,7 @@ export const analyzeRubricTool = tool({
 ```typescript
 export const analyzeRubricTool = tool({
   description: '...',
-  inputSchema: AnalyzeRubricInputSchema,  // ✅ 正確！
+  inputSchema: AnalyzeRubricInputSchema,  //   正確！
   execute: async ({ rubricName, criteria }) => { ... }
 });
 ```
@@ -49,7 +49,7 @@ import { generateText, stepCountIs } from 'ai';
 const result = await generateText({
   model,
   tools: agentTools,
-  stopWhen: stepCountIs(15),  // ✅ 正確！允許最多 15 步工具調用
+  stopWhen: stepCountIs(15),  //   正確！允許最多 15 步工具調用
   // ...
 });
 ```
@@ -69,12 +69,12 @@ const result = await generateText({
 
 修復了 `app/services/agent-tools.server.ts` 中的所有 6 個工具：
 
-1. ✅ `analyze_rubric` - 分析評分標準
-2. ✅ `parse_content` - 解析作業內容
-3. ✅ `search_reference` - 搜尋參考資料
-4. ✅ `check_similarity` - 檢查相似度
-5. ✅ `calculate_confidence` - 計算信心度
-6. ✅ `generate_feedback` - 生成最終反饋
+1.   `analyze_rubric` - 分析評分標準
+2.   `parse_content` - 解析作業內容
+3.   `search_reference` - 搜尋參考資料
+4.   `check_similarity` - 檢查相似度
+5.   `calculate_confidence` - 計算信心度
+6.   `generate_feedback` - 生成最終反饋
 
 所有工具都已從 `parameters` 改為 `inputSchema`，並移除了不必要的 `@ts-expect-error` 註解。
 
@@ -132,20 +132,20 @@ cat .env | grep USE_AGENT_GRADING
 ```
 🤖 Using Agent grading system
 [Agent Executor] Starting Agent grading
-[Agent Step] stepNumber: 1, toolName: analyze_rubric      ✅ 工具調用！
-[Agent Step] stepNumber: 2, toolName: parse_content       ✅ 工具調用！
-[Agent Step] stepNumber: 3, toolName: search_reference    ✅ 可選
-[Agent Step] stepNumber: 4, toolName: check_similarity    ✅ 可選
-[Agent Step] stepNumber: 5, toolName: calculate_confidence ✅ 工具調用！
-[Agent Step] stepNumber: 6, toolName: generate_feedback   ✅ 最終工具！
-✅ Agent grading succeeded
+[Agent Step] stepNumber: 1, toolName: analyze_rubric        工具調用！
+[Agent Step] stepNumber: 2, toolName: parse_content         工具調用！
+[Agent Step] stepNumber: 3, toolName: search_reference      可選
+[Agent Step] stepNumber: 4, toolName: check_similarity      可選
+[Agent Step] stepNumber: 5, toolName: calculate_confidence   工具調用！
+[Agent Step] stepNumber: 6, toolName: generate_feedback     最終工具！
+  Agent grading succeeded
 ```
 
 **關鍵指標：**
-- ✅ 總步驟數應該 > 5
-- ✅ 應該看到多個 `[Agent Step]` 日誌
-- ✅ 至少要有 `analyze_rubric`, `parse_content`, `calculate_confidence`, `generate_feedback` 這 4 個工具被調用
-- ✅ 最後應該顯示 `Agent grading succeeded`
+-   總步驟數應該 > 5
+-   應該看到多個 `[Agent Step]` 日誌
+-   至少要有 `analyze_rubric`, `parse_content`, `calculate_confidence`, `generate_feedback` 這 4 個工具被調用
+-   最後應該顯示 `Agent grading succeeded`
 
 ### 5. 檢查評分結果
 
@@ -164,7 +164,7 @@ cat .env | grep USE_AGENT_GRADING
 - 📋 應該能看到待審核/已審核/全部分頁
 - 📊 統計卡片顯示待審核數量
 - 📝 評分列表包含完整 Agent 執行記錄
-- ✅ 批准/重新評分按鈕可用
+-   批准/重新評分按鈕可用
 
 ## 🔍 故障排除
 
@@ -272,4 +272,4 @@ grep "@ts-expect-error" app/services/agent-tools.server.ts
 
 **問題嚴重性：** Critical（核心功能無法使用）
 
-**修復狀態：** ✅ 已修復，等待測試驗證
+**修復狀態：**   已修復，等待測試驗證

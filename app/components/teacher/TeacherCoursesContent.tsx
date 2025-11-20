@@ -84,7 +84,7 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
                             <Link to={`/teacher/courses/${course.id}/edit`}>{t('course:edit.title')}</Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link to={`/teacher/courses/${course.id}/settings`}>{t('course:settings')}</Link>
+                            <Link to={`/teacher/courses/${course.id}/settings`}>{t('course:settings.title')}</Link>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>

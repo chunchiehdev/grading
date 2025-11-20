@@ -59,7 +59,7 @@ export class AIGrader {
       const result = await geminiService.gradeDocument({ ...request, language: userLanguage }, userLanguage);
 
       if (result.success && result.result) {
-        logger.info(`✅ Gemini grading succeeded for: ${request.fileName}`);
+        logger.info(`  Gemini grading succeeded for: ${request.fileName}`);
         return {
           success: true,
           result: result.result,
@@ -84,7 +84,7 @@ export class AIGrader {
       const result = await openaiService.gradeDocument({ ...request, language: userLanguage }, userLanguage);
 
       if (result.success && result.result) {
-        logger.info(`✅ OpenAI grading succeeded for: ${request.fileName}`);
+        logger.info(`  OpenAI grading succeeded for: ${request.fileName}`);
         return {
           success: true,
           result: result.result,

@@ -122,7 +122,7 @@ async function gradeWithAI(params) {
   });
 
   if (geminiResult.success) {
-    return geminiResult;  // ✅ Gemini 成功，直接返回
+    return geminiResult;  //   Gemini 成功，直接返回
   }
 
   // Step 2: Gemini 失敗，fallback 到 OpenAI
@@ -136,7 +136,7 @@ async function gradeWithAI(params) {
   });
 
   if (openaiResult.success) {
-    return openaiResult;  // ✅ OpenAI 成功
+    return openaiResult;  //   OpenAI 成功
   }
 
   // Step 3: 兩個都失敗
@@ -224,7 +224,7 @@ export async function gradeWithOpenAI(params: GradingParams): Promise<GradingRes
 | **Context Length** | 128k tokens | 128k tokens |
 | **Output Quality** | 優秀 | 優秀 |
 | **Structured Output** | 原生支援 | 原生支援 |
-| **Thinking Mode** | ✅ 支援 (舊系統) | ❌ 不支援 |
+| **Thinking Mode** |   支援 (舊系統) | ❌ 不支援 |
 | **API Stability** | 穩定 | 非常穩定 |
 | **Rate Limit** | 8-10 RPM (免費) | 根據付費方案 |
 
@@ -232,12 +232,12 @@ export async function gradeWithOpenAI(params: GradingParams): Promise<GradingRes
 
 | 配置項 | 舊系統 (Gemini Rotating) | 新系統 (AI SDK) |
 |--------|--------------------------|-----------------|
-| **Model** | `gemini-2.5-flash` | `gemini-2.5-flash` ✅ 相同 |
-| **Temperature** | `0.3` | `0.3` ✅ 相同 |
+| **Model** | `gemini-2.5-flash` | `gemini-2.5-flash`   相同 |
+| **Temperature** | `0.3` | `0.3`   相同 |
 | **Max Output Tokens** | `8192` | 自動處理 (可能不同) |
 | **Thinking Budget** | `8192` | ❌ 不支援 |
 | **Response Format** | 手動 JSON Schema | Zod Schema 自動驗證 |
-| **Schema Validation** | 手動 | 自動 ✅ |
+| **Schema Validation** | 手動 | 自動   |
 | **Error Handling** | 手動 try-catch | AI SDK + 手動 fallback |
 
 ---
@@ -352,8 +352,8 @@ LIMIT 10;
    - Max Retries: 2
 
 **與舊系統相比**:
-- ✅ 模型相同 (gemini-2.5-flash / gpt-4o-mini)
-- ✅ Temperature 相同
+-   模型相同 (gemini-2.5-flash / gpt-4o-mini)
+-   Temperature 相同
 - ⚠️ 移除了 maxOutputTokens 和 thinkingConfig
-- ✅ 增加了 Zod schema 自動驗證
-- ✅ 簡化了 error handling
+-   增加了 Zod schema 自動驗證
+-   簡化了 error handling

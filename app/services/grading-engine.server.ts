@@ -317,7 +317,7 @@ export async function processGradingResult(
           },
         };
 
-        logger.info(`✅ Agent grading succeeded`, {
+        logger.info(`  Agent grading succeeded`, {
           resultId,
           confidence: agentResult.confidenceScore,
           requiresReview: agentResult.requiresReview,
@@ -376,7 +376,7 @@ export async function processGradingResult(
             duration: sdkResult.responseTimeMs,
           },
         };
-        logger.info(`✅ AI SDK grading succeeded with ${sdkResult.provider}`);
+        logger.info(`  AI SDK grading succeeded with ${sdkResult.provider}`);
       } else {
         // AI SDK failed, return error
         gradingResponse = {
@@ -476,7 +476,7 @@ export async function processGradingResult(
       // Update session progress
       await SimpleProgressService.updateSessionProgress(sessionId);
 
-      logger.info(`✅ Grading completed for ${result.uploadedFile.originalFileName}`);
+      logger.info(`  Grading completed for ${result.uploadedFile.originalFileName}`);
 
       // Finalize and save log
       await gradingLogger.finalize(sessionId, startTime);
@@ -584,7 +584,7 @@ export async function processGradingSession(sessionId: string): Promise<{ succes
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    logger.info(`✅ Completed grading session ${sessionId}`);
+    logger.info(`  Completed grading session ${sessionId}`);
     return { success: true };
   } catch (error) {
     logger.error(`❌ Failed to process grading session ${sessionId}:`, error);
@@ -628,7 +628,7 @@ export async function processAllPendingGrading(): Promise<{ processed: number; f
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
 
-    logger.info(`✅ Processed ${processed} results, ${failed} failed`);
+    logger.info(`  Processed ${processed} results, ${failed} failed`);
   } catch (error) {
     logger.error('❌ Failed to process pending grading:', error);
   }

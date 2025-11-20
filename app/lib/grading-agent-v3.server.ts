@@ -65,6 +65,27 @@ const rateLimitState: RateLimitState = {
 };
 
 /**
+ * ============================================================================
+ * STEP THINKING LOG (for UI transparency)
+ * ============================================================================
+ */
+
+/**
+ * Step Thinking Log - Track model's thinking process for UI display
+ */
+interface StepThinking {
+  stepNumber: number;
+  thinkingDescription: string;      // 我現在想...
+  plannedAction: string;            // 所以我要做...
+  expectedOutcome: string;          // 我預期會得到...
+  toolsUsed: string[];              // 實際調用的工具
+  result?: string;                  // 實際結果摘要
+  timestamp: number;
+}
+
+const stepThinkingLog: Map<string, StepThinking[]> = new Map(); // sessionId -> steps
+
+/**
  * Check and update rate limit state
  * Returns true if we should use Pro, false if we should use Flash
  */
@@ -252,6 +273,21 @@ function buildTeacherSystemPrompt(userId: string | undefined): string {
 - You manage courses, students, and grading
 - All queries use your teacher identity automatically
 
+**THINKING OUT LOUD - CRITICAL!**
+Before calling ANY tool, ALWAYS explain your thinking process in Chinese using this format:
+
+我現在想: [what you're thinking - your current goal/understanding]
+所以我要做: [what action you'll take - which tool and why]
+我預期會得到: [what outcome you expect - what data/result]
+
+Then call the tool.
+
+Example:
+我現在想: 老師要找 Junjie 的報告，我需要先找到他
+所以我要做: 查詢所有課程找到他在哪個課程
+我預期會得到: Junjie 的 studentId
+<tool_call>database_query</tool_call>
+
 **What You Can Query:**
 1. Your courses and their students
 2. Assignments you created
@@ -289,6 +325,21 @@ function buildStudentSystemPrompt(userId: string | undefined): string {
   return `You are an AI assistant for the grading platform helping students with comprehensive learning analytics.
 
 **Your Student ID: ${userId || 'unknown'}**
+
+**THINKING OUT LOUD - CRITICAL!**
+Before calling ANY tool, ALWAYS explain your thinking process in Chinese using this format:
+
+我現在想: [what you're thinking - your current goal/understanding]
+所以我要做: [what action you'll take - which tool and why]
+我預期會得到: [what outcome you expect - what data/result]
+
+Then call the tool.
+
+Example:
+我現在想: 學生要看成績趨勢，我需要蒐集所有課程和提交記錄
+所以我要做: 先查詢所有課程
+我預期會得到: 所有課程的列表和 ID
+<tool_call>database_query</tool_call>
 
 **YOUR CORE RESPONSIBILITY:**
 You are expected to perform MULTI-STEP ANALYSIS combining multiple queries to answer complex questions.
@@ -938,6 +989,21 @@ ${
       }
 
       logger.debug('[Grading Agent V3] Teacher prepareStep END - no changes', stepInfo);
+      
+      // Extract and log thinking from previous steps for UI display
+      if (steps.length > 0) {
+        const lastStep = steps[steps.length - 1];
+        const toolsUsed = lastStep.toolCalls?.map(c => c.toolName) || [];
+        
+        if (toolsUsed.length > 0) {
+          logger.info('[Grading Agent V3] Teacher Step Thinking', {
+            stepNumber: steps.length - 1,
+            toolsUsed,
+            timestamp: Date.now(),
+          });
+        }
+      }
+      
       return {};
     },
   });
@@ -1496,6 +1562,21 @@ ${
       }
 
       logger.debug('[Grading Agent V3] Student prepareStep END - no changes', stepInfo);
+      
+      // Extract and log thinking from previous steps for UI display
+      if (steps.length > 0) {
+        const lastStep = steps[steps.length - 1];
+        const toolsUsed = lastStep.toolCalls?.map(c => c.toolName) || [];
+        
+        if (toolsUsed.length > 0) {
+          logger.info('[Grading Agent V3] Student Step Thinking', {
+            stepNumber: steps.length - 1,
+            toolsUsed,
+            timestamp: Date.now(),
+          });
+        }
+      }
+      
       return {};
     },
   });
@@ -1532,11 +1613,14 @@ export async function streamWithGradingAgent(
   userId?: string,
   callOptions?: TeacherCallOptions | StudentCallOptions
 ) {
+  const sessionId = `${userRole}_${userId}_${Date.now()}`;
+  
   logger.info('[Grading Agent V3] Initializing agent stream', {
     userRole,
     messageCount: messages.length,
     userId: userId ? '***' : undefined,
     hasCallOptions: !!callOptions,
+    sessionId,
   });
 
   try {
@@ -1555,13 +1639,37 @@ export async function streamWithGradingAgent(
     logger.debug('[Grading Agent V3] Agent stream completed');
 
     // Convert to UI stream response for client compatibility
-    return streamResult.toUIMessageStreamResponse();
+    const uiStreamResponse = streamResult.toUIMessageStreamResponse();
+    
+    // Log thinking process for UI display
+    logger.info('[Grading Agent V3] Stream response ready for UI', {
+      sessionId,
+      hasThinkingLog: stepThinkingLog.has(sessionId),
+    });
+
+    return uiStreamResponse;
   } catch (error) {
     logger.error('[Grading Agent V3] Fatal error in streamWithGradingAgent', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       userRole,
+      sessionId,
     });
     throw error;
   }
+}
+
+/**
+ * Get thinking process for a session (for debugging/UI display)
+ * Can be called after agent execution completes
+ */
+export function getStepThinkingLog(sessionId: string): StepThinking[] {
+  return stepThinkingLog.get(sessionId) || [];
+}
+
+/**
+ * Clear thinking log for a session
+ */
+export function clearStepThinkingLog(sessionId: string): void {
+  stepThinkingLog.delete(sessionId);
 }

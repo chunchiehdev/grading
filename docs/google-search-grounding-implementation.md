@@ -21,9 +21,9 @@
 - 可能會「幻覺」（亂講不存在的事情）
 
 ### 有了 Google Search Grounding
-- ✅ AI 可以即時搜尋網路
-- ✅ 回答最新資訊
-- ✅ 提供引用來源（讓用戶可以驗證）
+-   AI 可以即時搜尋網路
+-   回答最新資訊
+-   提供引用來源（讓用戶可以驗證）
 
 ---
 
@@ -66,7 +66,7 @@ AI: 台灣在 2024 年舉辦了大選...
 }
 ```
 
-✅ 我們的版本支援 Google Search Grounding！
+  我們的版本支援 Google Search Grounding！
 
 #### 1.2 創建 Agent Service
 
@@ -137,7 +137,7 @@ tools: {
 Cannot mix function tools with provider-defined tools
 ```
 
-**正確做法** ✅：
+**正確做法**  ：
 ```typescript
 tools: {
   // 只使用 provider-defined tools
@@ -511,7 +511,7 @@ message.parts = [
 // ❌ 錯誤
 return result.toUIMessageStreamResponse();
 
-// ✅ 正確
+//   正確
 return result.toUIMessageStreamResponse({
   sendSources: true,
 });
@@ -566,9 +566,9 @@ const hasGoogleSearch = message.parts.some(
 ### Q6: 如何測試是否正常運作？
 
 **測試問題**：
-- ✅ 「台灣 2024 年最新新聞」
-- ✅ 「今天的天氣如何？」
-- ✅ 「最新的 AI 發展是什麼？」
+-   「台灣 2024 年最新新聞」
+-   「今天的天氣如何？」
+-   「最新的 AI 發展是什麼？」
 - ❌ 「1+1 等於多少？」（不需要搜尋）
 
 **檢查點**：
@@ -610,12 +610,12 @@ const hasGoogleSearch = message.parts.some(
 
 ### 技術特點
 
-✅ **可信度**：用戶可以點擊查看原始來源
-✅ **透明度**：清楚標示資訊來自哪裡
-✅ **美觀**：現代化的卡片設計
-✅ **響應式**：手機、平板、桌面都適用
-✅ **無障礙**：完整的 title 和語意化 HTML
-✅ **效能**：Favicon 自動快取、lazy load
+  **可信度**：用戶可以點擊查看原始來源
+  **透明度**：清楚標示資訊來自哪裡
+  **美觀**：現代化的卡片設計
+  **響應式**：手機、平板、桌面都適用
+  **無障礙**：完整的 title 和語意化 HTML
+  **效能**：Favicon 自動快取、lazy load
 
 ---
 
@@ -648,15 +648,15 @@ const hasGoogleSearch = message.parts.some(
 - `google.tools.googleSearch({})`
 - `google.tools.codeExecution({})`
 - `google.tools.urlContext({})`
-- ✅ 不需要自己實作
-- ✅ Gemini 自動判斷何時使用
-- ✅ 回傳標準化的 sources
+-   不需要自己實作
+-   Gemini 自動判斷何時使用
+-   回傳標準化的 sources
 - ❌ 不能與 custom tools 混用
 
 **Custom Tools**（自己做的）：
 - `tool({ description, inputSchema, execute })`
-- ✅ 完全控制邏輯
-- ✅ 可以混用多個 custom tools
+-   完全控制邏輯
+-   可以混用多個 custom tools
 - ❌ 需要自己實作
 - ❌ 需要處理錯誤、timeout 等
 
@@ -717,10 +717,10 @@ if (part.type === 'source-url') {
 
 通過以下步驟，我們成功實作了 Google Search Grounding 並顯示引用來源：
 
-1. ✅ **後端**：啟用 `google.tools.googleSearch({})`
-2. ✅ **後端**：設定 `sendSources: true`
-3. ✅ **前端**：檢測 `source-url` parts
-4. ✅ **前端**：美化 Sources UI（favicon、卡片、響應式）
+1.   **後端**：啟用 `google.tools.googleSearch({})`
+2.   **後端**：設定 `sendSources: true`
+3.   **前端**：檢測 `source-url` parts
+4.   **前端**：美化 Sources UI（favicon、卡片、響應式）
 
 **最重要的是**：
 - `sendSources: true` - 沒有這個，前端收不到 sources

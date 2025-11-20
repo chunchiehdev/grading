@@ -6,54 +6,54 @@
 
 ---
 
-## ✅ 實作完成度：95%
+##   實作完成度：95%
 
 ### 已完成的核心功能
 
-#### 1. 資料庫 Schema（Phase 1-2）✅
+#### 1. 資料庫 Schema（Phase 1-2） 
 
-- ✅ Prisma schema 已新增三個欄位：
+-   Prisma schema 已新增三個欄位：
   - `AssignmentArea.referenceFileIds` (String, nullable, JSON array)
   - `AssignmentArea.customGradingPrompt` (Text, nullable)
   - `GradingResult.assignmentAreaId` (String, nullable, foreign key)
-- ✅ Migration 已執行並驗證
+-   Migration 已執行並驗證
 
-#### 2. 後端服務層（Phase 3-5）✅
+#### 2. 後端服務層（Phase 3-5） 
 
-- ✅ `assignment-area.server.ts`: CRUD for reference files + custom instructions
-- ✅ `gemini-prompts.server.ts`:
+-   `assignment-area.server.ts`: CRUD for reference files + custom instructions
+-   `gemini-prompts.server.ts`:
   - `formatReferenceDocuments()` - 格式化參考文件為 Markdown 區塊
   - `formatCustomInstructions()` - 格式化自訂指示
   - `generateTextGradingPrompt()` - 整合所有 context 到 prompt
-- ✅ `grading-engine.server.ts`: 已整合 reference loading + truncation logic
-- ✅ `pdf-parser.server.ts`: 已有完整的解析服務整合
+-   `grading-engine.server.ts`: 已整合 reference loading + truncation logic
+-   `pdf-parser.server.ts`: 已有完整的解析服務整合
 
-#### 3. API 路由（Phase 3-5）✅
+#### 3. API 路由（Phase 3-5） 
 
-- ✅ `/api/assignments` (POST) - 接受 referenceFileIds 和 customGradingPrompt
-- ✅ `/api/assignments/:id` (GET/PATCH) - 回傳和更新 reference files
-- ✅ `/api/files/upload` - 單檔上傳端點（for reference materials）
-- ✅ `/api/files/batch` - 批次查詢檔案詳情
-- ✅ `/api/files/:fileId/reparse` - 重新解析失敗檔案
+-   `/api/assignments` (POST) - 接受 referenceFileIds 和 customGradingPrompt
+-   `/api/assignments/:id` (GET/PATCH) - 回傳和更新 reference files
+-   `/api/files/upload` - 單檔上傳端點（for reference materials）
+-   `/api/files/batch` - 批次查詢檔案詳情
+-   `/api/files/:fileId/reparse` - 重新解析失敗檔案
 
-#### 4. 前端組件（Phase 3-4）✅
+#### 4. 前端組件（Phase 3-4） 
 
-- ✅ `ReferenceFileUpload.tsx` - 多檔上傳 UI with parse status
-- ✅ `CustomInstructionsField.tsx` - 字數限制的文字輸入
-- ✅ `new.tsx` - 已整合兩個組件到建立作業表單
-- ✅ 使用 Tailwind semantic tokens (dark mode ready)
+-   `ReferenceFileUpload.tsx` - 多檔上傳 UI with parse status
+-   `CustomInstructionsField.tsx` - 字數限制的文字輸入
+-   `new.tsx` - 已整合兩個組件到建立作業表單
+-   使用 Tailwind semantic tokens (dark mode ready)
 
-#### 5. 型別定義 & Schema（Phase 1）✅
+#### 5. 型別定義 & Schema（Phase 1） 
 
-- ✅ `app/types/assignment.ts` - AssignmentAreaWithReferences, ReferenceFileUsage
-- ✅ `app/types/grading.ts` - GradingRequest extended
-- ✅ `app/schemas/assignment.ts` - Zod validation
+-   `app/types/assignment.ts` - AssignmentAreaWithReferences, ReferenceFileUsage
+-   `app/types/grading.ts` - GradingRequest extended
+-   `app/schemas/assignment.ts` - Zod validation
 
 ---
 
 ## ❌ 缺失/待修正項目
 
-### 1. i18n 翻譯（T056）- **已修正** ✅
+### 1. i18n 翻譯（T056）- **已修正**  
 
 **問題**：`ReferenceFileUpload` 和 `CustomInstructionsField` 使用的翻譯 key 未定義
 
@@ -80,8 +80,8 @@ PDF_PARSER_API_URL=https://gradingpdf.grading.software
 
 **目前狀態**：
 
-- ✅ 程式碼已支援（`pdf-parser.server.ts` 第 10 行）
-- ✅ docker-compose 已定義環境變數（第 28 行）
+-   程式碼已支援（`pdf-parser.server.ts` 第 10 行）
+-   docker-compose 已定義環境變數（第 28 行）
 - ⚠️ 需要實際設定到 `.env` 或 環境變數
 
 ---
@@ -245,7 +245,7 @@ generateTextGradingPrompt(request: GeminiGradingRequest) {
   // 3. 📋 評分標準 (criteriaDescription)
   // 4. 🎯 教師特別要求 (instructionsSection)
   // 5. 📝 要評分的內容 (student work)
-  // 6. ✅ 評分要求 + JSON 輸出格式
+  // 6.   評分要求 + JSON 輸出格式
 }
 ```
 
@@ -255,7 +255,7 @@ generateTextGradingPrompt(request: GeminiGradingRequest) {
 
 ### 立即可做
 
-1. ✅ **i18n 翻譯已補充** - 重新整理瀏覽器即可看到中英文介面
+1.   **i18n 翻譯已補充** - 重新整理瀏覽器即可看到中英文介面
 2. **設定 PDF Parser URL**:
 
    ```bash
@@ -295,7 +295,7 @@ generateTextGradingPrompt(request: GeminiGradingRequest) {
 | Phase 4: US2 (Custom Instructions) | 100%    | UI、表單整合     |
 | Phase 5: US3 (Context Grading)     | 100%    | Prompt 組合完成  |
 | Phase 6: US4 (Language)            | 100%    | 語言偵測已實作   |
-| Phase 8: i18n                      | 100% ✅ | **剛剛補充完成** |
+| Phase 8: i18n                      | 100%   | **剛剛補充完成** |
 
 **總完成度：100%** 🎉
 
@@ -320,7 +320,7 @@ generateTextGradingPrompt(request: GeminiGradingRequest) {
 
 你的實作**幾乎 100% 符合 spec 004**，唯一缺失的是：
 
-1. ✅ **i18n 翻譯** - 剛剛已補齊
+1.   **i18n 翻譯** - 剛剛已補齊
 2. ⚠️ **PDF Parser URL** - 需要在環境變數設定 `https://gradingpdf.grading.software`
 
 解析流程和 Prompt 整合都已經完整實作，只要設定正確的 API URL 就能運作。

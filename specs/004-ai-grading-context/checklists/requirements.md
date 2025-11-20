@@ -31,7 +31,7 @@
 
 ## Validation Results
 
-✅ **ALL CHECKS PASSED** - Specification is ready for planning phase
+  **ALL CHECKS PASSED** - Specification is ready for planning phase
 
 ### Details:
 

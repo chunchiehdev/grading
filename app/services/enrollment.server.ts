@@ -122,7 +122,7 @@ export async function enrollStudentInClass(studentId: string, classId: string): 
       },
     });
 
-    logger.info('✅ Student enrolled:', studentId, 'in class:', classId);
+    logger.info('  Student enrolled:', studentId, 'in class:', classId);
     return enrollment;
   } catch (error) {
     logger.error('❌ Error enrolling student in class:', error);
@@ -251,7 +251,7 @@ export async function unenrollStudentFromClass(
       },
     });
 
-    logger.info('✅ Student unenrolled:', studentId, 'from class:', classId);
+    logger.info('  Student unenrolled:', studentId, 'from class:', classId);
     return !!result;
   } catch (error) {
     logger.error('❌ Error unenrolling student from class:', error);
@@ -472,7 +472,7 @@ export async function unenrollStudent(studentId: string, courseId: string, teach
       },
     });
 
-    logger.info(`✅ Removed student ${studentId} from ${result.count} class(es) in course ${courseId}`);
+    logger.info(`  Removed student ${studentId} from ${result.count} class(es) in course ${courseId}`);
     return result.count > 0;
   } catch (error) {
     logger.error('❌ Error removing student from course:', error);

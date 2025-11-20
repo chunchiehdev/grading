@@ -97,7 +97,7 @@ async function submitPdfForParsing(fileBuffer: Buffer, fileName: string, userId:
       }
 
       const result = (await response.json()) as PdfParserSubmitResponse;
-      logger.info(`   ✅ API Response: Task created with ID: ${result.task_id}`);
+      logger.info(`     API Response: Task created with ID: ${result.task_id}`);
       return result.task_id;
     } catch (err) {
       lastErr = err;
@@ -189,7 +189,7 @@ export async function triggerPdfParsing(
     // Await the long-running polling so we only return when complete
     const content = await pollForResult(taskId);
 
-    logger.info(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
+    logger.info(`  PDF parsing completed for ${fileName}: ${content.length} characters`);
     const sanitizedContent = content.replace(/\0/g, '');
 
     await db.uploadedFile.update({

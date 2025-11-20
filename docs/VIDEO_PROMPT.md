@@ -303,14 +303,14 @@ Key metrics appear:
 
 ## KEY MESSAGES TO CONVEY
 
-1. ✅ **Problem Recognition**: Teachers are overwhelmed by grading
-2. ✅ **Smart Solution**: AI handles consistent evaluation; teachers handle personal touch
-3. ✅ **Teacher Empowerment**: Save time, not quality
-4. ✅ **Student Growth**: Real-time feedback → faster improvement
-5. ✅ **Fairness**: Consistent rubrics → fair grading for all
-6. ✅ **Innovation**: Technology that supports human teaching
-7. ✅ **Ease of Use**: Simple, intuitive, no technical skills required
-8. ✅ **Real Impact**: Measurable time savings + improved learning outcomes
+1.   **Problem Recognition**: Teachers are overwhelmed by grading
+2.   **Smart Solution**: AI handles consistent evaluation; teachers handle personal touch
+3.   **Teacher Empowerment**: Save time, not quality
+4.   **Student Growth**: Real-time feedback → faster improvement
+5.   **Fairness**: Consistent rubrics → fair grading for all
+6.   **Innovation**: Technology that supports human teaching
+7.   **Ease of Use**: Simple, intuitive, no technical skills required
+8.   **Real Impact**: Measurable time savings + improved learning outcomes
 
 ---
 

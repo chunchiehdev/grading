@@ -467,19 +467,19 @@ type SearchEntryPoint = {
 ## 最佳實踐
 
 ### 1. 顯示來源建立信任
-- ✅ 永遠顯示 `groundingChunks` 作為參考來源列表
-- ✅ 讓用戶可以點擊查看原始網頁
-- ✅ 使用 `[1]`, `[2]` 等標記連接文字和來源
+-   永遠顯示 `groundingChunks` 作為參考來源列表
+-   讓用戶可以點擊查看原始網頁
+-   使用 `[1]`, `[2]` 等標記連接文字和來源
 
 ### 2. 高亮引用文字
-- ✅ 使用 `groundingSupports` 高亮有來源支持的文字
-- ✅ 用顏色或底線區分有引用和無引用的文字
-- ✅ 提供 tooltip 顯示該片段的來源
+-   使用 `groundingSupports` 高亮有來源支持的文字
+-   用顏色或底線區分有引用和無引用的文字
+-   提供 tooltip 顯示該片段的來源
 
 ### 3. 透明度
-- ✅ 顯示 `webSearchQueries` 讓用戶知道 AI 搜尋了什麼
-- ✅ 如果有 `confidenceScores`，可以顯示信心程度
-- ✅ 明確標示哪些內容來自搜尋，哪些來自模型知識
+-   顯示 `webSearchQueries` 讓用戶知道 AI 搜尋了什麼
+-   如果有 `confidenceScores`，可以顯示信心程度
+-   明確標示哪些內容來自搜尋，哪些來自模型知識
 
 ### 4. 效能考量
 - ⚠️ `searchEntryPoint.renderedContent` 是 HTML，使用時要 sanitize

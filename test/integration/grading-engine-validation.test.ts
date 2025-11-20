@@ -85,7 +85,7 @@ describe('Grading Engine Validation Tests', () => {
       expect(updatedResult).toBeTruthy();
       expect(updatedResult!.status).toBe('PENDING'); // Should remain pending when content is missing
 
-      console.log('✅ Missing content validation test passed');
+      console.log('  Missing content validation test passed');
     });
 
     it('should detect empty rubric criteria and fail appropriately', async () => {
@@ -132,7 +132,7 @@ describe('Grading Engine Validation Tests', () => {
       expect(updatedResult!.status).toBe('FAILED');
       expect(updatedResult!.errorMessage).toContain('No grading criteria found');
 
-      console.log('✅ Empty rubric validation test passed');
+      console.log('  Empty rubric validation test passed');
     });
 
     it('should properly validate rubric criteria structure', async () => {
@@ -232,7 +232,7 @@ describe('Grading Engine Validation Tests', () => {
       const firstCategory = categorizedCriteria[0] as any;
       expect(Array.isArray(firstCategory.criteria)).toBe(true);
 
-      console.log('✅ Rubric structure validation test passed');
+      console.log('  Rubric structure validation test passed');
     });
 
     it('should handle grading result not found scenario', async () => {
@@ -244,7 +244,7 @@ describe('Grading Engine Validation Tests', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('Grading result not found');
 
-      console.log('✅ Non-existent result handling test passed');
+      console.log('  Non-existent result handling test passed');
     });
 
     it('should skip processing for already completed results', async () => {
@@ -276,7 +276,7 @@ describe('Grading Engine Validation Tests', () => {
 
       expect(unchangedResult!.status).toBe('COMPLETED');
 
-      console.log('✅ Already completed result handling test passed');
+      console.log('  Already completed result handling test passed');
     });
 
     it('should validate complete grading workflow data integrity', async () => {
@@ -374,7 +374,7 @@ describe('Grading Engine Validation Tests', () => {
       expect(sessionWithResults!.gradingResults.every((r) => r.rubric.id === rubric.id)).toBe(true);
       expect(sessionWithResults!.gradingResults.every((r) => r.uploadedFile.parsedContent !== null)).toBe(true);
 
-      console.log('✅ Complete workflow data integrity test passed');
+      console.log('  Complete workflow data integrity test passed');
       console.log(`   • Created ${students.length} students and ${files.length} files`);
       console.log(`   • Session contains ${sessionWithResults!.gradingResults.length} results`);
       console.log(`   • All results have valid file content and rubric relationships`);

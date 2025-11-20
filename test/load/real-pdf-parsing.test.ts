@@ -65,7 +65,7 @@ describe('Real PDF Parsing Load Tests', () => {
           'application/pdf'
         );
 
-        console.log(`✅ File uploaded successfully to S3`);
+        console.log(`  File uploaded successfully to S3`);
         console.log(`🔑 S3 Key: ${uploadResult.key}`);
 
         // Create database record with REAL fileKey from S3
@@ -98,7 +98,7 @@ describe('Real PDF Parsing Load Tests', () => {
             where: { id: uploadedFile.id },
           });
 
-          console.log(`✅ PDF parsing completed in ${processingTime}ms`);
+          console.log(`  PDF parsing completed in ${processingTime}ms`);
           console.log(`📝 Parsed content length: ${updatedFile?.parsedContent?.length || 0} characters`);
           console.log(`📊 Parse status: ${updatedFile?.parseStatus}`);
 
@@ -108,7 +108,7 @@ describe('Real PDF Parsing Load Tests', () => {
           expect(updatedFile?.parsedContent!.length).toBeGreaterThan(0);
           expect(processingTime).toBeLessThan(120000); // Should complete within 2 minutes
 
-          console.log('✅ Single PDF parsing test completed');
+          console.log('  Single PDF parsing test completed');
         } catch (error) {
           const processingTime = Date.now() - startTime;
           console.error(`❌ PDF parsing failed after ${processingTime}ms:`, error);
@@ -209,7 +209,7 @@ describe('Real PDF Parsing Load Tests', () => {
         const minProcessingTime = Math.min(...results.map((r) => r.processingTime));
 
         console.log('\\n📊 Concurrent PDF Parsing Results:');
-        console.log(`✅ Successfully parsed: ${successfulFiles.length}/${results.length} files`);
+        console.log(`  Successfully parsed: ${successfulFiles.length}/${results.length} files`);
         console.log(`❌ Failed to parse: ${failedFiles.length} files`);
         console.log(`⏱️  Total concurrent processing time: ${totalTime}ms`);
         console.log(`📊 Average processing time per file: ${Math.round(averageProcessingTime)}ms`);
@@ -217,7 +217,7 @@ describe('Real PDF Parsing Load Tests', () => {
 
         // Log individual results
         results.forEach((result) => {
-          const status = result.success ? '✅' : '❌';
+          const status = result.success ? ' ' : '❌';
           console.log(
             `   ${status} ${result.fileName}: ${result.processingTime}ms${result.error ? ` (${result.error})` : ''}`
           );
@@ -244,7 +244,7 @@ describe('Real PDF Parsing Load Tests', () => {
         expect(totalTime).toBeLessThan(300000); // Total under 5 minutes for concurrent processing
         expect(completedFiles.length).toBe(successfulFiles.length);
 
-        console.log('✅ Concurrent PDF parsing test completed');
+        console.log('  Concurrent PDF parsing test completed');
       },
       400000
     ); // 6.5 minute timeout for concurrent processing
@@ -292,7 +292,7 @@ describe('Real PDF Parsing Load Tests', () => {
           await triggerPdfParsing(largeFile.id, largeFile.fileKey, largeFile.originalFileName, teacher.id);
 
           const processingTime = Date.now() - startTime;
-          console.log(`✅ Large file parsed successfully in ${processingTime}ms`);
+          console.log(`  Large file parsed successfully in ${processingTime}ms`);
 
           const updatedFile = await db.uploadedFile.findUnique({
             where: { id: largeFile.id },
@@ -315,10 +315,10 @@ describe('Real PDF Parsing Load Tests', () => {
           expect(processingTime).toBeGreaterThan(1000); // Should have tried for at least 1 second
 
           // This is acceptable behavior for timeout scenarios
-          console.log('✅ Timeout handled gracefully');
+          console.log('  Timeout handled gracefully');
         }
 
-        console.log('✅ PDF parsing timeout test completed');
+        console.log('  PDF parsing timeout test completed');
       },
       200000
     ); // 3.5 minute timeout
@@ -380,7 +380,7 @@ describe('Real PDF Parsing Load Tests', () => {
             processingTimes.push(fileProcessingTime);
             successCount++;
 
-            console.log(`   ✅ Completed in ${fileProcessingTime}ms`);
+            console.log(`     Completed in ${fileProcessingTime}ms`);
 
             // Small delay between files to be respectful to the service
             if (index < testFiles.length - 1) {
@@ -401,7 +401,7 @@ describe('Real PDF Parsing Load Tests', () => {
         const averageProcessingTime = processingTimes.reduce((sum, time) => sum + time, 0) / processingTimes.length;
 
         console.log('\\n📊 PDF Parser Service Load Results:');
-        console.log(`✅ Successful parses: ${successCount}/${testFiles.length}`);
+        console.log(`  Successful parses: ${successCount}/${testFiles.length}`);
         console.log(`❌ Failed parses: ${failureCount}/${testFiles.length}`);
         console.log(`⏱️  Total test time: ${totalServiceTime}ms`);
         console.log(`📊 Average processing time: ${Math.round(averageProcessingTime)}ms`);
@@ -412,7 +412,7 @@ describe('Real PDF Parsing Load Tests', () => {
         expect(averageProcessingTime).toBeLessThan(120000); // Average under 2 minutes
         expect(processingTimes.every((t) => t < 180000)).toBe(true); // All under 3 minutes
 
-        console.log('✅ PDF parser service load test completed');
+        console.log('  PDF parser service load test completed');
       },
       600000
     ); // 10 minute timeout for service load test

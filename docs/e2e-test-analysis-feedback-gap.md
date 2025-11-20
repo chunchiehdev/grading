@@ -11,7 +11,7 @@
 ```
 总结果数:        20
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-完成状态:        20 ✅ (COMPLETED)
+完成状态:        20   (COMPLETED)
 失败状态:        0 (FAILED)
 待处理状态:      0 (PENDING)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -44,7 +44,7 @@
 }
 ```
 
-✅ **特征**:
+  **特征**:
 - maxScore: 4（与 rubric 匹配）
 - totalScore: 3（实际 Gemini 评分）
 - feedback: 详细中文反馈（真实的 Gemini 响应）
@@ -102,7 +102,7 @@ async function gradeSubmission() {
       };
     }
 
-    // ✅ 只有少数请求成功到达这里
+    //   只有少数请求成功到达这里
     return parseGeminiResponse(response);
   } catch (error) {
     // ❌ 错误被完全吞掉
@@ -114,7 +114,7 @@ async function gradeSubmission() {
 ### 可能的原因 2：部分 API 调用没有完成
 
 虽然 BullMQ 队列显示所有 20 个 jobs 都 COMPLETED，但：
-- ✅ 状态显示为 COMPLETED（成功提交给队列）
+-   状态显示为 COMPLETED（成功提交给队列）
 - ❌ 但实际的 Gemini API 调用可能失败了
 - ❌ 失败后使用了默认值而非重试
 
@@ -164,11 +164,11 @@ function getFallbackGrade() {
 
 | 学生 | 状态 | Gemini 反馈 | 问题 |
 |------|------|-----------|------|
-| 学生 1 | ✅ COMPLETED | ❌ "No feedback available" | Gemini 没有返回结果 |
-| 学生 2 | ✅ COMPLETED | ✅ 详细中文反馈 | **正常工作** |
-| 学生 3 | ✅ COMPLETED | ❌ "No feedback available" | Gemini 没有返回结果 |
+| 学生 1 |   COMPLETED | ❌ "No feedback available" | Gemini 没有返回结果 |
+| 学生 2 |   COMPLETED |   详细中文反馈 | **正常工作** |
+| 学生 3 |   COMPLETED | ❌ "No feedback available" | Gemini 没有返回结果 |
 | ... | ... | ... | ... |
-| 学生 20 | ✅ COMPLETED | ❌ "No feedback available" | Gemini 没有返回结果 |
+| 学生 20 |   COMPLETED | ❌ "No feedback available" | Gemini 没有返回结果 |
 
 **成功率: 3/20 = 15%**
 
@@ -182,7 +182,7 @@ expect(submissionSuccesses).toBe(STUDENT_COUNT);
 ```
 
 **问题**：
-- ✅ 测试检查 `submissionStatus === 'success'`
+-   测试检查 `submissionStatus === 'success'`
 - ❌ 测试**不检查** `result` 字段的有效性
 - ❌ 测试**不验证** Gemini 反馈的质量
 - ❌ 测试**只关心** DB 记录是否被创建，不关心内容是否有效
@@ -215,7 +215,7 @@ const validFeedbackCount = results.filter(r => {
   return result?.result?.breakdown?.[0]?.feedback !== 'No feedback available';
 }).length;
 
-expect(validFeedbackCount).toBe(STUDENT_COUNT);  // ✅ 所有 20 个都应该有有效反馈
+expect(validFeedbackCount).toBe(STUDENT_COUNT);  //   所有 20 个都应该有有效反馈
 ```
 
 ### 2. 检查 Gemini 调用失败的原因（优先级：高）
@@ -235,7 +235,7 @@ grep -r "No feedback available" app/services/ --include="*.ts"
 // ❌ 不好的做法
 const result = await gradeWithGemini() || getDefaultGrade();
 
-// ✅ 好的做法
+//   好的做法
 const result = await gradeWithGemini();
 if (!result) {
   throw new Error('Gemini grading failed - would not use default grade');
@@ -277,8 +277,8 @@ defaultFallbackCounter.inc();  // ← 应该为 0
 **Gemini API 调用返回了错误或不完整的响应，但代码中有一个 catch-all fallback 机制将其替换为硬编码的默认值。**
 
 这导致：
-- ✅ 队列显示所有 jobs 都完成了（因为没有异常抛出）
-- ✅ 数据库记录都被创建了（状态为 COMPLETED）
+-   队列显示所有 jobs 都完成了（因为没有异常抛出）
+-   数据库记录都被创建了（状态为 COMPLETED）
 - ❌ 但 85% 的结果都是假的/默认的反馈
 
 ---

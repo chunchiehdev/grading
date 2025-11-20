@@ -20,15 +20,15 @@ This document describes the database schema changes required to support context-
 model AssignmentArea {
   // ... existing fields (id, name, description, courseId, classId, rubricId, dueDate, createdAt, updatedAt)
 
-  // ✅ NEW: Reference knowledge base files
+  //   NEW: Reference knowledge base files
   referenceFileIds    String?  @db.Text
 
-  // ✅ NEW: Custom grading instructions from teacher
+  //   NEW: Custom grading instructions from teacher
   customGradingPrompt String?  @db.Text
 
   // Relations
   submissions         Submission[]
-  gradingResults      GradingResult[]  // ✅ NEW: Reverse relation
+  gradingResults      GradingResult[]  //   NEW: Reverse relation
   notifications       Notification[]
 }
 ```
@@ -70,7 +70,7 @@ model GradingResult {
   rubricId          String
   rubric            Rubric @relation(...)
 
-  // ✅ NEW: Link to assignment for context retrieval
+  //   NEW: Link to assignment for context retrieval
   assignmentAreaId  String?
   assignmentArea    AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)
 
@@ -80,7 +80,7 @@ model GradingResult {
   @@index([uploadedFileId])
   @@index([rubricId])
   @@index([normalizedScore])
-  @@index([assignmentAreaId])  // ✅ NEW: Index for JOIN performance
+  @@index([assignmentAreaId])  //   NEW: Index for JOIN performance
 }
 ```
 
@@ -98,7 +98,7 @@ model GradingResult {
 
 **Indexes**:
 
-- ✅ **New index**: `@@index([assignmentAreaId])` for efficient joins when loading grading context
+-   **New index**: `@@index([assignmentAreaId])` for efficient joins when loading grading context
 
 ---
 
@@ -284,7 +284,7 @@ ALTER TABLE "assignment_areas" DROP COLUMN "referenceFileIds";
 
 ## Backward Compatibility
 
-### ✅ Zero Breaking Changes
+###   Zero Breaking Changes
 
 **Existing Queries Unaffected**:
 
@@ -356,14 +356,14 @@ export const AssignmentCreateSchema = z.object({
   rubricId: z.string().uuid(),
   dueDate: z.string().datetime().optional(),
 
-  // ✅ NEW: Reference files validation
+  //   NEW: Reference files validation
   referenceFileIds: z
     .array(z.string().uuid())
     .max(5, 'Maximum 5 reference files allowed')
     .optional()
     .transform((arr) => (arr && arr.length > 0 ? JSON.stringify(arr) : null)),
 
-  // ✅ NEW: Custom instructions validation
+  //   NEW: Custom instructions validation
   customGradingPrompt: z
     .string()
     .max(5000, 'Maximum 5000 characters allowed')
@@ -660,21 +660,21 @@ WHERE gr.id = $1;
 
 **Schema Changes**:
 
-- ✅ 2 new nullable fields in `AssignmentArea`
-- ✅ 1 new nullable field + 1 index in `GradingResult`
-- ✅ 0 changes to `UploadedFile` or `Submission`
+-   2 new nullable fields in `AssignmentArea`
+-   1 new nullable field + 1 index in `GradingResult`
+-   0 changes to `UploadedFile` or `Submission`
 
 **Backward Compatibility**:
 
-- ✅ All existing queries continue to work
-- ✅ Existing assignments grade without context (current behavior)
-- ✅ No data migration required
+-   All existing queries continue to work
+-   Existing assignments grade without context (current behavior)
+-   No data migration required
 
 **Performance Impact**:
 
-- ✅ Minimal (<1ms added latency per grading)
-- ✅ Efficient JSON storage for 1-5 file IDs
-- ✅ Indexed foreign key for fast JOINs
+-   Minimal (<1ms added latency per grading)
+-   Efficient JSON storage for 1-5 file IDs
+-   Indexed foreign key for fast JOINs
 
 **Next Steps**:
 

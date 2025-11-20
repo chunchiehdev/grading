@@ -8,7 +8,7 @@
 
 ---
 
-## ✅ 已完成的工作
+##   已完成的工作
 
 ### 1. 新增檔案
 
@@ -23,9 +23,9 @@
 - 完整的健康追蹤整合 (`recordSuccess()`/`recordFailure()`)
 
 關鍵決策：
-- ✅ **保留 KeyHealthTracker** - 必須保留，因為 BullMQ workers 運行在分散式環境
-- ✅ **手動 fallback** - AI SDK 沒有內建的 provider switching，需要手動實作
-- ✅ **詳細logging** - 記錄所有 API 呼叫、錯誤、token usage
+-   **保留 KeyHealthTracker** - 必須保留，因為 BullMQ workers 運行在分散式環境
+-   **手動 fallback** - AI SDK 沒有內建的 provider switching，需要手動實作
+-   **詳細logging** - 記錄所有 API 呼叫、錯誤、token usage
 
 #### `app/services/ai-grader-sdk.server.ts` (新增 ~200 lines)
 **功能**: 主要評分邏輯與 Gemini → OpenAI fallback
@@ -135,8 +135,8 @@ USE_AI_SDK_GRADING=false  # Default: 使用舊系統
 | openai-simple.server.ts | 190 | 190 | 0 (未來刪除) |
 | ai-grader.server.ts | 126 | 126 | 0 (未來刪除) |
 | **核心資產保留** |
-| gemini-key-health.server.ts | 404 | 404 | 0 ✅ 必須保留 |
-| bullmq-grading.server.ts | 398 | 398 | 0 ✅ 保留原樣 |
+| gemini-key-health.server.ts | 404 | 404 | 0   必須保留 |
+| bullmq-grading.server.ts | 398 | 398 | 0   保留原樣 |
 | **淨變化** | **2,192** | **1,679** | **-513** |
 
 **實際程式碼減少**: ~23% (考慮到新增的檔案)
@@ -169,10 +169,10 @@ AIGrader (ai-grader.server.ts)
 ```
 gradeWithAI() (ai-grader-sdk.server.ts)
 ├─ gradeWithGemini() (ai-sdk-provider.server.ts)
-│  ├─ KeyHealthTracker.selectBestKey() ✅ 保留
+│  ├─ KeyHealthTracker.selectBestKey()   保留
 │  ├─ AI SDK generateObject() (統一介面)
 │  ├─ Zod schema 驗證 (Type-safe)
-│  └─ recordSuccess/recordFailure() ✅ 保留
+│  └─ recordSuccess/recordFailure()   保留
 └─ gradeWithOpenAI() (手動 fallback)
    ├─ AI SDK generateObject()
    └─ Zod schema 驗證
@@ -182,7 +182,7 @@ gradeWithAI() (ai-grader-sdk.server.ts)
 
 ## 🔑 關鍵決策記錄
 
-### 1. ✅ 保留 KeyHealthTracker (您的正確決策)
+### 1.   保留 KeyHealthTracker (您的正確決策)
 **原因**:
 - BullMQ workers 可能運行在多個 Pod/進程中
 - In-memory key pool 無法跨進程共享狀態
@@ -203,7 +203,7 @@ Pod 1: Key2 失效 → recordFailure() → Redis
 Pod 2: selectBestKey() → 從 Redis 讀取 → 避開 Key2
 ```
 
-### 2. ✅ 手動 Fallback (AI SDK 限制)
+### 2.   手動 Fallback (AI SDK 限制)
 **事實**:
 - AI SDK **沒有** `experimental_providerMetadata.fallbacks`
 - GitHub Issue #2636 仍然 OPEN (47+ upvotes)
@@ -218,14 +218,14 @@ try {
 }
 ```
 
-### 3. ✅ Feature Flag 平行執行
+### 3.   Feature Flag 平行執行
 **遷移策略**:
 - `USE_AI_SDK_GRADING=false` → 使用舊系統 (預設)
 - `USE_AI_SDK_GRADING=true` → 使用新系統
 - 兩個系統並存，可以快速切換
 - 預計驗證 1-2 週後切換到新系統
 
-### 4. ✅ BullMQ 保留原樣
+### 4.   BullMQ 保留原樣
 **原因**:
 - 無限重試 (999 attempts) - 處理 Gemini 503 過載必要
 - Exponential backoff (15s → 30s → 60s) - 精心調整過
@@ -374,11 +374,11 @@ docker compose -f docker-compose.dev.yaml restart app
 ## 總結
 
 這次重構成功地：
-1. ✅ 整合 AI SDK，統一 provider 介面
-2. ✅ 保留核心資產 (KeyHealthTracker, BullMQ)
-3. ✅ 實作平行執行策略 (feature flag)
-4. ✅ 詳細 logging 和錯誤處理
-5. ✅ 保留舊系統作為 fallback
+1.   整合 AI SDK，統一 provider 介面
+2.   保留核心資產 (KeyHealthTracker, BullMQ)
+3.   實作平行執行策略 (feature flag)
+4.   詳細 logging 和錯誤處理
+5.   保留舊系統作為 fallback
 
 **程式碼減少**: 當前 23%，未來潛力 42%
 

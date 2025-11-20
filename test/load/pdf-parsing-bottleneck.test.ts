@@ -133,7 +133,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
 
         const totalProcessingTime = Date.now() - processingStartTime;
 
-        console.log(`✅ PDF parsing completed in ${totalProcessingTime}ms`);
+        console.log(`  PDF parsing completed in ${totalProcessingTime}ms`);
         console.log(`📞 Total API calls made: ${apiCallCount}`);
         console.log(`📊 Average time per API call: ${Math.round(totalProcessingTime / apiCallCount)}ms`);
 
@@ -142,7 +142,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
         expect(totalProcessingTime).toBeLessThan(15000); // But not too long
         expect(apiCallCount).toBeGreaterThan(5); // Should have made multiple polling calls
 
-        console.log('✅ PDF parsing service delay simulation completed');
+        console.log('  PDF parsing service delay simulation completed');
       },
       30000
     ); // 30 second timeout
@@ -261,7 +261,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
         const minProcessingTime = Math.min(...results.map((r) => r.processingTime));
 
         console.log('\\n📊 Concurrent PDF Parsing Bottleneck Results:');
-        console.log(`✅ Successfully parsed: ${successfulFiles.length}/${results.length} files`);
+        console.log(`  Successfully parsed: ${successfulFiles.length}/${results.length} files`);
         console.log(`❌ Failed to parse: ${failedFiles.length} files`);
         console.log(`⏱️  Total concurrent processing time: ${totalConcurrentTime}ms`);
         console.log(`📊 Average processing time per file: ${Math.round(averageProcessingTime)}ms`);
@@ -272,7 +272,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
 
         // Log individual file results
         results.forEach((result) => {
-          const status = result.success ? '✅' : '❌';
+          const status = result.success ? ' ' : '❌';
           console.log(`   ${status} File ${result.index + 1}: ${result.processingTime}ms`);
         });
 
@@ -283,7 +283,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
         expect(averageProcessingTime).toBeGreaterThan(2000); // Should show bottleneck effects (slower than single file)
         expect(totalApiCalls).toBeGreaterThan(20); // Should demonstrate significant API load
 
-        console.log('✅ Concurrent PDF parsing bottleneck test completed');
+        console.log('  Concurrent PDF parsing bottleneck test completed');
       },
       60000
     ); // 1 minute timeout
@@ -384,7 +384,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
               error: null,
             });
 
-            console.log(`   ✅ Completed in ${processingTime}ms`);
+            console.log(`     Completed in ${processingTime}ms`);
           } catch (error) {
             const processingTime = Date.now() - fileStartTime;
             failureResults.push({
@@ -411,7 +411,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
           failureResults.reduce((sum, r) => sum + r.processingTime, 0) / failureResults.length;
 
         console.log('\\n📊 PDF Parsing Service Failure Test Results:');
-        console.log(`✅ Successfully parsed: ${successfulParses}/${failureResults.length} files`);
+        console.log(`  Successfully parsed: ${successfulParses}/${failureResults.length} files`);
         console.log(`❌ Failed to parse: ${failedParses} files`);
         console.log(`📊 Success rate: ${Math.round((successfulParses / failureResults.length) * 100)}%`);
         console.log(`⏱️  Average processing time: ${Math.round(averageProcessingTime)}ms`);
@@ -422,7 +422,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
         expect(successfulParses).toBeGreaterThan(0); // At least some should succeed despite failures
         expect(averageProcessingTime).toBeGreaterThan(1000); // Should show retry delays
 
-        console.log('✅ PDF parsing service failure handling test completed');
+        console.log('  PDF parsing service failure handling test completed');
       },
       45000
     ); // 45 second timeout
@@ -575,7 +575,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
           .sort((a, b) => a.submissionDelay - b.submissionDelay)
           .slice(0, 5) // Show first 5
           .forEach((result) => {
-            const status = result.success ? '✅' : '❌';
+            const status = result.success ? ' ' : '❌';
             console.log(
               `   ${status} Student ${result.studentIndex}: +${Math.round(result.submissionDelay / 1000)}s, processed in ${Math.round(result.processingTime / 1000)}s`
             );
@@ -592,7 +592,7 @@ describe('PDF Parsing Bottleneck Load Tests', () => {
         expect(averageProcessingTime).toBeLessThan(30000); // Average under 30 seconds
         expect(totalRushTime).toBeLessThan(60000); // Entire rush should complete within 1 minute
 
-        console.log('✅ Assignment submission rush simulation completed');
+        console.log('  Assignment submission rush simulation completed');
       },
       120000
     ); // 2 minute timeout

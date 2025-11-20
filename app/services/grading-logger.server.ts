@@ -311,7 +311,7 @@ class GradingLogger {
       const filePath = path.join(this.logsDir, fileName);
 
       fs.writeFileSync(filePath, JSON.stringify(log, null, 2), 'utf-8');
-      logger.info(`✅ Saved grading log: ${filePath}`);
+      logger.info(`  Saved grading log: ${filePath}`);
 
       // 清除內存中的日誌
       this.sessionLogs.delete(sessionId);

@@ -44,7 +44,7 @@ describe('Teacher Grading Workflow Integration', () => {
       expect(course.teacherId).toBe(teacher.id);
       expect(course.name).toBe('Introduction to Writing');
 
-      console.log('✅ Teacher workflow test passed: Course and rubric created');
+      console.log('  Teacher workflow test passed: Course and rubric created');
     });
 
     it('should create course with invitation code for student enrollment', async () => {
@@ -69,7 +69,7 @@ describe('Teacher Grading Workflow Integration', () => {
       // Verify invitation expires in the future
       expect(invitationCode.expiresAt.getTime()).toBeGreaterThan(Date.now());
 
-      console.log('✅ Course invitation test passed');
+      console.log('  Course invitation test passed');
     });
   });
 
@@ -106,7 +106,7 @@ describe('Teacher Grading Workflow Integration', () => {
       expect(levels[0]).toHaveProperty('score');
       expect(levels[0]).toHaveProperty('description');
 
-      console.log('✅ Default rubric criteria test passed');
+      console.log('  Default rubric criteria test passed');
     });
 
     it('should create rubric with categorized criteria structure', async () => {
@@ -131,13 +131,13 @@ describe('Teacher Grading Workflow Integration', () => {
         expect(firstItem).toHaveProperty('criteria');
         expect(Array.isArray(firstItem.criteria)).toBe(true);
 
-        console.log('✅ Categorized rubric structure test passed');
+        console.log('  Categorized rubric structure test passed');
       } else {
         // Flat format - also acceptable
         expect(firstItem).toHaveProperty('name');
         expect(firstItem).toHaveProperty('levels');
 
-        console.log('✅ Flat rubric structure test passed');
+        console.log('  Flat rubric structure test passed');
       }
     });
   });
@@ -183,7 +183,7 @@ describe('Teacher Grading Workflow Integration', () => {
       expect(course1.name).not.toBe(course2.name);
       expect(rubric1.name).not.toBe(rubric2.name);
 
-      console.log('✅ Data isolation test passed');
+      console.log('  Data isolation test passed');
     });
   });
 });

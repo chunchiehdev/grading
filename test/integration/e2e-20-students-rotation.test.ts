@@ -27,15 +27,15 @@ import { server } from '../mocks/server';
  *
  * 🎯 PURPOSE:
  * Verify that 20 students can complete the grading workflow with API key rotation:
- * ✅ Upload 20 REAL PDF files to S3
- * ✅ Set parsed content (bypassing external PDF parser for test reliability)
- * ✅ Create 20 grading sessions
- * ✅ Submit 20 jobs to BullMQ queue
- * ✅ Process jobs with concurrency=3 (3 parallel jobs)
- * ✅ Use 3 different Gemini API keys in rotation
- * ✅ Verify all 3 keys are used across 20 requests
- * ✅ Create 20 submission records
- * ✅ VERIFY: Zero errors, all keys used, health tracking works
+ *   Upload 20 REAL PDF files to S3
+ *   Set parsed content (bypassing external PDF parser for test reliability)
+ *   Create 20 grading sessions
+ *   Submit 20 jobs to BullMQ queue
+ *   Process jobs with concurrency=3 (3 parallel jobs)
+ *   Use 3 different Gemini API keys in rotation
+ *   Verify all 3 keys are used across 20 requests
+ *   Create 20 submission records
+ *   VERIFY: Zero errors, all keys used, health tracking works
  *
  * 📊 WHAT THIS TESTS:
  * - Real PDF generation and upload (PDFKit + S3)
@@ -127,12 +127,12 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
 
     // Clear ALL MSW handlers to allow real API calls
     // Do NOT register any handlers - let all requests pass through
-    server.resetHandlers(); // ✅ Clear all handlers (no parameters)
+    server.resetHandlers(); //   Clear all handlers (no parameters)
 
     console.log('\n╔════════════════════════════════════════════════════════╗');
     console.log('║  🌐 REAL API MODE + ROTATION TEST                      ║');
     console.log('╚════════════════════════════════════════════════════════╝');
-    console.log(`✅ USE_REAL_APIS: ${process.env.USE_REAL_APIS}`);
+    console.log(`  USE_REAL_APIS: ${process.env.USE_REAL_APIS}`);
     console.log(`📡 PDF Parser URL: ${process.env.PDF_PARSER_API_URL || 'http://localhost:8000'}`);
     console.log('🔄 MSW handlers cleared - all requests bypass to real APIs');
     console.log('⚠️  All HTTP requests will hit REAL external APIs\n');
@@ -147,7 +147,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
     }
 
     console.log('\n🎬 E2E ROTATION TEST: Setting up infrastructure for 20 students...');
-    console.log('✅ Rotation enabled: All 3 Gemini API keys detected');
+    console.log('  Rotation enabled: All 3 Gemini API keys detected');
 
     // Clean queue and health data
     try {
@@ -268,7 +268,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
       };
     }
 
-    console.log(`✅ Infrastructure ready for 20 students\n`);
+    console.log(`  Infrastructure ready for 20 students\n`);
   });
 
   it('should handle 20 students with multi-key rotation without errors', async () => {
@@ -282,10 +282,10 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
     const rotationEnabled = canUseRotation();
 
     console.log('🔍 Environment Check:');
-    console.log(`   USE_REAL_APIS: ${process.env.USE_REAL_APIS} (✅ REAL APIS)`);
-    console.log(`   ROTATION: ${rotationEnabled ? '✅ ENABLED (3 keys)' : '❌ DISABLED'}`);
+    console.log(`   USE_REAL_APIS: ${process.env.USE_REAL_APIS} (  REAL APIS)`);
+    console.log(`   ROTATION: ${rotationEnabled ? '  ENABLED (3 keys)' : '❌ DISABLED'}`);
 
-    console.log('\n✅ ROTATION MODE: Using RotatingGeminiService with 3 API keys');
+    console.log('\n  ROTATION MODE: Using RotatingGeminiService with 3 API keys');
     console.log('   Expected behavior:');
     console.log('   - 3 parallel jobs processing (concurrency=3)');
     console.log('   - Health-based key selection');
@@ -333,7 +333,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
 
         uploadedFiles.push(uploadedFile);
         results[i].uploadStatus = 'success';
-        console.log(`   ✅ Student ${i + 1}: File uploaded (${pdfBuffer.length} bytes, REAL PDF format)`);
+        console.log(`     Student ${i + 1}: File uploaded (${pdfBuffer.length} bytes, REAL PDF format)`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         results[i].errors.push(`Upload failed: ${errorMsg}`);
@@ -355,7 +355,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
         console.log(`   🔄 Student ${i + 1}: Parsing file...`);
         await triggerPdfParsing(file.id, file.fileKey, file.originalFileName, student.id);
         results[i].parseStatus = 'success';
-        console.log(`   ✅ Student ${i + 1}: Parse triggered successfully`);
+        console.log(`     Student ${i + 1}: Parse triggered successfully`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         results[i].errors.push(`Parse failed: ${errorMsg}`);
@@ -385,7 +385,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
 
       if (completed + failed === files.length) {
         allParsed = true;
-        console.log(`\n   ✅ All files processed (${completed} completed, ${failed} failed)`);
+        console.log(`\n     All files processed (${completed} completed, ${failed} failed)`);
         break;
       }
 
@@ -425,7 +425,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
         }
 
         sessionIds[i] = sessionResult.sessionId!;
-        console.log(`   ✅ Student ${i + 1}: Grading session created`);
+        console.log(`     Student ${i + 1}: Grading session created`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         results[i].errors.push(`Session creation failed: ${errorMsg}`);
@@ -453,7 +453,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
 
         if (startResult.success) {
           results[i].gradingStatus = 'success';
-          console.log(`   ✅ Student ${i + 1}: Job submitted to queue`);
+          console.log(`     Student ${i + 1}: Job submitted to queue`);
         } else {
           throw new Error(startResult.error || 'Unknown submission error');
         }
@@ -571,7 +571,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
 
         results[i].submissionStatus = 'success';
         const keyInfo = results[i].keyUsed ? ` (key: ${results[i].keyUsed})` : '';
-        console.log(`   ✅ Student ${i + 1}: Submission created${keyInfo}`);
+        console.log(`     Student ${i + 1}: Submission created${keyInfo}`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         results[i].errors.push(`Submission creation failed: ${errorMsg}`);
@@ -582,7 +582,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
     // ============================================
     // PHASE 8: Final report
     // ============================================
-    console.log('\n✅ PHASE 8: Generating final report...\n');
+    console.log('\n  PHASE 8: Generating final report...\n');
 
     const finalStatus = await getQueueStatus();
 
@@ -597,19 +597,19 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
     const submissionSuccesses = results.filter((r) => r.submissionStatus === 'success').length;
 
     console.log('📤 UPLOAD RESULTS:');
-    console.log(`   ✅ Successful: ${uploadSuccesses}/${STUDENT_COUNT}`);
+    console.log(`     Successful: ${uploadSuccesses}/${STUDENT_COUNT}`);
     console.log(`   ❌ Failed: ${STUDENT_COUNT - uploadSuccesses}/${STUDENT_COUNT}\n`);
 
     console.log('📄 PARSE RESULTS:');
-    console.log(`   ✅ Successful: ${parseSuccesses}/${STUDENT_COUNT}`);
+    console.log(`     Successful: ${parseSuccesses}/${STUDENT_COUNT}`);
     console.log(`   ❌ Failed: ${STUDENT_COUNT - parseSuccesses}/${STUDENT_COUNT}\n`);
 
     console.log('🔄 GRADING RESULTS:');
-    console.log(`   ✅ Successful: ${gradingSuccesses}/${STUDENT_COUNT}`);
+    console.log(`     Successful: ${gradingSuccesses}/${STUDENT_COUNT}`);
     console.log(`   ❌ Failed: ${STUDENT_COUNT - gradingSuccesses}/${STUDENT_COUNT}\n`);
 
     console.log('📋 SUBMISSION RESULTS:');
-    console.log(`   ✅ Successful: ${submissionSuccesses}/${STUDENT_COUNT}`);
+    console.log(`     Successful: ${submissionSuccesses}/${STUDENT_COUNT}`);
     console.log(`   ❌ Failed: ${STUDENT_COUNT - submissionSuccesses}/${STUDENT_COUNT}\n`);
 
     console.log('🎯 QUEUE STATUS:');
@@ -652,7 +652,7 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
       });
       console.log();
     } else {
-      console.log('✅ ALL 20 STUDENTS COMPLETED SUCCESSFULLY WITH ZERO ERRORS!\n');
+      console.log('  ALL 20 STUDENTS COMPLETED SUCCESSFULLY WITH ZERO ERRORS!\n');
     }
 
     // Final summary
@@ -661,10 +661,10 @@ describe('E2E: 20 Students with Multi-Key Rotation', () => {
     console.log(`📊 SUMMARY:`)
 ;
     console.log(
-      `   ${allSuccess ? '✅ PASS' : '❌ FAIL'} - ${STUDENT_COUNT - failedStudents.length}/${STUDENT_COUNT} students completed`
+      `   ${allSuccess ? '  PASS' : '❌ FAIL'} - ${STUDENT_COUNT - failedStudents.length}/${STUDENT_COUNT} students completed`
     );
-    console.log(`   ${allSuccess ? '✅ ZERO' : `❌ ${failedStudents.length}`} students with errors`);
-    console.log(`   ${keysUsed.length >= 2 ? '✅' : '⚠️'} ${keysUsed.length}/3 API keys were used`);
+    console.log(`   ${allSuccess ? '  ZERO' : `❌ ${failedStudents.length}`} students with errors`);
+    console.log(`   ${keysUsed.length >= 2 ? ' ' : '⚠️'} ${keysUsed.length}/3 API keys were used`);
 
     // ============================================
     // ASSERTIONS

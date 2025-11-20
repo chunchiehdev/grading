@@ -191,7 +191,7 @@ describe('PDF Processing Load Tests', () => {
         const batchTime = Date.now() - batchStartTime;
         const successfulInBatch = batchResults.filter((r) => r.success).length;
 
-        console.log(`   ✅ Batch completed in ${batchTime}ms: ${successfulInBatch}/${batchResults.length} successful`);
+        console.log(`     Batch completed in ${batchTime}ms: ${successfulInBatch}/${batchResults.length} successful`);
 
         // Brief pause between batches to simulate real processing
         if (i + concurrencyLimit < gradingResults.length) {
@@ -205,7 +205,7 @@ describe('PDF Processing Load Tests', () => {
       const averageProcessingTime = results.reduce((sum, r) => sum + r.processingTime, 0) / results.length;
 
       console.log('\\n📊 PDF Processing Bottleneck Results:');
-      console.log(`✅ Successfully processed: ${successfulFiles}/${results.length} files`);
+      console.log(`  Successfully processed: ${successfulFiles}/${results.length} files`);
       console.log(`❌ Failed processing: ${failedFiles} files`);
       console.log(`⏱️  Total processing time: ${totalTime}ms`);
       console.log(`⏱️  Average file processing time: ${Math.round(averageProcessingTime)}ms`);
@@ -217,7 +217,7 @@ describe('PDF Processing Load Tests', () => {
       expect(averageProcessingTime).toBeGreaterThan(500); // Should show increased processing time
       expect(processingTimes.some((t) => t > 2000)).toBe(true); // Some files should take longer
 
-      console.log('✅ PDF parsing bottleneck test completed');
+      console.log('  PDF parsing bottleneck test completed');
     }, 60000); // 1 minute timeout
 
     it('should handle concurrent PDF uploads and parsing', async () => {
@@ -283,7 +283,7 @@ describe('PDF Processing Load Tests', () => {
       const uploads = await Promise.all(uploadTasks);
       const uploadTime = Date.now() - uploadStartTime;
 
-      console.log(`✅ All uploads completed in ${uploadTime}ms`);
+      console.log(`  All uploads completed in ${uploadTime}ms`);
 
       // Now process all files concurrently (like a real system would)
       console.log(`🔄 Processing ${uploads.length} files concurrently...`);
@@ -321,7 +321,7 @@ describe('PDF Processing Load Tests', () => {
       console.log('\\n📊 Concurrent Upload/Processing Results:');
       console.log(`📤 Upload phase: ${uploadTime}ms for ${uploads.length} files`);
       console.log(`🔄 Processing phase: ${totalProcessingTime}ms total`);
-      console.log(`✅ Successfully processed: ${successfulProcessing}/${processingResults.length} files`);
+      console.log(`  Successfully processed: ${successfulProcessing}/${processingResults.length} files`);
       console.log(`❌ Failed processing: ${failedProcessing} files`);
       console.log(`⏱️  Average processing time per file: ${Math.round(averageProcessingTime)}ms`);
       console.log(`👥 Max concurrent parsers: ${maxConcurrentParsers}`);
@@ -333,7 +333,7 @@ describe('PDF Processing Load Tests', () => {
       expect(averageProcessingTime).toBeLessThan(3000); // Should be reasonably fast
       expect(totalProcessingTime).toBeLessThan(15000); // Total should be under 15s due to concurrency
 
-      console.log('✅ Concurrent PDF upload/processing test completed');
+      console.log('  Concurrent PDF upload/processing test completed');
     }, 45000); // 45 second timeout
   });
 
@@ -465,7 +465,7 @@ describe('PDF Processing Load Tests', () => {
           batchResults.filter((r) => r.success && r.memoryUsage).reduce((sum, r) => sum + (r.memoryUsage || 0), 0) /
           batchResults.length;
 
-        console.log(`   ✅ Batch completed in ${batchTime}ms, avg memory: ${Math.round(avgMemoryInBatch)}MB`);
+        console.log(`     Batch completed in ${batchTime}ms, avg memory: ${Math.round(avgMemoryInBatch)}MB`);
 
         // Brief pause to simulate resource cleanup
         await new Promise((resolve) => setTimeout(resolve, 200));
@@ -479,7 +479,7 @@ describe('PDF Processing Load Tests', () => {
       const highComplexityTasks = results.filter((r) => r.success && (r.complexity || 0) > 0.8).length;
 
       console.log('\\n📊 System Resource Load Results:');
-      console.log(`✅ Successfully processed: ${successfulTasks}/${results.length} files`);
+      console.log(`  Successfully processed: ${successfulTasks}/${results.length} files`);
       console.log(`⏱️  Total processing time: ${totalResourceTime}ms`);
       console.log(`🧠 Memory usage - Avg: ${Math.round(avgMemoryUsage)}MB, Max: ${Math.round(maxMemoryUsage)}MB`);
       console.log(`📊 High complexity tasks: ${highComplexityTasks} (requiring extra CPU)`);
@@ -492,7 +492,7 @@ describe('PDF Processing Load Tests', () => {
       expect(maxMemoryUsage).toBeLessThan(200); // Should stay within reasonable limits
       expect(totalResourceTime).toBeLessThan(60000); // Should complete within 1 minute
 
-      console.log('✅ System resource load test completed');
+      console.log('  System resource load test completed');
     }, 90000); // 90 second timeout
   });
 });

@@ -77,7 +77,7 @@ async function closeServicesInternal(): Promise<void> {
   }
 
   state.initializationError = null;
-  logger.info('✅ [BullMQ] Services closed successfully');
+  logger.info('  [BullMQ] Services closed successfully');
 }
 
 async function initializeBullMQ(): Promise<void> {
@@ -138,7 +138,7 @@ async function initializeBullMQ(): Promise<void> {
 
             await updateGradingSessionProgress(sessionId, userId);
 
-            logger.info(`✅ [BullMQ] Completed job ${job.id} for result ${resultId}`);
+            logger.info(`  [BullMQ] Completed job ${job.id} for result ${resultId}`);
             return result;
           } catch (error) {
             logger.error(`❌ [BullMQ] Failed job ${job.id} (attempt ${job.attemptsMade + 1}):`, error);
@@ -176,10 +176,10 @@ async function initializeBullMQ(): Promise<void> {
 
       state.events = events;
 
-      logger.info('[BullMQ] ✅ Grading queue and worker initialized successfully');
+      logger.info('[BullMQ] Grading queue and worker initialized successfully');
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('[BullMQ] ❌ Failed to initialize grading services:', err);
+      logger.error('[BullMQ] Failed to initialize grading services:', err);
       state.initializationError = err;
       state.queue = undefined;
       state.worker = undefined;

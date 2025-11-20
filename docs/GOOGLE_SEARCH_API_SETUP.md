@@ -122,7 +122,7 @@ docker-compose -f docker-compose.dev.yaml up -d
 
 ---
 
-## ✅ Verify It's Working
+##   Verify It's Working
 
 1. Visit: http://localhost:3000/agent-playground
 
@@ -163,7 +163,7 @@ Once setup is complete, try these:
 ## 📊 Free Tier Limits
 
 **Google Custom Search API Free Tier:**
-- ✅ **100 queries per day** (FREE)
+-   **100 queries per day** (FREE)
 - ⏰ Resets at midnight Pacific Time (PT)
 - 📈 More than enough for learning and development
 
@@ -265,7 +265,7 @@ Once setup is complete, try these:
 
 ### 1. **Restrict Your API Key**
 ```
-✅ DO: Restrict to Custom Search API only
+  DO: Restrict to Custom Search API only
 ❌ DON'T: Leave unrestricted (anyone can use it)
 ```
 
@@ -287,7 +287,7 @@ git commit -m "Remove .env"
 
 ### 4. **Use Environment Variables**
 ```bash
-# ✅ Good - uses .env
+#   Good - uses .env
 GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY}
 
 # ❌ Bad - hardcoded
@@ -350,7 +350,7 @@ The agent will automatically add `site:blog.gslin.org` to the query.
 
 ---
 
-## ✅ Setup Checklist
+##   Setup Checklist
 
 Before you start using the agent, make sure:
 

@@ -94,7 +94,7 @@ export async function action({ request }: { request: Request }) {
           });
 
           const fileDuration = Date.now() - fileStartTime;
-          logger.info(`✅ File uploaded successfully: ${file.name} -> ${result.fileId}`, {
+          logger.info(`  File uploaded successfully: ${file.name} -> ${result.fileId}`, {
             userId,
             uploadId,
             fileName: file.name,

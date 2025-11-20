@@ -31,10 +31,10 @@
 4. 通知狀態在客戶端和伺服器端不一致
 
 ### 解決成果
-- ✅ 實現了伺服器端資料持久化 (Server-Side Hydration)
-- ✅ 修復了 WebSocket 事件監聽器的註冊問題
-- ✅ 解決了資料一致性問題
-- ✅ 改善了使用者體驗，實現真正的即時通知
+-   實現了伺服器端資料持久化 (Server-Side Hydration)
+-   修復了 WebSocket 事件監聽器的註冊問題
+-   解決了資料一致性問題
+-   改善了使用者體驗，實現真正的即時通知
 
 ---
 
@@ -60,7 +60,7 @@
 **現象:**
 ```javascript
 // 後端日誌顯示
-[WS EventHandler] ✅ Notification emitted to 1 socket(s)
+[WS EventHandler]   Notification emitted to 1 socket(s)
 
 // 前端日誌顯示
 [WebSocket Client] ⚠️ No handlers registered for event: submission-notification
@@ -536,19 +536,19 @@ export function useWebSocketEvent<K extends keyof WebSocketEvents>(
   }, [handler]);
 
   useEffect(() => {
-    // ✅ 使用 wrapper 確保總是呼叫最新的 handler
+    //   使用 wrapper 確保總是呼叫最新的 handler
     const wrappedHandler = ((...args: any[]) => {
       handlerRef.current(...args);
     }) as WebSocketEvents[K];
 
     const unsubscribe = websocketClient.on(event, wrappedHandler);
-    console.log('[useWebSocketEvent] ✅ Subscribed to event:', event);
+    console.log('[useWebSocketEvent]   Subscribed to event:', event);
 
     return () => {
       console.log('[useWebSocketEvent] 🔌 Unsubscribing from event:', event);
       unsubscribe();
     };
-  }, [event]); // ✅ 只依賴 event，不依賴 handler 或 deps
+  }, [event]); //   只依賴 event，不依賴 handler 或 deps
 }
 ```
 
@@ -584,7 +584,7 @@ private emit<T extends keyof WebSocketEvents>(
         console.log(`[WebSocket Client] 🔄 Calling handler ${index + 1}/${handlerCount}`);
         const typedHandler = handler as (...args: Parameters<WebSocketEvents[T]>) => void;
         typedHandler(...args);
-        console.log(`[WebSocket Client] ✅ Handler ${index + 1} completed`);
+        console.log(`[WebSocket Client]   Handler ${index + 1} completed`);
       } catch (error) {
         console.error(`[WebSocket Client] ❌ Handler ${index + 1} error:`, error);
       }
@@ -812,9 +812,9 @@ navigate(`/teacher/submissions/${submissionId}/view`);
 ```
 
 **驗證點:**
-- ✅ 通知鈴鐺顯示正確的未讀數量
-- ✅ 打開下拉選單顯示所有通知
-- ✅ 已讀和未讀通知有視覺區別
+-   通知鈴鐺顯示正確的未讀數量
+-   打開下拉選單顯示所有通知
+-   已讀和未讀通知有視覺區別
 
 ### 測試情境 2: WebSocket 即時通知
 
@@ -827,22 +827,22 @@ navigate(`/teacher/submissions/${submissionId}/view`);
 
 **預期結果:**
 ```javascript
-[useWebSocketEvent] ✅ Subscribed to event: submission-notification
-[Root Layout] ✅ Teacher WebSocket listener is active
+[useWebSocketEvent]   Subscribed to event: submission-notification
+[Root Layout]   Teacher WebSocket listener is active
 
 // 學生提交後
 [WebSocket Client] 📤 Emitting event: submission-notification to 1 handler(s)
 [WebSocket Client] 🔄 Calling handler 1/1 for event: submission-notification
 [Root Layout] 📄 New submission notification received via WebSocket
 [SubmissionStore] 📨 handleNewSubmission called
-[SubmissionStore] ✅ Added submission. Total: 6 Unread: 3
+[SubmissionStore]   Added submission. Total: 6 Unread: 3
 [NotificationCenter] 🔍 Component rendering: {submissionsLength: 6, unreadCount: 3}
 ```
 
 **驗證點:**
-- ✅ 通知鈴鐺數字即時增加
-- ✅ 不需重新整理就能看到新通知
-- ✅ 在任何教師頁面都能接收通知
+-   通知鈴鐺數字即時增加
+-   不需重新整理就能看到新通知
+-   在任何教師頁面都能接收通知
 
 ### 測試情境 3: 標記為已讀並重新整理
 
@@ -860,7 +860,7 @@ navigate(`/teacher/submissions/${submissionId}/view`);
 [SubmissionStore] 📖 markAsRead called for notificationId: ...
 [SubmissionStore] 🎨 Optimistic update applied. New unread count: 2
 [SubmissionStore] 📡 Sending mark-as-read API request...
-[SubmissionStore] ✅ Mark-as-read API succeeded
+[SubmissionStore]   Mark-as-read API succeeded
 
 // 重新整理後
 [Root Loader] 📥 Fetched 5 notifications (2 unread) for teacher: ...
@@ -868,10 +868,10 @@ navigate(`/teacher/submissions/${submissionId}/view`);
 ```
 
 **驗證點:**
-- ✅ 已讀通知仍在列表中（不會消失）
-- ✅ 已讀通知沒有藍點指示器
-- ✅ 未讀數量正確
-- ✅ 重新整理前後資料一致
+-   已讀通知仍在列表中（不會消失）
+-   已讀通知沒有藍點指示器
+-   未讀數量正確
+-   重新整理前後資料一致
 
 ### 測試情境 4: 競態條件測試
 
@@ -888,7 +888,7 @@ navigate(`/teacher/submissions/${submissionId}/view`);
 [SubmissionStore] 📖 markAsRead called
 [SubmissionStore] 🎨 Optimistic update applied
 [SubmissionStore] 📡 Sending mark-as-read API request...
-[SubmissionStore] ✅ Mark-as-read API succeeded
+[SubmissionStore]   Mark-as-read API succeeded
 [NotificationCenter] 🚀 Navigating to: /teacher/submissions/.../view
 
 // 新頁面載入
@@ -896,9 +896,9 @@ navigate(`/teacher/submissions/${submissionId}/view`);
 ```
 
 **驗證點:**
-- ✅ 等待 API 完成後才導航
-- ✅ 新頁面載入的資料是最新的
-- ✅ 沒有資料不一致的情況
+-   等待 API 完成後才導航
+-   新頁面載入的資料是最新的
+-   沒有資料不一致的情況
 
 ### 測試情境 5: 多標籤頁同步測試
 
@@ -911,9 +911,9 @@ navigate(`/teacher/submissions/${submissionId}/view`);
 4. 觀察兩個標籤的反應
 
 **預期結果:**
-- ✅ 兩個標籤都即時收到通知
-- ✅ 通知數量同步更新
-- ✅ WebSocket 連接獨立運作
+-   兩個標籤都即時收到通知
+-   通知數量同步更新
+-   WebSocket 連接獨立運作
 
 ### 自動化測試建議
 
@@ -1011,13 +1011,13 @@ describe('Notification System Integration', () => {
 
 **實作:**
 ```typescript
-// ✅ 正確: 從資料庫初始化
+//   正確: 從資料庫初始化
 loader → getRecentNotifications() → StoreInitializer → submissionStore
 
-// ✅ 正確: WebSocket 新增資料
+//   正確: WebSocket 新增資料
 WebSocket Event → handleNewSubmission() → submissionStore.addSubmission()
 
-// ✅ 正確: 標記已讀
+//   正確: 標記已讀
 UI Action → submissionStore.markAsRead() → API → Database
          → Optimistic Update
 ```
@@ -1059,7 +1059,7 @@ function SpecificRoute() {
   useWebSocketEvent('event', handler);  // 只在這個路由有效
 }
 
-// ✅ 正確: 在根元件註冊
+//   正確: 在根元件註冊
 function RootLayout() {
   useWebSocketEvent('event', handler);  // 所有路由都有效
 }
@@ -1172,7 +1172,7 @@ useEffect(() => {
   subscribe(handler);
 }, [handler]);  // handler 每次都不同
 
-// ✅ 推薦: 使用 ref + wrapper
+//   推薦: 使用 ref + wrapper
 const handlerRef = useRef(handler);
 useEffect(() => { handlerRef.current = handler; }, [handler]);
 useEffect(() => {
@@ -1202,13 +1202,13 @@ useEffect(() => {
 
 **最佳實踐:**
 ```typescript
-// ✅ 等待 API 完成後再導航
+//   等待 API 完成後再導航
 async function handleClick(id: string) {
   await markAsRead(id);  // 等待完成
   navigate(`/view/${id}`);  // 才導航
 }
 
-// ✅ 樂觀更新 + 錯誤回滾
+//   樂觀更新 + 錯誤回滾
 async function markAsRead(id: string) {
   const backup = getState();
   optimisticUpdate(id);
@@ -1229,17 +1229,17 @@ async function markAsRead(id: string) {
 
 **最佳實踐:**
 ```typescript
-// ✅ 結構化日誌
+//   結構化日誌
 console.log('[Component] 📤 Action:', {
   actionType: 'mark-read',
   notificationId: id,
   currentState: getState(),
 });
 
-// ✅ 使用表情符號快速識別
+//   使用表情符號快速識別
 // 📥 接收資料
 // 📤 發送資料
-// ✅ 成功
+//   成功
 // ❌ 錯誤
 // ⚠️ 警告
 // 🔌 連接相關
@@ -1255,12 +1255,12 @@ console.log('[Component] 📤 Action:', {
 
 **最佳實踐:**
 ```typescript
-// ✅ 使用 loader 載入資料
+//   使用 loader 載入資料
 export async function loader() {
   return { data: await fetchData() };
 }
 
-// ✅ 元件直接使用 loader 資料
+//   元件直接使用 loader 資料
 function Component() {
   const { data } = useLoaderData();
   // 不需要 useEffect 來載入
@@ -1276,14 +1276,14 @@ function Component() {
 
 **最佳實踐:**
 ```typescript
-// ✅ 定義明確的介面
+//   定義明確的介面
 interface NotificationData {
   id: string;
   isRead: boolean;
   // ...
 }
 
-// ✅ 使用型別參數
+//   使用型別參數
 function processNotification<T extends NotificationData>(data: T): T {
   // TypeScript 會檢查型別
 }
@@ -1296,11 +1296,11 @@ function processNotification<T extends NotificationData>(data: T): T {
 這次通知系統的修復是一個複雜但有價值的學習經驗。我們成功解決了以下問題：
 
 ### 成就
-1. ✅ 實現了完整的伺服器端資料持久化
-2. ✅ 修復了 WebSocket 事件監聽器問題
-3. ✅ 解決了資料一致性問題
-4. ✅ 改善了使用者體驗
-5. ✅ 建立了可維護的架構
+1.   實現了完整的伺服器端資料持久化
+2.   修復了 WebSocket 事件監聽器問題
+3.   解決了資料一致性問題
+4.   改善了使用者體驗
+5.   建立了可維護的架構
 
 ### 關鍵技術
 - React Router v7 Loader 模式

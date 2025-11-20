@@ -71,7 +71,7 @@ describe('Multi-User Course Enrollment Integration', () => {
 
       expect(invitationWithUsage!.course.enrollments).toHaveLength(5);
 
-      console.log('✅ Concurrent enrollment test passed');
+      console.log('  Concurrent enrollment test passed');
       console.log(`   • Course: "${course.name}"`);
       console.log(`   • Students enrolled: ${enrollments.length}`);
       console.log(`   • Invitation code: ${invitationCode.code}`);
@@ -95,7 +95,7 @@ describe('Multi-User Course Enrollment Integration', () => {
         })
       ).rejects.toThrow(); // Should fail due to foreign key constraint
 
-      console.log('✅ Non-existent course enrollment prevention test passed');
+      console.log('  Non-existent course enrollment prevention test passed');
     });
 
     it('should handle multiple courses with different enrollment capacities', async () => {
@@ -179,7 +179,7 @@ describe('Multi-User Course Enrollment Integration', () => {
         });
       }
 
-      console.log('✅ Multiple course enrollment test passed');
+      console.log('  Multiple course enrollment test passed');
       console.log(`   • Math course: ${mathEnrollments.length} students`);
       console.log(`   • Physics course: ${physicsEnrollments.length} students`);
       console.log(`   • Writing course: ${writingEnrollments.length} students`);
@@ -214,7 +214,7 @@ describe('Multi-User Course Enrollment Integration', () => {
         expect(invitationCode.code).toMatch(/^TEST-[A-Z0-9]{8}$/); // Should match expected format
       }
 
-      console.log('✅ Unique invitation codes test passed');
+      console.log('  Unique invitation codes test passed');
       console.log(`   • Generated ${uniqueCodes.size} unique codes`);
       console.log(`   • Codes: ${Array.from(uniqueCodes).join(', ')}`);
     });
@@ -273,7 +273,7 @@ describe('Multi-User Course Enrollment Integration', () => {
         expect(enrollment.enrolledAt).toBeInstanceOf(Date);
       });
 
-      console.log('✅ Invitation code usage tracking test passed');
+      console.log('  Invitation code usage tracking test passed');
       console.log(`   • Total students created: ${allStudents.length}`);
       console.log(`   • Students enrolled: ${enrollments.length}`);
       console.log(`   • Enrollment rate: ${((enrollments.length / allStudents.length) * 100).toFixed(1)}%`);
@@ -311,7 +311,7 @@ describe('Multi-User Course Enrollment Integration', () => {
       expect(resetCode.code).toBe(invitationCode.code); // Code should remain the same
       expect(resetCode.courseId).toBe(course.id);
 
-      console.log('✅ Invitation code activation management test passed');
+      console.log('  Invitation code activation management test passed');
     });
   });
 
@@ -424,7 +424,7 @@ describe('Multi-User Course Enrollment Integration', () => {
       const intersection = teacherAStudentIds.filter((id) => teacherBStudentIds.includes(id));
       expect(intersection).toHaveLength(0);
 
-      console.log('✅ Cross-user data isolation test passed');
+      console.log('  Cross-user data isolation test passed');
       console.log(`   • Teacher A: ${teacherAData!.courses[0].enrollments.length} students, 1 course, 1 rubric`);
       console.log(`   • Teacher B: ${teacherBData!.courses[0].enrollments.length} students, 1 course, 1 rubric`);
       console.log(`   • No data cross-contamination detected`);
@@ -499,7 +499,7 @@ describe('Multi-User Course Enrollment Integration', () => {
       expect(teacherIds).toContain(teacherX.id);
       expect(teacherIds).toContain(teacherY.id);
 
-      console.log('✅ Multi-course student enrollment test passed');
+      console.log('  Multi-course student enrollment test passed');
       console.log(`   • Student enrolled in ${studentWithEnrollments!.enrollments.length} courses`);
       console.log(`   • Courses: ${studentWithEnrollments!.enrollments.map((e) => e.course.name).join(', ')}`);
     });

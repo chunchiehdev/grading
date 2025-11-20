@@ -472,7 +472,7 @@ CREATE INDEX courses_name_trgm ON courses USING gin(name gin_trgm_ops);  -- full
 
 ## Migration Path
 
-**Database Migrations Needed**: ✅ **NONE**
+**Database Migrations Needed**:   **NONE**
 
 - All required entities already exist in Prisma schema
 - All required relationships already defined

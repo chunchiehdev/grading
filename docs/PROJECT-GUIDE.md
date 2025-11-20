@@ -1024,13 +1024,13 @@ redis-cli -a dev_password
 
 | 方法 | 路徑 | 用途 | 認證 |
 |------|------|------|------|
-| POST | `/api/grade-with-rubric` | 發起評分 | ✅ |
-| GET | `/api/grade-progress` | 查詢評分進度 | ✅ |
-| POST | `/api/student/submit` | 學生提交作業 | ✅ STUDENT |
-| POST | `/api/files/upload` | 上傳檔案 | ✅ |
-| POST | `/api/enrollments` | 使用邀請碼註冊 | ✅ STUDENT |
-| GET | `/api/courses/discover` | 搜尋課程 | ✅ |
-| POST | `/api/ai/rubric-chat` | AI 生成評分標準 | ✅ |
+| POST | `/api/grade-with-rubric` | 發起評分 |   |
+| GET | `/api/grade-progress` | 查詢評分進度 |   |
+| POST | `/api/student/submit` | 學生提交作業 |   STUDENT |
+| POST | `/api/files/upload` | 上傳檔案 |   |
+| POST | `/api/enrollments` | 使用邀請碼註冊 |   STUDENT |
+| GET | `/api/courses/discover` | 搜尋課程 |   |
+| POST | `/api/ai/rubric-chat` | AI 生成評分標準 |   |
 | GET | `/health` | 健康檢查 | ❌ |
 
 ### WebSocket 事件
@@ -1156,7 +1156,7 @@ routes/student/assignments/$assignmentId.submit.tsx (前端)
 
 ## 總結與下一步
 
-**報告完整度**: ✅ 已覆蓋所有要求的 Section
+**報告完整度**:   已覆蓋所有要求的 Section
 
 **建議後續行動**:
 1. 實作高風險修復 (CSRF、Session 固定、API 限速)

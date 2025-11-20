@@ -22,10 +22,10 @@ import { extractTotalScore } from '@/utils/grading-helpers';
  *
  * 🎯 PURPOSE:
  * Demonstrate the COMPLETE flow with real Gemini API calls:
- * ✅ 9 students submit assignments
- * ✅ All get real AI grading (Gemini API)
- * ✅ 9th student gets rate limited
- * ✅ Admin Dashboard shows REAL-TIME changes
+ *   9 students submit assignments
+ *   All get real AI grading (Gemini API)
+ *   9th student gets rate limited
+ *   Admin Dashboard shows REAL-TIME changes
  *
  * 📋 HOW TO USE:
  * Terminal 1: npm run dev
@@ -74,7 +74,7 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
 
     console.log(`\n   📧 Using teacher account: ${teacherEmail}`);
     if (process.env.TEACHER_EMAIL) {
-      console.log(`   ✅ Using your real Google account!`);
+      console.log(`     Using your real Google account!`);
     } else {
       console.log(`   ⚠️ Tip: Run with TEACHER_EMAIL env var to use your real account`);
     }
@@ -173,7 +173,7 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
     enrollments = await EnrollmentFactory.createForClass(classRecord.id, studentIds);
     console.log(`   ✓ Enrolled ${enrollments.length} students in class`);
 
-    console.log(`✅ Setup complete - test will create submissions during execution`);
+    console.log(`  Setup complete - test will create submissions during execution`);
   });
 
   it('REAL-TIME: Watch 9th student get rate limited on Admin Dashboard', async () => {
@@ -260,7 +260,7 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
     for (let i = 0; i < 9; i++) {
       const startResult = await startGradingSession(sessionIds[i], students[i].id);
       if (startResult.success) {
-        console.log(`   ✅ Student ${i + 1}: Job submitted to queue`);
+        console.log(`     Student ${i + 1}: Job submitted to queue`);
       } else {
         console.warn(`   ⚠️ Student ${i + 1}: ${startResult.error}`);
       }
@@ -335,7 +335,7 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
     // ============================================
     // PHASE 6: Final status check
     // ============================================
-    console.log('\n✅ PHASE 6: Final queue status');
+    console.log('\n  PHASE 6: Final queue status');
 
     const finalStatus = await getQueueStatus();
     console.log(`\n   Final Counts:`);
@@ -349,27 +349,27 @@ describe('Real-Time Demo: 9th Request Rate Limiting', () => {
     // PHASE 7: Summary
     // ============================================
     console.log('\n\n╔═══════════════════════════════════════════════════════╗');
-    console.log('║  ✅ DEMO COMPLETE                                      ║');
+    console.log('║    DEMO COMPLETE                                      ║');
     console.log('╚═══════════════════════════════════════════════════════╝');
 
     console.log('\n📊 WHAT YOU SAW:');
-    console.log('   ✅ COMPLETE PRODUCTION WORKFLOW (Upload → Parse → Grade → Submit):');
-    console.log('   ✅ Teacher created course with code DEMO-101');
-    console.log('   ✅ Class section created and organized');
-    console.log('   ✅ 9 students enrolled in class');
-    console.log('   ✅ 9 PDF files uploaded and parsed');
-    console.log('   ✅ 9 grading sessions created with parsed files');
-    console.log('   ✅ All 9 jobs added to BullMQ queue');
-    console.log('   ✅ Front 8 jobs processed with Gemini API');
-    console.log('   ✅ 9th job waiting (rate limited)');
-    console.log('   ✅ 9 submission records created (AFTER grading)');
-    console.log('   ✅ Submissions linked to grading results');
-    console.log('   ✅ Admin Dashboard updated in REAL-TIME');
+    console.log('     COMPLETE PRODUCTION WORKFLOW (Upload → Parse → Grade → Submit):');
+    console.log('     Teacher created course with code DEMO-101');
+    console.log('     Class section created and organized');
+    console.log('     9 students enrolled in class');
+    console.log('     9 PDF files uploaded and parsed');
+    console.log('     9 grading sessions created with parsed files');
+    console.log('     All 9 jobs added to BullMQ queue');
+    console.log('     Front 8 jobs processed with Gemini API');
+    console.log('     9th job waiting (rate limited)');
+    console.log('     9 submission records created (AFTER grading)');
+    console.log('     Submissions linked to grading results');
+    console.log('     Admin Dashboard updated in REAL-TIME');
 
     console.log('\n🔍 VERIFICATION:');
-    console.log(`   • API Key: ${process.env.GEMINI_API_KEY ? '✅ Configured' : '❌ Missing'}`);
+    console.log(`   • API Key: ${process.env.GEMINI_API_KEY ? '  Configured' : '❌ Missing'}`);
     console.log(`   • Jobs processed: ${finalStatus.completed + finalStatus.failed}`);
-    console.log(`   • Rate limiting worked: ${finalStatus.isRateLimited || finalStatus.waiting > 0 ? '✅ YES' : '❌ NO'}`);
+    console.log(`   • Rate limiting worked: ${finalStatus.isRateLimited || finalStatus.waiting > 0 ? '  YES' : '❌ NO'}`);
 
     console.log('\n📝 NEXT STEPS:');
     console.log('   1. Check your Admin Dashboard - you should see the history');

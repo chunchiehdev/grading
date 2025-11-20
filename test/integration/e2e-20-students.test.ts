@@ -25,13 +25,13 @@ import { createTestPdf } from '../utils/pdf-generator';
  *
  * 🎯 PURPOSE:
  * Verify that 20 students can complete the ENTIRE workflow without errors:
- * ✅ Upload PDF files to S3
- * ✅ Parse all PDFs with REAL PDF parser (https://devgradingpdf.grading.software)
- * ✅ Create grading sessions
- * ✅ Submit to BullMQ queue for grading
- * ✅ Wait for grading completion
- * ✅ Create submission records
- * ✅ VERIFY: Zero errors for all 20 students
+ *   Upload PDF files to S3
+ *   Parse all PDFs with REAL PDF parser (https://devgradingpdf.grading.software)
+ *   Create grading sessions
+ *   Submit to BullMQ queue for grading
+ *   Wait for grading completion
+ *   Create submission records
+ *   VERIFY: Zero errors for all 20 students
  *
  * 📊 WHAT THIS TESTS:
  * - Production file upload flow (real S3)
@@ -104,7 +104,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
     console.log('\n╔════════════════════════════════════════════════════════╗');
     console.log('║  🌐 REAL API MODE ENABLED                              ║');
     console.log('╚════════════════════════════════════════════════════════╝');
-    console.log(`✅ USE_REAL_APIS: ${process.env.USE_REAL_APIS}`);
+    console.log(`  USE_REAL_APIS: ${process.env.USE_REAL_APIS}`);
     console.log(`📡 PDF Parser URL: ${process.env.PDF_PARSER_API_URL || 'http://localhost:8000'}`);
     console.log('🔄 MSW handlers reset to bypass mode');
     console.log('⚠️  All HTTP requests will hit REAL external APIs\n');
@@ -222,7 +222,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
       };
     }
 
-    console.log(`✅ Infrastructure ready for 20 students\n`);
+    console.log(`  Infrastructure ready for 20 students\n`);
   });
 
   it('should handle 20 students through complete workflow without errors', async () => {
@@ -237,7 +237,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
     const pdfParserUrl = process.env.PDF_PARSER_API_URL || 'http://localhost:8000';
 
     console.log('🔍 Environment Check:');
-    console.log(`   USE_REAL_APIS: ${process.env.USE_REAL_APIS} (${useRealApis ? '✅ REAL APIS' : '❌ MOCKED'})`);
+    console.log(`   USE_REAL_APIS: ${process.env.USE_REAL_APIS} (${useRealApis ? '  REAL APIS' : '❌ MOCKED'})`);
     console.log(`   PDF_PARSER_API_URL: ${pdfParserUrl}`);
 
     if (!useRealApis) {
@@ -245,7 +245,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
       console.warn('   MSW will intercept API calls and return mock data.');
       console.warn('   Set USE_REAL_APIS=true to test real parser.\n');
     } else {
-      console.log('\n✅ REAL API MODE: All requests will hit external endpoints');
+      console.log('\n  REAL API MODE: All requests will hit external endpoints');
       console.log('   You should see "🌐 REAL API CALL" logs from pdf-parser.server.ts\n');
     }
 
@@ -262,7 +262,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
       try {
         const content = `${createMinimalTestContent()}\n\nStudent ${i + 1} submission for E2E testing.`;
 
-        // ✅ Generate REAL PDF (not plain text)
+        //   Generate REAL PDF (not plain text)
         console.log(`   📝 Student ${i + 1}: Generating real PDF file...`);
         const pdfBuffer = await createTestPdf(content);
 
@@ -290,7 +290,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
 
         uploadedFiles.push(uploadedFile);
         results[i].uploadStatus = 'success';
-        console.log(`   ✅ Student ${i + 1}: File uploaded (${pdfBuffer.length} bytes, REAL PDF format)`);
+        console.log(`     Student ${i + 1}: File uploaded (${pdfBuffer.length} bytes, REAL PDF format)`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         results[i].errors.push(`Upload failed: ${errorMsg}`);
@@ -312,7 +312,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
         console.log(`   🔄 Student ${i + 1}: Parsing file...`);
         await triggerPdfParsing(file.id, file.fileKey, file.originalFileName, student.id);
         results[i].parseStatus = 'success';
-        console.log(`   ✅ Student ${i + 1}: Parse completed`);
+        console.log(`     Student ${i + 1}: Parse completed`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         results[i].errors.push(`Parse failed: ${errorMsg}`);
@@ -349,7 +349,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
         }
 
         sessionIds[i] = sessionResult.sessionId!;
-        console.log(`   ✅ Student ${i + 1}: Grading session created`);
+        console.log(`     Student ${i + 1}: Grading session created`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         results[i].errors.push(`Session creation failed: ${errorMsg}`);
@@ -373,7 +373,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
 
         if (startResult.success) {
           results[i].gradingStatus = 'success';
-          console.log(`   ✅ Student ${i + 1}: Job submitted to queue`);
+          console.log(`     Student ${i + 1}: Job submitted to queue`);
         } else {
           throw new Error(startResult.error || 'Unknown submission error');
         }
@@ -441,7 +441,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
         });
 
         results[i].submissionStatus = 'success';
-        console.log(`   ✅ Student ${i + 1}: Submission created`);
+        console.log(`     Student ${i + 1}: Submission created`);
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         results[i].errors.push(`Submission creation failed: ${errorMsg}`);
@@ -452,7 +452,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
     // ============================================
     // PHASE 7: Final report
     // ============================================
-    console.log('\n✅ PHASE 7: Generating final report...\n');
+    console.log('\n  PHASE 7: Generating final report...\n');
 
     const finalStatus = await getQueueStatus();
 
@@ -467,19 +467,19 @@ describe('E2E: 20 Students Complete Workflow', () => {
     const submissionSuccesses = results.filter((r) => r.submissionStatus === 'success').length;
 
     console.log('📤 UPLOAD RESULTS:');
-    console.log(`   ✅ Successful: ${uploadSuccesses}/${STUDENT_COUNT}`);
+    console.log(`     Successful: ${uploadSuccesses}/${STUDENT_COUNT}`);
     console.log(`   ❌ Failed: ${STUDENT_COUNT - uploadSuccesses}/${STUDENT_COUNT}\n`);
 
     console.log('📄 PARSE RESULTS:');
-    console.log(`   ✅ Successful: ${parseSuccesses}/${STUDENT_COUNT}`);
+    console.log(`     Successful: ${parseSuccesses}/${STUDENT_COUNT}`);
     console.log(`   ❌ Failed: ${STUDENT_COUNT - parseSuccesses}/${STUDENT_COUNT}\n`);
 
     console.log('🔄 GRADING RESULTS:');
-    console.log(`   ✅ Successful: ${gradingSuccesses}/${STUDENT_COUNT}`);
+    console.log(`     Successful: ${gradingSuccesses}/${STUDENT_COUNT}`);
     console.log(`   ❌ Failed: ${STUDENT_COUNT - gradingSuccesses}/${STUDENT_COUNT}\n`);
 
     console.log('📋 SUBMISSION RESULTS:');
-    console.log(`   ✅ Successful: ${submissionSuccesses}/${STUDENT_COUNT}`);
+    console.log(`     Successful: ${submissionSuccesses}/${STUDENT_COUNT}`);
     console.log(`   ❌ Failed: ${STUDENT_COUNT - submissionSuccesses}/${STUDENT_COUNT}\n`);
 
     console.log('🎯 QUEUE STATUS:');
@@ -501,7 +501,7 @@ describe('E2E: 20 Students Complete Workflow', () => {
       });
       console.log();
     } else {
-      console.log('✅ ALL 20 STUDENTS COMPLETED SUCCESSFULLY WITH ZERO ERRORS!\n');
+      console.log('  ALL 20 STUDENTS COMPLETED SUCCESSFULLY WITH ZERO ERRORS!\n');
     }
 
     // Final summary
@@ -509,10 +509,10 @@ describe('E2E: 20 Students Complete Workflow', () => {
     console.log('═════════════════════════════════════════════════════════\n');
     console.log(`📊 SUMMARY:`);
     console.log(
-      `   ${allSuccess ? '✅ PASS' : '❌ FAIL'} - ${STUDENT_COUNT - failedStudents.length}/${STUDENT_COUNT} students completed`
+      `   ${allSuccess ? '  PASS' : '❌ FAIL'} - ${STUDENT_COUNT - failedStudents.length}/${STUDENT_COUNT} students completed`
     );
     console.log(
-      `   ${allSuccess ? '✅ ZERO' : `❌ ${failedStudents.length}`} students with errors`
+      `   ${allSuccess ? '  ZERO' : `❌ ${failedStudents.length}`} students with errors`
     );
 
     // Assertions

@@ -70,7 +70,7 @@ describe('Grading Result Validation Unit Tests', () => {
       expect(typeof validResult.overallFeedback).toBe('string');
       expect(validResult.overallFeedback.length).toBeGreaterThan(10);
 
-      console.log('✅ Valid grading result structure test passed');
+      console.log('  Valid grading result structure test passed');
     });
 
     it('should reject invalid grading results', () => {
@@ -193,7 +193,7 @@ describe('Grading Result Validation Unit Tests', () => {
           console.log(`❌ Case ${index + 1} was not rejected:`, JSON.stringify(result, null, 2));
         }
         expect(isValid).toBe(false);
-        console.log(`✅ Invalid result ${index + 1} correctly rejected`);
+        console.log(`  Invalid result ${index + 1} correctly rejected`);
       });
     });
 
@@ -229,7 +229,7 @@ describe('Grading Result Validation Unit Tests', () => {
         }
 
         expect(isValid).toBe(false);
-        console.log(`✅ Edge case ${index + 1} handled correctly`);
+        console.log(`  Edge case ${index + 1} handled correctly`);
       });
     });
 
@@ -329,7 +329,7 @@ describe('Grading Result Validation Unit Tests', () => {
         // Validate overall feedback quality
         expect(response.overallFeedback.length).toBeGreaterThan(50);
 
-        console.log(`✅ Realistic ${index === 0 ? 'Gemini' : 'OpenAI'} response validated`);
+        console.log(`  Realistic ${index === 0 ? 'Gemini' : 'OpenAI'} response validated`);
       });
     });
   });

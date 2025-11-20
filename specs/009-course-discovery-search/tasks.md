@@ -1,7 +1,7 @@
 # Tasks: Course Discovery Search
 
 **Input**: Design documents from `/specs/009-course-discovery-search/`
-**Prerequisites**: plan.md ✅, spec.md ✅, data-model.md ✅, contracts/ ✅
+**Prerequisites**: plan.md  , spec.md  , data-model.md  , contracts/  
 **Branch**: `009-course-discovery-search`
 
 **Test Strategy**: Tests are included for this feature (comprehensive test coverage recommended per feature scope and existing project standards)
@@ -252,7 +252,7 @@
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies - can start immediately ✅
+- **Setup (Phase 1)**: No dependencies - can start immediately  
 - **Foundational (Phase 2)**: Depends on Setup completion - **BLOCKS all user stories** ⚠️
 - **User Stories (Phases 3-8)**: All depend on Foundational phase completion
   - **P1 Stories** (US1, US2, US3): Can proceed in parallel after Foundational
@@ -261,9 +261,9 @@
 
 ### User Story Dependencies
 
-- **User Story 1 (P1)**: Can start after Phase 2 - NO dependencies on other stories ✅
-- **User Story 2 (P1)**: Can start after Phase 2 - Independent from US1 (though builds on same components) ✅
-- **User Story 3 (P1)**: Can start after Phase 2 - Independent from US1/US2 ✅
+- **User Story 1 (P1)**: Can start after Phase 2 - NO dependencies on other stories  
+- **User Story 2 (P1)**: Can start after Phase 2 - Independent from US1 (though builds on same components)  
+- **User Story 3 (P1)**: Can start after Phase 2 - Independent from US1/US2  
 - **User Story 4 (P2)**: Can start after Phase 2 + US1 complete (depends on search functionality working)
 - **User Story 5 (P2)**: Can start after Phase 2 + US1 complete (depends on search functionality)
 - **User Story 6 (P2)**: Can start after Phase 2 + US1 complete (depends on results displaying)
@@ -338,12 +338,12 @@
 
 **Recommended for fastest delivery: 2-3 days solo or 1 day with team**
 
-1. ✅ Complete Phase 1: Setup (0.5 hours)
-2. ✅ Complete Phase 2: Foundational (4-5 hours) - **CRITICAL BLOCKER**
-3. ✅ Complete Phase 3: User Story 1 (4-5 hours)
-4. ✅ Complete Phase 4: User Story 2 (2-3 hours) - leverages Phase 2 hook
-5. ✅ Complete Phase 5: User Story 3 (1-2 hours)
-6. **STOP and VALIDATE** at checkpoint - test all 3 stories independently ✅
+1.   Complete Phase 1: Setup (0.5 hours)
+2.   Complete Phase 2: Foundational (4-5 hours) - **CRITICAL BLOCKER**
+3.   Complete Phase 3: User Story 1 (4-5 hours)
+4.   Complete Phase 4: User Story 2 (2-3 hours) - leverages Phase 2 hook
+5.   Complete Phase 5: User Story 3 (1-2 hours)
+6. **STOP and VALIDATE** at checkpoint - test all 3 stories independently  
 7. Deploy/demo MVP to stakeholders
 8. **Decide**: Continue with P2 stories or stop here?
 
@@ -355,11 +355,11 @@
 
 ```
 Sprint 1: Setup + Foundational + P1 Stories (Phases 1-5)
-  ↓ Deploy: Basic search working ✅
+  ↓ Deploy: Basic search working  
 Sprint 2: P2 Stories (Phases 6-7)
-  ↓ Deploy: Loading states + URL sharing ✅
+  ↓ Deploy: Loading states + URL sharing  
 Sprint 3: P2 Final + Polish (Phase 8-9)
-  ↓ Deploy: Smooth updates + full polish ✅
+  ↓ Deploy: Smooth updates + full polish  
 ```
 
 ### Parallel Team Strategy
@@ -377,7 +377,7 @@ Day 1 Afternoon:
 - Dev C: Phase 5 User Story 3 (2 hours)
 
 Day 2 Morning:
-- All: Merge, test, validate all 3 stories together ✅
+- All: Merge, test, validate all 3 stories together  
 - Decide: Ship MVP now or continue?
 
 Day 2 Afternoon (optional):
@@ -387,7 +387,7 @@ Day 2 Afternoon (optional):
 
 Day 2 End:
 - All: Phase 9 Polish together (2 hours)
-- All: Final validation, cross-browser testing ✅
+- All: Final validation, cross-browser testing  
 ```
 
 ---
@@ -396,13 +396,13 @@ Day 2 End:
 
 After completing each phase:
 
-### After Phase 1 ✅
+### After Phase 1  
 
 - [ ] Migration file exists and can be applied
 - [ ] Contract types accessible to components and backend
 - [ ] Test fixtures load without errors
 
-### After Phase 2 ✅
+### After Phase 2  
 
 - [ ] Zustand store initializes with correct state shape
 - [ ] Hook compiles without errors
@@ -410,43 +410,43 @@ After completing each phase:
 - [ ] Endpoint structure created and responds to requests
 - [ ] Error handling works for invalid inputs
 
-### After Phase 3 (MVP) ✅
+### After Phase 3 (MVP)  
 
 - [ ] Type "Math" → see only Math courses
 - [ ] All T011-T015 tests pass
 - [ ] Empty query returns all courses
 - [ ] Results display in real-time as you type
 
-### After Phase 4 ✅
+### After Phase 4  
 
 - [ ] Type "Python" (6 chars) rapidly → exactly 1 API request in Network tab
 - [ ] All T025-T027 tests pass
 - [ ] Loading spinner appears during search
 
-### After Phase 5 ✅
+### After Phase 5  
 
 - [ ] Search active → clear button visible and clickable
 - [ ] Click clear → search box empty, all courses show, URL param gone
 - [ ] All T034-T036 tests pass
 
-### After Phase 6 ✅
+### After Phase 6  
 
 - [ ] Loading skeleton appears for 400ms+ while search in progress
 - [ ] Skeleton disappears when results arrive
 
-### After Phase 7 ✅
+### After Phase 7  
 
 - [ ] Search "JavaScript" → URL shows `?search=JavaScript`
 - [ ] Copy URL to new tab → search box pre-filled, same results
 - [ ] Browser back button returns to previous search or empty state
 
-### After Phase 8 ✅
+### After Phase 8  
 
 - [ ] No page reloads during search (watch Network tab)
 - [ ] Scroll position preserved while searching
 - [ ] Results fade/transition smoothly
 
-### After Phase 9 ✅
+### After Phase 9  
 
 - [ ] All tests pass: `npm test`
 - [ ] Types valid: `npm run typecheck`

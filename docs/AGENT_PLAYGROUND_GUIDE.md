@@ -399,7 +399,7 @@ When asked about code, use the code_explainer tool.
 
 ---
 
-## ✅ Success Checklist
+##   Success Checklist
 
 After implementation, you should be able to:
 
@@ -417,4 +417,4 @@ After implementation, you should be able to:
 **Built with AI SDK 6 Beta • Powered by Gemini 2.5 Flash • React Router v7**
 
 **Created**: 2025-11-05
-**Status**: ✅ Complete and Working
+**Status**:   Complete and Working

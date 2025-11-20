@@ -41,7 +41,7 @@ The AI SDK `generateText()` function **automatically includes the entire convers
 system prompt (3,000 tokens)
 + user message (5,000 tokens)
 + tool definitions (2,000 tokens)
-= 10,000 tokens ✅
+= 10,000 tokens  
 ```
 
 **Step 5 Context:**
@@ -217,12 +217,12 @@ const contextMessages = buildMessages(systemPrompt, relevantSteps);
 **GradingResult Extensions:**
 ```prisma
 model GradingResult {
-  agentSteps         Json?      // ✅ For display only
-  toolCalls          Json?      // ✅ For display only
-  confidenceScore    Float?     // ✅ Good
-  requiresReview     Boolean    // ✅ Good
-  agentModel         String?    // ✅ Good
-  agentExecutionTime Int?       // ✅ Good
+  agentSteps         Json?      //   For display only
+  toolCalls          Json?      //   For display only
+  confidenceScore    Float?     //   Good
+  requiresReview     Boolean    //   Good
+  agentModel         String?    //   Good
+  agentExecutionTime Int?       //   Good
 }
 ```
 
@@ -251,10 +251,10 @@ model AgentExecutionLog {
 3. Database is write-only during execution - not used for context management
 
 **Good For**:
-- ✅ Audit trail
-- ✅ Debugging
-- ✅ UI display of agent reasoning
-- ✅ Human review queue
+-   Audit trail
+-   Debugging
+-   UI display of agent reasoning
+-   Human review queue
 
 **Bad For**:
 - ❌ Managing agent memory
@@ -574,7 +574,7 @@ Provide a 2-3 sentence summary of what was accomplished.`;
 **Test 1: Simple Assignment (Baseline)**
 - Rubric: 3 criteria
 - Content: 500 words
-- Expected: 6-8 steps, ~12,000 tokens ✅
+- Expected: 6-8 steps, ~12,000 tokens  
 
 **Test 2: Medium Assignment (Should Pass)**
 - Rubric: 6 criteria
@@ -648,7 +648,7 @@ logger.info('[Agent Token Metrics]', {
 
 ### Summary of Findings
 
-✅ **What's Good**:
+  **What's Good**:
 1. Well-structured agent tools with clear purposes
 2. Comprehensive logging for debugging
 3. Database schema supports audit trail
@@ -669,19 +669,19 @@ logger.info('[Agent Token Metrics]', {
 ### Recommended Action Plan
 
 **Immediate (This Week)**:
-1. ✅ Implement token counting and input truncation
-2. ✅ Add context window error handling
-3. ✅ Add fallback to traditional grading on overflow
+1.   Implement token counting and input truncation
+2.   Add context window error handling
+3.   Add fallback to traditional grading on overflow
 
 **Short Term (Next 2 Weeks)**:
-4. ✅ Implement sliding window (keep last 8 steps)
-5. ✅ Add token budget monitoring
-6. ✅ Test with complex assignments
+4.   Implement sliding window (keep last 8 steps)
+5.   Add token budget monitoring
+6.   Test with complex assignments
 
 **Medium Term (1-2 Months)**:
-7. ✅ Implement step summarization
-8. ✅ Consider RAG with pgvector
-9. ✅ Optimize tool output sizes
+7.   Implement step summarization
+8.   Consider RAG with pgvector
+9.   Optimize tool output sizes
 
 ### Final Verdict
 

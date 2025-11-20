@@ -185,7 +185,7 @@ describe('Grading Engine Logic', () => {
         }),
       });
 
-      console.log('✅ Grading workflow completed successfully');
+      console.log('  Grading workflow completed successfully');
     });
 
     it('should handle missing grading result', async () => {
@@ -198,7 +198,7 @@ describe('Grading Engine Logic', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Grading result not found');
 
-      console.log('✅ Missing grading result handled correctly');
+      console.log('  Missing grading result handled correctly');
     });
 
     it('should skip processing if result is not pending', async () => {
@@ -222,7 +222,7 @@ describe('Grading Engine Logic', () => {
       // TODO: 更新為使用新的 AI 服務架構
       // expect(getGeminiService).not.toHaveBeenCalled();
 
-      console.log('✅ Non-pending result skipped appropriately');
+      console.log('  Non-pending result skipped appropriately');
     });
 
     it('should handle missing required data', async () => {
@@ -258,7 +258,7 @@ describe('Grading Engine Logic', () => {
         expect(result.success).toBe(false);
         expect(result.error).toBe('Missing file or rubric data');
 
-        console.log(`✅ ${testCase.name} validation passed`);
+        console.log(`  ${testCase.name} validation passed`);
       }
     });
 
@@ -284,7 +284,7 @@ describe('Grading Engine Logic', () => {
       expect(result.error).toBe('File has no parsed content');
 
       // Note: The actual implementation updates database directly, not through failGradingResult
-      console.log('✅ Unparsed file content handled correctly');
+      console.log('  Unparsed file content handled correctly');
     });
   });
 
@@ -300,7 +300,7 @@ describe('Grading Engine Logic', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('Database timeout');
 
-      console.log('✅ Database connection failures handled correctly');
+      console.log('  Database connection failures handled correctly');
     });
 
     it('should handle missing rubric criteria', async () => {
@@ -341,7 +341,7 @@ describe('Grading Engine Logic', () => {
         }),
       });
 
-      console.log('✅ Missing rubric criteria handled correctly');
+      console.log('  Missing rubric criteria handled correctly');
     });
 
     it('should track progress through database updates', async () => {
@@ -421,7 +421,7 @@ describe('Grading Engine Logic', () => {
         true
       );
 
-      console.log('✅ Database progress tracking verified');
+      console.log('  Database progress tracking verified');
     });
   });
 });

@@ -248,10 +248,10 @@ className = 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-6
 
 **Verification**:
 
-- Base input height: h-11 (44px) ✅
-- Base button height: h-11 (44px) ✅
-- sm breakpoint: h-12 (48px) ✅
-- lg breakpoint: h-14 (56px) ✅
+- Base input height: h-11 (44px)  
+- Base button height: h-11 (44px)  
+- sm breakpoint: h-12 (48px)  
+- lg breakpoint: h-14 (56px)  
 
 **Result**: All touch targets meet or exceed WCAG requirements at every breakpoint.
 
@@ -333,17 +333,17 @@ The rubric creation form (`rubrics/new.tsx`) is fundamentally different:
 
 **What Changes**:
 
-- ✅ Centered header layout (title + subtitle)
-- ✅ Container max-width and padding
-- ✅ Card styling (rounded-2xl, shadow-sm, semantic tokens)
-- ✅ Overall page structure
+-   Centered header layout (title + subtitle)
+-   Container max-width and padding
+-   Card styling (rounded-2xl, shadow-sm, semantic tokens)
+-   Overall page structure
 
 **What Stays**:
 
-- ✅ Multiple Card components for different sections
-- ✅ CategoryNav and CriterionItemAccordion internal components
-- ✅ Complex state management
-- ✅ Custom action button placement (but with consistent button styling)
+-   Multiple Card components for different sections
+-   CategoryNav and CriterionItemAccordion internal components
+-   Complex state management
+-   Custom action button placement (but with consistent button styling)
 
 **Rationale**: The rubric's internal complexity is domain-driven (managing categories and criteria). We can't simplify this without losing functionality. However, the outer "shell" (page header, container, card containers) can absolutely follow the unified pattern.
 

@@ -120,12 +120,12 @@ export async function createAssignmentArea(
       },
     });
 
-    logger.info('✅ Created assignment area:', assignmentArea.name, 'for course:', courseId);
+    logger.info('  Created assignment area:', assignmentArea.name, 'for course:', courseId);
 
     // 發布作業通知事件
     try {
       await publishAssignmentCreatedNotification(assignmentArea);
-      logger.info('✅ Assignment notification published for:', assignmentArea.name);
+      logger.info('  Assignment notification published for:', assignmentArea.name);
     } catch (notificationError) {
       logger.error('⚠️ Failed to publish assignment notification:', notificationError);
       // 不阻斷作業建立流程，僅記錄錯誤
@@ -304,7 +304,7 @@ export async function updateAssignmentArea(
       },
     });
 
-    logger.info('✅ Updated assignment area:', updatedArea.name);
+    logger.info('  Updated assignment area:', updatedArea.name);
     return updatedArea;
   } catch (error) {
     logger.error('❌ Error updating assignment area:', error);
@@ -345,7 +345,7 @@ export async function deleteAssignmentArea(assignmentId: string, teacherId: stri
       });
     });
 
-    logger.info('✅ Deleted assignment area and all related data:', assignmentId);
+    logger.info('  Deleted assignment area and all related data:', assignmentId);
     return true;
   } catch (error) {
     logger.error('❌ Error deleting assignment area:', error);

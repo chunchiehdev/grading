@@ -41,7 +41,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 **Note**: The project constitution file is currently a template (`constitution.md`). This feature check validates against established project patterns in CLAUDE.md:
 
-✅ **Project Pattern Alignment**:
+  **Project Pattern Alignment**:
 
 - **Architecture**: Follows React Router v7 file-based routing with role-based access (/student vs /teacher routes) ✓
 - **Service Layer**: Uses `.server.ts` suffix for server-side code with type exports ✓
@@ -51,7 +51,7 @@ _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 - **Testing**: Aligns with Vitest + React Testing Library pattern ✓
 - **Internationalization**: Can leverage existing i18next integration with new translation keys ✓
 
-✅ **No Constitution Violations**: Feature uses established patterns without requiring new projects, frameworks, or architectural changes.
+  **No Constitution Violations**: Feature uses established patterns without requiring new projects, frameworks, or architectural changes.
 
 ## Project Structure
 
@@ -146,7 +146,7 @@ tests/
 
 ## Phase 0: Research & Clarification
 
-**Status**: ✅ COMPLETE - No unknowns requiring research
+**Status**:   COMPLETE - No unknowns requiring research
 
 **Clarifications Resolved**:
 

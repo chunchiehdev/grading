@@ -159,7 +159,7 @@ class SimpleGeminiService {
       const result = this.parseResponse(response.text, request.criteria);
       const duration = Date.now() - startTime;
 
-      logger.info(`✅ Gemini grading completed in ${duration}ms`);
+      logger.info(`  Gemini grading completed in ${duration}ms`);
 
       // Better token estimation: roughly 1 token per 4 characters (Chinese) or 4 characters (English)
       // Output tokens based on actual response length
@@ -188,7 +188,7 @@ class SimpleGeminiService {
 
       return {
         success: false,
-        result: fallbackResult,  // ✅ Include fallback result
+        result: fallbackResult,  //   Include fallback result
         error: errorMessage,
         metadata: {
           model: this.model,

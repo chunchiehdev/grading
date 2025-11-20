@@ -90,7 +90,7 @@ class RotatingGeminiService {
       for (const { keyId } of this.clients) {
         await this.healthTracker.initializeKey(keyId);
       }
-      logger.info('✅ Initialized health tracking for all Gemini keys');
+      logger.info('  Initialized health tracking for all Gemini keys');
     } catch (error) {
       logger.error('Failed to initialize health tracking', { error });
     }
@@ -275,7 +275,7 @@ class RotatingGeminiService {
           // Record success metrics
           await this.healthTracker.recordSuccess(selectedKeyId, keyDuration);
 
-          logger.info(`✅ Gemini grading completed with key ${selectedKeyId}`, {
+          logger.info(`  Gemini grading completed with key ${selectedKeyId}`, {
             duration: totalDuration,
             keyUsed: selectedKeyId,
             attempts: attempt + 1,

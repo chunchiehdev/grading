@@ -1,7 +1,7 @@
 # Data Model: Course Discovery Search
 
 **Created**: 2025-10-20
-**Status**: ✅ Complete
+**Status**:   Complete
 
 ## Entities
 
@@ -289,7 +289,7 @@ interface SearchResponse {
 
 The existing `Course` model already contains all required fields (`title`, `description`, `status`). The feature only adds:
 
-- ✅ One index for performance optimization (index creation is safe, non-breaking)
+-   One index for performance optimization (index creation is safe, non-breaking)
 - ❌ No new tables
 - ❌ No new columns
 - ❌ No schema modifications

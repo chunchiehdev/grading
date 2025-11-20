@@ -136,7 +136,7 @@ export async function createClass(teacherId: string, data: CreateClassData): Pro
       },
     });
 
-    logger.info('✅ Created class:', classInstance.name, 'for course:', data.courseId);
+    logger.info('  Created class:', classInstance.name, 'for course:', data.courseId);
     return classInstance;
   } catch (error) {
     logger.error('❌ Error creating class:', error);
@@ -319,7 +319,7 @@ export async function updateClass(
       },
     });
 
-    logger.info('✅ Updated class:', updatedClass.name);
+    logger.info('  Updated class:', updatedClass.name);
     return updatedClass;
   } catch (error) {
     logger.error('❌ Error updating class:', error);
@@ -355,7 +355,7 @@ export async function deleteClass(classId: string, teacherId: string): Promise<b
       where: { id: classId },
     });
 
-    logger.info('✅ Deleted class:', classId);
+    logger.info('  Deleted class:', classId);
     return true;
   } catch (error) {
     logger.error('❌ Error deleting class:', error);

@@ -85,7 +85,7 @@ export async function createSubmission(
       },
     });
 
-    logger.info('✅ Created submission:', submission.id, 'for student:', studentId);
+    logger.info('  Created submission:', submission.id, 'for student:', studentId);
 
     // Send submission notification to teacher via WebSocket
     try {
@@ -204,7 +204,7 @@ export async function createSubmissionAndLinkGradingResult(
       },
     });
 
-    logger.info(`✅ Resubmission successful: Updated submission ${submission!.id}`);
+    logger.info(`  Resubmission successful: Updated submission ${submission!.id}`);
 
     // Send submission notification to teacher via WebSocket (for resubmission)
     try {
@@ -230,7 +230,7 @@ export async function createSubmissionAndLinkGradingResult(
       assignmentAreaId,
       filePath: filePathOrId,
     });
-    logger.info(`✅ Created new submission ${submission.id}`);
+    logger.info(`  Created new submission ${submission.id}`);
   }
 
   if (!submission) {
@@ -282,7 +282,7 @@ export async function createSubmissionAndLinkGradingResult(
         status: 'ANALYZED',
       });
 
-      logger.info(`✅ Successfully linked AI result to submission ${submission.id}`);
+      logger.info(`  Successfully linked AI result to submission ${submission.id}`);
     } else {
       logger.warn(
         `⚠️ Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`
@@ -993,7 +993,7 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       return null;
     }
 
-    logger.info({ submissionId: submission.id, assignmentAreaId, studentId }, '✅ Saved draft submission');
+    logger.info({ submissionId: submission.id, assignmentAreaId, studentId }, '  Saved draft submission');
 
     return {
       id: submission.id,

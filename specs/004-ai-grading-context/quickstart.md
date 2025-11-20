@@ -14,11 +14,11 @@ This guide shows developers how to test the context-aware AI grading feature loc
 
 **No additional environment variables required** - this feature reuses existing infrastructure:
 
-- ✅ Database: `DATABASE_URL` (existing PostgreSQL)
-- ✅ Storage: `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` (existing)
-- ✅ AI: `GOOGLE_API_KEY`, `OPENAI_API_KEY` (existing)
-- ✅ PDF Parser: External API endpoint (existing)
-- ✅ Redis: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (existing)
+-   Database: `DATABASE_URL` (existing PostgreSQL)
+-   Storage: `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` (existing)
+-   AI: `GOOGLE_API_KEY`, `OPENAI_API_KEY` (existing)
+-   PDF Parser: External API endpoint (existing)
+-   Redis: `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (existing)
 
 ### Start Development Environment
 

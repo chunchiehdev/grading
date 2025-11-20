@@ -66,7 +66,7 @@ class RateLimitTester {
     if (key2) this.keys.push({ id: '2', apiKey: key2 });
     if (key3) this.keys.push({ id: '3', apiKey: key3 });
 
-    console.log(`✅ Loaded ${this.keys.length} API keys\n`);
+    console.log(`  Loaded ${this.keys.length} API keys\n`);
   }
 
   /**
@@ -463,7 +463,7 @@ Be thorough in your analysis and provide specific examples.
     }
 
     if (totalSuccess === totalRequests) {
-      console.log('  ✅ All requests successful!');
+      console.log('    All requests successful!');
       console.log('     - Current load is within rate limits');
       console.log('     - Consider gradual load increase for capacity testing');
     }

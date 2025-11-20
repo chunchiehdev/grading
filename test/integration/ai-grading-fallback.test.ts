@@ -75,7 +75,7 @@ describe('AI Grading Fallback Mechanism Integration', () => {
       expect(gradingResult.gradingTokens).toBeGreaterThan(0);
       expect(gradingResult.gradingDuration).toBeGreaterThan(0);
 
-      console.log('✅ Gemini first attempt success test passed');
+      console.log('  Gemini first attempt success test passed');
     });
 
     it('should fallback to OpenAI and succeed when Gemini fails', async () => {
@@ -117,7 +117,7 @@ describe('AI Grading Fallback Mechanism Integration', () => {
       expect(gradingResult.gradingTokens).toBeGreaterThan(1500);
       expect(gradingResult.gradingDuration).toBeGreaterThan(3000);
 
-      console.log('✅ OpenAI fallback success test passed');
+      console.log('  OpenAI fallback success test passed');
     });
   });
 
@@ -158,7 +158,7 @@ describe('AI Grading Fallback Mechanism Integration', () => {
       expect(uploadedFile.parseStatus).toBe('FAILED');
       expect(uploadedFile.parseError).toBeTruthy();
 
-      console.log('✅ Complete failure handling test passed');
+      console.log('  Complete failure handling test passed');
     });
 
     it('should track different error types and retry logic', async () => {
@@ -213,7 +213,7 @@ describe('AI Grading Fallback Mechanism Integration', () => {
         expect(result.result).toBeNull();
       });
 
-      console.log('✅ Error type tracking test passed');
+      console.log('  Error type tracking test passed');
     });
   });
 
@@ -268,7 +268,7 @@ describe('AI Grading Fallback Mechanism Integration', () => {
       // Scores should be reasonably close (within 10 points)
       expect(Math.abs(geminiScore - openaiScore)).toBeLessThanOrEqual(10);
 
-      console.log('✅ Provider comparison test passed');
+      console.log('  Provider comparison test passed');
     });
 
     it('should validate result quality and structure', async () => {
@@ -324,7 +324,7 @@ describe('AI Grading Fallback Mechanism Integration', () => {
       expect(typeof result.overallFeedback).toBe('string');
       expect(result.overallFeedback.length).toBeGreaterThan(10); // Meaningful feedback
 
-      console.log('✅ Result quality validation test passed');
+      console.log('  Result quality validation test passed');
     });
   });
 
@@ -380,7 +380,7 @@ describe('AI Grading Fallback Mechanism Integration', () => {
       expect(completedResult.result).toBeDefined();
       expect(completedResult.completedAt).toBeInstanceOf(Date);
 
-      console.log('✅ Progress tracking test passed');
+      console.log('  Progress tracking test passed');
     });
   });
 });

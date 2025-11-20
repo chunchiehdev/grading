@@ -11,7 +11,7 @@
 虽然 E2E 测试报告 20/20 成功，但数据库中只有 3/20 结果有有效的 Gemini 反馈：
 
 ```
-✅ 有效反馈: 3 (15%)
+  有效反馈: 3 (15%)
 ❌ 虚假反馈: 17 (85%) - 硬编码默认值
 ```
 
@@ -64,7 +64,7 @@ export const handlers = [
 
 ```typescript
 // test/mocks/handlers.ts 第 4 行
-const useRealApis = process.env.USE_REAL_APIS === 'true';  // ✅ 被检查
+const useRealApis = process.env.USE_REAL_APIS === 'true';  //   被检查
 
 // 但 Gemini mock 始终被应用！❌
 http.post('https://generativelanguage.googleapis.com/v1beta/models/*', () => {
@@ -187,7 +187,7 @@ export const handlers = [
     return HttpResponse.json({...});
   }),
 
-  // ✅ 这个正确地被条件性应用
+  //   这个正确地被条件性应用
   ...(useRealApis ? [] : [
     http.post('https://gradingpdf.grading.software/parse', () => {...}),
   ]),
@@ -199,7 +199,7 @@ export const handlers = [
 const useRealApis = process.env.USE_REAL_APIS === 'true';
 
 export const handlers = [
-  // ✅ 只在不使用真实 API 时应用 mock
+  //   只在不使用真实 API 时应用 mock
   ...(useRealApis ? [] : [
     http.post('https://generativelanguage.googleapis.com/v1beta/models/*', () => {
       return HttpResponse.json({...});
@@ -244,7 +244,7 @@ results[i].submissionStatus = 'success';  // ← 标记为成功，即使反馈�
 
 ---
 
-## ✅ 修复方案
+##   修复方案
 
 ### 方案 A: 修改 mock handlers（推荐，快速修复）
 
@@ -253,7 +253,7 @@ results[i].submissionStatus = 'success';  // ← 标记为成功，即使反馈�
 const useRealApis = process.env.USE_REAL_APIS === 'true';
 
 export const handlers = [
-  // ✅ 只在测试模式下使用 mock
+  //   只在测试模式下使用 mock
   ...(useRealApis ? [] : [
     http.post('https://generativelanguage.googleapis.com/v1beta/models/*', () => {
       return HttpResponse.json({
@@ -282,18 +282,18 @@ const validFeedbackResults = results.filter(r => {
   });
 
   return (
-    // ✅ maxScore 应该与 rubric 匹配
+    //   maxScore 应该与 rubric 匹配
     gradingResult.result?.maxScore === rubric.criteria.reduce((sum, c) => sum + c.maxScore) &&
 
-    // ✅ totalScore 应该是合理的数值
+    //   totalScore 应该是合理的数值
     typeof gradingResult.result?.totalScore === 'number' &&
 
-    // ✅ feedback 不应该是默认的 "No feedback available"
+    //   feedback 不应该是默认的 "No feedback available"
     gradingResult.result?.breakdown?.every(
       (item) => item.feedback !== 'No feedback available'
     ) &&
 
-    // ✅ overallFeedback 应该是有意义的文本
+    //   overallFeedback 应该是有意义的文本
     gradingResult.result?.overallFeedback?.length > 20
   );
 });

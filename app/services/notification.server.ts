@@ -118,7 +118,7 @@ export async function publishSubmissionCreatedNotification(submissionData: {
       },
     });
     notificationId = notification.id;
-    logger.info('✅ Created notification record in database:', notificationId);
+    logger.info('  Created notification record in database:', notificationId);
   } catch (error) {
     logger.error('⚠️ Failed to create notification record:', error);
   }
@@ -139,7 +139,7 @@ export async function publishSubmissionCreatedNotification(submissionData: {
   };
 
   await redis.publish('notifications:submission', JSON.stringify(event));
-  logger.info('✅ Submission notification published');
+  logger.info('  Submission notification published');
 }
 
 export async function getUnreadNotifications(userId: string): Promise<UnreadNotification[]> {

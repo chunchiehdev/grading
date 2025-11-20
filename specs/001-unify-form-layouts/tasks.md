@@ -1,7 +1,7 @@
 # Tasks: Unify Form Layout Patterns
 
 **Input**: Design documents from `/specs/001-unify-form-layouts/`  
-**Prerequisites**: plan.md ✅, spec.md ✅, research.md ✅, data-model.md ✅, quickstart.md ✅
+**Prerequisites**: plan.md  , spec.md  , research.md  , data-model.md  , quickstart.md  
 
 **Tests**: Not explicitly requested in feature specification - no test tasks generated.
 

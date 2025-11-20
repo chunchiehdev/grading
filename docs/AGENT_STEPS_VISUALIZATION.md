@@ -72,14 +72,14 @@
               │                      │
               │  ┌─Step 1──────────┐ │
               │  │ 🔧 web_search   │ │
-              │  │ ✅ Completed    │ │
+              │  │   Completed    │ │
               │  │ Input: ...      │ │
               │  │ Output: ...     │ │
               │  └─────────────────┘ │
               │                      │
               │  ┌─Step 2──────────┐ │
               │  │ 📝 Summary      │ │
-              │  │ ✅ Done         │ │
+              │  │   Done         │ │
               │  └─────────────────┘ │
               └──────────────────────┘
 ```
@@ -330,7 +330,7 @@ AgentChatBoxWithSteps
 │        │     ├─ ToolInvocationCard (web_search)
 │        │     │  ├─ 圖示 🔍
 │        │     │  ├─ 名稱 "Web Search"
-│        │     │  ├─ 狀態 ✅ Completed
+│        │     │  ├─ 狀態   Completed
 │        │     │  ├─ Input: { query: "..." }
 │        │     │  └─ Output: { results: [...] }
 │        │     │
@@ -367,7 +367,7 @@ AgentChatBoxWithSteps
 │    │                                             │    │
 │    │ 🔧 Tool Executions:                         │    │
 │    │ ┌─────────────────────────────────────────┐ │    │
-│    │ │ 🔍 Web Search        ✅ Completed       │ │    │
+│    │ │ 🔍 Web Search          Completed       │ │    │
 │    │ │ Input: {"query":"Claude AI"}            │ │    │
 │    │ │ Output:                                 │ │    │
 │    │ │ {                                       │ │    │
@@ -411,7 +411,7 @@ AgentChatBoxWithSteps
 | AI text response  | `{ type: "text" }`    | 步驟內容文字         |
 | Tool call         | `{ type: "tool-*" }`  | 工具卡片           |
 | Tool executing    | `state: "input-available"` | ⏳ Running         |
-| Tool completed    | `state: "output-available"` | ✅ Completed       |
+| Tool completed    | `state: "output-available"` |   Completed       |
 | Tool error        | `errorText: "..."` | ❌ Error           |
 
 ---

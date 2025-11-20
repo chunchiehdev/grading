@@ -9,7 +9,7 @@ export const handlers = [
     const useRealApis = process.env.USE_REAL_APIS === 'true';
 
     if (useRealApis) {
-      // ✅ Bypass this request - let it go to the real API
+      //   Bypass this request - let it go to the real API
       return passthrough();
     }
 
@@ -47,7 +47,7 @@ export const handlers = [
     const useRealApis = process.env.USE_REAL_APIS === 'true';
 
     if (useRealApis) {
-      // ✅ Bypass this request - let it go to the real API
+      //   Bypass this request - let it go to the real API
       return passthrough();
     }
 
@@ -81,7 +81,7 @@ export const handlers = [
     const useRealApis = process.env.USE_REAL_APIS === 'true';
 
     if (useRealApis) {
-      // ✅ Bypass this request - let it go to the real API
+      //   Bypass this request - let it go to the real API
       return passthrough();
     }
 
@@ -99,7 +99,7 @@ export const handlers = [
     const useRealApis = process.env.USE_REAL_APIS === 'true';
 
     if (useRealApis) {
-      // ✅ Bypass this request - let it go to the real API
+      //   Bypass this request - let it go to the real API
       return passthrough();
     }
 

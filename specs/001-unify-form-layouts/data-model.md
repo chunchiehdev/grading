@@ -354,8 +354,8 @@ This data model defines three lightweight, composable components that encapsulat
 
 **Key Principles**:
 
-- ✅ Presentational only (no business logic)
-- ✅ Semantic tokens for theming
-- ✅ Responsive by default
-- ✅ Accessible by design
-- ✅ Easy to understand and maintain
+-   Presentational only (no business logic)
+-   Semantic tokens for theming
+-   Responsive by default
+-   Accessible by design
+-   Easy to understand and maintain

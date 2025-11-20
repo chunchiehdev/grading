@@ -16,19 +16,19 @@ websocketClient.disconnect()
 - WiFi 切換
 - 手機進入休眠模式
 - VPN 連線中斷
-- ✅ **會自動重連**（透過 `scheduleReconnect()`）
+-   **會自動重連**（透過 `scheduleReconnect()`）
 
 #### 情況 C: 伺服器重啟/維護
 - WebSocket 服務器重啟
 - Docker 容器重啟
 - 部署新版本
-- ✅ **會自動重連**
+-   **會自動重連**
 
 #### 情況 D: 瀏覽器標籤頁切換
 - Chrome/Edge 的標籤頁進入背景
 - 瀏覽器節能模式
 - **可能會斷線**（取決於瀏覽器）
-- ✅ **會自動重連**
+-   **會自動重連**
 
 #### 情況 E: React 組件生命週期
 ```typescript
@@ -148,7 +148,7 @@ UI 更新延遲: ~877ms
 
 ---
 
-## ✅ 事件驅動的正確做法（已實作）
+##   事件驅動的正確做法（已實作）
 
 ### 新的實作方式
 
@@ -215,8 +215,8 @@ docker-compose -f docker-compose.dev.yaml logs websocket -f
 
 從你的日誌：
 ```
-websocket-connect: 不到 1 秒 ✅
-websocket-event-*: 幾乎 0ms ✅
+websocket-connect: 不到 1 秒  
+websocket-event-*: 幾乎 0ms  
 ```
 
 **WebSocket 本身不慢！**
@@ -242,7 +242,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 分鐘
 ```
 
 **權衡**：
-- ✅ Tab 切換更快（幾乎都是 cache hit）
+-   Tab 切換更快（幾乎都是 cache hit）
 - ❌ 資料可能稍微舊一點
 
 ### 2. 實作 SWR (Stale-While-Revalidate)
@@ -274,7 +274,7 @@ websocketClient.on('assignment-notification', () => {
 **問題**：你的應用真的需要 WebSocket 嗎？
 
 **評估**：
-- ✅ 需要：聊天功能、即時通知、協作編輯
+-   需要：聊天功能、即時通知、協作編輯
 - ❌ 不需要：只是顯示作業列表、提交記錄
 
 **替代方案**：
@@ -295,7 +295,7 @@ websocketClient.on('assignment-notification', () => {
 | 最大重連延遲 | 30 秒 | 合理 |
 | 最大重連次數 | 10 次 | 足夠 |
 | 輪詢間隔（舊） | 1 秒 | ❌ 太頻繁，已移除 |
-| 輪詢間隔（新） | 0（事件驅動） | ✅ 完美 |
+| 輪詢間隔（新） | 0（事件驅動） |   完美 |
 
 ### 性能影響分析
 
@@ -308,9 +308,9 @@ websocketClient.on('assignment-notification', () => {
 
 ### 建議
 
-1. ✅ **保留 WebSocket**（如果需要即時通知）
-2. ✅ **已移除輪詢**（性能提升最大）
-3. ✅ **已優化資料庫查詢**
+1.   **保留 WebSocket**（如果需要即時通知）
+2.   **已移除輪詢**（性能提升最大）
+3.   **已優化資料庫查詢**
 4. 📋 **考慮增加 Cache TTL**（視需求）
 5. 📋 **考慮實作 SWR**（最佳體驗）
 
@@ -341,6 +341,6 @@ console.log({
 ```
 
 預期結果：
-- ✅ 沒有每秒的重複日誌
-- ✅ WebSocket 保持連線（除非真的斷網）
-- ✅ Tab 切換非常快（< 50ms）
+-   沒有每秒的重複日誌
+-   WebSocket 保持連線（除非真的斷網）
+-   Tab 切換非常快（< 50ms）

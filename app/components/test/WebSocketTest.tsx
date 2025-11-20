@@ -118,7 +118,7 @@ export function WebSocketTest() {
           <strong>詳細狀態:</strong> {connectionState}
         </div>
         <div>
-          <strong>健康狀態:</strong> {isHealthy ? '✅ 健康' : '❌ 不健康'}
+          <strong>健康狀態:</strong> {isHealthy ? '  健康' : '❌ 不健康'}
         </div>
       </div>
 

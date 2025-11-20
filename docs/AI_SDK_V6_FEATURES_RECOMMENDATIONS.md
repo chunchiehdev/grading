@@ -306,7 +306,7 @@ model CourseMaterialEmbedding {
 
 ---
 
-### 5. ✅ Human-in-the-Loop - 工具批准系統
+### 5.   Human-in-the-Loop - 工具批准系統
 **功能描述**：AI 執行敏感操作（如給低分、檢測抄襲）前先請求老師批准。
 
 **技術實現**：

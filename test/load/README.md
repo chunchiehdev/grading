@@ -37,7 +37,7 @@ The load testing suite validates the system's behavior under Gemini 2.0 Flash AP
 - Fallback mechanism testing (Gemini → OpenAI)
 - Concurrent processing simulation (25 students)
 - Cost and performance tracking validation
-- **Status**: ✅ All tests passing
+- **Status**:   All tests passing
 
 ### 4. `pdf-processing-load.test.ts`
 
@@ -47,7 +47,7 @@ The load testing suite validates the system's behavior under Gemini 2.0 Flash AP
 - Concurrent PDF uploads and processing (30 students)
 - System resource load simulation
 - Memory and CPU usage tracking
-- **Status**: ✅ All tests passing
+- **Status**:   All tests passing
 
 ### 5. `pdf-parsing-bottleneck.test.ts`
 
@@ -58,7 +58,7 @@ The load testing suite validates the system's behavior under Gemini 2.0 Flash AP
 - Concurrent parsing service load (up to 14 simultaneous requests)
 - Service failure and recovery simulation (30% failure rate)
 - Real-world classroom submission rush (15 students simultaneously)
-- **Status**: ✅ 3/4 tests passing (realistic bottleneck simulation)
+- **Status**:   3/4 tests passing (realistic bottleneck simulation)
 
 ## Key Test Scenarios
 
@@ -148,22 +148,22 @@ npm test -- test/load/gemini-rate-limit-load.test.ts
 
 ### Mock Load Tests Results
 
-- ✅ **Rate Limit Logic**: Successfully simulates 15 RPM limits and detection
-- ✅ **Fallback Mechanism**: Validates Gemini → OpenAI switching logic
-- ✅ **Concurrent Processing**: Handles 25 concurrent requests with proper batching
-- ✅ **Cost Tracking**: Accurately tracks API costs and budget limits
+-   **Rate Limit Logic**: Successfully simulates 15 RPM limits and detection
+-   **Fallback Mechanism**: Validates Gemini → OpenAI switching logic
+-   **Concurrent Processing**: Handles 25 concurrent requests with proper batching
+-   **Cost Tracking**: Accurately tracks API costs and budget limits
 
 ### PDF Processing Tests Results
 
-- ✅ **Bottleneck Handling**: Processes files of varying sizes (2KB-18KB) efficiently
-- ✅ **Concurrent Uploads**: Successfully handles 30 simultaneous uploads
-- ✅ **Resource Management**: Simulates memory usage and CPU load effectively
+-   **Bottleneck Handling**: Processes files of varying sizes (2KB-18KB) efficiently
+-   **Concurrent Uploads**: Successfully handles 30 simultaneous uploads
+-   **Resource Management**: Simulates memory usage and CPU load effectively
 
 ### Database Load Tests Results
 
-- ✅ **Connection Pooling**: Handles 50 concurrent database operations
-- ✅ **Query Performance**: Maintains fast response times under load
-- ✅ **Data Isolation**: Ensures proper user data separation
+-   **Connection Pooling**: Handles 50 concurrent database operations
+-   **Query Performance**: Maintains fast response times under load
+-   **Data Isolation**: Ensures proper user data separation
 
 ## Key Metrics Validated
 
