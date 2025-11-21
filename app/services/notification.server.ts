@@ -142,6 +142,20 @@ export async function publishSubmissionCreatedNotification(submissionData: {
   logger.info('  Submission notification published');
 }
 
+export async function getUserNotifications(userId: string, limit: number = 50): Promise<UnreadNotification[]> {
+  return db.notification.findMany({
+    where: {
+      userId,
+    },
+    include: {
+      course: { select: { name: true } },
+      assignment: { select: { name: true, dueDate: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+  }) as Promise<UnreadNotification[]>;
+}
+
 export async function getUnreadNotifications(userId: string): Promise<UnreadNotification[]> {
   return db.notification.findMany({
     where: {

@@ -151,4 +151,7 @@ export default [
   // 404 route
   route('*', './routes/_404.tsx'),
 
+  // Notification API routes
+  route('/api/notifications/recent', './api/notifications/recent.ts'),
+
 ] satisfies RouteConfig;
