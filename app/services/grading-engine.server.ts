@@ -13,6 +13,7 @@ import {
   type DbCriterion,
 } from '@/schemas/rubric-data';
 import { extractOverallFeedback } from '@/utils/grading-helpers';
+import { gradingQueue } from './queue.server';
 
 /**
  * Simple grading engine - no fallback hell, no special cases
@@ -554,11 +555,11 @@ export async function processGradingResult(
 }
 
 /**
- * Process all pending results for a session - simple batch processing
+ * Process all pending results for a session - using BullMQ
  */
 export async function processGradingSession(sessionId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    logger.info(`🔄 Starting grading session ${sessionId}`);
+    logger.info(`🔄 Starting grading session ${sessionId} (Async Queue)`);
 
     const pendingResults = await db.gradingResult.findMany({
       where: {
@@ -573,22 +574,29 @@ export async function processGradingSession(sessionId: string): Promise<{ succes
       return { success: true };
     }
 
-    logger.info(`📝 Processing ${pendingResults.length} pending results`);
+    logger.info(`📝 Adding ${pendingResults.length} jobs to grading queue`);
 
-    // Process sequentially to avoid overwhelming APIs
-    for (const result of pendingResults) {
-      // Feature 004: Use default fallback language for batch processing
-      await processGradingResult(result.id, result.gradingSession.userId, result.gradingSessionId, 'zh');
+    // Add jobs to BullMQ
+    const jobs = pendingResults.map((result) => ({
+      name: 'grade-submission',
+      data: {
+        resultId: result.id,
+        userId: result.gradingSession.userId,
+        sessionId: result.gradingSessionId,
+        userLanguage: 'zh' as const, // Default to 'zh' for now, could be dynamic
+      },
+      opts: {
+        jobId: `grade-${result.id}`, // Prevent duplicate jobs for same result
+      },
+    }));
 
-      // Simple delay between requests
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+    await gradingQueue.addBulk(jobs);
 
-    logger.info(`  Completed grading session ${sessionId}`);
+    logger.info(`  Queued ${jobs.length} grading jobs for session ${sessionId}`);
     return { success: true };
   } catch (error) {
-    logger.error(`❌ Failed to process grading session ${sessionId}:`, error);
-    return { success: false, error: error instanceof Error ? error.message : 'Session processing failed' };
+    logger.error(`❌ Failed to queue grading session ${sessionId}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : 'Session queuing failed' };
   }
 }
 

@@ -24,8 +24,8 @@ export async function initializeGradingWorker(): Promise<void> {
   try {
     logger.info('[Worker Init] Starting BullMQ grading worker...');
 
-    // Dynamic import triggers worker instantiation in bullmq-grading.server.ts
-    await import('./bullmq-grading.server.js');
+    // Dynamic import triggers worker instantiation in workers/grading.server.ts
+    await import('../workers/grading.server');
 
     logger.info('[Worker Init] Worker initialization complete');
   } catch (error) {

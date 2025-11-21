@@ -19,6 +19,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:safari": "npx playwright test --headed --project=webkit-desktop test/safari-visual.spec.ts",
+    "test:safari:mobile": "npx playwright test --headed --project=webkit-mobile test/safari-visual.spec.ts",
     "migrate:dev": "npx prisma migrate dev && npx prisma generate",
     "migrate:prod": "npx prisma migrate deploy && npx prisma generate",
     "cleanup:jobs": "tsx scripts/cleanup-bullmq-jobs.ts",
@@ -88,6 +90,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
     "embla-carousel-autoplay": "^8.5.1",
     "embla-carousel-react": "^8.5.1",
     "express": "^4.21.2",
@@ -136,6 +139,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@react-router/dev": "^7.5.2",
     "@react-router/fs-routes": "^7.5.2",
     "@testing-library/jest-dom": "^6.6.3",

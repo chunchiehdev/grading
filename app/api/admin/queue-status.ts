@@ -1,4 +1,4 @@
-import { getQueueStatus } from '@/services/bullmq-grading.server';
+import { getQueueStatus } from '@/services/queue.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 
 /**

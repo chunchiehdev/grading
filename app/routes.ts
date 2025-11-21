@@ -14,6 +14,7 @@ export default [
     route('logout', './routes/auth/logout.tsx'),
     route('select-role', './routes/auth/select-role.tsx'),
     route('unauthorized', './routes/auth/unauthorized.tsx'),
+    route('test-login', './routes/auth/test-login.tsx'),
   ]),
 
   // Teacher Platform routes

@@ -260,7 +260,7 @@ export const AIRubricAssistant = ({ isOpen, onClose, onApplyRubric, currentRubri
         side={isDesktop ? "right" : "bottom"} 
         className={cn(
           "flex flex-col gap-0 p-0 border-l shadow-2xl transition-all duration-300",
-          isDesktop ? "sm:max-w-md md:max-w-lg lg:max-w-xl w-full h-full" : "h-full w-full rounded-none border-t-0"
+          isDesktop ? "sm:max-w-md md:max-w-lg lg:max-w-xl w-full h-full" : "h-[100dvh] w-full rounded-none border-t-0"
         )}
       >
         {/* Header */}

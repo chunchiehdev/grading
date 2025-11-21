@@ -451,30 +451,24 @@ export async function startGradingSession(
     }
 
     // Use BullMQ grading service (distributed, Redis-backed, with global rate limiting)
-    const { addGradingJobs } = await import('./bullmq-grading.server');
+    const { gradingQueue } = await import('./queue.server');
 
     const gradingJobs = pendingResults.map((result) => ({
-      resultId: result.id,
-      userId: userId,
-      sessionId: sessionId,
-      userLanguage: userLanguage,
+      name: 'grade-submission',
+      data: {
+        resultId: result.id,
+        userId: userId,
+        sessionId: sessionId,
+        userLanguage: userLanguage,
+      },
+      opts: {
+        jobId: `grade-${result.id}`,
+      }
     }));
 
-    const queueResult = await addGradingJobs(gradingJobs);
+    await gradingQueue.addBulk(gradingJobs);
 
-    if (!queueResult.success) {
-      await db.gradingSession.update({
-        where: { id: sessionId },
-        data: { status: GradingSessionStatus.FAILED },
-      });
-
-      return {
-        success: false,
-        error: queueResult.error || 'Failed to start grading jobs',
-      };
-    }
-
-    logger.info(`🚀 Started grading session ${sessionId} with ${queueResult.addedCount} jobs`);
+    logger.info(`🚀 Started grading session ${sessionId} with ${gradingJobs.length} jobs`);
 
     return { success: true };
   } catch (error) {

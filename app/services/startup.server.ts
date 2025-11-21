@@ -139,7 +139,7 @@ export class StartupService {
 
         // 2. 關閉 BullMQ Worker 和相關服務
         logger.info('⏳ Closing BullMQ grading services...');
-        const { closeGradingServices } = await import('./bullmq-grading.server.js');
+        const { closeGradingServices } = await import('../workers/grading.server');
         await closeGradingServices();
         logger.info('  BullMQ grading services closed');
 

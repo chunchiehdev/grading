@@ -5,6 +5,7 @@ export const PUBLIC_PATHS = [
   '/auth/select-role', // Role selection page
   '/auth/google',
   '/auth/google/callback',
+  '/auth/test-login', // Test login route
   '/health',
   '/tailwind.css',
   '/__manifest',
