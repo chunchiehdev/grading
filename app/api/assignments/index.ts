@@ -32,7 +32,6 @@ export async function action({ request }: { request: Request }) {
 
     const data = validation.data;
 
-    // Feature 004: Validate reference files if provided
     if (data.referenceFileIds && data.referenceFileIds.length > 0) {
       const { validIds, errors } = await validateReferenceFiles(data.referenceFileIds);
 
@@ -41,8 +40,6 @@ export async function action({ request }: { request: Request }) {
           status: 400,
         });
       }
-
-      // Replace with only valid IDs
       data.referenceFileIds = validIds;
     }
 
@@ -55,7 +52,6 @@ export async function action({ request }: { request: Request }) {
       classId: data.classId,
     });
 
-    // Feature 004: Update with reference files and custom instructions if provided
     if (data.referenceFileIds || data.customGradingPrompt) {
       const referenceFileIdsJson =
         data.referenceFileIds && data.referenceFileIds.length > 0 ? JSON.stringify(data.referenceFileIds) : null;

@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs } from 'react-router';
 import { db } from '@/lib/db.server';
 import { z } from 'zod';
-import { getUser } from '../services/auth.server.js';
+import { getUser } from '@/services/auth.server';
 
 const MessagesSinceSchema = z.object({
   since: z.string().datetime(),

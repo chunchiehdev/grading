@@ -6,7 +6,6 @@
 
 import type { MetaFunction, LoaderFunctionArgs } from 'react-router';
 import { AgentChatBoxWithSteps } from '@/components/agent/AgentChatBoxWithSteps';
-import type { User } from '@/root';
 
 export const meta: MetaFunction = () => {
   return [

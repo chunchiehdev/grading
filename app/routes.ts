@@ -90,10 +90,10 @@ export default [
   route('/api/files/upload', './api/files/upload.ts'),
   route('/api/files/batch', './api/files/batch.ts'),
   route('/api/files/:fileId/reparse', './api/files/$fileId.reparse.ts'),
-  route('/api/files/:fileId/download', './routes/api.files.$fileId.download.ts'),
+  route('/api/files/:fileId/download', './api/files/$fileId.download.ts'),
 
   // Report download API route
-  route('/api/reports/download', './routes/api.reports.download.ts'),
+  route('/api/reports/download', './api/reports/download.ts'),
 
 
 
@@ -107,21 +107,26 @@ export default [
 
   // Admin API routes
   route('/api/admin/queue-status', './api/admin/queue-status.ts'),
-  route('/api/admin/gemini-health', './api/admin/gemini-health.ts'),
-
+  
   // Auth API routes
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
 
   // Message API routes
-  route('/api/messages/:id', './routes/api.messages.$id.ts'),
+  route('/api/messages/:id', './api/messages/$id.ts'),
 
   // Version API route
-  route('/api/version', './routes/api.version.ts'),
+  route('/api/version', './api/version.ts'),
 
   // AI API routes
-  route('/api/ai/rubric-chat', './routes/api.ai.rubric-chat.ts'),
-  route('/api/agent-chat', './routes/api.agent-chat.ts'),
+  route('/api/ai/rubric-chat', './api/ai/rubric-chat.ts'),
+  route('/api/ai/generate-rubric', './api/ai/generate-rubric.ts'),
+  route('/api/agent-chat', './api/agent-chat.ts'),
+
+  // Chat API routes
+  route('/api/chat', './api/chat/index.ts'),
+  route('/api/chat/:id', './api/chat/$id.ts'),
+  route('/api/chat/:id/messages-since', './api/chat/$id.messages-since.ts'),
 
   // Assignment API routes
   route('/api/assignments', './api/assignments/index.ts'),

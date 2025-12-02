@@ -143,7 +143,7 @@ export default function SubmitAssignment() {
           }
         : null,
     error: null,
-    loading: false,
+    loading: !!draftSubmission?.sessionId && draftSubmission?.lastState !== 'completed',
     // If status is SUBMITTED/ANALYZED/GRADED, this sessionId has been submitted
     lastSubmittedSessionId:
       draftSubmission?.status && draftSubmission.status !== 'DRAFT'
@@ -373,6 +373,27 @@ export default function SubmitAssignment() {
       if (!sessionData.success) throw new Error(sessionData.error);
 
       dispatch({ type: 'analysis_started', sessionId: sessionData.data.sessionId });
+
+      // Save draft with sessionId to enable auto-resume
+      try {
+        await fetch(`/api/student/assignments/${assignment.id}/draft`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileMetadata: state.file
+              ? {
+                  fileId: state.file.id,
+                  fileName: state.file.name,
+                  fileSize: state.file.size,
+                }
+              : null,
+            sessionId: sessionData.data.sessionId,
+            lastState: 'analyzing',
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to save draft with session ID:', err);
+      }
 
       // Start grading
       const startForm = new FormData();

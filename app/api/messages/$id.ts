@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { db } from '@/lib/db.server';
-import { validateApiKey } from '../middleware/api-key.server.js';
+import { validateApiKey } from '@/middleware/api-key.server';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   try {

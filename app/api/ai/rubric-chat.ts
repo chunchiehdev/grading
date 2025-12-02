@@ -1,4 +1,4 @@
-import type { Route } from './+types/api.ai.rubric-chat';
+import type { ActionFunctionArgs } from 'react-router';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamObject } from 'ai';
 import { getUserId } from '@/services/auth.server';
@@ -36,7 +36,7 @@ const RUBRIC_SYSTEM_PROMPT = `你是一個專業的教育評估專家，專門�
  * Streaming object endpoint for AI-powered rubric generation
  * Works with experimental_useObject hook from @ai-sdk/react
  */
-export async function action({ request }: Route.ActionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   try {
     logger.info('Rubric chat endpoint called', {
       method: request.method,
