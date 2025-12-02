@@ -1,4 +1,4 @@
-The [AI SDK by Vercel](https://ai-sdk.dev) is a powerful open-source library for
+The [AI SDK by Vercel](https://ai-sdk.dev) is a powerful open-source library for 
 building AI-powered applications, user interfaces, and agents in TypeScript.
 
 This guide will walk you through building a Node.js application with TypeScript
