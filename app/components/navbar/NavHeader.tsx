@@ -140,6 +140,7 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
                       src={user.picture}
                       alt={user.email}
                       className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full"
+                      referrerPolicy='no-referrer'
                     />
                   ) : (
                     <UserIcon className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />

@@ -7,48 +7,6 @@
 import { z } from 'zod';
 
 /**
- * Rubric analysis tool schema
- */
-export const RubricAnalysisSchema = z.object({
-  complexity: z.enum(['simple', 'medium', 'complex']),
-  totalMaxScore: z.number().int().positive(),
-  keyDimensions: z.array(z.string()),
-  recommendedApproach: z.string(),
-  criteriaCount: z.number().int().positive(),
-});
-
-/**
- * Content parsing tool schema
- */
-export const ContentAnalysisSchema = z.object({
-  wordCount: z.number().int().nonnegative(),
-  characterCount: z.number().int().nonnegative(),
-  hasCode: z.boolean(),
-  hasImages: z.boolean(),
-  hasTables: z.boolean(),
-  structure: z.object({
-    sections: z.number().int().nonnegative(),
-    headings: z.array(z.string()),
-    keyPoints: z.array(z.string()),
-  }),
-  estimatedComplexity: z.enum(['low', 'medium', 'high']),
-});
-
-/**
- * Confidence scoring tool schema
- */
-export const ConfidenceScoreSchema = z.object({
-  confidenceScore: z.number().min(0).max(1),
-  shouldReview: z.boolean(),
-  reason: z.string(),
-  factors: z.object({
-    rubricCoverage: z.number().min(0).max(1),
-    evidenceQuality: z.enum(['high', 'medium', 'low']),
-    criteriaAmbiguity: z.number().min(0).max(1),
-  }),
-});
-
-/**
  * Reference search tool schema
  */
 export const ReferenceSearchResultSchema = z.object({
@@ -125,22 +83,6 @@ export const AgentGradingResultSchema = z.object({
  * Tool input schemas
  */
 
-export const AnalyzeRubricInputSchema = z.object({
-  rubricName: z.string(),
-  criteria: z.array(
-    z.object({
-      name: z.string(),
-      description: z.string(),
-      maxScore: z.number().int().positive(),
-    })
-  ),
-});
-
-export const ParseContentInputSchema = z.object({
-  content: z.string(),
-  assignmentType: z.enum(['essay', 'code', 'math', 'report', 'other']),
-});
-
 export const SearchReferenceInputSchema = z.object({
   query: z.string().min(1),
   referenceDocuments: z.array(
@@ -164,17 +106,54 @@ export const CalculateConfidenceInputSchema = z.object({
   criteriaAmbiguity: z.number().min(0).max(1),
 });
 
+/**
+ * Think Aloud Tool - 讓模型說出當下的思考 (Hattie & Timperley Framework)
+ */
+export const ThinkAloudInputSchema = z.object({
+  feedUp: z.string().describe('Feed Up (Where am I going?): Analyze the goal of this assignment. What is the student trying to achieve?'),
+  feedBack: z.string().describe('Feed Back (How am I going?): Analyze the student\'s current performance. What are the strengths and weaknesses? Use specific evidence.'),
+  feedForward: z.string().describe('Feed Forward (Where to next?): What are the next steps for the student? How can they close the gap?'),
+  strategy: z.string().describe('Grading Strategy: How will you approach grading this specific submission based on the analysis above?'),
+});
+
+export const ThinkAloudOutputSchema = z.object({
+  acknowledged: z.boolean(),
+});
+
+// Deprecated: Granular tools removed for efficiency
+// export const EvaluateSubtraitInputSchema = ...
+// export const MatchToLevelInputSchema = ...
+
 export const GenerateFeedbackInputSchema = z.object({
+  // 新增：強制 AI 提供完整的評分推理過程
+  reasoning: z.string().describe(`【完整思考過程】這是你作為評分者的內心獨白，會顯示給教師看。請用第一人稱，像老師批改作業時的思考：
+
+「讀完這篇作業，我的第一印象是...
+在【句子結構】方面，我注意到學生寫道「...」，這裡...
+在【邏輯連貫】方面，文章從A段到B段...
+整體來說，這份作業的亮點是...，但需要改進的是...
+因此，我的評分是...」
+
+請確保：
+1. 每個評分項目都有具體分析
+2. 引用學生原文作為證據（用「」標示）
+3. 說明給分的邏輯（為什麼是這個分數而不是更高/更低）
+4. 語氣像一位有經驗的老師在思考`),
   criteriaScores: z.array(
     z.object({
       criteriaId: z.string(),
       name: z.string(),
-      score: z.number(),
+      score: z.number().int().min(1).max(4).describe("Score must be an integer matching the rubric levels (1-4). No decimals allowed."),
       maxScore: z.number(),
-      evidence: z.string(),
+      evidence: z.string().describe('從學生作業中引用的原文證據'),
+      analysis: z.string().optional().describe('【給學生看】簡潔的改進建議，1-2 句話即可，不要重複 reasoning 的內容'),
+      justification: z.string().optional().describe('【給教師看】簡短的給分理由'),
     })
   ),
   overallObservation: z.string(),
+  messageToStudent: z.string().optional().describe('給學生的友善回饋，語氣溫暖'),
+  topPriority: z.string().optional().describe('學生最需要改進的一件事'),
+  encouragement: z.string().optional().describe('給學生的鼓勵'),
   strengths: z.array(z.string()).optional(),
   improvements: z.array(z.string()).optional(),
 });

@@ -1,11 +1,13 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, useNavigate } from 'react-router';
-import { useReducer, useEffect, useRef } from 'react';
+import React, { useReducer, useEffect, useRef } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/submission.server';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { useTranslation } from 'react-i18next';
 import { gsap } from 'gsap';
@@ -51,7 +53,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 interface SubmissionState {
   phase: 'upload' | 'analyze' | 'submit' | 'done';
   file: { id: string; name: string; size: number } | null;
-  session: { id: string; result: any; thoughtSummary?: string } | null;
+  session: { 
+    id: string; 
+    result: any; 
+    thoughtSummary?: string;
+    thinkingProcess?: string; // Feature 012
+    gradingRationale?: string; // Feature 012
+  } | null;
   error: string | null;
   loading: boolean;
   // Track the last submitted sessionId to prevent duplicate submissions
@@ -61,10 +69,11 @@ interface SubmissionState {
 type Action =
   | { type: 'file_uploaded'; file: { id: string; name: string; size: number } }
   | { type: 'analysis_started'; sessionId: string }
-  | { type: 'analysis_completed'; result: any; thoughtSummary?: string }
+  | { type: 'analysis_completed'; result: any; thoughtSummary?: string; thinkingProcess?: string; gradingRationale?: string }
   | { type: 'submission_completed'; sessionId: string }
   | { type: 'error'; message: string }
-  | { type: 'reset' };
+  | { type: 'reset' }
+  | { type: 'thought_update'; thought: string };
 
 function submissionReducer(state: SubmissionState, action: Action): SubmissionState {
   switch (action.type) {
@@ -74,7 +83,18 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
     case 'analysis_started':
       return { ...state, loading: true, session: { id: action.sessionId, result: null } };
     case 'analysis_completed':
-      return { ...state, phase: 'submit', loading: false, session: { ...state.session!, result: action.result, thoughtSummary: action.thoughtSummary } };
+      return { 
+        ...state, 
+        phase: 'submit', 
+        loading: false, 
+        session: { 
+          ...state.session!, 
+          result: action.result, 
+          thoughtSummary: action.thoughtSummary,
+          thinkingProcess: action.thinkingProcess,
+          gradingRationale: action.gradingRationale
+        } 
+      };
     case 'submission_completed':
       // Store the submitted sessionId to prevent duplicate submissions
       return { ...state, phase: 'done', loading: false, lastSubmittedSessionId: action.sessionId };
@@ -82,6 +102,19 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
       return { ...state, error: action.message, loading: false };
     case 'reset':
       return { phase: 'upload', file: null, session: null, error: null, loading: false, lastSubmittedSessionId: null };
+    case 'thought_update':
+      if (!state.session) return state;
+      // Append new thought directly (timestamps removed for cleaner UI)
+      const newThought = action.thought;
+      const prevThinking = state.session.thinkingProcess || '';
+      // console.log('Reducer: thought_update', { prevLen: prevThinking.length, newThought });
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          thinkingProcess: prevThinking + newThought,
+        },
+      };
     default:
       return state;
   }
@@ -91,9 +124,12 @@ export default function SubmitAssignment() {
   const { t, i18n } = useTranslation(['assignment', 'grading', 'common']);
   const { assignment, draftSubmission } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const [useDirectGrading, setUseDirectGrading] = React.useState(false);
 
   // Check if submission is past due date
   const isOverdue = assignment.dueDate ? new Date() > new Date(assignment.dueDate) : false;
+
+
 
   // Clear upload store only if there's no draft submission to restore
   const clearFiles = useUploadStore((state) => state.clearFiles);
@@ -150,6 +186,8 @@ export default function SubmitAssignment() {
         ? draftSubmission.sessionId || null
         : null,
   });
+
+  console.log('Render: thoughtSummary', state.session?.thoughtSummary);
 
   // GSAP animations
   useGSAP(() => {
@@ -275,6 +313,8 @@ export default function SubmitAssignment() {
         if (result?.result) {
           // Extract thought summary from grading result
           const thoughtSummary = result.thoughtSummary;
+          const thinkingProcess = result.thinkingProcess; // Feature 012
+          const gradingRationale = result.gradingRationale; // Feature 012
 
           // Store both result and normalizedScore
           dispatch({
@@ -284,6 +324,8 @@ export default function SubmitAssignment() {
               _normalizedScore: result.normalizedScore, // Store normalized score with result
             },
             thoughtSummary,
+            thinkingProcess,
+            gradingRationale,
           });
 
           // Save AI analysis result to draft
@@ -302,6 +344,8 @@ export default function SubmitAssignment() {
                 sessionId,
                 aiAnalysisResult: result.result,
                 thoughtSummary,
+                thinkingProcess, // Feature 012
+                gradingRationale, // Feature 012
                 lastState: 'completed',
               }),
             });
@@ -331,6 +375,36 @@ export default function SubmitAssignment() {
         if (await pollSession(state.session!.id)) clearInterval(interval);
       }, 2000);
       return () => clearInterval(interval);
+    }
+  }, [state.loading, state.session?.id]);
+
+  // SSE Effect for Real-time Thoughts
+  useEffect(() => {
+    if (state.loading && state.session?.id) {
+      const sessionId = state.session.id;
+      console.log('Connecting to SSE for session:', sessionId);
+      const evtSource = new EventSource(`/api/grading/events/${sessionId}`);
+
+      evtSource.onmessage = (event) => {
+        try {
+          console.log('[SSE] Message:', event.data);
+          const data = JSON.parse(event.data);
+          if (data.type === 'thought' && data.content) {
+             dispatch({ type: 'thought_update', thought: data.content });
+          }
+        } catch (e) {
+          console.error('SSE Parse Error', e);
+        }
+      };
+
+      evtSource.onerror = (err) => {
+        console.error('SSE Error:', err);
+        evtSource.close();
+      };
+
+      return () => {
+        evtSource.close();
+      };
     }
   }, [state.loading, state.session?.id]);
 
@@ -398,6 +472,7 @@ export default function SubmitAssignment() {
       // Start grading
       const startForm = new FormData();
       startForm.append('action', 'start');
+      startForm.append('useDirectGrading', String(useDirectGrading));
       const startRes = await fetch(`/api/grading/session/${sessionData.data.sessionId}`, {
         method: 'POST',
         body: startForm,
@@ -503,6 +578,20 @@ export default function SubmitAssignment() {
 
     return (
       <div className="space-y-3">
+        {/* Direct Grading Switch */}
+        {(state.phase === 'analyze' || state.phase === 'submit') && !state.loading && (
+          <div className="flex items-center space-x-2 mb-2 p-2 bg-muted/30 rounded-md">
+            <Switch
+              id="direct-grading-mode"
+              checked={useDirectGrading}
+              onCheckedChange={setUseDirectGrading}
+            />
+            <Label htmlFor="direct-grading-mode" className="text-sm font-medium cursor-pointer">
+              {t('grading:directGradingMode', 'Direct Grading Mode (Faster)')}
+            </Label>
+          </div>
+        )}
+
         {/* Primary Action: AI Analysis or Re-analysis */}
         {(state.phase === 'analyze' || state.phase === 'submit') && (
           <Button
@@ -582,7 +671,7 @@ export default function SubmitAssignment() {
                 isLoading={state.loading}
               />
             ) : (
-              <GradingResultDisplay isLoading={state.loading} />
+              <GradingResultDisplay isLoading={state.loading} thoughtSummary={state.session?.thoughtSummary} />
             )}
           </div>
 

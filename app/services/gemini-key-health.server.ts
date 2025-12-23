@@ -45,7 +45,7 @@ export class KeyHealthTracker {
   private readonly LOCK_TIMEOUT_MS = 1000; // 1 second
   private readonly KEY_TTL_SECONDS = 86400; // 24 hours
   private readonly BASE_COOLDOWN_MS = 10000; // 10 seconds base cooldown
-  private readonly MAX_COOLDOWN_MS = 120000; // 2 minutes max cooldown
+  private readonly MAX_COOLDOWN_MS = 3600000; // 1 hour max cooldown (increased for daily quotas)
   private readonly DEFAULT_COOLDOWN_MS = 30000; // 30 seconds default cooldown
 
   /**
@@ -277,12 +277,21 @@ export class KeyHealthTracker {
 
     // Determine if this error should trigger throttling
     const shouldThrottle = ['rate_limit', 'overloaded', 'unavailable'].includes(errorType);
+    
+    // Check for hard quota limits (daily limit exceeded)
+    const isQuotaExceeded = errorMessage?.toLowerCase().includes('quota exceeded');
 
-    if (shouldThrottle) {
+    if (shouldThrottle || isQuotaExceeded) {
       // Get current failure count to calculate exponential backoff
       const health = await this.getKeyHealth(keyId);
       const consecutiveFailures = health.failureCount + 1;
-      const cooldownMs = this.calculateCooldown(consecutiveFailures);
+      
+      // If quota exceeded, force a long cooldown (4 hours), otherwise use exponential backoff
+      let cooldownMs = this.calculateCooldown(consecutiveFailures);
+      if (isQuotaExceeded) {
+        cooldownMs = Math.max(cooldownMs, 14400000); // Minimum 4 hours for quota exceeded
+      }
+
       const throttleUntil = now + cooldownMs;
 
       // Atomic update with throttle
@@ -306,6 +315,7 @@ export class KeyHealthTracker {
       logger.warn('Gemini API key throttled', {
         keyId,
         errorType,
+        errorMessage,
         consecutiveFailures,
         cooldownMs,
         throttledUntil: new Date(throttleUntil).toISOString(),

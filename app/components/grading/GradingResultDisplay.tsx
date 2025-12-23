@@ -6,8 +6,109 @@ import { CompactStructuredFeedback } from './StructuredFeedback';
 import { GradingResultData } from '@/types/grading';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+
+const GeminiSpinner = () => (
+  <div className="relative flex items-center justify-center w-5 h-5">
+    <svg className="absolute inset-0 w-full h-full animate-spin duration-3000" viewBox="0 0 24 24">
+      <defs>
+        <linearGradient id="spinner-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#F59E0B" /> {/* amber-500 */}
+          <stop offset="100%" stopColor="#EC4899" /> {/* pink-500 */}
+        </linearGradient>
+      </defs>
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        fill="none"
+        stroke="url(#spinner-gradient)"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeDasharray="40 20"
+      />
+    </svg>
+    <Sparkles className="w-2.5 h-2.5 text-blue-500 fill-blue-500" />
+  </div>
+);
+
+const Typewriter = ({ text, minSpeed = 5, maxSpeed = 30 }: { text: string; minSpeed?: number; maxSpeed?: number }) => {
+  const [displayedText, setDisplayedText] = useState('');
+
+  useEffect(() => {
+    // 1. Handle Reset / New Content
+    if (!text) {
+      setDisplayedText('');
+      return;
+    }
+
+    // If text is shorter than what we displayed, or doesn't match the prefix, it's a new stream
+    if (text.length < displayedText.length || !text.startsWith(displayedText)) {
+      setDisplayedText('');
+      return;
+    }
+
+    // 2. Handle Completion
+    if (displayedText.length === text.length) return;
+
+    // 3. Calculate Next Chunk (Token Simulation)
+    const remaining = text.slice(displayedText.length);
+    
+    // Heuristic for token size:
+    // - CJK: 1-3 characters
+    // - Latin: 2-8 characters (roughly a word or part of word)
+    // - Punctuation/Newlines: usually end a token
+    
+    let chunkSize = 1;
+    const nextChar = remaining[0];
+    const isCJK = /[\u4e00-\u9fa5]/.test(nextChar);
+
+    if (isCJK) {
+      // Chinese: often 1-2 chars per token
+      chunkSize = Math.floor(Math.random() * 2) + 1; // 1 or 2
+    } else {
+      // English: try to find next word boundary
+      const spaceIndex = remaining.search(/\s/);
+      if (spaceIndex > 0 && spaceIndex <= 6) {
+        chunkSize = spaceIndex + 1; // Include the space
+      } else {
+        chunkSize = Math.floor(Math.random() * 4) + 2; // 2-5 chars
+      }
+    }
+
+    // Ensure we don't overshoot
+    chunkSize = Math.min(chunkSize, remaining.length);
+    const nextChunk = remaining.slice(0, chunkSize);
+
+    // 4. Calculate Delay (Simulate Inference Time)
+    // Base delay
+    let delay = Math.random() * (maxSpeed - minSpeed) + minSpeed;
+    
+    // Add "thinking" pauses for punctuation
+    if (/[,.!?;，。！？；：]/.test(nextChunk)) {
+      delay += 30; 
+    }
+    if (/\n/.test(nextChunk)) {
+      delay += 150; // Paragraph break pause
+    }
+    
+    // Occasional random "thinking" pause (1% chance)
+    if (Math.random() < 0.01) {
+      delay += 300;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setDisplayedText(prev => prev + nextChunk);
+    }, delay);
+
+    return () => clearTimeout(timeoutId);
+  }, [text, displayedText, minSpeed, maxSpeed]);
+
+  return <Markdown>{displayedText}</Markdown>;
+};
 
 // Updated to work with new grading result format from database - types now imported from @/types/grading
 
@@ -15,6 +116,8 @@ interface GradingResultDisplayProps {
   result?: GradingResultData;
   normalizedScore?: number | null;
   thoughtSummary?: string | null;
+  thinkingProcess?: string | null; // Feature 012
+  gradingRationale?: string | null; // Feature 012
   className?: string;
   onRetry?: () => void;
   isLoading?: boolean;
@@ -52,77 +155,113 @@ const CriteriaDetails = ({ breakdown }: { breakdown?: GradingResultData['breakdo
 
 // Removed unused AnalysisSection component
 
-export function GradingResultDisplay({ result, normalizedScore, thoughtSummary, className, onRetry, isLoading }: GradingResultDisplayProps) {
+export function GradingResultDisplay({
+  result,
+  normalizedScore,
+  thoughtSummary,
+  thinkingProcess,
+  gradingRationale,
+  className,
+  onRetry,
+  isLoading,
+}: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
 
-  // Show loading animation when analyzing
-  if (isLoading) {
-    return <LoadingAnalysisIcon isLoading={true} />;
-  }
+  // 1. Streaming/Thinking Area (Always visible if there is content or loading)
+  // Use thinkingProcess if available, otherwise fallback to thoughtSummary
+  const activeThinkingProcess = thinkingProcess || thoughtSummary;
+  const showThinkingArea = isLoading || (activeThinkingProcess && activeThinkingProcess.length > 0);
 
-  // Show empty state when no result yet
-  if (!result) {
-    return <EmptyGradingState onRetry={onRetry} />;
-  }
-
-  const safeResult = {
+  const safeResult = result ? {
     totalScore: result.totalScore || 0,
     maxScore: result.maxScore || 100,
     breakdown: result.breakdown || [],
     overallFeedback: result.overallFeedback || t('result.noFeedback'),
-  };
+  } : null;
 
   // Use normalized score (100-point scale) if available, otherwise fallback to old calculation
-  const displayScore = normalizedScore ?? Math.round((safeResult.totalScore / safeResult.maxScore) * 100);
+  const displayScore = safeResult 
+    ? (normalizedScore ?? Math.round((safeResult.totalScore / safeResult.maxScore) * 100))
+    : 0;
 
   return (
     <div className={cn('space-y-6 pb-6', className)}>
-      {/* Compact score header - 100-point scale */}
-      <div className="p-2 flex items-center gap-3 h-10">
-        <span className="text-2xl font-semibold leading-none">{displayScore.toFixed(1)}</span>
-        <span className="text-sm text-muted-foreground">/ 100</span>
-      </div>
-
-      {/* Feedback (compact) */}
-      <section className="p-2 space-y-2">
-        <h3 className="text-sm font-medium">{t('result.overallFeedback')}</h3>
-        <div className="text-sm text-muted-foreground">
-          <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
-        </div>
-      </section>
-
-      {/* Detailed criteria: direct stack */}
-      <section>
-        <h3 className="p-2 text-sm font-medium mb-2">{t('result.criteriaDetails')}</h3>
-        <div className="space-y-3 overflow-auto pr-1">
-          <CriteriaDetails breakdown={safeResult.breakdown} />
-          {safeResult.breakdown.length === 0 && (
-            <div className="text-sm text-muted-foreground">{t('result.noCriteria')}</div>
-          )}
-        </div>
-      </section>
-
-      {/* AI Thinking Process - Collapsible */}
-      {thoughtSummary && (
-        <section>
-          <Collapsible defaultOpen={false}>
-            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:text-primary transition-colors group">
-              <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]:rotate-180" />
-              <span>{t('grading:aiThinkingProcess')}</span>
+      
+      {/* Top: Streaming Thinking Process */}
+      {showThinkingArea && (
+        <Collapsible defaultOpen={isLoading} className="animate-in fade-in duration-500 mb-6 group">
+           <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
+              {isLoading ? <GeminiSpinner /> : <Sparkles className="w-5 h-5 text-purple-500 p-0.5" />}
+              <span>{isLoading ? "AI 正在思考..." : "查看 AI 分析過程 (AI Analysis Log)"}</span>
+            </div>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted/50">
+                <ChevronDown className="h-4 w-4 text-muted-foreground/70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                <span className="sr-only">Toggle thinking process</span>
+              </Button>
             </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3">
-              <div
-                className="p-4 bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-950/20 dark:to-blue-950/10 rounded-lg border border-blue-200 dark:border-blue-800 overflow-x-auto"
-                style={{ maxWidth: '100%' }}
-              >
-                <div className="text-sm text-muted-foreground leading-relaxed">
-                  <Markdown>{thoughtSummary}</Markdown>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </section>
+           </div>
+           
+           <CollapsibleContent>
+            <div className="pl-9 pr-4 text-sm text-muted-foreground/80 leading-relaxed">
+              {isLoading ? (
+                <>
+                  <Typewriter text={activeThinkingProcess || ''} />
+                  <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-purple-500/50 animate-pulse" />
+                </>
+              ) : (
+                <Markdown>{activeThinkingProcess || ''}</Markdown>
+              )}
+            </div>
+           </CollapsibleContent>
+        </Collapsible>
       )}
+
+      {/* Middle: Result Content (Only if result exists) */}
+      {safeResult ? (
+        <>
+          {/* Compact score header - 100-point scale */}
+          <div className="p-2 flex items-center gap-3 h-10">
+            <span className="text-2xl font-semibold leading-none">{displayScore.toFixed(1)}</span>
+            <span className="text-sm text-muted-foreground">/ 100</span>
+          </div>
+
+          {/* Grading Rationale (Feature 012) */}
+          {gradingRationale && (
+            <section className="p-2 space-y-2">
+              <h3 className="text-sm font-medium">評分報告 (Grading Rationale)</h3>
+              <div className="text-sm text-muted-foreground">
+                <Markdown>{gradingRationale}</Markdown>
+              </div>
+            </section>
+          )}
+
+          {/* Feedback (compact) */}
+          <section className="p-2 space-y-2">
+            <h3 className="text-sm font-medium">{t('result.overallFeedback')}</h3>
+            <div className="text-sm text-muted-foreground">
+              <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
+            </div>
+          </section>
+
+          {/* Detailed criteria: direct stack */}
+          <section>
+            <h3 className="p-2 text-sm font-medium mb-2">{t('result.criteriaDetails')}</h3>
+            <div className="space-y-3 overflow-auto pr-1">
+              <CriteriaDetails breakdown={safeResult.breakdown} />
+              {safeResult.breakdown.length === 0 && (
+                <div className="text-sm text-muted-foreground">{t('result.noCriteria')}</div>
+              )}
+            </div>
+          </section>
+        </>
+      ) : (
+        /* Empty State if not loading and no result */
+        !isLoading && <EmptyGradingState onRetry={onRetry} />
+      )}
+
+      {/* Bottom: Collapsible Summary REMOVED */}
     </div>
   );
 }

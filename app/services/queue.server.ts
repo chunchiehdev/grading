@@ -7,6 +7,7 @@ export interface GradingJob {
   userId: string;
   sessionId: string;
   userLanguage?: 'zh' | 'en';
+  useDirectGrading?: boolean;
 }
 
 export const GRADING_QUEUE_NAME = 'grading';

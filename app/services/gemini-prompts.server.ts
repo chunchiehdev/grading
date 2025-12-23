@@ -60,6 +60,8 @@ export class GeminiPrompts {
       referenceDocuments,
       customInstructions,
       language = 'zh',
+      assignmentTitle,
+      assignmentDescription,
     } = request;
     const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
     const criteriaDescription = this.formatCriteriaDescription(criteria);
@@ -67,11 +69,18 @@ export class GeminiPrompts {
     // Feature 004: Format reference documents and custom instructions
     const referenceSection = referenceDocuments ? this.formatReferenceDocuments(referenceDocuments) : '';
     const instructionsSection = customInstructions ? this.formatCustomInstructions(customInstructions) : '';
+    
+    // Format Assignment Info
+    const assignmentSection = assignmentTitle 
+      ? `## 作業資訊\n標題：${assignmentTitle}\n說明：${assignmentDescription || '無'}\n` 
+      : '';
 
     return this.dedent(`
             **檔案**：${fileName}
             **標準**：${rubricName}
             **滿分**：${maxScore} 分
+
+            ${assignmentSection}
 
             ${referenceSection}
 

@@ -67,7 +67,8 @@ export async function action({ request, params }: { request: Request; params: { 
     switch (action) {
       case 'start': {
         const userLanguage = getServerLocale(request) as 'zh' | 'en';
-        const result = await startGradingSession(sessionId, userId, userLanguage);
+        const useDirectGrading = formData.get('useDirectGrading') === 'true';
+        const result = await startGradingSession(sessionId, userId, userLanguage, useDirectGrading);
         if (!result.success) {
           return Response.json(
             createErrorResponse(result.error || 'Failed to start session', ApiErrorCode.INTERNAL_ERROR),

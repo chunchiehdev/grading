@@ -37,6 +37,8 @@ export interface GeminiGradingRequest {
   referenceDocuments?: Array<{ fileId: string; fileName: string; content: string; wasTruncated: boolean }>;
   customInstructions?: string;
   language?: 'zh' | 'en'; // Language for AI feedback
+  assignmentTitle?: string;
+  assignmentDescription?: string;
 }
 
 // Gemini 檔案評分請求介面 - 直接檔案上傳方式
@@ -53,6 +55,8 @@ export interface GeminiGradingResponse {
   success: boolean;
   result?: GradingResultData;
   thoughtSummary?: string; // AI 的思考過程摘要
+  thinkingProcess?: string; // AI 的原始思考過程 (Feature 012)
+  gradingRationale?: string; // AI 的評分推理 (Feature 012)
   error?: string;
   metadata?: {
     model: string;

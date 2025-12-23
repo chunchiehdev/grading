@@ -28,6 +28,7 @@
   "uploadFile": "上傳檔案",
   "pasteText": "貼上文字",
   "startGrading": "開始評分",
+  "directGradingMode": "直接評分模式（較快）",
   "viewResults": "查看結果",
   "editGrading": "編輯評分",
   "saveGrading": "儲存評分",

@@ -23,7 +23,8 @@ export async function processGradingResult(
   resultId: string,
   _userId: string,
   sessionId: string,
-  userLanguage: 'zh' | 'en' = 'zh'
+  userLanguage: 'zh' | 'en' = 'zh',
+  useDirectGrading: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   const startTime = Date.now();
   const gradingLogger = getGradingLogger();
@@ -222,7 +223,15 @@ export async function processGradingResult(
       // options field
       ...(referenceDocuments.length > 0 && { referenceDocuments }),
       ...(customInstructions && { customInstructions }),
+      assignmentTitle: result.assignmentArea?.name || 'Untitled Assignment',
+      assignmentDescription: result.assignmentArea?.description || undefined,
     };
+
+    logger.info(`📝 [Grading Engine] Prepared grading request for assignment: "${gradingRequest.assignmentTitle}"`, {
+      hasAssignmentArea: !!result.assignmentArea,
+      assignmentTitle: gradingRequest.assignmentTitle,
+      assignmentDescriptionLength: gradingRequest.assignmentDescription?.length || 0,
+    });
 
     // Generate and log the prompt (for research traceability)
     const prompt = GeminiPrompts.generateTextGradingPrompt(gradingRequest);
@@ -245,6 +254,7 @@ export async function processGradingResult(
         content: result.uploadedFile.parsedContent,
         rubricId: result.rubric.id,
         rubricName: result.rubric.name,
+        useDirectGrading,
         criteria: criteria.map(c => ({
           criteriaId: c.id,
           name: c.name,
@@ -264,10 +274,13 @@ export async function processGradingResult(
         })) : undefined,
         customInstructions: customInstructions || undefined,
         assignmentType: 'other', // TODO: detect from assignment
+        assignmentTitle: result.assignmentArea?.name || 'Untitled Assignment',
+        assignmentDescription: result.assignmentArea?.description || undefined,
         userId: _userId,
         resultId,
+        sessionId,
         userLanguage,
-        maxSteps: 15,
+        maxSteps: 50,
         confidenceThreshold: parseFloat(process.env.AGENT_CONFIDENCE_THRESHOLD || '0.7'),
         enableSimilarityCheck: result.assignmentAreaId !== null,
       });
@@ -298,6 +311,84 @@ export async function processGradingResult(
         const totalScore = agentResult.data.breakdown.reduce((sum, item) => sum + item.score, 0);
         const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
 
+        // Format reasoning for transparency (XAI)
+        // 收集 AI 的即時思考過程和最終評分推理
+        let thoughtSummary = '';
+        let thinkingProcess = '';
+        let gradingRationale = '';
+        
+        // 0. 收集所有 think_aloud 輸出（即時思考過程）
+        const thinkAloudSteps = agentResult.steps.filter((s: any) => s.toolName === 'think_aloud');
+        if (thinkAloudSteps.length > 0) {
+          thinkingProcess = thinkAloudSteps.map((s: any, idx: number) => {
+            const input = s.toolInput as any;
+            
+            // Handle Hattie's framework fields (New Schema)
+            if (input?.feedUp || input?.feedBack) {
+               return `## Feed Up\n${input.feedUp || ''}\n\n## Feed Back\n${input.feedBack || ''}\n\n## Feed Forward\n${input.feedForward || ''}\n\n## Strategy\n${input.strategy || ''}`;
+            }
+            
+            // Fallback for older schema or simple thought
+            if (input?.thought) {
+              return `**Step ${idx + 1}:** ${input.thought}`;
+            }
+            return null;
+          }).filter(Boolean).join('\n\n');
+        }
+
+        // 0.5 Capture Direct Mode Thinking (Gemini Native)
+        const directThinkingStep = agentResult.steps.find((s: any) => s.toolName === 'direct_grading' && s.reasoning);
+        if (directThinkingStep?.reasoning) {
+          // If we have native thinking from direct mode, use it as thinkingProcess
+          if (!thinkingProcess) {
+             thinkingProcess = directThinkingStep.reasoning;
+          } else {
+             thinkingProcess += `\n\n## Native Thinking\n${directThinkingStep.reasoning}`;
+          }
+        }
+        
+        // 1. 找到 generate_feedback 的 reasoning（最重要的評分推理）
+        const feedbackStep = agentResult.steps.find((s: any) => 
+          s.toolName === 'generate_feedback' && s.reasoning
+        );
+        
+        if (feedbackStep?.reasoning) {
+          // 這是完整的評分推理
+          gradingRationale = feedbackStep.reasoning;
+        } else {
+          // Fallback: 收集所有 step 的 reasoning
+          const otherReasoning = agentResult.steps
+            .filter((s: any) => s.reasoning && s.toolName !== 'generate_feedback' && s.toolName !== 'direct_grading')
+            .map((s: any) => s.reasoning)
+            .join('\n\n');
+            
+          if (otherReasoning) {
+            gradingRationale = otherReasoning;
+          }
+        }
+
+        // Legacy support: Combine into thoughtSummary for older UI
+        if (thinkingProcess) {
+          thoughtSummary = `## 💭 即時思考過程\n\n${thinkingProcess}\n\n---\n\n`;
+        }
+        if (gradingRationale) {
+          thoughtSummary += `## 📝 評分推理\n\n${gradingRationale}`;
+        }
+
+        // 2. 加上信心度摘要（放在最前面）
+        const confidenceStep = agentResult.steps.find((s: any) => s.toolName === 'calculate_confidence');
+        const confidenceInfo = confidenceStep?.toolOutput as { confidenceScore?: number; reason?: string } | undefined;
+        
+        if (confidenceInfo?.confidenceScore !== undefined) {
+          const confidenceHeader = `**評分信心度：${(confidenceInfo.confidenceScore * 100).toFixed(0)}%**\n${confidenceInfo.reason || ''}\n\n---\n\n`;
+          thoughtSummary = confidenceHeader + thoughtSummary;
+        }
+
+        // 3. 如果還是沒有內容，提供簡單說明
+        if (!thoughtSummary.trim()) {
+          thoughtSummary = `評分已完成。總分：${totalScore}/${maxScore}`;
+        }
+
         gradingResponse = {
           success: true,
           result: {
@@ -306,7 +397,9 @@ export async function processGradingResult(
             maxScore,
             overallFeedback: agentResult.data.overallFeedback,
           },
-          thoughtSummary: `Agent Confidence: ${(agentResult.confidenceScore * 100).toFixed(1)}%`,
+          thoughtSummary,
+          thinkingProcess, // New Field
+          gradingRationale, // New Field
           provider: 'gemini-agent',
           metadata: {
             model: 'gemini-2.5-flash-agent',
@@ -440,6 +533,8 @@ export async function processGradingResult(
             overallFeedback: overallFeedbackStr,
           },
           thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
+          thinkingProcess: gradingResponse.thinkingProcess, // Feature 012: Save raw thinking process
+          gradingRationale: gradingResponse.gradingRationale, // Feature 012: Save grading rationale
           normalizedScore,
           gradingModel: gradingResponse.provider,
           gradingTokens: gradingResponse.metadata?.tokens,

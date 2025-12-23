@@ -37,6 +37,7 @@ const GradingResultSchema = z.object({
   breakdown: z.array(CriterionGradeSchema),
   overallFeedback: z.string(),
   summary: z.string().optional(),
+  reasoning: z.string().optional(), // Feature 012: Grading Rationale
 });
 
 export type AIGradingResult = z.infer<typeof GradingResultSchema>;
@@ -60,7 +61,9 @@ interface GradingSuccess {
   provider: 'gemini' | 'openai';
   keyId?: string;
   responseTimeMs: number;
-  thoughtSummary?: string;
+  thoughtSummary?: string; // Deprecated
+  thinkingProcess?: string; // Feature 012: Raw thinking process
+  gradingRationale?: string; // Feature 012: Grading rationale
 }
 
 interface GradingFailure {
@@ -245,6 +248,8 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
       keyId: selectedKeyId,
       responseTimeMs,
       thoughtSummary: formattedThoughtSummary, // Use formatted thought summary
+      thinkingProcess: result.reasoning, // Feature 012: Raw thinking process
+      gradingRationale: result.object.reasoning, // Feature 012: Grading rationale
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;
@@ -365,6 +370,8 @@ export async function gradeWithOpenAI(params: GradingParams): Promise<GradingRes
       provider: 'openai',
       responseTimeMs,
       thoughtSummary: formattedThoughtSummary, // Use formatted thought summary
+      thinkingProcess: result.reasoning, // Feature 012: Raw thinking process
+      gradingRationale: result.object.reasoning, // Feature 012: Grading rationale
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;

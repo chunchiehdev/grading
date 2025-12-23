@@ -66,6 +66,8 @@ export interface GradeWithAISuccess {
   keyId?: string;
   responseTimeMs: number;
   thoughtSummary?: string;
+  thinkingProcess?: string; // Feature 012: Raw thinking process
+  gradingRationale?: string; // Feature 012: Grading rationale
 }
 
 export interface GradeWithAIFailure {

@@ -20,6 +20,8 @@ export interface GradingResponse {
   error?: string;
   provider?: string;
   thoughtSummary?: string | null;
+  thinkingProcess?: string | null; // Feature 012: Raw thinking process
+  gradingRationale?: string | null; // Feature 012: Grading rationale
   metadata?: any;
 }
 
@@ -64,6 +66,8 @@ export class AIGrader {
           success: true,
           result: result.result,
           thoughtSummary: result.thoughtSummary,
+          thinkingProcess: result.thinkingProcess, // Pass through
+          gradingRationale: result.gradingRationale, // Pass through
           provider: 'gemini',
           metadata: result.metadata,
         };

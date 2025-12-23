@@ -280,6 +280,7 @@ export async function createSubmissionAndLinkGradingResult(
         normalizedScore: normalizedScore ?? undefined,
         usedContext: usedContext ?? undefined, // Feature 004: Now properly typed
         status: 'ANALYZED',
+        thoughtSummary: gradingResult.thoughtSummary ?? undefined, // Feature 005: Copy thought summary
       });
 
       logger.info(`  Successfully linked AI result to submission ${submission.id}`);
@@ -729,6 +730,9 @@ export interface UpdateSubmissionOptions {
   usedContext?: UsedContext | null; // Feature 004: Context transparency
   teacherFeedback?: string | null;
   status?: 'SUBMITTED' | 'ANALYZED' | 'GRADED';
+  thoughtSummary?: string | null; // Feature 005: AI Thinking Process
+  thinkingProcess?: string | null; // Feature 012: Raw thinking process
+  gradingRationale?: string | null; // Feature 012: Grading rationale
 }
 
 export async function updateSubmission(
@@ -744,6 +748,9 @@ export async function updateSubmission(
       ...(updateData.usedContext !== undefined && { usedContext: updateData.usedContext }),
       ...(updateData.teacherFeedback !== undefined && { teacherFeedback: updateData.teacherFeedback }),
       ...(updateData.status !== undefined && { status: updateData.status }),
+      ...(updateData.thoughtSummary !== undefined && { thoughtSummary: updateData.thoughtSummary }),
+      ...(updateData.thinkingProcess !== undefined && { thinkingProcess: updateData.thinkingProcess }),
+      ...(updateData.gradingRationale !== undefined && { gradingRationale: updateData.gradingRationale }),
     };
 
     const submission = await db.submission.update({
@@ -789,6 +796,8 @@ export interface DraftSubmissionData {
   // Use Prisma's JsonValue type for proper JSON handling
   aiAnalysisResult?: Prisma.JsonValue | null;
   thoughtSummary?: string | null;
+  thinkingProcess?: string | null;
+  gradingRationale?: string | null;
   lastState?: 'idle' | 'ready' | 'grading' | 'completed' | 'error';
 }
 
@@ -887,6 +896,8 @@ export async function getDraftSubmission(
         sessionId: existingSubmission.sessionId ?? null,
         aiAnalysisResult: existingSubmission.aiAnalysisResult,
         thoughtSummary: existingSubmission.thoughtSummary,
+        thinkingProcess: existingSubmission.thinkingProcess,
+        gradingRationale: existingSubmission.gradingRationale,
         lastState,
         status: existingSubmission.status,
         createdAt: existingSubmission.createdAt,
@@ -916,6 +927,8 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       sessionId,
       aiAnalysisResult,
       thoughtSummary,
+      thinkingProcess,
+      gradingRationale,
       lastState,
     } = draftData;
 
@@ -956,6 +969,14 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
         updateData.thoughtSummary = thoughtSummary ?? undefined;
       }
 
+      if (thinkingProcess !== undefined) {
+        updateData.thinkingProcess = thinkingProcess ?? undefined;
+      }
+
+      if (gradingRationale !== undefined) {
+        updateData.gradingRationale = gradingRationale ?? undefined;
+      }
+
       if (Object.keys(updateData).length > 0) {
         submission = await db.submission.update({
           where: { id: existingSubmission.id },
@@ -983,6 +1004,12 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       }
       if (thoughtSummary !== null && thoughtSummary !== undefined) {
         createData.thoughtSummary = thoughtSummary;
+      }
+      if (thinkingProcess !== null && thinkingProcess !== undefined) {
+        createData.thinkingProcess = thinkingProcess;
+      }
+      if (gradingRationale !== null && gradingRationale !== undefined) {
+        createData.gradingRationale = gradingRationale;
       }
 
       submission = await db.submission.create({

@@ -136,9 +136,11 @@ class SimpleGeminiService {
       };
       const rawThought = this.extractThoughtSummary(geminiResponse);
       let thoughtSummary: string | undefined;
+      let thinkingProcess: string | undefined; // Raw thinking process
 
       if (rawThought) {
         logger.info(`💭 Raw thought summary extracted (${rawThought.length} chars)`);
+        thinkingProcess = rawThought; // Store raw thinking process
 
         // Format thought summary using AI to make it student-friendly
         const formatResult = await formatThoughtSummary({
@@ -171,6 +173,7 @@ class SimpleGeminiService {
         success: true,
         result,
         thoughtSummary,
+        thinkingProcess, // Pass raw thinking process
         metadata: {
           model: this.model,
           tokens: outputTokens,

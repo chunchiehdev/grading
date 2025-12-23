@@ -286,6 +286,7 @@ class RotatingGeminiService {
             success: true,
             result,
             thoughtSummary,
+            thinkingProcess: thoughtSummary, // Pass raw thinking process
             metadata: {
               model: this.model,
               tokens: outputTokens,

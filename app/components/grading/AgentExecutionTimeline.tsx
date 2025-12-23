@@ -2,9 +2,10 @@
  * Agent Execution Timeline Component
  *
  * Displays the step-by-step execution trace of Agent-based grading
+ * Refactored to show "Phased Scaffolding" (Understanding -> Reasoning -> Feedback)
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { AgentStep } from '@/types/agent';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,10 @@ import {
   Search,
   AlertTriangle,
   MessageSquare,
+  BookOpen,
+  Scale,
+  FileText,
+  Lightbulb
 } from 'lucide-react';
 
 interface AgentExecutionTimelineProps {
@@ -29,6 +34,22 @@ interface AgentExecutionTimelineProps {
   totalExecutionTimeMs?: number;
 }
 
+// ============================================================================
+// PHASE DEFINITIONS
+// ============================================================================
+
+type PhaseType = 'understanding' | 'reasoning' | 'feedback';
+
+interface PhaseGroup {
+  id: PhaseType;
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  steps: AgentStep[];
+  isExpanded: boolean;
+  color: string;
+}
+
 /**
  * Get icon for tool name
  */
@@ -36,12 +57,15 @@ function getToolIcon(toolName?: string) {
   if (!toolName) return <Brain className="w-4 h-4" />;
 
   const icons: Record<string, React.ReactNode> = {
-    analyze_rubric: <CheckCircle2 className="w-4 h-4" />,
-    parse_content: <Search className="w-4 h-4" />,
+    analyze_rubric: <BookOpen className="w-4 h-4" />,
+    parse_content: <FileText className="w-4 h-4" />,
     search_reference: <Search className="w-4 h-4" />,
     check_similarity: <AlertTriangle className="w-4 h-4" />,
+    evaluate_subtrait: <Search className="w-4 h-4" />,
+    match_to_level: <Scale className="w-4 h-4" />,
     calculate_confidence: <Zap className="w-4 h-4" />,
     generate_feedback: <MessageSquare className="w-4 h-4" />,
+    think_aloud: <Lightbulb className="w-4 h-4" />,
   };
 
   return icons[toolName] || <Zap className="w-4 h-4" />;
@@ -58,8 +82,11 @@ function getToolDisplayName(toolName?: string): string {
     parse_content: '解析作業內容',
     search_reference: '搜尋參考資料',
     check_similarity: '檢查相似度',
+    evaluate_subtrait: '特徵提取與分析',
+    match_to_level: '評分決策',
     calculate_confidence: '計算信心度',
     generate_feedback: '生成評分反饋',
+    think_aloud: '思考過程',
   };
 
   return names[toolName] || toolName;

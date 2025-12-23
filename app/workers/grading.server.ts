@@ -25,14 +25,14 @@ export function initGradingWorker() {
   gradingWorker = new Worker<GradingJob>(
     GRADING_QUEUE_NAME,
     async (job) => {
-      const { resultId, userId, sessionId, userLanguage } = job.data;
+      const { resultId, userId, sessionId, userLanguage, useDirectGrading } = job.data;
 
       logger.info(
         `🏃 [BullMQ] Processing job ${job.id} for result ${resultId} (attempt ${job.attemptsMade + 1})`
       );
 
       try {
-        const result = await processGradingResult(resultId, userId, sessionId, userLanguage || 'zh');
+        const result = await processGradingResult(resultId, userId, sessionId, userLanguage || 'zh', useDirectGrading);
 
         if (!result.success) {
           throw new Error(result.error || 'Grading failed');

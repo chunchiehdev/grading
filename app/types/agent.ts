@@ -47,34 +47,6 @@ export interface ToolResult<T = unknown> {
 }
 
 /**
- * Rubric analysis tool result
- */
-export interface RubricAnalysis {
-  complexity: 'simple' | 'medium' | 'complex';
-  totalMaxScore: number;
-  keyDimensions: string[];
-  recommendedApproach: string;
-  criteriaCount: number;
-}
-
-/**
- * Content parsing tool result
- */
-export interface ContentAnalysis {
-  wordCount: number;
-  characterCount: number;
-  hasCode: boolean;
-  hasImages: boolean;
-  hasTables: boolean;
-  structure: {
-    sections: number;
-    headings: string[];
-    keyPoints: string[];
-  };
-  estimatedComplexity: 'low' | 'medium' | 'high';
-}
-
-/**
  * Confidence scoring tool result
  */
 export interface ConfidenceScore {
@@ -161,16 +133,20 @@ export interface AgentGradingParams {
   referenceDocuments?: ReferenceDocument[];
   customInstructions?: string;
   assignmentType?: 'essay' | 'code' | 'math' | 'report' | 'other';
+  assignmentTitle?: string;
+  assignmentDescription?: string;
 
   // Metadata
   userId: string;
   resultId: string;
+  sessionId?: string; // For real-time streaming
   userLanguage?: string;
 
   // Agent configuration
   maxSteps?: number; // Default: 10
   confidenceThreshold?: number; // Default: 0.7
   enableSimilarityCheck?: boolean; // Default: true
+  useDirectGrading?: boolean; // Default: false
 }
 
 /**
@@ -183,8 +159,6 @@ export interface AgentConfig {
   maxOutputTokens: number;
   thinkingBudget: number;
   enableTools: {
-    analyzeRubric: boolean;
-    parseContent: boolean;
     searchReference: boolean;
     checkSimilarity: boolean;
     calculateConfidence: boolean;
@@ -202,8 +176,6 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   maxOutputTokens: 8192,
   thinkingBudget: 8192,
   enableTools: {
-    analyzeRubric: true,
-    parseContent: true,
     searchReference: true,
     checkSimilarity: true,
     calculateConfidence: true,

@@ -421,7 +421,8 @@ export async function updateGradingSessionProgress(
 export async function startGradingSession(
   sessionId: string,
   userId: string,
-  userLanguage: 'zh' | 'en' = 'zh'
+  userLanguage: 'zh' | 'en' = 'zh',
+  useDirectGrading: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Update session status to processing
@@ -460,6 +461,7 @@ export async function startGradingSession(
         userId: userId,
         sessionId: sessionId,
         userLanguage: userLanguage,
+        useDirectGrading,
       },
       opts: {
         jobId: `grade-${result.id}`,

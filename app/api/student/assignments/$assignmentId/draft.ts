@@ -104,6 +104,8 @@ export async function action({ request, params }: { request: Request; params: an
       sessionId: body.sessionId || null,
       aiAnalysisResult: body.aiAnalysisResult || null,
       thoughtSummary: body.thoughtSummary ?? null,
+      thinkingProcess: body.thinkingProcess ?? null,
+      gradingRationale: body.gradingRationale ?? null,
       lastState: body.lastState || 'idle',
     };
 

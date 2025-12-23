@@ -28,7 +28,6 @@ export default [
   ...prefix('/teacher', [
     route('analytics', './routes/teacher/analytics.tsx'),
     route('agent-review', './routes/teacher.agent-review.tsx'),
-    route('grading/:sessionId/result/:resultId', './routes/teacher.grading.$sessionId.result.$resultId.tsx'),
     route('courses/new', './routes/teacher/courses/new.tsx'),
     route('courses/:courseId/edit', './routes/teacher/courses/$courseId/edit.tsx'),
     route('courses/:courseId/students', './routes/teacher/courses/$courseId/students.tsx'),
@@ -103,6 +102,7 @@ export default [
   // Grading session API routes
   route('/api/grading/session', './api/grading/session.ts'),
   route('/api/grading/session/:sessionId', './api/grading/session.$sessionId.ts'),
+  route('/api/grading/events/:sessionId', './routes/api/grading/events.$sessionId.ts'),
   route('/api/grading/results', './api/grading/results.ts'),
 
   // Admin API routes
@@ -158,5 +158,8 @@ export default [
 
   // Notification API routes
   route('/api/notifications/recent', './api/notifications/recent.ts'),
+
+  // Test routes
+  route('/test-sse', './routes/test-sse.tsx'),
 
 ] satisfies RouteConfig;
