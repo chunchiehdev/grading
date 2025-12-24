@@ -72,6 +72,9 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
       teacherFeedback: rawSubmission.teacherFeedback,
       aiAnalysisResult: rawSubmission.aiAnalysisResult,
       usedContext: rawSubmission.usedContext ?? null, // Feature 004
+      thinkingProcess: rawSubmission.thinkingProcess ?? null, // Feature 012: AI thinking process
+      thoughtSummary: rawSubmission.thoughtSummary ?? null, // Legacy field for compatibility
+      gradingRationale: rawSubmission.gradingRationale ?? null, // Feature 012: AI grading rationale
     },
     navigation: {
       backUrl: `/teacher/courses/${rawSubmission.assignmentArea.course.id}/assignments/${rawSubmission.assignmentArea.id}/submissions`,
@@ -126,6 +129,9 @@ export default function TeacherSubmissionView() {
               result={submission.grading.aiAnalysisResult}
               normalizedScore={submission.grading.normalizedScore}
               usedContext={submission.grading.usedContext}
+              thinkingProcess={submission.grading.thinkingProcess}
+              thoughtSummary={submission.grading.thoughtSummary}
+              gradingRationale={submission.grading.gradingRationale}
             />
           </div>
 
@@ -208,10 +214,16 @@ function AIAnalysisCard({
   result,
   normalizedScore,
   usedContext,
+  thinkingProcess,
+  thoughtSummary,
+  gradingRationale,
 }: {
   result: any | null;
   normalizedScore?: number | null;
   usedContext?: any | null;
+  thinkingProcess?: string | null;
+  thoughtSummary?: string | null;
+  gradingRationale?: string | null;
 }) {
   const { t } = useTranslation('teacher');
   return (
@@ -226,7 +238,13 @@ function AIAnalysisCard({
             {usedContext && <ContextTransparency usedContext={usedContext} />}
 
             {/* AI grading results */}
-            <GradingResultDisplay result={result} normalizedScore={normalizedScore} />
+            <GradingResultDisplay 
+              result={result} 
+              normalizedScore={normalizedScore}
+              thinkingProcess={thinkingProcess}
+              thoughtSummary={thoughtSummary}
+              gradingRationale={gradingRationale}
+            />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">{t('aiAnalysisInProgress')}</p>

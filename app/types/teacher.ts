@@ -109,6 +109,12 @@ export interface TeacherSubmissionView {
     aiAnalysisResult: any | null;
     /** Context transparency metadata (Feature 004), null if no context was used */
     usedContext: any | null;
+    /** AI confidence summary (Feature 005 & 012), null if not available */
+    thoughtSummary: string | null;
+    /** AI detailed thinking process (Feature 012), null if not available */
+    thinkingProcess: string | null;
+    /** AI grading rationale (Feature 012), null if not available */
+    gradingRationale: string | null;
   };
   /** Navigation URLs pre-computed for UI */
   navigation: {

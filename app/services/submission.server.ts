@@ -281,6 +281,8 @@ export async function createSubmissionAndLinkGradingResult(
         usedContext: usedContext ?? undefined, // Feature 004: Now properly typed
         status: 'ANALYZED',
         thoughtSummary: gradingResult.thoughtSummary ?? undefined, // Feature 005: Copy thought summary
+        thinkingProcess: gradingResult.thinkingProcess ?? undefined, // Feature 012: Copy thinking process
+        gradingRationale: gradingResult.gradingRationale ?? undefined, // Feature 012: Copy grading rationale
       });
 
       logger.info(`  Successfully linked AI result to submission ${submission.id}`);

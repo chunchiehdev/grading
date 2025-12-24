@@ -31,6 +31,9 @@ export interface SubmissionInfo {
   normalizedScore: number | null;
   teacherFeedback: string | null;
   usedContext: any | null;
+  thoughtSummary: string | null; // Feature 005 & 012: AI confidence summary
+  thinkingProcess: string | null; // Feature 012: AI detailed thinking process
+  gradingRationale: string | null; // Feature 012: AI grading rationale
   status: string;
   createdAt: Date;
   updatedAt: Date;

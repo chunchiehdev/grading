@@ -13,6 +13,8 @@ import { useTranslation } from 'react-i18next';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useUploadStore } from '@/stores/uploadStore';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -44,7 +46,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Check for existing draft/submission to restore state
   const draftSubmission = await getDraftSubmission(assignmentId, student.id);
 
-  console.log('Draft Submission', draftSubmission)
+  // console.log('Draft Submission', draftSubmission)
 
   return { student, assignment, draftSubmission };
 }
@@ -104,15 +106,15 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
       return { phase: 'upload', file: null, session: null, error: null, loading: false, lastSubmittedSessionId: null };
     case 'thought_update':
       if (!state.session) return state;
-      // Append new thought directly (timestamps removed for cleaner UI)
-      const newThought = action.thought;
-      const prevThinking = state.session.thinkingProcess || '';
-      // console.log('Reducer: thought_update', { prevLen: prevThinking.length, newThought });
+      // Only update if there's actual new content (avoid overwriting with empty strings)
+      if (!action.thought || action.thought.length === 0) return state;
+      
+      // Use the new thought directly (useChat already accumulates for us)
       return {
         ...state,
         session: {
           ...state.session,
-          thinkingProcess: prevThinking + newThought,
+          thinkingProcess: action.thought,
         },
       };
     default:
@@ -122,7 +124,7 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
 
 export default function SubmitAssignment() {
   const { t, i18n } = useTranslation(['assignment', 'grading', 'common']);
-  const { assignment, draftSubmission } = useLoaderData<typeof loader>();
+  const { student, assignment, draftSubmission } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [useDirectGrading, setUseDirectGrading] = React.useState(false);
 
@@ -176,6 +178,8 @@ export default function SubmitAssignment() {
             id: draftSubmission.sessionId || '',
             result: draftSubmission.aiAnalysisResult,
             thoughtSummary: draftSubmission.thoughtSummary || undefined,
+            thinkingProcess: draftSubmission.thinkingProcess || undefined,
+            gradingRationale: draftSubmission.gradingRationale || undefined,
           }
         : null,
     error: null,
@@ -187,7 +191,6 @@ export default function SubmitAssignment() {
         : null,
   });
 
-  console.log('Render: thoughtSummary', state.session?.thoughtSummary);
 
   // GSAP animations
   useGSAP(() => {
@@ -378,35 +381,76 @@ export default function SubmitAssignment() {
     }
   }, [state.loading, state.session?.id]);
 
-  // SSE Effect for Real-time Thoughts
-  useEffect(() => {
-    if (state.loading && state.session?.id) {
-      const sessionId = state.session.id;
-      console.log('Connecting to SSE for session:', sessionId);
-      const evtSource = new EventSource(`/api/grading/events/${sessionId}`);
-
-      evtSource.onmessage = (event) => {
-        try {
-          console.log('[SSE] Message:', event.data);
-          const data = JSON.parse(event.data);
-          if (data.type === 'thought' && data.content) {
-             dispatch({ type: 'thought_update', thought: data.content });
-          }
-        } catch (e) {
-          console.error('SSE Parse Error', e);
-        }
-      };
-
-      evtSource.onerror = (err) => {
-        console.error('SSE Error:', err);
-        evtSource.close();
-      };
-
-      return () => {
-        evtSource.close();
-      };
+  // AI SDK UI Hook for Streaming Bridge
+  const { messages, sendMessage, isLoading: isChatLoading } = useChat({
+    transport: new DefaultChatTransport({
+      api: '/api/grading/bridge',
+    }),
+    onFinish: (message) => {
+      // When streaming finishes, we can trigger a final poll or update state
+      console.log('[Frontend] Streaming finished:', message);
+    },
+    onError: (error) => {
+      console.error('[Frontend] Streaming error:', error);
+      dispatch({ type: 'error', message: 'Streaming connection failed' });
     }
-  }, [state.loading, state.session?.id]);
+  }) as any;
+
+  // Sync streaming messages to local state for display
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      console.log('[Frontend] Received message update:', lastMessage);
+      
+      if (lastMessage.role === 'assistant') {
+        // Update thought stream
+        // Strictly prioritize 'parts' to separate text from tool calls
+        let thought = '';
+        const parts = (lastMessage as any).parts;
+
+        if (parts && Array.isArray(parts)) {
+          // Only extract text parts, ignoring tool-invocations
+          thought = parts
+            .filter((p: any) => p.type === 'text')
+            .map((p: any) => p.text)
+            .join('');
+        } else {
+          // Fallback only if parts structure is missing
+          thought = lastMessage.content || '';
+        }
+
+        // Clean up thought content: remove raw tool call logs if they leaked into text
+        // This regex looks for patterns like "Calling tool X with arguments: {...}"
+        thought = thought.replace(/Calling tool \w+ with arguments: \{[\s\S]*?\}/g, '');
+        thought = thought.replace(/tool_code[\s\S]*?```/g, ''); // Remove code blocks that might be tool calls
+        
+        console.log('[Frontend] Extracted thought:', thought.substring(0, 50) + '...');
+        dispatch({ type: 'thought_update', thought });
+      }
+    }
+  }, [messages]);
+
+  // Trigger streaming when session starts
+  useEffect(() => {
+    if (state.loading && state.session?.id && !isChatLoading && messages.length === 0) {
+      console.log('Starting streaming bridge for session:', state.session.id);
+      
+      // Trigger the bridge API
+      sendMessage({ 
+        role: 'user', 
+        content: 'Start grading stream',
+      }, {
+        body: {
+          data: {
+            resultId: state.session.result?.id || '', // Use result.id from session state
+            userId: student.id,
+            sessionId: state.session.id,
+            useDirectGrading: useDirectGrading,
+          }
+        }
+      });
+    }
+  }, [state.loading, state.session?.id, isChatLoading, messages.length, student.id, useDirectGrading, state.session?.result?.id]);
 
   const waitForParse = async (fileId: string): Promise<boolean> => {
     for (let i = 0; i < 30; i++) {
@@ -668,10 +712,16 @@ export default function SubmitAssignment() {
                 result={state.session.result}
                 normalizedScore={state.session.result._normalizedScore}
                 thoughtSummary={state.session.thoughtSummary}
+                thinkingProcess={state.session.thinkingProcess}
+                gradingRationale={state.session.gradingRationale}
                 isLoading={state.loading}
               />
             ) : (
-              <GradingResultDisplay isLoading={state.loading} thoughtSummary={state.session?.thoughtSummary} />
+              <GradingResultDisplay 
+                isLoading={state.loading} 
+                thoughtSummary={state.session?.thoughtSummary}
+                thinkingProcess={state.session?.thinkingProcess}
+              />
             )}
           </div>
 

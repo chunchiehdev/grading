@@ -13,9 +13,10 @@
  * https://www.anthropic.com/engineering/building-effective-agents
  */
 
-import { ToolLoopAgent, generateObject, type StepResult, type ToolSet } from 'ai';
+import { ToolLoopAgent, generateObject, streamText, type StepResult, type ToolSet } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { z } from 'zod';
+import { redis } from '@/lib/redis';
 
 // ============================================================================
 // MODEL PROVIDER CONFIGURATION
@@ -125,21 +126,21 @@ function buildGradingSystemPrompt(ctx: GradingContext, isDirectMode: boolean = f
 
   const baseRole = isZh
     ? `你是一位具有 15 年經驗的資深學科教師，專長於寫作教學與形成性評量 (Formative Assessment)。
-你熟悉以下教育評量理論與方法：
-- **Rubric-Based Assessment**（標準本位評量）：使用分析式評分 (Analytic Scoring)
-- **SOLO Taxonomy**：評估學生認知層次（Prestructural → Extended Abstract）
-- **Bloom's Taxonomy**：區分記憶、理解、應用、分析、評鑑、創造層次
-- **Diagnostic Feedback**（診斷性回饋）：指出具體問題並提供可執行的改進建議
+    你熟悉以下教育評量理論與方法：
+    - **Rubric-Based Assessment**（標準本位評量）：使用分析式評分 (Analytic Scoring)
+    - **SOLO Taxonomy**：評估學生認知層次（Prestructural → Extended Abstract）
+    - **Bloom's Taxonomy**：區分記憶、理解、應用、分析、評鑑、創造層次
+    - **Diagnostic Feedback**（診斷性回饋）：指出具體問題並提供可執行的改進建議
 
-你的評分風格嚴謹但具建設性，重視 Evidence-Based Assessment（證據本位評量）。`
-    : `You are a senior subject teacher with 15 years of experience in writing instruction and formative assessment.
-You are proficient in the following educational assessment theories and methods:
-- **Rubric-Based Assessment**: Using analytic scoring methodology
-- **SOLO Taxonomy**: Evaluating student cognitive levels (Prestructural → Extended Abstract)
-- **Bloom's Taxonomy**: Distinguishing between Remember, Understand, Apply, Analyze, Evaluate, Create
-- **Diagnostic Feedback**: Identifying specific issues and providing actionable improvement suggestions
+    你的評分風格嚴謹但具建設性，重視 Evidence-Based Assessment（證據本位評量）。`
+        : `You are a senior subject teacher with 15 years of experience in writing instruction and formative assessment.
+    You are proficient in the following educational assessment theories and methods:
+    - **Rubric-Based Assessment**: Using analytic scoring methodology
+    - **SOLO Taxonomy**: Evaluating student cognitive levels (Prestructural → Extended Abstract)
+    - **Bloom's Taxonomy**: Distinguishing between Remember, Understand, Apply, Analyze, Evaluate, Create
+    - **Diagnostic Feedback**: Identifying specific issues and providing actionable improvement suggestions
 
-Your grading style is rigorous yet constructive, emphasizing evidence-based assessment.`;
+    Your grading style is rigorous yet constructive, emphasizing evidence-based assessment.`;
 
   const assignmentInfo = ctx.assignmentTitle
     ? `
@@ -268,46 +269,59 @@ Revision Strategy：請補充 Statistical Data 或 Scholarly Sources 來強化 E
 `;
 
   const toolGuidance = `
-## 可用工具
-1. **think_aloud** - 🧠 Hattie & Timperley 分析 (Feed Up, Feed Back, Feed Forward)
-2. **calculate_confidence** - 計算評分信心度
-3. **generate_feedback** - 【最終步驟】生成評分結果
-4. **search_reference** - [可選] 搜尋參考資料（僅當有上傳參考文件時使用）
-5. **check_similarity** - [可選] 檢查抄襲（僅當需要時使用）
+## 🧠 評分流程與規範 (Grading Workflow)
 
-## 🧠 即時思考要求（Thinking Aloud Protocol）
+### 核心原則：Think First, Act Later
 
-**每次使用工具前，先用 think_aloud 進行 Metacognitive Verbalization（後設認知口語化）。**
+你必須遵循 **ReAct (Reasoning + Acting)** 模式：
 
-像資深教師批改作業時的專業觀察：
+1. **[Thinking]** 先用 **純文字** 輸出你的分析過程。這是你的草稿紙，用於深度分析。
+2. **[Action]** 分析完畢後，呼叫對應的工具 (Tool Call)。
 
-✅ 好的範例（像專業教師）：
-- 「Cohesion 有問題，這裡缺少 Transitional Phrase，導致段落之間 Coherence 不足...」
-- 「從 SOLO 來看，這篇停留在 Multistructural Level，只是列舉想法，缺乏 Integration...」
-- 「Syntactic Complexity 偏低，全文都是 Simple Sentences，需要更多 Subordinate Clauses...」
-- 「這個 Evidence 太 Anecdotal，缺乏 Specificity 和 Credibility...」
+### ⚠️ 思考與行動的嚴格區分 (Critical Distinction)
 
-❌ 不好的範例（像機器人）：
-- 「我將使用 evaluate_subtrait 來分析句子結構...」
-- 「現在進入 Phase 2 評分階段...」
+**1. Text Output (你的思考過程)：**
+- **用途**：Deep Analysis（深度分析）、Evidence Hunting（找證據）、Drafting（打草稿）
+- **內容**：閱讀理解、搜尋原文證據、與 Rubric 的比對過程、推理邏輯
+- **展示**：這裡的內容會即時串流顯示給使用者，請展現你的思考深度
+- **禁止**：**絕對禁止**在文字輸出中包含 JSON 格式的工具調用代碼
+  - ✅ 正確：「我現在分析論點結構。學生在第二段提到...這顯示出 Multistructural 層次...」
+  - ❌ 錯誤：「\`json { "tool": "calculate_confidence", ... } \`」
 
-## 建議流程 (3-Step Process)
-1. **Hattie's Analysis** → think_aloud (Feed Up/Back/Forward)
-2. **Confidence Check** → calculate_confidence
-3. **Final Output** → generate_feedback
+**2. Tool Call (你的行動)：**
+- **用途**：執行具體的評分動作、搜尋資料、提交結果
+- **格式**：使用標準的 Function Calling 機制
+- **reasoning 欄位**：將你在 Text Output 中的深度分析，**總結提煉**為給教師看的專業評語
+  - **不要逐字複製** Text Output 的內容
+  - **要提煉精華**：把分析過程中的關鍵發現、給分依據、專業判斷濃縮成簡潔報告
 
-## ⚠️ 強制結束規則（非常重要！）
+### 建議流程
 
-當你調用 **calculate_confidence** 後，你必須**立即**調用 **generate_feedback**。
+1. **初步審閱 (Initial Review)**：
+   - [Text] 閱讀作業與 Rubric，確認任務相關性
+   - [Text] 初步印象與信心評估
+   - [Action] 呼叫 \`calculate_confidence\`
 
-**禁止在 calculate_confidence 之後調用任何其他工具！**
+2. **深度評分 (Deep Grading)**：
+   - [Text] 針對 Rubric 每一項，逐一找出原文證據
+   - [Text] 推理每個項目的分數與理由
+   - [Text] 思考學生的優點與改進方向
+   - [Action] 呼叫 \`generate_feedback\`（reasoning 欄位提煉上述分析精華）
 
-順序必須是：
-\`\`\`
-calculate_confidence → generate_feedback（結束）
-\`\`\`
+### ⚠️ 安全防禦指令 (Defensive Instructions)
 
-如果你不遵守這個規則，評分將失敗。
+- **NO JSON IN TEXT**: 絕對禁止在 [Thinking] 階段輸出 JSON 格式
+- **USE TOOLS**: 要執行動作時，必須使用 Function Calling API，不要只是口頭說「我現在要評分了」
+- **AVOID DUPLICATION**: 不要在 Text 和 Tool reasoning 中重複相同內容；Text 是過程，Tool 是結論
+
+### 語氣與受眾 (Tone & Audience)
+
+| 輸出位置 | 對象 | 語氣 | 範例 |
+|---------|------|------|------|
+| **Text Output** | 展示思考過程 | 客觀、邏輯性強、專業分析 | 「根據 SOLO Taxonomy，此回應屬於 Multistructural...」 |
+| **Tool: reasoning** | 教師 | 專業、使用術語、簡潔報告 | 「學生論證達 Relational 層次，但 Evidence Quality 偏弱...」 |
+| **Tool: messageToStudent** | 學生 | 溫暖、具建設性、像導師 | 「你好！這次作業我看到你有自己的想法...」 |
+| **Tool: analysis** | 學生 | 口語化、具體建議 | 「這個句號放錯位置了喔，應該放在...」 |
 `;
 
   const relevanceCheck = `
@@ -318,7 +332,7 @@ calculate_confidence → generate_feedback（結束）
 - **Language Appropriateness**：作業語言是否符合要求？
 
 如果判定為 Off-Topic Response（離題回應）：
-1. 在思考中使用 SOLO 術語：「此回應為 Prestructural Level - 完全離題」
+1. 在 reasoning 中使用 SOLO 術語：「此回應為 Prestructural Level - 完全離題」
 2. 所有評分項目給 0 分（No Credit）
 3. 在 Diagnostic Feedback 中清楚說明 Task Alignment 問題
 
@@ -326,12 +340,10 @@ calculate_confidence → generate_feedback（結束）
 
 無論作業品質如何，都必須完成完整的 Assessment Cycle：
 
-1. **Initial Reading** - 進行 Holistic First Impression
-2. **Hattie's Analysis** - 使用 think_aloud 進行 Feed Up/Back/Forward 分析
-3. **Confidence Assessment** - 調用 calculate_confidence 評估 Inter-Rater Reliability 模擬
-4. **Feedback Generation** - 調用 generate_feedback 產出 Summative & Diagnostic Feedback
+1. **Confidence Assessment** - 調用 calculate_confidence，在 reason 中說明初步分析
+2. **Feedback Generation** - 調用 generate_feedback，在 reasoning 中包含完整的 Hattie 分析 (Feed Up/Back/Forward)
 
-⚠️ 不要跳過步驟！完整的 Assessment Documentation 是專業評量的基本要求。
+⚠️ 必須依序呼叫這兩個工具！不要只輸出文字，必須呼叫工具。
 這確保了 Scoring Transparency 和 Accountability。
 `;
 
@@ -339,7 +351,26 @@ calculate_confidence → generate_feedback（結束）
     return `${baseRole}\n${assignmentInfo}\n${rubricInfo}\n${coreInstructions}\n${relevanceCheck}`;
   }
 
-  return `${baseRole}\n${assignmentInfo}\n${rubricInfo}\n${coreInstructions}\n${toolGuidance}\n${relevanceCheck}`;
+  // Add explicit thinking requirement for tool-enabled mode
+  const mandatoryThinkingInstruction = `
+## ⚠️ 強制執行指令 (MANDATORY EXECUTION PROTOCOL)
+
+**第一步（必須）：輸出思考過程**  
+在呼叫任何工具之前，你**必須**先輸出文字來展示你的分析過程。這不是可選的。
+
+具體要求：
+1. 閱讀學生作業並用文字說明你的初步印象
+2. 逐項對照 Rubric 並用文字解釋你的評估邏輯
+3. 引用原文證據並用文字說明為什麼重要
+4. 然後才可以呼叫工具
+
+**錯誤示範**：直接呼叫 \`calculate_confidence\` 而沒有先輸出文字分析  
+**正確示範**：先輸出「我現在閱讀這份作業...學生在第二段提到...根據 Rubric...」然後才呼叫工具
+
+這個文字輸出會即時顯示給使用者，展現你的專業分析能力。
+`;
+
+  return `${baseRole}\n${assignmentInfo}\n${rubricInfo}\n${coreInstructions}\n${toolGuidance}\n${mandatoryThinkingInstruction}\n${relevanceCheck}`;
 }
 
 // ============================================================================
@@ -425,7 +456,7 @@ const DirectGradingSchema = z.object({
 });
 
 // ============================================================================
-// MAIN EXECUTOR: True Agent Pattern
+// MAIN EXECUTOR: True Agent Pattern (ToolLoopAgent)
 // ============================================================================
 
 export async function executeGradingAgent(params: AgentGradingParams): Promise<AgentGradingResult> {
@@ -435,7 +466,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
   let selectedKeyId: string | null = null;
 
   try {
-    logger.info('[Agent] Starting autonomous grading', {
+    logger.info('[Agent] Starting autonomous grading (ToolLoopAgent)', {
       resultId: params.resultId,
       rubricName: params.rubricName,
       hasAssignmentTitle: !!params.assignmentTitle,
@@ -443,9 +474,6 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
     // 1. Setup Model (Google Generative AI)
     let model: any;
-
-    // Google Generative AI - 使用 key rotation
-    logger.info('[Agent] Using Google Generative AI provider');
 
     // Flexible key detection (supports 1, 2, or 3 keys)
     const availableKeyIds = ['1'];
@@ -488,89 +516,111 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
     // CHECK FOR DIRECT GRADING MODE
     if (params.useDirectGrading) {
-      logger.info('[Agent] Executing Direct Grading Mode (Manual Branch)');
-      const systemPrompt = buildGradingSystemPrompt(ctx, true);
-      const userMessage = `請評分以下學生作業：
-
-    ${params.assignmentTitle ? `【作業標題】${params.assignmentTitle}` : ''}
-    ${params.assignmentDescription ? `【作業說明】${params.assignmentDescription}` : ''}
-    【學生作業內容】
-    ${params.content}
-
-    請直接輸出評分結果 JSON。`;
-
-      try {
-        const { object: result, usage, providerMetadata } = await generateObject({
-          model,
-          schema: DirectGradingSchema,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage },
-          ],
-          providerOptions: {
-            google: {
-              thinkingConfig: {
-                includeThoughts: true,
-                thinkingLevel: 'high',
-              },
-              safetySettings: [
-                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-              ],
-            },
-          },
-        });
-
-        // Capture Gemini Native Thinking
-        let directThinking = '';
-        const googleMetadata = providerMetadata?.google as any;
-        if (googleMetadata?.thoughts) {
-          directThinking = googleMetadata.thoughts as string;
-          logger.info('[Agent] Captured Direct Mode Thinking', { length: directThinking.length });
-        }
-
-        // Construct a "fake" step for the direct execution to fit the AgentGradingResult structure
-        const steps: AgentStep[] = [
-          {
-            stepNumber: 1,
-            toolName: 'direct_grading',
-            reasoning: directThinking || result.reasoning, // Prefer native thinking if available
-            toolOutput: result,
-            durationMs: Date.now() - startTime,
-            timestamp: new Date(),
-          },
-        ];
-
-        // Map to AIGradingResult format to satisfy type requirements
-        const mappedData = {
-          breakdown: result.criteriaScores.map((s: any) => ({
-            criteriaId: s.criteriaId,
-            name: s.name,
-            score: s.score,
-            feedback: s.analysis || s.justification || '',
-          })),
-          overallFeedback: result.messageToStudent || result.overallObservation,
-          summary: result.overallObservation,
-        };
-
-        return {
-          success: true,
-          data: mappedData,
-          steps,
-          confidenceScore: 1.0, // Direct mode assumes high confidence or N/A
-          requiresReview: false,
-          totalTokens: usage?.totalTokens || 0,
-          executionTimeMs: Date.now() - startTime,
-        };
-      } catch (error) {
-        logger.error('[Agent] Direct grading failed', error);
-        throw error;
-      }
+       logger.info('[Agent] Executing Direct Grading Mode (Manual Branch)');
+       const systemPrompt = buildGradingSystemPrompt(ctx, true);
+       const userMessage = `請評分以下學生作業：
+ 
+     ${params.assignmentTitle ? `【作業標題】${params.assignmentTitle}` : ''}
+     ${params.assignmentDescription ? `【作業說明】${params.assignmentDescription}` : ''}
+     【學生作業內容】
+     ${params.content}
+ 
+     請直接輸出評分結果 JSON。`;
+ 
+       try {
+         const { object: result, usage, providerMetadata } = await generateObject({
+           model,
+           schema: DirectGradingSchema,
+           messages: [
+             { role: 'system', content: systemPrompt },
+             { role: 'user', content: userMessage },
+           ],
+           providerOptions: {
+             google: {
+               thinkingConfig: {
+                 includeThoughts: true,
+                 thinkingLevel: 'high',
+               },
+               safetySettings: [
+                 { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+                 { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+                 { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+               ],
+             },
+           },
+         });
+ 
+         // Capture Gemini Native Thinking
+         let directThinking = '';
+         const googleMetadata = providerMetadata?.google as any;
+         if (googleMetadata?.thoughts) {
+           directThinking = googleMetadata.thoughts as string;
+           logger.info('[Agent] Captured Direct Mode Thinking', { length: directThinking.length });
+         }
+ 
+         // Stream thinking to Redis (Bridge format)
+         if (params.sessionId && directThinking) {
+           await redis.publish(
+             `session:${params.sessionId}`,
+             JSON.stringify({
+               type: 'text-delta',
+               content: directThinking,
+             })
+           );
+         }
+ 
+         // Construct a "fake" step for the direct execution to fit the AgentGradingResult structure
+         const steps: AgentStep[] = [
+           {
+             stepNumber: 1,
+             toolName: 'direct_grading',
+             reasoning: directThinking || result.reasoning, // Prefer native thinking if available
+             toolOutput: result,
+             durationMs: Date.now() - startTime,
+             timestamp: new Date(),
+           },
+         ];
+ 
+         // Map to AIGradingResult format to satisfy type requirements
+         const mappedData = {
+           breakdown: result.criteriaScores.map((s: any) => ({
+             criteriaId: s.criteriaId,
+             name: s.name,
+             score: s.score,
+             feedback: s.analysis || s.justification || '',
+           })),
+           overallFeedback: result.messageToStudent || result.overallObservation,
+           summary: result.overallObservation,
+         };
+ 
+         // Stream finish to Redis (Bridge format)
+         if (params.sessionId) {
+           await redis.publish(
+             `session:${params.sessionId}`,
+             JSON.stringify({
+               type: 'finish',
+               result: mappedData,
+             })
+           );
+         }
+ 
+         return {
+           success: true,
+           data: mappedData,
+           steps,
+           confidenceScore: 1.0, // Direct mode assumes high confidence or N/A
+           requiresReview: false,
+           totalTokens: usage?.totalTokens || 0,
+           executionTimeMs: Date.now() - startTime,
+         };
+       } catch (error) {
+         logger.error('[Agent] Direct grading failed', error);
+         throw error;
+       }
     }
 
-    // 4. Create Tools (ALL tools available at once)
+    // 4. Create Tools
     const tools = createAgentTools({
       referenceDocuments: params.referenceDocuments,
       currentContent: params.content,
@@ -578,167 +628,8 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       sessionId: params.sessionId,
     });
 
-    // 5. Create Agent with ToolLoopAgent
-    const agent = new ToolLoopAgent({
-      model,
-      instructions: buildGradingSystemPrompt(ctx),
-      tools,
-      stopWhen: createStopCondition(15), // Max 15 steps or until feedback generated
-      prepareStep: async ({ stepNumber, steps: previousSteps }) => {
-        logger.debug('[Agent] prepareStep', { stepNumber, previousSteps: previousSteps.length });
-
-        // Record previous step for UI transparency
-        if (previousSteps.length > 0) {
-          const lastStep = previousSteps[previousSteps.length - 1];
-          const toolsUsed = lastStep.toolCalls?.map((c) => c.toolName) || [];
-
-          // DEBUG: Log the full content structure
-          logger.info('[Agent] Step content structure', {
-            stepNumber: previousSteps.length,
-            contentLength: lastStep.content?.length || 0,
-            contentTypes: lastStep.content?.map((p: any) => p.type) || [],
-            reasoningArrayLength: lastStep.reasoning?.length || 0,
-            reasoningParts:
-              lastStep.reasoning?.map((r: any) => ({
-                type: r.type,
-                hasText: !!r.text,
-                textPreview: r.text?.substring(0, 50),
-              })) || [],
-          });
-
-          // Capture reasoning from multiple sources:
-          // 1. reasoning array - contains parts with type "reasoning"
-          // 2. reasoningText - computed from reasoning array
-          // 3. text - regular text output
-          let reasoning = '';
-
-          // Try to get from reasoning array (structured parts)
-          if (lastStep.reasoning && lastStep.reasoning.length > 0) {
-            reasoning = lastStep.reasoning
-              .map((r: any) => r.text)
-              .filter(Boolean)
-              .join('\n');
-            logger.debug('[Agent] Captured from reasoning array', {
-              partsCount: lastStep.reasoning.length,
-              combinedLength: reasoning.length,
-            });
-          }
-
-          // Fallback to reasoningText (computed string)
-          if (!reasoning && lastStep.reasoningText) {
-            reasoning = lastStep.reasoningText;
-            logger.debug('[Agent] Captured reasoningText', {
-              length: reasoning.length,
-              preview: reasoning.substring(0, 100),
-            });
-          }
-
-          // Also capture regular text output
-          if (lastStep.text) {
-            if (reasoning) {
-              reasoning += '\n\n' + lastStep.text;
-            } else {
-              reasoning = lastStep.text;
-            }
-          }
-
-          // Log what we captured for debugging
-          const hasReasoningArray = (lastStep.reasoning?.length || 0) > 0;
-          const hasReasoningText = !!lastStep.reasoningText;
-          const hasText = !!lastStep.text;
-          const reasoningPreview = reasoning.substring(0, 200);
-
-          logger.info(
-            `[Agent] Step ${previousSteps.length} completed: ` +
-              `hasReasoningArray=${hasReasoningArray}, hasReasoningText=${hasReasoningText}, hasText=${hasText}, ` +
-              `tools=[${toolsUsed.join(',')}], ` +
-              `reasoning="${reasoningPreview}..."`
-          );
-
-          if (reasoning || toolsUsed.length > 0) {
-            steps.push({
-              stepNumber: previousSteps.length,
-              reasoning: reasoning,
-              toolName: toolsUsed[0],
-              toolInput: lastStep.toolCalls?.[0]?.input,
-              toolOutput: lastStep.toolResults?.[0]?.output,
-              durationMs: 0,
-              timestamp: new Date(),
-            });
-          }
-        }
-
-        // Soft guidance based on progress (NO tool locking)
-        const thinkReminder = '\n\n⚠️ 在使用工具前，先用 think_aloud 說出你的想法。不要提及工具名稱！';
-
-        // Check what tools have been called so far
-        const toolsCalled = steps.map((s) => s.toolName).filter(Boolean);
-        const hasCalledConfidence = toolsCalled.includes('calculate_confidence');
-        const hasCalledThinkAloud = toolsCalled.includes('think_aloud');
-
-        logger.debug('[Agent] Tools called so far', {
-          stepNumber,
-          toolsCalled: toolsCalled.join(', '),
-          hasCalledConfidence,
-          hasCalledThinkAloud,
-        });
-
-        let guidance = '';
-        if (hasCalledConfidence) {
-          // Force generate_feedback immediately after calculate_confidence
-          guidance = `
-          【強制結束】
-
-          你已經調用了 calculate_confidence，現在必須**立即**調用 generate_feedback！
-
-          不要再調用其他工具！不要輸出空內容！
-
-          請直接調用 generate_feedback，包含：
-          - reasoning: 完整的評分推理
-          - totalScore / maxScore: 總分
-          - criteriaScores: 每項分數
-          - overallFeedback: 整體評語
-          - strengths / improvements: 優缺點
-          `;
-        } else if (stepNumber >= 5) {
-          // Force completion if taking too long (should be done in 3 steps)
-          guidance = `
-          【即將超時】你已經執行了 ${stepNumber} 個步驟。
-
-          請立即完成評分：
-          1. 如果還沒調用 calculate_confidence，現在調用
-          2. 然後立即調用 generate_feedback 輸出結果`;
-        } else if (stepNumber === 0) {
-          guidance =
-            '\n\n【步驟 1/3】請使用 think_aloud 進行完整的 Hattie & Timperley 分析 (Feed Up/Back/Forward)。' +
-            thinkReminder;
-        } else if (hasCalledThinkAloud && !hasCalledConfidence) {
-          guidance = '\n\n【步驟 2/3】分析完成。請調用 calculate_confidence 評估信心度。';
-        } else {
-          guidance = thinkReminder;
-        }
-
-        return {
-          providerOptions: {
-            google: {
-              thinkingConfig: {
-                includeThoughts: true,
-                thinkingLevel: 'high',
-              },
-              safetySettings: [
-                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-              ],
-            },
-          },
-          ...(guidance ? { system: buildGradingSystemPrompt(ctx) + guidance } : {}),
-        };
-      },
-    });
-
-    // 6. Execute Agent
+    // 5. Execute Agent (ToolLoopAgent)
+    
     const userMessage = `請評分以下學生作業：
 
     ${params.assignmentTitle ? `【作業標題】${params.assignmentTitle}` : ''}
@@ -746,219 +637,167 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     【學生作業內容】
     （注意：這是真實學生的提交，請直接評分，不要假設它是範例）
     ${params.content}
-    請使用適當的工具進行評分，完成後調用 generate_feedback 輸出結果。`;
+    `;
 
-    logger.info('[Agent] Executing', {
+    logger.info('[Agent] Executing ToolLoopAgent', {
       contentLength: params.content.length,
       hasTitle: !!params.assignmentTitle,
     });
 
-    const result = await agent.generate({
+    let stepCounter = 0;
+    let confidenceCalled = false;
+    let feedbackCalled = false;
+    let thinkCalled = false;  // NEW: Track if think was called
+
+    const agent = new ToolLoopAgent({
+      model,
+      instructions: buildGradingSystemPrompt(ctx),
+      tools,
+      prepareStep: async () => {
+        stepCounter++;
+        logger.info(`[Agent] prepareStep ${stepCounter}`, { thinkCalled, confidenceCalled, feedbackCalled });
+        
+        // Force think_aloud tool on first step
+        if (!thinkCalled) {
+          logger.info('[Agent] Forcing think_aloud tool on first step');
+          return {
+            toolChoice: { type: 'tool' as const, toolName: 'think_aloud' }
+          };
+        }
+        
+        // STEP 2: After thinking, allow confidence calculation
+        if (thinkCalled && !confidenceCalled) {
+          logger.info('[Agent] Allowing calculate_confidence after thinking');
+          return { toolChoice: 'auto' };  // Let model choose when to calculate confidence
+        }
+        
+        // STEP 3: After confidence, force generate_feedback
+        if (confidenceCalled && !feedbackCalled) {
+          logger.info('[Agent] Forcing generate_feedback after calculate_confidence');
+          return {
+            toolChoice: { type: 'tool', toolName: 'generate_feedback' }
+          };
+        }
+        
+        // Default: allow any tool
+        return { toolChoice: 'auto' };
+      },
+      stopWhen: (result) => {
+        // Safety: stop if max steps reached
+        if (stepCounter >= 10) return true;
+        
+        const lastStep = result.steps[result.steps.length - 1];
+        // Stop if generate_feedback was called
+        if (lastStep?.toolCalls?.some(call => call.toolName === 'generate_feedback')) {
+          return true;
+        }
+        return false;
+      },
+    });
+
+    const stream = await agent.stream({
       messages: [{ role: 'user', content: userMessage }],
     });
 
-    // Log overall result structure for debugging
-    const stepsWithReasoning = result.steps.filter((s) => s.reasoningText).length;
-    const stepsWithText = result.steps.filter((s) => s.text).length;
-    const stepsWithReasoningArray = result.steps.filter((s) => (s.reasoning?.length || 0) > 0).length;
-    logger.info(
-      `[Agent] Generation completed: totalSteps=${result.steps.length}, ` +
-        `stepsWithReasoningArray=${stepsWithReasoningArray}, ` +
-        `stepsWithReasoningText=${stepsWithReasoning}, stepsWithText=${stepsWithText}`
-    );
-
-    // DEBUG: Log ALL keys at result level to find thinking
-    const resultKeys = Object.keys(result);
-    logger.debug(`[Agent] Result object keys: ${resultKeys.join(', ')}`);
-
-    // Check if thinking is at result level - DETAILED OUTPUT
-    if ((result as any).reasoning) {
-      const reasoning = (result as any).reasoning;
-      logger.info(`[Agent] ✨ Result.reasoning FOUND! Type: ${typeof reasoning}, IsArray: ${Array.isArray(reasoning)}`);
-      if (Array.isArray(reasoning)) {
-        logger.info(`[Agent] ✨ Result.reasoning array length: ${reasoning.length}`);
-        reasoning.forEach((r: any, i: number) => {
-          logger.info(
-            `[Agent] ✨ Result.reasoning[${i}]: type=${r?.type}, text=${JSON.stringify(r?.text || r)?.substring(0, 300)}`
-          );
-        });
-      } else if (typeof reasoning === 'string') {
-        logger.info(`[Agent] ✨ Result.reasoning string: ${reasoning.substring(0, 500)}`);
-      } else {
-        logger.info(`[Agent] ✨ Result.reasoning object: ${JSON.stringify(reasoning).substring(0, 500)}`);
-      }
-    }
-    if ((result as any).reasoningText) {
-      logger.info(`[Agent] ✨ Result.reasoningText: ${(result as any).reasoningText.substring(0, 500)}`);
-    }
-    if ((result as any).providerMetadata) {
-      const pm = (result as any).providerMetadata;
-      logger.info(`[Agent] Result.providerMetadata keys: ${Object.keys(pm).join(', ')}`);
-      // Check for google-specific metadata
-      if (pm.google) {
-        logger.info(`[Agent] ✨ providerMetadata.google: ${JSON.stringify(pm.google).substring(0, 500)}`);
-      }
-    }
-
-    // Log each step's content structure - DETAILED DEBUG
-    result.steps.forEach((step, idx) => {
-      // Log basic structure
-      logger.info(
-        `[Agent] Final Step ${idx} structure: ` +
-          `contentTypes=[${step.content?.map((p: any) => p.type).join(',') || 'empty'}], ` +
-          `reasoningArrayLen=${step.reasoning?.length || 0}, ` +
-          `reasoningText=${step.reasoningText?.substring(0, 50) || 'null'}, ` +
-          `text=${step.text?.substring(0, 50) || 'null'}`
-      );
-
-      // Log ALL keys in step object to find where thinking might be hiding
-      const stepKeys = Object.keys(step);
-      logger.debug(`[Agent] Step ${idx} all keys: ${stepKeys.join(', ')}`);
-
-      // Check for providerMetadata (where Gemini thinking might be)
-      if ((step as any).providerMetadata) {
-        const pm = (step as any).providerMetadata;
-        const pmKeys = Object.keys(pm);
-        if (pmKeys.length > 0) {
-          logger.info(`[Agent] Step ${idx} providerMetadata keys: ${pmKeys.join(', ')}`);
-          if (pm.google) {
-            logger.info(
-              `[Agent] ✨ Step ${idx} providerMetadata.google: ${JSON.stringify(pm.google).substring(0, 500)}`
-            );
-          }
-        }
-      }
-
-      // Check response.body for raw Gemini response (thinking might be here!)
-      if ((step as any).response?.body) {
-        const body = (step as any).response.body;
-
-        // Log the raw body structure to find where thoughts are
-        logger.debug(`[Agent] Step ${idx} response.body keys: ${Object.keys(body || {}).join(', ')}`);
-
-        // Look for candidates[0].content.parts with thinking
-        if (body.candidates?.[0]?.content?.parts) {
-          const parts = body.candidates[0].content.parts;
-          logger.info(`[Agent] Step ${idx} has ${parts.length} parts in response.body`);
-
-          // Log ALL parts to see their structure
-          parts.forEach((p: any, pIdx: number) => {
-            const partKeys = Object.keys(p);
-            logger.debug(`[Agent] Step ${idx} body.part[${pIdx}] keys: ${partKeys.join(', ')}`);
-
-            // Check for thought flag or thinking content
-            if (p.thought === true || p.thought === 'true') {
-              logger.info(`[Agent] ✨✨✨ Step ${idx} FOUND THOUGHT PART! text: ${p.text?.substring(0, 500)}`);
-            }
-            if (p.thinkingContent) {
-              logger.info(
-                `[Agent] ✨✨✨ Step ${idx} FOUND thinkingContent! ${JSON.stringify(p.thinkingContent).substring(0, 500)}`
-              );
-            }
-          });
-        }
-
-        // Check for thoughts at various levels
-        if (body.thoughts) {
-          logger.info(`[Agent] ✨✨✨ Step ${idx} body.thoughts: ${JSON.stringify(body.thoughts).substring(0, 500)}`);
-        }
-        if (body.candidates?.[0]?.thoughts) {
-          logger.info(
-            `[Agent] ✨✨✨ Step ${idx} candidates[0].thoughts: ${JSON.stringify(body.candidates[0].thoughts).substring(0, 500)}`
-          );
-        }
-        if (body.candidates?.[0]?.thinkingContent) {
-          logger.info(
-            `[Agent] ✨✨✨ Step ${idx} candidates[0].thinkingContent: ${JSON.stringify(body.candidates[0].thinkingContent).substring(0, 500)}`
-          );
-        }
-      }
-
-      // Check each content part's providerMetadata
-      if (step.content && step.content.length > 0) {
-        step.content.forEach((part: any, partIdx: number) => {
-          if (part.providerMetadata) {
-            const partPm = part.providerMetadata;
-            const partPmKeys = Object.keys(partPm);
-            if (partPmKeys.length > 0) {
-              logger.debug(`[Agent] Step ${idx} content[${partIdx}] providerMetadata keys: ${partPmKeys.join(', ')}`);
-              if (partPm.google) {
-                logger.info(
-                  `[Agent] ✨ Step ${idx} content[${partIdx}] providerMetadata.google: ${JSON.stringify(partPm.google).substring(0, 300)}`
-                );
-              }
-            }
-          }
-        });
-      }
-    });
-
-    // 7. Extract Final Result and capture ALL reasoning from steps
     let finalResult: any = null;
     let confidenceData: any = null;
-    let feedbackReasoning: string = ''; // 從 generate_feedback input 提取的推理
-    let directThinking: string = ''; // 從 Direct Mode 的 providerMetadata 提取的思考
+    let currentThinking = '';
 
-    // Also capture any reasoning we might have missed in prepareStep
-    for (const step of result.steps) {
-      // Capture reasoning from this step if not already captured
-      const stepReasoning = step.reasoningText || step.text || '';
-      if (stepReasoning) {
-        logger.debug('[Agent] Final step reasoning', {
-          hasReasoningText: !!step.reasoningText,
-          hasText: !!step.text,
-          preview: stepReasoning.substring(0, 100),
+    for await (const part of stream.fullStream) {
+      // 1. Handle Text (Thinking)
+      if (part.type === 'text-delta') {
+        const text = part.text;
+        currentThinking += text;
+        
+        // Stream to Redis (Bridge format)
+        if (params.sessionId) {
+          await redis.publish(
+            `session:${params.sessionId}`,
+            JSON.stringify({
+              type: 'text-delta',
+              content: text,
+            })
+          );
+        }
+      }
+
+      // 2. Handle Tool Calls
+      if (part.type === 'tool-call') {
+        // Stream tool call metadata only (no reasoning extraction)
+        // Reasoning should come from native text-delta, not from tool args
+        if (params.sessionId) {
+          await redis.publish(
+            `session:${params.sessionId}`,
+            JSON.stringify({
+              type: 'tool-call',
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              args: part.input, // For observability in logs
+            })
+          );
+        }
+      }
+
+      // 3. Handle Tool Results
+      if (part.type === 'tool-result') {
+        const toolName = part.toolName;
+        const toolResult = part.output;
+
+        logger.info(`[Agent] Tool completed: ${toolName}`);
+
+        // Special handling for think/think_aloud tool: extract thought from args
+        let stepReasoning = currentThinking || 'Tool Execution';
+        if ((toolName === 'think' || toolName === 'think_aloud') && part.input) {
+          // Extract thought/analysis from think tool args
+          const thinkArgs = part.input as any;
+          const content = thinkArgs.thought || thinkArgs.analysis;
+          if (content) {
+            stepReasoning = content;
+            // DO NOT accumulate to currentThinking - the thought is already complete
+            // and we don't want subsequent steps to inherit this reasoning
+          }
+        }
+
+        steps.push({
+          stepNumber: steps.length + 1,
+          reasoning: stepReasoning, // Use extracted thought for think tool
+          toolName: toolName,
+          toolInput: part.input,
+          toolOutput: toolResult,
+          durationMs: 0,
+          timestamp: new Date(),
         });
-      }
+        
+        // Reset thinking buffer for next step (except for think tool)
+        if (toolName !== 'think') {
+          currentThinking = '';
+        }
 
-      // Capture Gemini Native Thinking (Direct Mode)
-      if ((step as any).providerMetadata?.google?.thoughts) {
-        directThinking = (step as any).providerMetadata.google.thoughts;
-      }
-
-      if (step.toolCalls) {
-        for (let i = 0; i < step.toolCalls.length; i++) {
-          const call = step.toolCalls[i];
-          if (call.toolName === 'generate_feedback') {
-            finalResult = step.toolResults?.[i]?.output;
-            // 從 tool input 提取 reasoning（這是強制欄位）
-            const toolInput = call.input as any;
-            if (toolInput?.reasoning) {
-              feedbackReasoning = toolInput.reasoning;
-              logger.info('[Agent] Extracted reasoning from generate_feedback input', {
-                reasoningLength: feedbackReasoning.length,
-                preview: feedbackReasoning.substring(0, 200),
-              });
-            }
-          }
-          if (call.toolName === 'calculate_confidence') {
-            confidenceData = step.toolResults?.[i]?.output;
-          }
+        // Track tool calls for prepareStep logic (FIX for premature termination)
+        if (toolName === 'think' || toolName === 'think_aloud') {
+          thinkCalled = true;
+        }
+        if (toolName === 'calculate_confidence') {
+          confidenceCalled = true;
+          confidenceData = toolResult;
+        }
+        if (toolName === 'generate_feedback') {
+          feedbackCalled = true;
+          finalResult = toolResult;
         }
       }
     }
 
     if (!finalResult) {
       logger.warn('[Agent] generate_feedback was not called, building fallback result from steps...');
-
-      // Fallback: Try to build a partial result (though likely empty in 3-step process)
       finalResult = buildFallbackResultFromSteps(steps, params.criteria);
-
-      if (!finalResult) {
-        throw new Error('Agent completed but did not call generate_feedback and fallback failed');
-      }
-
-      logger.info('[Agent] Fallback result built successfully', {
-        totalScore: finalResult.totalScore,
-        maxScore: finalResult.maxScore,
-      });
     }
 
     // 8. Build Response
     const executionTimeMs = Date.now() - startTime;
     await healthTracker.recordSuccess(selectedKeyId, executionTimeMs);
 
-    // Ensure finalResult has breakdown (map from criteriaScores if needed)
+    // Ensure finalResult has breakdown
     if (finalResult && finalResult.criteriaScores && !finalResult.breakdown) {
       finalResult.breakdown = finalResult.criteriaScores.map((c: any) => ({
         criteriaId: c.criteriaId,
@@ -977,40 +816,23 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       finalResult.overallFeedback = finalResult.messageToStudent || finalResult.overallObservation;
     }
 
-    // Add reasoning step if we captured it from generate_feedback
-    if (feedbackReasoning) {
-      steps.push({
-        stepNumber: steps.length + 1,
-        reasoning: feedbackReasoning,
-        toolName: 'generate_feedback',
-        durationMs: 0,
-        timestamp: new Date(),
-      });
-    } else if (directThinking) {
-      // If we have native thinking but no explicit reasoning field (Direct Mode fallback)
-      steps.push({
-        stepNumber: steps.length + 1,
-        reasoning: directThinking,
-        toolName: 'direct_grading',
-        durationMs: 0,
-        timestamp: new Date(),
-      });
-    }
-
-    // Add final summary step
-    steps.push({
-      stepNumber: steps.length + 1,
-      reasoning: `評分完成。總分：${finalResult.totalScore}/${finalResult.maxScore}`,
-      durationMs: 0,
-      timestamp: new Date(),
-    });
-
     logger.info('[Agent] Grading completed', {
-      totalSteps: result.steps.length,
-      totalScore: finalResult.totalScore,
-      maxScore: finalResult.maxScore,
+      totalSteps: steps.length,
+      totalScore: finalResult?.totalScore,
+      maxScore: finalResult?.maxScore,
       executionTimeMs,
     });
+
+    // Stream to Redis (Bridge format)
+    if (params.sessionId) {
+      await redis.publish(
+        `session:${params.sessionId}`,
+        JSON.stringify({
+          type: 'finish',
+          result: finalResult,
+        })
+      );
+    }
 
     return {
       success: true,
@@ -1023,6 +845,17 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     };
   } catch (error) {
     logger.error('[Agent] Grading failed', error);
+
+    // Stream to Redis (Bridge format)
+    if (params.sessionId) {
+      await redis.publish(
+        `session:${params.sessionId}`,
+        JSON.stringify({
+          type: 'error',
+          error: error instanceof Error ? error.message : String(error),
+        })
+      );
+    }
 
     // Report failure to health tracker
     if (selectedKeyId) {

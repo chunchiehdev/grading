@@ -434,62 +434,122 @@ export const createAgentTools = (context: {
     description: `Analyze the submission using Hattie & Timperley's "Three Questions" framework.
     This MUST be the first step in your grading process.
     
-    1. Feed Up: What is the goal?
-    2. Feed Back: How is the student doing?
-    3. Feed Forward: What's next?
+    **FORMAT**: Use Markdown formatting with clear sections:
     
-    Also define your grading strategy based on this analysis.`,
+    ## Feed Up: Where am I going? (the goals)
+    Analyze the learning goals and expectations for this assignment.
+    
+    ## Feed Back: How am I going?
+    Evaluate the student's current performance with specific evidence.
+    
+    ## Feed Forward: Where to next?
+    Identify actionable next steps for improvement.
+    
+    ## Strategy
+    Define your grading approach based on the analysis above.
+    
+    Your analysis will be streamed live to the user.`,
 
-    inputSchema: ThinkAloudInputSchema,
+    inputSchema: z.object({
+      analysis: z.string().describe(`Complete structured analysis using the Hattie & Timperley framework. 
 
-    execute: async (input) => {
-      // @ts-ignore - Schema updated but TS might not know yet
-      const { feedUp, feedBack, feedForward, strategy } = input;
-      
-      // Stream each part immediately as it's available
-      // Note: In a real streaming scenario, we would stream these as they are generated.
-      // Since we receive the full input here, we simulate streaming by sending parts sequentially
-      // to ensure the frontend receives them in order.
-      
-      const parts = [
-        { title: 'Feed Up', content: feedUp },
-        { title: 'Feed Back', content: feedBack },
-        { title: 'Feed Forward', content: feedForward },
-        { title: 'Strategy', content: strategy }
-      ];
+Use this format:
 
-      for (const part of parts) {
-        if (part.content && context.sessionId) {
-          const formattedContent = `## ${part.title}\n${part.content}\n\n`;
+## Feed Up
+[What are the learning goals?]
+
+## Feed Back  
+[How is the student performing? Use specific evidence from their work]
+
+## Feed Forward
+[What are the next steps?]
+
+## Strategy
+[Your grading approach]
+
+Use Markdown formatting for clarity.`)
+    }),
+
+    execute: async ({ analysis }: { analysis: string }) => {
+      // Stream thinking to frontend via Redis (same as thinkTool)
+      if (context.sessionId && analysis) {
+        try {
+          await redis.publish(
+            `session:${context.sessionId}`,
+            JSON.stringify({
+              type: 'text-delta',
+              content: analysis,
+            })
+          );
           
-          try {
-            await redis.publish(
-              `session:${context.sessionId}`,
-              JSON.stringify({
-                type: 'thought',
-                content: formattedContent,
-                timestamp: new Date().toISOString(),
-              })
-            );
-            // Small delay to ensure order in Redis/Frontend processing
-            await new Promise(resolve => setTimeout(resolve, 50));
-          } catch (error) {
-            logger.error('Failed to publish thought part to Redis', error);
-          }
+          logger.info('[Agent ThinkAloud] Streaming analysis via tool', {
+            analysisLength: analysis.length,
+            sessionId: context.sessionId
+          });
+        } catch (error) {
+          logger.error('[Agent ThinkAloud] Failed to publish analysis', error);
         }
       }
-      
-      logger.info('[Agent Think] 💭', {
-        feedUp: feedUp?.substring(0, 50),
-        feedBack: feedBack?.substring(0, 50),
-      });
 
-      return { acknowledged: true };
+      return {
+        acknowledged: true,
+        message: 'Framework analysis recorded. Proceed to calculate confidence and generate feedback.'
+      };
+    },
+  });
+
+  // Tool: Think (Inspired by Anthropic's Extended Thinking)
+  // This allows model to explicitly output thinking before taking action
+  const thinkTool = tool({
+    description: `Use this tool to think through the grading task step-by-step BEFORE calling other tools.
+    
+    **MANDATORY FIRST STEP**: You MUST call this tool first to analyze the submission.
+    
+    Your thinking should include:
+    1. Initial impression of the student's work
+    2. Item-by-item comparison with the Rubric
+    3. Evidence from the student's text (quote specific sentences)
+    4. Your reasoning for each score
+    
+    This thinking process will be streamed live to the user, showing your professional analysis.
+    
+    **After thinking, then call calculate_confidence and generate_feedback.**`,
+
+    inputSchema: z.object({
+      thought: z.string().describe('Your detailed step-by-step thinking and analysis process. Be thorough and quote evidence from the student work.')
+    }),
+
+    execute: async ({ thought }: { thought: string }) => {
+      // Stream thinking to frontend via Redis
+      if (context.sessionId && thought) {
+        try {
+          await redis.publish(
+            `session:${context.sessionId}`,
+            JSON.stringify({
+              type: 'text-delta',
+              content: thought,
+            })
+          );
+          
+          logger.info('[Agent Think] Streaming thinking via tool', {
+            thoughtLength: thought.length,
+            sessionId: context.sessionId
+          });
+        } catch (error) {
+          logger.error('[Agent Think] Failed to publish thinking', error);
+        }
+      }
+
+      return {
+        acknowledged: true,
+        message: 'Thinking process recorded. Proceed to calculate confidence and generate feedback.'
+      };
     },
   });
 
   return {
-    think_aloud: thinkAloudTool,  // 放在最前面，強調重要性
+    // think: thinkTool,  // Temporarily disabled for testing
+    think_aloud: thinkAloudTool,  // Testing Hattie & Timperley framework
     search_reference: searchReferenceTool,
     check_similarity: checkSimilarityTool,
     calculate_confidence: calculateConfidenceTool,

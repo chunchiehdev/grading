@@ -317,23 +317,19 @@ export async function processGradingResult(
         let thinkingProcess = '';
         let gradingRationale = '';
         
-        // 0. 收集所有 think_aloud 輸出（即時思考過程）
-        const thinkAloudSteps = agentResult.steps.filter((s: any) => s.toolName === 'think_aloud');
-        if (thinkAloudSteps.length > 0) {
-          thinkingProcess = thinkAloudSteps.map((s: any, idx: number) => {
-            const input = s.toolInput as any;
-            
-            // Handle Hattie's framework fields (New Schema)
-            if (input?.feedUp || input?.feedBack) {
-               return `## Feed Up\n${input.feedUp || ''}\n\n## Feed Back\n${input.feedBack || ''}\n\n## Feed Forward\n${input.feedForward || ''}\n\n## Strategy\n${input.strategy || ''}`;
-            }
-            
-            // Fallback for older schema or simple thought
-            if (input?.thought) {
-              return `**Step ${idx + 1}:** ${input.thought}`;
-            }
-            return null;
-          }).filter(Boolean).join('\n\n');
+        // 1. Collect Thinking Process from think/think_aloud tool ONLY
+        // The think tool contains the complete analysis, we don't want to duplicate by concatenating all steps
+        const thinkStep = agentResult.steps.find((s: any) => 
+          (s.toolName === 'think' || s.toolName === 'think_aloud') && s.reasoning
+        );
+        if (thinkStep?.reasoning) {
+          thinkingProcess = thinkStep.reasoning;
+        } else {
+          // Fallback: collect from all steps (for backward compatibility with old data)
+          thinkingProcess = agentResult.steps
+            .map((s: any) => s.reasoning)
+            .filter((r: string) => r && r !== 'Tool Execution' && r !== 'Analysis')
+            .join('\n\n---\n\n');
         }
 
         // 0.5 Capture Direct Mode Thinking (Gemini Native)
@@ -347,47 +343,33 @@ export async function processGradingResult(
           }
         }
         
-        // 1. 找到 generate_feedback 的 reasoning（最重要的評分推理）
+        // 2. Determine Grading Rationale (The "Why")
         const feedbackStep = agentResult.steps.find((s: any) => 
           s.toolName === 'generate_feedback' && s.reasoning
         );
         
-        if (feedbackStep?.reasoning) {
-          // 這是完整的評分推理
+        if (feedbackStep?.reasoning && feedbackStep.reasoning.length > 20) {
+          // If generate_feedback has substantial reasoning, use it
           gradingRationale = feedbackStep.reasoning;
         } else {
-          // Fallback: 收集所有 step 的 reasoning
-          const otherReasoning = agentResult.steps
-            .filter((s: any) => s.reasoning && s.toolName !== 'generate_feedback' && s.toolName !== 'direct_grading')
-            .map((s: any) => s.reasoning)
-            .join('\n\n');
-            
-          if (otherReasoning) {
-            gradingRationale = otherReasoning;
-          }
+          // Fallback: use the accumulated thinking process if specific rationale is missing
+          gradingRationale = thinkingProcess;
         }
 
-        // Legacy support: Combine into thoughtSummary for older UI
-        if (thinkingProcess) {
-          thoughtSummary = `## 💭 即時思考過程\n\n${thinkingProcess}\n\n---\n\n`;
-        }
-        if (gradingRationale) {
-          thoughtSummary += `## 📝 評分推理\n\n${gradingRationale}`;
-        }
-
-        // 2. 加上信心度摘要（放在最前面）
+        // 3. Prepend Confidence Summary to Grading Rationale
         const confidenceStep = agentResult.steps.find((s: any) => s.toolName === 'calculate_confidence');
         const confidenceInfo = confidenceStep?.toolOutput as { confidenceScore?: number; reason?: string } | undefined;
         
+        let confidenceHeader = '';
         if (confidenceInfo?.confidenceScore !== undefined) {
-          const confidenceHeader = `**評分信心度：${(confidenceInfo.confidenceScore * 100).toFixed(0)}%**\n${confidenceInfo.reason || ''}\n\n---\n\n`;
-          thoughtSummary = confidenceHeader + thoughtSummary;
+          confidenceHeader = `**評分信心度：${(confidenceInfo.confidenceScore * 100).toFixed(0)}%**\n${confidenceInfo.reason || ''}\n\n`;
+          gradingRationale = confidenceHeader + gradingRationale;
         }
 
-        // 3. 如果還是沒有內容，提供簡單說明
-        if (!thoughtSummary.trim()) {
-          thoughtSummary = `評分已完成。總分：${totalScore}/${maxScore}`;
-        }
+        // thoughtSummary should ONLY contain confidence info, not the full thinking process
+        // This prevents duplication when displaying thinkingProcess and thoughtSummary together
+        thoughtSummary = confidenceHeader.trim() || `評分已完成。總分：${totalScore}/${maxScore}`;
+
 
         gradingResponse = {
           success: true,

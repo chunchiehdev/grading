@@ -6,34 +6,12 @@ import { CompactStructuredFeedback } from './StructuredFeedback';
 import { GradingResultData } from '@/types/grading';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Sparkles } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
-const GeminiSpinner = () => (
-  <div className="relative flex items-center justify-center w-5 h-5">
-    <svg className="absolute inset-0 w-full h-full animate-spin duration-3000" viewBox="0 0 24 24">
-      <defs>
-        <linearGradient id="spinner-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#F59E0B" /> {/* amber-500 */}
-          <stop offset="100%" stopColor="#EC4899" /> {/* pink-500 */}
-        </linearGradient>
-      </defs>
-      <circle
-        cx="12"
-        cy="12"
-        r="10"
-        fill="none"
-        stroke="url(#spinner-gradient)"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeDasharray="40 20"
-      />
-    </svg>
-    <Sparkles className="w-2.5 h-2.5 text-blue-500 fill-blue-500" />
-  </div>
-);
+
 
 const Typewriter = ({ text, minSpeed = 5, maxSpeed = 30 }: { text: string; minSpeed?: number; maxSpeed?: number }) => {
   const [displayedText, setDisplayedText] = useState('');
@@ -168,8 +146,13 @@ export function GradingResultDisplay({
   const { t } = useTranslation('grading');
 
   // 1. Streaming/Thinking Area (Always visible if there is content or loading)
-  // Use thinkingProcess if available, otherwise fallback to thoughtSummary
-  const activeThinkingProcess = thinkingProcess || thoughtSummary;
+  // Use thinkingProcess if available.
+  // Fallback to thoughtSummary ONLY if it's likely an old record (not just a duplicate of gradingRationale)
+  let activeThinkingProcess = thinkingProcess;
+  if (!activeThinkingProcess && thoughtSummary && thoughtSummary !== gradingRationale) {
+    activeThinkingProcess = thoughtSummary;
+  }
+  
   const showThinkingArea = isLoading || (activeThinkingProcess && activeThinkingProcess.length > 0);
 
   const safeResult = result ? {
@@ -189,30 +172,33 @@ export function GradingResultDisplay({
       
       {/* Top: Streaming Thinking Process */}
       {showThinkingArea && (
-        <Collapsible defaultOpen={isLoading} className="animate-in fade-in duration-500 mb-6 group">
-           <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
-              {isLoading ? <GeminiSpinner /> : <Sparkles className="w-5 h-5 text-purple-500 p-0.5" />}
-              <span>{isLoading ? "AI 正在思考..." : "查看 AI 分析過程 (AI Analysis Log)"}</span>
-            </div>
+        <Collapsible 
+          open={isLoading ? true : undefined} // Force open when loading
+          defaultOpen={isLoading} 
+          className="animate-in fade-in duration-500 mb-6 group"
+        >
+           <div className="flex items-center py-2">
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted/50">
-                <ChevronDown className="h-4 w-4 text-muted-foreground/70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                <span className="sr-only">Toggle thinking process</span>
+              <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent text-sm font-medium text-muted-foreground">
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                <span>{isLoading ? "AI 正在思考..." : "查看思考過程"}</span>
               </Button>
             </CollapsibleTrigger>
            </div>
            
            <CollapsibleContent>
-            <div className="pl-9 pr-4 text-sm text-muted-foreground/80 leading-relaxed">
-              {isLoading ? (
-                <>
-                  <Typewriter text={activeThinkingProcess || ''} />
-                  <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-purple-500/50 animate-pulse" />
-                </>
-              ) : (
-                <Markdown>{activeThinkingProcess || ''}</Markdown>
-              )}
+            <div className="pb-4 pt-0 text-sm text-muted-foreground/90 leading-relaxed">
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1">
+                {isLoading ? (
+                  <>
+                    <Markdown>{activeThinkingProcess || ''}</Markdown>
+                    <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-purple-500/50 animate-pulse" />
+                  </>
+                ) : (
+                  <Markdown>{activeThinkingProcess || ''}</Markdown>
+                  
+                )}
+              </div>
             </div>
            </CollapsibleContent>
         </Collapsible>
@@ -227,17 +213,7 @@ export function GradingResultDisplay({
             <span className="text-sm text-muted-foreground">/ 100</span>
           </div>
 
-          {/* Grading Rationale (Feature 012) */}
-          {gradingRationale && (
-            <section className="p-2 space-y-2">
-              <h3 className="text-sm font-medium">評分報告 (Grading Rationale)</h3>
-              <div className="text-sm text-muted-foreground">
-                <Markdown>{gradingRationale}</Markdown>
-              </div>
-            </section>
-          )}
-
-          {/* Feedback (compact) */}
+          {/* Overall Feedback (compact) */}
           <section className="p-2 space-y-2">
             <h3 className="text-sm font-medium">{t('result.overallFeedback')}</h3>
             <div className="text-sm text-muted-foreground">

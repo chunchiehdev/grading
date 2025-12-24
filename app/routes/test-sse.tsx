@@ -79,7 +79,17 @@ export default function TestSSE() {
         if (data.type === 'connected') {
             setMessages(prev => [...prev, `🟢 System: ${data.content}`]);
         } else if (data.type === 'thought') {
-            setMessages(prev => [...prev, `🧠 AI: ${data.content}`]);
+            setMessages(prev => [...prev, `🧠 AI (Bulk): ${data.content}`]);
+        } else if (data.type === 'thought_stream') {
+            // For testing, we might want to see chunks or accumulate them
+            // Here we just log chunks to show activity
+            setMessages(prev => {
+                const lastMsg = prev[prev.length - 1];
+                if (lastMsg && lastMsg.startsWith('🧠 AI (Stream):')) {
+                    return [...prev.slice(0, -1), lastMsg + data.content];
+                }
+                return [...prev, `🧠 AI (Stream): ${data.content}`];
+            });
         }
       } catch (e) {
         setMessages(prev => [...prev, `❌ Error: Failed to parse ${event.data}`]);
