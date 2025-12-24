@@ -156,7 +156,6 @@ jobs:
         command_timeout: 10m
         script: |
           set +x
-          export KUBECONFIG=~/.kube/config
           echo "Starting application deployment for ${{ github.ref_name }}"
           echo "Version: ${{ steps.package-version.outputs.VERSION }}"
 
@@ -229,8 +228,7 @@ jobs:
         command_timeout: 10m
         script: |
           set -e
-          export KUBECONFIG=~/.kube/config
-
+          
           echo "Starting deployment to Mars K8s"
           echo "Version: ${{ steps.package-version.outputs.VERSION }}"
           echo "Branch: ${{ github.ref_name }}"
