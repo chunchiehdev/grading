@@ -107,6 +107,7 @@
   "returnHome": "返回網站首頁",
   "roles": {
     "student": "學生",
-    "teacher": "教師"
+    "teacher": "教師",
+    "admin": "管理員"
   }
 }

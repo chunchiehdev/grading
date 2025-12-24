@@ -32,7 +32,7 @@ export type User = {
   email: string;
   name: string;
   picture: string;
-  role: 'TEACHER' | 'STUDENT' | null;
+  role: 'TEACHER' | 'STUDENT' | 'ADMIN' | null;
 };
 
 type LoaderData = {
@@ -125,7 +125,11 @@ function isFullWidthPath(path: string): boolean {
 }
 
 export function getRoleBasedDashboard(userRole: string): string {
-  return userRole === 'TEACHER' ? '/teacher' : '/student';
+  // ADMIN users access the teacher dashboard (with additional admin features)
+  if (userRole === 'ADMIN' || userRole === 'TEACHER') {
+    return '/teacher';
+  }
+  return '/student';
 }
 // Not needed for our simple i18next setup
 
@@ -161,9 +165,9 @@ export async function loader({ request }: { request: Request }) {
   // Get user once for all paths
   const user = await getUserSafe(request);
 
-  // Fetch recent notifications for teachers (both read and unread)
+  // Fetch recent notifications for teachers and admins (both read and unread)
   let unreadNotifications: any[] = [];
-  if (user && user.role === 'TEACHER') {
+  if (user && (user.role === 'TEACHER' || user.role === 'ADMIN')) {
     try {
       const { getRecentNotifications } = await import('@/services/notification.server');
       const notifications = await getRecentNotifications(user.id, 50);

@@ -127,7 +127,8 @@ export async function handleGoogleCallback(request: Request) {
 
       // If no valid redirectTo, use role-based default
       if (!redirectPath) {
-        redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
+        // ADMIN and TEACHER both go to teacher dashboard
+        redirectPath = user.role === 'TEACHER' || user.role === 'ADMIN' ? '/teacher' : '/student';
         logger.info({ redirectPath, source: 'roleBased' }, 'Redirecting user to role-based dashboard');
       }
     }
@@ -253,17 +254,18 @@ export async function requireAuthForApi(request: Request) {
 }
 
 /**
- * Requires user to be a teacher
+ * Requires user to be a teacher or admin
+ * ADMIN role inherits all TEACHER permissions for management purposes
  * @param {Request} request - The HTTP request with session data
- * @returns {Promise<Object>} Teacher user object
- * @throws {Response} Redirect to login or unauthorized if not a teacher
+ * @returns {Promise<Object>} Teacher or Admin user object
+ * @throws {Response} Redirect to login or unauthorized if not a teacher or admin
  */
 export async function requireTeacher(request: Request) {
   const user = await getUser(request);
   if (!user) {
     throw redirect('/auth/login');
   }
-  if (user.role !== 'TEACHER') {
+  if (user.role !== 'TEACHER' && user.role !== 'ADMIN') {
     throw redirect('/auth/unauthorized');
   }
   return user;
@@ -281,6 +283,23 @@ export async function requireStudent(request: Request) {
     throw redirect('/auth/login');
   }
   if (user.role !== 'STUDENT') {
+    throw redirect('/auth/unauthorized');
+  }
+  return user;
+}
+
+/**
+ * Requires user to be an admin
+ * @param {Request} request - The HTTP request with session data
+ * @returns {Promise<Object>} Admin user object
+ * @throws {Response} Redirect to login or unauthorized if not an admin
+ */
+export async function requireAdmin(request: Request) {
+  const user = await getUser(request);
+  if (!user) {
+    throw redirect('/auth/login');
+  }
+  if (user.role !== 'ADMIN') {
     throw redirect('/auth/unauthorized');
   }
   return user;

@@ -1,5 +1,26 @@
+import { redirect } from 'react-router';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import type { Route } from './+types/login';
+import { getUser } from '@/services/auth.server';
+
+/**
+ * Redirect already logged-in users to their dashboard
+ */
+export async function loader({ request }: Route.LoaderArgs) {
+  const user = await getUser(request);
+  
+  if (user) {
+    // User is already logged in, redirect to appropriate dashboard
+    if (user.role === 'ADMIN' || user.role === 'TEACHER') {
+      throw redirect('/teacher');
+    } else {
+      throw redirect('/student');
+    }
+  }
+  
+  return null;
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();

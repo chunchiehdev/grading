@@ -108,6 +108,8 @@ export default [
 
   // Admin API routes
   route('/api/admin/queue-status', './api/admin/queue-status.ts'),
+  route('/api/admin/users', './api/admin/users.ts'),
+  route('/api/admin/users/:userId', './api/admin/users/$userId.ts'),
   
   // Auth API routes
   route('/api/auth/logout', './api/auth/logout.ts'),
@@ -153,6 +155,7 @@ export default [
 
   // Admin routes
   route('/admin/queues', './routes/admin/queues.tsx'),
+  route('/admin/users', './routes/admin/users.tsx'),
 
   // 404 route
   route('*', './routes/_404.tsx'),

@@ -107,6 +107,7 @@
   "returnHome": "Return to website",
   "roles": {
     "student": "Student",
-    "teacher": "Teacher"
+    "teacher": "Teacher",
+    "admin": "Administrator"
   }
 }

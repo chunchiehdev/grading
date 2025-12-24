@@ -34,7 +34,8 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
       redirectPath = savedRedirectTo;
       session.unset('redirectTo');
     } else {
-      redirectPath = user.role === 'TEACHER' ? '/teacher' : '/student';
+      const { getRoleBasedDashboard } = await import('@/root');
+      redirectPath = getRoleBasedDashboard(user.role || 'STUDENT');
     }
 
     const response = redirect(redirectPath);

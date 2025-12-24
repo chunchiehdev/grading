@@ -367,6 +367,7 @@ enum FileParseStatus {
 enum UserRole {
   STUDENT
   TEACHER
+  ADMIN
 }
 
 // Submission status
