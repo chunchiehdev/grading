@@ -60,12 +60,13 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 COPY package*.json ./
 COPY prisma ./prisma/
 
-RUN npm install --omit=dev
+RUN npm install --omit=dev && npm install -g tsx
 
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/version.json ./version.json
+COPY --from=builder /app/scripts ./scripts
 
 ENV NODE_ENV=production
 ENV PORT=3000

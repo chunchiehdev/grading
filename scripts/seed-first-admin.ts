@@ -1,50 +1,43 @@
-/**
- * Seed Script: Create First Admin
- * Usage: npx tsx scripts/seed-first-admin.ts
- * 
- * This script creates the first admin user for cold-start scenarios.
- * Configure the admin email below before running.
- */
-
 import 'dotenv/config';
-import { db } from '../app/lib/db.server';
-import logger from '../app/utils/logger';
+import { PrismaClient } from '@prisma/client';
 
-// CONFIGURATION: Set your admin email here
+const prisma = new PrismaClient();
+
 const ADMIN_EMAIL = process.env.FIRST_ADMIN_EMAIL || 'chunchiehdev@gmail.com';
 const ADMIN_NAME = 'System Administrator';
 
 async function seedFirstAdmin() {
+  console.log('🌱 Starting Admin Seeding...');
+  
   try {
     // Check if any admin exists
-    const existingAdmin = await db.user.findFirst({
+    const existingAdmin = await prisma.user.findFirst({
       where: { role: 'ADMIN' },
     });
 
     if (existingAdmin) {
-      logger.info({ adminEmail: existingAdmin.email }, '✅ An admin already exists.');
+      console.log(`✅ An admin already exists: ${existingAdmin.email}`);
       return;
     }
 
     // Check if the configured email exists as a user
-    const user = await db.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { email: ADMIN_EMAIL },
     });
 
     if (user) {
       // User exists - upgrade to admin
-      const updatedUser = await db.user.update({
+      await prisma.user.update({
         where: { email: ADMIN_EMAIL },
         data: {
           role: 'ADMIN',
           hasSelectedRole: true,
         },
       });
-
-      logger.info({ email: ADMIN_EMAIL }, '✅ Promoted existing user to ADMIN');
+      console.log(`✅ Promoted existing user to ADMIN: ${ADMIN_EMAIL}`);
     } else {
       // User doesn't exist - create new admin
-      const newAdmin = await db.user.create({
+      await prisma.user.create({
         data: {
           email: ADMIN_EMAIL,
           name: ADMIN_NAME,
@@ -53,19 +46,17 @@ async function seedFirstAdmin() {
           hasSelectedRole: true,
         },
       });
-
-      logger.info({ email: ADMIN_EMAIL }, '✅ Created first ADMIN user');
+      console.log(`✅ Created first ADMIN user: ${ADMIN_EMAIL}`);
     }
 
     console.log('\n🎉 First admin setup complete!');
   } catch (error) {
-    logger.error({ error }, '❌ Error creating first admin');
-    console.error('❌ Error:', error);
+    console.error('❌ Error creating first admin:', error);
     process.exit(1);
   } finally {
-    await db.$disconnect();
+    
+    await prisma.$disconnect();
   }
 }
 
 seedFirstAdmin();
-
