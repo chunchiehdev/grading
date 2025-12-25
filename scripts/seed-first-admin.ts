@@ -1,6 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
-
+import { PrismaClient } from '../app/generated/prisma/client';
 const prisma = new PrismaClient();
 
 const ADMIN_EMAIL = process.env.FIRST_ADMIN_EMAIL || 'chunchiehdev@gmail.com';

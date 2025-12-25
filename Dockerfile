@@ -65,8 +65,10 @@ RUN npm install --omit=dev && npm install -g tsx
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/app/generated ./app/generated
 COPY --from=builder /app/version.json ./version.json
 COPY --from=builder /app/scripts ./scripts
+
 
 ENV NODE_ENV=production
 ENV PORT=3000
