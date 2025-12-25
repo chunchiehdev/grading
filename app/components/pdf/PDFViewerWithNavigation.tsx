@@ -223,7 +223,7 @@ export const PDFViewerWithNavigation = forwardRef<PDFViewerHandle, PDFViewerWith
           </div>
 
           {/* Zoom Controls - Hidden on mobile */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden md:flex items-center ">
             <Button variant="outline" size="sm" onClick={zoomOut} disabled={scale <= 0.5}>
               <ZoomOut className="w-4 h-4" />
             </Button>
@@ -236,8 +236,7 @@ export const PDFViewerWithNavigation = forwardRef<PDFViewerHandle, PDFViewerWith
           {/* Download Button - Icon only on mobile */}
           <Button variant="outline" size="sm" asChild className="shrink-0">
             <a href={fileUrl} download={fileName} target="_blank" rel="noopener noreferrer">
-              <Download className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">下載</span>
+              <Download className="w-4 h-4" />
             </a>
           </Button>
         </div>
@@ -275,32 +274,6 @@ export const PDFViewerWithNavigation = forwardRef<PDFViewerHandle, PDFViewerWith
             </div>
           </Document>
         </div>
-
-        {/* Page Quick Jump (Optional) */}
-        {numPages > 0 && pageMarkers.length > 0 && (
-          <div className="sticky bottom-0 bg-card border-t px-4 py-2 shrink-0">
-            <div className="flex items-center gap-2 overflow-x-auto">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">快速跳轉:</span>
-              <div className="flex gap-1">
-                {pageMarkers.map((marker) => (
-                  <Button
-                    key={marker.pageNumber}
-                    variant={marker.pageNumber === pageNumber ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-7 px-2"
-                    onClick={() => {
-                      setPageNumber(marker.pageNumber);
-                      setIsFlashing(true);
-                      setTimeout(() => setIsFlashing(false), 1500);
-                    }}
-                  >
-                    P{marker.pageNumber}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }

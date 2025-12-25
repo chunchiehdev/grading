@@ -16,7 +16,7 @@ interface StudentInfoCompactProps {
 
 export function StudentInfoCompact({ student }: StudentInfoCompactProps) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 ml-3">
       <Avatar className="h-9 w-9">
         <AvatarImage src={student.picture ?? undefined} alt={student.name} />
         <AvatarFallback className="bg-primary/10 text-primary text-sm">
