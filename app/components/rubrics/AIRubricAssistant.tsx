@@ -86,7 +86,7 @@ const MessageItem = memo(({ role, content, rubric, index, user, onApplyRubric }:
         </div>
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted overflow-hidden border border-border">
           {user?.picture ? (
-            <img src={user.picture} alt={user.email} className="w-full h-full object-cover" />
+            <img src={user.picture} alt={user.email} className="w-full h-full object-cover" referrerPolicy='no-referrer'/>
           ) : (
             <UserIcon className="h-4 w-4 text-muted-foreground" />
           )}

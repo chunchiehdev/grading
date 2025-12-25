@@ -119,6 +119,7 @@ function CourseCard({ course }: CourseCardProps) {
               src={course.teacher.picture}
               alt={course.teacher.name}
               className="w-10 h-10 rounded-full object-cover bg-muted"
+              referrerPolicy='no-referrer'
             />
             <div className="flex-1">
               <div className="text-base font-medium text-muted-foreground">{course.teacher.name}</div>

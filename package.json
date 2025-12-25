@@ -23,6 +23,7 @@
     "test:safari:mobile": "npx playwright test --headed --project=webkit-mobile test/safari-visual.spec.ts",
     "migrate:dev": "npx prisma migrate dev && npx prisma generate",
     "migrate:prod": "npx prisma migrate deploy && npx prisma generate",
+    "seed:admin": "tsx scripts/seed-first-admin.ts",
     "cleanup:jobs": "tsx scripts/cleanup-bullmq-jobs.ts",
     "test:rate-limits": "bash scripts/run-rate-limit-test.sh",
     "version:patch": "npm version patch --no-git-tag-version",

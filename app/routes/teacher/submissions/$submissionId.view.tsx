@@ -1,24 +1,24 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
-import { useLoaderData, useActionData, Form } from 'react-router';
-import { Save } from 'lucide-react';
+import { useLoaderData, useActionData } from 'react-router';
+import { ClientOnly } from '@/components/ui/client-only';
 import { requireTeacher } from '@/services/auth.server';
 import { getSubmissionByIdForTeacher } from '@/services/submission.server';
-import { PageHeader } from '@/components/ui/page-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
-import { ContextTransparency } from '@/components/grading/ContextTransparency';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PDFViewerWithNavigation } from '@/components/pdf/PDFViewerWithNavigation';
+import {
+  StudentInfoCompact,
+  AssignmentInfoCompact,
+  ScoreBadge,
+} from '@/components/grading/CompactInfoComponents';
 import { useTranslation } from 'react-i18next';
 import type { TeacherInfo, TeacherSubmissionView } from '@/types/teacher';
+
 
 interface LoaderData {
   teacher: TeacherInfo;
   submission: TeacherSubmissionView;
 }
+
 
 interface ActionData {
   success?: boolean;
@@ -117,212 +117,77 @@ export default function TeacherSubmissionView() {
   const actionData = useActionData<ActionData>();
   const { t } = useTranslation('teacher');
 
+  // Full screen layout - bypasses parent container constraints
   return (
-    <div className="bg-background">
-      
-      <main className="max-w-7xl mx-auto px-4 pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-6">
-            <StudentInfoCard student={submission.student} />
-            <AssignmentInfoCard assignment={submission.assignment} grading={submission.grading} />
-            <AIAnalysisCard
-              result={submission.grading.aiAnalysisResult}
-              normalizedScore={submission.grading.normalizedScore}
-              usedContext={submission.grading.usedContext}
-              thinkingProcess={submission.grading.thinkingProcess}
-              thoughtSummary={submission.grading.thoughtSummary}
-              gradingRationale={submission.grading.gradingRationale}
-            />
+    <div className="fixed inset-0 top-[60px] bg-background flex flex-col">
+      {/* Top Info Bar - RED - Responsive */}
+      <div className="border-b backdrop-blur-sm shrink-0 z-10" style={{ backgroundColor: 'rgba(239, 68, 68, 0.3)' }}>
+        <div className="px-4 lg:px-6 py-2 lg:py-3 flex items-center justify-between gap-2 lg:gap-6">
+          {/* Left: Student + Assignment */}
+          <div className="flex items-center gap-2 lg:gap-6 flex-1 min-w-0">
+            <StudentInfoCompact student={submission.student} />
+            <div className="h-6 w-px bg-border hidden lg:block" />
+            <div className="hidden lg:block">
+              <AssignmentInfoCompact assignment={submission.assignment} />
+            </div>
           </div>
 
-          <div className="md:col-span-1 space-y-6">
-            <GradingSummaryCard grading={submission.grading} />
-            <FeedbackFormCard defaultFeedback={submission.grading.teacherFeedback} actionData={actionData} />
-          </div>
+          {/* Right: Score */}
+          <ScoreBadge score={submission.grading.normalizedScore} />
         </div>
-      </main>
+      </div>
+
+      {/* Main Content: PDF + Sidebar - Responsive Layout */}
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
+        {/* Left: PDF Viewer - BLUE */}
+        {/* Mobile: full width, Desktop: 70% */}
+        <div 
+          className="w-full lg:w-[70%] border-r-0 lg:border-r overflow-hidden flex flex-col h-[50vh] lg:h-auto" 
+          style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)' }}
+        >
+          {submission.grading.filePath ? (
+            <ClientOnly
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                    <span className="text-muted-foreground">載入 PDF 檢視器...</span>
+                  </div>
+                </div>
+              }
+            >
+              <PDFViewerWithNavigation
+                fileUrl={`/api/files/${submission.grading.filePath}/download`}
+                fileName={`${submission.student.name}-${submission.assignment.name}.pdf`}
+              />
+            </ClientOnly>
+          ) : ( 
+            <div className="flex items-center justify-center h-full">
+              <p className="text-muted-foreground">沒有上傳檔案</p>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Grading Sidebar - GREEN */}
+        {/* Mobile: full width, Desktop: 30% */}
+        <aside 
+          className="w-full lg:w-[30%] overflow-y-auto flex-1 lg:flex-initial" 
+          style={{ backgroundColor: 'rgba(34, 197, 94, 0.2)' }}
+        >
+          <div className="p-6">
+            {/* AI Analysis Details */}
+            {submission.grading.aiAnalysisResult && (
+              <GradingResultDisplay
+                result={submission.grading.aiAnalysisResult}
+                normalizedScore={submission.grading.normalizedScore}
+                thinkingProcess={submission.grading.thinkingProcess}
+                thoughtSummary={submission.grading.thoughtSummary}
+                gradingRationale={submission.grading.gradingRationale}
+              />
+            )}
+          </div>
+        </aside>
+      </div>
     </div>
-  );
-}
-
-// ============================================================================
-// Sub-components - extracted to eliminate Card structure duplication
-// ============================================================================
-
-function StudentInfoCard({ student }: { student: TeacherSubmissionView['student'] }) {
-  const { t } = useTranslation('teacher');
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('studentInfo')}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-4">
-          <Avatar className="h-12 w-12">
-            <AvatarImage src={student.picture ?? undefined} alt={student.name} />
-            <AvatarFallback className="bg-primary/10 text-primary">{student.initial}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h3 className="text-lg font-medium text-foreground">{student.name}</h3>
-            <p className="text-sm text-muted-foreground">{student.email}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function AssignmentInfoCard({
-  assignment,
-  grading,
-}: {
-  assignment: TeacherSubmissionView['assignment'];
-  grading: TeacherSubmissionView['grading'];
-}) {
-  const { t } = useTranslation('teacher');
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('assignmentInfo')}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="text-sm text-muted-foreground">
-          {t('course')}: {assignment.course.name}
-        </div>
-        {assignment.formattedDueDate && (
-          <div className="text-sm text-muted-foreground">
-            {t('dueDate')}: {assignment.formattedDueDate}
-          </div>
-        )}
-        {assignment.description && <div className="text-sm text-muted-foreground">{assignment.description}</div>}
-        {grading.filePath && (
-          <div className="pt-2">
-            <Button asChild variant="outline" size="sm">
-              <a href={`/api/files/${grading.filePath}/download`} target="_blank" rel="noopener noreferrer">
-                {t('downloadFile')}
-              </a>
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function AIAnalysisCard({
-  result,
-  normalizedScore,
-  usedContext,
-  thinkingProcess,
-  thoughtSummary,
-  gradingRationale,
-}: {
-  result: any | null;
-  normalizedScore?: number | null;
-  usedContext?: any | null;
-  thinkingProcess?: string | null;
-  thoughtSummary?: string | null;
-  gradingRationale?: string | null;
-}) {
-  const { t } = useTranslation('teacher');
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('aiAnalysis')}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {result ? (
-          <div className="space-y-4">
-            {/* Feature 004: Show context transparency first */}
-            {usedContext && <ContextTransparency usedContext={usedContext} />}
-
-            {/* AI grading results */}
-            <GradingResultDisplay 
-              result={result} 
-              normalizedScore={normalizedScore}
-              thinkingProcess={thinkingProcess}
-              thoughtSummary={thoughtSummary}
-              gradingRationale={gradingRationale}
-            />
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">{t('aiAnalysisInProgress')}</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function GradingSummaryCard({ grading }: { grading: TeacherSubmissionView['grading'] }) {
-  const { t } = useTranslation('teacher');
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('gradingSummary')}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">{t('score')}</span>
-          <span className="font-medium">
-            {grading.normalizedScore !== null ? `${grading.normalizedScore.toFixed(1)} / 100` : '-'}
-          </span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground">{t('submittedAt')}</span>
-          <span>{grading.formattedUploadedAt || grading.uploadedAt}</span>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function FeedbackFormCard({
-  defaultFeedback,
-  actionData,
-}: {
-  defaultFeedback: string | null;
-  actionData: ActionData | undefined;
-}) {
-  const { t } = useTranslation('teacher');
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t('provideFeedback')}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form method="post" className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="teacherFeedback">{t('feedbackLabel')}</Label>
-            <Textarea
-              id="teacherFeedback"
-              name="teacherFeedback"
-              rows={6}
-              defaultValue={defaultFeedback || ''}
-              placeholder={t('feedbackPlaceholder')}
-              className="bg-background border-border"
-            />
-          </div>
-
-          {actionData?.error && (
-            <Alert variant="destructive">
-              <AlertDescription>{actionData.error}</AlertDescription>
-            </Alert>
-          )}
-
-          {actionData?.success && (
-            <Alert>
-              <AlertDescription>{t('feedbackSaved')}</AlertDescription>
-            </Alert>
-          )}
-
-          <Button type="submit" className="w-full">
-            <Save className="w-4 h-4 mr-2" />
-            {t('saveFeedback')}
-          </Button>
-        </Form>
-      </CardContent>
-    </Card>
   );
 }

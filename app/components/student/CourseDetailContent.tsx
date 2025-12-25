@@ -195,6 +195,7 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
                   src={course.teacher.picture || '/default-avatar.png'}
                   alt={course.teacher.name}
                   className="w-12 h-12 rounded-full object-cover bg-muted flex-shrink-0"
+                  referrerPolicy='no-referrer'
                 />
                 <div className="flex-1 min-w-0">
                   <h1 className="text-2xl font-semibold text-foreground mb-1">{course.name}</h1>

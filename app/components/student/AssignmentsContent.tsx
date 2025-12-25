@@ -93,6 +93,7 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
               src={assignment.course.teacher.picture}
               alt={assignment.course.teacher.name}
               className="w-10 h-10 rounded-full object-cover bg-muted flex-shrink-0"
+              referrerPolicy='no-referrer'
             />
             <div className="flex-1 min-w-0">
               <div className="text-sm sm:text-base font-medium text-muted-foreground truncate">

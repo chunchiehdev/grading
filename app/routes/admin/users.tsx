@@ -1,11 +1,29 @@
 import { useState } from 'react';
-import { useFetcher, useLoaderData } from 'react-router';
+import { useFetcher } from 'react-router';
 import type { Route } from './+types/users';
 import { requireAdmin } from '@/services/auth.server';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 /**
  * Admin User Management Page
- * Displays all users with sorting and deletion capabilities
+ * Minimalist, borderless design with serif typography
  */
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -45,6 +63,8 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
+  const [editingRoleUserId, setEditingRoleUserId] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<'STUDENT' | 'TEACHER' | 'ADMIN' | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const deleteFetcher = useFetcher();
@@ -97,21 +117,47 @@ export default function AdminUsersPage() {
       }
     );
     setDeleteUserId(null);
+    toast.success('User deleted successfully');
     // Refresh users after deletion
     setTimeout(() => fetchUsers(sortBy, sortOrder), 500);
   };
 
-  // Role badge color
-  const getRoleBadgeColor = (role: string) => {
+  // Handle role update
+  const handleRoleUpdate = async (userId: string, newRole: 'STUDENT' | 'TEACHER' | 'ADMIN') => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update role');
+      }
+
+      toast.success(`Role updated to ${newRole}`);
+      setEditingRoleUserId(null);
+      setSelectedRole(null);
+      // Refresh users
+      fetchUsers(sortBy, sortOrder);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update role');
+    }
+  };
+
+  // Role badge styling (pill shape, minimal)
+  const getRoleBadgeVariant = (role: string): 'default' | 'secondary' | 'destructive' => {
     switch (role) {
       case 'ADMIN':
-        return 'bg-red-100 text-red-800 border-red-300';
+        return 'destructive';
       case 'TEACHER':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
+        return 'default';
       case 'STUDENT':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return 'secondary';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'secondary';
     }
   };
 
@@ -129,17 +175,27 @@ export default function AdminUsersPage() {
 
   // Sort indicator
   const SortIndicator = ({ field }: { field: SortField }) => {
-    if (sortBy !== field) return <span className="text-muted-foreground ml-1">↕</span>;
-    return <span className="ml-1">{sortOrder === 'desc' ? '↓' : '↑'}</span>;
+    if (sortBy !== field) return <span className="text-muted-foreground ml-1 text-xs">↕</span>;
+    return <span className="ml-1 text-xs">{sortOrder === 'desc' ? '↓' : '↑'}</span>;
+  };
+
+  // Get user initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-6">
-            <h2 className="text-xl font-bold text-destructive">Error</h2>
-            <p className="text-foreground/80 mt-2">{error}</p>
+      <div className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-lg bg-destructive/10 p-6">
+            <h2 className="font-serif text-xl font-bold text-destructive">Error</h2>
+            <p className="mt-2 text-foreground/80">{error}</p>
           </div>
         </div>
       </div>
@@ -148,147 +204,207 @@ export default function AdminUsersPage() {
 
   if (loading || !data) {
     return (
-      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
-        <div className="bg-card border border-border rounded-lg p-8">
-          <p className="text-lg text-muted-foreground">Loading users...</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <p className="text-lg text-muted-foreground">Loading users...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground">User Management</h1>
-          <p className="text-muted-foreground mt-1">Manage all system users</p>
+        <div className="mb-10 border-b pb-6">
+          <h1 className="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+            User Management
+          </h1>
+          <p className="mt-2 text-muted-foreground">Manage all system users and roles</p>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-card border border-border rounded-lg p-4">
-            <p className="text-sm text-muted-foreground mb-1">Total Users</p>
-            <p className="text-2xl font-bold text-foreground">{data.stats.total}</p>
+        {/* Statistics - Minimal, no borders */}
+        <div className="mb-12 grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-4">
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Users</p>
+            <p className="font-serif text-4xl font-bold text-foreground">{data.stats.total}</p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-4">
-            <p className="text-sm text-muted-foreground mb-1">Students</p>
-            <p className="text-2xl font-bold text-green-600">{data.stats.students}</p>
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Students</p>
+            <p className="font-serif text-4xl font-bold text-green-600 dark:text-green-400">
+              {data.stats.students}
+            </p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-4">
-            <p className="text-sm text-muted-foreground mb-1">Teachers</p>
-            <p className="text-2xl font-bold text-blue-600">{data.stats.teachers}</p>
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Teachers</p>
+            <p className="font-serif text-4xl font-bold text-blue-600 dark:text-blue-400">
+              {data.stats.teachers}
+            </p>
           </div>
-          <div className="bg-card border border-border rounded-lg p-4">
-            <p className="text-sm text-muted-foreground mb-1">Admins</p>
-            <p className="text-2xl font-bold text-red-600">{data.stats.admins}</p>
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Admins</p>
+            <p className="font-serif text-4xl font-bold text-red-600 dark:text-red-400">{data.stats.admins}</p>
           </div>
         </div>
 
-        {/* Users Table */}
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/50 border-b border-border">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Avatar</th>
-                  <th
-                    className="px-4 py-3 text-left text-sm font-semibold text-foreground cursor-pointer hover:bg-muted/80"
-                    onClick={() => handleSort('name')}
-                  >
-                    Name <SortIndicator field="name" />
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Email</th>
-                  <th
-                    className="px-4 py-3 text-left text-sm font-semibold text-foreground cursor-pointer hover:bg-muted/80"
-                    onClick={() => handleSort('role')}
-                  >
-                    Role <SortIndicator field="role" />
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left text-sm font-semibold text-foreground cursor-pointer hover:bg-muted/80"
-                    onClick={() => handleSort('createdAt')}
-                  >
-                    Registered <SortIndicator field="createdAt" />
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {data.users.map((user) => (
-                  <tr key={user.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <img
-                        src={user.picture}
-                        alt={user.name}
-                        className="w-10 h-10 rounded-full border border-border"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-foreground">{user.name}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-1 text-xs font-semibold rounded border ${getRoleBadgeColor(
-                          user.role
-                        )}`}
+        {/* Table - No outer border, just horizontal dividers */}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  User
+                </th>
+                <th
+                  className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => handleSort('name')}
+                >
+                  Name <SortIndicator field="name" />
+                </th>
+                <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell">
+                  Email
+                </th>
+                <th
+                  className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => handleSort('role')}
+                >
+                  Role <SortIndicator field="role" />
+                </th>
+                <th
+                  className="hidden cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground md:table-cell"
+                  onClick={() => handleSort('createdAt')}
+                >
+                  Registered <SortIndicator field="createdAt" />
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.users.map((user, index) => (
+                <tr
+                  key={user.id}
+                  className={`border-b transition-colors hover:bg-muted/30 ${
+                    index === data.users.length - 1 ? 'border-b-0' : ''
+                  }`}
+                >
+                  <td className="px-4 py-5">
+                    <Avatar>
+                      <AvatarImage src={user.picture} alt={user.name} />
+                      <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                    </Avatar>
+                  </td>
+                  <td className="px-4 py-5">
+                    <p className="font-medium text-foreground">{user.name}</p>
+                    <p className="mt-0.5 text-sm text-muted-foreground sm:hidden">{user.email}</p>
+                  </td>
+                  <td className="hidden px-4 py-5 sm:table-cell">
+                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                  </td>
+                  <td className="px-4 py-5">
+                    {editingRoleUserId === user.id ? (
+                      <Select
+                        value={selectedRole || user.role}
+                        onValueChange={(value) =>
+                          setSelectedRole(value as 'STUDENT' | 'TEACHER' | 'ADMIN')
+                        }
+                      >
+                        <SelectTrigger className="w-32 border-none bg-muted/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="STUDENT">Student</SelectItem>
+                          <SelectItem value="TEACHER">Teacher</SelectItem>
+                          <SelectItem value="ADMIN">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge
+                        variant={getRoleBadgeVariant(user.role)}
+                        className={`cursor-pointer rounded-full ${
+                          user.id === currentUserId ? 'cursor-not-allowed opacity-60' : ''
+                        }`}
+                        onClick={() => {
+                          if (user.id !== currentUserId) {
+                            setEditingRoleUserId(user.id);
+                            setSelectedRole(user.role);
+                          }
+                        }}
                       >
                         {user.role}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm text-foreground">{formatDate(user.createdAt)}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => setDeleteUserId(user.id)}
-                        disabled={user.id === currentUserId}
-                        className={`px-3 py-1 text-sm rounded border transition-colors ${
-                          user.id === currentUserId
-                            ? 'bg-muted text-muted-foreground border-border cursor-not-allowed'
-                            : 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive hover:text-white'
-                        }`}
-                      >
-                        {user.id === currentUserId ? 'You' : 'Delete'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      </Badge>
+                    )}
+                  </td>
+                  <td className="hidden px-4 py-5 md:table-cell">
+                    <p className="text-sm text-foreground">{formatDate(user.createdAt)}</p>
+                  </td>
+                  <td className="px-4 py-5">
+                    <div className="flex justify-end gap-3">
+                      {editingRoleUserId === user.id ? (
+                        <>
+                          <button
+                            onClick={() => handleRoleUpdate(user.id, selectedRole || user.role)}
+                            className="text-sm font-medium text-green-600 underline-offset-4 hover:underline dark:text-green-400"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingRoleUserId(null);
+                              setSelectedRole(null);
+                            }}
+                            className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setDeleteUserId(user.id)}
+                          disabled={user.id === currentUserId}
+                          className={`text-sm font-medium underline-offset-4 ${
+                            user.id === currentUserId
+                              ? 'cursor-not-allowed text-muted-foreground'
+                              : 'text-destructive hover:underline'
+                          }`}
+                        >
+                          {user.id === currentUserId ? 'You' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
-      {deleteUserId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold text-foreground mb-3">Confirm Deletion</h3>
-            <p className="text-muted-foreground mb-6">
-              Are you sure you want to delete this user? This action cannot be undone and will remove all associated
-              data.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDeleteUserId(null)}
-                className="px-4 py-2 text-sm border border-border rounded hover:bg-muted transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteUserId)}
-                className="px-4 py-2 text-sm bg-destructive text-white rounded hover:bg-destructive/90 transition-colors"
-              >
-                Delete User
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-serif">Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone and will remove all
+              associated data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setDeleteUserId(null)}
+              className="rounded px-4 py-2 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => deleteUserId && handleDelete(deleteUserId)}
+              className="rounded bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete User
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

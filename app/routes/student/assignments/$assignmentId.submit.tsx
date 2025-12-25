@@ -46,8 +46,6 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Check for existing draft/submission to restore state
   const draftSubmission = await getDraftSubmission(assignmentId, student.id);
 
-  // console.log('Draft Submission', draftSubmission)
-
   return { student, assignment, draftSubmission };
 }
 
@@ -388,7 +386,7 @@ export default function SubmitAssignment() {
     }),
     onFinish: (message) => {
       // When streaming finishes, we can trigger a final poll or update state
-      console.log('[Frontend] Streaming finished:', message);
+      // console.log('[Frontend] Streaming finished:', message);
     },
     onError: (error) => {
       console.error('[Frontend] Streaming error:', error);
@@ -400,7 +398,7 @@ export default function SubmitAssignment() {
   useEffect(() => {
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
-      console.log('[Frontend] Received message update:', lastMessage);
+      // console.log('[Frontend] Received message update:', lastMessage);
       
       if (lastMessage.role === 'assistant') {
         // Update thought stream
@@ -424,7 +422,7 @@ export default function SubmitAssignment() {
         thought = thought.replace(/Calling tool \w+ with arguments: \{[\s\S]*?\}/g, '');
         thought = thought.replace(/tool_code[\s\S]*?```/g, ''); // Remove code blocks that might be tool calls
         
-        console.log('[Frontend] Extracted thought:', thought.substring(0, 50) + '...');
+        // console.log('[Frontend] Extracted thought:', thought.substring(0, 50) + '...');
         dispatch({ type: 'thought_update', thought });
       }
     }
@@ -433,7 +431,7 @@ export default function SubmitAssignment() {
   // Trigger streaming when session starts
   useEffect(() => {
     if (state.loading && state.session?.id && !isChatLoading && messages.length === 0) {
-      console.log('Starting streaming bridge for session:', state.session.id);
+      // console.log('Starting streaming bridge for session:', state.session.id);
       
       // Trigger the bridge API
       sendMessage({ 

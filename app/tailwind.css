@@ -24,11 +24,15 @@
   /* iOS Safari viewport height fix for bottom address bar */
   html {
     height: -webkit-fill-available;
+    /* Reserve space for scrollbar to prevent layout shift when dialogs/modals open */
+    scrollbar-gutter: stable;
   }
 
   body {
     min-height: 100vh;
     min-height: -webkit-fill-available;
+    /* Reserve space for scrollbar to prevent layout shift when dialogs/modals open */
+    scrollbar-gutter: stable;
   }
 
   :root {
@@ -146,13 +150,10 @@
     * {
       @apply border-border;
       /*
-       * Standard scrollbar styling per W3C spec (Firefox, Chrome 121+, Edge 121+)
-       * Respects:
-       * - Windows High Contrast Mode
-       * - macOS/Windows system themes
-       * - User OS accessibility preferences
-       * - WCAG accessibility guidelines
-       * Reference: https://ericwbailey.website/published/dont-use-custom-css-scrollbars/
+       * Scrollbar styling - appears naturally when needed, with custom appearance
+       * - scrollbar-gutter: stable (on html/body) prevents layout shift
+       * - scrollbar-width: thin makes it slimmer
+       * - scrollbar-color: matches theme colors
        */
       scrollbar-width: thin;
       scrollbar-color: hsl(var(--border)) hsl(var(--background));
@@ -213,6 +214,15 @@
   }
   75% { 
     transform: translateX(5px); 
+  }
+}
+
+@keyframes highlight-flash {
+  0%, 100% { 
+    opacity: 0.3; 
+  }
+  50% { 
+    opacity: 0.6; 
   }
 }
 
@@ -291,5 +301,38 @@
   .touch-scroll-smooth {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+  }
+
+  /* PDF Text Highlighting Styles */
+  .pdf-highlight {
+    transition: background-color 0.3s ease;
+    border-radius: 2px;
+    position: relative;
+  }
+
+  .pdf-highlight.flash {
+    animation: highlight-flash 1s ease-in-out;
+  }
+
+  /* React-PDF Mobile Canvas Fix */
+  /* Ensures PDF canvas elements scale properly on mobile devices */
+  .react-pdf__Page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .react-pdf__Page__canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Ensure text layer scales with canvas */
+  .react-pdf__Page__textContent {
+    max-width: 100% !important;
+  }
+
+  .react-pdf__Page__annotations {
+    max-width: 100% !important;
   }
 }

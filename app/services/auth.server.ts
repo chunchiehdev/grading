@@ -304,3 +304,28 @@ export async function requireAdmin(request: Request) {
   }
   return user;
 }
+
+/**
+ * Updates any user's role (admin only)
+ * @param {string} userId - The user ID to update
+ * @param {string} role - The new role ('TEACHER', 'STUDENT', or 'ADMIN')
+ * @returns {Promise<Object>} Updated user object
+ */
+export async function updateUserRoleAsAdmin(userId: string, role: 'TEACHER' | 'STUDENT' | 'ADMIN') {
+  try {
+    const user = await db.user.update({
+      where: { id: userId },
+      data: {
+        role,
+        hasSelectedRole: true,
+      },
+      select: { id: true, email: true, name: true, role: true, hasSelectedRole: true },
+    });
+
+    logger.info({ userId, email: user.email, newRole: role, hasSelectedRole: user.hasSelectedRole }, 'Admin updated user role');
+    return user;
+  } catch (error) {
+    logger.error({ error, userId, role }, 'Error updating user role as admin');
+    throw error;
+  }
+}
