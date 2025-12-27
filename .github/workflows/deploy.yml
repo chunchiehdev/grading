@@ -185,6 +185,7 @@ jobs:
               --attach \
               --restart=Never \
               --image-pull-policy=Always \
+              --timeout=5m \
               --namespace=$NAMESPACE \
               --image=chunchiehdev/gradsystem:${{ github.ref_name }} \
               --env="DATABASE_URL=$(kubectl get secret $SECRET_NAME -n $NAMESPACE -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
@@ -275,6 +276,7 @@ jobs:
             --attach \
             --restart=Never \
             --image-pull-policy=Always \
+            --timeout=5m \
             --namespace=$NAMESPACE \
             --image=chunchiehdev/gradsystem:development \
             --env="DATABASE_URL=$(kubectl get secret $SECRET_NAME -n $NAMESPACE -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
