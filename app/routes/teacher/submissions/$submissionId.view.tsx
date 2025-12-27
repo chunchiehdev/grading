@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
-import { useLoaderData, useActionData, Form } from 'react-router';
+import { useLoaderData, useActionData, useParams, Form } from 'react-router';
 import { ClientOnly } from '@/components/ui/client-only';
 import { useState, useEffect } from 'react';
 import { requireTeacher } from '@/services/auth.server';
@@ -120,6 +120,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 
 export default function TeacherSubmissionView() {
   const { submission } = useLoaderData<typeof loader>();
+  const params = useParams();
   const actionData = useActionData<ActionData>();
   const { t } = useTranslation('teacher');
 
@@ -139,8 +140,8 @@ export default function TeacherSubmissionView() {
     <div className="fixed inset-0 top-[60px] bg-background flex flex-col">
       {/* Top Info Bar - Responsive */}
       <div className=" border-b  backdrop-blur-sm shrink-0 z-10">
-        <div className="px-4 lg:px-6 py-2 lg:py-3 flex items-center justify-center gap-2 lg:gap-6">
-          {/* Centered: Student + Assignment */}
+        <div className="px-4 lg:px-6 py-2 lg:py-3 flex items-center justify-between gap-2 lg:gap-6">
+          {/* Left: Student + Assignment */}
           <div className="flex items-center gap-2 lg:gap-6">
             <StudentInfoCompact student={submission.student} />
             <div className="h-6 w-px bg-border hidden lg:block" />
@@ -148,6 +149,21 @@ export default function TeacherSubmissionView() {
               <AssignmentInfoCompact assignment={submission.assignment} />
             </div>
           </div>
+          
+          {/* Right: History Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.href = `/teacher/submissions/${params.submissionId}/history`}
+            className="text-xs lg:text-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 lg:mr-2 h-3 w-3 lg:h-4 lg:w-4">
+              <path d="M3 3v5h5"/>
+              <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>
+              <path d="M12 7v5l4 2"/>
+            </svg>
+            歷史記錄
+          </Button>
         </div>
       </div>
 

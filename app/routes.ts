@@ -51,6 +51,8 @@ export default [
       './routes/teacher/courses/$courseId/assignments/$assignmentId.submissions.tsx'
     ),
     route('submissions/:submissionId/view', './routes/teacher/submissions/$submissionId.view.tsx'),
+    route('submissions/:submissionId/history', './routes/teacher/submissions/$submissionId.history.tsx'),
+    route('submissions/compare', './routes/teacher/submissions/compare.tsx'),
     route('rubrics/new', './routes/teacher/rubrics/new.tsx'),
     route('rubrics/:rubricId', './routes/teacher/rubrics/$rubricId.tsx'),
     route('rubrics/:rubricId/edit', './routes/teacher/rubrics/$rubricId.edit.tsx'),
@@ -72,6 +74,8 @@ export default [
   ...prefix('/student', [
     route('assignments/:assignmentId/submit', './routes/student/assignments/$assignmentId.submit.tsx'),
     route('submissions/:submissionId', './routes/student/submissions/$submissionId.tsx'),
+    route('submissions/:submissionId/history', './routes/student/submissions/$submissionId.history.tsx'),
+    route('submissions/compare', './routes/student/submissions/compare.tsx'),
   ]),
 
   // API routes
@@ -108,6 +112,9 @@ export default [
 
   // Admin API routes
   route('/api/admin/queue-status', './api/admin/queue-status.ts'),
+  route('/api/admin/queue-jobs', './api/admin/queue-jobs.ts'),
+  route('/api/admin/cleanup-preview', './api/admin/cleanup-preview.ts'),
+  route('/api/admin/cleanup-jobs', './api/admin/cleanup-jobs.ts'),
   route('/api/admin/users', './api/admin/users.ts'),
   route('/api/admin/users/:userId', './api/admin/users/$userId.ts'),
   
@@ -152,6 +159,13 @@ export default [
   route('/api/student/submit', './api/student/submit.ts'),
   route('/api/student/assignments', './api/student/assignments/index.ts'),
   route('/api/student/assignments/:assignmentId/draft', './api/student/assignments/$assignmentId/draft.ts'),
+  route('/api/student/submissions/:submissionId/history', './routes/api/student/submissions/$submissionId.history.ts'),
+
+  // Teacher Submission History API
+  route('/api/teacher/submissions/:submissionId/history', './routes/api/teacher/submissions/$submissionId.history.ts'),
+
+  // Submission Version Comparison API
+  route('/api/submissions/compare', './routes/api/submissions/compare.ts'),
 
   // Course Discovery and Enrollment API routes
   route('/api/courses/discover', './api/courses/discover.ts'),
@@ -170,6 +184,13 @@ export default [
 
   // Notification API routes
   route('/api/notifications/recent', './api/notifications/recent.ts'),
+  route('/api/notifications/mark-read', './api/notifications/mark-read.ts'),
+  
+  // Invitation API routes
+  route('/api/invitations/validate', './api/invitations/validate.ts'),
+  
+  // Message API routes (for individual message queries)
+  route('/api/messages/:messageId', './api/messages/$messageId.ts'),
 
   // Test routes
   route('/test-sse', './routes/test-sse.tsx'),

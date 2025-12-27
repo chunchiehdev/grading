@@ -1,15 +1,35 @@
 import { getQueueStatus } from '@/services/queue.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
+import { requireAdmin } from '@/services/auth.server';
+import logger from '@/utils/logger';
 
 /**
  * GET: Get BullMQ grading queue status
  *
  * Returns real-time queue statistics for monitoring
  * Includes waiting jobs, active jobs, completed jobs, failed jobs, rate limit info
+ * ADMIN-only access
  */
-export async function loader() {
+export async function loader({ request }: { request: Request }) {
   try {
+    // Require ADMIN authentication
+    await requireAdmin(request);
+    
+    logger.info('[Queue Status API] Fetching queue status...');
     const status = await getQueueStatus();
+    logger.info('[Queue Status API] Status retrieved:', { status });
+
+    // Check if getQueueStatus returned an error
+    if ('error' in status && status.error) {
+      logger.error('[Queue Status API] Queue status has error:', { error: status.error });
+      return Response.json(
+        createErrorResponse(
+          status.error,
+          ApiErrorCode.INTERNAL_ERROR
+        ),
+        { status: 500 }
+      );
+    }
 
     return Response.json(
       createSuccessResponse({
@@ -24,18 +44,23 @@ export async function loader() {
         },
         rateLimiting: {
           isRateLimited: status.isRateLimited,
-          remainingTtl: status.rateLimitTtl, // Milliseconds until next job can be processed
+          remainingTtl: status.rateLimitTtl,
           config: {
-            max: 8, // Requests per minute (Free tier Gemini limit)
-            duration: 60000, // 60 seconds
+            max: 8,
+            duration: 60000,
           },
         },
-        mode: 'bullmq', // Indicates we're using BullMQ
+        mode: 'bullmq',
         isProcessing: status.isProcessing,
         timestamp: new Date().toISOString(),
       })
     );
   } catch (error) {
+    logger.error('[Queue Status API] Exception in loader:', { 
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to get queue status',

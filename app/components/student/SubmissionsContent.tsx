@@ -58,9 +58,10 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
           {/* Table Header Row */}
           <div className="px-6 md:px-8 lg:px-10 py-4 border-b border-border">
             <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
-              <div className="col-span-4">{t('submissions:table.assignment')}</div>
-              <div className="col-span-4">{t('submissions:table.course')}</div>
-              <div className="col-span-4 text-right">{t('submissions:table.submittedAt')}</div>
+              <div className="col-span-3">{t('submissions:table.assignment')}</div>
+              <div className="col-span-3">{t('submissions:table.course')}</div>
+              <div className="col-span-3 text-right">{t('submissions:table.submittedAt')}</div>
+              <div className="col-span-3 text-right">操作</div>
             </div>
           </div>
 
@@ -74,22 +75,35 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
               >
                 <div className="grid grid-cols-12 gap-4 items-center">
                   {/* Assignment Column */}
-                  <div className="col-span-4">
+                  <div className="col-span-3">
                     <p className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
                       {s.assignmentArea?.name}
                     </p>
                   </div>
 
                   {/* Course Column */}
-                  <div className="col-span-4">
+                  <div className="col-span-3">
                     <p className="text-sm text-muted-foreground truncate">{s.assignmentArea?.course?.name}</p>
                   </div>
 
                   {/* Time Column */}
-                  <div className="col-span-4 text-right">
+                  <div className="col-span-3 text-right">
                     <p className="text-sm text-muted-foreground">
                       {s.uploadedAt ? formatTimeAgo(new Date(s.uploadedAt)) : '-'}
                     </p>
+                  </div>
+
+                  {/* Actions Column */}
+                  <div className="col-span-3 flex justify-end gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/student/submissions/${s.id}/history`);
+                      }}
+                      className="text-xs px-2 py-1 border border-muted-foreground/30 rounded hover:bg-muted/50 transition-colors"
+                    >
+                      查看歷史
+                    </button>
                   </div>
                 </div>
               </div>

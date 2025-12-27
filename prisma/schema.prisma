@@ -1,6 +1,6 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma/client"
+  provider      = "prisma-client"
+  output        = "../app/generated/prisma/client"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
@@ -13,7 +13,7 @@ model User {
   id              String   @id @default(uuid())
   email           String   @unique
   role            UserRole @default(STUDENT) // New role field with default to STUDENT
-  hasSelectedRole Boolean  @default(false)   // Track if user has explicitly selected a role
+  hasSelectedRole Boolean  @default(false) // Track if user has explicitly selected a role
   name            String   @db.VarChar(255)
   picture         String   @db.VarChar(500)
   createdAt       DateTime @default(now())
@@ -23,47 +23,47 @@ model User {
   rubrics         Rubric[]
   gradingSessions GradingSession[]
   uploadedFiles   UploadedFile[]
-  
+
   // Teacher-specific relations
-  courses         Course[]
-  teacherRubrics  Rubric[] @relation("TeacherRubrics")
-  assistantClasses Class[] @relation("ClassAssistants")
+  courses          Course[]
+  teacherRubrics   Rubric[] @relation("TeacherRubrics")
+  assistantClasses Class[]  @relation("ClassAssistants")
 
   // Student-specific relations
   submissions     Submission[]
   enrollments     Enrollment[]
   usedInvitations InvitationCode[] @relation("InvitationCodeUsage")
-  
+
   // Chat relations
-  chats           Chat[]
+  chats             Chat[]
   agentChatSessions AgentChatSession[] @relation("UserAgentChatSessions")
 
   // Notification relations
-  notifications   Notification[] @relation("UserNotifications")
+  notifications Notification[] @relation("UserNotifications")
 
   @@map("users")
 }
 
 // Course management for teachers
 model Course {
-  id          String   @id @default(uuid())
-  name        String   @db.VarChar(255)
-  code        String?  @db.VarChar(50)  // Course code (e.g., "CS 201", "MATH 101")
-  description String?  @db.Text
+  id          String  @id @default(uuid())
+  name        String  @db.VarChar(255)
+  code        String? @db.VarChar(50) // Course code (e.g., "CS 201", "MATH 101")
+  description String? @db.Text
   teacherId   String
-  teacher     User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   // Course-level settings (shared across all classes)
-  syllabus    String?  @db.Text  // Course syllabus
+  syllabus String? @db.Text // Course syllabus
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  classes         Class[]          // A course can have multiple classes/sections
+  classes         Class[] // A course can have multiple classes/sections
   assignmentAreas AssignmentArea[]
   invitationCodes InvitationCode[]
-  notifications   Notification[] @relation("CourseNotifications")
+  notifications   Notification[]   @relation("CourseNotifications")
 
   @@index([teacherId])
   @@index([code])
@@ -72,31 +72,31 @@ model Course {
 
 // Class/Section within a course (班次/班級)
 model Class {
-  id          String   @id @default(uuid())
-  courseId    String
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  name        String   @db.VarChar(100)  // "101班", "Section A", "週五下午班"
+  name String @db.VarChar(100) // "101班", "Section A", "週五下午班"
 
   // Schedule information (JSON structure for flexibility)
   // Format: { weekday: string, periodCode: string, room?: string }
-  schedule    Json?
+  schedule Json?
 
-  capacity    Int?     // Maximum number of students (null = unlimited)
+  capacity Int? // Maximum number of students (null = unlimited)
 
   // Optional: Teaching assistant for this class
   assistantId String?
-  assistant   User?    @relation("ClassAssistants", fields: [assistantId], references: [id], onDelete: SetNull)
+  assistant   User?   @relation("ClassAssistants", fields: [assistantId], references: [id], onDelete: SetNull)
 
-  isActive    Boolean  @default(true)  // Whether this class is currently active
+  isActive Boolean @default(true) // Whether this class is currently active
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  enrollments     Enrollment[]        // Students enrolled in this class
-  assignmentAreas AssignmentArea[]    // Assignments specific to this class
-  invitationCodes InvitationCode[]    // Invitation codes for this class
+  enrollments     Enrollment[] // Students enrolled in this class
+  assignmentAreas AssignmentArea[] // Assignments specific to this class
+  invitationCodes InvitationCode[] // Invitation codes for this class
 
   @@index([courseId])
   @@index([assistantId])
@@ -105,31 +105,31 @@ model Class {
 
 // Assignment areas within courses
 model AssignmentArea {
-  id          String    @id @default(uuid())
-  name        String    @db.VarChar(255)
-  description String?   @db.Text
+  id          String  @id @default(uuid())
+  name        String  @db.VarChar(255)
+  description String? @db.Text
   courseId    String
-  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   // Optional: Assignment can be specific to a class (null = all classes)
-  classId     String?
-  class       Class?    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId String?
+  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)
 
-  rubricId    String
-  rubric      Rubric    @relation("AssignmentAreaRubrics", fields: [rubricId], references: [id], onDelete: Restrict)
-  dueDate     DateTime?
+  rubricId String
+  rubric   Rubric    @relation("AssignmentAreaRubrics", fields: [rubricId], references: [id], onDelete: Restrict)
+  dueDate  DateTime?
 
   // AI Grading Context (Feature 004)
-  referenceFileIds    String?  @db.Text  // JSON array of UploadedFile IDs (max 5 files)
-  customGradingPrompt String?  @db.Text  // Custom grading instructions (max 5000 chars)
+  referenceFileIds    String? @db.Text // JSON array of UploadedFile IDs (max 5 files)
+  customGradingPrompt String? @db.Text // Custom grading instructions (max 5000 chars)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  submissions   Submission[]
-  notifications Notification[] @relation("AssignmentNotifications")
-  gradingResults GradingResult[]  // NEW: Reverse relation for context-aware grading
+  submissions    Submission[]
+  notifications  Notification[]  @relation("AssignmentNotifications")
+  gradingResults GradingResult[] // NEW: Reverse relation for context-aware grading
 
   @@index([courseId])
   @@index([classId])
@@ -139,62 +139,71 @@ model AssignmentArea {
 
 // Student submissions to assignment areas
 model Submission {
-  id               String        @id @default(uuid())
+  id               String         @id @default(uuid())
   studentId        String
-  student          User          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   assignmentAreaId String
   assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)
-  
-  filePath         String        @db.VarChar(500) // Path/URL of uploaded assignment
-  uploadedAt       DateTime      @default(now())
-  
+
+  // Version Control Fields (Feature: Submission History)
+  version           Int          @default(1)
+  isLatest          Boolean      @default(true)
+  previousVersionId String? // 前一個版本的 ID
+  previousVersion   Submission?  @relation("VersionHistory", fields: [previousVersionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  nextVersions      Submission[] @relation("VersionHistory")
+
+  filePath   String   @db.VarChar(500) // Path/URL of uploaded assignment
+  uploadedAt DateTime @default(now())
+
   // AI analysis and grading
-  sessionId        String?       // GradingSession ID for linking AI results
-  aiAnalysisResult Json?         // AI analysis results
-  thoughtSummary   String?       @db.Text // AI 思考摘要，用於恢復草稿 (Deprecated)
-  thinkingProcess  String?       @db.Text // AI 的原始思考過程
-  gradingRationale String?       @db.Text // AI 的正式評分推理
-  finalScore       Int?          // Final score
-  normalizedScore  Float?        // 100-point normalized score from AI grading
+  sessionId        String? // GradingSession ID for linking AI results
+  aiAnalysisResult Json? // AI analysis results
+  thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿 (Deprecated)
+  thinkingProcess  String? @db.Text // AI 的原始思考過程
+  gradingRationale String? @db.Text // AI 的正式評分推理
+  finalScore       Int? // Final score
+  normalizedScore  Float? // 100-point normalized score from AI grading
 
   // Context transparency (Feature 004) - copied from GradingResult
-  usedContext      Json?         // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }
+  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }
 
-  teacherFeedback  String?       @db.Text
-  status           SubmissionStatus @default(SUBMITTED)
-  
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  teacherFeedback String?          @db.Text
+  status          SubmissionStatus @default(SUBMITTED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([studentId])
   @@index([assignmentAreaId])
   @@index([status])
+  @@index([studentId, assignmentAreaId, version])
+  @@index([isLatest])
   @@map("submissions")
 }
 
 // 評分標準表
 model Rubric {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  teacherId   String?  // New field for teacher-created rubrics
-  teacher     User?    @relation("TeacherRubrics", fields: [teacherId], references: [id], onDelete: Cascade)
+  id        String  @id @default(uuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teacherId String? // New field for teacher-created rubrics
+  teacher   User?   @relation("TeacherRubrics", fields: [teacherId], references: [id], onDelete: Cascade)
 
-  name        String   @db.VarChar(255)
-  description String   @db.Text
-  version     Int      @default(1) // 版本號
-  isActive    Boolean  @default(true) // 是否為當前版本
-  isTemplate  Boolean  @default(false) // Whether it's a reusable template
-  
+  name        String  @db.VarChar(255)
+  description String  @db.Text
+  version     Int     @default(1) // 版本號
+  isActive    Boolean @default(true) // 是否為當前版本
+  isTemplate  Boolean @default(false) // Whether it's a reusable template
+
   // 評分標準結構 (JSON)
-  criteria    Json     // [{ id, name, description, maxScore, levels: [{ score, description }] }]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  gradingResults   GradingResult[]
-  assignmentAreas  AssignmentArea[] @relation("AssignmentAreaRubrics")
+  gradingResults  GradingResult[]
+  assignmentAreas AssignmentArea[] @relation("AssignmentAreaRubrics")
 
   @@index([userId, isActive])
   @@index([teacherId, isTemplate])
@@ -203,13 +212,13 @@ model Rubric {
 
 // 評分對話 - 一次評分請求可包含多個檔案
 model GradingSession {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  status    GradingSessionStatus @default(PENDING)
-  progress  Int      @default(0) // 整體進度 0-100
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status   GradingSessionStatus @default(PENDING)
+  progress Int                  @default(0) // 整體進度 0-100
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -222,32 +231,32 @@ model GradingSession {
 
 // 上傳的檔案記錄
 model UploadedFile {
-  id               String   @id @default(uuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  fileName         String   @db.VarChar(500)
-  originalFileName String   @db.VarChar(500)
-  fileKey          String   @unique // S3 key
+  fileName         String @db.VarChar(500)
+  originalFileName String @db.VarChar(500)
+  fileKey          String @unique // S3 key
   fileSize         Int
-  mimeType         String   @db.VarChar(100)
-  
+  mimeType         String @db.VarChar(100)
+
   // 檔案處理狀態
-  parseStatus      FileParseStatus @default(PENDING)
-  parsedContent    String?         @db.Text // 解析後的文字內容
-  parsedContentTokens Int?                  // Estimated token count (for cost control)
-  parseError       String?         // 解析錯誤訊息
-  
+  parseStatus         FileParseStatus @default(PENDING)
+  parsedContent       String?         @db.Text // 解析後的文字內容
+  parsedContentTokens Int? // Estimated token count (for cost control)
+  parseError          String? // 解析錯誤訊息
+
   // 軟刪除標記
-  isDeleted        Boolean  @default(false)
-  deletedAt        DateTime? // 刪除時間
-  
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  expiresAt        DateTime? // 檔案過期時間，用於自動清理
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime? // 刪除時間
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime? // 檔案過期時間，用於自動清理
 
   // Relations
-  gradingResults   GradingResult[]
+  gradingResults GradingResult[]
 
   @@index([userId, parseStatus])
   @@index([userId, isDeleted]) // 用於過濾已刪除檔案
@@ -257,65 +266,65 @@ model UploadedFile {
 
 // 評分結果 - 每個檔案對應一個評分標準的結果
 model GradingResult {
-  id                String   @id @default(uuid())
-  gradingSessionId  String
-  gradingSession    GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)
+  id               String         @id @default(uuid())
+  gradingSessionId String
+  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)
 
-  uploadedFileId    String
-  uploadedFile      UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)
+  uploadedFileId String
+  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)
 
-  rubricId          String
-  rubric            Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)
+  rubricId String
+  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)
 
   // AI Grading Context (Feature 004)
-  assignmentAreaId  String?
-  assignmentArea    AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)
+  assignmentAreaId String?
+  assignmentArea   AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)
 
   // 評分狀態和結果
-  status            GradingStatus @default(PENDING)
-  progress          Int      @default(0) // 此項評分進度 0-100
+  status   GradingStatus @default(PENDING)
+  progress Int           @default(0) // 此項評分進度 0-100
 
   // LLM評分結果 (JSON結構)
-  result            Json?    // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }
-  errorMessage      String?  // 評分失敗時的錯誤訊息
+  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }
+  errorMessage String? // 評分失敗時的錯誤訊息
 
   // AI Thinking Process (Feature 005: Thinking Models)
-  thoughtSummary    String?  @db.Text // AI 的思考過程摘要 (Deprecated)
-  thinkingProcess   String?  @db.Text // AI 的原始思考過程
-  gradingRationale  String?  @db.Text // AI 的正式評分推理
+  thoughtSummary   String? @db.Text // AI 的思考過程摘要 (Deprecated)
+  thinkingProcess  String? @db.Text // AI 的原始思考過程
+  gradingRationale String? @db.Text // AI 的正式評分推理
 
   // Context transparency (Feature 004)
-  usedContext       Json?    // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }
+  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }
 
   // 100 分制正規化分數
-  normalizedScore   Float?   // (totalScore / maxScore) * 100
+  normalizedScore Float? // (totalScore / maxScore) * 100
 
   // 評分原始數據
-  gradingModel      String?  @db.VarChar(100) // 使用的模型名稱
-  gradingTokens     Int?     // 消耗的tokens數量
-  gradingDuration   Int?     // 評分耗時(毫秒)
+  gradingModel    String? @db.VarChar(100) // 使用的模型名稱
+  gradingTokens   Int? // 消耗的tokens數量
+  gradingDuration Int? // 評分耗時(毫秒)
 
   // Agent-based grading fields (AI SDK 6)
-  agentSteps        Json?    // Agent 執行的所有步驟記錄
-  toolCalls         Json?    // 所有工具調用的詳細記錄
-  confidenceScore   Float?   // 0-1 信心度分數
-  requiresReview    Boolean  @default(false) // 是否需要人工審核
-  reviewedBy        String?  // 審核者 userId
-  reviewedAt        DateTime? // 審核時間
-  agentModel        String?  @db.VarChar(100) // Agent 使用的模型
-  agentExecutionTime Int?    // Agent 總執行時間(毫秒)
+  agentSteps         Json? // Agent 執行的所有步驟記錄
+  toolCalls          Json? // 所有工具調用的詳細記錄
+  confidenceScore    Float? // 0-1 信心度分數
+  requiresReview     Boolean   @default(false) // 是否需要人工審核
+  reviewedBy         String? // 審核者 userId
+  reviewedAt         DateTime? // 審核時間
+  agentModel         String?   @db.VarChar(100) // Agent 使用的模型
+  agentExecutionTime Int? // Agent 總執行時間(毫秒)
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  completedAt       DateTime? // 評分完成時間
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime? // 評分完成時間
 
   // Relations
-  agentLogs         AgentExecutionLog[]
+  agentLogs AgentExecutionLog[]
 
   @@index([gradingSessionId, status])
   @@index([uploadedFileId])
   @@index([rubricId])
-  @@index([assignmentAreaId])  // NEW: Index for JOIN performance
+  @@index([assignmentAreaId]) // NEW: Index for JOIN performance
   @@index([normalizedScore])
   @@index([requiresReview, createdAt]) // NEW: For review queue
   @@map("grading_results")
@@ -323,17 +332,17 @@ model GradingResult {
 
 // Agent執行記錄 - 詳細追蹤每個步驟
 model AgentExecutionLog {
-  id                String        @id @default(uuid())
-  gradingResultId   String
-  gradingResult     GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
+  id              String        @id @default(uuid())
+  gradingResultId String
+  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)
 
-  stepNumber        Int           // 步驟編號
-  toolName          String?       @db.VarChar(100) // 工具名稱（null = 純推理步驟）
-  toolInput         Json?         // 工具輸入參數
-  toolOutput        Json?         // 工具輸出結果
-  reasoning         String?       @db.Text // AI 的推理過程
-  durationMs        Int?          // 此步驟耗時
-  timestamp         DateTime      @default(now())
+  stepNumber Int // 步驟編號
+  toolName   String?  @db.VarChar(100) // 工具名稱（null = 純推理步驟）
+  toolInput  Json? // 工具輸入參數
+  toolOutput Json? // 工具輸出結果
+  reasoning  String?  @db.Text // AI 的推理過程
+  durationMs Int? // 此步驟耗時
+  timestamp  DateTime @default(now())
 
   @@index([gradingResultId, stepNumber])
   @@map("agent_execution_logs")
@@ -341,28 +350,28 @@ model AgentExecutionLog {
 
 // 評分會話狀態
 enum GradingSessionStatus {
-  PENDING     // 等待開始
-  PROCESSING  // 評分中
-  COMPLETED   // 全部完成
-  FAILED      // 失敗
-  CANCELLED   // 已取消
+  PENDING // 等待開始
+  PROCESSING // 評分中
+  COMPLETED // 全部完成
+  FAILED // 失敗
+  CANCELLED // 已取消
 }
 
 // 單項評分狀態
 enum GradingStatus {
-  PENDING     // 等待評分
-  PROCESSING  // 評分中
-  COMPLETED   // 評分完成
-  FAILED      // 評分失敗
-  SKIPPED     // 跳過(檔案解析失敗等)
+  PENDING // 等待評分
+  PROCESSING // 評分中
+  COMPLETED // 評分完成
+  FAILED // 評分失敗
+  SKIPPED // 跳過(檔案解析失敗等)
 }
 
 // 檔案解析狀態
 enum FileParseStatus {
-  PENDING     // 等待解析
-  PROCESSING  // 解析中
-  COMPLETED   // 解析完成
-  FAILED      // 解析失敗
+  PENDING // 等待解析
+  PROCESSING // 解析中
+  COMPLETED // 解析完成
+  FAILED // 解析失敗
 }
 
 // User roles
@@ -374,27 +383,27 @@ enum UserRole {
 
 // Submission status
 enum SubmissionStatus {
-  DRAFT       // File uploaded but not yet submitted
-  SUBMITTED   // Just submitted
-  ANALYZED    // AI analysis complete
-  GRADED      // Teacher has provided feedback/grade
+  DRAFT // File uploaded but not yet submitted
+  SUBMITTED // Just submitted
+  ANALYZED // AI analysis complete
+  GRADED // Teacher has provided feedback/grade
 }
 
 // Course enrollment for students
 model Enrollment {
-  id        String   @id @default(uuid())
+  id        String @id @default(uuid())
   studentId String
-  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   // Student enrolls in a specific class
-  classId   String
-  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId String
+  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)
 
   enrolledAt DateTime @default(now())
 
   // Optional: Track student performance in this enrollment
   finalGrade Float?
-  attendance Json?  // Attendance records
+  attendance Json? // Attendance records
 
   @@unique([studentId, classId])
   @@index([studentId])
@@ -404,21 +413,21 @@ model Enrollment {
 
 // Course invitation codes
 model InvitationCode {
-  id        String   @id @default(uuid())
-  code      String   @unique @db.VarChar(50)
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  id       String @id @default(uuid())
+  code     String @unique @db.VarChar(50)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   // Optional: Invitation code can be specific to a class
-  classId   String?
-  class     Class?   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classId String?
+  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   expiresAt DateTime
-  isUsed    Boolean  @default(false)
+  isUsed    Boolean   @default(false)
   usedAt    DateTime?
   usedById  String?
-  usedBy    User?    @relation("InvitationCodeUsage", fields: [usedById], references: [id])
+  usedBy    User?     @relation("InvitationCodeUsage", fields: [usedById], references: [id])
 
   @@index([code])
   @@index([courseId])
@@ -433,7 +442,7 @@ model Chat {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String?  @db.VarChar(100)
-  context   Json?    // {courseId, assignmentId, type}
+  context   Json? // {courseId, assignmentId, type}
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -450,7 +459,7 @@ model Msg {
   chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
   role    Role
   content String   @db.Text
-  data    Json?    // Generated rubric data, error info, etc
+  data    Json? // Generated rubric data, error info, etc
   time    DateTime @default(now())
 
   @@index([chatId])
@@ -477,7 +486,7 @@ model Notification {
   message      String           @db.Text
   isRead       Boolean          @default(false)
   readAt       DateTime?
-  data         Json?            // Additional notification data
+  data         Json? // Additional notification data
   createdAt    DateTime         @default(now())
 
   @@index([userId, isRead])
@@ -488,10 +497,10 @@ model Notification {
 }
 
 enum NotificationType {
-  ASSIGNMENT_CREATED     // New assignment published
-  ASSIGNMENT_DUE_SOON    // Assignment due in 24 hours
-  SUBMISSION_GRADED      // Teacher graded submission
-  COURSE_ANNOUNCEMENT    // General course announcement
+  ASSIGNMENT_CREATED // New assignment published
+  ASSIGNMENT_DUE_SOON // Assignment due in 24 hours
+  SUBMISSION_GRADED // Teacher graded submission
+  COURSE_ANNOUNCEMENT // General course announcement
 }
 
 // ============================================================================
@@ -499,30 +508,30 @@ enum NotificationType {
 // ============================================================================
 
 model AgentChatSession {
-  id              String   @id @default(uuid())
-  userId          String
-  user            User     @relation("UserAgentChatSessions", fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation("UserAgentChatSessions", fields: [userId], references: [id], onDelete: Cascade)
+
   // Session metadata
-  title           String?  @db.VarChar(255)
-  userRole        String   @db.VarChar(20)  // TEACHER | STUDENT | ADMIN
-  
+  title    String? @db.VarChar(255)
+  userRole String  @db.VarChar(20) // TEACHER | STUDENT | ADMIN
+
   // Performance tracking
-  totalTokens     Int      @default(0)
-  totalSteps      Int      @default(0)
-  totalDuration   Int      @default(0)  // milliseconds
-  
+  totalTokens   Int @default(0)
+  totalSteps    Int @default(0)
+  totalDuration Int @default(0) // milliseconds
+
   // Status
-  status          String   @default("ACTIVE")  // ACTIVE | COMPLETED | ERROR
-  lastActivity    DateTime @default(now())
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  status       String   @default("ACTIVE") // ACTIVE | COMPLETED | ERROR
+  lastActivity DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  messages        AgentChatMessage[]
-  stepLogs        AgentChatStepLog[]
-  
+  messages AgentChatMessage[]
+  stepLogs AgentChatStepLog[]
+
   @@index([userId, createdAt])
   @@index([status])
   @@index([userRole])
@@ -530,39 +539,38 @@ model AgentChatSession {
 }
 
 model AgentChatMessage {
-  id              String   @id @default(uuid())
-  sessionId       String
-  session         AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  
-  role            String   @db.VarChar(20)  // user | assistant | system
-  content         String   @db.Text
-  
+  id        String           @id @default(uuid())
+  sessionId String
+  session   AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  role    String @db.VarChar(20) // user | assistant | system
+  content String @db.Text
+
   // Token tracking (per message)
-  promptTokens    Int?
+  promptTokens     Int?
   completionTokens Int?
-  totalTokens     Int?
-  
-  timestamp       DateTime @default(now())
-  
+  totalTokens      Int?
+
+  timestamp DateTime @default(now())
+
   @@index([sessionId, timestamp])
   @@map("agent_chat_messages")
 }
 
 model AgentChatStepLog {
-  id              String   @id @default(uuid())
-  sessionId       String
-  session         AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  
-  stepNumber      Int
-  toolName        String?  @db.VarChar(100)
-  toolInput       Json?
-  toolOutput      Json?
-  reasoning       String?  @db.Text
-  
-  durationMs      Int?
-  timestamp       DateTime @default(now())
-  
+  id        String           @id @default(uuid())
+  sessionId String
+  session   AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  stepNumber Int
+  toolName   String? @db.VarChar(100)
+  toolInput  Json?
+  toolOutput Json?
+  reasoning  String? @db.Text
+
+  durationMs Int?
+  timestamp  DateTime @default(now())
+
   @@index([sessionId, stepNumber])
   @@map("agent_chat_step_logs")
 }
-

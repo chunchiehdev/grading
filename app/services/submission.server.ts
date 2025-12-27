@@ -114,6 +114,8 @@ export async function createSubmission(
 
 /**
  * Creates a submission and links it to an existing AI grading result.
+ * Supports version tracking: creates new versions instead of updating existing submissions
+ * Special handling: Converts DRAFT to SUBMITTED without incrementing version
  */
 export async function createSubmissionAndLinkGradingResult(
   studentId: string,
@@ -121,116 +123,178 @@ export async function createSubmissionAndLinkGradingResult(
   filePathOrId: string,
   sessionId: string
 ): Promise<{ submissionId: string }> {
-  // Check if submission already exists to prevent duplicates
-  const existingSubmission = await db.submission.findFirst({
-    where: {
-      studentId,
-      assignmentAreaId,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  // Import version management functions dynamically to avoid circular dependencies
+  const { getLatestSubmissionVersion, createNewSubmissionVersion } = await import('./version-management.server');
+
+  // Check for existing submissions (including DRAFT)
+  const existingLatestSubmission = await getLatestSubmissionVersion(assignmentAreaId, studentId);
 
   let submission: SubmissionInfo | null;
 
-  if (existingSubmission) {
-    // Check if resubmission is allowed
-    // Prevent resubmission if already graded (regardless of teacher feedback)
-    if (existingSubmission.status === 'GRADED') {
-      throw new Error('Cannot resubmit: Assignment has already been graded');
-    }
+  if (existingLatestSubmission) {
+    // SPECIAL CASE: If existing submission is DRAFT, convert it to SUBMITTED
+    // This ensures version 1 is the first actual submission, not a draft
+    if (existingLatestSubmission.status === 'DRAFT') {
+      logger.info(
+        `🔄 Converting DRAFT to SUBMITTED for student ${studentId}, assignment ${assignmentAreaId}`
+      );
 
-    // Allow resubmission - update existing submission with new file
-    logger.info(`🔄 Resubmitting: Updating existing submission ${existingSubmission.id} with new file`);
-
-    // Fetch assignmentArea with teacher info for notification
-    const assignmentArea = await db.assignmentArea.findUnique({
-      where: { id: assignmentAreaId },
-      include: {
-        course: {
-          include: {
-            teacher: {
-              select: {
-                id: true,
-                email: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!assignmentArea) {
-      throw new Error('Assignment area not found');
-    }
-
-    // Check if submission is past due date
-    if (assignmentArea.dueDate && new Date() > assignmentArea.dueDate) {
-      throw new Error('提交期限已過，無法再提交作業');
-    }
-
-    // Update filePath directly since updateSubmission doesn't support it
-    submission = await db.submission.update({
-      where: { id: existingSubmission.id },
-      data: {
-        filePath: filePathOrId,
-        finalScore: null,
-        teacherFeedback: null,
-        status: 'SUBMITTED',
-      },
-      include: {
-        assignmentArea: {
-          include: {
-            course: {
-              include: {
-                teacher: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                  },
+      // Fetch assignmentArea with teacher info for notification
+      const assignmentArea = await db.assignmentArea.findUnique({
+        where: { id: assignmentAreaId },
+        include: {
+          course: {
+            include: {
+              teacher: {
+                select: {
+                  id: true,
+                  email: true,
                 },
               },
             },
-            rubric: true,
           },
         },
-        student: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
+      });
 
-    logger.info(`  Resubmission successful: Updated submission ${submission!.id}`);
-
-    // Send submission notification to teacher via WebSocket (for resubmission)
-    try {
-      if (submission.student) {
-        await publishSubmissionCreatedNotification({
-          submissionId: submission.id,
-          assignmentId: submission.assignmentAreaId,
-          assignmentName: assignmentArea.name,
-          courseId: assignmentArea.courseId,
-          courseName: assignmentArea.course.name,
-          studentId: submission.studentId,
-          studentName: submission.student.name,
-          teacherId: assignmentArea.course.teacher.id, // Use teacher.id from independent query
-          submittedAt: submission.updatedAt, // Use updatedAt for resubmission
-        });
+      if (!assignmentArea) {
+        throw new Error('Assignment area not found');
       }
-    } catch (notificationError) {
-      console.error('⚠️ Failed to send resubmission notification:', notificationError);
-      // Don't fail the entire submission if notification fails
+
+      // Check if submission is past due date
+      if (assignmentArea.dueDate && new Date() > assignmentArea.dueDate) {
+        throw new Error('提交期限已過，無法再提交作業');
+      }
+
+      // Update the draft to SUBMITTED status
+      submission = await db.submission.update({
+        where: { id: existingLatestSubmission.id },
+        data: {
+          filePath: filePathOrId,
+          status: 'SUBMITTED',
+          uploadedAt: new Date(), // Update to current submission time
+        },
+        include: {
+          assignmentArea: {
+            include: {
+              course: {
+                include: {
+                  teacher: {
+                    select: {
+                      id: true,
+                      email: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+              rubric: true,
+            },
+          },
+          student: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              picture: true,
+            },
+          },
+        },
+      });
+
+      logger.info(`✅ Converted DRAFT to SUBMITTED (version ${submission.version}, ID: ${submission.id})`);
+
+      // Send submission notification to teacher
+      try {
+        if (submission.student) {
+          await publishSubmissionCreatedNotification({
+            submissionId: submission.id,
+            assignmentId: submission.assignmentAreaId,
+            assignmentName: assignmentArea.name,
+            courseId: assignmentArea.courseId,
+            courseName: assignmentArea.course.name,
+            studentId: submission.studentId,
+            studentName: submission.student.name,
+            teacherId: assignmentArea.course.teacher.id,
+            submittedAt: submission.uploadedAt,
+          });
+        }
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send submission notification:', notificationError);
+      }
+    }
+    // Existing submission is already SUBMITTED/ANALYZED - check if resubmission is allowed
+    else if (existingLatestSubmission.status === 'GRADED') {
+      throw new Error('Cannot resubmit: Assignment has already been graded');
+    }
+    // Regular resubmission - create new version
+    else {
+      // Fetch assignmentArea with teacher info for notification
+      const assignmentArea = await db.assignmentArea.findUnique({
+        where: { id: assignmentAreaId },
+        include: {
+          course: {
+            include: {
+              teacher: {
+                select: {
+                  id: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!assignmentArea) {
+        throw new Error('Assignment area not found');
+      }
+
+      // Check if submission is past due date
+      if (assignmentArea.dueDate && new Date() > assignmentArea.dueDate) {
+        throw new Error('提交期限已過，無法再提交作業');
+      }
+
+      // Create NEW VERSION instead of updating existing submission
+      logger.info(
+        `🔄 Resubmitting: Creating version ${existingLatestSubmission.version + 1} for assignment ${assignmentAreaId}`
+      );
+
+      submission = await createNewSubmissionVersion(
+        studentId,
+        assignmentAreaId,
+        filePathOrId,
+        existingLatestSubmission.id
+      );
+
+      logger.info(`✅ Created new submission version ${submission.version} (ID: ${submission.id})`);
+
+      // Send submission notification to teacher via WebSocket (for resubmission)
+      try {
+        if (submission.student) {
+          await publishSubmissionCreatedNotification({
+            submissionId: submission.id,
+            assignmentId: submission.assignmentAreaId,
+            assignmentName: assignmentArea.name,
+            courseId: assignmentArea.courseId,
+            courseName: assignmentArea.course.name,
+            studentId: submission.studentId,
+            studentName: submission.student.name,
+            teacherId: assignmentArea.course.teacher.id,
+            submittedAt: submission.uploadedAt,
+          });
+        }
+      } catch (notificationError) {
+        console.error('⚠️ Failed to send resubmission notification:', notificationError);
+        // Don't fail the entire submission if notification fails
+      }
     }
   } else {
+    // First-time submission - create version 1
     submission = await createSubmission(studentId, {
       assignmentAreaId,
       filePath: filePathOrId,
     });
-    logger.info(`  Created new submission ${submission.id}`);
+    logger.info(`✅ Created first submission version (ID: ${submission.id})`);
   }
 
   if (!submission) {
@@ -285,7 +349,7 @@ export async function createSubmissionAndLinkGradingResult(
         gradingRationale: gradingResult.gradingRationale ?? undefined, // Feature 012: Copy grading rationale
       });
 
-      logger.info(`  Successfully linked AI result to submission ${submission.id}`);
+      logger.info(`✅ Successfully linked AI result to submission ${submission.id}`);
     } else {
       logger.warn(
         `⚠️ Could not find a completed grading result for session ${sessionId} to link to submission ${submission.id}.`
@@ -395,6 +459,7 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
 
 /**
  * Lists submissions for an assignment area (teacher view)
+ * Only shows the latest version of each student's submission
  * @param assignmentId - Assignment area ID
  * @param teacherId - Teacher's user ID for authorization
  * @returns List of submissions with student info
@@ -416,7 +481,10 @@ export async function listSubmissionsByAssignment(assignmentId: string, teacherI
     }
 
     const submissions = await db.submission.findMany({
-      where: { assignmentAreaId: assignmentId },
+      where: {
+        assignmentAreaId: assignmentId,
+        isLatest: true, // Only show latest versions
+      },
       include: {
         student: {
           select: {
@@ -553,6 +621,7 @@ export async function getAssignmentAreaForSubmission(
 
 /**
  * Gets all submissions by a student
+ * Only returns the latest version of each submission
  * @param {string} studentId - The student's user ID
  * @returns {Promise<SubmissionInfo[]>} List of student's submissions
  */
@@ -562,6 +631,7 @@ export async function getStudentSubmissions(studentId: string): Promise<Submissi
       where: {
         studentId,
         status: { not: 'DRAFT' }, // Exclude draft submissions from dashboard
+        isLatest: true, // Only show latest versions
       },
       include: {
         assignmentArea: {
@@ -1059,6 +1129,8 @@ export async function getRecentSubmissionsForTeacher(teacherId: string, limit?: 
             teacherId: teacherId,
           },
         },
+        status: { not: 'DRAFT' }, // Exclude draft submissions - students haven't submitted yet
+        isLatest: true, // Only show latest versions
       },
       include: {
         student: {

@@ -26,6 +26,10 @@ export interface SubmissionInfo {
   assignmentAreaId: string;
   filePath: string;
   uploadedAt: Date;
+  // Version tracking fields
+  version: number;
+  isLatest: boolean;
+  previousVersionId: string | null;
   aiAnalysisResult: any | null;
   finalScore: number | null;
   normalizedScore: number | null;
