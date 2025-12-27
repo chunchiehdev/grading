@@ -36,6 +36,7 @@ model User {
   
   // Chat relations
   chats           Chat[]
+  agentChatSessions AgentChatSession[] @relation("UserAgentChatSessions")
 
   // Notification relations
   notifications   Notification[] @relation("UserNotifications")
@@ -234,6 +235,7 @@ model UploadedFile {
   // 檔案處理狀態
   parseStatus      FileParseStatus @default(PENDING)
   parsedContent    String?         @db.Text // 解析後的文字內容
+  parsedContentTokens Int?                  // Estimated token count (for cost control)
   parseError       String?         // 解析錯誤訊息
   
   // 軟刪除標記
@@ -490,5 +492,77 @@ enum NotificationType {
   ASSIGNMENT_DUE_SOON    // Assignment due in 24 hours
   SUBMISSION_GRADED      // Teacher graded submission
   COURSE_ANNOUNCEMENT    // General course announcement
+}
+
+// ============================================================================
+// ADMIN ANALYTICS: Agent Chat Session Tracking
+// ============================================================================
+
+model AgentChatSession {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation("UserAgentChatSessions", fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Session metadata
+  title           String?  @db.VarChar(255)
+  userRole        String   @db.VarChar(20)  // TEACHER | STUDENT | ADMIN
+  
+  // Performance tracking
+  totalTokens     Int      @default(0)
+  totalSteps      Int      @default(0)
+  totalDuration   Int      @default(0)  // milliseconds
+  
+  // Status
+  status          String   @default("ACTIVE")  // ACTIVE | COMPLETED | ERROR
+  lastActivity    DateTime @default(now())
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  messages        AgentChatMessage[]
+  stepLogs        AgentChatStepLog[]
+  
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([userRole])
+  @@map("agent_chat_sessions")
+}
+
+model AgentChatMessage {
+  id              String   @id @default(uuid())
+  sessionId       String
+  session         AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  role            String   @db.VarChar(20)  // user | assistant | system
+  content         String   @db.Text
+  
+  // Token tracking (per message)
+  promptTokens    Int?
+  completionTokens Int?
+  totalTokens     Int?
+  
+  timestamp       DateTime @default(now())
+  
+  @@index([sessionId, timestamp])
+  @@map("agent_chat_messages")
+}
+
+model AgentChatStepLog {
+  id              String   @id @default(uuid())
+  sessionId       String
+  session         AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  stepNumber      Int
+  toolName        String?  @db.VarChar(100)
+  toolInput       Json?
+  toolOutput      Json?
+  reasoning       String?  @db.Text
+  
+  durationMs      Int?
+  timestamp       DateTime @default(now())
+  
+  @@index([sessionId, stepNumber])
+  @@map("agent_chat_step_logs")
 }
 

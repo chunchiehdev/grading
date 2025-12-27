@@ -107,7 +107,17 @@
       "parsingTimeout": "Parsing is taking longer than expected. Please try again shortly.",
       "failedToStartGrading": "Failed to start grading",
       "noFileUploaded": "No file uploaded.",
-      "failedToSubmit": "Failed to submit"
-    }
+      "failedToSubmit": "Failed to submit assignment"
+    },
+    "assignmentDescription": "Assignment Description",
+    "assignmentDetails": "Assignment Details",
+    "dueDate": "Due Date",
+    "rubric": "Rubric",
+    "teacher": "Teacher",
+    "uploadWork": "Upload Assignment",
+    "overdue": "Overdue",
+    "awaitingSubmission": "Awaiting Submission for Analysis",
+    "awaitingDescription": "Once you upload your assignment, I will provide comprehensive feedback on structure and logic based on the grading rubric.",
+    "readyToAnalyze": "Ready to Analyze"
   }
 }

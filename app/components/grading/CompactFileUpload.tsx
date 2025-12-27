@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Upload, FileUp, Check, AlertCircle } from 'lucide-react';
+import { Upload, FileUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -25,7 +26,6 @@ export const CompactFileUpload = ({
 }: FileUploadProps) => {
   const { t } = useTranslation('grading');
   const [isDragging, setIsDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const {
     files: uploadedFiles,
@@ -61,17 +61,15 @@ export const CompactFileUpload = ({
 
   const handleFiles = useCallback(
     async (newFiles: File[]) => {
-      setError(null);
-
       if (newFiles.length > maxFiles) {
-        setError(t('grading:fileUpload.errors.tooManyFiles', { maxFiles }));
+        toast.error(t('grading:fileUpload.errors.tooManyFiles', { maxFiles }));
         return;
       }
 
       for (const file of newFiles) {
         const validationError = validateFile(file);
         if (validationError) {
-          setError(validationError);
+          toast.error(validationError);
           return;
         }
       }
@@ -79,10 +77,13 @@ export const CompactFileUpload = ({
       try {
         await uploadFiles(newFiles);
       } catch (err: any) {
-        setError(err?.message || t('grading:fileUpload.errors.uploadFailed'));
+        const errorMsg = err?.message || t('grading:fileUpload.errors.uploadFailed');
+        // Check if error message is an i18n key (starts with namespace)
+        const displayMsg = errorMsg.includes(':') ? t(errorMsg) : errorMsg;
+        toast.error(displayMsg);
       }
     },
-    [uploadFiles, maxFiles, validateFile]
+    [uploadFiles, maxFiles, validateFile, t]
   );
 
   const handleDrop = useCallback(
@@ -107,52 +108,45 @@ export const CompactFileUpload = ({
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-md">
-          <AlertCircle className="w-4 h-4 text-red-500" />
-          <span className="text-sm text-red-700">{error}</span>
-        </div>
-      )}
-
       <div
         onDragEnter={() => setIsDragging(true)}
         onDragOver={handleDrag}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         className={cn(
-          'border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center gap-4 transition-all duration-200',
-          isDragging ? 'border-primary bg-primary/5 scale-[1.02]' : 'border-border hover:border-primary',
-          isSuccess && 'border-blue-300 bg-muted',
-          hasError && 'border-red-300 bg-red-50'
+          'border-2 border-dashed p-8 flex flex-col items-center justify-center gap-4 transition-colors',
+          isDragging
+            ? 'border-[#D2691E] bg-[#D2691E]/5 dark:border-[#E87D3E]'
+            : isSuccess
+              ? 'border-[#2B2B2B] dark:border-gray-200'
+              : hasError
+                ? 'border-[#D2691E] dark:border-[#E87D3E]'
+                : 'border-[#2B2B2B] dark:border-gray-200'
         )}
       >
-        <div
-          className={cn(
-            'p-4 rounded-full transition-all duration-200',
-            isDragging ? 'bg-primary/10 text-primary scale-110' : 'bg-muted text-muted-foreground',
-            isSuccess && 'bg-blue-100 text-blue-600',
-            hasError && 'bg-red-100 text-red-600'
-          )}
-        >
-          {isSuccess ? <Check className="h-8 w-8" /> : <Upload className="h-8 w-8" />}
-        </div>
-
         {isSuccess ? (
           <div className="text-center">
-            <p className="text-lg font-medium text-blue-700">{currentFile.file.name}</p>
-            <p className="text-sm text-blue-600">
-              {formatFileSize(currentFile.file.size)} • {t('grading:fileUpload.status.uploadSuccess')}
+            <div className="mb-3 flex h-12 w-12 items-center justify-center border-2 border-[#2B2B2B] mx-auto dark:border-gray-200">
+              <span className="text-2xl">✓</span>
+            </div>
+            <p className="font-medium text-[#2B2B2B] dark:text-gray-100">{currentFile.file.name}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {formatFileSize(currentFile.file.size)} · {t('grading:fileUpload.status.uploadSuccess')}
             </p>
           </div>
         ) : (
           <>
+            <div className="flex h-12 w-12 items-center justify-center border-2 border-[#2B2B2B] dark:border-gray-200">
+              <Upload className="h-6 w-6 text-[#2B2B2B] dark:text-gray-200" />
+            </div>
+
             <div className="text-center">
-              <p className="text-lg font-medium">
+              <p className="font-medium text-[#2B2B2B] dark:text-gray-100">
                 {isDragging
                   ? t('grading:fileUpload.dragDrop.releaseToUpload')
                   : t('grading:fileUpload.dragDrop.dragFilesHere')}
               </p>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 {t('grading:fileUpload.supportedFormats', {
                   formats: acceptedFileTypes.join(', '),
                   maxSize: formatFileSize(maxFileSize),
@@ -171,9 +165,15 @@ export const CompactFileUpload = ({
                 e.target.value = '';
               }}
             />
-            <Button asChild variant="outline" size="lg" disabled={isUploading}>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              disabled={isUploading}
+              className="border-2 border-[#2B2B2B] dark:border-gray-200"
+            >
               <label htmlFor="file-upload" className="cursor-pointer">
-                <FileUp className="h-4 w-4 mr-2" />
+                <FileUp className="mr-2 h-4 w-4" />
                 {isUploading ? t('grading:fileUpload.status.uploading') : t('grading:fileUpload.actions.selectFiles')}
               </label>
             </Button>

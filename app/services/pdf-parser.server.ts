@@ -189,14 +189,38 @@ export async function triggerPdfParsing(
     // Await the long-running polling so we only return when complete
     const content = await pollForResult(taskId);
 
-    logger.info(`  PDF parsing completed for ${fileName}: ${content.length} characters`);
+    logger.info(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
     const sanitizedContent = content.replace(/\0/g, '');
+
+    // Estimate token count to prevent excessive costs
+    const { estimateTokens, checkTokenLimit } = await import('./token-counter.server');
+    const estimatedTokens = estimateTokens(sanitizedContent);
+    const tokenCheck = checkTokenLimit(estimatedTokens, `file-${fileId}`);
+
+    if (!tokenCheck.allowed) {
+      // Content too large - mark as failed
+      logger.error(`❌ Content exceeds token limit: ${tokenCheck.tokens}/${tokenCheck.limit}`);
+      
+      await db.uploadedFile.update({
+        where: { id: fileId },
+        data: {
+          parseStatus: FileParseStatus.FAILED,
+          parseError: `Content too large: ${tokenCheck.tokens.toLocaleString()} tokens (limit: ${tokenCheck.limit.toLocaleString()}). Please upload a smaller file.`,
+          parsedContentTokens: tokenCheck.tokens,
+        },
+      });
+      
+      throw new Error(tokenCheck.message || 'Content exceeds token limit');
+    }
+
+    logger.info(`📊 Token check passed: ${tokenCheck.tokens.toLocaleString()} tokens (${((tokenCheck.tokens / tokenCheck.limit) * 100).toFixed(1)}% of limit)`);
 
     await db.uploadedFile.update({
       where: { id: fileId },
       data: {
         parseStatus: FileParseStatus.COMPLETED,
         parsedContent: sanitizedContent,
+        parsedContentTokens: estimatedTokens,
       },
     });
   } catch (error) {

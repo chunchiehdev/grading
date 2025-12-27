@@ -111,6 +111,12 @@ export default [
   route('/api/admin/users', './api/admin/users.ts'),
   route('/api/admin/users/:userId', './api/admin/users/$userId.ts'),
   
+  // Admin Analytics API routes
+  route('/api/admin/analytics/overview', './api/admin/analytics/overview.ts'),
+  route('/api/admin/analytics/chat-sessions', './api/admin/analytics/chat-sessions.ts'),
+  route('/api/admin/analytics/grading-sessions', './api/admin/analytics/grading-sessions.ts'),
+  route('/api/admin/analytics/insights', './api/admin/analytics/insights.ts'),
+  
   // Auth API routes
   route('/api/auth/logout', './api/auth/logout.ts'),
   route('/api/auth/check', './api/auth/check.ts'),
@@ -154,8 +160,10 @@ export default [
   route('/health', './routes/health.tsx'),
 
   // Admin routes
+  route('/admin', './routes/admin.tsx'),
   route('/admin/queues', './routes/admin/queues.tsx'),
   route('/admin/users', './routes/admin/users.tsx'),
+  route('/admin/analytics', './routes/admin/analytics.tsx'),
 
   // 404 route
   route('*', './routes/_404.tsx'),

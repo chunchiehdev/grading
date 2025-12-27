@@ -2,7 +2,8 @@
  * Grading Platform Agent V3
  *
  * Uses Vercel AI SDK v6 ToolLoopAgent class (official stable pattern)
- * Simplified version focusing on database queries for grading platform
+ * Simplified version using Gemini 2.5 Flash for all operations
+ * Focuses on database queries and report generation for grading platform
  */
 
 import { ToolLoopAgent, stepCountIs, type ToolSet, generateText, generateObject } from 'ai';
@@ -34,38 +35,6 @@ const gemini = createGoogleGenerativeAI({ apiKey });
 
 /**
  * ============================================================================
- * RATE LIMIT TRACKING (Free Tier Aware)
- * ============================================================================
- */
-
-/**
- * Rate limit tracking for Free Tier
- * Free Tier limits:
- * - Gemini 2.5 Pro: 2 RPM (VERY LIMITED)
- * - Gemini 2.5 Flash: 10 RPM (more reasonable)
- * 
- * Strategy: Avoid Pro in Free tier, use Flash + better queries instead
- */
-interface RateLimitState {
-  requestsInCurrentMinute: number;
-  tokensInCurrentMinute: number;
-  lastMinuteResetTime: number;
-  proRequestsUsed: number; // Track Pro usage
-  flashRequestsUsed: number; // Track Flash usage
-  totalStepsExecuted: number;
-}
-
-const rateLimitState: RateLimitState = {
-  requestsInCurrentMinute: 0,
-  tokensInCurrentMinute: 0,
-  lastMinuteResetTime: Date.now(),
-  proRequestsUsed: 0,
-  flashRequestsUsed: 0,
-  totalStepsExecuted: 0,
-};
-
-/**
- * ============================================================================
  * STEP THINKING LOG (for UI transparency)
  * ============================================================================
  */
@@ -84,75 +53,6 @@ interface StepThinking {
 }
 
 const stepThinkingLog: Map<string, StepThinking[]> = new Map(); // sessionId -> steps
-
-/**
- * Check and update rate limit state
- * Returns true if we should use Pro, false if we should use Flash
- */
-function shouldUseProModel(): boolean {
-  const now = Date.now();
-  const minutePassed = now - rateLimitState.lastMinuteResetTime > 60000;
-
-  // Reset if minute passed
-  if (minutePassed) {
-    rateLimitState.requestsInCurrentMinute = 0;
-    rateLimitState.tokensInCurrentMinute = 0;
-    rateLimitState.lastMinuteResetTime = now;
-  }
-
-  // Free Tier: Pro = 2 RPM, Flash = 10 RPM
-  // Conservative: Stay well below limit
-  const proLimit = 1; // Only allow 1 Pro request per minute (half of limit)
-  const flashLimit = 8; // Stay below 10
-
-  const proAvailable = rateLimitState.proRequestsUsed < proLimit;
-  const flashAvailable = rateLimitState.requestsInCurrentMinute < flashLimit;
-
-  logger.debug('[Grading Agent V3] Rate Limit Check', {
-    minutesSinceReset: Math.round((now - rateLimitState.lastMinuteResetTime) / 1000),
-    requestsThisMinute: rateLimitState.requestsInCurrentMinute,
-    proRequestsUsed: rateLimitState.proRequestsUsed,
-    flashRequestsUsed: rateLimitState.flashRequestsUsed,
-    proAvailable,
-    flashAvailable,
-    recommendedModel: proAvailable && flashAvailable ? 'pro' : 'flash',
-  });
-
-  // Only use Pro if both are available
-  return proAvailable && flashAvailable;
-}
-
-/**
- * Get current rate limit status (for monitoring/debugging)
- * Useful for understanding usage patterns
- */
-export function getRateLimitStatus() {
-  const now = Date.now();
-  const minutesSinceReset = (now - rateLimitState.lastMinuteResetTime) / 1000;
-  const minutesPassed = Math.floor(minutesSinceReset / 60);
-
-  return {
-    timestamp: new Date().toISOString(),
-    rateLimitTier: 'FREE_TIER',
-    limits: {
-      'Gemini 2.5 Pro': { rpm: 2, currentMinuteUsed: rateLimitState.proRequestsUsed },
-      'Gemini 2.5 Flash': { rpm: 10, currentMinuteUsed: rateLimitState.flashRequestsUsed },
-    },
-    sessionStats: {
-      totalStepsExecuted: rateLimitState.totalStepsExecuted,
-      totalProRequests: rateLimitState.proRequestsUsed,
-      totalFlashRequests: rateLimitState.flashRequestsUsed,
-      totalRequests: rateLimitState.proRequestsUsed + rateLimitState.flashRequestsUsed,
-      lastMinuteResetTimeAgo: `${minutesPassed} minute(s) ago`,
-    },
-    currentMinute: {
-      requestsUsed: rateLimitState.requestsInCurrentMinute,
-      tokensUsed: rateLimitState.tokensInCurrentMinute,
-      flashCapacityPercent: Math.round((rateLimitState.flashRequestsUsed / 10) * 100),
-      proCapacityPercent: Math.round((rateLimitState.proRequestsUsed / 2) * 100),
-    },
-  };
-}
 
 /**
  * Query Type Enum (All) - synchronized with QueryType from database-query.server.ts
@@ -417,10 +317,10 @@ function createTeacherAgent(userId: string | undefined) {
     database_query: tool({
       description: `Query the grading system database to retrieve course and grading information.
 
-**⚠️ YOU ARE A TEACHER - Remember:**
-- You query YOUR COURSES and YOUR STUDENTS
-- NOT your own assignments/grades (you're not a student)
-- If user asks "my pending assignments", that's a student question - clarify your role
+      **YOU ARE A TEACHER - Remember:**
+      - You query YOUR COURSES and YOUR STUDENTS
+      - NOT your own assignments/grades (you're not a student)
+      - If user asks "my pending assignments", that's a student question - clarify your role
 
 **TEACHER-SPECIFIC QUERIES (READ-ONLY):**
 
@@ -816,162 +716,13 @@ User asks: "Show me student 'Junjie's progress":
     stopWhen: stepCountIs(15),
     callOptionsSchema: teacherCallOptionsSchema,
     prepareStep: async ({ stepNumber, steps, messages, model }) => {
-      rateLimitState.totalStepsExecuted = stepNumber;
-      rateLimitState.requestsInCurrentMinute++;
-
-      const stepInfo = {
+      logger.debug('[Grading Agent V3] Teacher prepareStep', {
         stepNumber,
         messageCount: messages.length,
         previousStepCount: steps.length,
-        rateLimitState: {
-          requestsThisMinute: rateLimitState.requestsInCurrentMinute,
-          proUsed: rateLimitState.proRequestsUsed,
-          flashUsed: rateLimitState.flashRequestsUsed,
-        },
-      };
+      });
 
-      logger.debug('[Grading Agent V3] Teacher prepareStep START', stepInfo);
-
-      // ============================================================================
-      // PHASE 1: Initial Query Phase (steps 0-2) - Always Flash (cheap queries)
-      // - Find student by querying teacher_courses and course_students
-      // - Allow agent to decide when to call tools
-      // ============================================================================
-      if (stepNumber <= 2) {
-        logger.info('[Grading Agent V3] Teacher Phase 1 (Initial Query)', {
-          stepNumber,
-          phase: 'finding_student',
-          modelUsed: 'flash',
-          reason: 'Simple database queries - Flash sufficient',
-        });
-
-        let enhancedSystem = buildTeacherSystemPrompt(userId);
-        enhancedSystem += `
-
-**PHASE 1 - FINDING STUDENT (Using efficient model):**
-Your goal in these first steps is to find the student the teacher is asking about.
-1. Query "teacher_courses" to get all courses
-2. For each course, query "course_students" to find the student by name
-3. Report the studentId when found
-
-Use ONLY database_query tool in this phase.`;
-
-        rateLimitState.flashRequestsUsed++;
-
-        logger.debug('[Grading Agent V3] Teacher Phase 1 returning', {
-          stepNumber,
-          modelSelected: 'gemini-2.5-flash',
-          toolsAllowed: ['database_query'],
-        });
-
-        return {
-          model: gemini('gemini-2.5-flash'), // Always Flash for queries
-          system: enhancedSystem,
-          activeTools: ['database_query'],
-        };
-      }
-
-      // ============================================================================
-      // PHASE 2: Analysis Phase (steps 3-5) - Always Flash (more queries)
-      // - Get detailed submission data
-      // - Still just reading from DB, no complex reasoning needed
-      // ============================================================================
-      if (stepNumber >= 3 && stepNumber <= 5) {
-        logger.info('[Grading Agent V3] Teacher Phase 2 (Analysis)', {
-          stepNumber,
-          phase: 'analyzing_data',
-          modelUsed: 'flash',
-          reason: 'Database queries for student data - Flash sufficient',
-        });
-
-        let enhancedSystem = buildTeacherSystemPrompt(userId);
-        enhancedSystem += `
-
-**PHASE 2 - ANALYZING STUDENT DATA (Using efficient queries):**
-You have already identified the student. Now analyze their performance:
-1. Query course details and assignments they're enrolled in
-2. Get their submission history
-3. Analyze their grades and progress
-
-Use efficient queries to gather all necessary data.`;
-
-        rateLimitState.flashRequestsUsed++;
-
-        logger.debug('[Grading Agent V3] Teacher Phase 2 returning', {
-          stepNumber,
-          modelSelected: 'gemini-2.5-flash',
-          toolsAllowed: ['database_query'],
-        });
-
-        return {
-          model: gemini('gemini-2.5-flash'), // Still Flash for more queries
-          system: enhancedSystem,
-          activeTools: ['database_query'],
-        };
-      }
-
-      // ============================================================================
-      // PHASE 3: Report Generation Phase (steps 6+)
-      // - Can use Pro IF rate limits allow, otherwise use Flash
-      // - This is where Pro would be most valuable
-      // ============================================================================
-      if (stepNumber >= 6) {
-        const useProModel = shouldUseProModel();
-
-        logger.info('[Grading Agent V3] Teacher Phase 3 (Report Generation)', {
-          stepNumber,
-          phase: 'generating_report',
-          modelRecommended: useProModel ? 'pro' : 'flash',
-          reason: useProModel
-            ? 'Complex analysis task + rate limit available'
-            : 'Rate limit approaching - falling back to Flash',
-          rateLimitStatus: {
-            proUsed: rateLimitState.proRequestsUsed,
-            flashUsed: rateLimitState.flashRequestsUsed,
-            requestsThisMinute: rateLimitState.requestsInCurrentMinute,
-          },
-        });
-
-        let enhancedSystem = buildTeacherSystemPrompt(userId);
-        enhancedSystem += `
-
-**PHASE 3 - GENERATING COMPREHENSIVE REPORT:**
-You have all the student data. Now generate a professional PDF report.
-Use the generate_report tool with the studentId you found.
-${
-          useProModel
-            ? 'This is a complex task - use advanced reasoning for comprehensive analysis.'
-            : 'Generate the report efficiently using available context.'
-        }`;
-
-        const selectedModel = useProModel ? gemini('gemini-2.5-pro') : gemini('gemini-2.5-flash');
-
-        if (useProModel) {
-          rateLimitState.proRequestsUsed++;
-        } else {
-          rateLimitState.flashRequestsUsed++;
-        }
-
-        logger.debug('[Grading Agent V3] Teacher Phase 3 returning', {
-          stepNumber,
-          modelSelected: useProModel ? 'gemini-2.5-pro' : 'gemini-2.5-flash',
-          toolsAllowed: ['database_query', 'generate_report'],
-          rateLimitStateAfter: {
-            proUsed: rateLimitState.proRequestsUsed,
-            flashUsed: rateLimitState.flashRequestsUsed,
-          },
-        });
-
-        return {
-          model: selectedModel,
-          system: enhancedSystem,
-          activeTools: ['database_query', 'generate_report'],
-        };
-      }
-
-      // ============================================================================
       // Context Management - Keep conversation within token limits
-      // ============================================================================
       if (messages.length > 25) {
         logger.info('[Grading Agent V3] Teacher pruning messages', {
           stepNumber,
@@ -988,8 +739,6 @@ ${
         };
       }
 
-      logger.debug('[Grading Agent V3] Teacher prepareStep END - no changes', stepInfo);
-      
       // Extract and log thinking from previous steps for UI display
       if (steps.length > 0) {
         const lastStep = steps[steps.length - 1];
@@ -1384,167 +1133,13 @@ To perform deep analysis (grades trends, submission speed, workload prediction):
     stopWhen: stepCountIs(15),
     callOptionsSchema: studentCallOptionsSchema,
     prepareStep: async ({ stepNumber, steps, messages, model }) => {
-      rateLimitState.totalStepsExecuted = stepNumber;
-      rateLimitState.requestsInCurrentMinute++;
-
-      const stepInfo = {
+      logger.debug('[Grading Agent V3] Student prepareStep', {
         stepNumber,
         messageCount: messages.length,
         previousStepCount: steps.length,
-        rateLimitState: {
-          requestsThisMinute: rateLimitState.requestsInCurrentMinute,
-          proUsed: rateLimitState.proRequestsUsed,
-          flashUsed: rateLimitState.flashRequestsUsed,
-        },
-      };
+      });
 
-      logger.debug('[Grading Agent V3] Student prepareStep START', stepInfo);
-
-      // ============================================================================
-      // PHASE 1: Data Gathering Phase (steps 0-2) - Always Flash (efficient queries)
-      // - Query courses, assignments, submissions
-      // - Allow agent freedom to call tools as needed
-      // ============================================================================
-      if (stepNumber <= 2) {
-        logger.info('[Grading Agent V3] Student Phase 1 (Data Gathering)', {
-          stepNumber,
-          phase: 'gathering_data',
-          modelUsed: 'flash',
-          reason: 'Simple database queries - Flash efficient and fast',
-        });
-
-        let enhancedSystem = buildStudentSystemPrompt(userId);
-        enhancedSystem += `
-
-**PHASE 1 - GATHERING YOUR DATA (Using efficient queries):**
-Start by collecting your learning information:
-1. Query your enrolled courses
-2. Get your assignments and submissions
-3. Check pending work and grades
-
-This phase focuses on data collection using database queries only.`;
-
-        rateLimitState.flashRequestsUsed++;
-
-        logger.debug('[Grading Agent V3] Student Phase 1 returning', {
-          stepNumber,
-          modelSelected: 'gemini-2.5-flash',
-          toolsAllowed: ['database_query'],
-        });
-
-        return {
-          model: gemini('gemini-2.5-flash'),
-          system: enhancedSystem,
-          activeTools: ['database_query'],
-        };
-      }
-
-      // ============================================================================
-      // PHASE 2: Analysis Phase (steps 3-6) - Always Flash (deep queries)
-      // - Get detailed submission analysis
-      // - Query my_submission_detail for specific submissions
-      // ============================================================================
-      if (stepNumber >= 3 && stepNumber <= 6) {
-        logger.info('[Grading Agent V3] Student Phase 2 (Deep Analysis)', {
-          stepNumber,
-          phase: 'analyzing_submissions',
-          modelUsed: 'flash',
-          reason: 'Detailed queries - Flash sufficient for data retrieval',
-        });
-
-        let enhancedSystem = buildStudentSystemPrompt(userId);
-        enhancedSystem += `
-
-**PHASE 2 - ANALYZING YOUR PERFORMANCE (Using efficient queries):**
-Now perform deep analysis on your data:
-1. Get detailed information about key submissions using "my_submission_detail"
-2. Analyze grade trends across courses
-3. Identify patterns in your performance
-
-Continue using database_query for detailed analysis.`;
-
-        rateLimitState.flashRequestsUsed++;
-
-        logger.debug('[Grading Agent V3] Student Phase 2 returning', {
-          stepNumber,
-          modelSelected: 'gemini-2.5-flash',
-          toolsAllowed: ['database_query'],
-        });
-
-        return {
-          model: gemini('gemini-2.5-flash'),
-          system: enhancedSystem,
-          activeTools: ['database_query'],
-        };
-      }
-
-      // ============================================================================
-      // PHASE 3: Report Generation Phase (steps 7+)
-      // - Can use Pro IF rate limits allow, otherwise use Flash
-      // - This is where advanced analysis would help most
-      // ============================================================================
-      if (stepNumber >= 7) {
-        const useProModel = shouldUseProModel();
-
-        logger.info('[Grading Agent V3] Student Phase 3 (Report Generation)', {
-          stepNumber,
-          phase: 'generating_report',
-          modelRecommended: useProModel ? 'pro' : 'flash',
-          reason: useProModel
-            ? 'Complex PDF generation + rate limit available'
-            : 'Rate limit approaching - falling back to Flash',
-          rateLimitStatus: {
-            proUsed: rateLimitState.proRequestsUsed,
-            flashUsed: rateLimitState.flashRequestsUsed,
-            requestsThisMinute: rateLimitState.requestsInCurrentMinute,
-          },
-        });
-
-        let enhancedSystem = buildStudentSystemPrompt(userId);
-        enhancedSystem += `
-
-**PHASE 3 - GENERATING YOUR REPORT:**
-You have gathered and analyzed all data. Now generate your comprehensive learning report.
-Use the generate_report tool to create a professional PDF with:
-- Your complete course overview
-- Grade analysis and trends
-- Performance insights
-- Recommendations for improvement
-
-${
-          useProModel
-            ? 'This is a complex task - use advanced reasoning for comprehensive insights.'
-            : 'Generate the report efficiently using your gathered data.'
-        }`;
-
-        const selectedModel = useProModel ? gemini('gemini-2.5-pro') : gemini('gemini-2.5-flash');
-
-        if (useProModel) {
-          rateLimitState.proRequestsUsed++;
-        } else {
-          rateLimitState.flashRequestsUsed++;
-        }
-
-        logger.debug('[Grading Agent V3] Student Phase 3 returning', {
-          stepNumber,
-          modelSelected: useProModel ? 'gemini-2.5-pro' : 'gemini-2.5-flash',
-          toolsAllowed: ['database_query', 'generate_report'],
-          rateLimitStateAfter: {
-            proUsed: rateLimitState.proRequestsUsed,
-            flashUsed: rateLimitState.flashRequestsUsed,
-          },
-        });
-
-        return {
-          model: selectedModel,
-          system: enhancedSystem,
-          activeTools: ['database_query', 'generate_report'],
-        };
-      }
-
-      // ============================================================================
       // Context Management - Keep conversation within token limits
-      // ============================================================================
       if (messages.length > 25) {
         logger.info('[Grading Agent V3] Student pruning messages', {
           stepNumber,
@@ -1561,8 +1156,6 @@ ${
         };
       }
 
-      logger.debug('[Grading Agent V3] Student prepareStep END - no changes', stepInfo);
-      
       // Extract and log thinking from previous steps for UI display
       if (steps.length > 0) {
         const lastStep = steps[steps.length - 1];
@@ -1591,12 +1184,6 @@ function createGradingAgent(userRole: 'TEACHER' | 'STUDENT', userId: string | un
   }
   return createStudentAgent(userId);
 }
-
-/**
- * ============================================================================
- * MAIN EXPORT
- * ============================================================================
- */
 
 /**
  * Stream the agent response with ToolLoopAgent

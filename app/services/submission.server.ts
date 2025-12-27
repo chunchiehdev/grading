@@ -485,6 +485,7 @@ export async function getAssignmentAreaForSubmission(
             id: true,
             name: true,
             description: true,
+            criteria: true, // Include full grading criteria for student view
           },
         },
         ...(includeSubmissions && studentId

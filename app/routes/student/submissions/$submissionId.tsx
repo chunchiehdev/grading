@@ -2,7 +2,6 @@ import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionById } from '@/services/submission.server';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';

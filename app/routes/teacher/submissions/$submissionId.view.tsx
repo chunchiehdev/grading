@@ -156,7 +156,7 @@ export default function TeacherSubmissionView() {
         {/* Left: PDF Viewer */}
         {/* Mobile: full width, Desktop: 70% */}
         <div 
-          className="w-full lg:w-[50%] border-r-0 lg:border-r overflow-hidden flex flex-col h-[50vh] lg:h-auto bg-muted/10"
+          className="w-full lg:w-[50%] border-r-0 lg:border-r overflow-hidden flex flex-col h-[50vh] lg:h-auto bg-muted/10 hide-scrollbar"
         >
           {submission.grading.filePath ? (
             <ClientOnly
@@ -184,7 +184,7 @@ export default function TeacherSubmissionView() {
         {/* Right: Grading Sidebar */}
         {/* Mobile: full width, Desktop: 30% */}
         <aside 
-          className="w-full lg:w-[50%] overflow-y-auto flex-1 lg:flex-initial bg-background"
+          className="w-full lg:w-[50%] overflow-y-auto flex-1 lg:flex-initial bg-background hide-scrollbar"
         >
           <div className="p-6 space-y-6">
             {/* AI Analysis Details */}

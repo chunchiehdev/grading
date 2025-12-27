@@ -174,11 +174,21 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
         await triggerPdfParsing(uploadedFile.id, fileKey, originalFileName || file.name, userId);
       } catch (error) {
         // triggerPdfParsing already updated DB status to FAILED. Return failure to client.
+        const errorMessage = error instanceof Error ? error.message : '解析過程發生錯誤';
+        
+        // Check if it's a token limit error
+        const isTokenLimitError = errorMessage.includes('token') && errorMessage.includes('limit');
+        
         return {
           success: false,
-          error: error instanceof Error ? error.message : '解析過程發生錯誤',
-          errorType: 'network',
-          retryable: true,
+          // Return i18n key for frontend to translate
+          error: isTokenLimitError 
+            ? 'grading:fileUpload.errors.tokenLimitExceeded'
+            : errorMessage.includes('Content too large')
+            ? 'grading:fileUpload.errors.tokenLimitExceeded'
+            : errorMessage,
+          errorType: isTokenLimitError ? 'quota' : 'network',
+          retryable: !isTokenLimitError, // Token limit errors are not retryable
         };
       }
     } else {

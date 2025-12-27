@@ -109,6 +109,16 @@
       "failedToStartGrading": "無法開始批改",
       "noFileUploaded": "沒有上傳檔案。",
       "failedToSubmit": "提交失敗"
-    }
+    },
+    "assignmentDescription": "作業說明",
+    "assignmentDetails": "作業資訊",
+    "dueDate": "截止日期",
+    "rubric": "評分標準",
+    "teacher": "授課教師",
+    "uploadWork": "上傳作業",
+    "overdue": "已逾期",
+    "awaitingSubmission": "等待提交以進行分析",
+    "awaitingDescription": "上傳您的作業後，我將根據評分標準提供結構與邏輯的完整回饋。",
+    "readyToAnalyze": "準備進行分析"
   }
 }

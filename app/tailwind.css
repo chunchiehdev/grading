@@ -303,6 +303,16 @@
     overscroll-behavior: contain;
   }
 
+  /* Hide scrollbar but preserve scroll functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari, Opera */
+  }
+
   /* PDF Text Highlighting Styles */
   .pdf-highlight {
     transition: background-color 0.3s ease;

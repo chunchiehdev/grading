@@ -29,8 +29,8 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
   const submission = actualSubmissions.find((sub) => sub.studentId === student.id);
 
   return (
-    <Link to={`/student/assignments/${assignment.id}/submit`} className="block group">
-      <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
+    <Link to={`/student/assignments/${assignment.id}/submit`} className="block group min-w-0">
+      <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200 min-w-0">
         {/* Header*/}
         <CardHeader className="p-4 sm:p-6 min-h-[140px] flex flex-col justify-start">
           <div className="flex justify-between items-start gap-2">
@@ -72,15 +72,15 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
                 <span className="text-xs sm:text-sm text-muted-foreground">/ 100</span>
               </div>
             ) : hasSubmission ? (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2">
-                <span className="text-base sm:text-lg font-semibold text-blue-600 dark:text-blue-400">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2 min-w-0">
+                <span className="text-base sm:text-lg font-semibold text-blue-600 dark:text-blue-400 truncate min-w-0">
                   {t('assignmentCard.submitted')}
                 </span>
-                <span className="text-xs sm:text-sm text-muted-foreground">{t('assignmentCard.awaitingGrading')}</span>
+                <span className="text-xs sm:text-sm text-muted-foreground truncate min-w-0">{t('assignmentCard.awaitingGrading')}</span>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm text-muted-foreground">{formatDueDate(assignment.dueDate)}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs sm:text-sm text-muted-foreground truncate min-w-0">{formatDueDate(assignment.dueDate)}</span>
               </div>
             )}
           </div>
@@ -103,18 +103,6 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
                 {t('assignmentCard.rubric')}: {assignment.rubric.name}
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Due Date / Action - 固定高度區域 */}
-        <div className="mx-2 mb-2 px-3 sm:px-4 py-2 sm:py-3 bg-muted rounded-lg">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2 text-xs sm:text-sm">
-            <span className="text-muted-foreground truncate">
-              {assignment.dueDate ? formatDueDate(assignment.dueDate) : t('assignmentCard.noDueDate')}
-            </span>
-            <span className="text-primary font-medium whitespace-nowrap">
-              {!hasSubmission ? t('assignmentCard.submit') : t('assignmentCard.viewSubmission')}
-            </span>
           </div>
         </div>
       </Card>

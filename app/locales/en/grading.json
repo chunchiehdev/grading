@@ -102,6 +102,7 @@
   },
   "ai": {
     "analyzing": "AI is analyzing assignment content...",
+    "analyzingDescription": "AI is carefully analyzing your assignment, please wait...",
     "grading": "AI is grading based on rubric criteria...",
     "generating": "AI is generating grading feedback...",
     "error": "Error occurred during AI grading",
@@ -162,7 +163,8 @@
       "fileSizeExceeded": "File {{fileName}} exceeds size limit {{maxSize}}",
       "unsupportedFileType": "Unsupported file type: {{fileExt}}",
       "tooManyFiles": "Maximum {{maxFiles}} files allowed",
-      "uploadFailed": "Upload failed"
+      "uploadFailed": "Upload failed",
+      "tokenLimitExceeded": "Content too long and exceeds processing limits. Please upload a smaller file or reduce content."
     }
   },
   "emptyGradingState": {

@@ -87,6 +87,7 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
     onSuccess: (uploadResponse) => {
       const { results } = (uploadResponse?.data ?? uploadResponse) || {};
       const successfulFiles: UploadedFileResult[] = [];
+      const failedFiles: { fileName: string; error: string }[] = [];
 
       // Process each upload result with safety checks
       if (Array.isArray(results)) {
@@ -102,16 +103,23 @@ export function useFileUpload({ onUploadComplete }: { onUploadComplete?: (files:
               error: result.error,
               progress: 0,
             });
+            failedFiles.push({
+              fileName: result.fileName,
+              error: result.error || 'Upload failed',
+            });
           }
         });
       }
 
-      // Only notify if all files in this batch succeeded to align with parent expectations
-      if (onUploadComplete && Array.isArray(results) && results.length > 0) {
-        const allSucceeded = results.every((r: UploadedFileResult) => !!r && r.success === true);
-        if (allSucceeded) {
-          onUploadComplete(successfulFiles);
-        }
+      // If any files failed, throw error to trigger onError handler
+      if (failedFiles.length > 0) {
+        const errorMessage = failedFiles.map(f => `${f.error}`).join('\n');
+        throw new Error(errorMessage);
+      }
+
+      // Only notify if all files succeeded
+      if (onUploadComplete && successfulFiles.length > 0) {
+        onUploadComplete(successfulFiles);
       }
     },
   });

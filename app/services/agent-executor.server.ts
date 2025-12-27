@@ -702,8 +702,36 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     let finalResult: any = null;
     let confidenceData: any = null;
     let currentThinking = '';
+    
+    // Token tracking
+    let totalPromptTokens = 0;
+    let totalCompletionTokens = 0;
+    let totalTokens = 0;
 
     for await (const part of stream.fullStream) {
+      // 0. Handle Token Usage - check all event types that might carry usage
+      if ('usage' in part && part.usage) {
+        const usage = part.usage as any;
+        const stepTokens = usage.totalTokens || 0;
+        
+        totalPromptTokens += usage.promptTokens || 0;
+        totalCompletionTokens += usage.completionTokens || 0;
+        totalTokens += stepTokens;
+        
+        // Determine which step this belongs to (from most recent tool call)
+        const currentStep = steps.length > 0 ? steps[steps.length - 1] : null;
+        const toolName = currentStep?.toolName || 'unknown';
+        
+        logger.info(`[Agent] 📊 Step ${steps.length} Token Usage (${toolName})`, {
+          stepNumber: steps.length,
+          toolName,
+          promptTokens: usage.promptTokens,
+          completionTokens: usage.completionTokens,
+          stepTotal: stepTokens,
+          cumulativeTotal: totalTokens,
+        });
+      }
+    
       // 1. Handle Text (Thinking)
       if (part.type === 'text-delta') {
         const text = part.text;
@@ -820,6 +848,11 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       totalSteps: steps.length,
       totalScore: finalResult?.totalScore,
       maxScore: finalResult?.maxScore,
+      tokenUsage: {
+        promptTokens: totalPromptTokens,
+        completionTokens: totalCompletionTokens,
+        total: totalTokens,
+      },
       executionTimeMs,
     });
 
@@ -840,7 +873,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       steps,
       confidenceScore: confidenceData?.confidenceScore ?? 0.8,
       requiresReview: confidenceData?.shouldReview ?? false,
-      totalTokens: 0,
+      totalTokens,  // Use tracked value instead of 0
       executionTimeMs,
     };
   } catch (error) {

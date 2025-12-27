@@ -158,6 +158,14 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
                     {safeT('settings', 'Settings')}
                   </Link>
                 </DropdownMenuItem>
+                {user.role === 'ADMIN' && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin" className="cursor-pointer">
+                      <UserIcon className="w-4 h-4 mr-2" />
+                      Admin Center
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 {versionInfo && (
                   <>
@@ -241,6 +249,14 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
                     {safeT('settings', 'Settings')}
                   </Link>
                 </DropdownMenuItem>
+                {user.role === 'ADMIN' && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/admin" className="cursor-pointer">
+                      <UserIcon className="w-4 h-4 mr-2" />
+                      Admin Center
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 {versionInfo && (
                   <>

@@ -15,6 +15,7 @@ import { useGSAP } from '@gsap/react';
 import { useUploadStore } from '@/stores/uploadStore';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
+import { dbCriteriaToUICategories, calculateRubricStats } from '@/utils/rubric-transform';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -581,13 +582,6 @@ export default function SubmitAssignment() {
     clearFiles();
   };
 
-  // Simplified upload component without Card wrapper
-  const renderUploadPhase = () => (
-    <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-6 border border-primary/20">
-      <CompactFileUpload maxFiles={1} onUploadComplete={handleFileUpload} />
-    </div>
-  );
-
   // Compute current submission status for clear state identification
   const getSubmissionStatus = () => {
     return {
@@ -605,106 +599,373 @@ export default function SubmitAssignment() {
     };
   };
 
-  const renderActions = () => {
-    if (state.phase === 'upload') return null;
-
-    const status = getSubmissionStatus();
-
-    // 根據六種情況決定按鈕樣式和文字
-    // 情況一：未上傳 -> 不顯示按鈕（phase === 'upload'）
-    // 情況二：已上傳，未評分 -> 顯示「AI 評分分析」
-    // 情況三：已上傳，已評分，未提交 -> 顯示「提交作業」+ 「重新評分」
-    // 情況四：已提交（查看模式）-> 顯示「重新評分」（灰色）+ 「重新選擇檔案」
-    // 情況五：已提交，想重選檔案 -> 由「重新選擇檔案」按鈕觸發重置
-    // 情況六：已提交，想重新評分 -> 由「AI 評分分析」按鈕觸發
-
-    return (
-      <div className="space-y-3">
-        {/* Direct Grading Switch */}
-        {(state.phase === 'analyze' || state.phase === 'submit') && !state.loading && (
-          <div className="flex items-center space-x-2 mb-2 p-2 bg-muted/30 rounded-md">
-            <Switch
-              id="direct-grading-mode"
-              checked={useDirectGrading}
-              onCheckedChange={setUseDirectGrading}
-            />
-            <Label htmlFor="direct-grading-mode" className="text-sm font-medium cursor-pointer">
-              {t('grading:directGradingMode', 'Direct Grading Mode (Faster)')}
-            </Label>
-          </div>
-        )}
-
-        {/* Primary Action: AI Analysis or Re-analysis */}
-        {(state.phase === 'analyze' || state.phase === 'submit') && (
-          <Button
-            onClick={startAnalysis}
-            disabled={state.loading}
-            variant={status.isSubmitted && !status.hasNewAnalysis ? "outline" : "default"}
-            className="w-full font-semibold py-3"
-          >
-            {state.loading
-              ? t('grading:ai.analyzing')
-              : status.isSubmitted && !status.hasNewAnalysis
-                ? t('assignment:submit.regrade') // 情況四、六：已提交，顯示「重新評分」
-                : t('assignment:submit.analyzeWithAI') // 情況二、三：顯示「AI 評分分析」
-            }
-          </Button>
-        )}
-
-        {/* Submit Assignment - Only show when there's new analysis that hasn't been submitted */}
-        {state.phase === 'submit' && status.hasAnalysis && status.hasNewAnalysis && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="block w-full">
-                  <Button
-                    onClick={submitFinal}
-                    disabled={state.loading || status.isOverdue}
-                    variant="emphasis"
-                    className="w-full font-semibold py-3"
-                  >
-                    {status.isOverdue ? t('assignment:submit.overdueCannotSubmit') : t('assignment:submit.submitAssignment')}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              {status.isOverdue && (
-                <TooltipContent>
-                  <p>{t('assignment:submit.overdueTooltip')}</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
-        {/* Secondary Actions */}
-        <Button variant="outline" onClick={handleResetFile} className="w-full text-sm">
-          {t('assignment:submit.reselectFile')}
-        </Button>
-      </div>
-    );
-  };
-
   return (
-    <div ref={containerRef} className="bg-background">
-      {/* Header */}
-      <div ref={headerRef} className="border-b bg-background ">
-        <div className="px-6 md:px-8 lg:px-10 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold">{assignment.name}</h1>
-              <p className="text-muted-foreground mt-1">
-                {assignment.course.name} • {assignment.course.teacher.email}
-              </p>
+    <div ref={containerRef} className="fixed inset-0 top-[60px] flex flex-col">
+      {/* Main Content: Split Panel Layout */}
+      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
+        {/* Left Column: Assignment Cards - Scrollable */}
+        <div ref={leftPanelRef} className="w-full lg:w-1/2 overflow-y-auto border-r-0 lg:border-r hide-scrollbar">
+          <div className="space-y-8 p-4 sm:px-6 lg:px-8 py-8">
+            {/* Assignment Header Card */}
+            <div className="group relative border-2 border-[#2B2B2B] p-6 transition-all hover:shadow-md dark:border-gray-200">
+              <div className="pointer-events-none absolute inset-0 border-2 border-[#2B2B2B]/20 dark:border-gray-200/20" />
+              <div className="relative">
+                <h1 className="mb-3 font-serif text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100">
+                  {assignment.name}
+                </h1>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <span>{assignment.course.name}</span>
+                  <span>·</span>
+                  <span>{t('assignment:submit.teacher', '授課教師')}:</span>
+                  <span>{assignment.course.teacher.name || assignment.course.teacher.email}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Assignment Description Card */}
+            {assignment.description && (
+              <div className="group relative border-2 border-[#2B2B2B] p-6 transition-all hover:shadow-md dark:border-gray-200">
+                <div className="pointer-events-none absolute inset-0 border-2 border-[#2B2B2B]/20 dark:border-gray-200/20" />
+                <div className="relative">
+                  <h2 className="mb-4 font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
+                    {t('assignment:submit.assignmentDescription', '作業說明')}
+                  </h2>
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{assignment.description}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Assignment Details Card */}
+            <div className="group relative border-2 border-[#2B2B2B] p-6 transition-all hover:shadow-md dark:border-gray-200">
+              <div className="pointer-events-none absolute inset-0 border-2 border-[#2B2B2B]/20 dark:border-gray-200/20" />
+              <div className="relative">
+                <h2 className="mb-4 font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
+                  {t('assignment:submit.assignmentDetails', '作業資訊')}
+                </h2>
+                <div className="space-y-4">
+                  {/* Due Date */}
+                  {assignment.dueDate && (
+                    <div className="flex items-start gap-3">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        {t('assignment:submit.dueDate', '截止日期')}:
+                      </span>
+                      <span
+                        className={`text-sm ${
+                          isOverdue
+                            ? 'font-medium text-[#D2691E] dark:text-[#E87D3E]'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {new Date(assignment.dueDate).toLocaleString('zh-TW', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                        {isOverdue && ` (${t('assignment:submit.overdue', '已逾期')})`}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Rubric - Redesigned with Better UX */}
+                  {assignment.rubric && (() => {
+                    // Parse and transform criteria to categories
+                    let categories: any[] = [];
+                    try {
+                      let criteria: any[] = [];
+                      if (typeof assignment.rubric.criteria === 'string') {
+                        criteria = JSON.parse(assignment.rubric.criteria);
+                      } else if (Array.isArray(assignment.rubric.criteria)) {
+                        criteria = assignment.rubric.criteria as any[];
+                      }
+                      
+                      categories = dbCriteriaToUICategories(criteria);
+                    } catch (error) {
+                      console.error('Failed to parse rubric criteria:', error);
+                    }
+
+                    const stats = categories.length > 0 ? calculateRubricStats(categories) : { maxScore: 0 };
+                    const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(
+                      new Set() // All collapsed by default
+                    );
+
+                    const toggleCategory = (categoryId: string) => {
+                      setExpandedCategories(prev => {
+                        const next = new Set(prev);
+                        if (next.has(categoryId)) {
+                          next.delete(categoryId);
+                        } else {
+                          next.add(categoryId);
+                        }
+                        return next;
+                      });
+                    };
+
+                    return (
+                      <div className="space-y-4">
+                        {/* Rubric Header */}
+                        <div className="border-2 border-[#2B2B2B] p-4 dark:border-gray-200">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="h-2 w-2 rotate-45 border border-[#E07A5F] dark:border-[#E87D3E]" />
+                                <h3 className="font-serif text-base font-light text-[#2B2B2B] dark:text-gray-100">
+                                  {assignment.rubric.name}
+                                </h3>
+                              </div>
+                              {assignment.rubric.description && (
+                                <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                                  {assignment.rubric.description}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex-shrink-0 border-2 border-[#E07A5F] px-4 py-2 dark:border-[#E87D3E]">
+                              <div className="text-center">
+                                <div className="font-serif text-2xl font-light text-[#E07A5F] dark:text-[#E87D3E]">
+                                  {stats.maxScore}
+                                </div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">總分</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Categories */}
+                        {categories.length > 0 ? (
+                          <div className="space-y-3">
+                            {categories.map((category: any, categoryIndex: number) => {
+                              const isExpanded = expandedCategories.has(category.id);
+                              const categoryScore = category.criteria.length * 4;
+
+                              return (
+                                <div
+                                  key={category.id}
+                                  className="group border-2 border-[#2B2B2B] transition-all hover:shadow-sm dark:border-gray-200"
+                                >
+                                  {/* Category Header - Clickable */}
+                                  <button
+                                    onClick={() => toggleCategory(category.id)}
+                                    className="w-full border-b-2 border-[#2B2B2B] bg-[#FAF9F6] p-4 text-left transition-colors hover:bg-[#F5F3EE] dark:border-gray-200 dark:bg-gray-900/30 dark:hover:bg-gray-900/50"
+                                  >
+                                    <div className="flex items-center justify-between gap-4">
+                                      <div className="flex items-center gap-3">
+                                        {/* Expand/Collapse Icon */}
+                                        <div className="flex-shrink-0">
+                                          <svg
+                                            className={`h-4 w-4 text-[#2B2B2B] transition-transform dark:text-gray-200 ${
+                                              isExpanded ? 'rotate-90' : ''
+                                            }`}
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                          </svg>
+                                        </div>
+                                        
+                                        {/* Category Number Badge */}
+                                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center border-2 border-[#2B2B2B] dark:border-gray-200">
+                                          <span className="font-serif text-sm text-[#2B2B2B] dark:text-gray-200">
+                                            {categoryIndex + 1}
+                                          </span>
+                                        </div>
+                                        
+                                        {/* Category Name */}
+                                        <h4 className="font-serif text-base font-light text-[#2B2B2B] dark:text-gray-100">
+                                          {category.name}
+                                        </h4>
+                                      </div>
+                                      
+                                      {/* Category Score */}
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500 dark:text-gray-500">
+                                          {category.criteria.length} 項標準
+                                        </span>
+                                        <div className="border-l-2 border-[#E07A5F] pl-3 dark:border-[#E87D3E]">
+                                          <span className="font-serif text-lg font-medium text-[#E07A5F] dark:text-[#E87D3E]">
+                                            {categoryScore}
+                                          </span>
+                                          <span className="ml-1 text-xs text-gray-600 dark:text-gray-400">分</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </button>
+
+                                  {/* Criteria List - Collapsible */}
+                                  {isExpanded && (
+                                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                      {category.criteria.map((criterion: any, criterionIndex: number) => (
+                                        <div 
+                                          key={criterion.id} 
+                                          className="bg-white p-4 transition-colors hover:bg-gray-50 dark:bg-gray-950 dark:hover:bg-gray-900/50"
+                                        >
+                                          <div className="flex items-start gap-4">
+                                            {/* Criterion Number */}
+                                            <div className="flex-shrink-0 pt-0.5">
+                                              <span className="font-mono text-xs text-gray-500 dark:text-gray-500">
+                                                {categoryIndex + 1}.{criterionIndex + 1}
+                                              </span>
+                                            </div>
+                                            
+                                            {/* Criterion Content */}
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-sm font-medium text-[#2B2B2B] dark:text-gray-100">
+                                                {criterion.name}
+                                              </p>
+                                              {criterion.description && (
+                                                <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
+                                                  {criterion.description}
+                                                </p>
+                                              )}
+                                            </div>
+                                            
+                                            {/* Criterion Score Badge */}
+                                            <div className="flex-shrink-0">
+                                              <div className="flex h-8 w-8 items-center justify-center border border-[#E07A5F]/30 bg-[#E07A5F]/5 dark:border-[#E87D3E]/30 dark:bg-[#E87D3E]/5">
+                                                <span className="font-serif text-xs font-medium text-[#E07A5F] dark:text-[#E87D3E]">
+                                                  4
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="border-2 border-[#2B2B2B] p-8 text-center dark:border-gray-200">
+                            <p className="text-sm italic text-gray-400">尚未設定評分項目</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* File Upload Card */}
+            <div className="group relative border-2 border-[#2B2B2B] p-6 transition-all hover:shadow-md dark:border-gray-200">
+              <div className="pointer-events-none absolute inset-0 border-2 border-[#2B2B2B]/20 dark:border-gray-200/20" />
+              <div className="relative">
+                <h2 className="mb-4 font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
+                  {t('assignment:submit.uploadWork', '上傳作業')}
+                </h2>
+
+                {state.phase === 'upload' ? (
+                  <CompactFileUpload maxFiles={1} onUploadComplete={handleFileUpload} />
+                ) : (
+                  <div className="space-y-4">
+                    {/* Uploaded file display */}
+                    <div className="flex items-center gap-3 border-2 border-[#2B2B2B] p-4 dark:border-gray-200">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center border border-[#2B2B2B] dark:border-gray-200">
+                        <span className="text-lg">📄</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="truncate font-medium text-[#2B2B2B] dark:text-gray-100">{state.file?.name}</h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {Math.round((state.file?.size || 0) / 1024)} KB
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="space-y-3">
+                      {/* Direct Grading Switch */}
+                      {(state.phase === 'analyze' || state.phase === 'submit') && !state.loading && (
+                        <div className="flex items-center gap-2 border-2 border-[#2B2B2B] p-3 dark:border-gray-200">
+                          <Switch
+                            id="direct-grading-mode"
+                            checked={useDirectGrading}
+                            onCheckedChange={setUseDirectGrading}
+                          />
+                          <Label htmlFor="direct-grading-mode" className="cursor-pointer text-sm">
+                            {t('grading:directGradingMode', 'Direct Grading Mode (Faster)')}
+                          </Label>
+                        </div>
+                      )}
+
+                      {/* Primary Action: AI Analysis or Re-analysis */}
+                      {(state.phase === 'analyze' || state.phase === 'submit') && (
+                        <Button
+                          onClick={startAnalysis}
+                          disabled={state.loading}
+                          variant={
+                            getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
+                              ? 'outline'
+                              : 'default'
+                          }
+                          className="w-full border-2 border-[#2B2B2B] py-3 font-medium transition-colors hover:bg-[#D2691E] hover:text-white dark:border-gray-200 dark:hover:bg-[#E87D3E]"
+                        >
+                          {state.loading
+                            ? t('grading:ai.analyzing')
+                            : getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
+                              ? t('assignment:submit.regrade')
+                              : t('assignment:submit.analyzeWithAI')}
+                        </Button>
+                      )}
+
+                      {/* Submit Assignment */}
+                      {state.phase === 'submit' &&
+                        getSubmissionStatus().hasAnalysis &&
+                        getSubmissionStatus().hasNewAnalysis && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="block w-full">
+                                  <Button
+                                    onClick={submitFinal}
+                                    disabled={state.loading || getSubmissionStatus().isOverdue}
+                                    className="w-full border-2 border-[#2B2B2B] bg-[#2B2B2B] py-3 font-medium text-white transition-colors hover:bg-[#D2691E] dark:border-gray-200 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-[#E87D3E]"
+                                  >
+                                    {getSubmissionStatus().isOverdue
+                                      ? t('assignment:submit.overdueCannotSubmit')
+                                      : t('assignment:submit.submitAssignment')}
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {getSubmissionStatus().isOverdue && (
+                                <TooltipContent>
+                                  <p>{t('assignment:submit.overdueTooltip')}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+
+                      {/* Reselect File */}
+                      <Button
+                        variant="outline"
+                        onClick={handleResetFile}
+                        className="w-full border-2 border-[#2B2B2B] text-sm dark:border-gray-200"
+                      >
+                        {t('assignment:submit.reselectFile')}
+                      </Button>
+                    </div>
+
+                    {/* Error Display */}
+                    {state.error && (
+                      <div className="border-2 border-[#D2691E] bg-[#D2691E]/5 p-4 dark:border-[#E87D3E]">
+                        <p className="text-sm font-medium text-[#D2691E] dark:text-[#E87D3E]">{state.error}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content - AI Results First */}
-      <main className="px-0 md:px-8 lg:px-10 py-8">
-        <div className="grid lg:grid-cols-[1fr_320px] gap-8 lg:gap-10">
-          {/* Primary: AI Grading Results */}
-          <div ref={rightPanelRef} className="order-1 lg:order-1 flex flex-col">
+        {/* Right Column: AI Grading Results - Independent Scrolling */}
+        <aside ref={rightPanelRef} className="w-full lg:w-1/2 overflow-y-auto bg-background hide-scrollbar">
+          <div className="p-4 sm:px-6 lg:px-8 py-8">
             {state.session?.result ? (
               <GradingResultDisplay
                 result={state.session.result}
@@ -715,52 +976,89 @@ export default function SubmitAssignment() {
                 isLoading={state.loading}
               />
             ) : (
-              <GradingResultDisplay 
-                isLoading={state.loading} 
-                thoughtSummary={state.session?.thoughtSummary}
-                thinkingProcess={state.session?.thinkingProcess}
-              />
+              /* Empty State - Inviting & Organic */
+              <div className="flex h-full min-h-[500px] flex-col items-center justify-center space-y-6 px-8 text-center">
+                {/* Icon with organic background blob */}
+                <div className="relative">
+                  {/* Background blob */}
+                  <div className="absolute -inset-8 rounded-full bg-[#E07A5F]/10 blur-2xl"></div>
+                  
+                  {/* Sparkle Icon */}
+                  <div className="relative">
+                    <svg
+                      className="h-16 w-16 text-[#E07A5F] dark:text-[#E87D3E]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                    >
+                      {/* Sparkle paths */}
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Main Title */}
+                <div className="space-y-3">
+                  <h3 className="font-serif text-2xl font-light text-[#2B2B2B] dark:text-gray-100">
+                    {state.loading
+                      ? t('grading:ai.analyzing', 'AI 評分分析中...')
+                      : t('assignment:submit.readyToAnalyze', '準備進行分析')}
+                  </h3>
+
+                  {/* Description */}
+                  <p className="max-w-sm text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+                    {state.loading
+                      ? t(
+                          'grading:ai.analyzingDescription',
+                          'AI 正在仔細分析您的作業，這個過程會根據評分標準給予詳細回饋。'
+                        )
+                      : t(
+                          'assignment:submit.awaitingDescription',
+                          '上傳您的作業後，我將根據評分標準提供結構與邏輯的完整回饋。'
+                        )}
+                  </p>
+                </div>
+
+                {/* Loading indicator or decorative element */}
+                {state.loading ? (
+                  <div className="space-y-4">
+                    {/* Elegant loading bar */}
+                    <div className="mx-auto h-1 w-48 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                      <div className="h-full w-full origin-left animate-pulse bg-gradient-to-r from-[#E07A5F] to-[#D2691E] dark:from-[#E87D3E] dark:to-[#D2691E]"></div>
+                    </div>
+
+                    {/* AI thinking preview */}
+                    {state.session?.thinkingProcess && (
+                      <div className="mx-auto max-w-2xl border-l-2 border-[#E07A5F]/30 pl-4 text-left dark:border-[#E87D3E]/30">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-500">
+                          {t('grading:aiThinkingProcess', 'AI 思考過程')}:
+                        </p>
+                        <div className="mt-2 max-h-[500px] overflow-y-auto pr-2 hide-scrollbar">
+                          <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+                            {state.session.thinkingProcess}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Subtle decorative dots when idle */
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#E07A5F]/40"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#E07A5F]/20"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#E07A5F]/10"></div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
-
-          {/* Secondary: Upload & Actions */}
-          <div ref={leftPanelRef} className="order-2 lg:order-2 flex flex-col">
-            <div className="space-y-6 px-4 py-6 md:p-6">
-              {/* Compact Upload Section */}
-              {state.phase === 'upload' ? (
-                renderUploadPhase()
-              ) : (
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 dark:text-blue-400 text-lg font-bold">✓</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-blue-900 dark:text-blue-100 truncate">{state.file?.name}</h4>
-                      <p className="text-sm text-blue-700 dark:text-blue-300">
-                        {Math.round((state.file?.size || 0) / 1024)} KB
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Compact Actions */}
-              {renderActions()}
-
-              {/* Error Display */}
-              {state.error && (
-                <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-red-500 dark:text-red-400 text-lg">⚠</span>
-                    <p className="text-sm text-red-700 dark:text-red-300 font-medium">{state.error}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
+        </aside>
+      </div>
     </div>
   );
 }

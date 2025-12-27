@@ -3,7 +3,6 @@ import { useFetcher } from 'react-router';
 import type { Route } from './+types/users';
 import { requireAdmin } from '@/services/auth.server';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -23,7 +22,7 @@ import { toast } from 'sonner';
 
 /**
  * Admin User Management Page
- * Minimalist, borderless design with serif typography
+ * Architectural sketch style for user management
  */
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -147,20 +146,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Role badge styling (pill shape, minimal)
-  const getRoleBadgeVariant = (role: string): 'default' | 'secondary' | 'destructive' => {
-    switch (role) {
-      case 'ADMIN':
-        return 'destructive';
-      case 'TEACHER':
-        return 'default';
-      case 'STUDENT':
-        return 'secondary';
-      default:
-        return 'secondary';
-    }
-  };
-
   // Format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -173,10 +158,11 @@ export default function AdminUsersPage() {
     });
   };
 
+
   // Sort indicator
   const SortIndicator = ({ field }: { field: SortField }) => {
-    if (sortBy !== field) return <span className="text-muted-foreground ml-1 text-xs">↕</span>;
-    return <span className="ml-1 text-xs">{sortOrder === 'desc' ? '↓' : '↑'}</span>;
+    if (sortBy !== field) return <span className="ml-1 text-xs text-gray-400 dark:text-gray-600">↕</span>;
+    return <span className="ml-1 text-xs text-[#D2691E] dark:text-[#E87D3E]">{sortOrder === 'desc' ? '↓' : '↑'}</span>;
   };
 
   // Get user initials for avatar fallback
@@ -191,11 +177,11 @@ export default function AdminUsersPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
+      <div className="min-h-screen px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="rounded-lg bg-destructive/10 p-6">
-            <h2 className="font-serif text-xl font-bold text-destructive">Error</h2>
-            <p className="mt-2 text-foreground/80">{error}</p>
+          <div className="border-2 border-[#D2691E] p-8 dark:border-[#E87D3E]">
+            <h2 className="font-serif text-xl font-light text-[#D2691E] dark:text-[#E87D3E]">Error</h2>
+            <p className="mt-3 text-gray-600 dark:text-gray-400">{error}</p>
           </div>
         </div>
       </div>
@@ -204,77 +190,79 @@ export default function AdminUsersPage() {
 
   if (loading || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <p className="text-lg text-muted-foreground">Loading users...</p>
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <p className="font-serif text-lg text-gray-600 dark:text-gray-400">Loading users...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-10 border-b pb-6">
-          <h1 className="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+    <div className="min-h-screen">
+      {/* Header - Architectural Sketch Style */}
+      <header className="border-b-2 border-[#2B2B2B] dark:border-gray-200">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <h1 className="font-serif text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100 sm:text-4xl">
             User Management
           </h1>
-          <p className="mt-2 text-muted-foreground">Manage all system users and roles</p>
+          <p className="mt-3 text-gray-600 dark:text-gray-400">Manage all system users and roles</p>
         </div>
+      </header>
 
-        {/* Statistics - Minimal, no borders */}
-        <div className="mb-12 grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-4">
-          <div className="space-y-1">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Users</p>
-            <p className="font-serif text-4xl font-bold text-foreground">{data.stats.total}</p>
+      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        {/* Statistics - Sketch Cards */}
+        <div className="mb-16 grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-4">
+          <div className="border-2 border-[#2B2B2B] p-6 dark:border-gray-200">
+            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Total Users</p>
+            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{data.stats.total}</p>
           </div>
-          <div className="space-y-1">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Students</p>
-            <p className="font-serif text-4xl font-bold text-green-600 dark:text-green-400">
+          <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
+            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Students</p>
+            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
               {data.stats.students}
             </p>
           </div>
-          <div className="space-y-1">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Teachers</p>
-            <p className="font-serif text-4xl font-bold text-blue-600 dark:text-blue-400">
+          <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
+            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Teachers</p>
+            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
               {data.stats.teachers}
             </p>
           </div>
-          <div className="space-y-1">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">Admins</p>
-            <p className="font-serif text-4xl font-bold text-red-600 dark:text-red-400">{data.stats.admins}</p>
+          <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
+            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Admins</p>
+            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{data.stats.admins}</p>
           </div>
         </div>
 
-        {/* Table - No outer border, just horizontal dividers */}
+        {/* Table - Hand-drawn borders */}
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full border-2 border-[#2B2B2B] dark:border-gray-200">
             <thead>
-              <tr className="border-b">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <tr className="border-b-2 border-[#2B2B2B] dark:border-gray-200">
+                <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">
                   User
                 </th>
                 <th
-                  className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+                  className="cursor-pointer px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 transition-colors hover:text-[#D2691E] dark:text-gray-400 dark:hover:text-[#E87D3E]"
                   onClick={() => handleSort('name')}
                 >
                   Name <SortIndicator field="name" />
                 </th>
-                <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell">
+                <th className="hidden px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 sm:table-cell">
                   Email
                 </th>
                 <th
-                  className="cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+                  className="cursor-pointer px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 transition-colors hover:text-[#D2691E] dark:text-gray-400 dark:hover:text-[#E87D3E]"
                   onClick={() => handleSort('role')}
                 >
                   Role <SortIndicator field="role" />
                 </th>
                 <th
-                  className="hidden cursor-pointer px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground md:table-cell"
+                  className="hidden cursor-pointer px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600 transition-colors hover:text-[#D2691E] dark:text-gray-400 dark:hover:text-[#E87D3E] md:table-cell"
                   onClick={() => handleSort('createdAt')}
                 >
                   Registered <SortIndicator field="createdAt" />
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">
                   Actions
                 </th>
               </tr>
@@ -283,22 +271,24 @@ export default function AdminUsersPage() {
               {data.users.map((user, index) => (
                 <tr
                   key={user.id}
-                  className={`border-b transition-colors hover:bg-muted/30 ${
-                    index === data.users.length - 1 ? 'border-b-0' : ''
+                  className={`transition-colors hover:bg-[#D2691E]/5 dark:hover:bg-[#E87D3E]/10 ${
+                    index === data.users.length - 1 ? '' : 'border-b border-[#2B2B2B] dark:border-gray-200'
                   }`}
                 >
                   <td className="px-4 py-5">
-                    <Avatar>
+                    <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
                       <AvatarImage src={user.picture} alt={user.name} />
-                      <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                      <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                        {getInitials(user.name)}
+                      </AvatarFallback>
                     </Avatar>
                   </td>
                   <td className="px-4 py-5">
-                    <p className="font-medium text-foreground">{user.name}</p>
-                    <p className="mt-0.5 text-sm text-muted-foreground sm:hidden">{user.email}</p>
+                    <p className="font-serif font-light text-[#2B2B2B] dark:text-gray-100">{user.name}</p>
+                    <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400 sm:hidden">{user.email}</p>
                   </td>
                   <td className="hidden px-4 py-5 sm:table-cell">
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
                   </td>
                   <td className="px-4 py-5">
                     {editingRoleUserId === user.id ? (
@@ -308,7 +298,7 @@ export default function AdminUsersPage() {
                           setSelectedRole(value as 'STUDENT' | 'TEACHER' | 'ADMIN')
                         }
                       >
-                        <SelectTrigger className="w-32 border-none bg-muted/50">
+                        <SelectTrigger className="w-32 border-2 border-[#2B2B2B] dark:border-gray-200">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -318,10 +308,11 @@ export default function AdminUsersPage() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <Badge
-                        variant={getRoleBadgeVariant(user.role)}
-                        className={`cursor-pointer rounded-full ${
-                          user.id === currentUserId ? 'cursor-not-allowed opacity-60' : ''
+                      <span
+                        className={`inline-block border-2 border-[#2B2B2B] px-3 py-1 text-xs font-medium uppercase tracking-wider text-[#2B2B2B] transition-all dark:border-gray-200 dark:text-gray-200 ${
+                          user.id === currentUserId 
+                            ? 'cursor-not-allowed opacity-40' 
+                            : 'cursor-pointer hover:border-[#D2691E] hover:bg-[#D2691E]/5 hover:text-[#D2691E] dark:hover:border-[#E87D3E] dark:hover:bg-[#E87D3E]/10 dark:hover:text-[#E87D3E]'
                         }`}
                         onClick={() => {
                           if (user.id !== currentUserId) {
@@ -331,19 +322,19 @@ export default function AdminUsersPage() {
                         }}
                       >
                         {user.role}
-                      </Badge>
+                      </span>
                     )}
                   </td>
                   <td className="hidden px-4 py-5 md:table-cell">
-                    <p className="text-sm text-foreground">{formatDate(user.createdAt)}</p>
+                    <p className="font-serif text-sm text-gray-600 dark:text-gray-400">{formatDate(user.createdAt)}</p>
                   </td>
                   <td className="px-4 py-5">
-                    <div className="flex justify-end gap-3">
+                    <div className="flex justify-end gap-4">
                       {editingRoleUserId === user.id ? (
                         <>
                           <button
                             onClick={() => handleRoleUpdate(user.id, selectedRole || user.role)}
-                            className="text-sm font-medium text-green-600 underline-offset-4 hover:underline dark:text-green-400"
+                            className="text-sm font-medium text-[#2B2B2B] underline-offset-4 hover:text-[#D2691E] hover:underline dark:text-gray-200 dark:hover:text-[#E87D3E]"
                           >
                             Save
                           </button>
@@ -352,7 +343,7 @@ export default function AdminUsersPage() {
                               setEditingRoleUserId(null);
                               setSelectedRole(null);
                             }}
-                            className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                            className="text-sm font-medium text-gray-600 underline-offset-4 hover:text-[#2B2B2B] hover:underline dark:text-gray-400 dark:hover:text-gray-200"
                           >
                             Cancel
                           </button>
@@ -363,8 +354,8 @@ export default function AdminUsersPage() {
                           disabled={user.id === currentUserId}
                           className={`text-sm font-medium underline-offset-4 ${
                             user.id === currentUserId
-                              ? 'cursor-not-allowed text-muted-foreground'
-                              : 'text-destructive hover:underline'
+                              ? 'cursor-not-allowed text-gray-400 dark:text-gray-600'
+                              : 'text-[#D2691E] hover:underline dark:text-[#E87D3E]'
                           }`}
                         >
                           {user.id === currentUserId ? 'You' : 'Delete'}
@@ -377,28 +368,30 @@ export default function AdminUsersPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </main>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog - Sketch Style */}
       <Dialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
-        <DialogContent>
+        <DialogContent className="border-2 border-[#2B2B2B] dark:border-gray-200">
           <DialogHeader>
-            <DialogTitle className="font-serif">Confirm Deletion</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
               Are you sure you want to delete this user? This action cannot be undone and will remove all
               associated data.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="gap-3">
             <button
               onClick={() => setDeleteUserId(null)}
-              className="rounded px-4 py-2 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+              className="border-2 border-[#2B2B2B] px-6 py-2 text-sm font-medium text-[#2B2B2B] transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:text-gray-200 dark:hover:bg-gray-200 dark:hover:text-gray-900"
             >
               Cancel
             </button>
             <button
               onClick={() => deleteUserId && handleDelete(deleteUserId)}
-              className="rounded bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
+              className="border-2 border-[#D2691E] bg-[#D2691E] px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#D2691E]/90 dark:border-[#E87D3E] dark:bg-[#E87D3E]"
             >
               Delete User
             </button>

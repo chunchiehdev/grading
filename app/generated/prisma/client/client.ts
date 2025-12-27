@@ -89,6 +89,21 @@ export type Msg = runtime.Types.Result.DefaultSelection<Prisma.$MsgPayload>
  * 
  */
 export type Notification = runtime.Types.Result.DefaultSelection<Prisma.$NotificationPayload>
+/**
+ * Model AgentChatSession
+ * 
+ */
+export type AgentChatSession = runtime.Types.Result.DefaultSelection<Prisma.$AgentChatSessionPayload>
+/**
+ * Model AgentChatMessage
+ * 
+ */
+export type AgentChatMessage = runtime.Types.Result.DefaultSelection<Prisma.$AgentChatMessagePayload>
+/**
+ * Model AgentChatStepLog
+ * 
+ */
+export type AgentChatStepLog = runtime.Types.Result.DefaultSelection<Prisma.$AgentChatStepLogPayload>
 
 /**
  * Enums
@@ -220,6 +235,10 @@ const config: runtime.GetPrismaClientConfig = {
       {
         "fromEnvVar": null,
         "value": "linux-musl-openssl-3.0.x"
+      },
+      {
+        "fromEnvVar": null,
+        "value": "debian-openssl-3.0.x"
       }
     ],
     "previewFeatures": [],
@@ -241,8 +260,8 @@ const config: runtime.GetPrismaClientConfig = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id              String   @id @default(uuid())\n  email           String   @unique\n  role            UserRole @default(STUDENT) // New role field with default to STUDENT\n  hasSelectedRole Boolean  @default(false) // Track if user has explicitly selected a role\n  name            String   @db.VarChar(255)\n  picture         String   @db.VarChar(500)\n  createdAt       DateTime @default(now())\n  updatedAt       DateTime @updatedAt\n\n  // Relations\n  rubrics         Rubric[]\n  gradingSessions GradingSession[]\n  uploadedFiles   UploadedFile[]\n\n  // Teacher-specific relations\n  courses          Course[]\n  teacherRubrics   Rubric[] @relation(\"TeacherRubrics\")\n  assistantClasses Class[]  @relation(\"ClassAssistants\")\n\n  // Student-specific relations\n  submissions     Submission[]\n  enrollments     Enrollment[]\n  usedInvitations InvitationCode[] @relation(\"InvitationCodeUsage\")\n\n  // Chat relations\n  chats Chat[]\n\n  // Notification relations\n  notifications Notification[] @relation(\"UserNotifications\")\n\n  @@map(\"users\")\n}\n\n// Course management for teachers\nmodel Course {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  code        String? @db.VarChar(50) // Course code (e.g., \"CS 201\", \"MATH 101\")\n  description String? @db.Text\n  teacherId   String\n  teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)\n\n  // Course-level settings (shared across all classes)\n  syllabus String? @db.Text // Course syllabus\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  classes         Class[] // A course can have multiple classes/sections\n  assignmentAreas AssignmentArea[]\n  invitationCodes InvitationCode[]\n  notifications   Notification[]   @relation(\"CourseNotifications\")\n\n  @@index([teacherId])\n  @@index([code])\n  @@map(\"courses\")\n}\n\n// Class/Section within a course (班次/班級)\nmodel Class {\n  id       String @id @default(uuid())\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  name String @db.VarChar(100) // \"101班\", \"Section A\", \"週五下午班\"\n\n  // Schedule information (JSON structure for flexibility)\n  // Format: { weekday: string, periodCode: string, room?: string }\n  schedule Json?\n\n  capacity Int? // Maximum number of students (null = unlimited)\n\n  // Optional: Teaching assistant for this class\n  assistantId String?\n  assistant   User?   @relation(\"ClassAssistants\", fields: [assistantId], references: [id], onDelete: SetNull)\n\n  isActive Boolean @default(true) // Whether this class is currently active\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  enrollments     Enrollment[] // Students enrolled in this class\n  assignmentAreas AssignmentArea[] // Assignments specific to this class\n  invitationCodes InvitationCode[] // Invitation codes for this class\n\n  @@index([courseId])\n  @@index([assistantId])\n  @@map(\"classes\")\n}\n\n// Assignment areas within courses\nmodel AssignmentArea {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  description String? @db.Text\n  courseId    String\n  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Assignment can be specific to a class (null = all classes)\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric    @relation(\"AssignmentAreaRubrics\", fields: [rubricId], references: [id], onDelete: Restrict)\n  dueDate  DateTime?\n\n  // AI Grading Context (Feature 004)\n  referenceFileIds    String? @db.Text // JSON array of UploadedFile IDs (max 5 files)\n  customGradingPrompt String? @db.Text // Custom grading instructions (max 5000 chars)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  submissions    Submission[]\n  notifications  Notification[]  @relation(\"AssignmentNotifications\")\n  gradingResults GradingResult[] // NEW: Reverse relation for context-aware grading\n\n  @@index([courseId])\n  @@index([classId])\n  @@index([rubricId])\n  @@map(\"assignment_areas\")\n}\n\n// Student submissions to assignment areas\nmodel Submission {\n  id               String         @id @default(uuid())\n  studentId        String\n  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)\n  assignmentAreaId String\n  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)\n\n  filePath   String   @db.VarChar(500) // Path/URL of uploaded assignment\n  uploadedAt DateTime @default(now())\n\n  // AI analysis and grading\n  sessionId        String? // GradingSession ID for linking AI results\n  aiAnalysisResult Json? // AI analysis results\n  thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿 (Deprecated)\n  thinkingProcess  String? @db.Text // AI 的原始思考過程\n  gradingRationale String? @db.Text // AI 的正式評分推理\n  finalScore       Int? // Final score\n  normalizedScore  Float? // 100-point normalized score from AI grading\n\n  // Context transparency (Feature 004) - copied from GradingResult\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  teacherFeedback String?          @db.Text\n  status          SubmissionStatus @default(SUBMITTED)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([studentId])\n  @@index([assignmentAreaId])\n  @@index([status])\n  @@map(\"submissions\")\n}\n\n// 評分標準表\nmodel Rubric {\n  id        String  @id @default(uuid())\n  userId    String\n  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  teacherId String? // New field for teacher-created rubrics\n  teacher   User?   @relation(\"TeacherRubrics\", fields: [teacherId], references: [id], onDelete: Cascade)\n\n  name        String  @db.VarChar(255)\n  description String  @db.Text\n  version     Int     @default(1) // 版本號\n  isActive    Boolean @default(true) // 是否為當前版本\n  isTemplate  Boolean @default(false) // Whether it's a reusable template\n\n  // 評分標準結構 (JSON)\n  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults  GradingResult[]\n  assignmentAreas AssignmentArea[] @relation(\"AssignmentAreaRubrics\")\n\n  @@index([userId, isActive])\n  @@index([teacherId, isTemplate])\n  @@map(\"rubrics\")\n}\n\n// 評分對話 - 一次評分請求可包含多個檔案\nmodel GradingSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  status   GradingSessionStatus @default(PENDING)\n  progress Int                  @default(0) // 整體進度 0-100\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, status])\n  @@map(\"grading_sessions\")\n}\n\n// 上傳的檔案記錄\nmodel UploadedFile {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  fileName         String @db.VarChar(500)\n  originalFileName String @db.VarChar(500)\n  fileKey          String @unique // S3 key\n  fileSize         Int\n  mimeType         String @db.VarChar(100)\n\n  // 檔案處理狀態\n  parseStatus   FileParseStatus @default(PENDING)\n  parsedContent String?         @db.Text // 解析後的文字內容\n  parseError    String? // 解析錯誤訊息\n\n  // 軟刪除標記\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime? // 刪除時間\n\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  expiresAt DateTime? // 檔案過期時間，用於自動清理\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, parseStatus])\n  @@index([userId, isDeleted]) // 用於過濾已刪除檔案\n  @@index([expiresAt]) // 用於清理過期檔案\n  @@map(\"uploaded_files\")\n}\n\n// 評分結果 - 每個檔案對應一個評分標準的結果\nmodel GradingResult {\n  id               String         @id @default(uuid())\n  gradingSessionId String\n  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)\n\n  uploadedFileId String\n  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // AI Grading Context (Feature 004)\n  assignmentAreaId String?\n  assignmentArea   AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)\n\n  // 評分狀態和結果\n  status   GradingStatus @default(PENDING)\n  progress Int           @default(0) // 此項評分進度 0-100\n\n  // LLM評分結果 (JSON結構)\n  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }\n  errorMessage String? // 評分失敗時的錯誤訊息\n\n  // AI Thinking Process (Feature 005: Thinking Models)\n  thoughtSummary   String? @db.Text // AI 的思考過程摘要 (Deprecated)\n  thinkingProcess  String? @db.Text // AI 的原始思考過程\n  gradingRationale String? @db.Text // AI 的正式評分推理\n\n  // Context transparency (Feature 004)\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  // 100 分制正規化分數\n  normalizedScore Float? // (totalScore / maxScore) * 100\n\n  // 評分原始數據\n  gradingModel    String? @db.VarChar(100) // 使用的模型名稱\n  gradingTokens   Int? // 消耗的tokens數量\n  gradingDuration Int? // 評分耗時(毫秒)\n\n  // Agent-based grading fields (AI SDK 6)\n  agentSteps         Json? // Agent 執行的所有步驟記錄\n  toolCalls          Json? // 所有工具調用的詳細記錄\n  confidenceScore    Float? // 0-1 信心度分數\n  requiresReview     Boolean   @default(false) // 是否需要人工審核\n  reviewedBy         String? // 審核者 userId\n  reviewedAt         DateTime? // 審核時間\n  agentModel         String?   @db.VarChar(100) // Agent 使用的模型\n  agentExecutionTime Int? // Agent 總執行時間(毫秒)\n\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime? // 評分完成時間\n\n  // Relations\n  agentLogs AgentExecutionLog[]\n\n  @@index([gradingSessionId, status])\n  @@index([uploadedFileId])\n  @@index([rubricId])\n  @@index([assignmentAreaId]) // NEW: Index for JOIN performance\n  @@index([normalizedScore])\n  @@index([requiresReview, createdAt]) // NEW: For review queue\n  @@map(\"grading_results\")\n}\n\n// Agent執行記錄 - 詳細追蹤每個步驟\nmodel AgentExecutionLog {\n  id              String        @id @default(uuid())\n  gradingResultId String\n  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)\n\n  stepNumber Int // 步驟編號\n  toolName   String?  @db.VarChar(100) // 工具名稱（null = 純推理步驟）\n  toolInput  Json? // 工具輸入參數\n  toolOutput Json? // 工具輸出結果\n  reasoning  String?  @db.Text // AI 的推理過程\n  durationMs Int? // 此步驟耗時\n  timestamp  DateTime @default(now())\n\n  @@index([gradingResultId, stepNumber])\n  @@map(\"agent_execution_logs\")\n}\n\n// 評分會話狀態\nenum GradingSessionStatus {\n  PENDING // 等待開始\n  PROCESSING // 評分中\n  COMPLETED // 全部完成\n  FAILED // 失敗\n  CANCELLED // 已取消\n}\n\n// 單項評分狀態\nenum GradingStatus {\n  PENDING // 等待評分\n  PROCESSING // 評分中\n  COMPLETED // 評分完成\n  FAILED // 評分失敗\n  SKIPPED // 跳過(檔案解析失敗等)\n}\n\n// 檔案解析狀態\nenum FileParseStatus {\n  PENDING // 等待解析\n  PROCESSING // 解析中\n  COMPLETED // 解析完成\n  FAILED // 解析失敗\n}\n\n// User roles\nenum UserRole {\n  STUDENT\n  TEACHER\n  ADMIN\n}\n\n// Submission status\nenum SubmissionStatus {\n  DRAFT // File uploaded but not yet submitted\n  SUBMITTED // Just submitted\n  ANALYZED // AI analysis complete\n  GRADED // Teacher has provided feedback/grade\n}\n\n// Course enrollment for students\nmodel Enrollment {\n  id        String @id @default(uuid())\n  studentId String\n  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)\n\n  // Student enrolls in a specific class\n  classId String\n  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  enrolledAt DateTime @default(now())\n\n  // Optional: Track student performance in this enrollment\n  finalGrade Float?\n  attendance Json? // Attendance records\n\n  @@unique([studentId, classId])\n  @@index([studentId])\n  @@index([classId])\n  @@map(\"enrollments\")\n}\n\n// Course invitation codes\nmodel InvitationCode {\n  id       String @id @default(uuid())\n  code     String @unique @db.VarChar(50)\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Invitation code can be specific to a class\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime  @default(now())\n  expiresAt DateTime\n  isUsed    Boolean   @default(false)\n  usedAt    DateTime?\n  usedById  String?\n  usedBy    User?     @relation(\"InvitationCodeUsage\", fields: [usedById], references: [id])\n\n  @@index([code])\n  @@index([courseId])\n  @@index([classId])\n  @@index([expiresAt])\n  @@map(\"invitation_codes\")\n}\n\n// AI Chat system\nmodel Chat {\n  id        String   @id @default(uuid())\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  title     String?  @db.VarChar(100)\n  context   Json? // {courseId, assignmentId, type}\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  msgs Msg[]\n\n  @@index([userId])\n  @@index([createdAt])\n  @@map(\"chats\")\n}\n\nmodel Msg {\n  id      String   @id @default(uuid())\n  chatId  String\n  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)\n  role    Role\n  content String   @db.Text\n  data    Json? // Generated rubric data, error info, etc\n  time    DateTime @default(now())\n\n  @@index([chatId])\n  @@index([time])\n  @@map(\"messages\")\n}\n\nenum Role {\n  USER\n  AI\n}\n\n// Real-time notifications for course activities\nmodel Notification {\n  id           String           @id @default(uuid())\n  type         NotificationType\n  userId       String\n  user         User             @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  courseId     String?\n  course       Course?          @relation(\"CourseNotifications\", fields: [courseId], references: [id], onDelete: Cascade)\n  assignmentId String?\n  assignment   AssignmentArea?  @relation(\"AssignmentNotifications\", fields: [assignmentId], references: [id], onDelete: Cascade)\n  title        String           @db.VarChar(255)\n  message      String           @db.Text\n  isRead       Boolean          @default(false)\n  readAt       DateTime?\n  data         Json? // Additional notification data\n  createdAt    DateTime         @default(now())\n\n  @@index([userId, isRead])\n  @@index([courseId])\n  @@index([type])\n  @@index([createdAt])\n  @@map(\"notifications\")\n}\n\nenum NotificationType {\n  ASSIGNMENT_CREATED // New assignment published\n  ASSIGNMENT_DUE_SOON // Assignment due in 24 hours\n  SUBMISSION_GRADED // Teacher graded submission\n  COURSE_ANNOUNCEMENT // General course announcement\n}\n",
-  "inlineSchemaHash": "90ad87974064502afb1e319adff1c0525d214acccb6610c00239818fb2361c61",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\", \"debian-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id              String   @id @default(uuid())\n  email           String   @unique\n  role            UserRole @default(STUDENT) // New role field with default to STUDENT\n  hasSelectedRole Boolean  @default(false) // Track if user has explicitly selected a role\n  name            String   @db.VarChar(255)\n  picture         String   @db.VarChar(500)\n  createdAt       DateTime @default(now())\n  updatedAt       DateTime @updatedAt\n\n  // Relations\n  rubrics         Rubric[]\n  gradingSessions GradingSession[]\n  uploadedFiles   UploadedFile[]\n\n  // Teacher-specific relations\n  courses          Course[]\n  teacherRubrics   Rubric[] @relation(\"TeacherRubrics\")\n  assistantClasses Class[]  @relation(\"ClassAssistants\")\n\n  // Student-specific relations\n  submissions     Submission[]\n  enrollments     Enrollment[]\n  usedInvitations InvitationCode[] @relation(\"InvitationCodeUsage\")\n\n  // Chat relations\n  chats             Chat[]\n  agentChatSessions AgentChatSession[] @relation(\"UserAgentChatSessions\")\n\n  // Notification relations\n  notifications Notification[] @relation(\"UserNotifications\")\n\n  @@map(\"users\")\n}\n\n// Course management for teachers\nmodel Course {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  code        String? @db.VarChar(50) // Course code (e.g., \"CS 201\", \"MATH 101\")\n  description String? @db.Text\n  teacherId   String\n  teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)\n\n  // Course-level settings (shared across all classes)\n  syllabus String? @db.Text // Course syllabus\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  classes         Class[] // A course can have multiple classes/sections\n  assignmentAreas AssignmentArea[]\n  invitationCodes InvitationCode[]\n  notifications   Notification[]   @relation(\"CourseNotifications\")\n\n  @@index([teacherId])\n  @@index([code])\n  @@map(\"courses\")\n}\n\n// Class/Section within a course (班次/班級)\nmodel Class {\n  id       String @id @default(uuid())\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  name String @db.VarChar(100) // \"101班\", \"Section A\", \"週五下午班\"\n\n  // Schedule information (JSON structure for flexibility)\n  // Format: { weekday: string, periodCode: string, room?: string }\n  schedule Json?\n\n  capacity Int? // Maximum number of students (null = unlimited)\n\n  // Optional: Teaching assistant for this class\n  assistantId String?\n  assistant   User?   @relation(\"ClassAssistants\", fields: [assistantId], references: [id], onDelete: SetNull)\n\n  isActive Boolean @default(true) // Whether this class is currently active\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  enrollments     Enrollment[] // Students enrolled in this class\n  assignmentAreas AssignmentArea[] // Assignments specific to this class\n  invitationCodes InvitationCode[] // Invitation codes for this class\n\n  @@index([courseId])\n  @@index([assistantId])\n  @@map(\"classes\")\n}\n\n// Assignment areas within courses\nmodel AssignmentArea {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  description String? @db.Text\n  courseId    String\n  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Assignment can be specific to a class (null = all classes)\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric    @relation(\"AssignmentAreaRubrics\", fields: [rubricId], references: [id], onDelete: Restrict)\n  dueDate  DateTime?\n\n  // AI Grading Context (Feature 004)\n  referenceFileIds    String? @db.Text // JSON array of UploadedFile IDs (max 5 files)\n  customGradingPrompt String? @db.Text // Custom grading instructions (max 5000 chars)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  submissions    Submission[]\n  notifications  Notification[]  @relation(\"AssignmentNotifications\")\n  gradingResults GradingResult[] // NEW: Reverse relation for context-aware grading\n\n  @@index([courseId])\n  @@index([classId])\n  @@index([rubricId])\n  @@map(\"assignment_areas\")\n}\n\n// Student submissions to assignment areas\nmodel Submission {\n  id               String         @id @default(uuid())\n  studentId        String\n  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)\n  assignmentAreaId String\n  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)\n\n  filePath   String   @db.VarChar(500) // Path/URL of uploaded assignment\n  uploadedAt DateTime @default(now())\n\n  // AI analysis and grading\n  sessionId        String? // GradingSession ID for linking AI results\n  aiAnalysisResult Json? // AI analysis results\n  thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿 (Deprecated)\n  thinkingProcess  String? @db.Text // AI 的原始思考過程\n  gradingRationale String? @db.Text // AI 的正式評分推理\n  finalScore       Int? // Final score\n  normalizedScore  Float? // 100-point normalized score from AI grading\n\n  // Context transparency (Feature 004) - copied from GradingResult\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  teacherFeedback String?          @db.Text\n  status          SubmissionStatus @default(SUBMITTED)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([studentId])\n  @@index([assignmentAreaId])\n  @@index([status])\n  @@map(\"submissions\")\n}\n\n// 評分標準表\nmodel Rubric {\n  id        String  @id @default(uuid())\n  userId    String\n  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  teacherId String? // New field for teacher-created rubrics\n  teacher   User?   @relation(\"TeacherRubrics\", fields: [teacherId], references: [id], onDelete: Cascade)\n\n  name        String  @db.VarChar(255)\n  description String  @db.Text\n  version     Int     @default(1) // 版本號\n  isActive    Boolean @default(true) // 是否為當前版本\n  isTemplate  Boolean @default(false) // Whether it's a reusable template\n\n  // 評分標準結構 (JSON)\n  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults  GradingResult[]\n  assignmentAreas AssignmentArea[] @relation(\"AssignmentAreaRubrics\")\n\n  @@index([userId, isActive])\n  @@index([teacherId, isTemplate])\n  @@map(\"rubrics\")\n}\n\n// 評分對話 - 一次評分請求可包含多個檔案\nmodel GradingSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  status   GradingSessionStatus @default(PENDING)\n  progress Int                  @default(0) // 整體進度 0-100\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, status])\n  @@map(\"grading_sessions\")\n}\n\n// 上傳的檔案記錄\nmodel UploadedFile {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  fileName         String @db.VarChar(500)\n  originalFileName String @db.VarChar(500)\n  fileKey          String @unique // S3 key\n  fileSize         Int\n  mimeType         String @db.VarChar(100)\n\n  // 檔案處理狀態\n  parseStatus         FileParseStatus @default(PENDING)\n  parsedContent       String?         @db.Text // 解析後的文字內容\n  parsedContentTokens Int? // Estimated token count (for cost control)\n  parseError          String? // 解析錯誤訊息\n\n  // 軟刪除標記\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime? // 刪除時間\n\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  expiresAt DateTime? // 檔案過期時間，用於自動清理\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, parseStatus])\n  @@index([userId, isDeleted]) // 用於過濾已刪除檔案\n  @@index([expiresAt]) // 用於清理過期檔案\n  @@map(\"uploaded_files\")\n}\n\n// 評分結果 - 每個檔案對應一個評分標準的結果\nmodel GradingResult {\n  id               String         @id @default(uuid())\n  gradingSessionId String\n  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)\n\n  uploadedFileId String\n  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // AI Grading Context (Feature 004)\n  assignmentAreaId String?\n  assignmentArea   AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)\n\n  // 評分狀態和結果\n  status   GradingStatus @default(PENDING)\n  progress Int           @default(0) // 此項評分進度 0-100\n\n  // LLM評分結果 (JSON結構)\n  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }\n  errorMessage String? // 評分失敗時的錯誤訊息\n\n  // AI Thinking Process (Feature 005: Thinking Models)\n  thoughtSummary   String? @db.Text // AI 的思考過程摘要 (Deprecated)\n  thinkingProcess  String? @db.Text // AI 的原始思考過程\n  gradingRationale String? @db.Text // AI 的正式評分推理\n\n  // Context transparency (Feature 004)\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  // 100 分制正規化分數\n  normalizedScore Float? // (totalScore / maxScore) * 100\n\n  // 評分原始數據\n  gradingModel    String? @db.VarChar(100) // 使用的模型名稱\n  gradingTokens   Int? // 消耗的tokens數量\n  gradingDuration Int? // 評分耗時(毫秒)\n\n  // Agent-based grading fields (AI SDK 6)\n  agentSteps         Json? // Agent 執行的所有步驟記錄\n  toolCalls          Json? // 所有工具調用的詳細記錄\n  confidenceScore    Float? // 0-1 信心度分數\n  requiresReview     Boolean   @default(false) // 是否需要人工審核\n  reviewedBy         String? // 審核者 userId\n  reviewedAt         DateTime? // 審核時間\n  agentModel         String?   @db.VarChar(100) // Agent 使用的模型\n  agentExecutionTime Int? // Agent 總執行時間(毫秒)\n\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime? // 評分完成時間\n\n  // Relations\n  agentLogs AgentExecutionLog[]\n\n  @@index([gradingSessionId, status])\n  @@index([uploadedFileId])\n  @@index([rubricId])\n  @@index([assignmentAreaId]) // NEW: Index for JOIN performance\n  @@index([normalizedScore])\n  @@index([requiresReview, createdAt]) // NEW: For review queue\n  @@map(\"grading_results\")\n}\n\n// Agent執行記錄 - 詳細追蹤每個步驟\nmodel AgentExecutionLog {\n  id              String        @id @default(uuid())\n  gradingResultId String\n  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)\n\n  stepNumber Int // 步驟編號\n  toolName   String?  @db.VarChar(100) // 工具名稱（null = 純推理步驟）\n  toolInput  Json? // 工具輸入參數\n  toolOutput Json? // 工具輸出結果\n  reasoning  String?  @db.Text // AI 的推理過程\n  durationMs Int? // 此步驟耗時\n  timestamp  DateTime @default(now())\n\n  @@index([gradingResultId, stepNumber])\n  @@map(\"agent_execution_logs\")\n}\n\n// 評分會話狀態\nenum GradingSessionStatus {\n  PENDING // 等待開始\n  PROCESSING // 評分中\n  COMPLETED // 全部完成\n  FAILED // 失敗\n  CANCELLED // 已取消\n}\n\n// 單項評分狀態\nenum GradingStatus {\n  PENDING // 等待評分\n  PROCESSING // 評分中\n  COMPLETED // 評分完成\n  FAILED // 評分失敗\n  SKIPPED // 跳過(檔案解析失敗等)\n}\n\n// 檔案解析狀態\nenum FileParseStatus {\n  PENDING // 等待解析\n  PROCESSING // 解析中\n  COMPLETED // 解析完成\n  FAILED // 解析失敗\n}\n\n// User roles\nenum UserRole {\n  STUDENT\n  TEACHER\n  ADMIN\n}\n\n// Submission status\nenum SubmissionStatus {\n  DRAFT // File uploaded but not yet submitted\n  SUBMITTED // Just submitted\n  ANALYZED // AI analysis complete\n  GRADED // Teacher has provided feedback/grade\n}\n\n// Course enrollment for students\nmodel Enrollment {\n  id        String @id @default(uuid())\n  studentId String\n  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)\n\n  // Student enrolls in a specific class\n  classId String\n  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  enrolledAt DateTime @default(now())\n\n  // Optional: Track student performance in this enrollment\n  finalGrade Float?\n  attendance Json? // Attendance records\n\n  @@unique([studentId, classId])\n  @@index([studentId])\n  @@index([classId])\n  @@map(\"enrollments\")\n}\n\n// Course invitation codes\nmodel InvitationCode {\n  id       String @id @default(uuid())\n  code     String @unique @db.VarChar(50)\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Invitation code can be specific to a class\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime  @default(now())\n  expiresAt DateTime\n  isUsed    Boolean   @default(false)\n  usedAt    DateTime?\n  usedById  String?\n  usedBy    User?     @relation(\"InvitationCodeUsage\", fields: [usedById], references: [id])\n\n  @@index([code])\n  @@index([courseId])\n  @@index([classId])\n  @@index([expiresAt])\n  @@map(\"invitation_codes\")\n}\n\n// AI Chat system\nmodel Chat {\n  id        String   @id @default(uuid())\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  title     String?  @db.VarChar(100)\n  context   Json? // {courseId, assignmentId, type}\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  msgs Msg[]\n\n  @@index([userId])\n  @@index([createdAt])\n  @@map(\"chats\")\n}\n\nmodel Msg {\n  id      String   @id @default(uuid())\n  chatId  String\n  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)\n  role    Role\n  content String   @db.Text\n  data    Json? // Generated rubric data, error info, etc\n  time    DateTime @default(now())\n\n  @@index([chatId])\n  @@index([time])\n  @@map(\"messages\")\n}\n\nenum Role {\n  USER\n  AI\n}\n\n// Real-time notifications for course activities\nmodel Notification {\n  id           String           @id @default(uuid())\n  type         NotificationType\n  userId       String\n  user         User             @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  courseId     String?\n  course       Course?          @relation(\"CourseNotifications\", fields: [courseId], references: [id], onDelete: Cascade)\n  assignmentId String?\n  assignment   AssignmentArea?  @relation(\"AssignmentNotifications\", fields: [assignmentId], references: [id], onDelete: Cascade)\n  title        String           @db.VarChar(255)\n  message      String           @db.Text\n  isRead       Boolean          @default(false)\n  readAt       DateTime?\n  data         Json? // Additional notification data\n  createdAt    DateTime         @default(now())\n\n  @@index([userId, isRead])\n  @@index([courseId])\n  @@index([type])\n  @@index([createdAt])\n  @@map(\"notifications\")\n}\n\nenum NotificationType {\n  ASSIGNMENT_CREATED // New assignment published\n  ASSIGNMENT_DUE_SOON // Assignment due in 24 hours\n  SUBMISSION_GRADED // Teacher graded submission\n  COURSE_ANNOUNCEMENT // General course announcement\n}\n\n// ============================================================================\n// ADMIN ANALYTICS: Agent Chat Session Tracking\n// ============================================================================\n\nmodel AgentChatSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(\"UserAgentChatSessions\", fields: [userId], references: [id], onDelete: Cascade)\n\n  // Session metadata\n  title    String? @db.VarChar(255)\n  userRole String  @db.VarChar(20) // TEACHER | STUDENT | ADMIN\n\n  // Performance tracking\n  totalTokens   Int @default(0)\n  totalSteps    Int @default(0)\n  totalDuration Int @default(0) // milliseconds\n\n  // Status\n  status       String   @default(\"ACTIVE\") // ACTIVE | COMPLETED | ERROR\n  lastActivity DateTime @default(now())\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  messages AgentChatMessage[]\n  stepLogs AgentChatStepLog[]\n\n  @@index([userId, createdAt])\n  @@index([status])\n  @@index([userRole])\n  @@map(\"agent_chat_sessions\")\n}\n\nmodel AgentChatMessage {\n  id        String           @id @default(uuid())\n  sessionId String\n  session   AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)\n\n  role    String @db.VarChar(20) // user | assistant | system\n  content String @db.Text\n\n  // Token tracking (per message)\n  promptTokens     Int?\n  completionTokens Int?\n  totalTokens      Int?\n\n  timestamp DateTime @default(now())\n\n  @@index([sessionId, timestamp])\n  @@map(\"agent_chat_messages\")\n}\n\nmodel AgentChatStepLog {\n  id        String           @id @default(uuid())\n  sessionId String\n  session   AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)\n\n  stepNumber Int\n  toolName   String? @db.VarChar(100)\n  toolInput  Json?\n  toolOutput Json?\n  reasoning  String? @db.Text\n\n  durationMs Int?\n  timestamp  DateTime @default(now())\n\n  @@index([sessionId, stepNumber])\n  @@map(\"agent_chat_step_logs\")\n}\n",
+  "inlineSchemaHash": "30133b7d781a84546e684a4a65cbbc808db7a9fd36dc3d413f7a9e853dff20e4",
   "copyEngine": true,
   "runtimeDataModel": {
     "models": {},
@@ -253,7 +272,7 @@ const config: runtime.GetPrismaClientConfig = {
 }
 config.dirname = __dirname
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UserRole\",\"nativeType\":null,\"default\":\"STUDENT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"hasSelectedRole\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"picture\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFiles\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherRubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantClasses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedInvitations\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chats\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Course\":{\"dbName\":\"courses\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"syllabus\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"classes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Class\":{\"dbName\":\"classes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"schedule\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"capacity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistant\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[\"assistantId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AssignmentArea\":{\"dbName\":\"assignment_areas\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"referenceFileIds\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"customGradingPrompt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Submission\":{\"dbName\":\"submissions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"filePath\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiAnalysisResult\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thinkingProcess\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingRationale\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherFeedback\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"SubmissionStatus\",\"nativeType\":null,\"default\":\"SUBMITTED\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isTemplate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingSession\":{\"dbName\":\"grading_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingSessionStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"UploadedFile\":{\"dbName\":\"uploaded_files\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseStatus\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"FileParseStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContent\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseError\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingResult\":{\"dbName\":\"grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSession\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[\"gradingSessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFileId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFile\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[\"uploadedFileId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"errorMessage\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thinkingProcess\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingRationale\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentSteps\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolCalls\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"confidenceScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requiresReview\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedBy\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentExecutionTime\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentLogs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentExecutionLog\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentExecutionLog\":{\"dbName\":\"agent_execution_logs\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResultId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResult\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[\"gradingResultId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepNumber\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolInput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolOutput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reasoning\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"durationMs\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Enrollment\":{\"dbName\":\"enrollments\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrolledAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalGrade\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"attendance\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"studentId\",\"classId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"studentId\",\"classId\"]}],\"isGenerated\":false},\"InvitationCode\":{\"dbName\":\"invitation_codes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isUsed\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedById\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedBy\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[\"usedById\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Chat\":{\"dbName\":\"chats\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"context\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"msgs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Msg\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Msg\":{\"dbName\":\"messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chatId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chat\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[\"chatId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Role\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"time\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Notification\":{\"dbName\":\"notifications\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"type\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"NotificationType\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[\"assignmentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"message\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isRead\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"readAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"GradingSessionStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"CANCELLED\",\"dbName\":null}],\"dbName\":null},\"GradingStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"SKIPPED\",\"dbName\":null}],\"dbName\":null},\"FileParseStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null}],\"dbName\":null},\"UserRole\":{\"values\":[{\"name\":\"STUDENT\",\"dbName\":null},{\"name\":\"TEACHER\",\"dbName\":null},{\"name\":\"ADMIN\",\"dbName\":null}],\"dbName\":null},\"SubmissionStatus\":{\"values\":[{\"name\":\"DRAFT\",\"dbName\":null},{\"name\":\"SUBMITTED\",\"dbName\":null},{\"name\":\"ANALYZED\",\"dbName\":null},{\"name\":\"GRADED\",\"dbName\":null}],\"dbName\":null},\"Role\":{\"values\":[{\"name\":\"USER\",\"dbName\":null},{\"name\":\"AI\",\"dbName\":null}],\"dbName\":null},\"NotificationType\":{\"values\":[{\"name\":\"ASSIGNMENT_CREATED\",\"dbName\":null},{\"name\":\"ASSIGNMENT_DUE_SOON\",\"dbName\":null},{\"name\":\"SUBMISSION_GRADED\",\"dbName\":null},{\"name\":\"COURSE_ANNOUNCEMENT\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UserRole\",\"nativeType\":null,\"default\":\"STUDENT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"hasSelectedRole\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"picture\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFiles\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherRubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantClasses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedInvitations\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chats\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentChatSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatSession\",\"nativeType\":null,\"relationName\":\"UserAgentChatSessions\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Course\":{\"dbName\":\"courses\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"syllabus\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"classes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Class\":{\"dbName\":\"classes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"schedule\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"capacity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistant\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[\"assistantId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AssignmentArea\":{\"dbName\":\"assignment_areas\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"referenceFileIds\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"customGradingPrompt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Submission\":{\"dbName\":\"submissions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"filePath\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiAnalysisResult\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thinkingProcess\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingRationale\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherFeedback\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"SubmissionStatus\",\"nativeType\":null,\"default\":\"SUBMITTED\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isTemplate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingSession\":{\"dbName\":\"grading_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingSessionStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"UploadedFile\":{\"dbName\":\"uploaded_files\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseStatus\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"FileParseStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContent\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContentTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseError\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingResult\":{\"dbName\":\"grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSession\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[\"gradingSessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFileId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFile\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[\"uploadedFileId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"errorMessage\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thinkingProcess\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingRationale\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentSteps\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolCalls\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"confidenceScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requiresReview\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedBy\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentExecutionTime\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentLogs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentExecutionLog\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentExecutionLog\":{\"dbName\":\"agent_execution_logs\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResultId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResult\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[\"gradingResultId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepNumber\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolInput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolOutput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reasoning\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"durationMs\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Enrollment\":{\"dbName\":\"enrollments\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrolledAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalGrade\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"attendance\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"studentId\",\"classId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"studentId\",\"classId\"]}],\"isGenerated\":false},\"InvitationCode\":{\"dbName\":\"invitation_codes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isUsed\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedById\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedBy\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[\"usedById\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Chat\":{\"dbName\":\"chats\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"context\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"msgs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Msg\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Msg\":{\"dbName\":\"messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chatId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chat\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[\"chatId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Role\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"time\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Notification\":{\"dbName\":\"notifications\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"type\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"NotificationType\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[\"assignmentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"message\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isRead\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"readAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentChatSession\":{\"dbName\":\"agent_chat_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserAgentChatSessions\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userRole\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalSteps\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":\"ACTIVE\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"lastActivity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"messages\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatMessage\",\"nativeType\":null,\"relationName\":\"AgentChatMessageToAgentChatSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepLogs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatStepLog\",\"nativeType\":null,\"relationName\":\"AgentChatSessionToAgentChatStepLog\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentChatMessage\":{\"dbName\":\"agent_chat_messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"session\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatSession\",\"nativeType\":null,\"relationName\":\"AgentChatMessageToAgentChatSession\",\"relationFromFields\":[\"sessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"promptTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"completionTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentChatStepLog\":{\"dbName\":\"agent_chat_step_logs\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"session\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatSession\",\"nativeType\":null,\"relationName\":\"AgentChatSessionToAgentChatStepLog\",\"relationFromFields\":[\"sessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepNumber\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolInput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolOutput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reasoning\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"durationMs\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"GradingSessionStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"CANCELLED\",\"dbName\":null}],\"dbName\":null},\"GradingStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"SKIPPED\",\"dbName\":null}],\"dbName\":null},\"FileParseStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null}],\"dbName\":null},\"UserRole\":{\"values\":[{\"name\":\"STUDENT\",\"dbName\":null},{\"name\":\"TEACHER\",\"dbName\":null},{\"name\":\"ADMIN\",\"dbName\":null}],\"dbName\":null},\"SubmissionStatus\":{\"values\":[{\"name\":\"DRAFT\",\"dbName\":null},{\"name\":\"SUBMITTED\",\"dbName\":null},{\"name\":\"ANALYZED\",\"dbName\":null},{\"name\":\"GRADED\",\"dbName\":null}],\"dbName\":null},\"Role\":{\"values\":[{\"name\":\"USER\",\"dbName\":null},{\"name\":\"AI\",\"dbName\":null}],\"dbName\":null},\"NotificationType\":{\"values\":[{\"name\":\"ASSIGNMENT_CREATED\",\"dbName\":null},{\"name\":\"ASSIGNMENT_DUE_SOON\",\"dbName\":null},{\"name\":\"SUBMISSION_GRADED\",\"dbName\":null},{\"name\":\"COURSE_ANNOUNCEMENT\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
 config.engineWasm = undefined
 config.compilerWasm = undefined
 
@@ -549,6 +568,36 @@ export interface PrismaClient<
     * ```
     */
   get notification(): Prisma.NotificationDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.agentChatSession`: Exposes CRUD operations for the **AgentChatSession** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AgentChatSessions
+    * const agentChatSessions = await prisma.agentChatSession.findMany()
+    * ```
+    */
+  get agentChatSession(): Prisma.AgentChatSessionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.agentChatMessage`: Exposes CRUD operations for the **AgentChatMessage** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AgentChatMessages
+    * const agentChatMessages = await prisma.agentChatMessage.findMany()
+    * ```
+    */
+  get agentChatMessage(): Prisma.AgentChatMessageDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.agentChatStepLog`: Exposes CRUD operations for the **AgentChatStepLog** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AgentChatStepLogs
+    * const agentChatStepLogs = await prisma.agentChatStepLog.findMany()
+    * ```
+    */
+  get agentChatStepLog(): Prisma.AgentChatStepLogDelegate<ExtArgs, ClientOptions>;
 }
 
 export const PrismaClient = runtime.getPrismaClient(config) as unknown as PrismaClientConstructor
@@ -943,7 +992,10 @@ export namespace Prisma {
     InvitationCode: 'InvitationCode',
     Chat: 'Chat',
     Msg: 'Msg',
-    Notification: 'Notification'
+    Notification: 'Notification',
+    AgentChatSession: 'AgentChatSession',
+    AgentChatMessage: 'AgentChatMessage',
+    AgentChatStepLog: 'AgentChatStepLog'
   } as const
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -962,7 +1014,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification"
+      modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification" | "agentChatSession" | "agentChatMessage" | "agentChatStepLog"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2076,6 +2128,228 @@ export namespace Prisma {
           }
         }
       }
+      AgentChatSession: {
+        payload: Prisma.$AgentChatSessionPayload<ExtArgs>
+        fields: Prisma.AgentChatSessionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AgentChatSessionFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AgentChatSessionFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload>
+          }
+          findFirst: {
+            args: Prisma.AgentChatSessionFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AgentChatSessionFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload>
+          }
+          findMany: {
+            args: Prisma.AgentChatSessionFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload>[]
+          }
+          create: {
+            args: Prisma.AgentChatSessionCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload>
+          }
+          createMany: {
+            args: Prisma.AgentChatSessionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AgentChatSessionCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload>[]
+          }
+          delete: {
+            args: Prisma.AgentChatSessionDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload>
+          }
+          update: {
+            args: Prisma.AgentChatSessionUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload>
+          }
+          deleteMany: {
+            args: Prisma.AgentChatSessionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AgentChatSessionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AgentChatSessionUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload>[]
+          }
+          upsert: {
+            args: Prisma.AgentChatSessionUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatSessionPayload>
+          }
+          aggregate: {
+            args: Prisma.AgentChatSessionAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateAgentChatSession>
+          }
+          groupBy: {
+            args: Prisma.AgentChatSessionGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AgentChatSessionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AgentChatSessionCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AgentChatSessionCountAggregateOutputType> | number
+          }
+        }
+      }
+      AgentChatMessage: {
+        payload: Prisma.$AgentChatMessagePayload<ExtArgs>
+        fields: Prisma.AgentChatMessageFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AgentChatMessageFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AgentChatMessageFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload>
+          }
+          findFirst: {
+            args: Prisma.AgentChatMessageFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AgentChatMessageFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload>
+          }
+          findMany: {
+            args: Prisma.AgentChatMessageFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload>[]
+          }
+          create: {
+            args: Prisma.AgentChatMessageCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload>
+          }
+          createMany: {
+            args: Prisma.AgentChatMessageCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AgentChatMessageCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload>[]
+          }
+          delete: {
+            args: Prisma.AgentChatMessageDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload>
+          }
+          update: {
+            args: Prisma.AgentChatMessageUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload>
+          }
+          deleteMany: {
+            args: Prisma.AgentChatMessageDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AgentChatMessageUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AgentChatMessageUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload>[]
+          }
+          upsert: {
+            args: Prisma.AgentChatMessageUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatMessagePayload>
+          }
+          aggregate: {
+            args: Prisma.AgentChatMessageAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateAgentChatMessage>
+          }
+          groupBy: {
+            args: Prisma.AgentChatMessageGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AgentChatMessageGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AgentChatMessageCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AgentChatMessageCountAggregateOutputType> | number
+          }
+        }
+      }
+      AgentChatStepLog: {
+        payload: Prisma.$AgentChatStepLogPayload<ExtArgs>
+        fields: Prisma.AgentChatStepLogFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AgentChatStepLogFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AgentChatStepLogFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload>
+          }
+          findFirst: {
+            args: Prisma.AgentChatStepLogFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AgentChatStepLogFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload>
+          }
+          findMany: {
+            args: Prisma.AgentChatStepLogFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload>[]
+          }
+          create: {
+            args: Prisma.AgentChatStepLogCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload>
+          }
+          createMany: {
+            args: Prisma.AgentChatStepLogCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AgentChatStepLogCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload>[]
+          }
+          delete: {
+            args: Prisma.AgentChatStepLogDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload>
+          }
+          update: {
+            args: Prisma.AgentChatStepLogUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload>
+          }
+          deleteMany: {
+            args: Prisma.AgentChatStepLogDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AgentChatStepLogUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.AgentChatStepLogUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload>[]
+          }
+          upsert: {
+            args: Prisma.AgentChatStepLogUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentChatStepLogPayload>
+          }
+          aggregate: {
+            args: Prisma.AgentChatStepLogAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateAgentChatStepLog>
+          }
+          groupBy: {
+            args: Prisma.AgentChatStepLogGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AgentChatStepLogGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AgentChatStepLogCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AgentChatStepLogCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -2175,6 +2449,9 @@ export namespace Prisma {
     chat?: ChatOmit
     msg?: MsgOmit
     notification?: NotificationOmit
+    agentChatSession?: AgentChatSessionOmit
+    agentChatMessage?: AgentChatMessageOmit
+    agentChatStepLog?: AgentChatStepLogOmit
   }
 
   /* Types for Logging */
@@ -2276,6 +2553,7 @@ export namespace Prisma {
     enrollments: number
     usedInvitations: number
     chats: number
+    agentChatSessions: number
     notifications: number
   }
 
@@ -2290,6 +2568,7 @@ export namespace Prisma {
     enrollments?: boolean | UserCountOutputTypeCountEnrollmentsArgs
     usedInvitations?: boolean | UserCountOutputTypeCountUsedInvitationsArgs
     chats?: boolean | UserCountOutputTypeCountChatsArgs
+    agentChatSessions?: boolean | UserCountOutputTypeCountAgentChatSessionsArgs
     notifications?: boolean | UserCountOutputTypeCountNotificationsArgs
   }
 
@@ -2372,6 +2651,13 @@ export namespace Prisma {
    */
   export type UserCountOutputTypeCountChatsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     where?: ChatWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountAgentChatSessionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: AgentChatSessionWhereInput
   }
 
   /**
@@ -2703,6 +2989,46 @@ export namespace Prisma {
 
 
   /**
+   * Count Type AgentChatSessionCountOutputType
+   */
+
+  export type AgentChatSessionCountOutputType = {
+    messages: number
+    stepLogs: number
+  }
+
+  export type AgentChatSessionCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    messages?: boolean | AgentChatSessionCountOutputTypeCountMessagesArgs
+    stepLogs?: boolean | AgentChatSessionCountOutputTypeCountStepLogsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * AgentChatSessionCountOutputType without action
+   */
+  export type AgentChatSessionCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSessionCountOutputType
+     */
+    select?: AgentChatSessionCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * AgentChatSessionCountOutputType without action
+   */
+  export type AgentChatSessionCountOutputTypeCountMessagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: AgentChatMessageWhereInput
+  }
+
+  /**
+   * AgentChatSessionCountOutputType without action
+   */
+  export type AgentChatSessionCountOutputTypeCountStepLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: AgentChatStepLogWhereInput
+  }
+
+
+  /**
    * Models
    */
 
@@ -2904,6 +3230,7 @@ export namespace Prisma {
     enrollments?: boolean | User$enrollmentsArgs<ExtArgs>
     usedInvitations?: boolean | User$usedInvitationsArgs<ExtArgs>
     chats?: boolean | User$chatsArgs<ExtArgs>
+    agentChatSessions?: boolean | User$agentChatSessionsArgs<ExtArgs>
     notifications?: boolean | User$notificationsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
@@ -2953,6 +3280,7 @@ export namespace Prisma {
     enrollments?: boolean | User$enrollmentsArgs<ExtArgs>
     usedInvitations?: boolean | User$usedInvitationsArgs<ExtArgs>
     chats?: boolean | User$chatsArgs<ExtArgs>
+    agentChatSessions?: boolean | User$agentChatSessionsArgs<ExtArgs>
     notifications?: boolean | User$notificationsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -2972,6 +3300,7 @@ export namespace Prisma {
       enrollments: Prisma.$EnrollmentPayload<ExtArgs>[]
       usedInvitations: Prisma.$InvitationCodePayload<ExtArgs>[]
       chats: Prisma.$ChatPayload<ExtArgs>[]
+      agentChatSessions: Prisma.$AgentChatSessionPayload<ExtArgs>[]
       notifications: Prisma.$NotificationPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -3387,6 +3716,7 @@ export namespace Prisma {
     enrollments<T extends User$enrollmentsArgs<ExtArgs> = {}>(args?: Subset<T, User$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     usedInvitations<T extends User$usedInvitationsArgs<ExtArgs> = {}>(args?: Subset<T, User$usedInvitationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvitationCodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     chats<T extends User$chatsArgs<ExtArgs> = {}>(args?: Subset<T, User$chatsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ChatPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    agentChatSessions<T extends User$agentChatSessionsArgs<ExtArgs> = {}>(args?: Subset<T, User$agentChatSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     notifications<T extends User$notificationsArgs<ExtArgs> = {}>(args?: Subset<T, User$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -4050,6 +4380,30 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: ChatScalarFieldEnum | ChatScalarFieldEnum[]
+  }
+
+  /**
+   * User.agentChatSessions
+   */
+  export type User$agentChatSessionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    where?: AgentChatSessionWhereInput
+    orderBy?: AgentChatSessionOrderByWithRelationInput | AgentChatSessionOrderByWithRelationInput[]
+    cursor?: AgentChatSessionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AgentChatSessionScalarFieldEnum | AgentChatSessionScalarFieldEnum[]
   }
 
   /**
@@ -11468,10 +11822,12 @@ export namespace Prisma {
 
   export type UploadedFileAvgAggregateOutputType = {
     fileSize: number | null
+    parsedContentTokens: number | null
   }
 
   export type UploadedFileSumAggregateOutputType = {
     fileSize: number | null
+    parsedContentTokens: number | null
   }
 
   export type UploadedFileMinAggregateOutputType = {
@@ -11484,6 +11840,7 @@ export namespace Prisma {
     mimeType: string | null
     parseStatus: $Enums.FileParseStatus | null
     parsedContent: string | null
+    parsedContentTokens: number | null
     parseError: string | null
     isDeleted: boolean | null
     deletedAt: Date | null
@@ -11502,6 +11859,7 @@ export namespace Prisma {
     mimeType: string | null
     parseStatus: $Enums.FileParseStatus | null
     parsedContent: string | null
+    parsedContentTokens: number | null
     parseError: string | null
     isDeleted: boolean | null
     deletedAt: Date | null
@@ -11520,6 +11878,7 @@ export namespace Prisma {
     mimeType: number
     parseStatus: number
     parsedContent: number
+    parsedContentTokens: number
     parseError: number
     isDeleted: number
     deletedAt: number
@@ -11532,10 +11891,12 @@ export namespace Prisma {
 
   export type UploadedFileAvgAggregateInputType = {
     fileSize?: true
+    parsedContentTokens?: true
   }
 
   export type UploadedFileSumAggregateInputType = {
     fileSize?: true
+    parsedContentTokens?: true
   }
 
   export type UploadedFileMinAggregateInputType = {
@@ -11548,6 +11909,7 @@ export namespace Prisma {
     mimeType?: true
     parseStatus?: true
     parsedContent?: true
+    parsedContentTokens?: true
     parseError?: true
     isDeleted?: true
     deletedAt?: true
@@ -11566,6 +11928,7 @@ export namespace Prisma {
     mimeType?: true
     parseStatus?: true
     parsedContent?: true
+    parsedContentTokens?: true
     parseError?: true
     isDeleted?: true
     deletedAt?: true
@@ -11584,6 +11947,7 @@ export namespace Prisma {
     mimeType?: true
     parseStatus?: true
     parsedContent?: true
+    parsedContentTokens?: true
     parseError?: true
     isDeleted?: true
     deletedAt?: true
@@ -11689,6 +12053,7 @@ export namespace Prisma {
     mimeType: string
     parseStatus: $Enums.FileParseStatus
     parsedContent: string | null
+    parsedContentTokens: number | null
     parseError: string | null
     isDeleted: boolean
     deletedAt: Date | null
@@ -11726,6 +12091,7 @@ export namespace Prisma {
     mimeType?: boolean
     parseStatus?: boolean
     parsedContent?: boolean
+    parsedContentTokens?: boolean
     parseError?: boolean
     isDeleted?: boolean
     deletedAt?: boolean
@@ -11747,6 +12113,7 @@ export namespace Prisma {
     mimeType?: boolean
     parseStatus?: boolean
     parsedContent?: boolean
+    parsedContentTokens?: boolean
     parseError?: boolean
     isDeleted?: boolean
     deletedAt?: boolean
@@ -11766,6 +12133,7 @@ export namespace Prisma {
     mimeType?: boolean
     parseStatus?: boolean
     parsedContent?: boolean
+    parsedContentTokens?: boolean
     parseError?: boolean
     isDeleted?: boolean
     deletedAt?: boolean
@@ -11785,6 +12153,7 @@ export namespace Prisma {
     mimeType?: boolean
     parseStatus?: boolean
     parsedContent?: boolean
+    parsedContentTokens?: boolean
     parseError?: boolean
     isDeleted?: boolean
     deletedAt?: boolean
@@ -11793,7 +12162,7 @@ export namespace Prisma {
     expiresAt?: boolean
   }
 
-  export type UploadedFileOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "fileName" | "originalFileName" | "fileKey" | "fileSize" | "mimeType" | "parseStatus" | "parsedContent" | "parseError" | "isDeleted" | "deletedAt" | "createdAt" | "updatedAt" | "expiresAt", ExtArgs["result"]["uploadedFile"]>
+  export type UploadedFileOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "fileName" | "originalFileName" | "fileKey" | "fileSize" | "mimeType" | "parseStatus" | "parsedContent" | "parsedContentTokens" | "parseError" | "isDeleted" | "deletedAt" | "createdAt" | "updatedAt" | "expiresAt", ExtArgs["result"]["uploadedFile"]>
   export type UploadedFileInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     gradingResults?: boolean | UploadedFile$gradingResultsArgs<ExtArgs>
@@ -11822,6 +12191,7 @@ export namespace Prisma {
       mimeType: string
       parseStatus: $Enums.FileParseStatus
       parsedContent: string | null
+      parsedContentTokens: number | null
       parseError: string | null
       isDeleted: boolean
       deletedAt: Date | null
@@ -12262,6 +12632,7 @@ export namespace Prisma {
     readonly mimeType: FieldRef<"UploadedFile", 'String'>
     readonly parseStatus: FieldRef<"UploadedFile", 'FileParseStatus'>
     readonly parsedContent: FieldRef<"UploadedFile", 'String'>
+    readonly parsedContentTokens: FieldRef<"UploadedFile", 'Int'>
     readonly parseError: FieldRef<"UploadedFile", 'String'>
     readonly isDeleted: FieldRef<"UploadedFile", 'Boolean'>
     readonly deletedAt: FieldRef<"UploadedFile", 'DateTime'>
@@ -20938,6 +21309,3521 @@ export namespace Prisma {
 
 
   /**
+   * Model AgentChatSession
+   */
+
+  export type AggregateAgentChatSession = {
+    _count: AgentChatSessionCountAggregateOutputType | null
+    _avg: AgentChatSessionAvgAggregateOutputType | null
+    _sum: AgentChatSessionSumAggregateOutputType | null
+    _min: AgentChatSessionMinAggregateOutputType | null
+    _max: AgentChatSessionMaxAggregateOutputType | null
+  }
+
+  export type AgentChatSessionAvgAggregateOutputType = {
+    totalTokens: number | null
+    totalSteps: number | null
+    totalDuration: number | null
+  }
+
+  export type AgentChatSessionSumAggregateOutputType = {
+    totalTokens: number | null
+    totalSteps: number | null
+    totalDuration: number | null
+  }
+
+  export type AgentChatSessionMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    title: string | null
+    userRole: string | null
+    totalTokens: number | null
+    totalSteps: number | null
+    totalDuration: number | null
+    status: string | null
+    lastActivity: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type AgentChatSessionMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    title: string | null
+    userRole: string | null
+    totalTokens: number | null
+    totalSteps: number | null
+    totalDuration: number | null
+    status: string | null
+    lastActivity: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type AgentChatSessionCountAggregateOutputType = {
+    id: number
+    userId: number
+    title: number
+    userRole: number
+    totalTokens: number
+    totalSteps: number
+    totalDuration: number
+    status: number
+    lastActivity: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type AgentChatSessionAvgAggregateInputType = {
+    totalTokens?: true
+    totalSteps?: true
+    totalDuration?: true
+  }
+
+  export type AgentChatSessionSumAggregateInputType = {
+    totalTokens?: true
+    totalSteps?: true
+    totalDuration?: true
+  }
+
+  export type AgentChatSessionMinAggregateInputType = {
+    id?: true
+    userId?: true
+    title?: true
+    userRole?: true
+    totalTokens?: true
+    totalSteps?: true
+    totalDuration?: true
+    status?: true
+    lastActivity?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type AgentChatSessionMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    title?: true
+    userRole?: true
+    totalTokens?: true
+    totalSteps?: true
+    totalDuration?: true
+    status?: true
+    lastActivity?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type AgentChatSessionCountAggregateInputType = {
+    id?: true
+    userId?: true
+    title?: true
+    userRole?: true
+    totalTokens?: true
+    totalSteps?: true
+    totalDuration?: true
+    status?: true
+    lastActivity?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type AgentChatSessionAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which AgentChatSession to aggregate.
+     */
+    where?: AgentChatSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatSessions to fetch.
+     */
+    orderBy?: AgentChatSessionOrderByWithRelationInput | AgentChatSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AgentChatSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatSessions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AgentChatSessions
+    **/
+    _count?: true | AgentChatSessionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AgentChatSessionAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AgentChatSessionSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AgentChatSessionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AgentChatSessionMaxAggregateInputType
+  }
+
+  export type GetAgentChatSessionAggregateType<T extends AgentChatSessionAggregateArgs> = {
+        [P in keyof T & keyof AggregateAgentChatSession]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAgentChatSession[P]>
+      : GetScalarType<T[P], AggregateAgentChatSession[P]>
+  }
+
+
+
+
+  export type AgentChatSessionGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: AgentChatSessionWhereInput
+    orderBy?: AgentChatSessionOrderByWithAggregationInput | AgentChatSessionOrderByWithAggregationInput[]
+    by: AgentChatSessionScalarFieldEnum[] | AgentChatSessionScalarFieldEnum
+    having?: AgentChatSessionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AgentChatSessionCountAggregateInputType | true
+    _avg?: AgentChatSessionAvgAggregateInputType
+    _sum?: AgentChatSessionSumAggregateInputType
+    _min?: AgentChatSessionMinAggregateInputType
+    _max?: AgentChatSessionMaxAggregateInputType
+  }
+
+  export type AgentChatSessionGroupByOutputType = {
+    id: string
+    userId: string
+    title: string | null
+    userRole: string
+    totalTokens: number
+    totalSteps: number
+    totalDuration: number
+    status: string
+    lastActivity: Date
+    createdAt: Date
+    updatedAt: Date
+    _count: AgentChatSessionCountAggregateOutputType | null
+    _avg: AgentChatSessionAvgAggregateOutputType | null
+    _sum: AgentChatSessionSumAggregateOutputType | null
+    _min: AgentChatSessionMinAggregateOutputType | null
+    _max: AgentChatSessionMaxAggregateOutputType | null
+  }
+
+  type GetAgentChatSessionGroupByPayload<T extends AgentChatSessionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AgentChatSessionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AgentChatSessionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AgentChatSessionGroupByOutputType[P]>
+            : GetScalarType<T[P], AgentChatSessionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AgentChatSessionSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    title?: boolean
+    userRole?: boolean
+    totalTokens?: boolean
+    totalSteps?: boolean
+    totalDuration?: boolean
+    status?: boolean
+    lastActivity?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    messages?: boolean | AgentChatSession$messagesArgs<ExtArgs>
+    stepLogs?: boolean | AgentChatSession$stepLogsArgs<ExtArgs>
+    _count?: boolean | AgentChatSessionCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentChatSession"]>
+
+  export type AgentChatSessionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    title?: boolean
+    userRole?: boolean
+    totalTokens?: boolean
+    totalSteps?: boolean
+    totalDuration?: boolean
+    status?: boolean
+    lastActivity?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentChatSession"]>
+
+  export type AgentChatSessionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    title?: boolean
+    userRole?: boolean
+    totalTokens?: boolean
+    totalSteps?: boolean
+    totalDuration?: boolean
+    status?: boolean
+    lastActivity?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentChatSession"]>
+
+  export type AgentChatSessionSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    title?: boolean
+    userRole?: boolean
+    totalTokens?: boolean
+    totalSteps?: boolean
+    totalDuration?: boolean
+    status?: boolean
+    lastActivity?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type AgentChatSessionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "title" | "userRole" | "totalTokens" | "totalSteps" | "totalDuration" | "status" | "lastActivity" | "createdAt" | "updatedAt", ExtArgs["result"]["agentChatSession"]>
+  export type AgentChatSessionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+    messages?: boolean | AgentChatSession$messagesArgs<ExtArgs>
+    stepLogs?: boolean | AgentChatSession$stepLogsArgs<ExtArgs>
+    _count?: boolean | AgentChatSessionCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type AgentChatSessionIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type AgentChatSessionIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $AgentChatSessionPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "AgentChatSession"
+    objects: {
+      user: Prisma.$UserPayload<ExtArgs>
+      messages: Prisma.$AgentChatMessagePayload<ExtArgs>[]
+      stepLogs: Prisma.$AgentChatStepLogPayload<ExtArgs>[]
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      title: string | null
+      userRole: string
+      totalTokens: number
+      totalSteps: number
+      totalDuration: number
+      status: string
+      lastActivity: Date
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["agentChatSession"]>
+    composites: {}
+  }
+
+  export type AgentChatSessionGetPayload<S extends boolean | null | undefined | AgentChatSessionDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload, S>
+
+  export type AgentChatSessionCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<AgentChatSessionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AgentChatSessionCountAggregateInputType | true
+    }
+
+  export interface AgentChatSessionDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AgentChatSession'], meta: { name: 'AgentChatSession' } }
+    /**
+     * Find zero or one AgentChatSession that matches the filter.
+     * @param {AgentChatSessionFindUniqueArgs} args - Arguments to find a AgentChatSession
+     * @example
+     * // Get one AgentChatSession
+     * const agentChatSession = await prisma.agentChatSession.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AgentChatSessionFindUniqueArgs>(args: SelectSubset<T, AgentChatSessionFindUniqueArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AgentChatSession that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AgentChatSessionFindUniqueOrThrowArgs} args - Arguments to find a AgentChatSession
+     * @example
+     * // Get one AgentChatSession
+     * const agentChatSession = await prisma.agentChatSession.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AgentChatSessionFindUniqueOrThrowArgs>(args: SelectSubset<T, AgentChatSessionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AgentChatSession that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatSessionFindFirstArgs} args - Arguments to find a AgentChatSession
+     * @example
+     * // Get one AgentChatSession
+     * const agentChatSession = await prisma.agentChatSession.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AgentChatSessionFindFirstArgs>(args?: SelectSubset<T, AgentChatSessionFindFirstArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AgentChatSession that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatSessionFindFirstOrThrowArgs} args - Arguments to find a AgentChatSession
+     * @example
+     * // Get one AgentChatSession
+     * const agentChatSession = await prisma.agentChatSession.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AgentChatSessionFindFirstOrThrowArgs>(args?: SelectSubset<T, AgentChatSessionFindFirstOrThrowArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AgentChatSessions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatSessionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AgentChatSessions
+     * const agentChatSessions = await prisma.agentChatSession.findMany()
+     * 
+     * // Get first 10 AgentChatSessions
+     * const agentChatSessions = await prisma.agentChatSession.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const agentChatSessionWithIdOnly = await prisma.agentChatSession.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AgentChatSessionFindManyArgs>(args?: SelectSubset<T, AgentChatSessionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AgentChatSession.
+     * @param {AgentChatSessionCreateArgs} args - Arguments to create a AgentChatSession.
+     * @example
+     * // Create one AgentChatSession
+     * const AgentChatSession = await prisma.agentChatSession.create({
+     *   data: {
+     *     // ... data to create a AgentChatSession
+     *   }
+     * })
+     * 
+     */
+    create<T extends AgentChatSessionCreateArgs>(args: SelectSubset<T, AgentChatSessionCreateArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AgentChatSessions.
+     * @param {AgentChatSessionCreateManyArgs} args - Arguments to create many AgentChatSessions.
+     * @example
+     * // Create many AgentChatSessions
+     * const agentChatSession = await prisma.agentChatSession.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AgentChatSessionCreateManyArgs>(args?: SelectSubset<T, AgentChatSessionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AgentChatSessions and returns the data saved in the database.
+     * @param {AgentChatSessionCreateManyAndReturnArgs} args - Arguments to create many AgentChatSessions.
+     * @example
+     * // Create many AgentChatSessions
+     * const agentChatSession = await prisma.agentChatSession.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AgentChatSessions and only return the `id`
+     * const agentChatSessionWithIdOnly = await prisma.agentChatSession.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AgentChatSessionCreateManyAndReturnArgs>(args?: SelectSubset<T, AgentChatSessionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AgentChatSession.
+     * @param {AgentChatSessionDeleteArgs} args - Arguments to delete one AgentChatSession.
+     * @example
+     * // Delete one AgentChatSession
+     * const AgentChatSession = await prisma.agentChatSession.delete({
+     *   where: {
+     *     // ... filter to delete one AgentChatSession
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AgentChatSessionDeleteArgs>(args: SelectSubset<T, AgentChatSessionDeleteArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AgentChatSession.
+     * @param {AgentChatSessionUpdateArgs} args - Arguments to update one AgentChatSession.
+     * @example
+     * // Update one AgentChatSession
+     * const agentChatSession = await prisma.agentChatSession.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AgentChatSessionUpdateArgs>(args: SelectSubset<T, AgentChatSessionUpdateArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AgentChatSessions.
+     * @param {AgentChatSessionDeleteManyArgs} args - Arguments to filter AgentChatSessions to delete.
+     * @example
+     * // Delete a few AgentChatSessions
+     * const { count } = await prisma.agentChatSession.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AgentChatSessionDeleteManyArgs>(args?: SelectSubset<T, AgentChatSessionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AgentChatSessions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatSessionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AgentChatSessions
+     * const agentChatSession = await prisma.agentChatSession.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AgentChatSessionUpdateManyArgs>(args: SelectSubset<T, AgentChatSessionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AgentChatSessions and returns the data updated in the database.
+     * @param {AgentChatSessionUpdateManyAndReturnArgs} args - Arguments to update many AgentChatSessions.
+     * @example
+     * // Update many AgentChatSessions
+     * const agentChatSession = await prisma.agentChatSession.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AgentChatSessions and only return the `id`
+     * const agentChatSessionWithIdOnly = await prisma.agentChatSession.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AgentChatSessionUpdateManyAndReturnArgs>(args: SelectSubset<T, AgentChatSessionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AgentChatSession.
+     * @param {AgentChatSessionUpsertArgs} args - Arguments to update or create a AgentChatSession.
+     * @example
+     * // Update or create a AgentChatSession
+     * const agentChatSession = await prisma.agentChatSession.upsert({
+     *   create: {
+     *     // ... data to create a AgentChatSession
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AgentChatSession we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AgentChatSessionUpsertArgs>(args: SelectSubset<T, AgentChatSessionUpsertArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AgentChatSessions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatSessionCountArgs} args - Arguments to filter AgentChatSessions to count.
+     * @example
+     * // Count the number of AgentChatSessions
+     * const count = await prisma.agentChatSession.count({
+     *   where: {
+     *     // ... the filter for the AgentChatSessions we want to count
+     *   }
+     * })
+    **/
+    count<T extends AgentChatSessionCountArgs>(
+      args?: Subset<T, AgentChatSessionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AgentChatSessionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AgentChatSession.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatSessionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AgentChatSessionAggregateArgs>(args: Subset<T, AgentChatSessionAggregateArgs>): Prisma.PrismaPromise<GetAgentChatSessionAggregateType<T>>
+
+    /**
+     * Group by AgentChatSession.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatSessionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AgentChatSessionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AgentChatSessionGroupByArgs['orderBy'] }
+        : { orderBy?: AgentChatSessionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AgentChatSessionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAgentChatSessionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AgentChatSession model
+   */
+  readonly fields: AgentChatSessionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AgentChatSession.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AgentChatSessionClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    messages<T extends AgentChatSession$messagesArgs<ExtArgs> = {}>(args?: Subset<T, AgentChatSession$messagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    stepLogs<T extends AgentChatSession$stepLogsArgs<ExtArgs> = {}>(args?: Subset<T, AgentChatSession$stepLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AgentChatSession model
+   */
+  export interface AgentChatSessionFieldRefs {
+    readonly id: FieldRef<"AgentChatSession", 'String'>
+    readonly userId: FieldRef<"AgentChatSession", 'String'>
+    readonly title: FieldRef<"AgentChatSession", 'String'>
+    readonly userRole: FieldRef<"AgentChatSession", 'String'>
+    readonly totalTokens: FieldRef<"AgentChatSession", 'Int'>
+    readonly totalSteps: FieldRef<"AgentChatSession", 'Int'>
+    readonly totalDuration: FieldRef<"AgentChatSession", 'Int'>
+    readonly status: FieldRef<"AgentChatSession", 'String'>
+    readonly lastActivity: FieldRef<"AgentChatSession", 'DateTime'>
+    readonly createdAt: FieldRef<"AgentChatSession", 'DateTime'>
+    readonly updatedAt: FieldRef<"AgentChatSession", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AgentChatSession findUnique
+   */
+  export type AgentChatSessionFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatSession to fetch.
+     */
+    where: AgentChatSessionWhereUniqueInput
+  }
+
+  /**
+   * AgentChatSession findUniqueOrThrow
+   */
+  export type AgentChatSessionFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatSession to fetch.
+     */
+    where: AgentChatSessionWhereUniqueInput
+  }
+
+  /**
+   * AgentChatSession findFirst
+   */
+  export type AgentChatSessionFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatSession to fetch.
+     */
+    where?: AgentChatSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatSessions to fetch.
+     */
+    orderBy?: AgentChatSessionOrderByWithRelationInput | AgentChatSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AgentChatSessions.
+     */
+    cursor?: AgentChatSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatSessions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AgentChatSessions.
+     */
+    distinct?: AgentChatSessionScalarFieldEnum | AgentChatSessionScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatSession findFirstOrThrow
+   */
+  export type AgentChatSessionFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatSession to fetch.
+     */
+    where?: AgentChatSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatSessions to fetch.
+     */
+    orderBy?: AgentChatSessionOrderByWithRelationInput | AgentChatSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AgentChatSessions.
+     */
+    cursor?: AgentChatSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatSessions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AgentChatSessions.
+     */
+    distinct?: AgentChatSessionScalarFieldEnum | AgentChatSessionScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatSession findMany
+   */
+  export type AgentChatSessionFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatSessions to fetch.
+     */
+    where?: AgentChatSessionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatSessions to fetch.
+     */
+    orderBy?: AgentChatSessionOrderByWithRelationInput | AgentChatSessionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AgentChatSessions.
+     */
+    cursor?: AgentChatSessionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatSessions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatSessions.
+     */
+    skip?: number
+    distinct?: AgentChatSessionScalarFieldEnum | AgentChatSessionScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatSession create
+   */
+  export type AgentChatSessionCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AgentChatSession.
+     */
+    data: XOR<AgentChatSessionCreateInput, AgentChatSessionUncheckedCreateInput>
+  }
+
+  /**
+   * AgentChatSession createMany
+   */
+  export type AgentChatSessionCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AgentChatSessions.
+     */
+    data: AgentChatSessionCreateManyInput | AgentChatSessionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AgentChatSession createManyAndReturn
+   */
+  export type AgentChatSessionCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * The data used to create many AgentChatSessions.
+     */
+    data: AgentChatSessionCreateManyInput | AgentChatSessionCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AgentChatSession update
+   */
+  export type AgentChatSessionUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AgentChatSession.
+     */
+    data: XOR<AgentChatSessionUpdateInput, AgentChatSessionUncheckedUpdateInput>
+    /**
+     * Choose, which AgentChatSession to update.
+     */
+    where: AgentChatSessionWhereUniqueInput
+  }
+
+  /**
+   * AgentChatSession updateMany
+   */
+  export type AgentChatSessionUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AgentChatSessions.
+     */
+    data: XOR<AgentChatSessionUpdateManyMutationInput, AgentChatSessionUncheckedUpdateManyInput>
+    /**
+     * Filter which AgentChatSessions to update
+     */
+    where?: AgentChatSessionWhereInput
+    /**
+     * Limit how many AgentChatSessions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AgentChatSession updateManyAndReturn
+   */
+  export type AgentChatSessionUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * The data used to update AgentChatSessions.
+     */
+    data: XOR<AgentChatSessionUpdateManyMutationInput, AgentChatSessionUncheckedUpdateManyInput>
+    /**
+     * Filter which AgentChatSessions to update
+     */
+    where?: AgentChatSessionWhereInput
+    /**
+     * Limit how many AgentChatSessions to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AgentChatSession upsert
+   */
+  export type AgentChatSessionUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AgentChatSession to update in case it exists.
+     */
+    where: AgentChatSessionWhereUniqueInput
+    /**
+     * In case the AgentChatSession found by the `where` argument doesn't exist, create a new AgentChatSession with this data.
+     */
+    create: XOR<AgentChatSessionCreateInput, AgentChatSessionUncheckedCreateInput>
+    /**
+     * In case the AgentChatSession was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AgentChatSessionUpdateInput, AgentChatSessionUncheckedUpdateInput>
+  }
+
+  /**
+   * AgentChatSession delete
+   */
+  export type AgentChatSessionDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+    /**
+     * Filter which AgentChatSession to delete.
+     */
+    where: AgentChatSessionWhereUniqueInput
+  }
+
+  /**
+   * AgentChatSession deleteMany
+   */
+  export type AgentChatSessionDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which AgentChatSessions to delete
+     */
+    where?: AgentChatSessionWhereInput
+    /**
+     * Limit how many AgentChatSessions to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AgentChatSession.messages
+   */
+  export type AgentChatSession$messagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    where?: AgentChatMessageWhereInput
+    orderBy?: AgentChatMessageOrderByWithRelationInput | AgentChatMessageOrderByWithRelationInput[]
+    cursor?: AgentChatMessageWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AgentChatMessageScalarFieldEnum | AgentChatMessageScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatSession.stepLogs
+   */
+  export type AgentChatSession$stepLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    where?: AgentChatStepLogWhereInput
+    orderBy?: AgentChatStepLogOrderByWithRelationInput | AgentChatStepLogOrderByWithRelationInput[]
+    cursor?: AgentChatStepLogWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: AgentChatStepLogScalarFieldEnum | AgentChatStepLogScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatSession without action
+   */
+  export type AgentChatSessionDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatSession
+     */
+    select?: AgentChatSessionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatSession
+     */
+    omit?: AgentChatSessionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatSessionInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AgentChatMessage
+   */
+
+  export type AggregateAgentChatMessage = {
+    _count: AgentChatMessageCountAggregateOutputType | null
+    _avg: AgentChatMessageAvgAggregateOutputType | null
+    _sum: AgentChatMessageSumAggregateOutputType | null
+    _min: AgentChatMessageMinAggregateOutputType | null
+    _max: AgentChatMessageMaxAggregateOutputType | null
+  }
+
+  export type AgentChatMessageAvgAggregateOutputType = {
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
+  }
+
+  export type AgentChatMessageSumAggregateOutputType = {
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
+  }
+
+  export type AgentChatMessageMinAggregateOutputType = {
+    id: string | null
+    sessionId: string | null
+    role: string | null
+    content: string | null
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
+    timestamp: Date | null
+  }
+
+  export type AgentChatMessageMaxAggregateOutputType = {
+    id: string | null
+    sessionId: string | null
+    role: string | null
+    content: string | null
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
+    timestamp: Date | null
+  }
+
+  export type AgentChatMessageCountAggregateOutputType = {
+    id: number
+    sessionId: number
+    role: number
+    content: number
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+    timestamp: number
+    _all: number
+  }
+
+
+  export type AgentChatMessageAvgAggregateInputType = {
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
+  }
+
+  export type AgentChatMessageSumAggregateInputType = {
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
+  }
+
+  export type AgentChatMessageMinAggregateInputType = {
+    id?: true
+    sessionId?: true
+    role?: true
+    content?: true
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
+    timestamp?: true
+  }
+
+  export type AgentChatMessageMaxAggregateInputType = {
+    id?: true
+    sessionId?: true
+    role?: true
+    content?: true
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
+    timestamp?: true
+  }
+
+  export type AgentChatMessageCountAggregateInputType = {
+    id?: true
+    sessionId?: true
+    role?: true
+    content?: true
+    promptTokens?: true
+    completionTokens?: true
+    totalTokens?: true
+    timestamp?: true
+    _all?: true
+  }
+
+  export type AgentChatMessageAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which AgentChatMessage to aggregate.
+     */
+    where?: AgentChatMessageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatMessages to fetch.
+     */
+    orderBy?: AgentChatMessageOrderByWithRelationInput | AgentChatMessageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AgentChatMessageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatMessages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatMessages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AgentChatMessages
+    **/
+    _count?: true | AgentChatMessageCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AgentChatMessageAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AgentChatMessageSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AgentChatMessageMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AgentChatMessageMaxAggregateInputType
+  }
+
+  export type GetAgentChatMessageAggregateType<T extends AgentChatMessageAggregateArgs> = {
+        [P in keyof T & keyof AggregateAgentChatMessage]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAgentChatMessage[P]>
+      : GetScalarType<T[P], AggregateAgentChatMessage[P]>
+  }
+
+
+
+
+  export type AgentChatMessageGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: AgentChatMessageWhereInput
+    orderBy?: AgentChatMessageOrderByWithAggregationInput | AgentChatMessageOrderByWithAggregationInput[]
+    by: AgentChatMessageScalarFieldEnum[] | AgentChatMessageScalarFieldEnum
+    having?: AgentChatMessageScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AgentChatMessageCountAggregateInputType | true
+    _avg?: AgentChatMessageAvgAggregateInputType
+    _sum?: AgentChatMessageSumAggregateInputType
+    _min?: AgentChatMessageMinAggregateInputType
+    _max?: AgentChatMessageMaxAggregateInputType
+  }
+
+  export type AgentChatMessageGroupByOutputType = {
+    id: string
+    sessionId: string
+    role: string
+    content: string
+    promptTokens: number | null
+    completionTokens: number | null
+    totalTokens: number | null
+    timestamp: Date
+    _count: AgentChatMessageCountAggregateOutputType | null
+    _avg: AgentChatMessageAvgAggregateOutputType | null
+    _sum: AgentChatMessageSumAggregateOutputType | null
+    _min: AgentChatMessageMinAggregateOutputType | null
+    _max: AgentChatMessageMaxAggregateOutputType | null
+  }
+
+  type GetAgentChatMessageGroupByPayload<T extends AgentChatMessageGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AgentChatMessageGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AgentChatMessageGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AgentChatMessageGroupByOutputType[P]>
+            : GetScalarType<T[P], AgentChatMessageGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AgentChatMessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    sessionId?: boolean
+    role?: boolean
+    content?: boolean
+    promptTokens?: boolean
+    completionTokens?: boolean
+    totalTokens?: boolean
+    timestamp?: boolean
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentChatMessage"]>
+
+  export type AgentChatMessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    sessionId?: boolean
+    role?: boolean
+    content?: boolean
+    promptTokens?: boolean
+    completionTokens?: boolean
+    totalTokens?: boolean
+    timestamp?: boolean
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentChatMessage"]>
+
+  export type AgentChatMessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    sessionId?: boolean
+    role?: boolean
+    content?: boolean
+    promptTokens?: boolean
+    completionTokens?: boolean
+    totalTokens?: boolean
+    timestamp?: boolean
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentChatMessage"]>
+
+  export type AgentChatMessageSelectScalar = {
+    id?: boolean
+    sessionId?: boolean
+    role?: boolean
+    content?: boolean
+    promptTokens?: boolean
+    completionTokens?: boolean
+    totalTokens?: boolean
+    timestamp?: boolean
+  }
+
+  export type AgentChatMessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "sessionId" | "role" | "content" | "promptTokens" | "completionTokens" | "totalTokens" | "timestamp", ExtArgs["result"]["agentChatMessage"]>
+  export type AgentChatMessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }
+  export type AgentChatMessageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }
+  export type AgentChatMessageIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }
+
+  export type $AgentChatMessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "AgentChatMessage"
+    objects: {
+      session: Prisma.$AgentChatSessionPayload<ExtArgs>
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      sessionId: string
+      role: string
+      content: string
+      promptTokens: number | null
+      completionTokens: number | null
+      totalTokens: number | null
+      timestamp: Date
+    }, ExtArgs["result"]["agentChatMessage"]>
+    composites: {}
+  }
+
+  export type AgentChatMessageGetPayload<S extends boolean | null | undefined | AgentChatMessageDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload, S>
+
+  export type AgentChatMessageCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<AgentChatMessageFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AgentChatMessageCountAggregateInputType | true
+    }
+
+  export interface AgentChatMessageDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AgentChatMessage'], meta: { name: 'AgentChatMessage' } }
+    /**
+     * Find zero or one AgentChatMessage that matches the filter.
+     * @param {AgentChatMessageFindUniqueArgs} args - Arguments to find a AgentChatMessage
+     * @example
+     * // Get one AgentChatMessage
+     * const agentChatMessage = await prisma.agentChatMessage.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AgentChatMessageFindUniqueArgs>(args: SelectSubset<T, AgentChatMessageFindUniqueArgs<ExtArgs>>): Prisma__AgentChatMessageClient<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AgentChatMessage that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AgentChatMessageFindUniqueOrThrowArgs} args - Arguments to find a AgentChatMessage
+     * @example
+     * // Get one AgentChatMessage
+     * const agentChatMessage = await prisma.agentChatMessage.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AgentChatMessageFindUniqueOrThrowArgs>(args: SelectSubset<T, AgentChatMessageFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AgentChatMessageClient<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AgentChatMessage that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatMessageFindFirstArgs} args - Arguments to find a AgentChatMessage
+     * @example
+     * // Get one AgentChatMessage
+     * const agentChatMessage = await prisma.agentChatMessage.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AgentChatMessageFindFirstArgs>(args?: SelectSubset<T, AgentChatMessageFindFirstArgs<ExtArgs>>): Prisma__AgentChatMessageClient<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AgentChatMessage that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatMessageFindFirstOrThrowArgs} args - Arguments to find a AgentChatMessage
+     * @example
+     * // Get one AgentChatMessage
+     * const agentChatMessage = await prisma.agentChatMessage.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AgentChatMessageFindFirstOrThrowArgs>(args?: SelectSubset<T, AgentChatMessageFindFirstOrThrowArgs<ExtArgs>>): Prisma__AgentChatMessageClient<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AgentChatMessages that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatMessageFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AgentChatMessages
+     * const agentChatMessages = await prisma.agentChatMessage.findMany()
+     * 
+     * // Get first 10 AgentChatMessages
+     * const agentChatMessages = await prisma.agentChatMessage.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const agentChatMessageWithIdOnly = await prisma.agentChatMessage.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AgentChatMessageFindManyArgs>(args?: SelectSubset<T, AgentChatMessageFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AgentChatMessage.
+     * @param {AgentChatMessageCreateArgs} args - Arguments to create a AgentChatMessage.
+     * @example
+     * // Create one AgentChatMessage
+     * const AgentChatMessage = await prisma.agentChatMessage.create({
+     *   data: {
+     *     // ... data to create a AgentChatMessage
+     *   }
+     * })
+     * 
+     */
+    create<T extends AgentChatMessageCreateArgs>(args: SelectSubset<T, AgentChatMessageCreateArgs<ExtArgs>>): Prisma__AgentChatMessageClient<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AgentChatMessages.
+     * @param {AgentChatMessageCreateManyArgs} args - Arguments to create many AgentChatMessages.
+     * @example
+     * // Create many AgentChatMessages
+     * const agentChatMessage = await prisma.agentChatMessage.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AgentChatMessageCreateManyArgs>(args?: SelectSubset<T, AgentChatMessageCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AgentChatMessages and returns the data saved in the database.
+     * @param {AgentChatMessageCreateManyAndReturnArgs} args - Arguments to create many AgentChatMessages.
+     * @example
+     * // Create many AgentChatMessages
+     * const agentChatMessage = await prisma.agentChatMessage.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AgentChatMessages and only return the `id`
+     * const agentChatMessageWithIdOnly = await prisma.agentChatMessage.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AgentChatMessageCreateManyAndReturnArgs>(args?: SelectSubset<T, AgentChatMessageCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AgentChatMessage.
+     * @param {AgentChatMessageDeleteArgs} args - Arguments to delete one AgentChatMessage.
+     * @example
+     * // Delete one AgentChatMessage
+     * const AgentChatMessage = await prisma.agentChatMessage.delete({
+     *   where: {
+     *     // ... filter to delete one AgentChatMessage
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AgentChatMessageDeleteArgs>(args: SelectSubset<T, AgentChatMessageDeleteArgs<ExtArgs>>): Prisma__AgentChatMessageClient<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AgentChatMessage.
+     * @param {AgentChatMessageUpdateArgs} args - Arguments to update one AgentChatMessage.
+     * @example
+     * // Update one AgentChatMessage
+     * const agentChatMessage = await prisma.agentChatMessage.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AgentChatMessageUpdateArgs>(args: SelectSubset<T, AgentChatMessageUpdateArgs<ExtArgs>>): Prisma__AgentChatMessageClient<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AgentChatMessages.
+     * @param {AgentChatMessageDeleteManyArgs} args - Arguments to filter AgentChatMessages to delete.
+     * @example
+     * // Delete a few AgentChatMessages
+     * const { count } = await prisma.agentChatMessage.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AgentChatMessageDeleteManyArgs>(args?: SelectSubset<T, AgentChatMessageDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AgentChatMessages.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatMessageUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AgentChatMessages
+     * const agentChatMessage = await prisma.agentChatMessage.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AgentChatMessageUpdateManyArgs>(args: SelectSubset<T, AgentChatMessageUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AgentChatMessages and returns the data updated in the database.
+     * @param {AgentChatMessageUpdateManyAndReturnArgs} args - Arguments to update many AgentChatMessages.
+     * @example
+     * // Update many AgentChatMessages
+     * const agentChatMessage = await prisma.agentChatMessage.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AgentChatMessages and only return the `id`
+     * const agentChatMessageWithIdOnly = await prisma.agentChatMessage.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AgentChatMessageUpdateManyAndReturnArgs>(args: SelectSubset<T, AgentChatMessageUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AgentChatMessage.
+     * @param {AgentChatMessageUpsertArgs} args - Arguments to update or create a AgentChatMessage.
+     * @example
+     * // Update or create a AgentChatMessage
+     * const agentChatMessage = await prisma.agentChatMessage.upsert({
+     *   create: {
+     *     // ... data to create a AgentChatMessage
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AgentChatMessage we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AgentChatMessageUpsertArgs>(args: SelectSubset<T, AgentChatMessageUpsertArgs<ExtArgs>>): Prisma__AgentChatMessageClient<runtime.Types.Result.GetResult<Prisma.$AgentChatMessagePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AgentChatMessages.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatMessageCountArgs} args - Arguments to filter AgentChatMessages to count.
+     * @example
+     * // Count the number of AgentChatMessages
+     * const count = await prisma.agentChatMessage.count({
+     *   where: {
+     *     // ... the filter for the AgentChatMessages we want to count
+     *   }
+     * })
+    **/
+    count<T extends AgentChatMessageCountArgs>(
+      args?: Subset<T, AgentChatMessageCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AgentChatMessageCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AgentChatMessage.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatMessageAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AgentChatMessageAggregateArgs>(args: Subset<T, AgentChatMessageAggregateArgs>): Prisma.PrismaPromise<GetAgentChatMessageAggregateType<T>>
+
+    /**
+     * Group by AgentChatMessage.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatMessageGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AgentChatMessageGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AgentChatMessageGroupByArgs['orderBy'] }
+        : { orderBy?: AgentChatMessageGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AgentChatMessageGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAgentChatMessageGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AgentChatMessage model
+   */
+  readonly fields: AgentChatMessageFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AgentChatMessage.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AgentChatMessageClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    session<T extends AgentChatSessionDefaultArgs<ExtArgs> = {}>(args?: Subset<T, AgentChatSessionDefaultArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AgentChatMessage model
+   */
+  export interface AgentChatMessageFieldRefs {
+    readonly id: FieldRef<"AgentChatMessage", 'String'>
+    readonly sessionId: FieldRef<"AgentChatMessage", 'String'>
+    readonly role: FieldRef<"AgentChatMessage", 'String'>
+    readonly content: FieldRef<"AgentChatMessage", 'String'>
+    readonly promptTokens: FieldRef<"AgentChatMessage", 'Int'>
+    readonly completionTokens: FieldRef<"AgentChatMessage", 'Int'>
+    readonly totalTokens: FieldRef<"AgentChatMessage", 'Int'>
+    readonly timestamp: FieldRef<"AgentChatMessage", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AgentChatMessage findUnique
+   */
+  export type AgentChatMessageFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatMessage to fetch.
+     */
+    where: AgentChatMessageWhereUniqueInput
+  }
+
+  /**
+   * AgentChatMessage findUniqueOrThrow
+   */
+  export type AgentChatMessageFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatMessage to fetch.
+     */
+    where: AgentChatMessageWhereUniqueInput
+  }
+
+  /**
+   * AgentChatMessage findFirst
+   */
+  export type AgentChatMessageFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatMessage to fetch.
+     */
+    where?: AgentChatMessageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatMessages to fetch.
+     */
+    orderBy?: AgentChatMessageOrderByWithRelationInput | AgentChatMessageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AgentChatMessages.
+     */
+    cursor?: AgentChatMessageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatMessages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatMessages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AgentChatMessages.
+     */
+    distinct?: AgentChatMessageScalarFieldEnum | AgentChatMessageScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatMessage findFirstOrThrow
+   */
+  export type AgentChatMessageFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatMessage to fetch.
+     */
+    where?: AgentChatMessageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatMessages to fetch.
+     */
+    orderBy?: AgentChatMessageOrderByWithRelationInput | AgentChatMessageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AgentChatMessages.
+     */
+    cursor?: AgentChatMessageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatMessages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatMessages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AgentChatMessages.
+     */
+    distinct?: AgentChatMessageScalarFieldEnum | AgentChatMessageScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatMessage findMany
+   */
+  export type AgentChatMessageFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatMessages to fetch.
+     */
+    where?: AgentChatMessageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatMessages to fetch.
+     */
+    orderBy?: AgentChatMessageOrderByWithRelationInput | AgentChatMessageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AgentChatMessages.
+     */
+    cursor?: AgentChatMessageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatMessages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatMessages.
+     */
+    skip?: number
+    distinct?: AgentChatMessageScalarFieldEnum | AgentChatMessageScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatMessage create
+   */
+  export type AgentChatMessageCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AgentChatMessage.
+     */
+    data: XOR<AgentChatMessageCreateInput, AgentChatMessageUncheckedCreateInput>
+  }
+
+  /**
+   * AgentChatMessage createMany
+   */
+  export type AgentChatMessageCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AgentChatMessages.
+     */
+    data: AgentChatMessageCreateManyInput | AgentChatMessageCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AgentChatMessage createManyAndReturn
+   */
+  export type AgentChatMessageCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * The data used to create many AgentChatMessages.
+     */
+    data: AgentChatMessageCreateManyInput | AgentChatMessageCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AgentChatMessage update
+   */
+  export type AgentChatMessageUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AgentChatMessage.
+     */
+    data: XOR<AgentChatMessageUpdateInput, AgentChatMessageUncheckedUpdateInput>
+    /**
+     * Choose, which AgentChatMessage to update.
+     */
+    where: AgentChatMessageWhereUniqueInput
+  }
+
+  /**
+   * AgentChatMessage updateMany
+   */
+  export type AgentChatMessageUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AgentChatMessages.
+     */
+    data: XOR<AgentChatMessageUpdateManyMutationInput, AgentChatMessageUncheckedUpdateManyInput>
+    /**
+     * Filter which AgentChatMessages to update
+     */
+    where?: AgentChatMessageWhereInput
+    /**
+     * Limit how many AgentChatMessages to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AgentChatMessage updateManyAndReturn
+   */
+  export type AgentChatMessageUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * The data used to update AgentChatMessages.
+     */
+    data: XOR<AgentChatMessageUpdateManyMutationInput, AgentChatMessageUncheckedUpdateManyInput>
+    /**
+     * Filter which AgentChatMessages to update
+     */
+    where?: AgentChatMessageWhereInput
+    /**
+     * Limit how many AgentChatMessages to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AgentChatMessage upsert
+   */
+  export type AgentChatMessageUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AgentChatMessage to update in case it exists.
+     */
+    where: AgentChatMessageWhereUniqueInput
+    /**
+     * In case the AgentChatMessage found by the `where` argument doesn't exist, create a new AgentChatMessage with this data.
+     */
+    create: XOR<AgentChatMessageCreateInput, AgentChatMessageUncheckedCreateInput>
+    /**
+     * In case the AgentChatMessage was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AgentChatMessageUpdateInput, AgentChatMessageUncheckedUpdateInput>
+  }
+
+  /**
+   * AgentChatMessage delete
+   */
+  export type AgentChatMessageDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+    /**
+     * Filter which AgentChatMessage to delete.
+     */
+    where: AgentChatMessageWhereUniqueInput
+  }
+
+  /**
+   * AgentChatMessage deleteMany
+   */
+  export type AgentChatMessageDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which AgentChatMessages to delete
+     */
+    where?: AgentChatMessageWhereInput
+    /**
+     * Limit how many AgentChatMessages to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AgentChatMessage without action
+   */
+  export type AgentChatMessageDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatMessage
+     */
+    select?: AgentChatMessageSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatMessage
+     */
+    omit?: AgentChatMessageOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatMessageInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AgentChatStepLog
+   */
+
+  export type AggregateAgentChatStepLog = {
+    _count: AgentChatStepLogCountAggregateOutputType | null
+    _avg: AgentChatStepLogAvgAggregateOutputType | null
+    _sum: AgentChatStepLogSumAggregateOutputType | null
+    _min: AgentChatStepLogMinAggregateOutputType | null
+    _max: AgentChatStepLogMaxAggregateOutputType | null
+  }
+
+  export type AgentChatStepLogAvgAggregateOutputType = {
+    stepNumber: number | null
+    durationMs: number | null
+  }
+
+  export type AgentChatStepLogSumAggregateOutputType = {
+    stepNumber: number | null
+    durationMs: number | null
+  }
+
+  export type AgentChatStepLogMinAggregateOutputType = {
+    id: string | null
+    sessionId: string | null
+    stepNumber: number | null
+    toolName: string | null
+    reasoning: string | null
+    durationMs: number | null
+    timestamp: Date | null
+  }
+
+  export type AgentChatStepLogMaxAggregateOutputType = {
+    id: string | null
+    sessionId: string | null
+    stepNumber: number | null
+    toolName: string | null
+    reasoning: string | null
+    durationMs: number | null
+    timestamp: Date | null
+  }
+
+  export type AgentChatStepLogCountAggregateOutputType = {
+    id: number
+    sessionId: number
+    stepNumber: number
+    toolName: number
+    toolInput: number
+    toolOutput: number
+    reasoning: number
+    durationMs: number
+    timestamp: number
+    _all: number
+  }
+
+
+  export type AgentChatStepLogAvgAggregateInputType = {
+    stepNumber?: true
+    durationMs?: true
+  }
+
+  export type AgentChatStepLogSumAggregateInputType = {
+    stepNumber?: true
+    durationMs?: true
+  }
+
+  export type AgentChatStepLogMinAggregateInputType = {
+    id?: true
+    sessionId?: true
+    stepNumber?: true
+    toolName?: true
+    reasoning?: true
+    durationMs?: true
+    timestamp?: true
+  }
+
+  export type AgentChatStepLogMaxAggregateInputType = {
+    id?: true
+    sessionId?: true
+    stepNumber?: true
+    toolName?: true
+    reasoning?: true
+    durationMs?: true
+    timestamp?: true
+  }
+
+  export type AgentChatStepLogCountAggregateInputType = {
+    id?: true
+    sessionId?: true
+    stepNumber?: true
+    toolName?: true
+    toolInput?: true
+    toolOutput?: true
+    reasoning?: true
+    durationMs?: true
+    timestamp?: true
+    _all?: true
+  }
+
+  export type AgentChatStepLogAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which AgentChatStepLog to aggregate.
+     */
+    where?: AgentChatStepLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatStepLogs to fetch.
+     */
+    orderBy?: AgentChatStepLogOrderByWithRelationInput | AgentChatStepLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AgentChatStepLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatStepLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatStepLogs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AgentChatStepLogs
+    **/
+    _count?: true | AgentChatStepLogCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AgentChatStepLogAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AgentChatStepLogSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AgentChatStepLogMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AgentChatStepLogMaxAggregateInputType
+  }
+
+  export type GetAgentChatStepLogAggregateType<T extends AgentChatStepLogAggregateArgs> = {
+        [P in keyof T & keyof AggregateAgentChatStepLog]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAgentChatStepLog[P]>
+      : GetScalarType<T[P], AggregateAgentChatStepLog[P]>
+  }
+
+
+
+
+  export type AgentChatStepLogGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: AgentChatStepLogWhereInput
+    orderBy?: AgentChatStepLogOrderByWithAggregationInput | AgentChatStepLogOrderByWithAggregationInput[]
+    by: AgentChatStepLogScalarFieldEnum[] | AgentChatStepLogScalarFieldEnum
+    having?: AgentChatStepLogScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AgentChatStepLogCountAggregateInputType | true
+    _avg?: AgentChatStepLogAvgAggregateInputType
+    _sum?: AgentChatStepLogSumAggregateInputType
+    _min?: AgentChatStepLogMinAggregateInputType
+    _max?: AgentChatStepLogMaxAggregateInputType
+  }
+
+  export type AgentChatStepLogGroupByOutputType = {
+    id: string
+    sessionId: string
+    stepNumber: number
+    toolName: string | null
+    toolInput: JsonValue | null
+    toolOutput: JsonValue | null
+    reasoning: string | null
+    durationMs: number | null
+    timestamp: Date
+    _count: AgentChatStepLogCountAggregateOutputType | null
+    _avg: AgentChatStepLogAvgAggregateOutputType | null
+    _sum: AgentChatStepLogSumAggregateOutputType | null
+    _min: AgentChatStepLogMinAggregateOutputType | null
+    _max: AgentChatStepLogMaxAggregateOutputType | null
+  }
+
+  type GetAgentChatStepLogGroupByPayload<T extends AgentChatStepLogGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AgentChatStepLogGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AgentChatStepLogGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AgentChatStepLogGroupByOutputType[P]>
+            : GetScalarType<T[P], AgentChatStepLogGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AgentChatStepLogSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    sessionId?: boolean
+    stepNumber?: boolean
+    toolName?: boolean
+    toolInput?: boolean
+    toolOutput?: boolean
+    reasoning?: boolean
+    durationMs?: boolean
+    timestamp?: boolean
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentChatStepLog"]>
+
+  export type AgentChatStepLogSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    sessionId?: boolean
+    stepNumber?: boolean
+    toolName?: boolean
+    toolInput?: boolean
+    toolOutput?: boolean
+    reasoning?: boolean
+    durationMs?: boolean
+    timestamp?: boolean
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentChatStepLog"]>
+
+  export type AgentChatStepLogSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    sessionId?: boolean
+    stepNumber?: boolean
+    toolName?: boolean
+    toolInput?: boolean
+    toolOutput?: boolean
+    reasoning?: boolean
+    durationMs?: boolean
+    timestamp?: boolean
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["agentChatStepLog"]>
+
+  export type AgentChatStepLogSelectScalar = {
+    id?: boolean
+    sessionId?: boolean
+    stepNumber?: boolean
+    toolName?: boolean
+    toolInput?: boolean
+    toolOutput?: boolean
+    reasoning?: boolean
+    durationMs?: boolean
+    timestamp?: boolean
+  }
+
+  export type AgentChatStepLogOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "sessionId" | "stepNumber" | "toolName" | "toolInput" | "toolOutput" | "reasoning" | "durationMs" | "timestamp", ExtArgs["result"]["agentChatStepLog"]>
+  export type AgentChatStepLogInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }
+  export type AgentChatStepLogIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }
+  export type AgentChatStepLogIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    session?: boolean | AgentChatSessionDefaultArgs<ExtArgs>
+  }
+
+  export type $AgentChatStepLogPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "AgentChatStepLog"
+    objects: {
+      session: Prisma.$AgentChatSessionPayload<ExtArgs>
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      sessionId: string
+      stepNumber: number
+      toolName: string | null
+      toolInput: Prisma.JsonValue | null
+      toolOutput: Prisma.JsonValue | null
+      reasoning: string | null
+      durationMs: number | null
+      timestamp: Date
+    }, ExtArgs["result"]["agentChatStepLog"]>
+    composites: {}
+  }
+
+  export type AgentChatStepLogGetPayload<S extends boolean | null | undefined | AgentChatStepLogDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload, S>
+
+  export type AgentChatStepLogCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<AgentChatStepLogFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: AgentChatStepLogCountAggregateInputType | true
+    }
+
+  export interface AgentChatStepLogDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AgentChatStepLog'], meta: { name: 'AgentChatStepLog' } }
+    /**
+     * Find zero or one AgentChatStepLog that matches the filter.
+     * @param {AgentChatStepLogFindUniqueArgs} args - Arguments to find a AgentChatStepLog
+     * @example
+     * // Get one AgentChatStepLog
+     * const agentChatStepLog = await prisma.agentChatStepLog.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AgentChatStepLogFindUniqueArgs>(args: SelectSubset<T, AgentChatStepLogFindUniqueArgs<ExtArgs>>): Prisma__AgentChatStepLogClient<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one AgentChatStepLog that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {AgentChatStepLogFindUniqueOrThrowArgs} args - Arguments to find a AgentChatStepLog
+     * @example
+     * // Get one AgentChatStepLog
+     * const agentChatStepLog = await prisma.agentChatStepLog.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AgentChatStepLogFindUniqueOrThrowArgs>(args: SelectSubset<T, AgentChatStepLogFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AgentChatStepLogClient<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AgentChatStepLog that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatStepLogFindFirstArgs} args - Arguments to find a AgentChatStepLog
+     * @example
+     * // Get one AgentChatStepLog
+     * const agentChatStepLog = await prisma.agentChatStepLog.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AgentChatStepLogFindFirstArgs>(args?: SelectSubset<T, AgentChatStepLogFindFirstArgs<ExtArgs>>): Prisma__AgentChatStepLogClient<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first AgentChatStepLog that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatStepLogFindFirstOrThrowArgs} args - Arguments to find a AgentChatStepLog
+     * @example
+     * // Get one AgentChatStepLog
+     * const agentChatStepLog = await prisma.agentChatStepLog.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AgentChatStepLogFindFirstOrThrowArgs>(args?: SelectSubset<T, AgentChatStepLogFindFirstOrThrowArgs<ExtArgs>>): Prisma__AgentChatStepLogClient<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more AgentChatStepLogs that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatStepLogFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AgentChatStepLogs
+     * const agentChatStepLogs = await prisma.agentChatStepLog.findMany()
+     * 
+     * // Get first 10 AgentChatStepLogs
+     * const agentChatStepLogs = await prisma.agentChatStepLog.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const agentChatStepLogWithIdOnly = await prisma.agentChatStepLog.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AgentChatStepLogFindManyArgs>(args?: SelectSubset<T, AgentChatStepLogFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a AgentChatStepLog.
+     * @param {AgentChatStepLogCreateArgs} args - Arguments to create a AgentChatStepLog.
+     * @example
+     * // Create one AgentChatStepLog
+     * const AgentChatStepLog = await prisma.agentChatStepLog.create({
+     *   data: {
+     *     // ... data to create a AgentChatStepLog
+     *   }
+     * })
+     * 
+     */
+    create<T extends AgentChatStepLogCreateArgs>(args: SelectSubset<T, AgentChatStepLogCreateArgs<ExtArgs>>): Prisma__AgentChatStepLogClient<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many AgentChatStepLogs.
+     * @param {AgentChatStepLogCreateManyArgs} args - Arguments to create many AgentChatStepLogs.
+     * @example
+     * // Create many AgentChatStepLogs
+     * const agentChatStepLog = await prisma.agentChatStepLog.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AgentChatStepLogCreateManyArgs>(args?: SelectSubset<T, AgentChatStepLogCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AgentChatStepLogs and returns the data saved in the database.
+     * @param {AgentChatStepLogCreateManyAndReturnArgs} args - Arguments to create many AgentChatStepLogs.
+     * @example
+     * // Create many AgentChatStepLogs
+     * const agentChatStepLog = await prisma.agentChatStepLog.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AgentChatStepLogs and only return the `id`
+     * const agentChatStepLogWithIdOnly = await prisma.agentChatStepLog.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AgentChatStepLogCreateManyAndReturnArgs>(args?: SelectSubset<T, AgentChatStepLogCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a AgentChatStepLog.
+     * @param {AgentChatStepLogDeleteArgs} args - Arguments to delete one AgentChatStepLog.
+     * @example
+     * // Delete one AgentChatStepLog
+     * const AgentChatStepLog = await prisma.agentChatStepLog.delete({
+     *   where: {
+     *     // ... filter to delete one AgentChatStepLog
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AgentChatStepLogDeleteArgs>(args: SelectSubset<T, AgentChatStepLogDeleteArgs<ExtArgs>>): Prisma__AgentChatStepLogClient<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one AgentChatStepLog.
+     * @param {AgentChatStepLogUpdateArgs} args - Arguments to update one AgentChatStepLog.
+     * @example
+     * // Update one AgentChatStepLog
+     * const agentChatStepLog = await prisma.agentChatStepLog.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AgentChatStepLogUpdateArgs>(args: SelectSubset<T, AgentChatStepLogUpdateArgs<ExtArgs>>): Prisma__AgentChatStepLogClient<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more AgentChatStepLogs.
+     * @param {AgentChatStepLogDeleteManyArgs} args - Arguments to filter AgentChatStepLogs to delete.
+     * @example
+     * // Delete a few AgentChatStepLogs
+     * const { count } = await prisma.agentChatStepLog.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AgentChatStepLogDeleteManyArgs>(args?: SelectSubset<T, AgentChatStepLogDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AgentChatStepLogs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatStepLogUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AgentChatStepLogs
+     * const agentChatStepLog = await prisma.agentChatStepLog.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AgentChatStepLogUpdateManyArgs>(args: SelectSubset<T, AgentChatStepLogUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AgentChatStepLogs and returns the data updated in the database.
+     * @param {AgentChatStepLogUpdateManyAndReturnArgs} args - Arguments to update many AgentChatStepLogs.
+     * @example
+     * // Update many AgentChatStepLogs
+     * const agentChatStepLog = await prisma.agentChatStepLog.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more AgentChatStepLogs and only return the `id`
+     * const agentChatStepLogWithIdOnly = await prisma.agentChatStepLog.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends AgentChatStepLogUpdateManyAndReturnArgs>(args: SelectSubset<T, AgentChatStepLogUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one AgentChatStepLog.
+     * @param {AgentChatStepLogUpsertArgs} args - Arguments to update or create a AgentChatStepLog.
+     * @example
+     * // Update or create a AgentChatStepLog
+     * const agentChatStepLog = await prisma.agentChatStepLog.upsert({
+     *   create: {
+     *     // ... data to create a AgentChatStepLog
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AgentChatStepLog we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AgentChatStepLogUpsertArgs>(args: SelectSubset<T, AgentChatStepLogUpsertArgs<ExtArgs>>): Prisma__AgentChatStepLogClient<runtime.Types.Result.GetResult<Prisma.$AgentChatStepLogPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of AgentChatStepLogs.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatStepLogCountArgs} args - Arguments to filter AgentChatStepLogs to count.
+     * @example
+     * // Count the number of AgentChatStepLogs
+     * const count = await prisma.agentChatStepLog.count({
+     *   where: {
+     *     // ... the filter for the AgentChatStepLogs we want to count
+     *   }
+     * })
+    **/
+    count<T extends AgentChatStepLogCountArgs>(
+      args?: Subset<T, AgentChatStepLogCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AgentChatStepLogCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AgentChatStepLog.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatStepLogAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AgentChatStepLogAggregateArgs>(args: Subset<T, AgentChatStepLogAggregateArgs>): Prisma.PrismaPromise<GetAgentChatStepLogAggregateType<T>>
+
+    /**
+     * Group by AgentChatStepLog.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AgentChatStepLogGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AgentChatStepLogGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AgentChatStepLogGroupByArgs['orderBy'] }
+        : { orderBy?: AgentChatStepLogGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AgentChatStepLogGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAgentChatStepLogGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AgentChatStepLog model
+   */
+  readonly fields: AgentChatStepLogFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AgentChatStepLog.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AgentChatStepLogClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    session<T extends AgentChatSessionDefaultArgs<ExtArgs> = {}>(args?: Subset<T, AgentChatSessionDefaultArgs<ExtArgs>>): Prisma__AgentChatSessionClient<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AgentChatStepLog model
+   */
+  export interface AgentChatStepLogFieldRefs {
+    readonly id: FieldRef<"AgentChatStepLog", 'String'>
+    readonly sessionId: FieldRef<"AgentChatStepLog", 'String'>
+    readonly stepNumber: FieldRef<"AgentChatStepLog", 'Int'>
+    readonly toolName: FieldRef<"AgentChatStepLog", 'String'>
+    readonly toolInput: FieldRef<"AgentChatStepLog", 'Json'>
+    readonly toolOutput: FieldRef<"AgentChatStepLog", 'Json'>
+    readonly reasoning: FieldRef<"AgentChatStepLog", 'String'>
+    readonly durationMs: FieldRef<"AgentChatStepLog", 'Int'>
+    readonly timestamp: FieldRef<"AgentChatStepLog", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AgentChatStepLog findUnique
+   */
+  export type AgentChatStepLogFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatStepLog to fetch.
+     */
+    where: AgentChatStepLogWhereUniqueInput
+  }
+
+  /**
+   * AgentChatStepLog findUniqueOrThrow
+   */
+  export type AgentChatStepLogFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatStepLog to fetch.
+     */
+    where: AgentChatStepLogWhereUniqueInput
+  }
+
+  /**
+   * AgentChatStepLog findFirst
+   */
+  export type AgentChatStepLogFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatStepLog to fetch.
+     */
+    where?: AgentChatStepLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatStepLogs to fetch.
+     */
+    orderBy?: AgentChatStepLogOrderByWithRelationInput | AgentChatStepLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AgentChatStepLogs.
+     */
+    cursor?: AgentChatStepLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatStepLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatStepLogs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AgentChatStepLogs.
+     */
+    distinct?: AgentChatStepLogScalarFieldEnum | AgentChatStepLogScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatStepLog findFirstOrThrow
+   */
+  export type AgentChatStepLogFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatStepLog to fetch.
+     */
+    where?: AgentChatStepLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatStepLogs to fetch.
+     */
+    orderBy?: AgentChatStepLogOrderByWithRelationInput | AgentChatStepLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AgentChatStepLogs.
+     */
+    cursor?: AgentChatStepLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatStepLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatStepLogs.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AgentChatStepLogs.
+     */
+    distinct?: AgentChatStepLogScalarFieldEnum | AgentChatStepLogScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatStepLog findMany
+   */
+  export type AgentChatStepLogFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    /**
+     * Filter, which AgentChatStepLogs to fetch.
+     */
+    where?: AgentChatStepLogWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AgentChatStepLogs to fetch.
+     */
+    orderBy?: AgentChatStepLogOrderByWithRelationInput | AgentChatStepLogOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AgentChatStepLogs.
+     */
+    cursor?: AgentChatStepLogWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AgentChatStepLogs from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AgentChatStepLogs.
+     */
+    skip?: number
+    distinct?: AgentChatStepLogScalarFieldEnum | AgentChatStepLogScalarFieldEnum[]
+  }
+
+  /**
+   * AgentChatStepLog create
+   */
+  export type AgentChatStepLogCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    /**
+     * The data needed to create a AgentChatStepLog.
+     */
+    data: XOR<AgentChatStepLogCreateInput, AgentChatStepLogUncheckedCreateInput>
+  }
+
+  /**
+   * AgentChatStepLog createMany
+   */
+  export type AgentChatStepLogCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AgentChatStepLogs.
+     */
+    data: AgentChatStepLogCreateManyInput | AgentChatStepLogCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AgentChatStepLog createManyAndReturn
+   */
+  export type AgentChatStepLogCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * The data used to create many AgentChatStepLogs.
+     */
+    data: AgentChatStepLogCreateManyInput | AgentChatStepLogCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AgentChatStepLog update
+   */
+  export type AgentChatStepLogUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    /**
+     * The data needed to update a AgentChatStepLog.
+     */
+    data: XOR<AgentChatStepLogUpdateInput, AgentChatStepLogUncheckedUpdateInput>
+    /**
+     * Choose, which AgentChatStepLog to update.
+     */
+    where: AgentChatStepLogWhereUniqueInput
+  }
+
+  /**
+   * AgentChatStepLog updateMany
+   */
+  export type AgentChatStepLogUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AgentChatStepLogs.
+     */
+    data: XOR<AgentChatStepLogUpdateManyMutationInput, AgentChatStepLogUncheckedUpdateManyInput>
+    /**
+     * Filter which AgentChatStepLogs to update
+     */
+    where?: AgentChatStepLogWhereInput
+    /**
+     * Limit how many AgentChatStepLogs to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * AgentChatStepLog updateManyAndReturn
+   */
+  export type AgentChatStepLogUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * The data used to update AgentChatStepLogs.
+     */
+    data: XOR<AgentChatStepLogUpdateManyMutationInput, AgentChatStepLogUncheckedUpdateManyInput>
+    /**
+     * Filter which AgentChatStepLogs to update
+     */
+    where?: AgentChatStepLogWhereInput
+    /**
+     * Limit how many AgentChatStepLogs to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * AgentChatStepLog upsert
+   */
+  export type AgentChatStepLogUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    /**
+     * The filter to search for the AgentChatStepLog to update in case it exists.
+     */
+    where: AgentChatStepLogWhereUniqueInput
+    /**
+     * In case the AgentChatStepLog found by the `where` argument doesn't exist, create a new AgentChatStepLog with this data.
+     */
+    create: XOR<AgentChatStepLogCreateInput, AgentChatStepLogUncheckedCreateInput>
+    /**
+     * In case the AgentChatStepLog was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AgentChatStepLogUpdateInput, AgentChatStepLogUncheckedUpdateInput>
+  }
+
+  /**
+   * AgentChatStepLog delete
+   */
+  export type AgentChatStepLogDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+    /**
+     * Filter which AgentChatStepLog to delete.
+     */
+    where: AgentChatStepLogWhereUniqueInput
+  }
+
+  /**
+   * AgentChatStepLog deleteMany
+   */
+  export type AgentChatStepLogDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which AgentChatStepLogs to delete
+     */
+    where?: AgentChatStepLogWhereInput
+    /**
+     * Limit how many AgentChatStepLogs to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * AgentChatStepLog without action
+   */
+  export type AgentChatStepLogDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AgentChatStepLog
+     */
+    select?: AgentChatStepLogSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AgentChatStepLog
+     */
+    omit?: AgentChatStepLogOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AgentChatStepLogInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -21073,6 +24959,7 @@ export namespace Prisma {
     mimeType: 'mimeType',
     parseStatus: 'parseStatus',
     parsedContent: 'parsedContent',
+    parsedContentTokens: 'parsedContentTokens',
     parseError: 'parseError',
     isDeleted: 'isDeleted',
     deletedAt: 'deletedAt',
@@ -21199,6 +25086,52 @@ export namespace Prisma {
   } as const
 
   export type NotificationScalarFieldEnum = (typeof NotificationScalarFieldEnum)[keyof typeof NotificationScalarFieldEnum]
+
+
+  export const AgentChatSessionScalarFieldEnum = {
+    id: 'id',
+    userId: 'userId',
+    title: 'title',
+    userRole: 'userRole',
+    totalTokens: 'totalTokens',
+    totalSteps: 'totalSteps',
+    totalDuration: 'totalDuration',
+    status: 'status',
+    lastActivity: 'lastActivity',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  } as const
+
+  export type AgentChatSessionScalarFieldEnum = (typeof AgentChatSessionScalarFieldEnum)[keyof typeof AgentChatSessionScalarFieldEnum]
+
+
+  export const AgentChatMessageScalarFieldEnum = {
+    id: 'id',
+    sessionId: 'sessionId',
+    role: 'role',
+    content: 'content',
+    promptTokens: 'promptTokens',
+    completionTokens: 'completionTokens',
+    totalTokens: 'totalTokens',
+    timestamp: 'timestamp'
+  } as const
+
+  export type AgentChatMessageScalarFieldEnum = (typeof AgentChatMessageScalarFieldEnum)[keyof typeof AgentChatMessageScalarFieldEnum]
+
+
+  export const AgentChatStepLogScalarFieldEnum = {
+    id: 'id',
+    sessionId: 'sessionId',
+    stepNumber: 'stepNumber',
+    toolName: 'toolName',
+    toolInput: 'toolInput',
+    toolOutput: 'toolOutput',
+    reasoning: 'reasoning',
+    durationMs: 'durationMs',
+    timestamp: 'timestamp'
+  } as const
+
+  export type AgentChatStepLogScalarFieldEnum = (typeof AgentChatStepLogScalarFieldEnum)[keyof typeof AgentChatStepLogScalarFieldEnum]
 
 
   export const SortOrder = {
@@ -21454,6 +25387,7 @@ export namespace Prisma {
     enrollments?: EnrollmentListRelationFilter
     usedInvitations?: InvitationCodeListRelationFilter
     chats?: ChatListRelationFilter
+    agentChatSessions?: AgentChatSessionListRelationFilter
     notifications?: NotificationListRelationFilter
   }
 
@@ -21476,6 +25410,7 @@ export namespace Prisma {
     enrollments?: EnrollmentOrderByRelationAggregateInput
     usedInvitations?: InvitationCodeOrderByRelationAggregateInput
     chats?: ChatOrderByRelationAggregateInput
+    agentChatSessions?: AgentChatSessionOrderByRelationAggregateInput
     notifications?: NotificationOrderByRelationAggregateInput
   }
 
@@ -21501,6 +25436,7 @@ export namespace Prisma {
     enrollments?: EnrollmentListRelationFilter
     usedInvitations?: InvitationCodeListRelationFilter
     chats?: ChatListRelationFilter
+    agentChatSessions?: AgentChatSessionListRelationFilter
     notifications?: NotificationListRelationFilter
   }, "id" | "email">
 
@@ -22097,6 +26033,7 @@ export namespace Prisma {
     mimeType?: StringFilter<"UploadedFile"> | string
     parseStatus?: EnumFileParseStatusFilter<"UploadedFile"> | $Enums.FileParseStatus
     parsedContent?: StringNullableFilter<"UploadedFile"> | string | null
+    parsedContentTokens?: IntNullableFilter<"UploadedFile"> | number | null
     parseError?: StringNullableFilter<"UploadedFile"> | string | null
     isDeleted?: BoolFilter<"UploadedFile"> | boolean
     deletedAt?: DateTimeNullableFilter<"UploadedFile"> | Date | string | null
@@ -22117,6 +26054,7 @@ export namespace Prisma {
     mimeType?: SortOrder
     parseStatus?: SortOrder
     parsedContent?: SortOrderInput | SortOrder
+    parsedContentTokens?: SortOrderInput | SortOrder
     parseError?: SortOrderInput | SortOrder
     isDeleted?: SortOrder
     deletedAt?: SortOrderInput | SortOrder
@@ -22140,6 +26078,7 @@ export namespace Prisma {
     mimeType?: StringFilter<"UploadedFile"> | string
     parseStatus?: EnumFileParseStatusFilter<"UploadedFile"> | $Enums.FileParseStatus
     parsedContent?: StringNullableFilter<"UploadedFile"> | string | null
+    parsedContentTokens?: IntNullableFilter<"UploadedFile"> | number | null
     parseError?: StringNullableFilter<"UploadedFile"> | string | null
     isDeleted?: BoolFilter<"UploadedFile"> | boolean
     deletedAt?: DateTimeNullableFilter<"UploadedFile"> | Date | string | null
@@ -22160,6 +26099,7 @@ export namespace Prisma {
     mimeType?: SortOrder
     parseStatus?: SortOrder
     parsedContent?: SortOrderInput | SortOrder
+    parsedContentTokens?: SortOrderInput | SortOrder
     parseError?: SortOrderInput | SortOrder
     isDeleted?: SortOrder
     deletedAt?: SortOrderInput | SortOrder
@@ -22186,6 +26126,7 @@ export namespace Prisma {
     mimeType?: StringWithAggregatesFilter<"UploadedFile"> | string
     parseStatus?: EnumFileParseStatusWithAggregatesFilter<"UploadedFile"> | $Enums.FileParseStatus
     parsedContent?: StringNullableWithAggregatesFilter<"UploadedFile"> | string | null
+    parsedContentTokens?: IntNullableWithAggregatesFilter<"UploadedFile"> | number | null
     parseError?: StringNullableWithAggregatesFilter<"UploadedFile"> | string | null
     isDeleted?: BoolWithAggregatesFilter<"UploadedFile"> | boolean
     deletedAt?: DateTimeNullableWithAggregatesFilter<"UploadedFile"> | Date | string | null
@@ -22816,6 +26757,248 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"Notification"> | Date | string
   }
 
+  export type AgentChatSessionWhereInput = {
+    AND?: AgentChatSessionWhereInput | AgentChatSessionWhereInput[]
+    OR?: AgentChatSessionWhereInput[]
+    NOT?: AgentChatSessionWhereInput | AgentChatSessionWhereInput[]
+    id?: StringFilter<"AgentChatSession"> | string
+    userId?: StringFilter<"AgentChatSession"> | string
+    title?: StringNullableFilter<"AgentChatSession"> | string | null
+    userRole?: StringFilter<"AgentChatSession"> | string
+    totalTokens?: IntFilter<"AgentChatSession"> | number
+    totalSteps?: IntFilter<"AgentChatSession"> | number
+    totalDuration?: IntFilter<"AgentChatSession"> | number
+    status?: StringFilter<"AgentChatSession"> | string
+    lastActivity?: DateTimeFilter<"AgentChatSession"> | Date | string
+    createdAt?: DateTimeFilter<"AgentChatSession"> | Date | string
+    updatedAt?: DateTimeFilter<"AgentChatSession"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    messages?: AgentChatMessageListRelationFilter
+    stepLogs?: AgentChatStepLogListRelationFilter
+  }
+
+  export type AgentChatSessionOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    title?: SortOrderInput | SortOrder
+    userRole?: SortOrder
+    totalTokens?: SortOrder
+    totalSteps?: SortOrder
+    totalDuration?: SortOrder
+    status?: SortOrder
+    lastActivity?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    user?: UserOrderByWithRelationInput
+    messages?: AgentChatMessageOrderByRelationAggregateInput
+    stepLogs?: AgentChatStepLogOrderByRelationAggregateInput
+  }
+
+  export type AgentChatSessionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: AgentChatSessionWhereInput | AgentChatSessionWhereInput[]
+    OR?: AgentChatSessionWhereInput[]
+    NOT?: AgentChatSessionWhereInput | AgentChatSessionWhereInput[]
+    userId?: StringFilter<"AgentChatSession"> | string
+    title?: StringNullableFilter<"AgentChatSession"> | string | null
+    userRole?: StringFilter<"AgentChatSession"> | string
+    totalTokens?: IntFilter<"AgentChatSession"> | number
+    totalSteps?: IntFilter<"AgentChatSession"> | number
+    totalDuration?: IntFilter<"AgentChatSession"> | number
+    status?: StringFilter<"AgentChatSession"> | string
+    lastActivity?: DateTimeFilter<"AgentChatSession"> | Date | string
+    createdAt?: DateTimeFilter<"AgentChatSession"> | Date | string
+    updatedAt?: DateTimeFilter<"AgentChatSession"> | Date | string
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    messages?: AgentChatMessageListRelationFilter
+    stepLogs?: AgentChatStepLogListRelationFilter
+  }, "id">
+
+  export type AgentChatSessionOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    title?: SortOrderInput | SortOrder
+    userRole?: SortOrder
+    totalTokens?: SortOrder
+    totalSteps?: SortOrder
+    totalDuration?: SortOrder
+    status?: SortOrder
+    lastActivity?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: AgentChatSessionCountOrderByAggregateInput
+    _avg?: AgentChatSessionAvgOrderByAggregateInput
+    _max?: AgentChatSessionMaxOrderByAggregateInput
+    _min?: AgentChatSessionMinOrderByAggregateInput
+    _sum?: AgentChatSessionSumOrderByAggregateInput
+  }
+
+  export type AgentChatSessionScalarWhereWithAggregatesInput = {
+    AND?: AgentChatSessionScalarWhereWithAggregatesInput | AgentChatSessionScalarWhereWithAggregatesInput[]
+    OR?: AgentChatSessionScalarWhereWithAggregatesInput[]
+    NOT?: AgentChatSessionScalarWhereWithAggregatesInput | AgentChatSessionScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"AgentChatSession"> | string
+    userId?: StringWithAggregatesFilter<"AgentChatSession"> | string
+    title?: StringNullableWithAggregatesFilter<"AgentChatSession"> | string | null
+    userRole?: StringWithAggregatesFilter<"AgentChatSession"> | string
+    totalTokens?: IntWithAggregatesFilter<"AgentChatSession"> | number
+    totalSteps?: IntWithAggregatesFilter<"AgentChatSession"> | number
+    totalDuration?: IntWithAggregatesFilter<"AgentChatSession"> | number
+    status?: StringWithAggregatesFilter<"AgentChatSession"> | string
+    lastActivity?: DateTimeWithAggregatesFilter<"AgentChatSession"> | Date | string
+    createdAt?: DateTimeWithAggregatesFilter<"AgentChatSession"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"AgentChatSession"> | Date | string
+  }
+
+  export type AgentChatMessageWhereInput = {
+    AND?: AgentChatMessageWhereInput | AgentChatMessageWhereInput[]
+    OR?: AgentChatMessageWhereInput[]
+    NOT?: AgentChatMessageWhereInput | AgentChatMessageWhereInput[]
+    id?: StringFilter<"AgentChatMessage"> | string
+    sessionId?: StringFilter<"AgentChatMessage"> | string
+    role?: StringFilter<"AgentChatMessage"> | string
+    content?: StringFilter<"AgentChatMessage"> | string
+    promptTokens?: IntNullableFilter<"AgentChatMessage"> | number | null
+    completionTokens?: IntNullableFilter<"AgentChatMessage"> | number | null
+    totalTokens?: IntNullableFilter<"AgentChatMessage"> | number | null
+    timestamp?: DateTimeFilter<"AgentChatMessage"> | Date | string
+    session?: XOR<AgentChatSessionScalarRelationFilter, AgentChatSessionWhereInput>
+  }
+
+  export type AgentChatMessageOrderByWithRelationInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    promptTokens?: SortOrderInput | SortOrder
+    completionTokens?: SortOrderInput | SortOrder
+    totalTokens?: SortOrderInput | SortOrder
+    timestamp?: SortOrder
+    session?: AgentChatSessionOrderByWithRelationInput
+  }
+
+  export type AgentChatMessageWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: AgentChatMessageWhereInput | AgentChatMessageWhereInput[]
+    OR?: AgentChatMessageWhereInput[]
+    NOT?: AgentChatMessageWhereInput | AgentChatMessageWhereInput[]
+    sessionId?: StringFilter<"AgentChatMessage"> | string
+    role?: StringFilter<"AgentChatMessage"> | string
+    content?: StringFilter<"AgentChatMessage"> | string
+    promptTokens?: IntNullableFilter<"AgentChatMessage"> | number | null
+    completionTokens?: IntNullableFilter<"AgentChatMessage"> | number | null
+    totalTokens?: IntNullableFilter<"AgentChatMessage"> | number | null
+    timestamp?: DateTimeFilter<"AgentChatMessage"> | Date | string
+    session?: XOR<AgentChatSessionScalarRelationFilter, AgentChatSessionWhereInput>
+  }, "id">
+
+  export type AgentChatMessageOrderByWithAggregationInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    promptTokens?: SortOrderInput | SortOrder
+    completionTokens?: SortOrderInput | SortOrder
+    totalTokens?: SortOrderInput | SortOrder
+    timestamp?: SortOrder
+    _count?: AgentChatMessageCountOrderByAggregateInput
+    _avg?: AgentChatMessageAvgOrderByAggregateInput
+    _max?: AgentChatMessageMaxOrderByAggregateInput
+    _min?: AgentChatMessageMinOrderByAggregateInput
+    _sum?: AgentChatMessageSumOrderByAggregateInput
+  }
+
+  export type AgentChatMessageScalarWhereWithAggregatesInput = {
+    AND?: AgentChatMessageScalarWhereWithAggregatesInput | AgentChatMessageScalarWhereWithAggregatesInput[]
+    OR?: AgentChatMessageScalarWhereWithAggregatesInput[]
+    NOT?: AgentChatMessageScalarWhereWithAggregatesInput | AgentChatMessageScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"AgentChatMessage"> | string
+    sessionId?: StringWithAggregatesFilter<"AgentChatMessage"> | string
+    role?: StringWithAggregatesFilter<"AgentChatMessage"> | string
+    content?: StringWithAggregatesFilter<"AgentChatMessage"> | string
+    promptTokens?: IntNullableWithAggregatesFilter<"AgentChatMessage"> | number | null
+    completionTokens?: IntNullableWithAggregatesFilter<"AgentChatMessage"> | number | null
+    totalTokens?: IntNullableWithAggregatesFilter<"AgentChatMessage"> | number | null
+    timestamp?: DateTimeWithAggregatesFilter<"AgentChatMessage"> | Date | string
+  }
+
+  export type AgentChatStepLogWhereInput = {
+    AND?: AgentChatStepLogWhereInput | AgentChatStepLogWhereInput[]
+    OR?: AgentChatStepLogWhereInput[]
+    NOT?: AgentChatStepLogWhereInput | AgentChatStepLogWhereInput[]
+    id?: StringFilter<"AgentChatStepLog"> | string
+    sessionId?: StringFilter<"AgentChatStepLog"> | string
+    stepNumber?: IntFilter<"AgentChatStepLog"> | number
+    toolName?: StringNullableFilter<"AgentChatStepLog"> | string | null
+    toolInput?: JsonNullableFilter<"AgentChatStepLog">
+    toolOutput?: JsonNullableFilter<"AgentChatStepLog">
+    reasoning?: StringNullableFilter<"AgentChatStepLog"> | string | null
+    durationMs?: IntNullableFilter<"AgentChatStepLog"> | number | null
+    timestamp?: DateTimeFilter<"AgentChatStepLog"> | Date | string
+    session?: XOR<AgentChatSessionScalarRelationFilter, AgentChatSessionWhereInput>
+  }
+
+  export type AgentChatStepLogOrderByWithRelationInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrderInput | SortOrder
+    toolInput?: SortOrderInput | SortOrder
+    toolOutput?: SortOrderInput | SortOrder
+    reasoning?: SortOrderInput | SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    timestamp?: SortOrder
+    session?: AgentChatSessionOrderByWithRelationInput
+  }
+
+  export type AgentChatStepLogWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: AgentChatStepLogWhereInput | AgentChatStepLogWhereInput[]
+    OR?: AgentChatStepLogWhereInput[]
+    NOT?: AgentChatStepLogWhereInput | AgentChatStepLogWhereInput[]
+    sessionId?: StringFilter<"AgentChatStepLog"> | string
+    stepNumber?: IntFilter<"AgentChatStepLog"> | number
+    toolName?: StringNullableFilter<"AgentChatStepLog"> | string | null
+    toolInput?: JsonNullableFilter<"AgentChatStepLog">
+    toolOutput?: JsonNullableFilter<"AgentChatStepLog">
+    reasoning?: StringNullableFilter<"AgentChatStepLog"> | string | null
+    durationMs?: IntNullableFilter<"AgentChatStepLog"> | number | null
+    timestamp?: DateTimeFilter<"AgentChatStepLog"> | Date | string
+    session?: XOR<AgentChatSessionScalarRelationFilter, AgentChatSessionWhereInput>
+  }, "id">
+
+  export type AgentChatStepLogOrderByWithAggregationInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrderInput | SortOrder
+    toolInput?: SortOrderInput | SortOrder
+    toolOutput?: SortOrderInput | SortOrder
+    reasoning?: SortOrderInput | SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    timestamp?: SortOrder
+    _count?: AgentChatStepLogCountOrderByAggregateInput
+    _avg?: AgentChatStepLogAvgOrderByAggregateInput
+    _max?: AgentChatStepLogMaxOrderByAggregateInput
+    _min?: AgentChatStepLogMinOrderByAggregateInput
+    _sum?: AgentChatStepLogSumOrderByAggregateInput
+  }
+
+  export type AgentChatStepLogScalarWhereWithAggregatesInput = {
+    AND?: AgentChatStepLogScalarWhereWithAggregatesInput | AgentChatStepLogScalarWhereWithAggregatesInput[]
+    OR?: AgentChatStepLogScalarWhereWithAggregatesInput[]
+    NOT?: AgentChatStepLogScalarWhereWithAggregatesInput | AgentChatStepLogScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"AgentChatStepLog"> | string
+    sessionId?: StringWithAggregatesFilter<"AgentChatStepLog"> | string
+    stepNumber?: IntWithAggregatesFilter<"AgentChatStepLog"> | number
+    toolName?: StringNullableWithAggregatesFilter<"AgentChatStepLog"> | string | null
+    toolInput?: JsonNullableWithAggregatesFilter<"AgentChatStepLog">
+    toolOutput?: JsonNullableWithAggregatesFilter<"AgentChatStepLog">
+    reasoning?: StringNullableWithAggregatesFilter<"AgentChatStepLog"> | string | null
+    durationMs?: IntNullableWithAggregatesFilter<"AgentChatStepLog"> | number | null
+    timestamp?: DateTimeWithAggregatesFilter<"AgentChatStepLog"> | Date | string
+  }
+
   export type UserCreateInput = {
     id?: string
     email: string
@@ -22835,6 +27018,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -22857,6 +27041,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -22879,6 +27064,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -22901,6 +27087,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -23547,6 +27734,7 @@ export namespace Prisma {
     mimeType: string
     parseStatus?: $Enums.FileParseStatus
     parsedContent?: string | null
+    parsedContentTokens?: number | null
     parseError?: string | null
     isDeleted?: boolean
     deletedAt?: Date | string | null
@@ -23567,6 +27755,7 @@ export namespace Prisma {
     mimeType: string
     parseStatus?: $Enums.FileParseStatus
     parsedContent?: string | null
+    parsedContentTokens?: number | null
     parseError?: string | null
     isDeleted?: boolean
     deletedAt?: Date | string | null
@@ -23585,6 +27774,7 @@ export namespace Prisma {
     mimeType?: StringFieldUpdateOperationsInput | string
     parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
     parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsedContentTokens?: NullableIntFieldUpdateOperationsInput | number | null
     parseError?: NullableStringFieldUpdateOperationsInput | string | null
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -23605,6 +27795,7 @@ export namespace Prisma {
     mimeType?: StringFieldUpdateOperationsInput | string
     parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
     parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsedContentTokens?: NullableIntFieldUpdateOperationsInput | number | null
     parseError?: NullableStringFieldUpdateOperationsInput | string | null
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -23624,6 +27815,7 @@ export namespace Prisma {
     mimeType: string
     parseStatus?: $Enums.FileParseStatus
     parsedContent?: string | null
+    parsedContentTokens?: number | null
     parseError?: string | null
     isDeleted?: boolean
     deletedAt?: Date | string | null
@@ -23641,6 +27833,7 @@ export namespace Prisma {
     mimeType?: StringFieldUpdateOperationsInput | string
     parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
     parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsedContentTokens?: NullableIntFieldUpdateOperationsInput | number | null
     parseError?: NullableStringFieldUpdateOperationsInput | string | null
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -23659,6 +27852,7 @@ export namespace Prisma {
     mimeType?: StringFieldUpdateOperationsInput | string
     parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
     parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsedContentTokens?: NullableIntFieldUpdateOperationsInput | number | null
     parseError?: NullableStringFieldUpdateOperationsInput | string | null
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -24332,6 +28526,270 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type AgentChatSessionCreateInput = {
+    id?: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutAgentChatSessionsInput
+    messages?: AgentChatMessageCreateNestedManyWithoutSessionInput
+    stepLogs?: AgentChatStepLogCreateNestedManyWithoutSessionInput
+  }
+
+  export type AgentChatSessionUncheckedCreateInput = {
+    id?: string
+    userId: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    messages?: AgentChatMessageUncheckedCreateNestedManyWithoutSessionInput
+    stepLogs?: AgentChatStepLogUncheckedCreateNestedManyWithoutSessionInput
+  }
+
+  export type AgentChatSessionUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutAgentChatSessionsNestedInput
+    messages?: AgentChatMessageUpdateManyWithoutSessionNestedInput
+    stepLogs?: AgentChatStepLogUpdateManyWithoutSessionNestedInput
+  }
+
+  export type AgentChatSessionUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    messages?: AgentChatMessageUncheckedUpdateManyWithoutSessionNestedInput
+    stepLogs?: AgentChatStepLogUncheckedUpdateManyWithoutSessionNestedInput
+  }
+
+  export type AgentChatSessionCreateManyInput = {
+    id?: string
+    userId: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type AgentChatSessionUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatSessionUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatMessageCreateInput = {
+    id?: string
+    role: string
+    content: string
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
+    timestamp?: Date | string
+    session: AgentChatSessionCreateNestedOneWithoutMessagesInput
+  }
+
+  export type AgentChatMessageUncheckedCreateInput = {
+    id?: string
+    sessionId: string
+    role: string
+    content: string
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatMessageUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    session?: AgentChatSessionUpdateOneRequiredWithoutMessagesNestedInput
+  }
+
+  export type AgentChatMessageUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    sessionId?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatMessageCreateManyInput = {
+    id?: string
+    sessionId: string
+    role: string
+    content: string
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatMessageUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatMessageUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    sessionId?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatStepLogCreateInput = {
+    id?: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+    session: AgentChatSessionCreateNestedOneWithoutStepLogsInput
+  }
+
+  export type AgentChatStepLogUncheckedCreateInput = {
+    id?: string
+    sessionId: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatStepLogUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+    session?: AgentChatSessionUpdateOneRequiredWithoutStepLogsNestedInput
+  }
+
+  export type AgentChatStepLogUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    sessionId?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatStepLogCreateManyInput = {
+    id?: string
+    sessionId: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatStepLogUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatStepLogUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    sessionId?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type StringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -24424,6 +28882,12 @@ export namespace Prisma {
     none?: ChatWhereInput
   }
 
+  export type AgentChatSessionListRelationFilter = {
+    every?: AgentChatSessionWhereInput
+    some?: AgentChatSessionWhereInput
+    none?: AgentChatSessionWhereInput
+  }
+
   export type NotificationListRelationFilter = {
     every?: NotificationWhereInput
     some?: NotificationWhereInput
@@ -24463,6 +28927,10 @@ export namespace Prisma {
   }
 
   export type ChatOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type AgentChatSessionOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -25162,6 +29630,7 @@ export namespace Prisma {
     mimeType?: SortOrder
     parseStatus?: SortOrder
     parsedContent?: SortOrder
+    parsedContentTokens?: SortOrder
     parseError?: SortOrder
     isDeleted?: SortOrder
     deletedAt?: SortOrder
@@ -25172,6 +29641,7 @@ export namespace Prisma {
 
   export type UploadedFileAvgOrderByAggregateInput = {
     fileSize?: SortOrder
+    parsedContentTokens?: SortOrder
   }
 
   export type UploadedFileMaxOrderByAggregateInput = {
@@ -25184,6 +29654,7 @@ export namespace Prisma {
     mimeType?: SortOrder
     parseStatus?: SortOrder
     parsedContent?: SortOrder
+    parsedContentTokens?: SortOrder
     parseError?: SortOrder
     isDeleted?: SortOrder
     deletedAt?: SortOrder
@@ -25202,6 +29673,7 @@ export namespace Prisma {
     mimeType?: SortOrder
     parseStatus?: SortOrder
     parsedContent?: SortOrder
+    parsedContentTokens?: SortOrder
     parseError?: SortOrder
     isDeleted?: SortOrder
     deletedAt?: SortOrder
@@ -25212,6 +29684,7 @@ export namespace Prisma {
 
   export type UploadedFileSumOrderByAggregateInput = {
     fileSize?: SortOrder
+    parsedContentTokens?: SortOrder
   }
 
   export type EnumFileParseStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -25639,6 +30112,172 @@ export namespace Prisma {
     _max?: NestedEnumNotificationTypeFilter<$PrismaModel>
   }
 
+  export type AgentChatMessageListRelationFilter = {
+    every?: AgentChatMessageWhereInput
+    some?: AgentChatMessageWhereInput
+    none?: AgentChatMessageWhereInput
+  }
+
+  export type AgentChatStepLogListRelationFilter = {
+    every?: AgentChatStepLogWhereInput
+    some?: AgentChatStepLogWhereInput
+    none?: AgentChatStepLogWhereInput
+  }
+
+  export type AgentChatMessageOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type AgentChatStepLogOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type AgentChatSessionCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    title?: SortOrder
+    userRole?: SortOrder
+    totalTokens?: SortOrder
+    totalSteps?: SortOrder
+    totalDuration?: SortOrder
+    status?: SortOrder
+    lastActivity?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type AgentChatSessionAvgOrderByAggregateInput = {
+    totalTokens?: SortOrder
+    totalSteps?: SortOrder
+    totalDuration?: SortOrder
+  }
+
+  export type AgentChatSessionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    title?: SortOrder
+    userRole?: SortOrder
+    totalTokens?: SortOrder
+    totalSteps?: SortOrder
+    totalDuration?: SortOrder
+    status?: SortOrder
+    lastActivity?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type AgentChatSessionMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    title?: SortOrder
+    userRole?: SortOrder
+    totalTokens?: SortOrder
+    totalSteps?: SortOrder
+    totalDuration?: SortOrder
+    status?: SortOrder
+    lastActivity?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type AgentChatSessionSumOrderByAggregateInput = {
+    totalTokens?: SortOrder
+    totalSteps?: SortOrder
+    totalDuration?: SortOrder
+  }
+
+  export type AgentChatSessionScalarRelationFilter = {
+    is?: AgentChatSessionWhereInput
+    isNot?: AgentChatSessionWhereInput
+  }
+
+  export type AgentChatMessageCountOrderByAggregateInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
+    timestamp?: SortOrder
+  }
+
+  export type AgentChatMessageAvgOrderByAggregateInput = {
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
+  }
+
+  export type AgentChatMessageMaxOrderByAggregateInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
+    timestamp?: SortOrder
+  }
+
+  export type AgentChatMessageMinOrderByAggregateInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    role?: SortOrder
+    content?: SortOrder
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
+    timestamp?: SortOrder
+  }
+
+  export type AgentChatMessageSumOrderByAggregateInput = {
+    promptTokens?: SortOrder
+    completionTokens?: SortOrder
+    totalTokens?: SortOrder
+  }
+
+  export type AgentChatStepLogCountOrderByAggregateInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrder
+    toolInput?: SortOrder
+    toolOutput?: SortOrder
+    reasoning?: SortOrder
+    durationMs?: SortOrder
+    timestamp?: SortOrder
+  }
+
+  export type AgentChatStepLogAvgOrderByAggregateInput = {
+    stepNumber?: SortOrder
+    durationMs?: SortOrder
+  }
+
+  export type AgentChatStepLogMaxOrderByAggregateInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrder
+    reasoning?: SortOrder
+    durationMs?: SortOrder
+    timestamp?: SortOrder
+  }
+
+  export type AgentChatStepLogMinOrderByAggregateInput = {
+    id?: SortOrder
+    sessionId?: SortOrder
+    stepNumber?: SortOrder
+    toolName?: SortOrder
+    reasoning?: SortOrder
+    durationMs?: SortOrder
+    timestamp?: SortOrder
+  }
+
+  export type AgentChatStepLogSumOrderByAggregateInput = {
+    stepNumber?: SortOrder
+    durationMs?: SortOrder
+  }
+
   export type RubricCreateNestedManyWithoutUserInput = {
     create?: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput> | RubricCreateWithoutUserInput[] | RubricUncheckedCreateWithoutUserInput[]
     connectOrCreate?: RubricCreateOrConnectWithoutUserInput | RubricCreateOrConnectWithoutUserInput[]
@@ -25707,6 +30346,13 @@ export namespace Prisma {
     connectOrCreate?: ChatCreateOrConnectWithoutUserInput | ChatCreateOrConnectWithoutUserInput[]
     createMany?: ChatCreateManyUserInputEnvelope
     connect?: ChatWhereUniqueInput | ChatWhereUniqueInput[]
+  }
+
+  export type AgentChatSessionCreateNestedManyWithoutUserInput = {
+    create?: XOR<AgentChatSessionCreateWithoutUserInput, AgentChatSessionUncheckedCreateWithoutUserInput> | AgentChatSessionCreateWithoutUserInput[] | AgentChatSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AgentChatSessionCreateOrConnectWithoutUserInput | AgentChatSessionCreateOrConnectWithoutUserInput[]
+    createMany?: AgentChatSessionCreateManyUserInputEnvelope
+    connect?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
   }
 
   export type NotificationCreateNestedManyWithoutUserInput = {
@@ -25784,6 +30430,13 @@ export namespace Prisma {
     connectOrCreate?: ChatCreateOrConnectWithoutUserInput | ChatCreateOrConnectWithoutUserInput[]
     createMany?: ChatCreateManyUserInputEnvelope
     connect?: ChatWhereUniqueInput | ChatWhereUniqueInput[]
+  }
+
+  export type AgentChatSessionUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<AgentChatSessionCreateWithoutUserInput, AgentChatSessionUncheckedCreateWithoutUserInput> | AgentChatSessionCreateWithoutUserInput[] | AgentChatSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AgentChatSessionCreateOrConnectWithoutUserInput | AgentChatSessionCreateOrConnectWithoutUserInput[]
+    createMany?: AgentChatSessionCreateManyUserInputEnvelope
+    connect?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
   }
 
   export type NotificationUncheckedCreateNestedManyWithoutUserInput = {
@@ -25949,6 +30602,20 @@ export namespace Prisma {
     deleteMany?: ChatScalarWhereInput | ChatScalarWhereInput[]
   }
 
+  export type AgentChatSessionUpdateManyWithoutUserNestedInput = {
+    create?: XOR<AgentChatSessionCreateWithoutUserInput, AgentChatSessionUncheckedCreateWithoutUserInput> | AgentChatSessionCreateWithoutUserInput[] | AgentChatSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AgentChatSessionCreateOrConnectWithoutUserInput | AgentChatSessionCreateOrConnectWithoutUserInput[]
+    upsert?: AgentChatSessionUpsertWithWhereUniqueWithoutUserInput | AgentChatSessionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: AgentChatSessionCreateManyUserInputEnvelope
+    set?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
+    disconnect?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
+    delete?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
+    connect?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
+    update?: AgentChatSessionUpdateWithWhereUniqueWithoutUserInput | AgentChatSessionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: AgentChatSessionUpdateManyWithWhereWithoutUserInput | AgentChatSessionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: AgentChatSessionScalarWhereInput | AgentChatSessionScalarWhereInput[]
+  }
+
   export type NotificationUpdateManyWithoutUserNestedInput = {
     create?: XOR<NotificationCreateWithoutUserInput, NotificationUncheckedCreateWithoutUserInput> | NotificationCreateWithoutUserInput[] | NotificationUncheckedCreateWithoutUserInput[]
     connectOrCreate?: NotificationCreateOrConnectWithoutUserInput | NotificationCreateOrConnectWithoutUserInput[]
@@ -26101,6 +30768,20 @@ export namespace Prisma {
     update?: ChatUpdateWithWhereUniqueWithoutUserInput | ChatUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: ChatUpdateManyWithWhereWithoutUserInput | ChatUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: ChatScalarWhereInput | ChatScalarWhereInput[]
+  }
+
+  export type AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<AgentChatSessionCreateWithoutUserInput, AgentChatSessionUncheckedCreateWithoutUserInput> | AgentChatSessionCreateWithoutUserInput[] | AgentChatSessionUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: AgentChatSessionCreateOrConnectWithoutUserInput | AgentChatSessionCreateOrConnectWithoutUserInput[]
+    upsert?: AgentChatSessionUpsertWithWhereUniqueWithoutUserInput | AgentChatSessionUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: AgentChatSessionCreateManyUserInputEnvelope
+    set?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
+    disconnect?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
+    delete?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
+    connect?: AgentChatSessionWhereUniqueInput | AgentChatSessionWhereUniqueInput[]
+    update?: AgentChatSessionUpdateWithWhereUniqueWithoutUserInput | AgentChatSessionUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: AgentChatSessionUpdateManyWithWhereWithoutUserInput | AgentChatSessionUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: AgentChatSessionScalarWhereInput | AgentChatSessionScalarWhereInput[]
   }
 
   export type NotificationUncheckedUpdateManyWithoutUserNestedInput = {
@@ -27239,6 +31920,132 @@ export namespace Prisma {
     update?: XOR<XOR<AssignmentAreaUpdateToOneWithWhereWithoutNotificationsInput, AssignmentAreaUpdateWithoutNotificationsInput>, AssignmentAreaUncheckedUpdateWithoutNotificationsInput>
   }
 
+  export type UserCreateNestedOneWithoutAgentChatSessionsInput = {
+    create?: XOR<UserCreateWithoutAgentChatSessionsInput, UserUncheckedCreateWithoutAgentChatSessionsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAgentChatSessionsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type AgentChatMessageCreateNestedManyWithoutSessionInput = {
+    create?: XOR<AgentChatMessageCreateWithoutSessionInput, AgentChatMessageUncheckedCreateWithoutSessionInput> | AgentChatMessageCreateWithoutSessionInput[] | AgentChatMessageUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: AgentChatMessageCreateOrConnectWithoutSessionInput | AgentChatMessageCreateOrConnectWithoutSessionInput[]
+    createMany?: AgentChatMessageCreateManySessionInputEnvelope
+    connect?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+  }
+
+  export type AgentChatStepLogCreateNestedManyWithoutSessionInput = {
+    create?: XOR<AgentChatStepLogCreateWithoutSessionInput, AgentChatStepLogUncheckedCreateWithoutSessionInput> | AgentChatStepLogCreateWithoutSessionInput[] | AgentChatStepLogUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: AgentChatStepLogCreateOrConnectWithoutSessionInput | AgentChatStepLogCreateOrConnectWithoutSessionInput[]
+    createMany?: AgentChatStepLogCreateManySessionInputEnvelope
+    connect?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+  }
+
+  export type AgentChatMessageUncheckedCreateNestedManyWithoutSessionInput = {
+    create?: XOR<AgentChatMessageCreateWithoutSessionInput, AgentChatMessageUncheckedCreateWithoutSessionInput> | AgentChatMessageCreateWithoutSessionInput[] | AgentChatMessageUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: AgentChatMessageCreateOrConnectWithoutSessionInput | AgentChatMessageCreateOrConnectWithoutSessionInput[]
+    createMany?: AgentChatMessageCreateManySessionInputEnvelope
+    connect?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+  }
+
+  export type AgentChatStepLogUncheckedCreateNestedManyWithoutSessionInput = {
+    create?: XOR<AgentChatStepLogCreateWithoutSessionInput, AgentChatStepLogUncheckedCreateWithoutSessionInput> | AgentChatStepLogCreateWithoutSessionInput[] | AgentChatStepLogUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: AgentChatStepLogCreateOrConnectWithoutSessionInput | AgentChatStepLogCreateOrConnectWithoutSessionInput[]
+    createMany?: AgentChatStepLogCreateManySessionInputEnvelope
+    connect?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+  }
+
+  export type UserUpdateOneRequiredWithoutAgentChatSessionsNestedInput = {
+    create?: XOR<UserCreateWithoutAgentChatSessionsInput, UserUncheckedCreateWithoutAgentChatSessionsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAgentChatSessionsInput
+    upsert?: UserUpsertWithoutAgentChatSessionsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutAgentChatSessionsInput, UserUpdateWithoutAgentChatSessionsInput>, UserUncheckedUpdateWithoutAgentChatSessionsInput>
+  }
+
+  export type AgentChatMessageUpdateManyWithoutSessionNestedInput = {
+    create?: XOR<AgentChatMessageCreateWithoutSessionInput, AgentChatMessageUncheckedCreateWithoutSessionInput> | AgentChatMessageCreateWithoutSessionInput[] | AgentChatMessageUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: AgentChatMessageCreateOrConnectWithoutSessionInput | AgentChatMessageCreateOrConnectWithoutSessionInput[]
+    upsert?: AgentChatMessageUpsertWithWhereUniqueWithoutSessionInput | AgentChatMessageUpsertWithWhereUniqueWithoutSessionInput[]
+    createMany?: AgentChatMessageCreateManySessionInputEnvelope
+    set?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+    disconnect?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+    delete?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+    connect?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+    update?: AgentChatMessageUpdateWithWhereUniqueWithoutSessionInput | AgentChatMessageUpdateWithWhereUniqueWithoutSessionInput[]
+    updateMany?: AgentChatMessageUpdateManyWithWhereWithoutSessionInput | AgentChatMessageUpdateManyWithWhereWithoutSessionInput[]
+    deleteMany?: AgentChatMessageScalarWhereInput | AgentChatMessageScalarWhereInput[]
+  }
+
+  export type AgentChatStepLogUpdateManyWithoutSessionNestedInput = {
+    create?: XOR<AgentChatStepLogCreateWithoutSessionInput, AgentChatStepLogUncheckedCreateWithoutSessionInput> | AgentChatStepLogCreateWithoutSessionInput[] | AgentChatStepLogUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: AgentChatStepLogCreateOrConnectWithoutSessionInput | AgentChatStepLogCreateOrConnectWithoutSessionInput[]
+    upsert?: AgentChatStepLogUpsertWithWhereUniqueWithoutSessionInput | AgentChatStepLogUpsertWithWhereUniqueWithoutSessionInput[]
+    createMany?: AgentChatStepLogCreateManySessionInputEnvelope
+    set?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+    disconnect?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+    delete?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+    connect?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+    update?: AgentChatStepLogUpdateWithWhereUniqueWithoutSessionInput | AgentChatStepLogUpdateWithWhereUniqueWithoutSessionInput[]
+    updateMany?: AgentChatStepLogUpdateManyWithWhereWithoutSessionInput | AgentChatStepLogUpdateManyWithWhereWithoutSessionInput[]
+    deleteMany?: AgentChatStepLogScalarWhereInput | AgentChatStepLogScalarWhereInput[]
+  }
+
+  export type AgentChatMessageUncheckedUpdateManyWithoutSessionNestedInput = {
+    create?: XOR<AgentChatMessageCreateWithoutSessionInput, AgentChatMessageUncheckedCreateWithoutSessionInput> | AgentChatMessageCreateWithoutSessionInput[] | AgentChatMessageUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: AgentChatMessageCreateOrConnectWithoutSessionInput | AgentChatMessageCreateOrConnectWithoutSessionInput[]
+    upsert?: AgentChatMessageUpsertWithWhereUniqueWithoutSessionInput | AgentChatMessageUpsertWithWhereUniqueWithoutSessionInput[]
+    createMany?: AgentChatMessageCreateManySessionInputEnvelope
+    set?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+    disconnect?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+    delete?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+    connect?: AgentChatMessageWhereUniqueInput | AgentChatMessageWhereUniqueInput[]
+    update?: AgentChatMessageUpdateWithWhereUniqueWithoutSessionInput | AgentChatMessageUpdateWithWhereUniqueWithoutSessionInput[]
+    updateMany?: AgentChatMessageUpdateManyWithWhereWithoutSessionInput | AgentChatMessageUpdateManyWithWhereWithoutSessionInput[]
+    deleteMany?: AgentChatMessageScalarWhereInput | AgentChatMessageScalarWhereInput[]
+  }
+
+  export type AgentChatStepLogUncheckedUpdateManyWithoutSessionNestedInput = {
+    create?: XOR<AgentChatStepLogCreateWithoutSessionInput, AgentChatStepLogUncheckedCreateWithoutSessionInput> | AgentChatStepLogCreateWithoutSessionInput[] | AgentChatStepLogUncheckedCreateWithoutSessionInput[]
+    connectOrCreate?: AgentChatStepLogCreateOrConnectWithoutSessionInput | AgentChatStepLogCreateOrConnectWithoutSessionInput[]
+    upsert?: AgentChatStepLogUpsertWithWhereUniqueWithoutSessionInput | AgentChatStepLogUpsertWithWhereUniqueWithoutSessionInput[]
+    createMany?: AgentChatStepLogCreateManySessionInputEnvelope
+    set?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+    disconnect?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+    delete?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+    connect?: AgentChatStepLogWhereUniqueInput | AgentChatStepLogWhereUniqueInput[]
+    update?: AgentChatStepLogUpdateWithWhereUniqueWithoutSessionInput | AgentChatStepLogUpdateWithWhereUniqueWithoutSessionInput[]
+    updateMany?: AgentChatStepLogUpdateManyWithWhereWithoutSessionInput | AgentChatStepLogUpdateManyWithWhereWithoutSessionInput[]
+    deleteMany?: AgentChatStepLogScalarWhereInput | AgentChatStepLogScalarWhereInput[]
+  }
+
+  export type AgentChatSessionCreateNestedOneWithoutMessagesInput = {
+    create?: XOR<AgentChatSessionCreateWithoutMessagesInput, AgentChatSessionUncheckedCreateWithoutMessagesInput>
+    connectOrCreate?: AgentChatSessionCreateOrConnectWithoutMessagesInput
+    connect?: AgentChatSessionWhereUniqueInput
+  }
+
+  export type AgentChatSessionUpdateOneRequiredWithoutMessagesNestedInput = {
+    create?: XOR<AgentChatSessionCreateWithoutMessagesInput, AgentChatSessionUncheckedCreateWithoutMessagesInput>
+    connectOrCreate?: AgentChatSessionCreateOrConnectWithoutMessagesInput
+    upsert?: AgentChatSessionUpsertWithoutMessagesInput
+    connect?: AgentChatSessionWhereUniqueInput
+    update?: XOR<XOR<AgentChatSessionUpdateToOneWithWhereWithoutMessagesInput, AgentChatSessionUpdateWithoutMessagesInput>, AgentChatSessionUncheckedUpdateWithoutMessagesInput>
+  }
+
+  export type AgentChatSessionCreateNestedOneWithoutStepLogsInput = {
+    create?: XOR<AgentChatSessionCreateWithoutStepLogsInput, AgentChatSessionUncheckedCreateWithoutStepLogsInput>
+    connectOrCreate?: AgentChatSessionCreateOrConnectWithoutStepLogsInput
+    connect?: AgentChatSessionWhereUniqueInput
+  }
+
+  export type AgentChatSessionUpdateOneRequiredWithoutStepLogsNestedInput = {
+    create?: XOR<AgentChatSessionCreateWithoutStepLogsInput, AgentChatSessionUncheckedCreateWithoutStepLogsInput>
+    connectOrCreate?: AgentChatSessionCreateOrConnectWithoutStepLogsInput
+    upsert?: AgentChatSessionUpsertWithoutStepLogsInput
+    connect?: AgentChatSessionWhereUniqueInput
+    update?: XOR<XOR<AgentChatSessionUpdateToOneWithWhereWithoutStepLogsInput, AgentChatSessionUpdateWithoutStepLogsInput>, AgentChatSessionUncheckedUpdateWithoutStepLogsInput>
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -27698,6 +32505,7 @@ export namespace Prisma {
     mimeType: string
     parseStatus?: $Enums.FileParseStatus
     parsedContent?: string | null
+    parsedContentTokens?: number | null
     parseError?: string | null
     isDeleted?: boolean
     deletedAt?: Date | string | null
@@ -27716,6 +32524,7 @@ export namespace Prisma {
     mimeType: string
     parseStatus?: $Enums.FileParseStatus
     parsedContent?: string | null
+    parsedContentTokens?: number | null
     parseError?: string | null
     isDeleted?: boolean
     deletedAt?: Date | string | null
@@ -27985,6 +32794,46 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type AgentChatSessionCreateWithoutUserInput = {
+    id?: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    messages?: AgentChatMessageCreateNestedManyWithoutSessionInput
+    stepLogs?: AgentChatStepLogCreateNestedManyWithoutSessionInput
+  }
+
+  export type AgentChatSessionUncheckedCreateWithoutUserInput = {
+    id?: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    messages?: AgentChatMessageUncheckedCreateNestedManyWithoutSessionInput
+    stepLogs?: AgentChatStepLogUncheckedCreateNestedManyWithoutSessionInput
+  }
+
+  export type AgentChatSessionCreateOrConnectWithoutUserInput = {
+    where: AgentChatSessionWhereUniqueInput
+    create: XOR<AgentChatSessionCreateWithoutUserInput, AgentChatSessionUncheckedCreateWithoutUserInput>
+  }
+
+  export type AgentChatSessionCreateManyUserInputEnvelope = {
+    data: AgentChatSessionCreateManyUserInput | AgentChatSessionCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
   export type NotificationCreateWithoutUserInput = {
     id?: string
     type: $Enums.NotificationType
@@ -28111,6 +32960,7 @@ export namespace Prisma {
     mimeType?: StringFilter<"UploadedFile"> | string
     parseStatus?: EnumFileParseStatusFilter<"UploadedFile"> | $Enums.FileParseStatus
     parsedContent?: StringNullableFilter<"UploadedFile"> | string | null
+    parsedContentTokens?: IntNullableFilter<"UploadedFile"> | number | null
     parseError?: StringNullableFilter<"UploadedFile"> | string | null
     isDeleted?: BoolFilter<"UploadedFile"> | boolean
     deletedAt?: DateTimeNullableFilter<"UploadedFile"> | Date | string | null
@@ -28322,6 +33172,39 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Chat"> | Date | string
   }
 
+  export type AgentChatSessionUpsertWithWhereUniqueWithoutUserInput = {
+    where: AgentChatSessionWhereUniqueInput
+    update: XOR<AgentChatSessionUpdateWithoutUserInput, AgentChatSessionUncheckedUpdateWithoutUserInput>
+    create: XOR<AgentChatSessionCreateWithoutUserInput, AgentChatSessionUncheckedCreateWithoutUserInput>
+  }
+
+  export type AgentChatSessionUpdateWithWhereUniqueWithoutUserInput = {
+    where: AgentChatSessionWhereUniqueInput
+    data: XOR<AgentChatSessionUpdateWithoutUserInput, AgentChatSessionUncheckedUpdateWithoutUserInput>
+  }
+
+  export type AgentChatSessionUpdateManyWithWhereWithoutUserInput = {
+    where: AgentChatSessionScalarWhereInput
+    data: XOR<AgentChatSessionUpdateManyMutationInput, AgentChatSessionUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type AgentChatSessionScalarWhereInput = {
+    AND?: AgentChatSessionScalarWhereInput | AgentChatSessionScalarWhereInput[]
+    OR?: AgentChatSessionScalarWhereInput[]
+    NOT?: AgentChatSessionScalarWhereInput | AgentChatSessionScalarWhereInput[]
+    id?: StringFilter<"AgentChatSession"> | string
+    userId?: StringFilter<"AgentChatSession"> | string
+    title?: StringNullableFilter<"AgentChatSession"> | string | null
+    userRole?: StringFilter<"AgentChatSession"> | string
+    totalTokens?: IntFilter<"AgentChatSession"> | number
+    totalSteps?: IntFilter<"AgentChatSession"> | number
+    totalDuration?: IntFilter<"AgentChatSession"> | number
+    status?: StringFilter<"AgentChatSession"> | string
+    lastActivity?: DateTimeFilter<"AgentChatSession"> | Date | string
+    createdAt?: DateTimeFilter<"AgentChatSession"> | Date | string
+    updatedAt?: DateTimeFilter<"AgentChatSession"> | Date | string
+  }
+
   export type NotificationUpsertWithWhereUniqueWithoutUserInput = {
     where: NotificationWhereUniqueInput
     update: XOR<NotificationUpdateWithoutUserInput, NotificationUncheckedUpdateWithoutUserInput>
@@ -28373,6 +33256,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -28394,6 +33278,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -28579,6 +33464,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -28600,6 +33486,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -28735,6 +33622,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -28756,6 +33644,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -28932,6 +33821,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -28953,6 +33843,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -29480,6 +34371,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -29501,6 +34393,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -29575,6 +34468,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -29596,6 +34490,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -29660,6 +34555,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -29681,6 +34577,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -29707,6 +34604,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -29728,6 +34626,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -29879,6 +34778,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -29900,6 +34800,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -29932,6 +34833,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -29953,6 +34855,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -30006,6 +34909,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -30027,6 +34931,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -30136,6 +35041,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -30157,6 +35063,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -30194,6 +35101,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -30215,6 +35123,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -30324,6 +35233,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -30345,6 +35255,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -30396,6 +35307,7 @@ export namespace Prisma {
     mimeType: string
     parseStatus?: $Enums.FileParseStatus
     parsedContent?: string | null
+    parsedContentTokens?: number | null
     parseError?: string | null
     isDeleted?: boolean
     deletedAt?: Date | string | null
@@ -30415,6 +35327,7 @@ export namespace Prisma {
     mimeType: string
     parseStatus?: $Enums.FileParseStatus
     parsedContent?: string | null
+    parsedContentTokens?: number | null
     parseError?: string | null
     isDeleted?: boolean
     deletedAt?: Date | string | null
@@ -30581,6 +35494,7 @@ export namespace Prisma {
     mimeType?: StringFieldUpdateOperationsInput | string
     parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
     parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsedContentTokens?: NullableIntFieldUpdateOperationsInput | number | null
     parseError?: NullableStringFieldUpdateOperationsInput | string | null
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30600,6 +35514,7 @@ export namespace Prisma {
     mimeType?: StringFieldUpdateOperationsInput | string
     parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
     parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsedContentTokens?: NullableIntFieldUpdateOperationsInput | number | null
     parseError?: NullableStringFieldUpdateOperationsInput | string | null
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30881,6 +35796,7 @@ export namespace Prisma {
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -30902,6 +35818,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -30972,6 +35889,7 @@ export namespace Prisma {
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -30993,6 +35911,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -31119,6 +36038,7 @@ export namespace Prisma {
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -31140,6 +36060,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -31255,6 +36176,7 @@ export namespace Prisma {
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -31276,6 +36198,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -31297,6 +36220,7 @@ export namespace Prisma {
     submissions?: SubmissionCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
   }
 
@@ -31318,6 +36242,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
   }
 
@@ -31381,6 +36306,7 @@ export namespace Prisma {
     submissions?: SubmissionUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
   }
 
@@ -31402,6 +36328,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
   }
 
@@ -31504,6 +36431,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutNotificationsInput = {
@@ -31525,6 +36453,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutNotificationsInput = {
@@ -31632,6 +36561,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutNotificationsInput = {
@@ -31653,6 +36583,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
   }
 
   export type CourseUpsertWithoutNotificationsInput = {
@@ -31737,6 +36668,385 @@ export namespace Prisma {
     gradingResults?: GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   }
 
+  export type UserCreateWithoutAgentChatSessionsInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
+    courses?: CourseCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
+    chats?: ChatCreateNestedManyWithoutUserInput
+    notifications?: NotificationCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutAgentChatSessionsInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
+    courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+    chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutAgentChatSessionsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutAgentChatSessionsInput, UserUncheckedCreateWithoutAgentChatSessionsInput>
+  }
+
+  export type AgentChatMessageCreateWithoutSessionInput = {
+    id?: string
+    role: string
+    content: string
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatMessageUncheckedCreateWithoutSessionInput = {
+    id?: string
+    role: string
+    content: string
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatMessageCreateOrConnectWithoutSessionInput = {
+    where: AgentChatMessageWhereUniqueInput
+    create: XOR<AgentChatMessageCreateWithoutSessionInput, AgentChatMessageUncheckedCreateWithoutSessionInput>
+  }
+
+  export type AgentChatMessageCreateManySessionInputEnvelope = {
+    data: AgentChatMessageCreateManySessionInput | AgentChatMessageCreateManySessionInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type AgentChatStepLogCreateWithoutSessionInput = {
+    id?: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatStepLogUncheckedCreateWithoutSessionInput = {
+    id?: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatStepLogCreateOrConnectWithoutSessionInput = {
+    where: AgentChatStepLogWhereUniqueInput
+    create: XOR<AgentChatStepLogCreateWithoutSessionInput, AgentChatStepLogUncheckedCreateWithoutSessionInput>
+  }
+
+  export type AgentChatStepLogCreateManySessionInputEnvelope = {
+    data: AgentChatStepLogCreateManySessionInput | AgentChatStepLogCreateManySessionInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type UserUpsertWithoutAgentChatSessionsInput = {
+    update: XOR<UserUpdateWithoutAgentChatSessionsInput, UserUncheckedUpdateWithoutAgentChatSessionsInput>
+    create: XOR<UserCreateWithoutAgentChatSessionsInput, UserUncheckedCreateWithoutAgentChatSessionsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutAgentChatSessionsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutAgentChatSessionsInput, UserUncheckedUpdateWithoutAgentChatSessionsInput>
+  }
+
+  export type UserUpdateWithoutAgentChatSessionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
+    courses?: CourseUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutAgentChatSessionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
+    courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type AgentChatMessageUpsertWithWhereUniqueWithoutSessionInput = {
+    where: AgentChatMessageWhereUniqueInput
+    update: XOR<AgentChatMessageUpdateWithoutSessionInput, AgentChatMessageUncheckedUpdateWithoutSessionInput>
+    create: XOR<AgentChatMessageCreateWithoutSessionInput, AgentChatMessageUncheckedCreateWithoutSessionInput>
+  }
+
+  export type AgentChatMessageUpdateWithWhereUniqueWithoutSessionInput = {
+    where: AgentChatMessageWhereUniqueInput
+    data: XOR<AgentChatMessageUpdateWithoutSessionInput, AgentChatMessageUncheckedUpdateWithoutSessionInput>
+  }
+
+  export type AgentChatMessageUpdateManyWithWhereWithoutSessionInput = {
+    where: AgentChatMessageScalarWhereInput
+    data: XOR<AgentChatMessageUpdateManyMutationInput, AgentChatMessageUncheckedUpdateManyWithoutSessionInput>
+  }
+
+  export type AgentChatMessageScalarWhereInput = {
+    AND?: AgentChatMessageScalarWhereInput | AgentChatMessageScalarWhereInput[]
+    OR?: AgentChatMessageScalarWhereInput[]
+    NOT?: AgentChatMessageScalarWhereInput | AgentChatMessageScalarWhereInput[]
+    id?: StringFilter<"AgentChatMessage"> | string
+    sessionId?: StringFilter<"AgentChatMessage"> | string
+    role?: StringFilter<"AgentChatMessage"> | string
+    content?: StringFilter<"AgentChatMessage"> | string
+    promptTokens?: IntNullableFilter<"AgentChatMessage"> | number | null
+    completionTokens?: IntNullableFilter<"AgentChatMessage"> | number | null
+    totalTokens?: IntNullableFilter<"AgentChatMessage"> | number | null
+    timestamp?: DateTimeFilter<"AgentChatMessage"> | Date | string
+  }
+
+  export type AgentChatStepLogUpsertWithWhereUniqueWithoutSessionInput = {
+    where: AgentChatStepLogWhereUniqueInput
+    update: XOR<AgentChatStepLogUpdateWithoutSessionInput, AgentChatStepLogUncheckedUpdateWithoutSessionInput>
+    create: XOR<AgentChatStepLogCreateWithoutSessionInput, AgentChatStepLogUncheckedCreateWithoutSessionInput>
+  }
+
+  export type AgentChatStepLogUpdateWithWhereUniqueWithoutSessionInput = {
+    where: AgentChatStepLogWhereUniqueInput
+    data: XOR<AgentChatStepLogUpdateWithoutSessionInput, AgentChatStepLogUncheckedUpdateWithoutSessionInput>
+  }
+
+  export type AgentChatStepLogUpdateManyWithWhereWithoutSessionInput = {
+    where: AgentChatStepLogScalarWhereInput
+    data: XOR<AgentChatStepLogUpdateManyMutationInput, AgentChatStepLogUncheckedUpdateManyWithoutSessionInput>
+  }
+
+  export type AgentChatStepLogScalarWhereInput = {
+    AND?: AgentChatStepLogScalarWhereInput | AgentChatStepLogScalarWhereInput[]
+    OR?: AgentChatStepLogScalarWhereInput[]
+    NOT?: AgentChatStepLogScalarWhereInput | AgentChatStepLogScalarWhereInput[]
+    id?: StringFilter<"AgentChatStepLog"> | string
+    sessionId?: StringFilter<"AgentChatStepLog"> | string
+    stepNumber?: IntFilter<"AgentChatStepLog"> | number
+    toolName?: StringNullableFilter<"AgentChatStepLog"> | string | null
+    toolInput?: JsonNullableFilter<"AgentChatStepLog">
+    toolOutput?: JsonNullableFilter<"AgentChatStepLog">
+    reasoning?: StringNullableFilter<"AgentChatStepLog"> | string | null
+    durationMs?: IntNullableFilter<"AgentChatStepLog"> | number | null
+    timestamp?: DateTimeFilter<"AgentChatStepLog"> | Date | string
+  }
+
+  export type AgentChatSessionCreateWithoutMessagesInput = {
+    id?: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutAgentChatSessionsInput
+    stepLogs?: AgentChatStepLogCreateNestedManyWithoutSessionInput
+  }
+
+  export type AgentChatSessionUncheckedCreateWithoutMessagesInput = {
+    id?: string
+    userId: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    stepLogs?: AgentChatStepLogUncheckedCreateNestedManyWithoutSessionInput
+  }
+
+  export type AgentChatSessionCreateOrConnectWithoutMessagesInput = {
+    where: AgentChatSessionWhereUniqueInput
+    create: XOR<AgentChatSessionCreateWithoutMessagesInput, AgentChatSessionUncheckedCreateWithoutMessagesInput>
+  }
+
+  export type AgentChatSessionUpsertWithoutMessagesInput = {
+    update: XOR<AgentChatSessionUpdateWithoutMessagesInput, AgentChatSessionUncheckedUpdateWithoutMessagesInput>
+    create: XOR<AgentChatSessionCreateWithoutMessagesInput, AgentChatSessionUncheckedCreateWithoutMessagesInput>
+    where?: AgentChatSessionWhereInput
+  }
+
+  export type AgentChatSessionUpdateToOneWithWhereWithoutMessagesInput = {
+    where?: AgentChatSessionWhereInput
+    data: XOR<AgentChatSessionUpdateWithoutMessagesInput, AgentChatSessionUncheckedUpdateWithoutMessagesInput>
+  }
+
+  export type AgentChatSessionUpdateWithoutMessagesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutAgentChatSessionsNestedInput
+    stepLogs?: AgentChatStepLogUpdateManyWithoutSessionNestedInput
+  }
+
+  export type AgentChatSessionUncheckedUpdateWithoutMessagesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stepLogs?: AgentChatStepLogUncheckedUpdateManyWithoutSessionNestedInput
+  }
+
+  export type AgentChatSessionCreateWithoutStepLogsInput = {
+    id?: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutAgentChatSessionsInput
+    messages?: AgentChatMessageCreateNestedManyWithoutSessionInput
+  }
+
+  export type AgentChatSessionUncheckedCreateWithoutStepLogsInput = {
+    id?: string
+    userId: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    messages?: AgentChatMessageUncheckedCreateNestedManyWithoutSessionInput
+  }
+
+  export type AgentChatSessionCreateOrConnectWithoutStepLogsInput = {
+    where: AgentChatSessionWhereUniqueInput
+    create: XOR<AgentChatSessionCreateWithoutStepLogsInput, AgentChatSessionUncheckedCreateWithoutStepLogsInput>
+  }
+
+  export type AgentChatSessionUpsertWithoutStepLogsInput = {
+    update: XOR<AgentChatSessionUpdateWithoutStepLogsInput, AgentChatSessionUncheckedUpdateWithoutStepLogsInput>
+    create: XOR<AgentChatSessionCreateWithoutStepLogsInput, AgentChatSessionUncheckedCreateWithoutStepLogsInput>
+    where?: AgentChatSessionWhereInput
+  }
+
+  export type AgentChatSessionUpdateToOneWithWhereWithoutStepLogsInput = {
+    where?: AgentChatSessionWhereInput
+    data: XOR<AgentChatSessionUpdateWithoutStepLogsInput, AgentChatSessionUncheckedUpdateWithoutStepLogsInput>
+  }
+
+  export type AgentChatSessionUpdateWithoutStepLogsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutAgentChatSessionsNestedInput
+    messages?: AgentChatMessageUpdateManyWithoutSessionNestedInput
+  }
+
+  export type AgentChatSessionUncheckedUpdateWithoutStepLogsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    messages?: AgentChatMessageUncheckedUpdateManyWithoutSessionNestedInput
+  }
+
   export type RubricCreateManyUserInput = {
     id?: string
     teacherId?: string | null
@@ -31767,6 +37077,7 @@ export namespace Prisma {
     mimeType: string
     parseStatus?: $Enums.FileParseStatus
     parsedContent?: string | null
+    parsedContentTokens?: number | null
     parseError?: string | null
     isDeleted?: boolean
     deletedAt?: Date | string | null
@@ -31851,6 +37162,19 @@ export namespace Prisma {
     id?: string
     title?: string | null
     context?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type AgentChatSessionCreateManyUserInput = {
+    id?: string
+    title?: string | null
+    userRole: string
+    totalTokens?: number
+    totalSteps?: number
+    totalDuration?: number
+    status?: string
+    lastActivity?: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -31946,6 +37270,7 @@ export namespace Prisma {
     mimeType?: StringFieldUpdateOperationsInput | string
     parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
     parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsedContentTokens?: NullableIntFieldUpdateOperationsInput | number | null
     parseError?: NullableStringFieldUpdateOperationsInput | string | null
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -31964,6 +37289,7 @@ export namespace Prisma {
     mimeType?: StringFieldUpdateOperationsInput | string
     parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
     parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsedContentTokens?: NullableIntFieldUpdateOperationsInput | number | null
     parseError?: NullableStringFieldUpdateOperationsInput | string | null
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -31982,6 +37308,7 @@ export namespace Prisma {
     mimeType?: StringFieldUpdateOperationsInput | string
     parseStatus?: EnumFileParseStatusFieldUpdateOperationsInput | $Enums.FileParseStatus
     parsedContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsedContentTokens?: NullableIntFieldUpdateOperationsInput | number | null
     parseError?: NullableStringFieldUpdateOperationsInput | string | null
     isDeleted?: BoolFieldUpdateOperationsInput | boolean
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -32246,6 +37573,49 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     title?: NullableStringFieldUpdateOperationsInput | string | null
     context?: NullableJsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatSessionUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    messages?: AgentChatMessageUpdateManyWithoutSessionNestedInput
+    stepLogs?: AgentChatStepLogUpdateManyWithoutSessionNestedInput
+  }
+
+  export type AgentChatSessionUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    messages?: AgentChatMessageUncheckedUpdateManyWithoutSessionNestedInput
+    stepLogs?: AgentChatStepLogUncheckedUpdateManyWithoutSessionNestedInput
+  }
+
+  export type AgentChatSessionUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    userRole?: StringFieldUpdateOperationsInput | string
+    totalTokens?: IntFieldUpdateOperationsInput | number
+    totalSteps?: IntFieldUpdateOperationsInput | number
+    totalDuration?: IntFieldUpdateOperationsInput | number
+    status?: StringFieldUpdateOperationsInput | string
+    lastActivity?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -33375,6 +38745,90 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     data?: NullableJsonNullValueInput | InputJsonValue
     time?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatMessageCreateManySessionInput = {
+    id?: string
+    role: string
+    content: string
+    promptTokens?: number | null
+    completionTokens?: number | null
+    totalTokens?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatStepLogCreateManySessionInput = {
+    id?: string
+    stepNumber: number
+    toolName?: string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: string | null
+    durationMs?: number | null
+    timestamp?: Date | string
+  }
+
+  export type AgentChatMessageUpdateWithoutSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatMessageUncheckedUpdateWithoutSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatMessageUncheckedUpdateManyWithoutSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    role?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    promptTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    completionTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    totalTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatStepLogUpdateWithoutSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatStepLogUncheckedUpdateWithoutSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AgentChatStepLogUncheckedUpdateManyWithoutSessionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    stepNumber?: IntFieldUpdateOperationsInput | number
+    toolName?: NullableStringFieldUpdateOperationsInput | string | null
+    toolInput?: NullableJsonNullValueInput | InputJsonValue
+    toolOutput?: NullableJsonNullValueInput | InputJsonValue
+    reasoning?: NullableStringFieldUpdateOperationsInput | string | null
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    timestamp?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
 

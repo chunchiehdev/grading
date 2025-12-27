@@ -102,6 +102,7 @@
   },
   "ai": {
     "analyzing": "正在分析作業內容...",
+    "analyzingDescription": "AI 正在仔細分析您的作業，請稍候...",
     "grading": "AI 正在根據評分標準進行評分...",
     "generating": "AI 正在生成評分回饋...",
     "error": "AI 評分過程中發生錯誤",
@@ -162,7 +163,8 @@
       "fileSizeExceeded": "檔案 {{fileName}} 超過大小限制 {{maxSize}}",
       "unsupportedFileType": "不支援的檔案類型: {{fileExt}}",
       "tooManyFiles": "最多只能上傳 {{maxFiles}} 個檔案",
-      "uploadFailed": "上傳失敗"
+      "uploadFailed": "上傳失敗",
+      "tokenLimitExceeded": "文件內容過長，超出系統處理限制。請上傳較小的文件或縮減內容。"
     }
   },
   "emptyGradingState": {
