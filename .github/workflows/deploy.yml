@@ -216,8 +216,13 @@ jobs:
             echo "Pod started! Streaming logs..."
             kubectl logs -f $POD_NAME -n $NAMESPACE
 
-            # 5. Check final execution status
+            # 5. Wait for Pod to reach terminal state (Succeeded or Failed)
+            echo "Waiting for pod to complete..."
+            kubectl wait --for=condition=Ready=false pod/$POD_NAME -n $NAMESPACE --timeout=60s || true
+            
+            # 6. Check final execution status
             FINAL_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
+            echo "Final Pod Status: $FINAL_STATUS"
             
             # Cleanup
             kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
@@ -344,8 +349,13 @@ jobs:
           echo "Pod started! Streaming logs..."
           kubectl logs -f $POD_NAME -n $NAMESPACE
 
-          # 5. Check final execution status
+          # 5. Wait for Pod to reach terminal state (Succeeded or Failed)
+          echo "Waiting for pod to complete..."
+          kubectl wait --for=condition=Ready=false pod/$POD_NAME -n $NAMESPACE --timeout=60s || true
+          
+          # 6. Check final execution status
           FINAL_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
+          echo "Final Pod Status: $FINAL_STATUS"
           
           # Cleanup
           kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
