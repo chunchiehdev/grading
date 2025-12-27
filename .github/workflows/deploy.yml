@@ -180,17 +180,54 @@ jobs:
           if [ -f $DEPLOYMENT_FILE ]; then
 
             echo "Running database migrations..."
-            kubectl run migrate-$(date +%s) \
-              --rm \
-              --attach \
+            
+            # Define a fixed Pod name for tracking
+            POD_NAME="migrate-$(date +%s)"
+            echo "Pod Name: $POD_NAME"
+
+            # 1. Start Pod in background (no --rm or --attach)
+            kubectl run $POD_NAME \
               --restart=Never \
               --image-pull-policy=Always \
-              --timeout=5m \
               --namespace=$NAMESPACE \
               --image=chunchiehdev/gradsystem:${{ github.ref_name }} \
               --env="DATABASE_URL=$(kubectl get secret $SECRET_NAME -n $NAMESPACE -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
               --env="NODE_ENV=${{ github.ref_name == 'master' && 'production' || 'development' }}" \
-              -- npx prisma migrate deploy --schema=/app/prisma/schema.prisma
+              --command -- /bin/sh -c "npx prisma migrate deploy --schema=/app/prisma/schema.prisma"
+
+            # 2. Wait for Pod to be ready (allow 5 minutes for image pull)
+            echo "Waiting for pod to start (pulling image if needed)..."
+            kubectl wait --for=condition=Ready pod/$POD_NAME -n $NAMESPACE --timeout=300s || true
+            
+            # 3. Check Pod status
+            POD_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
+            echo "Current Pod Status: $POD_STATUS"
+
+            if [ "$POD_STATUS" != "Running" ] && [ "$POD_STATUS" != "Succeeded" ]; then
+              echo "❌ Pod failed to start within timeout."
+              echo "=== POD DESCRIPTION (Why did it fail?) ==="
+              kubectl describe pod $POD_NAME -n $NAMESPACE
+              echo "=========================================="
+              kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
+              exit 1
+            fi
+
+            # 4. Stream logs
+            echo "Pod started! Streaming logs..."
+            kubectl logs -f $POD_NAME -n $NAMESPACE
+
+            # 5. Check final execution status
+            FINAL_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
+            
+            # Cleanup
+            kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
+
+            if [ "$FINAL_STATUS" != "Succeeded" ]; then
+               echo "❌ Migration script executed but failed (Exit Code not 0)"
+               exit 1
+            else
+               echo "✅ Migration completed successfully"
+            fi
 
             if [ $? -eq 0 ]; then
               echo "Migration successful, preparing application deployment..."
@@ -271,17 +308,54 @@ jobs:
           kubectl get pods -n $NAMESPACE
 
           echo "Running database migrations..."
-          kubectl run migrate-$(date +%s) \
-            --rm \
-            --attach \
+          
+          # Define a fixed Pod name for tracking
+          POD_NAME="migrate-$(date +%s)"
+          echo "Pod Name: $POD_NAME"
+
+          # 1. Start Pod in background (no --rm or --attach)
+          kubectl run $POD_NAME \
             --restart=Never \
             --image-pull-policy=Always \
-            --timeout=5m \
             --namespace=$NAMESPACE \
             --image=chunchiehdev/gradsystem:development \
             --env="DATABASE_URL=$(kubectl get secret $SECRET_NAME -n $NAMESPACE -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
             --env="NODE_ENV=development" \
-            -- npx prisma migrate deploy --schema=/app/prisma/schema.prisma
+            --command -- /bin/sh -c "npx prisma migrate deploy --schema=/app/prisma/schema.prisma"
+
+          # 2. Wait for Pod to be ready (allow 5 minutes for image pull)
+          echo "Waiting for pod to start (pulling image if needed)..."
+          kubectl wait --for=condition=Ready pod/$POD_NAME -n $NAMESPACE --timeout=300s || true
+          
+          # 3. Check Pod status
+          POD_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
+          echo "Current Pod Status: $POD_STATUS"
+
+          if [ "$POD_STATUS" != "Running" ] && [ "$POD_STATUS" != "Succeeded" ]; then
+            echo "❌ Pod failed to start within timeout."
+            echo "=== POD DESCRIPTION (Why did it fail?) ==="
+            kubectl describe pod $POD_NAME -n $NAMESPACE
+            echo "=========================================="
+            kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
+            exit 1
+          fi
+
+          # 4. Stream logs
+          echo "Pod started! Streaming logs..."
+          kubectl logs -f $POD_NAME -n $NAMESPACE
+
+          # 5. Check final execution status
+          FINAL_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
+          
+          # Cleanup
+          kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
+
+          if [ "$FINAL_STATUS" != "Succeeded" ]; then
+             echo "❌ Migration script executed but failed (Exit Code not 0)"
+             exit 1
+          else
+             echo "✅ Migration completed successfully"
+          fi
 
           if [ $? -eq 0 ]; then
             echo "Migration successful"
