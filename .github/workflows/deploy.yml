@@ -218,7 +218,14 @@ jobs:
 
             # 5. Wait for Pod to reach terminal state (Succeeded or Failed)
             echo "Waiting for pod to complete..."
-            kubectl wait --for=condition=Ready=false pod/$POD_NAME -n $NAMESPACE --timeout=60s || true
+            for i in {1..60}; do
+              CURRENT_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+              if [ "$CURRENT_STATUS" = "Succeeded" ] || [ "$CURRENT_STATUS" = "Failed" ]; then
+                echo "Pod reached terminal state: $CURRENT_STATUS"
+                break
+              fi
+              sleep 1
+            done
             
             # 6. Check final execution status
             FINAL_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
@@ -351,7 +358,14 @@ jobs:
 
           # 5. Wait for Pod to reach terminal state (Succeeded or Failed)
           echo "Waiting for pod to complete..."
-          kubectl wait --for=condition=Ready=false pod/$POD_NAME -n $NAMESPACE --timeout=60s || true
+          for i in {1..60}; do
+            CURRENT_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+            if [ "$CURRENT_STATUS" = "Succeeded" ] || [ "$CURRENT_STATUS" = "Failed" ]; then
+              echo "Pod reached terminal state: $CURRENT_STATUS"
+              break
+            fi
+            sleep 1
+          done
           
           # 6. Check final execution status
           FINAL_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
