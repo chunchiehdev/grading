@@ -1,6 +1,7 @@
-import { useRouteLoaderData } from 'react-router';
+import { useRouteLoaderData, useRouteError, isRouteErrorResponse } from 'react-router';
 import { useMemo } from 'react';
 import { TeacherRubricsContent } from '@/components/teacher/TeacherRubricsContent';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import type { TeacherLoaderData } from './layout';
 
 /**
@@ -26,4 +27,26 @@ export default function TeacherRubricsPage() {
   );
 
   return <TeacherRubricsContent data={rubricsData} />;
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return (
+      <ErrorPage
+        statusCode={404}
+        messageKey="errors.404.rubric"
+        returnTo="/teacher"
+      />
+    );
+  }
+
+  return (
+    <ErrorPage
+      statusCode="errors.generic.title"
+      messageKey="errors.generic.rubric"
+      returnTo="/teacher"
+    />
+  );
 }

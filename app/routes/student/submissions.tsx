@@ -1,6 +1,7 @@
-import { useRouteLoaderData } from 'react-router';
+import { useRouteError, isRouteErrorResponse, useRouteLoaderData } from 'react-router';
 import { useMemo } from 'react';
 import { SubmissionsContent } from '@/components/student/SubmissionsContent';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import type { LoaderData } from './layout';
 
 /**
@@ -26,4 +27,13 @@ export default function StudentSubmissionsPage() {
   );
 
   return <SubmissionsContent data={submissionsData} />;
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.generic.submission" returnTo="/student" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/student" />;
 }

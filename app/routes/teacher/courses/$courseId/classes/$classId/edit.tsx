@@ -1,4 +1,5 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
+import { useRouteError, isRouteErrorResponse, type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
+// IMPORT_MARKER
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
 import { Users, MapPin, Clock, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { requireTeacher } from '@/services/auth.server';
 import { getClassById, updateClass, deleteClass } from '@/services/class.server';
 import { Button } from '@/components/ui/button';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -289,4 +291,13 @@ export default function EditClass() {
       </div>
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.404.class" returnTo="/teacher" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/teacher" />;
 }

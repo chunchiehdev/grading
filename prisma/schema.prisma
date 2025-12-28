@@ -170,6 +170,11 @@ model Submission {
   teacherFeedback String?          @db.Text
   status          SubmissionStatus @default(SUBMITTED)
 
+  // Soft delete fields (for teacher deletion)
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  deletedBy String? // Teacher user ID who deleted this submission
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -178,6 +183,7 @@ model Submission {
   @@index([status])
   @@index([studentId, assignmentAreaId, version])
   @@index([isLatest])
+  @@index([isDeleted]) // Index for filtering deleted submissions
   @@map("submissions")
 }
 

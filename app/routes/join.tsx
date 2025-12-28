@@ -1,4 +1,5 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
+import { useRouteError, isRouteErrorResponse, redirect } from 'react-router';
+import type { LoaderFunctionArgs, ActionFunctionArgs } from 'react-router';
 import { getSession, commitSession } from '@/sessions.server';
 import { useLoaderData, useActionData, Form, Link } from 'react-router';
 import { CheckCircle, Users, User, Clock, MapPin, GraduationCap, AlertCircle } from 'lucide-react';
@@ -9,6 +10,7 @@ import { validateInvitationCode, useInvitationCode, type InvitationValidation } 
 import { listClassesByCourse, type ClassInfo } from '@/services/class.server';
 import { enrollStudentInClass } from '@/services/enrollment.server';
 import { Button } from '@/components/ui/button';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -368,4 +370,13 @@ export default function JoinCourse() {
       </main>
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.generic.message" returnTo="/" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/" />;
 }

@@ -4,13 +4,13 @@
  */
 
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, useNavigate } from 'react-router';
+import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { compareSubmissionVersions } from '@/services/version-management.server';
 import { db } from '@/types/database';
 import { VersionComparison } from '@/components/submission/VersionComparison';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ErrorPage } from '@/components/errors/ErrorPage';
+import { ArrowLeft, User } from 'lucide-react';
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -92,4 +92,27 @@ export default function StudentVersionCompare() {
       </div>
     </div>
   );
+}
+
+// Error Boundary for handling loader errors
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 400) {
+    return <ErrorPage statusCode={400} messageKey="errors.400.missingVersionParams" returnTo="/student" />;
+  }
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.404.submissionVersion" returnTo="/student" />;
+  }
+
+  if (isRouteErrorResponse(error) && error.status === 403) {
+    return <ErrorPage statusCode={403} messageKey="errors.403.compareVersions" returnTo="/student" />;
+  }
+
+  if (isRouteErrorResponse(error) && error.status === 500) {
+    return <ErrorPage statusCode={500} messageKey="errors.500.compareVersions" returnTo="/student" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.comparison" returnTo="/student" />;
 }

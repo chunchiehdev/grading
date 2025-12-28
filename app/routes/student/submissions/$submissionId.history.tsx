@@ -7,13 +7,14 @@
  */
 
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, useNavigate } from 'react-router';
+import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse } from 'react-router';
 import { useState } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionHistory } from '@/services/version-management.server';
 import { db } from '@/types/database';
 import { VersionTimeline, type VersionTimelineItem } from '@/components/submission/VersionTimeline';
 import { Button } from '@/components/ui/button';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -176,4 +177,19 @@ export default function StudentSubmissionHistory() {
       </div>
     </div>
   );
+}
+
+// Error Boundary for handling loader errors
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.404.submissionHistory" returnTo="/student" />;
+  }
+
+  if (isRouteErrorResponse(error) && error.status === 403) {
+    return <ErrorPage statusCode={403} messageKey="errors.403.viewHistory" returnTo="/student" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.submissionHistory" returnTo="/student" />;
 }

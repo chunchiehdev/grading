@@ -1,10 +1,12 @@
-import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData } from 'react-router';
+import { useRouteError, isRouteErrorResponse } from 'react-router';
+// IMPORT_MARKER
+import { useLoaderData, type LoaderFunctionArgs } from 'react-router';
 import { Users, Mail, Calendar, User, UserPlus } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getClassStudents } from '@/services/class.server';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
@@ -159,4 +161,13 @@ export default function ClassStudents() {
       </div>
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.404.class" returnTo="/teacher" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/teacher" />;
 }

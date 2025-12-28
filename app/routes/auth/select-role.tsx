@@ -1,9 +1,11 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
+import { useRouteError, isRouteErrorResponse, redirect } from 'react-router';
+import type { LoaderFunctionArgs, ActionFunctionArgs } from 'react-router';
 import { useLoaderData, useActionData, useNavigation } from 'react-router';
 import { ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { updateUserRole } from '@/services/auth.server';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 
 interface LoaderData {
   user: { id: string; name: string; email: string; role: string };
@@ -231,3 +233,12 @@ export function SelectRolePage(_: SelectRoleProps) {
 }
 
 export default SelectRolePage;
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return <ErrorPage statusCode={401} messageKey="errors.generic.message" returnTo="/" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/" />;
+}

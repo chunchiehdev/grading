@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
-import { useLoaderData, useActionData, Form, Await, Link } from 'react-router';
+import { useLoaderData, useActionData, Form, Await, Link, useRouteError, isRouteErrorResponse } from 'react-router';
 import { Suspense, useState } from 'react';
 
 import { requireTeacher } from '@/services/auth.server';
@@ -18,6 +18,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { FormPageLayout, FormSection, FormActionButtons } from '@/components/forms';
 import { ReferenceFileUpload } from '@/components/grading/ReferenceFileUpload';
 import { CustomInstructionsField } from '@/components/teacher/CustomInstructionsField';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
@@ -378,4 +379,18 @@ function AssignmentForm({
       </Form>
     </FormPageLayout>
   );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 400) {
+    return <ErrorPage statusCode={400} messageKey="errors.400.missingCourseParams" returnTo="/teacher" />;
+  }
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.404.course" returnTo="/teacher" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.assignment" returnTo="/teacher" />;
 }

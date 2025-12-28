@@ -104,6 +104,51 @@
   "notFound": {
     "message": "看起來你來到了未知的數位領域。"
   },
+  "errors": {
+    "404": {
+      "title": "找不到頁面",
+      "submission": "找不到此提交記錄，可能已被刪除或不存在",
+      "submissionHistory": "找不到此提交記錄或歷史版本不存在",
+      "submissionVersion": "找不到提交版本，可能已被刪除或不存在",
+      "course": "找不到此課程",
+      "assignment": "找不到此作業，或您沒有權限提交",
+      "rubric": "找不到此評分標準",
+      "class": "找不到此班級",
+      "resource": "找不到此資源"
+    },
+    "400": {
+      "title": "錯誤的請求",
+      "missingParams": "缺少必要參數",
+      "missingVersionParams": "缺少版本參數，請返回重新選擇",
+      "missingCourseParams": "缺少課程參數"
+    },
+    "401": {
+      "title": "未授權",
+      "message": "您沒有權限訪問此頁面",
+      "adminRequired": "您沒有權限訪問管理員頁面"
+    },
+    "403": {
+      "title": "禁止訪問",
+      "message": "您沒有權限訪問此頁面",
+      "compareVersions": "您沒有權限比較這些版本",
+      "viewHistory": "您沒有權限查看此歷史記錄"
+    },
+    "500": {
+      "title": "伺服器錯誤",
+      "compareVersions": "版本比較失敗，請稍後再試"
+    },
+    "generic": {
+      "title": "錯誤",
+      "submission": "載入提交時發生錯誤，請稍後再試",
+      "submissionHistory": "載入提交歷史時發生錯誤，請稍後再試",
+      "comparison": "載入比較結果時發生錯誤，請稍後再試",
+      "course": "載入課程時發生錯誤，請稍後再試",
+      "assignment": "載入作業時發生錯誤，請稍後再試",
+      "rubric": "載入評分標準時發生錯誤，請稍後再試",
+      "admin": "載入管理頁面時發生錯誤，請稍後再試",
+      "message": "發生錯誤，請稍後再試"
+    }
+  },
   "returnHome": "返回網站首頁",
   "roles": {
     "student": "學生",

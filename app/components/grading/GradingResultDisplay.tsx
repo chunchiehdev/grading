@@ -162,9 +162,9 @@ export function GradingResultDisplay({
     overallFeedback: result.overallFeedback || t('result.noFeedback'),
   } : null;
 
-  // Use normalized score (100-point scale) if available, otherwise fallback to old calculation
+  // Use normalized score (100-point scale) if available, otherwise calculate from result
   const displayScore = safeResult 
-    ? (normalizedScore ?? Math.round((safeResult.totalScore / safeResult.maxScore) * 100))
+    ? (normalizedScore ?? ((safeResult.totalScore / safeResult.maxScore) * 100))
     : 0;
 
   return (

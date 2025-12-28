@@ -1,11 +1,13 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
-import { useLoaderData, Form, useActionData } from 'react-router';
+import { useRouteError, isRouteErrorResponse } from 'react-router';
+// IMPORT_MARKER
+import { useLoaderData, Form, useActionData, type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { Users, Trash2 } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById } from '@/services/course.server';
 import { getCourseStudents, unenrollStudent } from '@/services/enrollment.server';
 import { Button } from '@/components/ui/button';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -160,4 +162,13 @@ export default function CourseStudents() {
       </main>
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.404.course" returnTo="/teacher" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/teacher" />;
 }

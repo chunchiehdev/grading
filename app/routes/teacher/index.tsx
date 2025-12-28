@@ -1,6 +1,7 @@
-import { useRouteLoaderData } from 'react-router';
+import { useRouteError, isRouteErrorResponse, useRouteLoaderData } from 'react-router';
 import { useMemo } from 'react';
 import { TeacherDashboardContent } from '@/components/teacher/TeacherDashboardContent';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import type { TeacherLoaderData } from './layout';
 
 /**
@@ -28,4 +29,13 @@ export default function TeacherDashboardPage() {
   );
 
   return <TeacherDashboardContent data={dashboardData} />;
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return <ErrorPage statusCode={401} messageKey="errors.generic.message" returnTo="/teacher" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/teacher" />;
 }

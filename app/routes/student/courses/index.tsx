@@ -1,6 +1,7 @@
-import { useRouteLoaderData } from 'react-router';
+import { useRouteLoaderData, useRouteError, isRouteErrorResponse } from 'react-router';
 import { useMemo } from 'react';
 import { CoursesContent } from '@/components/student/CoursesContent';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import type { LoaderData } from '../layout';
 
 /**
@@ -25,4 +26,26 @@ export default function StudentCoursesPage() {
   }, [student.id, courses.length]);
 
   return <CoursesContent data={coursesData} />;
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return (
+      <ErrorPage
+        statusCode={404}
+        messageKey="errors.404.course"
+        returnTo="/student"
+      />
+    );
+  }
+
+  return (
+    <ErrorPage
+      statusCode="errors.generic.title"
+      messageKey="errors.generic.course"
+      returnTo="/student"
+    />
+  );
 }

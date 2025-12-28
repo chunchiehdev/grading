@@ -166,6 +166,9 @@ export default [
 
   // Submission Version Comparison API
   route('/api/submissions/compare', './routes/api/submissions/compare.ts'),
+  
+  // Submission Deletion API (Teacher only)
+  route('/api/submissions/:submissionId/delete', './routes/api/submissions/$submissionId/delete.ts'),
 
   // Course Discovery and Enrollment API routes
   route('/api/courses/discover', './api/courses/discover.ts'),

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Form, useActionData, useLoaderData, redirect } from 'react-router';
+import { Form, useActionData, useLoaderData, redirect, useRouteError, isRouteErrorResponse } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Plus, Eye, Save } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,6 +12,7 @@ import { CriterionItemAccordion } from '@/components/rubrics/CriterionItemAccord
 import { RubricPreview } from '@/components/rubrics/RubricPreview';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 
 // Utils
 import {
@@ -409,5 +410,27 @@ export default function EditRubricRoute() {
         </div>
       )}
     </div>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return (
+      <ErrorPage
+        statusCode={404}
+        messageKey="errors.404.rubric"
+        returnTo="/teacher/rubrics"
+      />
+    );
+  }
+
+  return (
+    <ErrorPage
+      statusCode="errors.generic.title"
+      messageKey="errors.generic.rubric"
+      returnTo="/teacher/rubrics"
+    />
   );
 }

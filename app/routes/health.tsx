@@ -1,4 +1,6 @@
+import { useRouteError, isRouteErrorResponse } from 'react-router';
 import { checkHealth } from '@/utils/healthCheck.server';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 export async function loader() {
   const health = await checkHealth();
   const response = {
@@ -13,4 +15,13 @@ export async function loader() {
     status: statusCode,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.generic.message" returnTo="/" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/" />;
 }

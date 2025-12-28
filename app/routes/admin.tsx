@@ -5,10 +5,11 @@
  */
 
 import type { LoaderFunctionArgs } from 'react-router';
-import { Link, useLoaderData } from 'react-router';
+import { Link, useLoaderData, useRouteError, isRouteErrorResponse } from 'react-router';
 import { getUserId } from '@/services/auth.server';
 import { db } from '@/lib/db.server';
-import { Users, BarChart3, Activity } from 'lucide-react';
+import { Users, BarChart3, Activity, Home } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await getUserId(request);
@@ -147,6 +148,59 @@ export default function AdminHub() {
           </svg>
         </div>
       </main>
+    </div>
+  );
+}
+
+// Error Boundary for handling loader errors
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const { t } = useTranslation(['common']);
+
+  if (isRouteErrorResponse(error) && (error.status === 401 || error.status === 403)) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center px-4">
+        <div className="space-y-6 text-center">
+          <div className="space-y-3">
+            <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+              {error.status}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              您沒有權限訪問管理員頁面
+            </p>
+          </div>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
+          >
+            <Home className="h-4 w-4" />
+            返回首頁
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle other errors
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center px-4">
+      <div className="space-y-6 text-center">
+        <div className="space-y-3">
+          <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+            錯誤
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            載入管理頁面時發生錯誤，請稍後再試
+          </p>
+        </div>
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
+        >
+          <Home className="h-4 w-4" />
+          返回首頁
+        </Link>
+      </div>
     </div>
   );
 }

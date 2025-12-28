@@ -1,12 +1,15 @@
 import {
   Outlet,
-  type LoaderFunctionArgs,
   useRouteLoaderData,
   useNavigation,
   useLocation,
   Link,
+  useRouteError,
+  isRouteErrorResponse,
 } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
 import { ModernNavigation } from '@/components/ui/modern-navigation';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -165,4 +168,13 @@ export default function TeacherLayout() {
       </div>
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return <ErrorPage statusCode={401} messageKey="errors.generic.message" returnTo="/teacher" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/teacher" />;
 }

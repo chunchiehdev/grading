@@ -1,6 +1,7 @@
-import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData } from 'react-router';
+import { useRouteError, isRouteErrorResponse, useLoaderData } from 'react-router';
+import type { LoaderFunctionArgs } from 'react-router';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { PageHeader } from '@/components/ui/page-header';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { requireTeacher } from '@/services/auth.server';
@@ -118,4 +119,13 @@ export default function TeacherAnalytics() {
       </main>
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return <ErrorPage statusCode={401} messageKey="errors.generic.message" returnTo="/teacher" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/teacher" />;
 }

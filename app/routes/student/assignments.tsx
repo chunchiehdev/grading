@@ -1,6 +1,7 @@
-import { useRouteLoaderData } from 'react-router';
+import { useRouteLoaderData, useRouteError, isRouteErrorResponse } from 'react-router';
 import { useMemo, useState } from 'react';
 import { AssignmentsContent } from '@/components/student/AssignmentsContent';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import type { LoaderData } from './layout';
 
 /**
@@ -31,3 +32,26 @@ export default function StudentAssignmentsPage() {
 
   return <AssignmentsContent data={assignmentsData} externalFilter={assignmentFilter} />;
 }
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return (
+      <ErrorPage
+        statusCode={404}
+        messageKey="errors.404.assignment"
+        returnTo="/student"
+      />
+    );
+  }
+
+  return (
+    <ErrorPage
+      statusCode="errors.generic.title"
+      messageKey="errors.generic.assignment"
+      returnTo="/student"
+    />
+  );
+}
+

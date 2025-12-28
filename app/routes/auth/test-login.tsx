@@ -1,7 +1,8 @@
-import { redirect } from 'react-router';
+import { useRouteError, isRouteErrorResponse, redirect } from 'react-router';
 import { getSession, commitSession } from '@/sessions.server';
 import { db as prisma } from '@/lib/db.server';
 import { AUTH_COOKIE_NAME } from '@/constants/auth';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 
 // This is a test-only route and should not be available in production.
 export async function loader() {
@@ -43,4 +44,13 @@ export async function loader() {
 // This route does not need a UI component.
 export default function TestLoginRoute() {
   return null;
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return <ErrorPage statusCode={401} messageKey="errors.generic.message" returnTo="/" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/" />;
 }

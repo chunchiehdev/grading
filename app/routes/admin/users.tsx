@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useFetcher } from 'react-router';
+import { useRouteError, isRouteErrorResponse, useFetcher } from 'react-router';
 import type { Route } from './+types/users';
 import { requireAdmin } from '@/services/auth.server';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import {
   Select,
   SelectContent,
@@ -400,4 +401,13 @@ export default function AdminUsersPage() {
       </Dialog>
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return <ErrorPage statusCode={401} messageKey="errors.generic.admin" returnTo="/" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/" />;
 }

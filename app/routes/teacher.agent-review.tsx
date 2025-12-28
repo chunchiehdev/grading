@@ -4,11 +4,12 @@
  * Page for teachers to review low-confidence Agent grading results
  */
 
-import { redirect } from 'react-router';
+import { useRouteError, isRouteErrorResponse, redirect } from 'react-router';
 import type { Route } from './+types/teacher.agent-review';
 import { getUserId } from '@/services/auth.server';
 import { db } from '@/lib/db.server';
 import { AgentExecutionTimeline, AgentExecutionSummary } from '@/components/grading/AgentExecutionTimeline';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -376,4 +377,13 @@ export default function AgentReviewQueue({ loaderData }: Route.ComponentProps) {
       )} */}
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return <ErrorPage statusCode={401} messageKey="errors.generic.message" returnTo="/teacher" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/teacher" />;
 }

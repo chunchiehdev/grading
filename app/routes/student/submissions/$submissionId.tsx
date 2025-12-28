@@ -1,12 +1,13 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, Link } from 'react-router';
+import { useLoaderData, Link, useRouteError, isRouteErrorResponse } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionById } from '@/services/submission.server';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Home } from 'lucide-react';
 import type { GradingResultData } from '@/types/grading';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -121,3 +122,29 @@ export default function StudentSubmissionDetail() {
     </div>
   );
 }
+
+// Error Boundary for handling loader errors
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  // 404 - Submission not found
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return (
+      <ErrorPage
+        statusCode={404}
+        messageKey="errors.404.submission"
+        returnTo="/student"
+      />
+    );
+  }
+
+  // Generic error
+  return (
+    <ErrorPage
+      statusCode="errors.generic.title"
+      messageKey="errors.generic.submission"
+      returnTo="/student"
+    />
+  );
+}
+

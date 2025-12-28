@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
-import { useActionData, Form } from 'react-router';
+import { useActionData, Form, useRouteError, isRouteErrorResponse } from 'react-router';
 
 import { requireTeacher } from '@/services/auth.server';
 import { createCourse, type CreateCourseData } from '@/services/course.server';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FormPageLayout, FormSection, FormActionButtons } from '@/components/forms';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
 
 interface LoaderData {
@@ -102,5 +103,27 @@ export default function NewCourse() {
         />
       </Form>
     </FormPageLayout>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return (
+      <ErrorPage
+        statusCode={401}
+        messageKey="errors.401.message"
+        returnTo="/teacher"
+      />
+    );
+  }
+
+  return (
+    <ErrorPage
+      statusCode="errors.generic.title"
+      messageKey="errors.generic.course"
+      returnTo="/teacher"
+    />
   );
 }

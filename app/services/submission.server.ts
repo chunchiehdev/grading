@@ -3,6 +3,7 @@ import type { SubmissionInfo, StudentAssignmentInfo } from '@/types/student';
 import { parseGradingResult, type GradingResultData, type UsedContext } from '@/utils/grading-helpers';
 import { UsedContextSchema } from '@/schemas/grading';
 import { publishSubmissionCreatedNotification } from './notification.server';
+import { deleteFromStorage } from './storage.server';
 import logger from '@/utils/logger';
 
 export interface CreateSubmissionData {
@@ -338,15 +339,17 @@ export async function createSubmissionAndLinkGradingResult(
         `🔗 Linking AI result to submission ${submission.id}: totalScore=${aiAnalysisResult?.totalScore}, finalScore=${finalScore}, normalizedScore=${normalizedScore}, context=${usedContext ? 'yes' : 'no'}`
       );
 
+      // FIXED: Pass values directly (including null) to updateSubmission
+      // The 'in' operator check will handle what gets updated
       await updateSubmission(submission.id, {
-        aiAnalysisResult: aiAnalysisResult ?? undefined,
-        finalScore: finalScore ?? undefined,
-        normalizedScore: normalizedScore ?? undefined,
-        usedContext: usedContext ?? undefined, // Feature 004: Now properly typed
+        ...(aiAnalysisResult !== null && { aiAnalysisResult }),
+        ...(finalScore !== null && { finalScore }),
+        normalizedScore, // Always include, even if null
+        ...(usedContext !== null && { usedContext }), // Feature 004: Now properly typed
         status: 'ANALYZED',
-        thoughtSummary: gradingResult.thoughtSummary ?? undefined, // Feature 005: Copy thought summary
-        thinkingProcess: gradingResult.thinkingProcess ?? undefined, // Feature 012: Copy thinking process
-        gradingRationale: gradingResult.gradingRationale ?? undefined, // Feature 012: Copy grading rationale
+        ...(gradingResult.thoughtSummary !== null && { thoughtSummary: gradingResult.thoughtSummary }), // Feature 005: Copy thought summary
+        ...(gradingResult.thinkingProcess !== null && { thinkingProcess: gradingResult.thinkingProcess }), // Feature 012: Copy thinking process
+        ...(gradingResult.gradingRationale !== null && { gradingRationale: gradingResult.gradingRationale }), // Feature 012: Copy grading rationale
       });
 
       logger.info(`✅ Successfully linked AI result to submission ${submission.id}`);
@@ -484,6 +487,7 @@ export async function listSubmissionsByAssignment(assignmentId: string, teacherI
       where: {
         assignmentAreaId: assignmentId,
         isLatest: true, // Only show latest versions
+        isDeleted: false, // Exclude deleted submissions
       },
       include: {
         student: {
@@ -632,6 +636,7 @@ export async function getStudentSubmissions(studentId: string): Promise<Submissi
         studentId,
         status: { not: 'DRAFT' }, // Exclude draft submissions from dashboard
         isLatest: true, // Only show latest versions
+        isDeleted: false, // Exclude deleted submissions
       },
       include: {
         assignmentArea: {
@@ -671,6 +676,7 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
       where: {
         studentId,
         status: { not: 'DRAFT' }, // Exclude draft submissions from dashboard
+        isDeleted: false, // Exclude deleted submissions
       },
       include: {
         assignmentArea: {
@@ -712,6 +718,7 @@ export async function getSubmissionByIdForTeacher(
     const submission = await db.submission.findFirst({
       where: {
         id: submissionId,
+        isDeleted: false, // Exclude soft-deleted submissions
         assignmentArea: {
           course: {
             teacherId: teacherId,
@@ -763,6 +770,7 @@ export async function getSubmissionById(submissionId: string, studentId: string)
       where: {
         id: submissionId,
         studentId, // Ensure student owns this submission
+        isDeleted: false, // Exclude soft-deleted submissions
       },
       include: {
         assignmentArea: {
@@ -814,17 +822,21 @@ export async function updateSubmission(
 ): Promise<SubmissionInfo | null> {
   try {
     // Convert UpdateSubmissionOptions to Prisma input
-    const prismaData: any = {
-      ...(updateData.aiAnalysisResult !== undefined && { aiAnalysisResult: updateData.aiAnalysisResult }),
-      ...(updateData.finalScore !== undefined && { finalScore: updateData.finalScore }),
-      ...(updateData.normalizedScore !== undefined && { normalizedScore: updateData.normalizedScore }),
-      ...(updateData.usedContext !== undefined && { usedContext: updateData.usedContext }),
-      ...(updateData.teacherFeedback !== undefined && { teacherFeedback: updateData.teacherFeedback }),
-      ...(updateData.status !== undefined && { status: updateData.status }),
-      ...(updateData.thoughtSummary !== undefined && { thoughtSummary: updateData.thoughtSummary }),
-      ...(updateData.thinkingProcess !== undefined && { thinkingProcess: updateData.thinkingProcess }),
-      ...(updateData.gradingRationale !== undefined && { gradingRationale: updateData.gradingRationale }),
-    };
+    // CRITICAL: We must differentiate between:
+    // 1. Field not present (undefined) → Don't update
+    // 2. Field explicitly null → Update to null
+    // 3. Field with value → Update to value
+    const prismaData: any = {};
+    
+    if ('aiAnalysisResult' in updateData) prismaData.aiAnalysisResult = updateData.aiAnalysisResult;
+    if ('finalScore' in updateData) prismaData.finalScore = updateData.finalScore;
+    if ('normalizedScore' in updateData) prismaData.normalizedScore = updateData.normalizedScore;
+    if ('usedContext' in updateData) prismaData.usedContext = updateData.usedContext;
+    if ('teacherFeedback' in updateData) prismaData.teacherFeedback = updateData.teacherFeedback;
+    if ('status' in updateData) prismaData.status = updateData.status;
+    if ('thoughtSummary' in updateData) prismaData.thoughtSummary = updateData.thoughtSummary;
+    if ('thinkingProcess' in updateData) prismaData.thinkingProcess = updateData.thinkingProcess;
+    if ('gradingRationale' in updateData) prismaData.gradingRationale = updateData.gradingRationale;
 
     const submission = await db.submission.update({
       where: { id: submissionId },
@@ -1005,19 +1017,84 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
       lastState,
     } = draftData;
 
-    // Check if submission already exists
+    // Check if submission already exists (get latest version)
     const existingSubmission = await db.submission.findFirst({
       where: {
         assignmentAreaId,
         studentId,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { version: 'desc' }, // Get latest version
     });
 
     let submission;
 
     if (existingSubmission) {
-      // Update existing submission
+      // CRITICAL FIX: Check if existing submission is already submitted (not DRAFT)
+      // If so, we need to create a new version instead of updating the existing one
+      if (existingSubmission.status !== 'DRAFT') {
+        logger.info(
+          `📝 Existing submission is ${existingSubmission.status}, creating new version for student ${studentId}`
+        );
+
+        // Only create new version if we have file metadata
+        if (!fileMetadata?.fileId) {
+          logger.warn('Cannot create new version without file metadata');
+          return null;
+        }
+
+        // Import version management function
+        const { createNewSubmissionVersion } = await import('./version-management.server');
+
+        // Create new DRAFT version
+        const newVersion = await db.$transaction(async (tx) => {
+          // Mark old version as not latest
+          await tx.submission.update({
+            where: { id: existingSubmission.id },
+            data: { isLatest: false },
+          });
+
+          // Create new version with DRAFT status
+          const nextVersionNumber = existingSubmission.version + 1;
+          const newSubmission = await tx.submission.create({
+            data: {
+              student: { connect: { id: studentId } },
+              assignmentArea: { connect: { id: assignmentAreaId } },
+              filePath: fileMetadata.fileId,
+              version: nextVersionNumber,
+              isLatest: true,
+              previousVersion: { connect: { id: existingSubmission.id } }, // Fixed: use relation name
+              status: 'DRAFT',
+              sessionId: sessionId ?? undefined,
+              aiAnalysisResult: aiAnalysisResult ?? undefined,
+              thoughtSummary: thoughtSummary ?? undefined,
+              thinkingProcess: thinkingProcess ?? undefined,
+              gradingRationale: gradingRationale ?? undefined,
+            },
+          });
+
+          logger.info(
+            `✅ Created new DRAFT version ${nextVersionNumber} for student ${studentId}, assignment ${assignmentAreaId}`
+          );
+
+          return newSubmission;
+        });
+
+        return {
+          id: newVersion.id,
+          assignmentAreaId,
+          studentId,
+          fileMetadata,
+          sessionId,
+          aiAnalysisResult: newVersion.aiAnalysisResult,
+          thoughtSummary: newVersion.thoughtSummary,
+          lastState,
+          status: newVersion.status,
+          createdAt: newVersion.createdAt,
+          updatedAt: newVersion.updatedAt,
+        };
+      }
+
+      // Existing submission is DRAFT - update it (original behavior)
       const updateData: any = {};
 
       // Update file path if new file metadata provided
@@ -1131,6 +1208,7 @@ export async function getRecentSubmissionsForTeacher(teacherId: string, limit?: 
         },
         status: { not: 'DRAFT' }, // Exclude draft submissions - students haven't submitted yet
         isLatest: true, // Only show latest versions
+        isDeleted: false, // Exclude deleted submissions
       },
       include: {
         student: {
@@ -1165,5 +1243,97 @@ export async function getRecentSubmissionsForTeacher(teacherId: string, limit?: 
   } catch (error) {
     console.error('❌ Error fetching recent submissions for teacher:', error);
     return [];
+  }
+}
+
+/**
+ * Deletes a submission by teacher (with authorization)
+ * Uses soft delete strategy: marks record as deleted but immediately removes S3 file
+ * This preserves version history integrity while freeing storage space
+ * @param {string} submissionId - Submission ID to delete
+ * @param {string} teacherId - Teacher's user ID for authorization
+ * @returns {Promise<{ success: boolean; error?: string }>} Deletion result
+ */
+export async function deleteSubmissionByTeacher(
+  submissionId: string,
+  teacherId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // First, verify that the teacher owns the course for this submission
+    const submission = await db.submission.findFirst({
+      where: {
+        id: submissionId,
+        assignmentArea: {
+          course: {
+            teacherId: teacherId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        filePath: true,
+        studentId: true,
+        assignmentAreaId: true,
+        isDeleted: true,
+      },
+    });
+
+    if (!submission) {
+      logger.warn({ submissionId, teacherId }, 'Submission not found or teacher unauthorized');
+      return { 
+        success: false, 
+        error: 'Submission not found or you do not have permission to delete it' 
+      };
+    }
+
+    // Check if already deleted
+    if (submission.isDeleted) {
+      return {
+        success: false,
+        error: 'This submission has already been deleted'
+      };
+    }
+
+    // Delete the file from S3 storage (immediate cleanup to free space)
+    try {
+      await deleteFromStorage(submission.filePath);
+      logger.info({ fileKey: submission.filePath }, 'Successfully deleted file from S3');
+    } catch (storageError) {
+      // Log the error but continue with soft delete
+      // The file might already be deleted or the path might be invalid
+      logger.warn(
+        { error: storageError, fileKey: submission.filePath }, 
+        'Failed to delete file from storage, continuing with soft delete'
+      );
+    }
+
+    // Soft delete the submission in the database
+    // This preserves version history and prevents cascade issues
+    await db.submission.update({
+      where: { id: submissionId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: teacherId,
+      },
+    });
+
+    logger.info(
+      { 
+        submissionId, 
+        teacherId, 
+        studentId: submission.studentId,
+        assignmentAreaId: submission.assignmentAreaId 
+      }, 
+      'Successfully soft deleted submission and removed S3 file'
+    );
+
+    return { success: true };
+  } catch (error) {
+    logger.error({ error, submissionId, teacherId }, 'Failed to delete submission');
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete submission',
+    };
   }
 }

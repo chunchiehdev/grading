@@ -1,5 +1,7 @@
+import { useRouteError, isRouteErrorResponse } from 'react-router';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTranslation } from 'react-i18next';
 
@@ -7,7 +9,7 @@ export default function Unauthorized() {
   const { t } = useTranslation('auth');
 
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-full flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Card className="shadow-lg">
           <CardContent className="py-8 px-4 sm:px-10 text-center">
@@ -31,4 +33,13 @@ export default function Unauthorized() {
       </div>
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return <ErrorPage statusCode={401} messageKey="errors.generic.message" returnTo="/" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/" />;
 }

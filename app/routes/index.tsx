@@ -1,5 +1,7 @@
+import { useRouteError, isRouteErrorResponse } from 'react-router';
 import { useState } from 'react';
 import { HeroSection } from '@/components/landing/HeroSection';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 
 /**
  * Landing page with loading screen
@@ -17,4 +19,13 @@ export default function WabiSabiLanding() {
       <HeroSection />
     </>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.generic.message" returnTo="/" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/" />;
 }

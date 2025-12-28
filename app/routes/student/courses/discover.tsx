@@ -1,4 +1,4 @@
-import { useLoaderData, redirect, useSearchParams } from 'react-router';
+import { useLoaderData, redirect, useSearchParams, useRouteError, isRouteErrorResponse } from 'react-router';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CourseDiscoveryContent } from '@/components/student/CourseDiscoveryContent';
@@ -13,6 +13,7 @@ import { getDiscoverableCourses, getStudentEnrolledCourseIds } from '@/services/
 import type { DiscoverableCourse } from '@/types/course';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 
 interface DiscoverLoaderData {
   success: boolean;
@@ -408,3 +409,26 @@ export async function action({ request }: { request: Request }) {
     };
   }
 }
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return (
+      <ErrorPage
+        statusCode={404}
+        messageKey="errors.404.course"
+        returnTo="/student"
+      />
+    );
+  }
+
+  return (
+    <ErrorPage
+      statusCode="errors.generic.title"
+      messageKey="errors.generic.course"
+      returnTo="/student"
+    />
+  );
+}
+

@@ -1,11 +1,12 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData } from 'react-router';
+import { useLoaderData, useRouteError, isRouteErrorResponse } from 'react-router';
 import { Mail } from 'lucide-react';
 
 import { requireAuth } from '@/services/auth.server';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
 
 type LoaderData = {
@@ -53,5 +54,27 @@ export default function Settings() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return (
+      <ErrorPage
+        statusCode={401}
+        messageKey="errors.401.message"
+        returnTo="/"
+      />
+    );
+  }
+
+  return (
+    <ErrorPage
+      statusCode="errors.generic.title"
+      messageKey="errors.generic.message"
+      returnTo="/"
+    />
   );
 }

@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
-import { useLoaderData, useActionData, Form, Link } from 'react-router';
-import { Plus, FileText, QrCode, Share2, Pencil, Clock, MapPin, AlertCircle } from 'lucide-react';
+import { useLoaderData, useActionData, useNavigate, Form, Link, useRouteError, isRouteErrorResponse } from 'react-router';
+import { Plus, FileText, QrCode, Share2, Pencil, Clock, MapPin, AlertCircle, Home } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { createInvitationCode, generateInvitationQRCode } from '@/services/invitation.server';
@@ -104,6 +104,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 export default function CourseDetail() {
   const { course, invitation, classes } = useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
+  const navigate = useNavigate();
   const { t, i18n } = useTranslation(['course', 'common']);
 
   // 獲取當前語言
@@ -190,14 +191,18 @@ export default function CourseDetail() {
                             <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">
                               {cls.name}
                             </h3>
-                            <Link
-                              to={`/teacher/courses/${course.id}/classes/${cls.id}/edit`}
-                              onClick={(e) => e.stopPropagation()}
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigate(`/teacher/courses/${course.id}/classes/${cls.id}/edit`);
+                              }}
                               className="inline-flex items-center justify-center h-8 w-8 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
                               title={t('course:classManagement.editClass')}
+                              type="button"
                             >
                               <Pencil className="w-4 h-4" />
-                            </Link>
+                            </button>
                           </div>
                           {cls.schedule && (
                             <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-1 gap-y-0.5">
@@ -367,6 +372,83 @@ export default function CourseDetail() {
             )}
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+// Error Boundary for handling loader errors
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const { t } = useTranslation(['common']);
+
+  if (isRouteErrorResponse(error) && error.status === 400) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center px-4">
+        <div className="space-y-6 text-center">
+          <div className="space-y-3">
+            <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+              400
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              缺少課程參數
+            </p>
+          </div>
+          <Link
+            to="/teacher"
+            className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
+          >
+            <Home className="h-4 w-4" />
+            返回首頁
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center px-4">
+        <div className="space-y-6 text-center">
+          <div className="space-y-3">
+            <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+              404
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              找不到此課程
+            </p>
+          </div>
+          <Link
+            to="/teacher"
+            className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
+          >
+            <Home className="h-4 w-4" />
+            返回首頁
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle other errors
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center px-4">
+      <div className="space-y-6 text-center">
+        <div className="space-y-3">
+          <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+            錯誤
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            載入課程時發生錯誤，請稍後再試
+          </p>
+        </div>
+        <Link
+          to="/teacher"
+          className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
+        >
+          <Home className="h-4 w-4" />
+          返回首頁
+        </Link>
       </div>
     </div>
   );

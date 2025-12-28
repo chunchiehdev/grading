@@ -1,9 +1,11 @@
+import { useRouteError, isRouteErrorResponse } from 'react-router';
 import { useEffect, useState } from 'react';
 import type { Route } from './+types/queues';
 import { getUserId } from '@/services/auth.server';
 import { db } from '@/lib/db.server';
 import { Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 
 /**
  * Admin Queue Monitoring Dashboard
@@ -704,4 +706,13 @@ export default function QueuesPage() {
       )}
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 401) {
+    return <ErrorPage statusCode={401} messageKey="errors.generic.admin" returnTo="/" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/" />;
 }

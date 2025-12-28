@@ -1,7 +1,9 @@
-import { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
+import { useRouteError, isRouteErrorResponse } from 'react-router';
+import type { ActionFunctionArgs } from 'react-router';
 import { Form, useActionData } from 'react-router';
 import { useEffect, useState } from 'react';
 import { redis } from '@/lib/redis';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 
 // Action to simulate backend publishing
 export async function action({ request }: ActionFunctionArgs) {
@@ -168,4 +170,13 @@ export default function TestSSE() {
       </div>
     </div>
   );
+}
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.generic.message" returnTo="/" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.message" returnTo="/" />;
 }

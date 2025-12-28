@@ -104,6 +104,51 @@
   "notFound": {
     "message": "Looks like you've ventured into the unknown digital realm."
   },
+  "errors": {
+    "404": {
+      "title": "Not Found",
+      "submission": "Submission not found, it may have been deleted",
+      "submissionHistory": "Submission record or history version not found",
+      "submissionVersion": "Submission version not found, it may have been deleted",
+      "course": "Course not found",
+      "assignment": "Assignment not found or you don't have permission to submit",
+      "rubric": "Rubric not found",
+      "class": "Class not found",
+      "resource": "Resource not found"
+    },
+    "400": {
+      "title": "Bad Request",
+      "missingParams": "Missing required parameters",
+      "missingVersionParams": "Missing version parameters, please return and select again",
+      "missingCourseParams": "Missing course parameters"
+    },
+    "401": {
+      "title": "Unauthorized",
+      "message": "You don't have permission to access this page",
+      "adminRequired": "You don't have permission to access the admin area"
+    },
+    "403": {
+      "title": "Forbidden",
+      "message": "You don't have permission to access this page",
+      "compareVersions": "You don't have permission to compare these versions",
+      "viewHistory": "You don't have permission to view this history"
+    },
+    "500": {
+      "title": "Server Error",
+      "compareVersions": "Version comparison failed, please try again later"
+    },
+    "generic": {
+      "title": "Error",
+      "submission": "An error occurred while loading submission, please try again later",
+      "submissionHistory": "An error occurred while loading submission history, please try again later",
+      "comparison": "An error occurred while loading comparison results, please try again later",
+      "course": "An error occurred while loading course, please try again later",
+      "assignment": "An error occurred while loading assignment, please try again later",
+      "rubric": "An error occurred while loading rubric, please try again later",
+      "admin": "An error occurred while loading admin page, please try again later",
+      "message": "An error occurred, please try again later"
+    }
+  },
   "returnHome": "Return to website",
   "roles": {
     "student": "Student",

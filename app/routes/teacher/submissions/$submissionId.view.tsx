@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
-import { useLoaderData, useActionData, useParams, Form } from 'react-router';
+import { useLoaderData, useActionData, useParams, Form, useNavigate, useRouteError, isRouteErrorResponse } from 'react-router';
 import { ClientOnly } from '@/components/ui/client-only';
 import { useState, useEffect } from 'react';
 import { requireTeacher } from '@/services/auth.server';
@@ -18,7 +18,16 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { CheckCircle2, XCircle, MessageSquare } from 'lucide-react';
+import { CheckCircle2, XCircle, MessageSquare, Trash2, Home } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 
 interface LoaderData {
@@ -123,12 +132,17 @@ export default function TeacherSubmissionView() {
   const { submission } = useLoaderData<typeof loader>();
   const params = useParams();
   const actionData = useActionData<ActionData>();
+  const navigate = useNavigate();
   const { t } = useTranslation('teacher');
 
   // Local state for teacher feedback
   const [feedback, setFeedback] = useState(submission.grading.teacherFeedback || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('pdf'); // Mobile tab navigation
+  
+  // Delete confirmation dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Reset submitting state when action completes
   useEffect(() => {
@@ -136,6 +150,33 @@ export default function TeacherSubmissionView() {
       setIsSubmitting(false);
     }
   }, [actionData]);
+
+  // Handle deletion
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/submissions/${params.submissionId}/delete`, {
+        method: 'DELETE',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('提交已成功刪除');
+        // Navigate back to assignment submissions list
+        navigate(submission.navigation.backUrl);
+      } else {
+        toast.error(data.error || '刪除失敗，請稍後再試');
+        setIsDeleting(false);
+        setIsDeleteDialogOpen(false);
+      }
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      toast.error('刪除失敗，請稍後再試');
+      setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
+    }
+  };
 
   // Full screen layout - bypasses parent container constraints
   return (
@@ -159,20 +200,31 @@ export default function TeacherSubmissionView() {
             <AssignmentInfoCompact assignment={submission.assignment} />
           </div>
           
-          {/* Right: History Button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.location.href = `/teacher/submissions/${params.submissionId}/history`}
-            className="text-xs lg:text-sm"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 lg:mr-2 h-3 w-3 lg:h-4 lg:w-4">
-              <path d="M3 3v5h5"/>
-              <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>
-              <path d="M12 7v5l4 2"/>
-            </svg>
-            歷史記錄
-          </Button>
+          {/* Right: Action Buttons */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.href = `/teacher/submissions/${params.submissionId}/history`}
+              className="text-xs lg:text-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 lg:mr-2 h-3 w-3 lg:h-4 lg:w-4">
+                <path d="M3 3v5h5"/>
+                <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>
+                <path d="M12 7v5l4 2"/>
+              </svg>
+              歷史記錄
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="text-xs lg:text-sm"
+            >
+              <Trash2 className="mr-1 lg:mr-2 h-3 w-3 lg:h-4 lg:w-4" />
+              刪除
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -378,6 +430,87 @@ export default function TeacherSubmissionView() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>確認刪除提交</DialogTitle>
+            <DialogDescription>
+              您確定要刪除這份提交嗎？此操作將永久刪除提交記錄和相關 PDF 文件，無法復原。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              disabled={isDeleting}
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? '刪除中...' : '確認刪除'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Error Boundary for handling loader errors (404, etc.)
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const { t } = useTranslation(['common']);
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center px-4">
+        <div className="space-y-6 text-center">
+          <div className="space-y-3">
+            <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+              404
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              找不到此提交記錄，可能已被刪除或不存在
+            </p>
+          </div>
+          <a
+            href="/teacher"
+            className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
+          >
+            <Home className="h-4 w-4" />
+            返回首頁
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle other errors
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center px-4">
+      <div className="space-y-6 text-center">
+        <div className="space-y-3">
+          <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+            錯誤
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            載入提交時發生錯誤，請稍後再試
+          </p>
+        </div>
+        <a
+          href="/teacher"
+          className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
+        >
+          <Home className="h-4 w-4" />
+          返回首頁
+        </a>
+      </div>
     </div>
   );
 }

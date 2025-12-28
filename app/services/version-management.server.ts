@@ -114,6 +114,7 @@ export async function getSubmissionHistory(
         assignmentAreaId,
         studentId,
         status: { not: 'DRAFT' }, // Exclude drafts - only show actually submitted versions
+        isDeleted: false, // Exclude soft-deleted submissions
       },
       include: {
         assignmentArea: {

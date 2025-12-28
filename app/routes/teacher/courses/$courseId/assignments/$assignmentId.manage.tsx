@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
-import { useLoaderData, useActionData, Form, Link } from 'react-router';
+import { useLoaderData, useActionData, Form, Link, useRouteError, isRouteErrorResponse } from 'react-router';
 import { Save, Trash2, Calendar, FileText, Users, ArrowLeft } from 'lucide-react';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
 
 import { requireTeacher } from '@/services/auth.server';
@@ -332,4 +333,18 @@ export default function ManageAssignmentArea() {
       </main>
     </div>
   );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 400) {
+    return <ErrorPage statusCode={400} messageKey="errors.400.missingParams" returnTo="/teacher" />;
+  }
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.404.assignment" returnTo="/teacher" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.assignment" returnTo="/teacher" />;
 }

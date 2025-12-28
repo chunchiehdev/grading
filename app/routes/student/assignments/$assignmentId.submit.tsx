@@ -1,5 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, useNavigate } from 'react-router';
+import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse, Link } from 'react-router';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 import React, { useReducer, useEffect, useRef } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/submission.server';
@@ -1293,4 +1294,15 @@ export default function SubmitAssignment() {
       </Tabs>
     </div>
   );
+}
+
+// Error Boundary for handling loader errors
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <ErrorPage statusCode={404} messageKey="errors.404.assignment" returnTo="/student" />;
+  }
+
+  return <ErrorPage statusCode="errors.generic.title" messageKey="errors.generic.assignment" returnTo="/student" />;
 }
