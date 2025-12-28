@@ -80,3 +80,22 @@ export function formatRelativeTime(date: Date): string {
     return 'just now';
   }
 }
+
+/**
+ * Formats a full date-time string for SSR compatibility
+ * Uses UTC to ensure consistency between server and client
+ * @param date - Date to format
+ * @param locale - Locale code (default: 'en-US')
+ * @returns Formatted date-time string
+ */
+export function formatFullDateTime(date: Date, locale: string = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'UTC',
+  }).format(new Date(date));
+}

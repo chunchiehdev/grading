@@ -75,7 +75,7 @@ const HeroSection = () => {
             <img
               src="/writing_rm_background.png"
               alt={t('landing:hero.heroImageAlt')}
-              className="w-full h-auto max-h-[40vh] sm:max-h-none object-cover xl:scale-110 2xl:scale-125 max-w-lg xl:max-w-xl 2xl:max-w-2xl"
+              className="w-full h-auto max-h-[40vh] sm:max-h-none object-cover xl:scale-110 max-w-lg xl:max-w-xl 2xl:max-w-8xl"
               
             />
           </div>

@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { CheckCircle2, XCircle, MessageSquare } from 'lucide-react';
 
 
@@ -127,6 +128,7 @@ export default function TeacherSubmissionView() {
   // Local state for teacher feedback
   const [feedback, setFeedback] = useState(submission.grading.teacherFeedback || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('pdf'); // Mobile tab navigation
 
   // Reset submitting state when action completes
   useEffect(() => {
@@ -141,13 +143,20 @@ export default function TeacherSubmissionView() {
       {/* Top Info Bar - Responsive */}
       <div className=" border-b  backdrop-blur-sm shrink-0 z-10">
         <div className="px-4 lg:px-6 py-2 lg:py-3 flex items-center justify-between gap-2 lg:gap-6">
-          {/* Left: Student + Assignment */}
+          {/* Left: Student + Assignment (Mobile) / Empty Spacer (Desktop) */}
           <div className="flex items-center gap-2 lg:gap-6">
-            <StudentInfoCompact student={submission.student} />
-            <div className="h-6 w-px bg-border hidden lg:block" />
-            <div className="hidden lg:block">
-              <AssignmentInfoCompact assignment={submission.assignment} />
+            <div className="lg:hidden">
+              <StudentInfoCompact student={submission.student} />
             </div>
+            {/* Desktop: Empty spacer to balance the layout */}
+            <div className="hidden lg:block lg:w-32"></div>
+          </div>
+          
+          {/* Center: Student Info (Desktop only) */}
+          <div className="hidden lg:flex items-center gap-6 flex-1 justify-center">
+            <StudentInfoCompact student={submission.student} />
+            <div className="h-6 w-px bg-border" />
+            <AssignmentInfoCompact assignment={submission.assignment} />
           </div>
           
           {/* Right: History Button */}
@@ -167,8 +176,8 @@ export default function TeacherSubmissionView() {
         </div>
       </div>
 
-      {/* Main Content: PDF + Sidebar - Responsive Layout */}
-      <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
+      {/* Desktop: Split Panel Layout (lg and above) */}
+      <div className="hidden lg:flex flex-row flex-1 overflow-hidden min-h-0">
         {/* Left: PDF Viewer */}
         {/* Mobile: full width, Desktop: 70% */}
         <div 
@@ -269,6 +278,106 @@ export default function TeacherSubmissionView() {
           </div>
         </aside>
       </div>
+
+      {/* Mobile: Tab Navigation (below lg) */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-col flex-1 overflow-hidden">
+        <div className="border-b shrink-0 bg-background">
+          <TabsList className="w-full h-12 bg-transparent border-0 rounded-none p-0 grid grid-cols-2">
+            <TabsTrigger value="pdf" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#E07A5F] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
+              PDF
+            </TabsTrigger>
+            <TabsTrigger value="grading" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#E07A5F] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
+              評分結果
+            </TabsTrigger>
+          </TabsList>
+        </div>
+        
+        <TabsContent value="pdf" className="flex-1 overflow-hidden m-0 p-0">
+          {submission.grading.filePath ? (
+            <ClientOnly
+              fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                    <span className="text-muted-foreground">載入 PDF 檢視器...</span>
+                  </div>
+                </div>
+              }
+            >
+              <PDFViewerWithNavigation
+                fileUrl={`/api/files/${submission.grading.filePath}/download`}
+                fileName={`${submission.student.name}-${submission.assignment.name}.pdf`}
+              />
+            </ClientOnly>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-muted-foreground">沒有上傳檔案</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="grading" className="flex-1 overflow-y-auto m-0 p-4">
+          <div className="space-y-6">
+            {/* AI Analysis Details */}
+            {submission.grading.aiAnalysisResult && (
+              <GradingResultDisplay
+                result={submission.grading.aiAnalysisResult}
+                normalizedScore={submission.grading.normalizedScore}
+                thinkingProcess={submission.grading.thinkingProcess}
+                thoughtSummary={submission.grading.thoughtSummary}
+                gradingRationale={submission.grading.gradingRationale}
+              />
+            )}
+
+            {/* Teacher Feedback Section */}
+            <div className="border-t pt-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">教師回饋</h3>
+                </div>
+
+                {actionData?.success && (
+                  <Alert className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    <AlertDescription className="text-green-800 dark:text-green-200">
+                      回饋已成功保存
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {actionData?.error && (
+                  <Alert className="bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
+                    <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <AlertDescription className="text-red-800 dark:text-red-200">
+                      {actionData.error}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <Form method="post" onSubmit={() => setIsSubmitting(true)}>
+                  <div className="space-y-3">
+                    <Label htmlFor="teacherFeedback-mobile" className="text-sm text-muted-foreground">
+                      給學生的評語與建議
+                    </Label>
+                    <Textarea
+                      id="teacherFeedback-mobile"
+                      name="teacherFeedback"
+                      value={feedback}
+                      onChange={(e) => setFeedback(e.target.value)}
+                      placeholder="請輸入您對這份作業的評語、建議或需要改進的地方..."
+                      className="min-h-[120px] resize-none"
+                    />
+                    <Button type="submit" disabled={isSubmitting} className="w-full">
+                      {isSubmitting ? '保存中...' : '保存回饋'}
+                    </Button>
+                  </div>
+                </Form>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
