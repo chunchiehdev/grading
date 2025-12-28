@@ -72,6 +72,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
                 select: {
                   name: true,
                   email: true,
+                  picture: true,
                 },
               },
             },

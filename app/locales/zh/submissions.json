@@ -41,7 +41,8 @@
     "submitted": "已繳交",
     "failed": "失敗",
     "unknown": "未知",
-    "analyzed": "已分析"
+    "analyzed": "已分析",
+    "draft": "草稿"
   },
   "teacher": {
     "title": "提交作業",

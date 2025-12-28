@@ -11,6 +11,13 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { z } from 'zod';
 import { tool } from 'ai';
 import logger from '@/utils/logger';
+
+interface TokenUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  [key: string]: any;
+}
 import {
   executeDatabaseQuery,
   type QueryType,
@@ -1198,7 +1205,8 @@ export async function streamWithGradingAgent(
   userRole: 'TEACHER' | 'STUDENT',
   messages: any[],
   userId?: string,
-  callOptions?: TeacherCallOptions | StudentCallOptions
+  callOptions?: TeacherCallOptions | StudentCallOptions,
+  onFinish?: (result: { text: string; usage: TokenUsage; toolCalls?: any[] }) => Promise<void>
 ) {
   const sessionId = `${userRole}_${userId}_${Date.now()}`;
   
@@ -1224,6 +1232,25 @@ export async function streamWithGradingAgent(
     } as any);
 
     logger.debug('[Grading Agent V3] Agent stream completed');
+
+    // Handle onFinish callback to capture usage and response
+    if (onFinish) {
+      Promise.all([streamResult.text, streamResult.usage])
+        .then(([text, usage]) => {
+          logger.info('[Grading Agent V3] Stream finished', { 
+            sessionId, 
+            tokens: usage.totalTokens,
+            textLength: text.length 
+          });
+          return onFinish({ text, usage });
+        })
+        .catch(error => {
+          logger.error('[Grading Agent V3] Error in onFinish handler', {
+             sessionId,
+             error: error instanceof Error ? error.message : String(error)
+          });
+        });
+    }
 
     // Convert to UI stream response for client compatibility
     const uiStreamResponse = streamResult.toUIMessageStreamResponse();

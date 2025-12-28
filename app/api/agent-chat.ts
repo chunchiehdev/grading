@@ -110,27 +110,54 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     
     try {
-      const response = await streamWithGradingAgent(finalUserRole, modelMessages, userId);
-      
-      // Update session on completion (in background)
-      if (sessionId && userId) {
-        const executionTime = Date.now() - sessionStartTime;
-        const { db } = await import('@/lib/db.server');
-        
-        // Note: We don't have token info here since it's in the stream
-        // Token tracking happens in agent-executor.server.ts for grading
-        // For chat, we'll update status and duration
-        db.agentChatSession.update({
-          where: { id: sessionId },
-          data: {
-            status: 'COMPLETED',
-            totalDuration: executionTime,
-            lastActivity: new Date(),
-          },
-        }).catch((err: unknown) => {
-          logger.warn('[Agent Chat API] Failed to update session', err);
-        });
-      }
+      const response = await streamWithGradingAgent(
+        finalUserRole, 
+        modelMessages, 
+        userId, 
+        undefined, // callOptions
+        async ({ text, usage }) => {
+          // onFinish: Save tokens, message, and update session
+          if (sessionId && userId) {
+            const executionTime = Date.now() - sessionStartTime;
+            const { db } = await import('@/lib/db.server');
+            
+            try {
+              // 1. Save Assistant Message
+              await db.agentChatMessage.create({
+                data: {
+                  sessionId,
+                  role: 'assistant',
+                  content: text,
+                  promptTokens: usage.promptTokens,
+                  completionTokens: usage.completionTokens,
+                  totalTokens: usage.totalTokens,
+                  timestamp: new Date(),
+                },
+              });
+
+              // 2. Update Session Status and Totals
+              // We increment totalTokens to account for multiple turns if needed, 
+              // though currently it's one turn per request usually.
+              // Actually, for a persistent session, we should accumulate.
+              // But db.agentChatSession.update doesn't support increment easily without fetching first,
+              // unless we use atomic increment if Prisma supports it (yes, { increment: n }).
+              await db.agentChatSession.update({
+                where: { id: sessionId },
+                data: {
+                  status: 'COMPLETED',
+                  totalDuration: { increment: executionTime },
+                  totalTokens: { increment: usage.totalTokens },
+                  lastActivity: new Date(),
+                },
+              });
+              
+              logger.info('[Agent Chat API] Saved trace and tokens', { sessionId, tokens: usage.totalTokens });
+            } catch (err) {
+              logger.error('[Agent Chat API] Failed to save trace', err);
+            }
+          }
+        }
+      );
       
       logger.info('[Agent Chat API] Agent response created successfully');
       return response;

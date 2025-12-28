@@ -55,10 +55,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         where,
         include: {
           user: {
-            select: { name: true, email: true },
+            select: { name: true, email: true, picture: true },
           },
           _count: {
             select: { messages: true, stepLogs: true },
+          },
+          messages: {
+            select: { totalTokens: true },
           },
         },
         orderBy: { [sortBy]: sortOrder },
@@ -68,8 +71,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
       db.agentChatSession.count({ where }),
     ]);
 
+    // Calculate actual tokens from messages if session.totalTokens is 0
+    const sessionsWithTokens = sessions.map(session => {
+      const calculatedTokens = session.messages.reduce((sum, msg) => sum + (msg.totalTokens || 0), 0);
+      return {
+        ...session,
+        // If session.totalTokens is 0, usage the calculated sum, otherwise use the stored value
+        totalTokens: session.totalTokens > 0 ? session.totalTokens : calculatedTokens,
+        // Remove messages from the response to keep payload small
+        messages: undefined,
+      };
+    });
+
     const result = {
-      sessions,
+      sessions: sessionsWithTokens,
       total,
       page,
       limit,

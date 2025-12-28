@@ -5,7 +5,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Calendar, MessageSquare, Clock, User } from 'lucide-react';
+import { Calendar, MessageSquare, Clock } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface ChatSession {
   id: string;
@@ -18,6 +19,7 @@ interface ChatSession {
   user: {
     name: string;
     email: string;
+    picture?: string | null;
   };
   _count: {
     messages: number;
@@ -79,8 +81,8 @@ export function ChatSessionsTab() {
         </select>
       </div>
 
-      {/* Table - Architectural sketch style */}
-      <div className="overflow-hidden rounded-sm border-2 border-[#2B2B2B] bg-white">
+      {/* Desktop Table View */}
+      <div className="hidden overflow-hidden rounded-sm border-2 border-[#2B2B2B] bg-white sm:block">
         <table className="w-full">
           <thead>
             <tr className="border-b-2 border-[#2B2B2B] bg-[#FAF9F6]">
@@ -141,8 +143,13 @@ export function ChatSessionsTab() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-400" />
+                    <div className="flex items-center gap-3">
+                      <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                        <AvatarImage src={session.user.picture || undefined} alt={session.user.name} />
+                        <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                          {session.user.name.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {session.user.name}
@@ -176,6 +183,81 @@ export function ChatSessionsTab() {
             )}
           </tbody>
         </table>
+      </div>
+
+
+      {/* Mobile Card View */}
+      <div className="space-y-4 sm:hidden">
+        {loading ? (
+          <div className="py-8 text-center text-gray-500">Loading sessions...</div>
+        ) : sessions.length === 0 ? (
+          <div className="py-8 text-center text-gray-500">No sessions found</div>
+        ) : (
+          sessions.map((session) => (
+            <div
+              key={session.id}
+              className="rounded-sm border-2 border-[#2B2B2B] bg-white p-4"
+            >
+              {/* Row 1: User & Status */}
+              <div className="mb-3 flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                    <AvatarImage src={session.user.picture || undefined} alt={session.user.name} />
+                    <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                      {session.user.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      {session.user.name}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {session.user.email}
+                    </div>
+                  </div>
+                </div>
+                <StatusBadge status={session.status} />
+              </div>
+
+              <hr className="my-3 border-gray-100" />
+
+              {/* Row 2: Session Title */}
+              <div className="mb-3">
+                <div className="flex items-center gap-2 text-sm text-gray-900">
+                  <MessageSquare className="h-4 w-4 text-gray-400" />
+                  <span className="font-medium">{session.title || 'Untitled'}</span>
+                </div>
+                <div className="ml-6 text-xs text-gray-500">
+                  {new Date(session.createdAt).toLocaleDateString()} • {new Date(session.createdAt).toLocaleTimeString()}
+                </div>
+              </div>
+
+              {/* Row 3: Metrics */}
+              <div className="flex items-center justify-between rounded-sm border border-gray-100 bg-gray-50/50 p-3">
+                <div>
+                  <div className="text-xs text-gray-500">Role</div>
+                  <span className="inline-flex rounded-full border border-[#D2691E] bg-[#D2691E]/10 px-2 py-0.5 text-xs font-medium text-[#D2691E]">
+                    {session.userRole}
+                  </span>
+                </div>
+
+                <div className="text-center">
+                  <div className="text-xs text-gray-500">Messages</div>
+                  <span className="font-medium text-gray-900">
+                    {session._count.messages}
+                  </span>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-xs text-gray-500">Tokens</div>
+                  <div className="font-medium text-gray-900">
+                    {formatTokens(session.totalTokens)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

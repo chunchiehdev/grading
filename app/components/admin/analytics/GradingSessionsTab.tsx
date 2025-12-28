@@ -5,7 +5,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { FileText, Award, Clock, AlertCircle, User } from 'lucide-react';
+import { FileText, Award, Clock, AlertCircle } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface GradingSession {
   id: string;
@@ -22,6 +23,7 @@ interface GradingSession {
     user: {
       name: string;
       email: string;
+      picture: string;
     };
   };
   assignmentArea: {
@@ -58,6 +60,16 @@ export function GradingSessionsTab() {
     }
   };
 
+  // Get user initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <div>
       {/* Filters */}
@@ -73,8 +85,8 @@ export function GradingSessionsTab() {
         </select>
       </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-sm border-2 border-[#2B2B2B] bg-white">
+      {/* Desktop Table View */}
+      <div className="hidden overflow-hidden rounded-sm border-2 border-[#2B2B2B] bg-white sm:block">
         <table className="w-full">
           <thead>
             <tr className="border-b-2 border-[#2B2B2B] bg-gray-50">
@@ -107,13 +119,13 @@ export function GradingSessionsTab() {
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   Loading grading sessions...
                 </td>
               </tr>
             ) : sessions.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   No grading sessions found
                 </td>
               </tr>
@@ -124,8 +136,13 @@ export function GradingSessionsTab() {
                   className="transition-colors hover:bg-[#D2691E]/5"
                 >
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-400" />
+                    <div className="flex items-center gap-3">
+                      <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                        <AvatarImage src={session.uploadedFile.user.picture} alt={session.uploadedFile.user.name} />
+                        <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                          {getInitials(session.uploadedFile.user.name)}
+                        </AvatarFallback>
+                      </Avatar>
                       <div>
                         <div className="font-medium text-gray-900">
                           {session.uploadedFile.user.name}
@@ -195,6 +212,114 @@ export function GradingSessionsTab() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="space-y-4 sm:hidden">
+        {loading ? (
+          <div className="py-8 text-center text-gray-500">Loading grading sessions...</div>
+        ) : sessions.length === 0 ? (
+          <div className="py-8 text-center text-gray-500">No grading sessions found</div>
+        ) : (
+          sessions.map((session) => (
+            <div
+              key={session.id}
+              className="rounded-sm border-2 border-[#2B2B2B] bg-white p-4"
+            >
+              <div className="mb-3 flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                    <AvatarImage src={session.uploadedFile.user.picture} alt={session.uploadedFile.user.name} />
+                    <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                      {getInitials(session.uploadedFile.user.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      {session.uploadedFile.user.name}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {session.uploadedFile.user.email}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  {session.requiresReview ? (
+                    <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
+                      <AlertCircle className="h-3 w-3" />
+                      Review
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center rounded bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
+                      ✓ OK
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <hr className="my-3 border-gray-100" />
+
+              {/* Row 2: File Info */}
+              <div className="mb-3">
+                <div className="flex items-center gap-2 text-sm text-gray-900">
+                  <FileText className="h-4 w-4 text-gray-400" />
+                  <span className="font-medium">{session.uploadedFile.fileName}</span>
+                </div>
+                <div className="ml-6 text-xs text-gray-500">
+                  {new Date(session.createdAt).toLocaleDateString()} • {new Date(session.createdAt).toLocaleTimeString()}
+                </div>
+              </div>
+
+              {/* Row 3: Assignment Details */}
+              <div className="mb-3 grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded bg-gray-50 p-2">
+                  <div className="text-gray-500">Assignment</div>
+                  <div className="font-medium text-gray-900 truncate">
+                    {session.assignmentArea?.name || '-'}
+                  </div>
+                </div>
+                <div className="rounded bg-gray-50 p-2">
+                  <div className="text-gray-500">Rubric</div>
+                  <div className="font-medium text-gray-900 truncate">
+                    {session.rubric.name}
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 4: Metrics */}
+              <div className="flex items-center justify-between rounded-sm border border-gray-100 bg-gray-50/50 p-3">
+                <div>
+                  <div className="text-xs text-gray-500">Score</div>
+                  <div className="flex items-center gap-1">
+                    <Award className="h-4 w-4 text-[#D2691E]" />
+                    <span className="font-bold text-gray-900">
+                      {session.normalizedScore !== null
+                        ? session.normalizedScore.toFixed(1)
+                        : '-'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                   <div className="mb-1 text-xs text-gray-500">Confidence</div>
+                   {session.confidenceScore !== null ? (
+                      <ConfidenceBadge score={session.confidenceScore} />
+                   ) : (
+                      <span className="text-gray-400">-</span>
+                   )}
+                </div>
+
+                <div className="text-right">
+                  <div className="text-xs text-gray-500">Tokens</div>
+                  <div className="flex items-center justify-end gap-1 text-sm text-gray-900">
+                    <Clock className="h-3 w-3 text-gray-400" />
+                    {session.gradingTokens?.toLocaleString() || '-'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

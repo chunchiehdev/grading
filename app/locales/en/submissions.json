@@ -41,7 +41,8 @@
     "submitted": "Submitted",
     "failed": "Failed",
     "unknown": "Unknown",
-    "analyzed": "Analyzed"
+    "analyzed": "Analyzed",
+    "draft": "Draft"
   },
   "teacher": {
     "title": "Submissions",

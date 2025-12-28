@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, Link, useRouteError, isRouteErrorResponse } from 'react-router';
-import { Download, Eye, FileText, Calendar } from 'lucide-react';
+import { Download, Eye, FileText, Calendar, Settings } from 'lucide-react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getAssignmentAreaById } from '@/services/assignment-area.server';
@@ -89,20 +89,33 @@ export default function AssignmentSubmissions() {
       {/* Header - Architectural Sketch Style */}
       <header className="border-b-2 border-[#2B2B2B] dark:border-gray-200">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-serif text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100">
-                {assignmentArea.name}
-              </h1>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                {assignmentArea.course?.name} · {t('teacher.subtitle')}
-              </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start justify-between gap-4 sm:block">
+              <div>
+                <h1 className="font-serif text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100">
+                  {assignmentArea.name}
+                </h1>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  {assignmentArea.course?.name} · {t('teacher.subtitle')}
+                </p>
+              </div>
+              {/* Mobile Settings Icon */}
+              <Link
+                to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/manage`}
+                className="mt-1 text-[#2B2B2B] transition-colors hover:text-gray-600 dark:text-gray-200 dark:hover:text-white sm:hidden"
+                title={t('teacher.actions.manageAssignment')}
+              >
+                <Settings className="h-6 w-6" />
+              </Link>
             </div>
+            
+            {/* Desktop Settings Icon */}
             <Link
               to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/manage`}
-              className="border-2 border-[#2B2B2B] px-4 py-2 text-sm font-medium text-[#2B2B2B] transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:text-gray-200 dark:hover:bg-gray-200 dark:hover:text-gray-900"
+              className="hidden text-[#2B2B2B] transition-colors hover:text-gray-600 dark:text-gray-200 dark:hover:text-white sm:block"
+              title={t('teacher.actions.manageAssignment')}
             >
-              {t('teacher.actions.manageAssignment')}
+              <Settings className="h-6 w-6" />
             </Link>
           </div>
         </div>
@@ -110,30 +123,43 @@ export default function AssignmentSubmissions() {
 
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Statistics - Sketch Cards */}
-        <div className="mb-16 grid grid-cols-2 gap-6 md:grid-cols-4">
-          <div className="border-2 border-[#2B2B2B] p-6 dark:border-gray-200">
-            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">
+        {/* Statistics - Compact Bar on Mobile, Cards on Desktop */}
+        <div className="mb-6 flex flex-wrap gap-x-6 gap-y-2 border-b border-gray-200 pb-4 text-sm sm:border-0 sm:pb-0 md:mb-16 md:grid md:grid-cols-4 md:gap-6">
+          <div className="flex items-center gap-2 sm:block sm:border-2 sm:border-[#2B2B2B] sm:p-6 sm:dark:border-gray-200">
+            <p className="text-gray-600 dark:text-gray-400 sm:text-xs sm:uppercase sm:tracking-wider">
               {t('teacher.stats.totalSubmissions')}
+              <span className="sm:hidden">:</span>
             </p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{stats.total}</p>
+            <p className="font-medium text-[#2B2B2B] dark:text-gray-100 sm:mt-3 sm:font-serif sm:text-4xl sm:font-light">
+              {stats.total}
+            </p>
           </div>
-          <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
-            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">
+          <div className="flex items-center gap-2 transition-colors sm:block sm:border-2 sm:border-[#2B2B2B] sm:p-6 sm:hover:border-[#D2691E] sm:dark:border-gray-200 sm:dark:hover:border-[#E87D3E]">
+            <p className="text-gray-600 dark:text-gray-400 sm:text-xs sm:uppercase sm:tracking-wider">
               {t('teacher.stats.graded')}
+              <span className="sm:hidden">:</span>
             </p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{stats.graded}</p>
+            <p className="font-medium text-[#2B2B2B] dark:text-gray-100 sm:mt-3 sm:font-serif sm:text-4xl sm:font-light">
+              {stats.graded}
+            </p>
           </div>
-          <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
-            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">
+          <div className="flex items-center gap-2 transition-colors sm:block sm:border-2 sm:border-[#2B2B2B] sm:p-6 sm:hover:border-[#D2691E] sm:dark:border-gray-200 sm:dark:hover:border-[#E87D3E]">
+            <p className="text-gray-600 dark:text-gray-400 sm:text-xs sm:uppercase sm:tracking-wider">
               {t('teacher.stats.analyzed')}
+              <span className="sm:hidden">:</span>
             </p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{stats.analyzed}</p>
+            <p className="font-medium text-[#2B2B2B] dark:text-gray-100 sm:mt-3 sm:font-serif sm:text-4xl sm:font-light">
+              {stats.analyzed}
+            </p>
           </div>
-          <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
-            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">
+          <div className="flex items-center gap-2 transition-colors sm:block sm:border-2 sm:border-[#2B2B2B] sm:p-6 sm:hover:border-[#D2691E] sm:dark:border-gray-200 sm:dark:hover:border-[#E87D3E]">
+            <p className="text-gray-600 dark:text-gray-400 sm:text-xs sm:uppercase sm:tracking-wider">
               {t('teacher.stats.pendingReview')}
+              <span className="sm:hidden">:</span>
             </p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{stats.pending}</p>
+            <p className="font-medium text-[#2B2B2B] dark:text-gray-100 sm:mt-3 sm:font-serif sm:text-4xl sm:font-light">
+              {stats.pending}
+            </p>
           </div>
         </div>
 
@@ -158,15 +184,16 @@ export default function AssignmentSubmissions() {
           ) : (
             <div>
               {submissions.map((submission, index) => (
-                <div
+                <Link
                   key={submission.id}
-                  className={`px-6 py-6 transition-colors hover:bg-[#D2691E]/5 dark:hover:bg-[#E87D3E]/10 ${
+                  to={`/teacher/submissions/${submission.id}/view`}
+                  className={`block px-4 py-6 transition-colors hover:bg-[#D2691E]/5 dark:hover:bg-[#E87D3E]/10 sm:px-6 ${
                     index < submissions.length - 1 ? 'border-b border-[#2B2B2B] dark:border-gray-200' : ''
                   }`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     {/* Student Info */}
-                    <div className="flex items-center space-x-4">
+                    <div className="flex w-full items-start space-x-4 sm:w-auto">
                       <Avatar className="h-10 w-10 border-2 border-[#2B2B2B] dark:border-gray-200">
                         <AvatarImage src={submission.student?.picture} alt={submission.student?.name} />
                         <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
@@ -180,7 +207,7 @@ export default function AssignmentSubmissions() {
                             {submission.student?.name || 'Unknown Student'}
                           </h3>
                           <span className="inline-block border border-[#2B2B2B] px-2 py-0.5 text-xs uppercase tracking-wider text-[#2B2B2B] dark:border-gray-200 dark:text-gray-200">
-                            {submission.status}
+                            {t(`status.${submission.status.toLowerCase()}`, { defaultValue: submission.status })}
                           </span>
                         </div>
                         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{submission.student?.email || 'No email'}</p>
@@ -188,39 +215,6 @@ export default function AssignmentSubmissions() {
                           <Calendar className="mr-1 h-3 w-3" />
                           {formatDate(submission.uploadedAt)}
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-4">
-                      {submission.finalScore !== null && (
-                        <div className="text-right">
-                          <p className="font-serif text-2xl font-light text-[#2B2B2B] dark:text-gray-100">
-                            {submission.finalScore}
-                          </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">{t('teacher.submissionInfo.score')}</p>
-                        </div>
-                      )}
-
-                      <div className="flex gap-2">
-                        <Link
-                          to={`/teacher/submissions/${submission.id}/view`}
-                          className="border-2 border-[#2B2B2B] px-4 py-2 text-sm font-medium text-[#2B2B2B] transition-colors hover:bg-[#D2691E] hover:text-white dark:border-gray-200 dark:text-gray-200 dark:hover:border-[#E87D3E] dark:hover:bg-[#E87D3E] dark:hover:text-white"
-                        >
-                          <Eye className="mr-1 inline-block h-4 w-4" />
-                          {t('teacher.actions.view')}
-                        </Link>
-                        {submission.filePath && (
-                          <a
-                            href={submission.filePath}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="border-2 border-[#2B2B2B] px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:border-[#2B2B2B] hover:text-[#2B2B2B] dark:border-gray-200 dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            <Download className="mr-1 inline-block h-4 w-4" />
-                            {t('teacher.actions.download')}
-                          </a>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -234,7 +228,7 @@ export default function AssignmentSubmissions() {
                       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{submission.teacherFeedback}</p>
                     </div>
                   )}
-                </div>
+                </Link>
               ))}
             </div>
           )}
