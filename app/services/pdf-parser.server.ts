@@ -170,7 +170,8 @@ export async function triggerPdfParsing(
   fileId: string,
   fileKey: string,
   fileName: string,
-  userId: string
+  userId: string,
+  fileBuffer?: Buffer  
 ): Promise<void> {
   try {
     logger.info(`🔄 Starting PDF parsing for file: ${fileName} (${fileId})`);
@@ -179,11 +180,18 @@ export async function triggerPdfParsing(
       where: { id: fileId },
       data: { parseStatus: FileParseStatus.PROCESSING },
     });
+    
+    let buffer: Buffer;
+    if (fileBuffer) {
+      buffer = fileBuffer;
+    } else {
+      buffer = await getFileFromStorage(fileKey);
+    }
 
-    const fileBuffer = await getFileFromStorage(fileKey);
-    logger.info(`📥 Retrieved file from storage: ${fileName} (${fileBuffer.length} bytes)`);
+    const bufferSource = fileBuffer ? 'reused from upload' : 'downloaded from S3';
+    logger.info(`📥 Retrieved file from storage: ${fileName} (${buffer.length} bytes) [${bufferSource}]`);
 
-    const taskId = await submitPdfForParsing(fileBuffer, fileName, userId);
+    const taskId = await submitPdfForParsing(buffer, fileName, userId);
     logger.info(`📤 PDF parsing task submitted: ${taskId} for file: ${fileName}`);
 
     // Await the long-running polling so we only return when complete

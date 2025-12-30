@@ -171,7 +171,8 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
     ) {
       try {
         // Wait for parse to fully complete so the client gets a definitive result
-        await triggerPdfParsing(uploadedFile.id, fileKey, originalFileName || file.name, userId);
+        // Pass buffer to avoid redundant S3 download (saves ~200-500ms)
+        await triggerPdfParsing(uploadedFile.id, fileKey, originalFileName || file.name, userId, buffer);
       } catch (error) {
         // triggerPdfParsing already updated DB status to FAILED. Return failure to client.
         const errorMessage = error instanceof Error ? error.message : '解析過程發生錯誤';

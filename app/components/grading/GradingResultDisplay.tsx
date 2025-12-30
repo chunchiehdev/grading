@@ -173,7 +173,7 @@ export function GradingResultDisplay({
       {/* Top: Streaming Thinking Process */}
       {showThinkingArea && (
         <Collapsible 
-          open={isLoading ? true : undefined} // Force open when loading
+          open={isLoading ? true : undefined}
           defaultOpen={isLoading} 
           className="animate-in fade-in duration-500 mb-6 group"
         >
@@ -187,17 +187,25 @@ export function GradingResultDisplay({
            </div>
            
            <CollapsibleContent>
-            <div className="pb-4 pt-0 text-sm text-muted-foreground/90 leading-relaxed">
-              <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1">
-                {isLoading ? (
-                  <>
-                    <Markdown>{activeThinkingProcess || ''}</Markdown>
-                    <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-purple-500/50 animate-pulse" />
-                  </>
-                ) : (
-                  <Markdown>{activeThinkingProcess || ''}</Markdown>
-                  
-                )}
+            <div className="pb-4 pt-2">
+              {/* Vertical Timeline Container */}
+              <div className="relative pl-6">
+                {/* Vertical Line - 左側貫穿的灰色線條，對齊上方的下拉按鈕 */}
+                <div className="absolute left-2 top-0 bottom-0 w-px bg-border" />
+                
+                {/* Content */}
+                <div className="text-sm text-muted-foreground/90 leading-relaxed">
+                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1">
+                    {isLoading ? (
+                      <>
+                        <Markdown>{activeThinkingProcess || ''}</Markdown>
+                        <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-purple-500/50 animate-pulse" />
+                      </>
+                    ) : (
+                      <Markdown>{activeThinkingProcess || ''}</Markdown>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
            </CollapsibleContent>
