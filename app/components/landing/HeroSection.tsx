@@ -73,7 +73,10 @@ const HeroSection = () => {
           {/* Visual Element */}
           <div className="lg:col-span-5 flex items-center justify-center order-1 lg:order-2 lg:mb-0">
             <img
-              src="/writing_rm_background.png"
+              src="/writing.webp"
+              loading="eager"
+              fetchPriority='high'
+              decoding='async'
               alt={t('landing:hero.heroImageAlt')}
               className="w-full h-auto max-h-[40vh] sm:max-h-none object-cover xl:scale-110 max-w-lg xl:max-w-xl 2xl:max-w-8xl"
               
