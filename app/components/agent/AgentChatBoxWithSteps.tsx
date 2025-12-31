@@ -214,7 +214,7 @@ export function AgentChatBoxWithSteps() {
 
       {/* Fixed Input Area - stays at bottom */}
       <div
-        className="flex-shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80  border-border/40"
+        className="flex-shrink-0 bg-background border-border/40"
         style={{
           paddingTop: '0.5rem',
           paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'

@@ -238,7 +238,7 @@ function Document({ children }: { children: React.ReactNode }) {
           content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
         />
         {/* Theme color for Safari toolbar - matches page background */}
-        <meta name="theme-color" content="#EDEBE8" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#F0EEEB" media="(prefers-color-scheme: light)" />
         <meta name="theme-color" content="#1A1A1A" media="(prefers-color-scheme: dark)" />
         <Meta />
         <Links />
