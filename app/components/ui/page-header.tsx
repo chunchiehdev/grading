@@ -49,7 +49,7 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <header className={cn(pageHeaderVariants({ size }), className)} {...props}>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-start sm:items-center justify-between gap-3">
           <div className="min-w-0">
             {title && <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{title}</h1>}

@@ -123,15 +123,14 @@ export default function CourseDetail() {
         actions={
           <Button asChild variant="outline">
             <Link to={`/teacher/courses/${course.id}/edit`}>
-              <Pencil className="h-4 w-4 mr-2" />
-              {t('course:edit.title')}
+              <Pencil />
             </Link>
           </Button>
         }
         showInlineActions={true}
       />
 
-      <div className="max-w-7xl mx-auto space-y-6 pb-8">
+      <div className="max-w-7xl mx-auto space-y-6 pb-8 px-4 sm:px-6 lg:px-8">
         {/* Course Description */}
         {course.description && (
           <Card>
