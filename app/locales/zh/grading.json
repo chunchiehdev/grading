@@ -268,7 +268,11 @@
   "customInstructionsPlaceholder": "例如：重點檢查學生是否正確套用公式。注意單位換算和計算步驟的完整性。",
   "approachingCharLimit": "剩餘 {{remaining}} 字元",
   "charLimitReached": "已達字數上限",
-  "instructionsTip1": "提示：具體說明你希望 AI 重點關注的地方",
+  "instructionsTip1": "提示：具體說明你希望 AI 重點關註的地方",
   "instructionsTip2": "提示：可以用中英文混合，AI 都能理解",
-  "aiThinkingProcess": "思考過程"
+  "aiThinkingProcess": "思考過程",
+  "thinkingProcess": {
+    "aiThinking": "AI 正在思考...",
+    "viewProcess": "查看思考過程"
+  }
 }

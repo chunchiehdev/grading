@@ -22,9 +22,9 @@ export function ModernNavigation({
 }: ModernNavigationProps) {
   return (
     <div className={cn('flex items-center bg-background w-full relative ', className)}>
-      <div className="w-[95%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto flex items-center gap-3 sm:gap-4">
+      <div className="w-[90%] sm:w-[85%] lg:w-[80%] mx-auto flex items-center gap-3 sm:gap-4">
         {/* Navigation Links - Horizontal scroll on mobile, flex on desktop */}
-        <nav className="flex-1 overflow-x-auto -mb-[1px] py-3 sm:py-4">
+        <nav className="flex-1 overflow-x-auto py-3 sm:py-4">
           <div className="flex gap-6 lg:gap-8 min-w-max md:min-w-0 h-full items-center">
             {tabs.map((tab) => (
               <NavLink

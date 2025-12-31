@@ -19,6 +19,13 @@
     "due": "Due",
     "description": "Description"
   },
+  "submissionDetail": {
+    "submittedAt": "Submitted At:",
+    "assignmentDescription": "Assignment Description",
+    "overdueTooltip": "Assignment is overdue, cannot resubmit",
+    "teacherFeedback": "Teacher Feedback",
+    "aiAnalysisInProgress": "AI analysis in progress..."
+  },
   "aiAnalysis": {
     "title": "AI Grading Result",
     "gradingInProgress": "Grading is in progress.",

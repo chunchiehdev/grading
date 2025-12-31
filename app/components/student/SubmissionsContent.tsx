@@ -37,7 +37,7 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
   };
 
   return (
-    <div className="bg-background">
+    <div className="space-y-6">
       {!submissions || submissions.length === 0 ? (
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center space-y-8 max-w-md">
@@ -54,9 +54,9 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
           </div>
         </div>
       ) : (
-        <>
+        <div className="bg-background rounded-lg">
           {/* Table Header Row */}
-          <div className="px-6 md:px-8 lg:px-10 py-4 border-b border-border">
+          <div className="px-4 sm:px-6 py-4 border-b">
             <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
               <div className="col-span-3">{t('submissions:table.assignment')}</div>
               <div className="col-span-3">{t('submissions:table.course')}</div>
@@ -70,7 +70,7 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
             {submissions.map((s) => (
               <div
                 key={s.id}
-                className="px-6 md:px-8 lg:px-10 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
+                className="px-4 sm:px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
                 onClick={() => navigate(`/student/submissions/${s.id}`)}
               >
                 <div className="grid grid-cols-12 gap-4 items-center">
@@ -109,7 +109,7 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

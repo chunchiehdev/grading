@@ -181,7 +181,7 @@ export function GradingResultDisplay({
             <CollapsibleTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent text-sm font-medium text-muted-foreground">
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                <span>{isLoading ? "AI 正在思考..." : "查看思考過程"}</span>
+                <span>{isLoading ? t('thinkingProcess.aiThinking') : t('thinkingProcess.viewProcess')}</span>
               </Button>
             </CollapsibleTrigger>
            </div>

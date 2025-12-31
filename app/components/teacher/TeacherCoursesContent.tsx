@@ -62,15 +62,18 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
 
             return (
               <Link key={course.id} to={`/teacher/courses/${course.id}`} className="block group">
-                <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
+                <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
+                
                   <CardHeader className="p-4 sm:p-6 min-h-[140px] flex flex-col justify-start">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
                         <CardTitle className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                           {course.name}
                         </CardTitle>
+                        </div>
                         {course.description && (
-                          <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{course.description}</p>
+                          <p className="text-sm text-muted-foreground line-clamp-3">{course.description}</p>
                         )}
                       </div>
                       <DropdownMenu>

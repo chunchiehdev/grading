@@ -19,6 +19,13 @@
     "due": "截止時間",
     "description": "作業說明"
   },
+  "submissionDetail": {
+    "submittedAt": "提交時間：",
+    "assignmentDescription": "作業說明",
+    "overdueTooltip": "作業已逾期，無法重新提交",
+    "teacherFeedback": "教師評語",
+    "aiAnalysisInProgress": "AI分析進行中..."
+  },
   "aiAnalysis": {
     "title": "AI 批改結果",
     "gradingInProgress": "批改進行中。",

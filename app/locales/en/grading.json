@@ -270,5 +270,9 @@
   "charLimitReached": "Character limit reached",
   "instructionsTip1": "Tip: Be specific about what you want AI to focus on",
   "instructionsTip2": "Tip: You can use mixed Chinese and English, AI understands both",
-  "aiThinkingProcess": "Thinking Process"
+  "aiThinkingProcess": "Thinking Process",
+  "thinkingProcess": {
+    "aiThinking": "thinking...",
+    "viewProcess": "Show thinking"
+  }
 }

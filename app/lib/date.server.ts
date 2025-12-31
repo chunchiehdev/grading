@@ -8,12 +8,13 @@
  * @returns Formatted date string
  */
 export function formatDateForDisplay(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('zh-TW', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Asia/Taipei', // 台灣時區 (UTC+8)
   }).format(new Date(date));
 }
 
