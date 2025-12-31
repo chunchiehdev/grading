@@ -247,7 +247,7 @@ function Document({ children }: { children: React.ReactNode }) {
           type="module"
         ></script>
       </head>
-      <body className="bg-background min-h-screen w-full font-sans antialiased">
+      <body className="bg-background h-full w-full font-sans antialiased">
         {children}
         <Toaster richColors />
         <ScrollRestoration />
@@ -317,7 +317,7 @@ function Layout() {
       {(user || !isPublicPath) && <NavHeader className="flex-shrink-0" />}
 
       {/* Main content area - fills remaining viewport space */}
-      <main className="flex-1">
+      <main className="flex-1 min-h-0 relative">
         {!isPublicPath && !isFullWidth ? (
           // Protected paths with padding: standard layout with responsive padding
           <div className="h-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">

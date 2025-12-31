@@ -316,10 +316,7 @@ export function InvitationCodeModal({ open, onOpenChange }: InvitationCodeModalP
               )}
             </Button>
 
-            {/* Helper Text */}
-            <p className="text-xs text-muted-foreground text-center">
-              {t('course:discovery.invitationCodeDescription')}
-            </p>
+            
           </form>
         )}
       </DialogContent>

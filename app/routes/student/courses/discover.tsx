@@ -203,7 +203,7 @@ export default function CourseDiscoveryPage() {
               placeholder={t('course:discovery.search')}
               value={searchValue}
               onChange={handleSearchChange}
-              className="h-10 w-full border-b-2 border-t-0 border-l-0 border-r-0 rounded-none focus-visible:ring-0 focus-visible:border-primary px-2"
+              className="h-10 w-full border-b-2 border-t-0 border-l-0 border-r-0 rounded-none focus-visible:ring-0 focus-visible:border-primary px-2 text-[16px]"
             />
           </div>
         </div>
