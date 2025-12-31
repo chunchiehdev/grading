@@ -22,15 +22,12 @@
 
 @layer base {
   /* iOS Safari viewport height fix for bottom address bar */
-  html {
-    height: -webkit-fill-available;
-    /* Reserve space for scrollbar to prevent layout shift when dialogs/modals open */
-    scrollbar-gutter: stable;
-  }
-
-  body {
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
+  /* iOS Safari viewport height fix for resizes-content */
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
     /* Reserve space for scrollbar to prevent layout shift when dialogs/modals open */
     scrollbar-gutter: stable;
   }

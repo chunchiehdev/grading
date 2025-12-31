@@ -283,7 +283,7 @@ export function InvitationCodeModal({ open, onOpenChange }: InvitationCodeModalP
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 disabled={isValidating}
-                className="font-mono tracking-widest text-center text-sm uppercase"
+                className="font-mono tracking-widest text-center text-[16px] uppercase"
                 maxLength={50}
                 aria-label={t('course:discovery.invitationCodeLabel')}
                 autoComplete="off"

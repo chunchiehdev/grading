@@ -309,7 +309,7 @@ function Layout() {
 
   // Unified layout structure for all route types
   return (
-    <div className="h-dvh w-full flex flex-col bg-background">
+    <div className="h-full w-full flex flex-col bg-background">
       {/* Initialize Zustand store with server-provided notification data */}
       {user?.role === 'TEACHER' && <StoreInitializer unreadNotifications={unreadNotifications} />}
 
