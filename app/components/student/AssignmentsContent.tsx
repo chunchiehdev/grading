@@ -128,7 +128,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-8 max-w-md">
           {/* Icon */}
-          <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-muted/40 to-muted/20 flex items-center justify-center">
+          <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-muted/40 to-muted/20 flex items-center justify-around">
             {isNotEnrolled ? (
               <UserPlus className="w-12 h-12 text-muted-foreground" />
             ) : (
@@ -243,7 +243,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
   return (
     <div className="space-y-6">
       {/* Assignment Grid */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,380px))] gap-6 justify-start">
         {getFilteredAssignments().map((assignment) => (
           <AssignmentCard
             key={assignment.id}

@@ -52,7 +52,7 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
         </div>
       ) : (
         /* Courses Grid */
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,380px))] gap-6 justify-around">
             {courses.map((course) => {
             const totalSubmissions =
               course.assignmentAreas?.reduce(
@@ -100,21 +100,27 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
                     </div>
                   </CardHeader>
 
-                  <div className="px-4 sm:px-6 py-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-6">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-base font-semibold text-foreground">
+                  <div className="px-4 sm:px-6 py-4 max-w-full">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-4 w-full">
+                      <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto sm:flex-1 overflow-hidden">
+                        <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="text-base font-semibold text-foreground shrink-0">
                           {course.assignmentAreas?.length || 0}
                         </span>
-                        <span className="text-xs sm:text-sm text-muted-foreground">
+                        <span 
+                          className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis block"
+                          title={t('dashboard:stats.assignmentAreas')}
+                        >
                           {t('dashboard:stats.assignmentAreas')}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-base font-semibold text-foreground">{totalSubmissions}</span>
-                        <span className="text-xs sm:text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto sm:flex-1 overflow-hidden">
+                        <Users className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="text-base font-semibold text-foreground shrink-0">{totalSubmissions}</span>
+                        <span 
+                          className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis block"
+                          title={t('dashboard:teacher.submissions')}
+                        >
                           {t('dashboard:teacher.submissions')}
                         </span>
                       </div>

@@ -55,7 +55,7 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
         </div>
       ) : (
         /* Rubrics Grid */
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-6">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,400px))] gap-6 justify-center">
           {activeRubrics.map((rubric) => {
             const totalMaxScore =
               rubric.criteria?.reduce((total: number, criterion: any) => total + criterion.maxScore, 0) || 100;
@@ -106,19 +106,29 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                   </CardHeader>
 
                   {/* Statistics - 固定高度區域 */}
-                  <div className="px-4 sm:px-6 py-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-6">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-base font-semibold text-foreground">
+                  <div className="px-4 sm:px-6 py-4 max-w-full">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-start gap-3 sm:gap-4 w-full">
+                      <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto sm:flex-1 overflow-hidden">
+                        <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="text-base font-semibold text-foreground shrink-0">
                           {rubric.criteria?.length || 0}
                         </span>
-                        <span className="text-xs sm:text-sm text-muted-foreground">{t('rubric:criteria')}</span>
+                        <span 
+                          className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis block"
+                          title={t('rubric:criteria')}
+                        >
+                          {t('rubric:criteria')}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Star className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-base font-semibold text-foreground">{totalMaxScore}</span>
-                        <span className="text-xs sm:text-sm text-muted-foreground">{t('rubric:totalPoints')}</span>
+                      <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto sm:flex-1 overflow-hidden">
+                        <Star className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="text-base font-semibold text-foreground shrink-0">{totalMaxScore}</span>
+                        <span 
+                          className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis block"
+                          title={t('rubric:totalPoints')}
+                        >
+                          {t('rubric:totalPoints')}
+                        </span>
                       </div>
                     </div>
                   </div>
