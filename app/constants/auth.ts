@@ -18,6 +18,7 @@ export const PUBLIC_PATHS = [
 // Protected routes that need full-width layout (no padding wrapper)
 export const FULL_WIDTH_PROTECTED_PATHS = [
   '/agent-playground', // AI Agent playground - requires auth but uses full-width layout
+  '/student/assignments', // Student submission page - needs full control over layout
 ] as const;
 
 export const AUTH_COOKIE_NAME = '__auth';

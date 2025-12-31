@@ -608,7 +608,7 @@ export default function SubmitAssignment() {
   };
 
   return (
-    <div ref={containerRef} className="fixed inset-0 top-[60px] flex flex-col">
+    <div ref={containerRef} className="h-full w-full flex flex-col">
       {/* Desktop: Split Panel Layout (lg and above) */}
       <div className="hidden lg:flex flex-row flex-1 overflow-hidden min-h-0">
         {/* Left Column: Assignment Cards - Scrollable */}
@@ -1063,7 +1063,7 @@ export default function SubmitAssignment() {
       </div>
 
       {/* Mobile: Tab Navigation (below lg) */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-col flex-1 overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-col h-full">
         <div className="border-b shrink-0 bg-background">
           <TabsList className="w-full h-12 bg-transparent border-0 rounded-none p-0 grid grid-cols-2">
             <TabsTrigger value="info" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#E07A5F] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
@@ -1075,7 +1075,7 @@ export default function SubmitAssignment() {
           </TabsList>
         </div>
         
-        <TabsContent value="info" className="flex-1 overflow-y-auto m-0 p-4 space-y-4">
+        <TabsContent value="info" className="flex-1 overflow-y-auto m-0 p-4 space-y-4 min-h-0">
           {/* Assignment Info Card - Combined */}
           <div className="border-2 border-[#2B2B2B] p-4 space-y-4 dark:border-gray-200">
             {/* Header */}
@@ -1241,6 +1241,7 @@ export default function SubmitAssignment() {
               <CompactFileUpload maxFiles={1} onUploadComplete={handleFileUpload} />
             ) : (
               <div className="space-y-3">
+                {/* Uploaded file display */}
                 <div className="flex items-center gap-3 border border-[#2B2B2B] p-3 dark:border-gray-200">
                   <span className="text-2xl">📄</span>
                   <div className="flex-1 min-w-0">
@@ -1248,13 +1249,41 @@ export default function SubmitAssignment() {
                     <p className="text-xs text-gray-600 dark:text-gray-400">{Math.round((state.file?.size || 0) / 1024)} KB</p>
                   </div>
                 </div>
+                
                 <Button variant="outline" onClick={handleResetFile} className="w-full border-2 border-[#2B2B2B] dark:border-gray-200">重新選擇</Button>
               </div>
             )}
           </div>
+          
+          {/* Action Buttons - Outside container */}
+          {state.file && (
+            <div className="space-y-3">
+              {/* AI Analysis Button - Bright accent color */}
+              {(state.phase === 'analyze' || state.phase === 'submit') && (
+                <Button 
+                  onClick={() => { startAnalysis(); setActiveTab('results'); }} 
+                  disabled={state.loading} 
+                  className="w-full border-2 border-[#E07A5F] bg-[#E07A5F] py-3 font-medium text-white transition-colors hover:bg-[#D2691E] dark:border-[#E87D3E] dark:bg-[#E87D3E] dark:hover:bg-[#D2691E]"
+                >
+                  {state.loading ? '評分中...' : '進行評分'}
+                </Button>
+              )}
+              
+              {/* Submit Button */}
+              {state.phase === 'submit' && getSubmissionStatus().hasNewAnalysis && (
+                <Button 
+                  onClick={submitFinal} 
+                  disabled={getSubmissionStatus().isOverdue} 
+                  className="w-full border-2 border-[#2B2B2B] bg-[#2B2B2B] py-3 font-medium text-white transition-colors hover:bg-[#D2691E] dark:border-gray-200 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-[#E87D3E]"
+                >
+                  {getSubmissionStatus().isOverdue ? '已逾期' : '提交作業'}
+                </Button>
+              )}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent value="results" className="flex-1 overflow-y-auto m-0 p-4">
+        <TabsContent value="results" className="flex-1 overflow-y-auto m-0 p-4 min-h-0">
           {state.session?.result ? (
             <GradingResultDisplay
               result={state.session.result}
@@ -1273,24 +1302,6 @@ export default function SubmitAssignment() {
             </div>
           )}
         </TabsContent>
-
-
-
-        {/* Sticky Bottom Action Bar (Mobile only) - Only show on Info tab */}
-        {state.file && activeTab === 'info' && (
-          <div className="shrink-0 border-t bg-background p-4 space-y-2">
-            {(state.phase === 'analyze' || state.phase === 'submit') && (
-              <Button onClick={() => { startAnalysis(); setActiveTab('results'); }} disabled={state.loading} className="w-full border-2 border-[#2B2B2B] dark:border-gray-200">
-                {state.loading ? '評分中...' : '進行評分'}
-              </Button>
-            )}
-            {state.phase === 'submit' && getSubmissionStatus().hasNewAnalysis && (
-              <Button onClick={submitFinal} disabled={getSubmissionStatus().isOverdue} className="w-full bg-[#2B2B2B] text-white dark:bg-gray-200 dark:text-gray-900">
-                {getSubmissionStatus().isOverdue ? '已逾期' : '提交作業'}
-              </Button>
-            )}
-          </div>
-        )}
       </Tabs>
     </div>
   );
