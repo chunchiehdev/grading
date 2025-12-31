@@ -225,8 +225,7 @@ export function AgentChatBoxWithSteps() {
             onSubmit={handleSubmit}
             className={cn(
               "flex gap-2 bg-muted/30 dark:bg-card rounded-full p-1 transition-all duration-200 border border-border/40",
-              "focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white focus-within:border-transparent",
-              !input.trim() ? "shadow-2xl" : "shadow-lg"
+              "focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white focus-within:border-transparent"
             )}
           >
             <div className="flex-1 relative min-w-0">
