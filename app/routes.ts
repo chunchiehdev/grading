@@ -5,7 +5,8 @@ export default [
   index('./routes/index.tsx'),
   route('/join', './routes/join.tsx'),
   route('/settings', './routes/settings.tsx'),
-  route('/agent-playground', './routes/agent-playground.tsx'),
+  route('/agent-playground', './routes/agent-playground/index.tsx'),
+  route('/agent-playground/:sessionId', './routes/agent-playground/$sessionId.tsx'),
 
   route('/auth', './routes/auth/layout.tsx', [
     route('login', './routes/auth/login.tsx'),
@@ -138,6 +139,12 @@ export default [
   route('/api/ai/rubric-chat', './api/ai/rubric-chat.ts'),
   route('/api/ai/generate-rubric', './api/ai/generate-rubric.ts'),
   route('/api/agent-chat', './api/agent-chat.ts'),
+
+  // Chat Session Management API routes
+  route('/api/chat-sessions/list', './api/chat-sessions/list.ts'),
+  route('/api/chat-sessions/:sessionId', './api/chat-sessions/$sessionId.ts'),
+  route('/api/chat-sessions/:sessionId/update', './api/chat-sessions/$sessionId.update.ts'),
+  route('/api/chat-sessions/:sessionId/delete', './api/chat-sessions/$sessionId.delete.ts'),
 
   // Chat API routes
   route('/api/chat', './api/chat/index.ts'),

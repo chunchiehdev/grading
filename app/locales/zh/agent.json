@@ -37,5 +37,21 @@
     "label": "步驟 {{number}}",
     "sources_one": "個來源",
     "sources_other": "個來源"
+  },
+  "tokenLimit": {
+    "warning": {
+      "title": "對話即將達上限",
+      "description": "建議開啟新對話以維持最佳回應速度。"
+    },
+    "exceeded": {
+      "title": "對話已達上限",
+      "description": "為確保回應品質，請開啟新對話繼續。"
+    },
+    "newChat": "開啟新對話",
+    "inputDisabled": "請開啟新對話繼續"
+  },
+  "history": {
+    "hide": "隱藏歷史紀錄",
+    "show": "顯示歷史紀錄"
   }
 }

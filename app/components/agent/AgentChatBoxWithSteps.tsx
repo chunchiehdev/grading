@@ -9,37 +9,47 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage } from 'ai';
 import {
   Send,
-  Bot,
   User,
   Loader2,
-  Wrench,
   CheckCircle,
   AlertCircle,
+  AlertTriangle,
   Clock,
-  ChevronRight,
   ChevronDown,
-  Brain,
-  Zap,
   ExternalLink,
   Link2,
+  History,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { Markdown } from '@/components/ui/markdown';
-import { useLoaderData } from 'react-router';
+import { useLoaderData, useNavigate, useParams } from 'react-router';
 import type { User as UserType } from '@/root';
 import { useTranslation } from 'react-i18next';
+import { ChatHistorySidebar } from './ChatHistorySidebar';
+import { toast } from 'sonner';
 
 /**
  * Extract text content from UIMessage parts
+ * Compatible with both streaming (parts) and loaded history (content)
  */
 function getMessageContent(msg: UIMessage): string {
-  return msg.parts
-    .filter((part) => part.type === 'text')
-    .map((part) => (part as any).text)
-    .join('');
+  // If parts exist, extract from parts (streaming or converted history)
+  if (msg.parts && msg.parts.length > 0) {
+    return msg.parts
+      .filter((part) => part.type === 'text')
+      .map((part) => (part as any).text)
+      .join('');
+  }
+  
+  // Fallback to content field if no parts (shouldn't happen with new API format)
+  if ((msg as any).content && typeof (msg as any).content === 'string') {
+    return (msg as any).content;
+  }
+  
+  return '';
 }
 
 /**
@@ -93,15 +103,26 @@ function groupPartsBySteps(parts: any[]): Step[] {
       steps.push({ stepNumber: 0, textParts, toolInvocations, sources });
     }
   }
-
   return steps;
 }
 
 export function AgentChatBoxWithSteps() {
   const [input, setInput] = useState('');
   const [showWelcome, setShowWelcome] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isMobileHistoryOpen, setIsMobileHistoryOpen] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [tokenLimitExceeded, setTokenLimitExceeded] = useState(false);
+  const [tokenLimitWarning, setTokenLimitWarning] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasLoadedSessionRef = useRef<string | null>(null);
+
+  // Get session ID from URL (if exists)
+  const params = useParams();
+  const sessionId = params.sessionId || null;
+  const navigate = useNavigate();
 
   // Get user data from loader
   const { user } = useLoaderData() as { user: UserType | null };
@@ -109,15 +130,154 @@ export function AgentChatBoxWithSteps() {
   // Translation
   const { t } = useTranslation('agent');
 
+  // ✅ 使用文檔推薦的動態配置：body 為函數，無依賴項
+  // 這樣 transport 就不會因為 sessionId 改變而重新創建
+  const transport = useMemo(() => new DefaultChatTransport({
+    api: '/api/agent-chat',
+    
+    // ✅ 使用函數動態讀取 sessionId，避免閉包依賴
+    body: () => {
+      const currentSessionId = params.sessionId || null;
+      return {
+        sessionId: currentSessionId,
+      };
+    },
+    
+    // ✅ 自定義 prepareSendMessagesRequest 來提取訊息內容
+    prepareSendMessagesRequest: ({ messages }) => {
+      const lastMessage = messages[messages.length - 1];
+      const newMessage = getMessageContent(lastMessage);
+      
+      if (!newMessage) {
+        throw new Error('Message content is empty');
+      }
+      
+      const currentSessionId = params.sessionId || null;
+      
+      return {
+        body: {
+          sessionId: currentSessionId,
+          message: newMessage,
+        },
+      };
+    },
+    
+    // ✅ 自定義 fetch：立即更新 URL，並讀取 token limit headers
+    fetch: async (input, init) => {
+      const response = await fetch(input, init);
+      
+      // 讀取 token limit headers
+      const tokenLimitExceeded = response.headers.get('X-Token-Limit-Exceeded') === 'true';
+      const tokenLimitWarning = response.headers.get('X-Token-Limit-Warning') === 'true';
+      
+      if (tokenLimitExceeded) {
+        setTokenLimitExceeded(true);
+      } else if (tokenLimitWarning) {
+        setTokenLimitWarning(true);
+      }
+      
+      // 只在新對話時處理（sessionId 為 null）
+      const currentSessionId = params.sessionId || null;
+      if (!currentSessionId) {
+        const newSessionId = response.headers.get('X-Chat-Session-Id');
+        if (newSessionId) {
+          window.history.replaceState(window.history.state, '', `/agent-playground/${newSessionId}`);
+          hasLoadedSessionRef.current = newSessionId;
+        }
+      }
+      
+      return response;
+    },
+  }), [params]); // ✅ 不需要 navigate 依賴
+
   // Use Vercel AI SDK's useChat hook
-  const { messages, status, sendMessage, error } = useChat({
-    transport: new DefaultChatTransport({
-      api: '/api/agent-chat',
-    }),
+  const { messages, status, sendMessage, error, setMessages } = useChat({
+    transport,
     onError: (error) => {
       console.error('Agent chat error:', error);
+      toast.error(t('error.sendFailed', '發送訊息失敗，請稍後再試'));
     },
+    // ✅ 不需要 onFinish 導航，URL 已經在 fetch 中更新
   });
+
+  // Load session history when sessionId changes
+  useEffect(() => {
+    if (sessionId) {
+      // ✅ 如果已經載入過這個 session，跳過 (避免覆蓋 Stream)
+      if (hasLoadedSessionRef.current === sessionId) {
+        console.log('[AgentChat] Skipping history load - already loaded:', sessionId);
+        return;
+      }
+      
+      hasLoadedSessionRef.current = sessionId;
+      setIsLoadingHistory(true);
+      
+      fetch(`/api/chat-sessions/${sessionId}`)
+        .then(async (res) => {
+          if (!res.ok) {
+            hasLoadedSessionRef.current = null; // 允許重試
+            if (res.status === 404) {
+              toast.error('對話不存在');
+              navigate('/agent-playground', { replace: true });
+            } else if (res.status === 403) {
+              toast.error('您沒有權限訪問此對話');
+              navigate('/agent-playground', { replace: true });
+            } else {
+              throw new Error('Failed to load session');
+            }
+            return;
+          }
+          const data = await res.json();
+          setMessages(data.messages);
+          setShowWelcome(false);
+          
+          // Check token limits from session data
+          const totalTokens = data.session?.totalTokens || 0;
+          const TOKEN_LIMIT_THRESHOLD = 25000;
+          
+          if (totalTokens >= TOKEN_LIMIT_THRESHOLD) {
+            setTokenLimitExceeded(true);
+          } else if (totalTokens >= TOKEN_LIMIT_THRESHOLD * 0.8) {
+            setTokenLimitWarning(true);
+          } else {
+            // Reset if under threshold (e.g., when switching sessions)
+            setTokenLimitExceeded(false);
+            setTokenLimitWarning(false);
+          }
+        })
+        .catch((e) => {
+          hasLoadedSessionRef.current = null; // 允許重試
+          console.error('Failed to load session', e);
+          toast.error('載入對話失敗');
+        })
+        .finally(() => {
+          setIsLoadingHistory(false);
+        });
+    } else {
+      // New chat - reset messages
+      console.log('[AgentChat] New chat - resetting state');
+      hasLoadedSessionRef.current = null;
+      setMessages([]);
+      setShowWelcome(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, navigate]); // ✅ 只依賴穩定的值，移除 setMessages 和 t
+
+  // Navigate to session
+  const handleSelectSession = useCallback((id: string) => {
+    navigate(`/agent-playground/${id}`);
+    setIsMobileHistoryOpen(false);
+  }, [navigate]);
+
+  // Create new chat
+  const handleNewChat = useCallback(() => {
+    navigate('/agent-playground');
+    setInput('');
+    setIsMobileHistoryOpen(false);
+    // Reset token limit states
+    setTokenLimitExceeded(false);
+    setTokenLimitWarning(false);
+  }, [navigate]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -151,116 +311,235 @@ export function AgentChatBoxWithSteps() {
   }, []);
 
   const isLoading = status === 'submitted' || status === 'streaming';
+  const isInputDisabled = isLoading || tokenLimitExceeded;
 
   return (
-    <div className="relative h-full w-full flex flex-col [--content-margin:0.75rem] sm:[--content-margin:1.5rem] lg:[--content-margin:4rem]">
-      {/* Messages Area - scrollable content */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div
-          className="mx-auto max-w-4xl px-[var(--content-margin)] pt-2 sm:pt-4"
-          style={{
-            paddingBottom: 'calc(9rem + env(safe-area-inset-bottom, 0.5rem))'
-          }}
-        >
-          {showWelcome && messages.length === 0 && (
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="max-w-2xl w-full space-y-6 text-center">
-                {/* Welcome Header */}
-                <div className="space-y-3">
-                  
-                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold">
-                    {t('welcome.title', { name: user?.name || user?.email?.split('@')[0] || 'there' })}
-                  </h1>
-                  <p className="text-sm sm:text-base text-muted-foreground">
-                    {t('welcome.subtitle')}
-                  </p>
-                </div>
-
-                {/* Example Prompts */}
-                <div className="space-y-3">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">{t('welcome.tryAsking')}</p>
-                  <div className="grid gap-2">
-                    <ExamplePrompt text={t('examples.pendingAssignments')} onClick={handleExampleClick} />
-                    <ExamplePrompt text={t('examples.upcomingDeadlines')} onClick={handleExampleClick} />
-                    <ExamplePrompt text={t('examples.courses')} onClick={handleExampleClick} />
-                    <ExamplePrompt text={t('examples.recentGrades')} onClick={handleExampleClick} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            {messages.map((message) => (
-              <MessageBubbleWithSteps key={message.id} message={message} user={user} />
-            ))}
-
-            {isLoading && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">{t('status.thinking')}</span>
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                <p className="text-sm text-destructive">{t('error.prefix')} {error.message}</p>
-              </div>
-            )}
-
-            {/* Scroll anchor */}
-            <div ref={messagesEndRef} />
-          </div>
+    <div className="flex h-full w-full overflow-hidden">
+      {/* Desktop Sidebar */}
+      <div className={cn(
+        "hidden md:block border-r transition-all duration-300 ease-in-out overflow-hidden bg-background",
+        showHistory ? "w-72" : "w-0"
+      )}>
+        <div className="w-72 h-full">
+          <ChatHistorySidebar 
+            currentSessionId={sessionId}
+            onSelectSession={handleSelectSession}
+            onNewChat={handleNewChat}
+          />
         </div>
       </div>
 
-      {/* Fixed Input Area - stays at bottom */}
-      <div
-        className="flex-shrink-0 bg-background border-border/40"
-        style={{
-          paddingTop: '0.5rem',
-          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
-        }}
-      >
-        <div className="mx-auto max-w-4xl px-[var(--content-margin)] pb-2 sm:pb-3 pt-2 sm:pt-4">
-          <form
-            onSubmit={handleSubmit}
-            className={cn(
-              "flex gap-2 bg-muted/30 dark:bg-card rounded-full p-1 transition-all duration-200 border border-border/40",
-              "focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white focus-within:border-transparent"
-            )}
-          >
-            <div className="flex-1 relative min-w-0">
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={t('input.placeholder')}
-                className="w-full rounded-full border-0 bg-transparent px-3 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 tap-highlight-transparent"
-                disabled={isLoading}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck="false"
-                style={{
-                  fontSize: '16px' // Prevent iOS zoom on focus
-                }}
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col relative min-w-0 h-full">
+        {/* History Toggle Buttons (Absolute) */}
+        <div className="absolute top-4 left-4 z-10 flex gap-2">
+          {/* Mobile Trigger */}
+          <Sheet open={isMobileHistoryOpen} onOpenChange={setIsMobileHistoryOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon" className="md:hidden h-8 w-8 bg-background/80 backdrop-blur shadow-sm">
+                <History className="h-4 w-4" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-72">
+              <ChatHistorySidebar 
+                currentSessionId={sessionId}
+                onSelectSession={handleSelectSession}
+                onNewChat={handleNewChat}
               />
+            </SheetContent>
+          </Sheet>
+
+          {/* Desktop Toggle */}
+          <Button 
+            variant="outline" 
+            size="icon" 
+            className={cn(
+              "hidden md:flex h-8 w-8 bg-background/80 backdrop-blur shadow-sm transition-opacity",
+              showHistory && "opacity-50 hover:opacity-100"
+            )}
+            onClick={() => setShowHistory(!showHistory)}
+            title={showHistory ? t('history.hide', '隱藏歷史紀錄') : t('history.show', '顯示歷史紀錄')}
+          >
+            <History className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Loading History Indicator */}
+        {isLoadingHistory && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-20">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>{t('status.loadingHistory', '載入歷史訊息...')}</span>
             </div>
-            <Button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              size="icon"
-              className="h-10 w-10 sm:h-11 sm:w-11 rounded-full shrink-0"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
+        )}
+
+        {/* Messages Area - scrollable content */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div
+            className="mx-auto max-w-4xl px-[var(--content-margin)] pt-2 sm:pt-4"
+            style={{
+              paddingBottom: 'calc(9rem + env(safe-area-inset-bottom, 0.5rem))'
+            }}
+          >
+            {showWelcome && messages.length === 0 && (
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="max-w-2xl w-full space-y-6 text-center">
+                  {/* Welcome Header */}
+                  <div className="space-y-3">
+                    
+                    <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold">
+                      {t('welcome.title', { name: user?.name || user?.email?.split('@')[0] || 'there' })}
+                    </h1>
+                    <p className="text-sm sm:text-base text-muted-foreground">
+                      {t('welcome.subtitle')}
+                    </p>
+                  </div>
+
+                  {/* Example Prompts */}
+                  <div className="space-y-3">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">{t('welcome.tryAsking')}</p>
+                    <div className="grid gap-2">
+                      <ExamplePrompt text={t('examples.pendingAssignments')} onClick={handleExampleClick} />
+                      <ExamplePrompt text={t('examples.upcomingDeadlines')} onClick={handleExampleClick} />
+                      <ExamplePrompt text={t('examples.courses')} onClick={handleExampleClick} />
+                      <ExamplePrompt text={t('examples.recentGrades')} onClick={handleExampleClick} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {messages.map((message) => (
+                <MessageBubbleWithSteps key={message.id} message={message} user={user} />
+              ))}
+
+              {isLoading && (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">{t('status.thinking')}</span>
+                </div>
               )}
-            </Button>
-          </form>
+
+              {error && (
+                <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+                  <p className="text-sm text-destructive">{t('error.prefix')} {error.message}</p>
+                </div>
+              )}
+
+              {/* Scroll anchor */}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed Input Area - stays at bottom */}
+        <div
+          className="flex-shrink-0 bg-background border-border/40"
+          style={{
+            paddingTop: '0.5rem',
+            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
+          }}
+        >
+          <div className="mx-auto max-w-4xl px-[var(--content-margin)] pb-2 sm:pb-3 pt-2 sm:pt-4">
+            {/* Token Limit Warning Banner */}
+            {(tokenLimitExceeded || tokenLimitWarning) && (
+              <div
+                className={cn(
+                  "flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 sm:p-4 rounded-xl mb-3 border",
+                  tokenLimitExceeded 
+                    ? "bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800"
+                    : "bg-amber-50/50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className={cn(
+                    "h-5 w-5 shrink-0",
+                    tokenLimitExceeded 
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-amber-500 dark:text-amber-500"
+                  )} />
+                  <div className="flex-1">
+                    <p className={cn(
+                      "text-sm font-medium",
+                      tokenLimitExceeded 
+                        ? "text-amber-700 dark:text-amber-300"
+                        : "text-amber-600 dark:text-amber-400"
+                    )}>
+                      {tokenLimitExceeded 
+                        ? t('tokenLimit.exceeded.title', '對話已達上限')
+                        : t('tokenLimit.warning.title', '對話即將達上限')
+                      }
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                      {tokenLimitExceeded 
+                        ? t('tokenLimit.exceeded.description', '為確保回應品質，請開啟新對話繼續。')
+                        : t('tokenLimit.warning.description', '建議開啟新對話以維持最佳回應速度。')
+                      }
+                    </p>
+                  </div>
+                </div>
+                {tokenLimitExceeded && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleNewChat}
+                    className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 w-full sm:w-auto"
+                  >
+                    {t('tokenLimit.newChat', '開啟新對話')}
+                  </Button>
+                )}
+              </div>
+            )}
+            <form
+              onSubmit={handleSubmit}
+              className={cn(
+                "flex gap-2 bg-muted/30 dark:bg-card rounded-full p-1 transition-all duration-200 border border-border/40",
+                "focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white focus-within:border-transparent"
+              )}
+            >
+              <div className="flex-1 relative min-w-0">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={tokenLimitExceeded 
+                    ? t('tokenLimit.inputDisabled', '請開啟新對話繼續')
+                    : t('input.placeholder')
+                  }
+                  className={cn(
+                    "w-full rounded-full border-0 bg-transparent px-3 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 tap-highlight-transparent",
+                    tokenLimitExceeded && "placeholder:text-amber-500 dark:placeholder:text-amber-400"
+                  )}
+                  disabled={isInputDisabled}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  style={{
+                    fontSize: '16px' // Prevent iOS zoom on focus
+                  }}
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={isInputDisabled || !input.trim()}
+                size="icon"
+                className={cn(
+                  "h-10 w-10 sm:h-11 sm:w-11 rounded-full shrink-0",
+                  tokenLimitExceeded && "opacity-50"
+                )}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+                )}
+              </Button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -273,11 +552,12 @@ export function AgentChatBoxWithSteps() {
 function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: UserType | null }) {
   const isUser = message.role === 'user';
   const messageContent = getMessageContent(message);
+  
 
   // Group parts by steps
   const steps = useMemo(() => {
     if (isUser) return [];
-    return groupPartsBySteps(message.parts);
+    return groupPartsBySteps(message.parts || []);
   }, [message.parts, isUser]);
 
   // For user messages, show simple text with avatar

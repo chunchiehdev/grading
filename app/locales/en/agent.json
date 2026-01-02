@@ -37,5 +37,21 @@
     "label": "Step {{number}}",
     "sources_one": "source",
     "sources_other": "sources"
+  },
+  "tokenLimit": {
+    "warning": {
+      "title": "Conversation approaching limit",
+      "description": "Consider starting a new conversation for optimal response speed."
+    },
+    "exceeded": {
+      "title": "Conversation limit reached",
+      "description": "To ensure response quality, please start a new conversation."
+    },
+    "newChat": "Start New Chat",
+    "inputDisabled": "Please start a new conversation"
+  },
+  "history": {
+    "hide": "Hide history",
+    "show": "Show history"
   }
 }

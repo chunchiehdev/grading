@@ -1,7 +1,7 @@
 /**
- * Agent Playground Page
+ * Agent Playground Index Page - New Chat
  *
- * Interactive playground for learning about AI SDK 6 Beta agents
+ * Entry point for creating new AI agent conversations
  */
 
 import { useRouteError, isRouteErrorResponse } from 'react-router';
@@ -25,13 +25,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return { user };
 }
 
-export default function AgentPlayground() {
+export default function AgentPlaygroundNew() {
   return (
     <div className="h-full w-full">
       <AgentChatBoxWithSteps />
     </div>
   );
 }
+
 export function ErrorBoundary() {
   const error = useRouteError();
 

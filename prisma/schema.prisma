@@ -530,8 +530,13 @@ model AgentChatSession {
   totalDuration Int @default(0) // milliseconds
 
   // Status
-  status       String   @default("ACTIVE") // ACTIVE | COMPLETED | ERROR
+  status       String   @default("ACTIVE") // ACTIVE | IDLE | ERROR
   lastActivity DateTime @default(now())
+
+  // Soft delete
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  deletedBy String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -541,6 +546,7 @@ model AgentChatSession {
   stepLogs AgentChatStepLog[]
 
   @@index([userId, createdAt])
+  @@index([userId, isDeleted, lastActivity])
   @@index([status])
   @@index([userRole])
   @@map("agent_chat_sessions")
