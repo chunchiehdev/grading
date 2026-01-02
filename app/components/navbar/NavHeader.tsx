@@ -85,7 +85,7 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
 
   return (
     <>
-      <header className={cn(className)}>
+      <header className={cn("pt-[env(safe-area-inset-top)]", className)}>
         <nav className="relative w-full flex items-center justify-between py-3 px-4 sm:px-6 lg:px-8 ">
           {/* Left Section - Mobile: Chat history (agent-playground) or Logo */}
           <div className="flex items-center gap-3">

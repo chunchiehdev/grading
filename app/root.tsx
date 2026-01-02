@@ -247,7 +247,7 @@ function Document({ children }: { children: React.ReactNode }) {
           type="module"
         ></script>
       </head>
-      <body className="bg-background h-full w-full font-sans antialiased overflow-hidden overscroll-none">
+      <body className="bg-background h-full w-full font-sans antialiased">
         {children}
         <Toaster richColors />
         <ScrollRestoration />
