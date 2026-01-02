@@ -7,8 +7,8 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { Share2, LogOut, User as UserIcon, Menu, Globe, Settings, Bell } from 'lucide-react';
-import { Link, useLoaderData } from 'react-router';
+import { Share2, LogOut, User as UserIcon, Globe, Settings, Bell, MessageSquare, Menu } from 'lucide-react';
+import { Link, useLoaderData, useLocation, useNavigate } from 'react-router';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import { User } from '@/root';
 import type { VersionInfo } from '@/services/version.server';
 import { Badge } from '@/components/ui/badge';
 import { useSubmissionStore } from '@/stores/submissionStore';
+import { useChatHistoryStore } from '@/stores/chatHistoryStore';
 import { NotificationCenter } from '@/components/teacher/NotificationCenter';
 
 interface NavHeaderProps {
@@ -34,6 +35,12 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
   // Get unread count for teachers only
   const unreadCount = useSubmissionStore((state) => state.unreadCount);
   const isTeacher = user?.role === 'TEACHER';
+
+  // Chat history store and navigation
+  const { setMobileHistoryOpen } = useChatHistoryStore();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isOnAgentPlayground = location.pathname.startsWith('/agent-playground');
 
   // Early return after all hooks are called - root.tsx already handles conditional rendering
   if (!user) {
@@ -79,16 +86,24 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
   return (
     <>
       <header className={cn(className)}>
-        <nav className="relative w-full flex items-center justify-between py-3 px-4 sm:px-6 lg:px-8">
-          {/* Left Section - Logo & Title */}
+        <nav className="relative w-full flex items-center justify-between py-3 px-4 sm:px-6 lg:px-8 ">
+          {/* Left Section - Mobile: Chat history (agent-playground) or Logo */}
           <div className="flex items-center gap-3">
-            <Link to="/" className="flex items-center gap-3">
-              <img
-                src="/home.png"
-                alt="GradeMaster Logo"
-                className="w-8 h-8 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 rounded dark:invert"
-              />
+            {/* Mobile: Chat history button for agent-playground */}
+            {isOnAgentPlayground && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="md:hidden px-2"
+                onClick={() => setMobileHistoryOpen(true)}
+                aria-label="Open chat history"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+            )}
 
+            {/* Logo & Title */}
+            <Link to="/" className="flex items-center gap-3">
               <div className="hidden sm:block text-lg lg:text-xl 2xl:text-2xl font-semibold text-foreground">
                 {title || safeT('title', 'Grading System')}
               </div>
@@ -209,7 +224,7 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
             </DropdownMenu>
           </div>
 
-          {/* Right Section - Mobile Menu */}
+          {/* Right Section - Mobile: User Avatar & Notifications */}
           <div className="flex md:hidden items-center gap-2">
             <ModeToggle />
             {isTeacher && (
@@ -232,10 +247,22 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            {/* User Avatar with Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="px-2">
-                  <Menu className="w-5 h-5" />
+                <Button variant="ghost" size="sm" className="px-1">
+                  {user.picture ? (
+                    <img
+                      src={user.picture}
+                      alt={user.email}
+                      className="w-8 h-8 rounded-full"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                      <UserIcon className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -258,49 +285,6 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                {versionInfo && (
-                  <>
-                    <DropdownMenuItem disabled>
-                      <div className="flex flex-col gap-1.5 w-full">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">Version</span>
-                          <Badge variant="outline" className="text-xs px-2 py-0.5 font-mono">
-                            v{versionInfo.version}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">Environment</span>
-                          <Badge
-                            variant={versionInfo.environment === 'production' ? 'default' : 'secondary'}
-                            className="text-xs px-2 py-0.5"
-                          >
-                            {versionInfo.environment === 'production' ? 'Production' : 'Development'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">Branch</span>
-                          <span className="text-xs font-mono text-foreground/70">{versionInfo.branch}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">Commit</span>
-                          <span className="text-xs font-mono text-foreground/70" title={versionInfo.commitHash}>
-                            {versionInfo.commitHash.substring(0, 7)}
-                          </span>
-                        </div>
-                      </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                {onShare && (
-                  <>
-                    <DropdownMenuItem onClick={onShare}>
-                      <Share2 className="w-4 h-4 mr-2" />
-                      {safeT('share', 'Share')}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
                 <DropdownMenuItem asChild>
                   <div className="flex items-center justify-between w-full cursor-pointer">
                     <div className="flex items-center gap-2">
@@ -323,3 +307,4 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
     </>
   );
 }
+

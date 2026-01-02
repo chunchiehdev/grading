@@ -308,19 +308,23 @@ function Layout() {
   }, [toast]);
 
   // Unified layout structure for all route types
+  // Using Flexbox layout (Option B) - h-screen prevents scrollbar when content fits
   return (
-    <div className="h-full w-full flex flex-col bg-background">
+    <div className="h-screen w-full flex flex-col overflow-hidden bg-background">
       {/* Initialize Zustand store with server-provided notification data */}
       {user?.role === 'TEACHER' && <StoreInitializer unreadNotifications={unreadNotifications} />}
 
-      {/* Conditional NavHeader - only show for authenticated users or protected paths */}
-      {(user || !isPublicPath) && <NavHeader className="flex-shrink-0" />}
+      {/* NavHeader - fixed height, won't shrink */}
+      {/* Skip for agent-playground: it renders its own NavHeader in a different layout position */}
+      {(user || !isPublicPath) && !currentPath.startsWith('/agent-playground') && (
+        <NavHeader className="flex-shrink-0 bg-background " />
+      )}
 
-      {/* Main content area - fills remaining viewport space */}
-      <main className="flex-1 min-h-0 relative">
+      {/* Main content area - fills remaining space */}
+      <main className="flex-1 overflow-hidden relative">
         {!isPublicPath && !isFullWidth ? (
           // Protected paths with padding: standard layout with responsive padding
-          <div className="h-full px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">
+          <div className="h-full overflow-y-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">
             <Outlet />
           </div>
         ) : (

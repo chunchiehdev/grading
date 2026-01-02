@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhTW } from 'date-fns/locale';
-import { MessageSquare, Plus, Edit2, MoreVertical, Loader2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, MoreVertical, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -37,13 +37,15 @@ interface ChatHistorySidebarProps {
   onSelectSession: (sessionId: string) => void;
   onNewChat: () => void;
   className?: string;
+  hideHeader?: boolean; // Hide the "新對話" button header when parent controls it
 }
 
 export function ChatHistorySidebar({ 
   currentSessionId, 
   onSelectSession, 
   onNewChat,
-  className 
+  className,
+  hideHeader = false,
 }: ChatHistorySidebarProps) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -131,17 +133,18 @@ export function ChatHistorySidebar({
   };
 
   return (
-    <div className={cn("flex flex-col h-full border-r bg-muted/10", className)}>
-      <div className="p-4 border-b">
-        <Button 
-          onClick={onNewChat} 
-          className="w-full justify-start gap-2" 
-          variant="outline"
-        >
-          <Plus className="h-4 w-4" />
-          新對話
-        </Button>
-      </div>
+    <div className={cn("flex flex-col h-full bg-muted/10", className)}>
+      {!hideHeader && (
+        <div className="p-4">
+          <Button 
+            onClick={onNewChat} 
+            className="w-full justify-center gap-2 bg-[#D2691E] hover:bg-[#C25A10] text-white dark:bg-[#E87D3E] dark:hover:bg-[#D2691E] border-0" 
+          >
+            <Plus className="h-4 w-4" />
+            新對話
+          </Button>
+        </div>
+      )}
 
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-2">
@@ -163,8 +166,6 @@ export function ChatHistorySidebar({
                 )}
                 onClick={() => onSelectSession(session.id)}
               >
-                <MessageSquare className="h-4 w-4 text-muted-foreground shrink-0" />
-                
                 {editingId === session.id ? (
                   <Input
                     value={editTitle}

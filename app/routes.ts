@@ -5,8 +5,10 @@ export default [
   index('./routes/index.tsx'),
   route('/join', './routes/join.tsx'),
   route('/settings', './routes/settings.tsx'),
-  route('/agent-playground', './routes/agent-playground/index.tsx'),
-  route('/agent-playground/:sessionId', './routes/agent-playground/$sessionId.tsx'),
+  route('/agent-playground', './routes/agent-playground/layout.tsx', [
+    index('./routes/agent-playground/index.tsx'),
+    route(':sessionId', './routes/agent-playground/$sessionId.tsx'),
+  ]),
 
   route('/auth', './routes/auth/layout.tsx', [
     route('login', './routes/auth/login.tsx'),
