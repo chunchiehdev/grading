@@ -103,19 +103,26 @@ export function AgentChatContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasLoadedSessionRef = useRef<string | null>(null);
+  
+  // ✅ 追蹤當前 sessionId，因為 window.history.replaceState 不會更新 React Router params
+  const currentSessionIdRef = useRef<string | null>(null);
 
   const params = useParams();
   const sessionId = params.sessionId || null;
+  
+  // ✅ 同步 URL params 到 ref（當 URL 真正改變時）
+  useEffect(() => {
+    currentSessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   const { user } = useLoaderData() as { user: UserType | null };
   const { t } = useTranslation('agent');
 
-  // Transport configuration
+  // ✅ 使用 ref 動態讀取 sessionId，避免閉包問題
   const transport = useMemo(() => new DefaultChatTransport({
     api: '/api/agent-chat',
     body: () => {
-      const currentSessionId = params.sessionId || null;
-      return { sessionId: currentSessionId };
+      return { sessionId: currentSessionIdRef.current };
     },
     prepareSendMessagesRequest: ({ messages }) => {
       const lastMessage = messages[messages.length - 1];
@@ -125,10 +132,9 @@ export function AgentChatContent() {
         throw new Error('Message content is empty');
       }
       
-      const currentSessionId = params.sessionId || null;
       return {
         body: {
-          sessionId: currentSessionId,
+          sessionId: currentSessionIdRef.current,
           message: newMessage,
         },
       };
@@ -145,10 +151,12 @@ export function AgentChatContent() {
         setTokenLimitWarning(true);
       }
       
-      const currentSessionId = params.sessionId || null;
-      if (!currentSessionId) {
+      // ✅ 只在新對話時處理（ref 為 null）
+      if (!currentSessionIdRef.current) {
         const newSessionId = response.headers.get('X-Chat-Session-Id');
         if (newSessionId) {
+          // ✅ 同時更新 URL 和 ref
+          currentSessionIdRef.current = newSessionId;
           window.history.replaceState(window.history.state, '', `/agent-playground/${newSessionId}`);
           hasLoadedSessionRef.current = newSessionId;
         }
@@ -156,7 +164,7 @@ export function AgentChatContent() {
       
       return response;
     },
-  }), [params]);
+  }), []); // ✅ 空依賴，透過 ref 獲取最新值
 
   const { messages, status, sendMessage, error, setMessages } = useChat({
     transport,

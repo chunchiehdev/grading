@@ -112,11 +112,19 @@ export function AgentChatBoxWithSteps() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasLoadedSessionRef = useRef<string | null>(null);
+  
+  // ✅ 追蹤當前 sessionId，因為 window.history.replaceState 不會更新 React Router params
+  const currentSessionIdRef = useRef<string | null>(null);
 
   // Get session ID from URL (if exists)
   const params = useParams();
   const sessionId = params.sessionId || null;
   const navigate = useNavigate();
+  
+  // ✅ 同步 URL params 到 ref（當 URL 真正改變時）
+  useEffect(() => {
+    currentSessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   // Get user data from loader
   const { user } = useLoaderData() as { user: UserType | null };
@@ -124,16 +132,15 @@ export function AgentChatBoxWithSteps() {
   // Translation
   const { t } = useTranslation('agent');
 
-  // ✅ 使用文檔推薦的動態配置：body 為函數，無依賴項
-  // 這樣 transport 就不會因為 sessionId 改變而重新創建
+  // ✅ 使用 ref 動態讀取 sessionId，避免閉包問題
+  // transport 只創建一次，內部透過 ref 獲取最新的 sessionId
   const transport = useMemo(() => new DefaultChatTransport({
     api: '/api/agent-chat',
     
-    // ✅ 使用函數動態讀取 sessionId，避免閉包依賴
+    // ✅ 使用 ref 動態讀取 sessionId
     body: () => {
-      const currentSessionId = params.sessionId || null;
       return {
-        sessionId: currentSessionId,
+        sessionId: currentSessionIdRef.current,
       };
     },
     
@@ -146,17 +153,15 @@ export function AgentChatBoxWithSteps() {
         throw new Error('Message content is empty');
       }
       
-      const currentSessionId = params.sessionId || null;
-      
       return {
         body: {
-          sessionId: currentSessionId,
+          sessionId: currentSessionIdRef.current,
           message: newMessage,
         },
       };
     },
     
-    // ✅ 自定義 fetch：立即更新 URL，並讀取 token limit headers
+    // ✅ 自定義 fetch：立即更新 URL 和 ref，並讀取 token limit headers
     fetch: async (input, init) => {
       const response = await fetch(input, init);
       
@@ -170,11 +175,12 @@ export function AgentChatBoxWithSteps() {
         setTokenLimitWarning(true);
       }
       
-      // 只在新對話時處理（sessionId 為 null）
-      const currentSessionId = params.sessionId || null;
-      if (!currentSessionId) {
+      // 只在新對話時處理（ref 為 null）
+      if (!currentSessionIdRef.current) {
         const newSessionId = response.headers.get('X-Chat-Session-Id');
         if (newSessionId) {
+          // ✅ 同時更新 URL 和 ref
+          currentSessionIdRef.current = newSessionId;
           window.history.replaceState(window.history.state, '', `/agent-playground/${newSessionId}`);
           hasLoadedSessionRef.current = newSessionId;
         }
@@ -182,7 +188,7 @@ export function AgentChatBoxWithSteps() {
       
       return response;
     },
-  }), [params]); // ✅ 不需要 navigate 依賴
+  }), []); // ✅ 空依賴，transport 只創建一次，透過 ref 獲取最新值
 
   // Use Vercel AI SDK's useChat hook
   const { messages, status, sendMessage, error, setMessages } = useChat({
