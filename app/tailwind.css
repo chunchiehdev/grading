@@ -28,8 +28,10 @@
     width: 100%;
     margin: 0;
     padding: 0;
-    /* Reserve space for scrollbar to prevent layout shift when dialogs/modals open */
-    scrollbar-gutter: stable;
+    /* Disable iOS Safari rubber banding */
+    overscroll-behavior-y: none;
+    /* Prevent body from scrolling - only inner containers should scroll */
+    overflow: hidden;
   }
 
   :root {

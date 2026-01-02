@@ -259,7 +259,7 @@ export function AgentChatContent() {
   const isInputDisabled = isLoading || tokenLimitExceeded;
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col">
       {/* Loading History Indicator */}
       {isLoadingHistory && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-20">
@@ -271,7 +271,7 @@ export function AgentChatContent() {
       )}
 
       {/* Messages Area - scrollable, fills remaining space */}
-      <div className="flex-1 overflow-y-auto overscroll-none">
+      <div className="flex-1 overflow-y-auto">
         <div
           className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-8"
         >
