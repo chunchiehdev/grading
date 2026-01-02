@@ -6,8 +6,9 @@
  * Focuses on database queries and report generation for grading platform
  */
 
-import { ToolLoopAgent, stepCountIs, type ToolSet, generateText, generateObject } from 'ai';
+import { ToolLoopAgent, stepCountIs, type ToolSet, generateText, generateObject, type LanguageModel, convertToModelMessages } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { tool } from 'ai';
 import logger from '@/utils/logger';
@@ -39,6 +40,117 @@ if (!apiKey) {
 }
 
 const gemini = createGoogleGenerativeAI({ apiKey });
+
+// vLLM / Ollama Configuration
+const VLLM_CONFIG = {
+  baseURL: process.env.VLLM_BASE_URL || '',
+  modelName: process.env.VLLM_MODEL_NAME || '',
+  apiKey: process.env.VLLM_API_KEY || '', // vLLM/Ollama usually ignores this, but SDK needs it
+  timeoutMs: 1500, // 1.5s timeout for health check
+};
+
+/**
+ * User Preference for Model Provider
+ */
+export type ModelProvider = 'gemini' | 'local' | 'auto';
+
+/**
+ * Resilient Model Factory (Session-Level Circuit Breaker)
+ * 
+ * Checks if vLLM is available before starting the session.
+ * If available -> Returns vLLM model (Privacy & Local Compute)
+ * If broken/timeout -> Returns Gemini model (Cloud Fallback)
+ * 
+ * Update: Supports user preference
+ * - 'gemini': Force Gemini
+ * - 'local': Force Local (Throws if unavailable)
+ * - 'auto': Try Local, Fallback to Gemini
+ */
+async function selectResilientModel(sessionId: string, preferredProvider: ModelProvider = 'auto'): Promise<{ model: LanguageModel; provider: string }> {
+  // 0. Check User Preference - specific overrides
+  if (preferredProvider === 'gemini') {
+    logger.info('[Model Factory] Using Gemini (User Preference)', { sessionId });
+    return { 
+      model: gemini('gemini-2.5-flash'), 
+      provider: 'Gemini' 
+    };
+  }
+  const start = Date.now();
+  
+  try {
+    // 1. Health Check (Ping)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), VLLM_CONFIG.timeoutMs);
+    
+    logger.debug('[Model Factory] Checking vLLM health...', { url: VLLM_CONFIG.baseURL });
+
+    // Use a lightweight call to check availability (list models)
+    const response = await fetch(`${VLLM_CONFIG.baseURL}/models`, {
+      method: 'GET',
+      headers: { 
+        'Authorization': `Bearer ${VLLM_CONFIG.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      logger.info('[Model Factory] vLLM is HEALTHY. Using local model.', { 
+        latency: Date.now() - start,
+        model: VLLM_CONFIG.modelName 
+      });
+
+      const openai = createOpenAI({
+        baseURL: VLLM_CONFIG.baseURL,
+        apiKey: VLLM_CONFIG.apiKey,
+      });
+
+      // CRITICAL: Use openai.chat() NOT openai() to force /v1/chat/completions endpoint
+      // Vercel AI SDK v6+ defaults to /v1/responses API, which vLLM doesn't fully support
+      // vLLM returns 500 errors with 'role' validation failure on /v1/responses endpoint
+      // Using .chat() ensures compatibility with vLLM's OpenAI-compatible chat completions API
+      //
+      // Tool call format is controlled by vLLM server configuration:
+      // Server must be started with: --enable-auto-tool-choice --tool-call-parser hermes
+      // This ensures OpenAI JSON tool calls instead of Qwen XML tags
+      // See: docs/vllm-server-config.md for details
+      
+      logger.info('[Model Factory] Using vLLM with OpenAI-compatible endpoint', {
+        model: VLLM_CONFIG.modelName,
+        baseURL: VLLM_CONFIG.baseURL,
+        endpoint: '/v1/chat/completions (forced via openai.chat())',
+        note: 'Ensure vLLM is configured with --tool-call-parser hermes'
+      });
+
+      return { 
+        model: openai.chat(VLLM_CONFIG.modelName), 
+        provider: 'vLLM' 
+      };
+    } else {
+      logger.warn('[Model Factory] vLLM returned error status', { status: response.status });
+    }
+  } catch (error) {
+    logger.warn('[Model Factory] vLLM unreachable (Circuit Open)', { 
+      error: error instanceof Error ? error.message : String(error),
+      latency: Date.now() - start
+    });
+  }
+
+    // 2. Fallback / Limit Logic
+    if (preferredProvider === 'local') {
+       logger.error('[Model Factory] vLLM unreachable but required by user preference', { sessionId });
+       throw new Error('Local model is unreachable. Please check your connection or switch to Auto/Gemini mode.');
+    }
+
+  // 3. Fallback to Gemini (Auto mode or default)
+  logger.info('[Model Factory] Falling back to Gemini 2.5 Flash', { sessionId });
+  return { 
+    model: gemini('gemini-2.5-flash'), 
+    provider: 'Gemini' 
+  };
+}
 
 /**
  * ============================================================================
@@ -110,6 +222,7 @@ const studentQueryTypeEnum = z.enum([
   'user_statistics',
   'student_courses',
   'student_assignments',
+  'assignment_detail_student', // Added for detailed assignment info
   'student_submissions',
   'my_submission_detail',
   'pending_assignments',
@@ -180,47 +293,45 @@ function buildTeacherSystemPrompt(userId: string | undefined): string {
 - You manage courses, students, and grading
 - All queries use your teacher identity automatically
 
-**THINKING OUT LOUD - CRITICAL!**
-Before calling ANY tool, ALWAYS explain your thinking process in Chinese using this format:
+**Core Instructions:**
+- Use the available tools to answer user questions.
+- If you need data, call database_query immediately.
 
-我現在想: [what you're thinking - your current goal/understanding]
-所以我要做: [what action you'll take - which tool and why]
-我預期會得到: [what outcome you expect - what data/result]
+**Language Requirement:**
+- **STRICTLY USE TRADITIONAL CHINESE (繁體中文)** for all responses.
+- Do NOT use Simplified Chinese (简体中文).
+- If the Context or Tools return Simplified Chinese, you MUST translate it to Traditional Chinese in your final response.
 
-Then call the tool.
+**Anti-Hallucination & Honest Fallback (CRITICAL):**
+- **Verify Tools First:** Before answering, check if you have a tool that *actually* provides this information.
 
-Example:
-我現在想: 老師要找 Junjie 的報告，我需要先找到他
-所以我要做: 查詢所有課程找到他在哪個課程
-我預期會得到: Junjie 的 studentId
-<tool_call>database_query</tool_call>
+**Your Goal:**
+Help teachers manage their courses by retrieving accurate data about students, assignments, and grades.
 
-**What You Can Query:**
-1. Your courses and their students
-2. Assignments you created
-3. Student submissions and grades
-4. Performance analytics
+**Data Relationships & Tool Usage:**
+- **Courses**: You teach specific courses. use "teacher_courses" to find them.
+- **Assignments**: assignments belong to courses. Use "course_assignments" to list them.
+- **Submissions**: students submit work to assignments. Use "assignment_submissions" to see who submitted.
+- **Details**: "student_submission_detail_teacher" provides the full content, feedback and AI analysis for a specific submission.
 
-**Query Strategy:**
-Use the database_query tool to fetch data. You have these options:
-
-For courses:
-- "teacher_courses" → List all courses you teach
-- "course_detail" → Details about a specific course
-- "course_students" → Students in a course
-
-For assignments (smart queries - choose based on your need):
-- "course_assignments" WITH courseId → Detailed assignments in one course
-- "course_assignments" WITHOUT courseId → ALL assignments across all courses (one-step!)
-
-For submissions and grades:
-- "assignment_submissions" → All submissions for an assignment
+**Thinking Process:**
+1. Identify what data the user needs (e.g., "how is Junjie doing?").
+2. Determine which tool provides that data (e.g., "I need his submissions").
+3. Check if you have the required explicit IDs (courseId, assignmentId, etc.).
+4. If ID is missing, query parent data first (e.g., query "course_students" to find Junjie's studentId).
+5. Chain queries logically to reach the specific data point.
 - "student_submission_detail_teacher" → A specific student's submission details
 - "grading_statistics" → Overall grading analytics
 
 **Available Tools:**
 - database_query: Query course and grading information
-- generate_report: Generate comprehensive PDF reports for student learning analytics`;
+- generate_report: Generate comprehensive PDF reports for student learning analytics
+
+**Language Guidelines:**
+- Prefer Traditional Chinese (繁體中文) with Taiwan-style expressions for local users
+- Respect user's explicit language requests (e.g., "use English", "用日文回答")
+- Adapt to the user's input language when appropriate
+- Use friendly, warm, and encouraging tone`;
 }
 
 
@@ -233,85 +344,55 @@ function buildStudentSystemPrompt(userId: string | undefined): string {
 
 **Your Student ID: ${userId || 'unknown'}**
 
-**THINKING OUT LOUD - CRITICAL!**
-Before calling ANY tool, ALWAYS explain your thinking process in Chinese using this format:
+**Core Instructions:**
+- Use the available tools to answer user questions.
+- If you need data, call database_query immediately.
 
-我現在想: [what you're thinking - your current goal/understanding]
-所以我要做: [what action you'll take - which tool and why]
-我預期會得到: [what outcome you expect - what data/result]
+**Language Requirement:**
+- **STRICTLY USE TRADITIONAL CHINESE (繁體中文)** for all responses.
+- Do NOT use Simplified Chinese (简体中文).
+- If the Context or Tools return Simplified Chinese, you MUST translate it to Traditional Chinese in your final response.
 
-Then call the tool.
+**Anti-Hallucination & Honest Fallback (CRITICAL):**
+- **Scope Limitation:** You strictly see **ONLY your own data**. You cannot see other students' grades, submissions, or personal info.
 
-Example:
-我現在想: 學生要看成績趨勢，我需要蒐集所有課程和提交記錄
-所以我要做: 先查詢所有課程
-我預期會得到: 所有課程的列表和 ID
-<tool_call>database_query</tool_call>
+**Your Goal:**
+Act as a smart learning analytics assistant. Help students understand their progress, deadlines, and performance.
 
-**YOUR CORE RESPONSIBILITY:**
-You are expected to perform MULTI-STEP ANALYSIS combining multiple queries to answer complex questions.
-Your job is NOT to say "I can't do this" - your job is to figure out HOW to do it using the available tools.
+**Tool Capabilities & Data Relationships:**
 
-**ANALYSIS APPROACH FOR COMPLEX QUESTIONS:**
+1.  **Finding What to Do (Deadlines):**
+    - "pending_assignments" is your primary tool for "what do I need to do?".
+    - "student_assignments" lists ALL assignments (done and undone) but lacks details (rubrics).
+    - "assignment_detail_student" provides the actual content/rubric.
 
-When a student asks for analysis, ALWAYS:
-1. Break down the request into specific data queries you can make
-2. Execute multiple queries to gather comprehensive data
-3. Analyze and correlate the results
-4. Provide insights and patterns from the data
+2.  **Checking Performance (Grades):**
+    - "student_submissions" lists your history but NOT the full feedback.
+    - "my_submission_detail" is CRITICAL for seeing the actual Grade, Teacher Feedback, and AI Analysis.
+    - **Principle**: If asked about "how did I do?", always drill down to 'my_submission_detail'.
 
-Example: "Show me my academic performance trends"
-→ Query student_courses to get all courses
-→ For each course: Query student_assignments, then my_submission_detail for each assignment
-→ Analyze: submission patterns, grade progression, completion rates
-→ Report: trends, strengths, areas needing improvement
+3.  **Discovery (Courses):**
+    - "student_courses" is the entry point to find courseIds.
 
-**AVAILABLE QUERIES (use these to gather data):**
-- queryType: "student_courses" - Get all enrolled courses with courseId, courseName, credits
-- queryType: "student_assignments" - Get all assignments with deadlines, status, weights
-- queryType: "pending_assignments" - Get only unsubmitted assignments (use to identify urgency)
-- queryType: "my_submission_detail" - Get detailed submission info: grades, feedback, submission times
-- queryType: "user_statistics" - Get aggregate stats: total courses, submissions, average grades
+**Autonomous Reasoning:**
+- You are NOT a simple Q&A bot. You are an analyst.
+- **Combine functions**: If a user asks "Am I improving?", one query isn't enough. You must fetch multiple submissions and compare them.
+- **Self-Correction**: If 'student_assignments' doesn't show the rubric, realize you need 'assignment_detail_student' and call it.
+- **Proactive Insights**: When reporting grades, also mention if they are trending up or down.
 
-**DATA CORRELATION EXAMPLES YOU CAN PERFORM:**
-
-Submission Speed Analysis:
-→ Get my_submission_detail for multiple assignments
-→ Extract submission timestamps vs deadlines
-→ Calculate average submission delay per course
-→ Identify patterns (fast submitter in some courses, slow in others)
-
-Grade Trend Analysis:
-→ Get my_submission_detail across multiple assignments in a course
-→ Track grade progression: first assignment → last assignment
-→ Determine: improving, declining, or stable
-
-Course Difficulty Assessment:
-→ Compare your submission patterns and grades across different courses
-→ Correlate: submission speed with final grades
-→ Inference: which courses demand more time/effort
-
-Workload Prediction:
-→ Get pending_assignments to see what's due
-→ Calculate: total assignments due soon, typical submission time per course
-→ Predict: likelihood of on-time completion
-
-**IMPORTANT MINDSET:**
-- DO NOT say "I cannot directly query X" - think creatively about combining queries
-- DO NOT give up without trying - always attempt to gather relevant data first
-- DO analyze and correlate data before reporting limitations
-- ALWAYS provide the best possible insights from available data
-- If precise calculation is impossible, provide estimates and confidence levels
-
-**SUBMISSION TERMINOLOGY:**
-"Submitted" = Student clicked "提交作業" (Submit Assignment) button
-Statuses: SUBMITTED → ANALYZED → GRADED
-"Not submitted" = has NOT clicked submit (includes: no record, DRAFT only)
-"pending_assignments" = ONLY unsubmitted assignments (use to identify urgent work)
+**Important:**
+- precise "rubric" or "description" requires 'assignment_detail_student'.
+- precise "feedback" or "score" requires 'my_submission_detail'.
 
 **Available Tools:**
-- database_query: Query courses, assignments, submissions, and statistics (perform MULTIPLE queries for complex analysis)
-- user_statistics: Get aggregate learning metrics`;
+- database_query: Query your learning data
+- generate_report: Generate your personal PDF learning report
+
+**Language Guidelines:**
+- Prefer Traditional Chinese (繁體中文) with Taiwan-style expressions for local users
+- Respect user's explicit language requests (e.g., "use English", "用日文回答")
+- Adapt to the user's input language when appropriate
+- Use friendly, warm, and encouraging tone`;
 }
 
 /**
@@ -319,7 +400,12 @@ Statuses: SUBMITTED → ANALYZED → GRADED
  * Includes: database_query, generate_report tools (teacher-only access)
  * Supports dynamic configuration via callOptions
  */
-function createTeacherAgent(userId: string | undefined) {
+/**
+ * Create a ToolLoopAgent instance for TEACHER
+ * Includes: database_query, generate_report tools (teacher-only access)
+ * Supports dynamic configuration via callOptions
+ */
+function createTeacherAgent(userId: string | undefined, model: LanguageModel) {
   const teacherTools = {
     database_query: tool({
       description: `Query the grading system database to retrieve course and grading information.
@@ -331,76 +417,24 @@ function createTeacherAgent(userId: string | undefined) {
 
 **TEACHER-SPECIFIC QUERIES (READ-ONLY):**
 
-YOUR COURSES & STUDENTS:
-- "teacher_courses": List all courses YOU ARE TEACHING
-  Parameters: NONE (system auto-uses your teacherId)
-  Result: Get courseIds to use in other queries
-  
-- "course_detail": Get detailed info about a course
-  Parameters: courseId (REQUIRED - from teacher_courses result)
-  Result: Course info including students count, assignments count
-  
-- "course_students": List all students enrolled in YOUR course
-  Parameters: courseId (REQUIRED - from teacher_courses result)
-  Result: List of students with names and IDs
-  
-- "course_assignments": List assignments you created in a course
-  Parameters: courseId (REQUIRED - from teacher_courses result)
-  Result: Assignment list with deadlines and submission info
+**1. Hierarchy & Discovery:**
+- "teacher_courses": Start here. Lists all courses you teach.
+- "course_detail": Stats for a specific course.
+- "course_students": Roster of a specific course.
 
-ASSIGNMENT & SUBMISSION DETAILS:
-- "assignment_detail": Get detailed rubric and info for an assignment
-  Parameters: assignmentId (REQUIRED - from course_assignments result)
-  Result: Full assignment specification and grading rubric
-  
-- "assignment_submissions": Get all submissions for an assignment
-  Parameters: assignmentId (REQUIRED - from course_assignments result)
-  Result: Submission list with status and grades
-  
-- "student_submission_detail_teacher": View a student's detailed submission
-  Parameters: submissionId (REQUIRED - from assignment_submissions result)
-  Result: Full submission with grades, AI analysis, and feedback
+**2. Assignments:**
+- "course_assignments": Lists assignments.
+  - param: 'courseId' -> Get assignments for that course.
+  - no params -> Get ALL assignments across ALL your courses (Useful overview).
+- "assignment_detail": Get the actual content/rubric of an assignment.
 
-STATISTICS:
-- "user_profile": Get your basic info
-  Parameters: NONE
-  
-- "user_statistics": Get your statistics (courses, assignments, submissions)
-  Parameters: NONE
-  
-- "grading_statistics": Get grading analytics
-  Parameters: NONE
+**3. Grading & Feedback:**
+- "assignment_submissions": List who submitted what (status, grade).
+- "student_submission_detail_teacher": **Deep Dive**. Get the actual text, AI analysis, and specific feedback for one submission.
+- "grading_statistics": High-level dashboard stats.
 
-**SINGLE-STEP vs TWO-STEP QUERIES:**
-
-course_assignments is smart - you can use it TWO WAYS:
-
-Option 1 - List ALL assignments across ALL courses (SINGLE STEP):
-  Query: "course_assignments" with NO params
-  Result: All assignments from all your courses with courseNames
-  
-Option 2 - List assignments in a SPECIFIC course (DETAILED):
-  Query: "course_assignments" with courseId: "course-123"
-  Result: Detailed assignments just for that course
-
-**FLOW EXAMPLES:**
-
-User asks: "Show me all assignments in my courses"
-→ Query "course_assignments" with NO params → get ALL assignments → DONE (1 step!)
-
-User asks: "Show me assignments in Data Structures course"
-→ Step 1: Query "teacher_courses" → find course with name "Data Structures" → get courseId
-→ Step 2: Query "course_assignments" with that courseId → get detailed assignments
-
-User asks: "Who submitted assignment X?":
-→ Step 1: Query "assignment_submissions" with assignmentId → get submissionIds
-→ Step 2: Query "student_submission_detail_teacher" for each submission → get details
-
-User asks: "Show me student 'Junjie's progress":
-→ Step 1: Query "teacher_courses" → get courseIds
-→ Step 2: For each course, query "course_students" → find 'Junjie' by name → get studentId
-→ Step 3: Query relevant assignment/submission data for that studentId
-`,
+**Usage Principle:**
+You are an intelligent agent. If you don't have an ID (like 'assignmentId'), look for a parent object (like 'course_assignments') to find it.`,
       inputSchema: z.object({
         queryType: teacherQueryTypeEnum.describe('Teacher query type - use ONLY teacher queries (teacher_courses, course_detail, course_students, etc.)'),
         params: z.record(z.any()).optional().describe('Query parameters like courseId, assignmentId, submissionId, etc. REQUIRED params depend on queryType - check usage flow above'),
@@ -714,14 +748,16 @@ User asks: "Show me student 'Junjie's progress":
         }
       },
     }),
+
   } satisfies ToolSet;
 
   return new ToolLoopAgent({
-    model: gemini('gemini-2.5-flash'), // Start with fast model
-    instructions: buildTeacherSystemPrompt(userId),
+    model: model, // Use selected resilient model
     tools: teacherTools,
+    instructions: buildTeacherSystemPrompt(userId),
     stopWhen: stepCountIs(15),
     callOptionsSchema: teacherCallOptionsSchema,
+    // Explicitly set toolChoice to 'auto' to ensure vLLM receives the correct signal
     prepareStep: async ({ stepNumber, steps, messages, model }) => {
       logger.debug('[Grading Agent V3] Teacher prepareStep', {
         stepNumber,
@@ -738,11 +774,17 @@ User asks: "Show me student 'Junjie's progress":
           reason: 'Token optimization - keeping system + recent messages',
         });
 
+        // Force language reminder even when pruning
         return {
           messages: [
             messages[0], // Keep system message
             ...messages.slice(-12), // Keep last 12 messages
+            { 
+              role: 'user', 
+              content: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.'
+            }
           ],
+          toolChoice: 'auto',
         };
       }
 
@@ -760,7 +802,17 @@ User asks: "Show me student 'Junjie's progress":
         }
       }
       
-      return {};
+      // Inject language reminder to use Traditional Chinese
+      return {
+        messages: [
+          ...messages,
+          { 
+            role: 'user', 
+            content: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.'
+          }
+        ],
+        toolChoice: 'auto',
+      };
     },
   });
 }
@@ -770,53 +822,38 @@ User asks: "Show me student 'Junjie's progress":
  * Includes: database_query tool only (read-only student data)
  * Supports dynamic configuration via callOptions
  */
-function createStudentAgent(userId: string | undefined) {
+/**
+ * Create a ToolLoopAgent instance for STUDENT
+ * Includes: database_query tool only (read-only student data)
+ * Supports dynamic configuration via callOptions
+ */
+function createStudentAgent(userId: string | undefined, model: LanguageModel) {
   const studentTools = {
     database_query: tool({
       description: `Query the grading system database to retrieve your learning analytics and course information.
 
 **STUDENT-SPECIFIC QUERIES (READ-ONLY):**
 
-Course & Assignment Info:
-- "student_courses": Get all enrolled courses
-- "student_assignments": Get all assignments in a specific course
-- "enrolled_course_detail": Get details about an enrolled course
+**1. Discovery (The "What"):**
+- "student_courses": Your enrolled courses. Start here to get 'courseId'.
+- "student_assignments": Lists assignments for a course. **NOTE: Only returns Name & Date.**
 
-Submissions & Grades:
-- "student_submissions": List all your submissions (contains submissionId!)
-- "my_submission_detail": Get detailed submission data with grades, feedback, timestamps
-- "pending_assignments": Get unsubmitted assignments (use to identify urgent work)
+**2. Details (The "How"):**
+- "assignment_detail_student": **Crucial**. Returns the Description and Rubric. Use this when asked "what is this assignment?"
+- "enrolled_course_detail": Course syllabus/info.
 
-Statistics:
-- "user_profile": Get your basic info
-- "user_statistics": Get your learning statistics
+**3. Performance (The "Results"):**
+- "pending_assignments": What is due soon? (Unsubmitted only).
+- "student_submissions": Your submission history list.
+- "my_submission_detail": **Deep Dive**. Returns your Score, Teacher Feedback, and AI Analysis.
 
-**MULTI-STEP ANALYSIS FLOW:**
+**4. Stats:**
+- "user_statistics": High-level numbers.
 
-To perform deep analysis (grades trends, submission speed, workload prediction):
-
-1. "student_courses" → get all courseIds
-2. "student_submissions" → get ALL submissionIds and basic info
-3. "my_submission_detail" (submissionId from step 2) → get timestamps, grades, feedback
-4. "pending_assignments" → see what's due
-5. ANALYZE: correlate data to identify patterns
-
-**KEY INSIGHT - Getting Detailed Submissions:**
-- "student_assignments" only lists assignment info
-- "student_submissions" lists submissions WITH submissionId
-- Use submissionId from "student_submissions" with "my_submission_detail"
-- Result: full analytics (grades, timestamps, AI analysis, teacher feedback)
-
-**QUERY PARAMETER GUIDE:**
-
-1. "student_courses" → params: {} (system auto-uses your studentId)
-2. "student_assignments" → params: { courseId: "..." } (from student_courses result)
-3. "enrolled_course_detail" → params: { courseId: "..." } (from student_courses result)
-4. "student_submissions" → params: {} (system auto-uses your studentId)
-5. "my_submission_detail" → params: { submissionId: "..." } (from student_submissions result)
-6. "pending_assignments" → params: {} (system auto-uses your studentId)
-7. "user_statistics" → params: {} (system auto-uses your studentId)
-8. "user_profile" → params: {} (no params needed)`,
+**Autonomous Usage:**
+Combine these tools to answer questions.
+- Need detailed grades? Find submissionId -> Call my_submission_detail.
+- Need assignment info? Find assignmentId -> Call assignment_detail_student.`,
       inputSchema: z.object({
         queryType: studentQueryTypeEnum.describe('Student query type - use ONLY student queries (student_courses, student_submissions, my_submission_detail, etc.)'),
         params: z.record(z.any()).optional().describe('Query parameters like courseId, submissionId, etc.'),
@@ -1131,10 +1168,11 @@ To perform deep analysis (grades trends, submission speed, workload prediction):
         }
       },
     }),
+
   } satisfies ToolSet;
 
   return new ToolLoopAgent({
-    model: gemini('gemini-2.5-flash'),
+    model: model,
     instructions: buildStudentSystemPrompt(userId),
     tools: studentTools,
     stopWhen: stepCountIs(15),
@@ -1159,7 +1197,12 @@ To perform deep analysis (grades trends, submission speed, workload prediction):
           messages: [
             messages[0], // Keep system message
             ...messages.slice(-12), // Keep last 12 messages
+             { 
+              role: 'user', 
+              content: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.'
+            }
           ],
+          toolChoice: 'auto',
         };
       }
 
@@ -1177,7 +1220,17 @@ To perform deep analysis (grades trends, submission speed, workload prediction):
         }
       }
       
-      return {};
+      // Inject language reminder to use Traditional Chinese
+      return {
+        messages: [
+          ...messages,
+           { 
+            role: 'user', 
+            content: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.'
+          }
+        ],
+        toolChoice: 'auto',
+      };
     },
   });
 }
@@ -1185,11 +1238,11 @@ To perform deep analysis (grades trends, submission speed, workload prediction):
 /**
  * Create appropriate agent based on user role
  */
-function createGradingAgent(userRole: 'TEACHER' | 'STUDENT', userId: string | undefined) {
+function createGradingAgent(userRole: 'TEACHER' | 'STUDENT', userId: string | undefined, model: LanguageModel) {
   if (userRole === 'TEACHER') {
-    return createTeacherAgent(userId);
+    return createTeacherAgent(userId, model);
   }
-  return createStudentAgent(userId);
+  return createStudentAgent(userId, model);
 }
 
 /**
@@ -1206,7 +1259,8 @@ export async function streamWithGradingAgent(
   messages: any[],
   userId?: string,
   callOptions?: TeacherCallOptions | StudentCallOptions,
-  onFinish?: (result: { text: string; usage: TokenUsage; toolCalls?: any[] }) => Promise<void>
+  onFinish?: (result: { text: string; usage: TokenUsage; toolCalls?: any[]; provider?: string }) => Promise<void>,
+  preferredProvider: ModelProvider = 'auto'
 ) {
   const sessionId = `${userRole}_${userId}_${Date.now()}`;
   
@@ -1219,49 +1273,115 @@ export async function streamWithGradingAgent(
   });
 
   try {
-    // Create agent with role-specific configuration
-    const agent = createGradingAgent(userRole, userId);
+    // 1. Select Model (Circuit Breaker)
+    const { model, provider } = await selectResilientModel(sessionId, preferredProvider);
+    
+    logger.info('[Grading Agent V3] Model selected', { sessionId, provider });
+
+    // 2. Create agent with role-specific configuration and selected model
+    const agent = createGradingAgent(userRole, userId, model);
 
     logger.debug('[Grading Agent V3] Agent created successfully');
 
-    // Stream the response
-    logger.debug('[Grading Agent V3] Starting agent stream', { hasOptions: !!callOptions });
-    const streamResult = await agent.stream({
-      messages,
-      options: callOptions || undefined,
-    } as any);
-
-    logger.debug('[Grading Agent V3] Agent stream completed');
-
-    // Handle onFinish callback to capture usage and response
-    if (onFinish) {
-      Promise.all([streamResult.text, streamResult.usage])
-        .then(([text, usage]) => {
-          logger.info('[Grading Agent V3] Stream finished', { 
-            sessionId, 
-            tokens: usage.totalTokens,
-            textLength: text.length 
-          });
-          return onFinish({ text, usage });
-        })
-        .catch(error => {
-          logger.error('[Grading Agent V3] Error in onFinish handler', {
-             sessionId,
-             error: error instanceof Error ? error.message : String(error)
-          });
-        });
-    }
-
-    // Convert to UI stream response for client compatibility
-    const uiStreamResponse = streamResult.toUIMessageStreamResponse();
-    
-    // Log thinking process for UI display
-    logger.info('[Grading Agent V3] Stream response ready for UI', {
+    // Use manual conversion flow to ensure robustness
+    // 1. Convert UIMessages to ModelMessages
+    // 2. Stream with agent
+    // 3. Convert back to UIMessageStreamResponse
+    logger.info('[Grading Agent V3] Using manual convertToModelMessages -> agent.stream() flow', { 
+      hasOptions: !!callOptions,
       sessionId,
-      hasThinkingLog: stepThinkingLog.has(sessionId),
+      messagesCount: messages?.length || 0,
     });
+    
+    try {
+      // 1. Convert UIMessages to ModelMessages explicitly
+      const modelMessages = await convertToModelMessages(messages as any[]);
+      
+      logger.debug('[Grading Agent V3] Converted to ModelMessages', {
+        count: modelMessages.length,
+        firstRole: modelMessages[0]?.role,
+      });
 
-    return uiStreamResponse;
+      // 2. Stream the agent with ModelMessages
+      const streamResult = await agent.stream({
+        messages: modelMessages,
+        options: callOptions || undefined,
+      } as any);
+
+      logger.info('[Grading Agent V3] Agent stream created successfully', { sessionId });
+
+      // Handle onFinish callback if provided
+      if (onFinish) {
+        // We need to consume the stream to get the final text and usage
+        streamResult.text.then(async (finalText) => {
+          try {
+            let usage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+            try {
+              const resultUsage = await streamResult.usage as any;
+              usage = {
+                promptTokens: resultUsage.promptTokens || 0,
+                completionTokens: resultUsage.completionTokens || 0,
+                totalTokens: resultUsage.totalTokens || 0,
+              };
+            } catch (usageError) {
+              logger.warn('[Grading Agent V3] Could not retrieve token usage', { sessionId });
+            }
+            
+            await onFinish({ 
+              text: finalText,
+              usage,
+              provider 
+            });
+          } catch (err) {
+            logger.error('[Grading Agent V3] Failed to process onFinish', err);
+          }
+        });
+      }
+
+      // Return the stream response - agent streams should use toUIMessageStreamResponse for useChat compatibility
+      const response = streamResult.toUIMessageStreamResponse();
+      
+      logger.info('[Grading Agent V3] Stream response created successfully', { sessionId });
+      
+      return response;
+      
+    } catch (streamError) {
+      // Extract detailed error information
+      const errorDetails: any = {
+        sessionId,
+        message: streamError instanceof Error ? streamError.message : String(streamError),
+        type: streamError?.constructor?.name,
+      };
+
+      // Try to extract more details from the error
+      if (streamError instanceof Error) {
+        errorDetails.stack = streamError.stack;
+        
+        // Check if it's a response error with details
+        if ('response' in streamError) {
+          errorDetails.response = (streamError as any).response;
+        }
+        if ('cause' in streamError) {
+          errorDetails.cause = (streamError as any).cause;
+        }
+        if ('statusCode' in streamError) {
+          errorDetails.statusCode = (streamError as any).statusCode;
+        }
+        
+        // Log the full error object structure
+        errorDetails.errorKeys = Object.keys(streamError);
+      }
+
+      logger.error('[Grading Agent V3] Stream failed - DETAILED ERROR', errorDetails);
+      
+      // Also log as string for easy reading
+      logger.error('[Grading Agent V3] Stream failed - STRING', {
+        sessionId,
+        errorString: JSON.stringify(streamError, null, 2),
+      });
+      
+      throw streamError;
+    }
   } catch (error) {
     logger.error('[Grading Agent V3] Fatal error in streamWithGradingAgent', {
       error: error instanceof Error ? error.message : String(error),

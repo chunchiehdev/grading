@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Clock,
   ChevronRight,
+  ChevronDown,
   Brain,
   Zap,
   ExternalLink,
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { Markdown } from '@/components/ui/markdown';
 import { useLoaderData } from 'react-router';
@@ -266,7 +268,7 @@ export function AgentChatBoxWithSteps() {
 }
 
 /**
- * Enhanced Message Bubble with Step Visualization
+ * Enhanced Message Bubble with Thinking Process Timeline
  */
 function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: UserType | null }) {
   const isUser = message.role === 'user';
@@ -296,210 +298,121 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
     );
   }
 
-  // Translation for MessageBubble
   const { t } = useTranslation('agent');
 
-  // For assistant messages with steps, show detailed view
-  if (steps.length > 1) {
-    return (
-      <div className="w-full space-y-4">
-        {/* Step indicator */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">
-            {t('status.multiStepReasoning', { count: steps.length })}
-          </span>
-        </div>
-
-        {steps.map((step, index) => (
-          <StepCard key={index} step={step} stepNumber={index + 1} />
-        ))}
-      </div>
-    );
-  }
-
-  // For simple assistant messages without steps
-  return (
-    <div className="w-full space-y-3">
-      <Markdown className="prose-sm">{messageContent}</Markdown>
-
-      {/* Show sources if any */}
-      {steps.length === 1 && steps[0].sources.length > 0 && (
-        <SourcesList sources={steps[0].sources} />
-      )}
-
-      {/* Show tool calls if any */}
-      {steps.length === 1 && steps[0].toolInvocations.length > 0 && (
-        <div className="space-y-2">
-          {steps[0].toolInvocations.map((tool: any, idx: number) => (
-            <ToolInvocationCard key={idx} tool={tool} />
-          ))}
-        </div>
-      )}
-    </div>
+  // Separate thinking process (tools) from final response
+  const hasAnyTools = steps.some(s => s.toolInvocations.length > 0);
+  const finalResponseStep = steps[steps.length - 1]; // Last step is usually the final response
+  
+  // Check if still streaming/thinking (any tool not completed)
+  const isThinking = steps.some(s => 
+    s.toolInvocations.some((tool: any) => {
+      const state = tool.state || 'unknown';
+      return state === 'input-streaming' || state === 'input-available' || state === 'unknown';
+    })
   );
-}
-
-/**
- * Step Card Component - Shows one reasoning step
- */
-function StepCard({ step, stepNumber }: { step: Step; stepNumber: number }) {
-  const { t } = useTranslation('agent');
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const stepText = step.textParts.map((part) => part.text || '').join('');
-
-  const hasTools = step.toolInvocations.length > 0;
-  const hasSources = step.sources.length > 0;
 
   return (
-    <div className="space-y-3">
-      {/* Step header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="font-mono text-xs">
-            {t('step.label', { number: stepNumber })}
-          </Badge>
-
-          {hasSources && (
-            <Badge variant="outline" className="text-xs">
-              {step.sources.length} {t(`step.sources_${step.sources.length === 1 ? 'one' : 'other'}`)}
-            </Badge>
-          )}
-        </div>
-        {hasTools && (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ChevronRight className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-90')} />
-          </button>
-        )}
-      </div>
-
-      {/* Step content */}
-      <div className="space-y-3">
-        {/* Step text content with Markdown support */}
-        {stepText && <Markdown className="prose-sm">{stepText}</Markdown>}
-
-        {/* Sources */}
-        {hasSources && <SourcesList sources={step.sources} />}
-
-        {/* Tool invocations */}
-        {hasTools && isExpanded && (
-          <div className="space-y-2 pt-2 border-t border-border/30">
-            <p className="text-xs font-medium text-muted-foreground">{t('toolExecution.title')}</p>
-            {step.toolInvocations.map((tool: any, idx: number) => (
-              <ToolInvocationCard key={idx} tool={tool} />
-            ))}
+    <div className="w-full space-y-4">
+      {/* Thinking Process Timeline - Collapsible */}
+      {hasAnyTools && (
+        <Collapsible 
+          open={isThinking ? true : undefined}
+          defaultOpen={isThinking}
+          className="animate-in fade-in duration-500 group"
+        >
+          <div className="flex items-center py-1">
+            <CollapsibleTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className="flex items-center gap-2 p-0 h-auto hover:bg-transparent text-xs font-medium text-muted-foreground"
+              >
+                <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                <span>{isThinking ? t('status.thinking', 'AI 思考中...') : t('status.viewThinkingProcess', '查看思考過程')}</span>
+              </Button>
+            </CollapsibleTrigger>
           </div>
-        )}
-      </div>
+          
+          <CollapsibleContent>
+            <div className="pb-2 pt-1">
+              <div className="relative pl-6">
+                {/* Vertical Line */}
+                <div className="absolute left-2 top-0 bottom-0 w-px bg-border" />
+                
+                {/* Tool Invocations */}
+                <div className="space-y-2">
+                  {steps.flatMap(step => 
+                    step.toolInvocations.map((tool: any, idx: number) => (
+                      <ThinkingAction key={`${step.stepNumber}-${idx}`} tool={tool} />
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      {/* Final Response - Outside timeline */}
+      {finalResponseStep && finalResponseStep.textParts.length > 0 && (
+        <div className="text-sm text-foreground leading-relaxed">
+          <div className="prose prose-sm dark:prose-invert max-w-none">
+            <Markdown>{finalResponseStep.textParts.map((part) => part.text || '').join('')}</Markdown>
+          </div>
+        </div>
+      )}
+
+      {/* Sources if any */}
+      {finalResponseStep?.sources.length > 0 && (
+        <SourcesList sources={finalResponseStep.sources} />
+      )}
     </div>
   );
 }
 
 /**
- * Tool Invocation Card Component
+ * Thinking Action Component - Simplified tool invocation status display
  */
-function ToolInvocationCard({ tool }: { tool: any }) {
+function ThinkingAction({ tool }: { tool: any }) {
   const { t } = useTranslation('agent');
-
-  // Handle both ToolUIPart and DynamicToolUIPart
+  
   const toolName = tool.toolName || extractToolName(tool.type);
   const state = tool.state || 'unknown';
-  const input = tool.input;
-  const output = tool.output;
   const errorText = tool.errorText;
 
-  const toolIcons: Record<string, string> = {
-    calculator: '🧮',
-    code_explainer: '💻',
-    memory_saver: '💾',
-    web_search: '🔍',
-    web_content_fetcher: '📄',
-    google_search: '🌐', // Gemini's built-in Google Search
-    database_query: '🗄️',
+  // Tool descriptions - user-friendly narrations
+  const toolNarrations: Record<string, string> = {
+    database_query: t('toolNarration.databaseQuery', '正在查詢資料...'),
+    generate_report: t('toolNarration.generateReport', '正在生成報告...'),
+    calculator: t('toolNarration.calculator', '正在計算...'),
+    code_explainer: t('toolNarration.codeExplainer', '正在分析程式碼...'),
+    web_search: t('toolNarration.webSearch', '正在搜尋相關資訊...'),
+    google_search: t('toolNarration.googleSearch', '正在搜尋 Google...'),
   };
 
-  const icon = toolIcons[toolName] || '';
+  const displayName = toolNarrations[toolName] || toolName.replace(/_/g, ' ');
 
-  // Determine status icon and color
-  const getStatusInfo = () => {
+  // Status indicator
+  const getStatusIndicator = () => {
     if (errorText) {
-      return { icon: AlertCircle, color: 'text-destructive', label: t('toolExecution.error') };
+      return <AlertCircle className="h-3 w-3 text-destructive" />;
     }
     if (state === 'output-available') {
-      return { icon: CheckCircle, color: 'text-green-500', label: t('toolExecution.statusCompleted') };
+      return <CheckCircle className="h-3 w-3 text-green-500" />;
     }
     if (state === 'input-streaming' || state === 'input-available') {
-      return { icon: Clock, color: 'text-amber-500', label: t('toolExecution.statusRunning') };
+      return <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />;
     }
-    return { icon: Loader2, color: 'text-muted-foreground', label: t('toolExecution.statusProcessing') };
+    return <Clock className="h-3 w-3 text-muted-foreground" />;
   };
 
-  const statusInfo = getStatusInfo();
-  const StatusIcon = statusInfo.icon;
-
   return (
-    <div className="pl-3 border-l-2 border-muted-foreground/20 space-y-2">
-      {/* Tool header */}
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-medium capitalize truncate">{toolName.replace(/_/g, ' ')}</span>
-            <StatusIcon className={cn('h-3 w-3 shrink-0', statusInfo.color)} />
-            <span className={cn('text-xs shrink-0', statusInfo.color)}>{statusInfo.label}</span>
-          </div>
-
-          {/* Tool input */}
-          {input && (
-            <div className="text-xs text-muted-foreground mb-2">
-              <span className="font-medium block mb-1">{t('toolExecution.input')}</span>
-              <div className="p-2 bg-muted/20 rounded overflow-x-auto max-h-32" style={{ maxWidth: '100%' }}>
-                {typeof input === 'string' ? (
-                  <code className="text-[11px] sm:text-xs break-all block">{input}</code>
-                ) : (
-                  <pre
-                    className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words"
-                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                  >
-                    {JSON.stringify(input, null, 2)}
-                  </pre>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Tool output */}
-          {output && state === 'output-available' && (
-            <div className="text-xs">
-              <span className="font-medium text-muted-foreground block mb-1">{t('toolExecution.output')}</span>
-              <div
-                className="p-2 sm:p-3 bg-muted/10 rounded overflow-x-auto max-h-60 sm:max-h-80"
-                style={{ maxWidth: '100%' }}
-              >
-                {typeof output === 'string' ? (
-                  <div className="text-[11px] sm:text-xs whitespace-pre-wrap break-words">{output}</div>
-                ) : (
-                  <pre
-                    className="font-mono text-[11px] sm:text-xs m-0 whitespace-pre-wrap break-words"
-                    style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
-                  >
-                    {JSON.stringify(output, null, 2)}
-                  </pre>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Error text */}
-          {errorText && (
-            <div className="text-xs text-destructive mt-2 break-words">
-              <span className="font-medium">{t('toolExecution.error')}</span> {errorText}
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <span>{displayName}</span>
+      {getStatusIndicator()}
+      {errorText && (
+        <span className="text-destructive ml-1">({errorText})</span>
+      )}
     </div>
   );
 }

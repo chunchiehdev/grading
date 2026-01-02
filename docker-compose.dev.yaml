@@ -41,6 +41,10 @@ services:
       - GEMINI_API_KEY3=${GEMINI_API_KEY3}
       # OpenAI API
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # vLLM API
+      - VLLM_BASE_URL=${VLLM_BASE_URL}
+      - VLLM_MODEL_NAME=${VLLM_MODEL_NAME}
+      - VLLM_API_KEY=${VLLM_API_KEY}
       # Internal API Key
       - INTERNAL_API_KEY=${INTERNAL_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-info}

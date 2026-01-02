@@ -376,11 +376,14 @@ export async function createSubmissionAndLinkGradingResult(
  * @param {string} studentId - The student's user ID
  * @returns {Promise<StudentAssignmentInfo[]>} List of available assignments
  */
-export async function getStudentAssignments(studentId: string): Promise<StudentAssignmentInfo[]> {
+export async function getStudentAssignments(studentId: string, courseId?: string): Promise<StudentAssignmentInfo[]> {
   try {
     // Get all enrollments with class and course information
     const enrollments = await db.enrollment.findMany({
-      where: { studentId },
+      where: { 
+        studentId,
+        ...(courseId ? { class: { courseId } } : {}) // Optimization: only fetch enrollments for specific course if provided
+      },
       include: {
         class: {
           select: {
@@ -403,21 +406,26 @@ export async function getStudentAssignments(studentId: string): Promise<StudentA
     // 2. OR are course-wide (classId = NULL AND courseId IN enrolledCourseIds)
     const assignmentAreas = await db.assignmentArea.findMany({
       where: {
-        OR: [
-          // Class-specific assignments
+        AND: [
+          courseId ? { courseId } : {}, // Filter by courseId if provided
           {
-            classId: {
-              in: enrolledClassIds,
-            },
-          },
-          // Course-wide assignments (for courses student is enrolled in)
-          {
-            classId: null,
-            courseId: {
-              in: enrolledCourseIds,
-            },
-          },
-        ],
+            OR: [
+              // Class-specific assignments
+              {
+                classId: {
+                  in: enrolledClassIds,
+                },
+              },
+              // Course-wide assignments (for courses student is enrolled in)
+              {
+                classId: null,
+                courseId: {
+                  in: enrolledCourseIds,
+                },
+              },
+            ],
+          }
+        ]
       },
       include: {
         course: {

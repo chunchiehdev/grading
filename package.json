@@ -33,9 +33,9 @@
     "version:refresh": "node -e \"const fs=require('fs');const{execSync}=require('child_process');const pkg=require('./package.json');const branch=execSync('git rev-parse --abbrev-ref HEAD',{encoding:'utf8'}).trim();const commit=execSync('git rev-parse --short HEAD',{encoding:'utf8'}).trim();fs.writeFileSync('version.json',JSON.stringify({version:pkg.version,branch,commitHash:commit,buildTime:new Date().toISOString()},null,2))\""
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.0-beta.38",
+    "@ai-sdk/google": "^3.0.2",
     "@ai-sdk/google-vertex": "^3.0.89",
-    "@ai-sdk/openai": "^3.0.0-beta.48",
+    "@ai-sdk/openai": "^3.0.2",
     "@ai-sdk/react": "^3.0.0-beta.92",
     "@aws-sdk/client-s3": "^3.802.0",
     "@aws-sdk/s3-request-presigner": "^3.758.0",
@@ -84,7 +84,7 @@
     "@types/pdfkit": "^0.17.3",
     "@types/qrcode": "^1.5.5",
     "@types/three": "^0.175.0",
-    "ai": "^6.0.0-beta.92",
+    "ai": "^6.0.5",
     "axios": "^1.8.3",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.12.15",

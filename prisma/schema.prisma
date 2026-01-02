@@ -521,6 +521,8 @@ model AgentChatSession {
   // Session metadata
   title    String? @db.VarChar(255)
   userRole String  @db.VarChar(20) // TEACHER | STUDENT | ADMIN
+  modelProvider String? @db.VarChar(50) // gemini | local | auto
+
 
   // Performance tracking
   totalTokens   Int @default(0)

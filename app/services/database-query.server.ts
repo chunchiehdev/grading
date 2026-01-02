@@ -70,6 +70,7 @@ export type StudentQueryType =
   | 'student_assignments' // List all assignments across courses
   | 'student_submissions' // List all submissions with submission IDs
   | 'my_submission_detail' // View my submission with grading results
+  | 'assignment_detail_student' // Student: View assignment requirements
   | 'pending_assignments' // List unsubmitted assignments
   | 'enrolled_course_detail'; // View details of an enrolled course
 
@@ -440,7 +441,7 @@ async function queryStudentAssignments(params: QueryParams) {
     throw new Error('studentId or userId is required for student_assignments query');
   }
 
-  const assignments = await getStudentAssignments(studentId);
+  const assignments = await getStudentAssignments(studentId, params.courseId);
 
   return {
     totalAssignments: assignments.length,

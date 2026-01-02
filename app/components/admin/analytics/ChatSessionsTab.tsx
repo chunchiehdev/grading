@@ -12,6 +12,7 @@ interface ChatSession {
   id: string;
   title: string | null;
   userRole: string;
+  modelProvider: string | null; // Add modelProvider
   totalTokens: number;
   totalDuration: number;
   status: string;
@@ -99,6 +100,9 @@ export function ChatSessionsTab() {
                 Messages
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
+                Model
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
                 Tokens
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
@@ -112,13 +116,13 @@ export function ChatSessionsTab() {
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   Loading sessions...
                 </td>
               </tr>
             ) : sessions.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                   No sessions found
                 </td>
               </tr>
@@ -165,6 +169,23 @@ export function ChatSessionsTab() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     {session._count.messages}
+                  </td>
+                  <td className="px-4 py-3">
+                    {session.modelProvider ? (
+                      <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
+                        session.modelProvider === 'local' 
+                          ? 'bg-purple-50 text-purple-700 ring-purple-600/20' 
+                          : session.modelProvider === 'gemini'
+                          ? 'bg-blue-50 text-blue-700 ring-blue-600/20'
+                          : 'bg-gray-50 text-gray-600 ring-gray-500/10'
+                      }`}>
+                        {session.modelProvider === 'local' ? 'Local (vLLM)' : 
+                         session.modelProvider === 'gemini' ? 'Gemini 2.5' : 
+                         session.modelProvider}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900">
                     {formatTokens(session.totalTokens)}
@@ -247,6 +268,13 @@ export function ChatSessionsTab() {
                     {session._count.messages}
                   </span>
                 </div>
+  
+                  <div className="text-center">
+                    <div className="text-xs text-gray-500">Model</div>
+                    <span className="text-sm font-medium text-gray-900">
+                      {session.modelProvider || '-'}
+                    </span>
+                  </div>
 
                 <div className="text-right">
                   <div className="text-xs text-gray-500">Tokens</div>

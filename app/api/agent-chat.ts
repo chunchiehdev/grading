@@ -8,7 +8,7 @@
 import type { ActionFunctionArgs } from 'react-router';
 import { streamWithGradingAgent } from '@/lib/grading-agent-v3.server';
 import { getUserId } from '@/services/auth.server';
-import { convertToModelMessages, type UIMessage } from 'ai';
+import { type UIMessage } from 'ai';
 import logger from '@/utils/logger';
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -39,6 +39,17 @@ export async function action({ request }: ActionFunctionArgs) {
     const body = await request.json();
     const { messages } = body;
 
+    // Parse model preference from cookie early
+    const cookieHeader = request.headers.get('Cookie');
+    let modelProvider: 'gemini' | 'local' | 'auto' = 'auto'; // Default
+    
+    if (cookieHeader) {
+      const match = cookieHeader.match(/ai-model-provider=(gemini|local|auto)/);
+      if (match) {
+        modelProvider = match[1] as any;
+      }
+    }
+
     if (!messages || !Array.isArray(messages)) {
       return new Response(
         JSON.stringify({ error: 'Invalid request: messages array required' }),
@@ -53,6 +64,7 @@ export async function action({ request }: ActionFunctionArgs) {
       userId,
       userRole,
       messageCount: messages.length,
+      modelProviderPreference: modelProvider,
     });
 
     // Create AgentChatSession for analytics tracking
@@ -70,11 +82,12 @@ export async function action({ request }: ActionFunctionArgs) {
               ? messages[0].content.substring(0, 100) 
               : 'Agent Chat',
             status: 'ACTIVE',
+            modelProvider: modelProvider, // Save initial preference (e.g. 'auto', 'local')
           },
         });
         
         sessionId = session.id;
-        logger.info('[Agent Chat API] Created session', { sessionId });
+        logger.info('[Agent Chat API] Created session', { sessionId, modelProvider });
         
         // Save initial message to AgentChatMessage
         if (messages.length > 0) {
@@ -82,7 +95,9 @@ export async function action({ request }: ActionFunctionArgs) {
             data: {
               sessionId: session.id,
               role: 'user',
-              content: typeof messages[0].content === 'string' ? messages[0].content : JSON.stringify(messages[0].content),
+              content: messages[0].content 
+                ? (typeof messages[0].content === 'string' ? messages[0].content : JSON.stringify(messages[0].content))
+                : '',
               timestamp: new Date(),
             },
           });
@@ -93,29 +108,29 @@ export async function action({ request }: ActionFunctionArgs) {
       }
     }
 
-    // Convert UIMessages to ModelMessages
-    const modelMessages = convertToModelMessages(messages as UIMessage[]);
-    
-    logger.debug('[Agent Chat API] Converted messages', {
-      modelMessageCount: modelMessages.length,
-      roles: modelMessages.map(m => m.role),
+    // createAgentUIStreamResponse expects UIMessages directly (not ModelMessages)
+    // So we pass the original messages from the frontend
+    logger.debug('[Agent Chat API] Using original UIMessages for createAgentUIStreamResponse', {
+      messageCount: messages.length,
     });
 
     // Create streaming agent response (using V3 with Agent class)
     const finalUserRole = userRole || 'STUDENT';
+    
     logger.info('[Agent Chat API] Creating agent stream', {
       userRole: finalUserRole,
       hasUserId: !!userId,
       sessionId,
+      modelProvider,
     });
     
     try {
       const response = await streamWithGradingAgent(
         finalUserRole, 
-        modelMessages, 
+        messages as UIMessage[], // Pass original UIMessages for createAgentUIStreamResponse
         userId, 
         undefined, // callOptions
-        async ({ text, usage }) => {
+        async ({ text, usage, provider }) => {
           // onFinish: Save tokens, message, and update session
           if (sessionId && userId) {
             const executionTime = Date.now() - sessionStartTime;
@@ -128,35 +143,38 @@ export async function action({ request }: ActionFunctionArgs) {
                   sessionId,
                   role: 'assistant',
                   content: text,
-                  promptTokens: usage.promptTokens,
-                  completionTokens: usage.completionTokens,
-                  totalTokens: usage.totalTokens,
+                  promptTokens: usage?.promptTokens || 0,
+                  completionTokens: usage?.completionTokens || 0,
+                  totalTokens: usage?.totalTokens || 0,
                   timestamp: new Date(),
                 },
               });
 
               // 2. Update Session Status and Totals
-              // We increment totalTokens to account for multiple turns if needed, 
-              // though currently it's one turn per request usually.
-              // Actually, for a persistent session, we should accumulate.
-              // But db.agentChatSession.update doesn't support increment easily without fetching first,
-              // unless we use atomic increment if Prisma supports it (yes, { increment: n }).
+              const finalProvider = provider || modelProvider;
+              logger.info('[Agent Chat API] Updating session on finish', { 
+                sessionId, 
+                tokens: usage?.totalTokens || 0,
+                provider: finalProvider 
+              });
+
               await db.agentChatSession.update({
                 where: { id: sessionId },
                 data: {
                   status: 'COMPLETED',
                   totalDuration: { increment: executionTime },
-                  totalTokens: { increment: usage.totalTokens },
+                  totalTokens: { increment: usage?.totalTokens || 0 },
                   lastActivity: new Date(),
+                  modelProvider: finalProvider, 
                 },
               });
               
-              logger.info('[Agent Chat API] Saved trace and tokens', { sessionId, tokens: usage.totalTokens });
             } catch (err) {
               logger.error('[Agent Chat API] Failed to save trace', err);
             }
           }
-        }
+        },
+        modelProvider // Pass user preference
       );
       
       logger.info('[Agent Chat API] Agent response created successfully');
