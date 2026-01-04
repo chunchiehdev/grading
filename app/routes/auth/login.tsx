@@ -38,287 +38,291 @@ export default function LoginPage() {
         : null;
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Login Form */}
+    <div className="h-full w-full bg-white relative">
+      {/* Background Elements - Clipped */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* 1. Beaker - Grid Position 1 */}
+        <div
+          className="absolute w-6 h-8 animate-float opacity-40"
+          style={{
+            top: '8%',
+            left: '12%',
+            transform: 'translateX(5px) translateY(3px)',
+          }}
+        >
+          <div className="w-full h-full bg-[#254D70] relative rounded-b-lg">
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-[#EFE4D2] rounded-full"></div>
+            <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-1 h-2 bg-[#131D4F]"></div>
+            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-3 bg-[#954C2E] rounded opacity-40"></div>
+          </div>
+        </div>
 
-      {/* 1. Beaker - Grid Position 1 */}
-      <div
-        className="absolute w-6 h-8 animate-float opacity-40"
-        style={{
-          top: '8%',
-          left: '12%',
-          transform: 'translateX(5px) translateY(3px)',
-        }}
-      >
-        <div className="w-full h-full bg-[#254D70] relative rounded-b-lg">
-          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-[#EFE4D2] rounded-full"></div>
-          <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-1 h-2 bg-[#131D4F]"></div>
-          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-3 bg-[#954C2E] rounded opacity-40"></div>
+        {/* 2. Atom - Grid Position 2 */}
+        <div
+          className="absolute w-8 h-8 animate-spin-slow opacity-40"
+          style={{
+            top: '15%',
+            left: '78%',
+            transform: 'translateX(-8px) translateY(12px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-[#254D70] rounded-full"></div>
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full h-px bg-[#954C2E] origin-center"></div>
+            <div className="absolute top-1/2 left-0 transform -translate-y-1/2 w-full h-px bg-[#954C2E] origin-center rotate-60"></div>
+            <div className="absolute top-1/2 left-0 transform -translate-y-1/2 w-full h-px bg-[#954C2E] origin-center -rotate-60"></div>
+            <div className="absolute top-0 left-0 w-1.5 h-1.5 bg-[#131D4F] rounded-full"></div>
+            <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-[#131D4F] rounded-full"></div>
+            <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-[#131D4F] rounded-full"></div>
+          </div>
+        </div>
+
+        {/* 3. Test Tube - Grid Position 3 */}
+        <div
+          className="absolute w-3 h-12 animate-float-slow opacity-40"
+          style={{
+            top: '25%',
+            left: '35%',
+            transform: 'translateX(15px) translateY(-5px)',
+          }}
+        >
+          <div className="w-full h-full bg-[#254D70] relative rounded-b-full">
+            <div className="absolute top-0 left-0 w-full h-2 bg-[#131D4F] rounded-t"></div>
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-2 h-6 bg-[#954C2E] rounded opacity-40"></div>
+          </div>
+        </div>
+
+        {/* 4. Magnifying Glass - Grid Position 4 */}
+        <div
+          className="absolute w-8 h-8 animate-float opacity-40"
+          style={{
+            top: '32%',
+            left: '85%',
+            transform: 'translateX(-12px) translateY(8px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute top-0 left-0 w-5 h-5 border-2 border-[#254D70] rounded-full"></div>
+            <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#131D4F] transform rotate-45 rounded-sm"></div>
+          </div>
+        </div>
+
+        {/* 5. Flask - Grid Position 5 */}
+        <div
+          className="absolute w-6 h-9 animate-float-slow opacity-40"
+          style={{
+            top: '42%',
+            left: '8%',
+            transform: 'translateX(10px) translateY(-8px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-2 h-3 bg-[#131D4F]"></div>
+            <div className="absolute bottom-0 left-0 w-full h-6 bg-[#254D70] rounded-b-lg"></div>
+            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-3 bg-[#954C2E] rounded opacity-40"></div>
+          </div>
+        </div>
+
+        {/* 6. Gear - Grid Position 6 */}
+        <div
+          className="absolute w-7 h-7 animate-spin-slow opacity-40"
+          style={{
+            top: '48%',
+            left: '62%',
+            transform: 'translateX(6px) translateY(15px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute inset-1 bg-[#131D4F] rounded-full"></div>
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-1 h-2 bg-[#254D70]"></div>
+            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-2 bg-[#254D70]"></div>
+            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-2 h-1 bg-[#254D70]"></div>
+            <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-2 h-1 bg-[#254D70]"></div>
+          </div>
+        </div>
+
+        {/* 7. Compass - Grid Position 7 */}
+        <div
+          className="absolute w-6 h-6 animate-spin-slow opacity-40"
+          style={{
+            top: '55%',
+            left: '28%',
+            transform: 'translateX(-8px) translateY(12px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute inset-0 border-2 border-[#254D70] rounded-full"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-3 bg-[#954C2E]"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-1 bg-[#131D4F]"></div>
+          </div>
+        </div>
+
+        {/* 8. Telescope - Grid Position 8 */}
+        <div
+          className="absolute w-10 h-4 animate-float opacity-40"
+          style={{
+            top: '62%',
+            left: '88%',
+            transform: 'translateX(-15px) translateY(-3px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-6 h-3 bg-[#131D4F] rounded-l-full"></div>
+            <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-4 h-2 bg-[#254D70] rounded-r-full"></div>
+            <div className="absolute left-5 top-1/2 transform -translate-y-1/2 w-1 h-4 bg-[#954C2E]"></div>
+          </div>
+        </div>
+
+        {/* 9. Thermometer - Grid Position 9 */}
+        <div
+          className="absolute w-2 h-12 animate-float-slow opacity-40"
+          style={{
+            top: '68%',
+            left: '15%',
+            transform: 'translateX(12px) translateY(-10px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute top-0 left-0 w-full h-8 bg-[#EFE4D2] rounded-t-full border border-[#254D70]"></div>
+            <div className="absolute bottom-0 left-0 w-full h-4 bg-[#954C2E] rounded-full"></div>
+            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-px h-4 bg-[#131D4F]"></div>
+          </div>
+        </div>
+
+        {/* 10. Scale - Grid Position 10 */}
+        <div
+          className="absolute w-8 h-6 animate-float opacity-40"
+          style={{
+            top: '75%',
+            left: '45%',
+            transform: 'translateX(-5px) translateY(8px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-4 bg-[#131D4F]"></div>
+            <div className="absolute top-0 left-0 w-3 h-2 bg-[#254D70] rounded"></div>
+            <div className="absolute top-0 right-0 w-3 h-2 bg-[#954C2E] rounded"></div>
+            <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-4 h-px bg-[#131D4F]"></div>
+          </div>
+        </div>
+
+        {/* 11. Prism - Grid Position 11 */}
+        <div
+          className="absolute w-6 h-4 animate-float-slow opacity-40"
+          style={{
+            top: '82%',
+            left: '72%',
+            transform: 'translateX(8px) translateY(-12px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute inset-0 bg-[#EFE4D2] transform skew-x-12 border border-[#254D70]"></div>
+            <div className="absolute top-1 left-1 w-1 h-1 bg-[#954C2E] rounded-full"></div>
+            <div className="absolute bottom-1 right-1 w-1 h-1 bg-[#131D4F] rounded-full"></div>
+          </div>
+        </div>
+
+        {/* 12. Hourglass - Grid Position 12 */}
+        <div
+          className="absolute w-4 h-8 animate-float opacity-40"
+          style={{
+            top: '88%',
+            left: '22%',
+            transform: 'translateX(-10px) translateY(-8px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute top-0 left-0 w-full h-2 bg-[#131D4F] rounded-t"></div>
+            <div className="absolute bottom-0 left-0 w-full h-2 bg-[#131D4F] rounded-b"></div>
+            <div
+              className="absolute top-2 left-1/2 transform -translate-x-1/2 w-2 h-4 bg-[#EFE4D2] border-l-2 border-r-2 border-[#254D70]"
+              style={{ clipPath: 'polygon(0 0, 100% 0, 50% 50%, 100% 100%, 0 100%, 50% 50%)' }}
+            ></div>
+            <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 w-3 h-1 bg-[#954C2E] opacity-40"></div>
+          </div>
+        </div>
+
+        {/* 13. Crystal - Grid Position 13 */}
+        <div
+          className="absolute w-5 h-7 animate-float opacity-40"
+          style={{
+            top: '5%',
+            left: '52%',
+            transform: 'translateX(12px) translateY(18px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div
+              className="absolute top-0 left-1/2 transform -translate-x-1/2 w-3 h-2 bg-[#EFE4D2] border border-[#254D70]"
+              style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
+            ></div>
+            <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-[#EFE4D2] border border-[#254D70]"></div>
+            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-1 h-3 bg-[#954C2E] opacity-40"></div>
+          </div>
+        </div>
+
+        {/* 14. Satellite - Grid Position 14 */}
+        <div
+          className="absolute w-8 h-6 animate-float-slow opacity-40"
+          style={{
+            top: '18%',
+            left: '5%',
+            transform: 'translateX(8px) translateY(-5px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-3 bg-[#131D4F] rounded"></div>
+            <div className="absolute top-0 left-0 w-2 h-1 bg-[#254D70]"></div>
+            <div className="absolute top-0 right-0 w-2 h-1 bg-[#254D70]"></div>
+            <div className="absolute bottom-0 left-1/4 w-1 h-2 bg-[#954C2E]"></div>
+            <div className="absolute bottom-0 right-1/4 w-1 h-2 bg-[#954C2E]"></div>
+          </div>
+        </div>
+
+        {/* 15. Rocket - Grid Position 15 */}
+        <div
+          className="absolute w-4 h-10 animate-float-slow opacity-40"
+          style={{
+            top: '92%',
+            left: '58%',
+            transform: 'translateX(-8px) translateY(-15px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-[#254D70] rounded-t-full"></div>
+            <div className="absolute top-3 left-1/2 transform -translate-x-1/2 w-4 h-5 bg-[#EFE4D2] border border-[#131D4F]"></div>
+            <div className="absolute bottom-0 left-0 w-1 h-2 bg-[#954C2E]"></div>
+            <div className="absolute bottom-0 right-0 w-1 h-2 bg-[#954C2E]"></div>
+            <div className="absolute top-5 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-[#131D4F] rounded-full"></div>
+          </div>
+        </div>
+
+        {/* 16. Planet - Grid Position 16 */}
+        <div
+          className="absolute w-9 h-9 animate-spin-slow opacity-40"
+          style={{
+            top: '38%',
+            left: '92%',
+            transform: 'translateX(-18px) translateY(5px)',
+          }}
+        >
+          <div className="w-full h-full relative">
+            <div className="absolute inset-0 bg-[#254D70] rounded-full"></div>
+            <div className="absolute top-1 left-1 w-2 h-2 bg-[#954C2E] rounded-full opacity-40"></div>
+            <div className="absolute bottom-2 right-2 w-1 h-1 bg-[#EFE4D2] rounded-full"></div>
+            <div className="absolute top-1/2 left-0 right-0 h-px bg-[#131D4F] transform -rotate-12"></div>
+          </div>
         </div>
       </div>
 
-      {/* 2. Atom - Grid Position 2 */}
-      <div
-        className="absolute w-8 h-8 animate-spin-slow opacity-40"
-        style={{
-          top: '15%',
-          left: '78%',
-          transform: 'translateX(-8px) translateY(12px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-[#254D70] rounded-full"></div>
-          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-full h-px bg-[#954C2E] origin-center"></div>
-          <div className="absolute top-1/2 left-0 transform -translate-y-1/2 w-full h-px bg-[#954C2E] origin-center rotate-60"></div>
-          <div className="absolute top-1/2 left-0 transform -translate-y-1/2 w-full h-px bg-[#954C2E] origin-center -rotate-60"></div>
-          <div className="absolute top-0 left-0 w-1.5 h-1.5 bg-[#131D4F] rounded-full"></div>
-          <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-[#131D4F] rounded-full"></div>
-          <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 bg-[#131D4F] rounded-full"></div>
-        </div>
-      </div>
+      {/* Content Container - Scrollable */}
+      <div className="h-full w-full overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center px-6 py-12">
+          <div className="w-full max-w-sm">
+            {/* Section */}
 
-      {/* 3. Test Tube - Grid Position 3 */}
-      <div
-        className="absolute w-3 h-12 animate-float-slow opacity-40"
-        style={{
-          top: '25%',
-          left: '35%',
-          transform: 'translateX(15px) translateY(-5px)',
-        }}
-      >
-        <div className="w-full h-full bg-[#254D70] relative rounded-b-full">
-          <div className="absolute top-0 left-0 w-full h-2 bg-[#131D4F] rounded-t"></div>
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-2 h-6 bg-[#954C2E] rounded opacity-40"></div>
-        </div>
-      </div>
-
-      {/* 4. Magnifying Glass - Grid Position 4 */}
-      <div
-        className="absolute w-8 h-8 animate-float opacity-40"
-        style={{
-          top: '32%',
-          left: '85%',
-          transform: 'translateX(-12px) translateY(8px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute top-0 left-0 w-5 h-5 border-2 border-[#254D70] rounded-full"></div>
-          <div className="absolute bottom-0 right-0 w-4 h-4 bg-[#131D4F] transform rotate-45 rounded-sm"></div>
-        </div>
-      </div>
-
-      {/* 5. Flask - Grid Position 5 */}
-      <div
-        className="absolute w-6 h-9 animate-float-slow opacity-40"
-        style={{
-          top: '42%',
-          left: '8%',
-          transform: 'translateX(10px) translateY(-8px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-2 h-3 bg-[#131D4F]"></div>
-          <div className="absolute bottom-0 left-0 w-full h-6 bg-[#254D70] rounded-b-lg"></div>
-          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-3 bg-[#954C2E] rounded opacity-40"></div>
-        </div>
-      </div>
-
-      {/* 6. Gear - Grid Position 6 */}
-      <div
-        className="absolute w-7 h-7 animate-spin-slow opacity-40"
-        style={{
-          top: '48%',
-          left: '62%',
-          transform: 'translateX(6px) translateY(15px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute inset-1 bg-[#131D4F] rounded-full"></div>
-          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-1 h-2 bg-[#254D70]"></div>
-          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-2 bg-[#254D70]"></div>
-          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-2 h-1 bg-[#254D70]"></div>
-          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-2 h-1 bg-[#254D70]"></div>
-        </div>
-      </div>
-
-      {/* 7. Compass - Grid Position 7 */}
-      <div
-        className="absolute w-6 h-6 animate-spin-slow opacity-40"
-        style={{
-          top: '55%',
-          left: '28%',
-          transform: 'translateX(-8px) translateY(12px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute inset-0 border-2 border-[#254D70] rounded-full"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-1 h-3 bg-[#954C2E]"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-1 bg-[#131D4F]"></div>
-        </div>
-      </div>
-
-      {/* 8. Telescope - Grid Position 8 */}
-      <div
-        className="absolute w-10 h-4 animate-float opacity-40"
-        style={{
-          top: '62%',
-          left: '88%',
-          transform: 'translateX(-15px) translateY(-3px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-6 h-3 bg-[#131D4F] rounded-l-full"></div>
-          <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-4 h-2 bg-[#254D70] rounded-r-full"></div>
-          <div className="absolute left-5 top-1/2 transform -translate-y-1/2 w-1 h-4 bg-[#954C2E]"></div>
-        </div>
-      </div>
-
-      {/* 9. Thermometer - Grid Position 9 */}
-      <div
-        className="absolute w-2 h-12 animate-float-slow opacity-40"
-        style={{
-          top: '68%',
-          left: '15%',
-          transform: 'translateX(12px) translateY(-10px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute top-0 left-0 w-full h-8 bg-[#EFE4D2] rounded-t-full border border-[#254D70]"></div>
-          <div className="absolute bottom-0 left-0 w-full h-4 bg-[#954C2E] rounded-full"></div>
-          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-px h-4 bg-[#131D4F]"></div>
-        </div>
-      </div>
-
-      {/* 10. Scale - Grid Position 10 */}
-      <div
-        className="absolute w-8 h-6 animate-float opacity-40"
-        style={{
-          top: '75%',
-          left: '45%',
-          transform: 'translateX(-5px) translateY(8px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-4 bg-[#131D4F]"></div>
-          <div className="absolute top-0 left-0 w-3 h-2 bg-[#254D70] rounded"></div>
-          <div className="absolute top-0 right-0 w-3 h-2 bg-[#954C2E] rounded"></div>
-          <div className="absolute top-1 left-1/2 transform -translate-x-1/2 w-4 h-px bg-[#131D4F]"></div>
-        </div>
-      </div>
-
-      {/* 11. Prism - Grid Position 11 */}
-      <div
-        className="absolute w-6 h-4 animate-float-slow opacity-40"
-        style={{
-          top: '82%',
-          left: '72%',
-          transform: 'translateX(8px) translateY(-12px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute inset-0 bg-[#EFE4D2] transform skew-x-12 border border-[#254D70]"></div>
-          <div className="absolute top-1 left-1 w-1 h-1 bg-[#954C2E] rounded-full"></div>
-          <div className="absolute bottom-1 right-1 w-1 h-1 bg-[#131D4F] rounded-full"></div>
-        </div>
-      </div>
-
-      {/* 12. Hourglass - Grid Position 12 */}
-      <div
-        className="absolute w-4 h-8 animate-float opacity-40"
-        style={{
-          top: '88%',
-          left: '22%',
-          transform: 'translateX(-10px) translateY(-8px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute top-0 left-0 w-full h-2 bg-[#131D4F] rounded-t"></div>
-          <div className="absolute bottom-0 left-0 w-full h-2 bg-[#131D4F] rounded-b"></div>
-          <div
-            className="absolute top-2 left-1/2 transform -translate-x-1/2 w-2 h-4 bg-[#EFE4D2] border-l-2 border-r-2 border-[#254D70]"
-            style={{ clipPath: 'polygon(0 0, 100% 0, 50% 50%, 100% 100%, 0 100%, 50% 50%)' }}
-          ></div>
-          <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 w-3 h-1 bg-[#954C2E] opacity-40"></div>
-        </div>
-      </div>
-
-      {/* 13. Crystal - Grid Position 13 */}
-      <div
-        className="absolute w-5 h-7 animate-float opacity-40"
-        style={{
-          top: '5%',
-          left: '52%',
-          transform: 'translateX(12px) translateY(18px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div
-            className="absolute top-0 left-1/2 transform -translate-x-1/2 w-3 h-2 bg-[#EFE4D2] border border-[#254D70]"
-            style={{ clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }}
-          ></div>
-          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-[#EFE4D2] border border-[#254D70]"></div>
-          <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-1 h-3 bg-[#954C2E] opacity-40"></div>
-        </div>
-      </div>
-
-      {/* 14. Satellite - Grid Position 14 */}
-      <div
-        className="absolute w-8 h-6 animate-float-slow opacity-40"
-        style={{
-          top: '18%',
-          left: '5%',
-          transform: 'translateX(8px) translateY(-5px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-3 bg-[#131D4F] rounded"></div>
-          <div className="absolute top-0 left-0 w-2 h-1 bg-[#254D70]"></div>
-          <div className="absolute top-0 right-0 w-2 h-1 bg-[#254D70]"></div>
-          <div className="absolute bottom-0 left-1/4 w-1 h-2 bg-[#954C2E]"></div>
-          <div className="absolute bottom-0 right-1/4 w-1 h-2 bg-[#954C2E]"></div>
-        </div>
-      </div>
-
-      {/* 15. Rocket - Grid Position 15 */}
-      <div
-        className="absolute w-4 h-10 animate-float-slow opacity-40"
-        style={{
-          top: '92%',
-          left: '58%',
-          transform: 'translateX(-8px) translateY(-15px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-[#254D70] rounded-t-full"></div>
-          <div className="absolute top-3 left-1/2 transform -translate-x-1/2 w-4 h-5 bg-[#EFE4D2] border border-[#131D4F]"></div>
-          <div className="absolute bottom-0 left-0 w-1 h-2 bg-[#954C2E]"></div>
-          <div className="absolute bottom-0 right-0 w-1 h-2 bg-[#954C2E]"></div>
-          <div className="absolute top-5 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-[#131D4F] rounded-full"></div>
-        </div>
-      </div>
-
-      {/* 16. Planet - Grid Position 16 */}
-      <div
-        className="absolute w-9 h-9 animate-spin-slow opacity-40"
-        style={{
-          top: '38%',
-          left: '92%',
-          transform: 'translateX(-18px) translateY(5px)',
-        }}
-      >
-        <div className="w-full h-full relative">
-          <div className="absolute inset-0 bg-[#254D70] rounded-full"></div>
-          <div className="absolute top-1 left-1 w-2 h-2 bg-[#954C2E] rounded-full opacity-40"></div>
-          <div className="absolute bottom-2 right-2 w-1 h-1 bg-[#EFE4D2] rounded-full"></div>
-          <div className="absolute top-1/2 left-0 right-0 h-px bg-[#131D4F] transform -rotate-12"></div>
-        </div>
-      </div>
-      <div className="min-h-screen flex items-center justify-center px-6">
-        <div className="w-full max-w-sm">
-          {/* Section */}
-
-          {/* Sign In Section */}
-          <div className="space-y-8">
+            {/* Sign In Section */}
+            <div className="space-y-8">
             {/* Google Sign-in Button */}
 
             <button
@@ -399,6 +403,7 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
