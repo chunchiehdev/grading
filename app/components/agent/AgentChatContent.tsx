@@ -247,7 +247,8 @@ export function AgentChatContent() {
 
   const handleExampleClick = useCallback((text: string) => {
     setInput(text);
-    setShowWelcome(false);
+    // Don't hide welcome here - keep it visible until message is actually sent
+    // This prevents the empty state where flex-1 area has no content
     inputRef.current?.focus();
   }, []);
 
@@ -328,12 +329,7 @@ export function AgentChatContent() {
           }}
         />
         
-        <div 
-          className="bg-background"
-          style={{
-            paddingBottom: 'max(1rem, env(safe-area-inset-bottom))'
-          }}
-        >
+        <div className="bg-background pb-4">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-4">
             {/* Token Limit Warning */}
             {(tokenLimitExceeded || tokenLimitWarning) && (

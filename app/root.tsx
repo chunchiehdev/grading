@@ -239,7 +239,7 @@ function Document({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+          content="width=device-width, initial-scale=1"
         />
         {/* Theme color for Safari toolbar - matches page background */}
         <meta name="theme-color" content="#F0EEEB" media="(prefers-color-scheme: light)" />
@@ -314,7 +314,7 @@ function Layout() {
   // Unified layout structure for all route types
   // Using Flexbox layout (Option B) - h-[100dvh] prevents scrollbar when content fits and handles iOS address bar
   return (
-    <div className="h-screen-safe w-full flex flex-col bg-background">
+    <div className="h-screen w-full flex flex-col bg-background">
       {/* Initialize Zustand store with server-provided notification data */}
       {user?.role === 'TEACHER' && <StoreInitializer unreadNotifications={unreadNotifications} />}
 
