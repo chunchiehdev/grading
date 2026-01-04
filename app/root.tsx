@@ -325,7 +325,7 @@ function Layout() {
       )}
 
       {/* Main content area - fills remaining space */}
-      <main className="flex-1 relative">
+      <main className="flex-1 min-h-0 relative">
         {!isPublicPath && !isFullWidth ? (
           // Protected paths with padding: standard layout with responsive padding
           <div className="h-full overflow-y-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">

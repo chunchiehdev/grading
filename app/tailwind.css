@@ -10,6 +10,16 @@
     height: -webkit-fill-available;
   }
 
+  /* iOS 26 Safari: bottom fixed elements need safe area padding */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  
+  /* For elements that need to extend into safe area (full bleed) */
+  .pb-safe-or-4 {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  }
+
   .btn-primary {
     @apply px-4 py-2 rounded-md bg-primary text-primary-foreground 
            hover:bg-primary/90 
