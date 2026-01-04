@@ -73,7 +73,7 @@ export default function AgentPlaygroundLayout() {
   }, [navigate, setMobileHistoryOpen]);
 
   return (
-    <div className="h-screen-safe w-full flex bg-background">
+    <div className="h-full w-full flex bg-background">
       {/* =================================================================
           LEFT: Sidebar (Full-height, spans from top to bottom)
           Desktop: 

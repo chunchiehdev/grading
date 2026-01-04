@@ -271,13 +271,13 @@ export function AgentChatContent() {
       )}
 
       {/* Messages Area - scrollable, fills remaining space */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         <div
-          className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-8"
+          className="h-full mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 flex flex-col"
         >
           {showWelcome && messages.length === 0 && (
-            <div className="flex items-center justify-center min-h-[60vh]">
-              <div className="max-w-2xl w-full space-y-8 text-center">
+            <div className="flex-1 flex items-center justify-center py-8">
+              <div className="max-w-2xl w-full space-y-6 sm:space-y-8 text-center">
                 {/* Welcome Header */}
                 <div className="space-y-3">
                   <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
@@ -302,12 +302,14 @@ export function AgentChatContent() {
             </div>
           )}
 
-          <div className="space-y-6">
-            {messages.map((message) => (
-              <MessageBubbleWithSteps key={message.id} message={message} user={user} />
-            ))}
+          {/* Messages - only show when there are messages */}
+          {messages.length > 0 && (
+            <div className="space-y-6 py-8">
+              {messages.map((message) => (
+                <MessageBubbleWithSteps key={message.id} message={message} user={user} />
+              ))}
 
-            {isLoading && (
+              {isLoading && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span className="text-sm">{t('status.thinking')}</span>
@@ -321,7 +323,8 @@ export function AgentChatContent() {
             )}
 
             <div ref={messagesEndRef} />
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
