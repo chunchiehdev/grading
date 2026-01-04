@@ -29,31 +29,25 @@ const HeroSection = () => {
   }, [user]);
 
   return (
-    <div className="h-full w-full flex items-center justify-center border-2 border-dashed border-red-500 p-4">
-      <p className="text-red-500 font-bold">Hero Section Content Hidden for Debugging</p>
-    </div>
-  );
-
-  return (
-    <section className="h-full w-full flex flex-col justify-center">
-      <div className="w-full px-6 lg:px-12 xl:px-20 py-4 sm:py-12 lg:py-20">
+    <section className="h-full w-full flex flex-col justify-center overflow-y-auto overflow-x-hidden">
+      <div className="w-full min-h-full flex flex-col justify-center px-6 lg:px-12 xl:px-20 py-4 sm:py-12 lg:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center">
           {/* Text Content */}
-          <div className="lg:col-span-7 space-y-10 order-2 lg:order-1">
-            <div className="space-y-8 min-h-[180px] sm:min-h-[200px] ">
+          <div className="lg:col-span-7 space-y-8 sm:space-y-10 order-2 lg:order-1">
+            <div className="space-y-6 sm:space-y-8 min-h-0 sm:min-h-[200px]">
               <AnimatedTitle
                 text={t('landing:hero.title')}
-                className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl 2xl:text-8xl 4xl:text-9xl font-extralight text-foreground leading-[1.1] tracking-tight"
+                className="text-4xl sm:text-6xl lg:text-7xl xl:text-8xl 2xl:text-8xl 4xl:text-9xl font-extralight text-foreground leading-[1.1] tracking-tight"
               />
 
               <div className="w-20 h-px bg-border"></div>
 
-              <p className="text-lg lg:text-xl text-muted-foreground font-light leading-relaxed max-w-lg">
+              <p className="text-base sm:text-lg lg:text-xl text-muted-foreground font-light leading-relaxed max-w-lg">
                 {t('landing:hero.subtitle')}
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 lg:pt-6">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 lg:pt-6 pb-4 sm:pb-0">
               <Link
                 to={primaryButtonTarget}
                 prefetch="viewport"
@@ -84,7 +78,7 @@ const HeroSection = () => {
               fetchPriority='high'
               decoding='async'
               alt={t('landing:hero.heroImageAlt')}
-              className="w-full h-auto max-h-[40vh] sm:max-h-none object-cover xl:scale-110 max-w-lg xl:max-w-xl 2xl:max-w-8xl"
+              className="w-full h-auto max-h-[30vh] sm:max-h-none object-cover xl:scale-110 max-w-lg xl:max-w-xl 2xl:max-w-8xl"
               
             />
           </div>
