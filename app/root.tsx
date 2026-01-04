@@ -314,7 +314,7 @@ function Layout() {
   // Unified layout structure for all route types
   // Using Flexbox layout (Option B) - h-[100dvh] prevents scrollbar when content fits and handles iOS address bar
   return (
-    <div className="h-screen w-full flex flex-col bg-background">
+    <div className="h-dvh w-full flex flex-col bg-background">
       {/* Initialize Zustand store with server-provided notification data */}
       {user?.role === 'TEACHER' && <StoreInitializer unreadNotifications={unreadNotifications} />}
 
