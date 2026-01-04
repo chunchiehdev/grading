@@ -271,65 +271,56 @@ export function AgentChatContent() {
       )}
 
       {/* Messages Area - scrollable, fills remaining space */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div
-          className="h-full mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 flex flex-col"
-        >
-          {showWelcome && messages.length === 0 && (
-            <div className="flex-1 flex items-center justify-center py-8">
-              <div className="max-w-2xl w-full space-y-6 sm:space-y-8 text-center">
-                {/* Welcome Header */}
-                <div className="space-y-3">
-                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                    {t('welcome.title', { name: user?.name || user?.email?.split('@')[0] || 'there' })}
-                  </h1>
-                  <p className="text-sm sm:text-base text-muted-foreground">
-                    {t('welcome.subtitle')}
-                  </p>
-                </div>
-
-                {/* Example Prompts */}
-                <div className="space-y-4">
-                  <p className="text-xs sm:text-sm font-medium text-muted-foreground">{t('welcome.tryAsking')}</p>
-                  <div className="grid gap-3 max-w-lg mx-auto">
-                    <ExamplePrompt text={t('examples.pendingAssignments')} onClick={handleExampleClick} />
-                    <ExamplePrompt text={t('examples.upcomingDeadlines')} onClick={handleExampleClick} />
-                    <ExamplePrompt text={t('examples.courses')} onClick={handleExampleClick} />
-                    <ExamplePrompt text={t('examples.recentGrades')} onClick={handleExampleClick} />
-                  </div>
+      <div className="flex-1 overflow-y-auto min-h-0 mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
+        {/* Welcome Screen - centered */}
+        {showWelcome && messages.length === 0 && (
+          <div className="h-full flex items-center justify-center py-8">
+            <div className="max-w-2xl w-full space-y-6 sm:space-y-8 text-center">
+              <div className="space-y-3">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                  {t('welcome.title', { name: user?.name || user?.email?.split('@')[0] || 'there' })}
+                </h1>
+                <p className="text-sm sm:text-base text-muted-foreground">
+                  {t('welcome.subtitle')}
+                </p>
+              </div>
+              <div className="space-y-4">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground">{t('welcome.tryAsking')}</p>
+                <div className="grid gap-3 max-w-lg mx-auto">
+                  <ExamplePrompt text={t('examples.pendingAssignments')} onClick={handleExampleClick} />
+                  <ExamplePrompt text={t('examples.upcomingDeadlines')} onClick={handleExampleClick} />
+                  <ExamplePrompt text={t('examples.courses')} onClick={handleExampleClick} />
+                  <ExamplePrompt text={t('examples.recentGrades')} onClick={handleExampleClick} />
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Messages - only show when there are messages */}
-          {messages.length > 0 && (
-            <div className="space-y-6 py-8">
-              {messages.map((message) => (
-                <MessageBubbleWithSteps key={message.id} message={message} user={user} />
-              ))}
-
-              {isLoading && (
+        {/* Messages List */}
+        {messages.length > 0 && (
+          <div className="space-y-6 py-8">
+            {messages.map((message) => (
+              <MessageBubbleWithSteps key={message.id} message={message} user={user} />
+            ))}
+            {isLoading && (
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span className="text-sm">{t('status.thinking')}</span>
               </div>
             )}
-
             {error && (
               <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
                 <p className="text-sm text-destructive">{t('error.prefix')} {error.message}</p>
               </div>
             )}
-
             <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Input Area - fixed at bottom, won't shrink */}
-      <div className="flex-shrink-0 relative">
+      {/* Input Area - always at bottom */}
+      <div className="flex-shrink-0 bg-background relative">
         <div 
           className="absolute bottom-full left-0 right-0 h-16 pointer-events-none"
           style={{
@@ -443,10 +434,7 @@ export function AgentChatContent() {
               </Button>
             </form>
 
-            {/* Disclaimer */}
-            <p className="text-center text-xs text-muted-foreground/60 mt-3">
-              {t('disclaimer', 'AI 可能會犯錯，請仔細檢查重要資訊')}
-            </p>
+            
           </div>
         </div>
       </div>
