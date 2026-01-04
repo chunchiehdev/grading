@@ -29,6 +29,12 @@ const HeroSection = () => {
   }, [user]);
 
   return (
+    <div className="h-full w-full flex items-center justify-center border-2 border-dashed border-red-500 p-4">
+      <p className="text-red-500 font-bold">Hero Section Content Hidden for Debugging</p>
+    </div>
+  );
+
+  return (
     <section className="h-full w-full flex flex-col justify-center">
       <div className="w-full px-6 lg:px-12 xl:px-20 py-4 sm:py-12 lg:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center">
@@ -86,6 +92,7 @@ const HeroSection = () => {
       </div>
     </section>
   );
+ 
 };
 
 export { HeroSection };
