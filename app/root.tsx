@@ -234,7 +234,7 @@ export async function loader({ request }: { request: Request }) {
 
 function Document({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-TW" suppressHydrationWarning>
+    <html lang="zh-TW" suppressHydrationWarning className="h-full">
       <head>
         <meta charSet="utf-8" />
         <meta
