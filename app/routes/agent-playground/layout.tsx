@@ -73,7 +73,7 @@ export default function AgentPlaygroundLayout() {
   }, [navigate, setMobileHistoryOpen]);
 
   return (
-    <div className="h-[100dvh] w-full flex overflow-hidden bg-background">
+    <div className="h-screen-safe w-full flex bg-background">
       {/* =================================================================
           LEFT: Sidebar (Full-height, spans from top to bottom)
           Desktop: 
@@ -114,7 +114,7 @@ export default function AgentPlaygroundLayout() {
 
         {/* Expanded state: Full sidebar with header */}
         {showHistory && (
-          <div className="w-72 h-full flex flex-col overflow-hidden">
+          <div className="w-72 h-full flex flex-col">
             {/* Sidebar Header with hamburger to collapse */}
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <Button
@@ -163,12 +163,12 @@ export default function AgentPlaygroundLayout() {
       {/* =================================================================
           RIGHT: NavHeader + Main Content (vertical flex column)
           ================================================================= */}
-      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col h-full">
         {/* NavHeader - scoped to right section only */}
         <NavHeader className="flex-shrink-0 bg-background" />
 
         {/* Main Chat Area */}
-        <main className="flex-1 min-h-0 relative overflow-hidden">
+        <main className="flex-1 min-h-0 relative">
           {/* Child Route Content (AgentChatContent) */}
           <Outlet />
         </main>

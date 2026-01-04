@@ -14,8 +14,8 @@ export default {
         '9xl': '1600px',
       },
       fontFamily: {
-        sans: ['Noto Serif TC', 'serif'],
-        serif: ['Noto Serif TC', 'serif'],
+        sans: ['Noto Serif TC', 'sans-serif'],
+        serif: ['Playfair Display', 'Noto Serif TC', 'serif'],
       },
       colors: {
         border: 'hsl(var(--border))',

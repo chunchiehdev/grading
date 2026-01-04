@@ -67,6 +67,10 @@ export const links = () => [
     href: 'https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700&display=swap',
   },
   {
+    rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap',
+  },
+  {
     rel: 'modulepreload',
     href: 'https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs',
   },
@@ -308,9 +312,9 @@ function Layout() {
   }, [toast]);
 
   // Unified layout structure for all route types
-  // Using Flexbox layout (Option B) - h-screen prevents scrollbar when content fits
+  // Using Flexbox layout (Option B) - h-[100dvh] prevents scrollbar when content fits and handles iOS address bar
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden bg-background">
+    <div className="h-screen-safe w-full flex flex-col bg-background">
       {/* Initialize Zustand store with server-provided notification data */}
       {user?.role === 'TEACHER' && <StoreInitializer unreadNotifications={unreadNotifications} />}
 
@@ -321,7 +325,7 @@ function Layout() {
       )}
 
       {/* Main content area - fills remaining space */}
-      <main className="flex-1 overflow-hidden relative">
+      <main className="flex-1 relative">
         {!isPublicPath && !isFullWidth ? (
           // Protected paths with padding: standard layout with responsive padding
           <div className="h-full overflow-y-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 3xl:px-20 4xl:px-24 py-6">

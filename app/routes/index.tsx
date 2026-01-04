@@ -1,24 +1,12 @@
 import { useRouteError, isRouteErrorResponse } from 'react-router';
-import { useState } from 'react';
-import { HeroSection } from '@/components/landing/HeroSection';
+import { PrismaLanding } from '@/components/landing/PrismaLanding';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 
 /**
- * Landing page with loading screen
+ * Landing page - Prisma: Modern Human-Centric Minimalist Design
  */
-export default function WabiSabiLanding() {
-  const [isLoading, setIsLoading] = useState(true);
-
-  const handleLoadingComplete = () => {
-    setIsLoading(false);
-  };
-
-  return (
-    <>
-      {/* {isLoading && <LoadingScreen onComplete={handleLoadingComplete} />} */}
-      <HeroSection />
-    </>
-  );
+export default function LandingPage() {
+  return <PrismaLanding />;
 }
 export function ErrorBoundary() {
   const error = useRouteError();

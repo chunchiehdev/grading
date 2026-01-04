@@ -3,6 +3,13 @@
 @tailwind utilities;
 
 @layer components {
+  /* Safari iOS 18+ viewport height fix - fallback stack */
+  .h-screen-safe {
+    height: 100vh;
+    height: 100dvh;
+    height: -webkit-fill-available;
+  }
+
   .btn-primary {
     @apply px-4 py-2 rounded-md bg-primary text-primary-foreground 
            hover:bg-primary/90 
@@ -24,13 +31,9 @@
   /* iOS Safari viewport height fix for bottom address bar */
   html, body {
     height: 100%;
-    /* Use dvh (dynamic viewport height) where supported to handle mobile address bars */
-    height: 100dvh;
     width: 100%;
     margin: 0;
     padding: 0;
-    /* Prevent rubber-banding/bouncing on iOS */
-    overscroll-behavior: none;
     /* Reserve space for scrollbar to prevent layout shift when dialogs/modals open */
     
   }
