@@ -1,8 +1,7 @@
 import { useRouteError, isRouteErrorResponse } from 'react-router';
 import { PrismaLanding } from '@/components/landing/PrismaLanding';
-import { ErrorPage } from '@/components/errors/ErrorPage';
 import { HeroSection } from '@/components/landing/HeroSection';
-import { useState } from 'react';
+import { ErrorPage } from '@/components/errors/ErrorPage';
 
 /**
  * Landing page - Prisma: Modern Human-Centric Minimalist Design
@@ -15,7 +14,7 @@ export default function LandingPage() {
 
   return (
     <>
-      <HeroSection/>
+      <HeroSection />
     </>
   )
 }

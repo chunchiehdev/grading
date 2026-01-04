@@ -104,6 +104,7 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
 
             {/* Logo & Title */}
             <Link to="/" className="flex items-center gap-3">
+              <img src="/homepage.png" alt="Logo" className="w-10 h-10 object-contain" />
               <div className="hidden sm:block text-lg lg:text-xl 2xl:text-2xl font-semibold text-foreground">
                 {title || safeT('title', 'Grading System')}
               </div>
