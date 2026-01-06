@@ -272,11 +272,12 @@ export function AgentChatContent() {
       )}
 
       {/* Messages Area - scrollable, fills remaining space */}
-      <div className="flex-1 overflow-y-auto min-h-0 mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8">
-        {/* Welcome Screen - centered */}
-        {showWelcome && messages.length === 0 && (
-          <div className="h-full flex items-center justify-center py-8">
-            <div className="max-w-2xl w-full space-y-6 sm:space-y-8 text-center">
+      <div className="flex-1 overflow-y-auto min-h-0 w-full">
+        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 min-h-full flex flex-col">
+          {/* Welcome Screen - centered */}
+          {showWelcome && messages.length === 0 && (
+            <div className="flex-1 flex items-center justify-center py-8">
+              <div className="max-w-2xl w-full space-y-6 sm:space-y-8 text-center">
               <div className="space-y-3">
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                   {t('welcome.title', { name: user?.name || user?.email?.split('@')[0] || 'there' })}
@@ -318,6 +319,7 @@ export function AgentChatContent() {
             <div ref={messagesEndRef} />
           </div>
         )}
+        </div>
       </div>
 
       {/* Input Area - always at bottom */}

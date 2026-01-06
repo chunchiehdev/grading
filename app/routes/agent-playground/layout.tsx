@@ -52,7 +52,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 // Layout Component
 // =============================================================================
 export default function AgentPlaygroundLayout() {
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   
   // Global store for mobile sidebar (controlled from NavHeader dropdown)
   const { isMobileHistoryOpen, setMobileHistoryOpen } = useChatHistoryStore();
