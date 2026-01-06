@@ -1,21 +1,75 @@
 {
   "hero": {
     "title": "Lumos Grade",
-    "subtitle": " AI grading for teachers, realtime feedback for students.",
-    "getStarted": "Get Started",
+    "subtitle": "Upload your assignment, AI will follow up on your thoughts, point out blind spots, and help you clarify and understand your arguments.",
+    "getStarted": "Start Challenge",
     "enterSystem": "Enter System",
-    "tryAIAgent": "Try AI Companion",
-    "learnMore": "Learn More",
-    "reLogin": "Re-login",
-    "heroImageAlt": "Student writing assignment with AI-powered grading assistance"
+    "tryAIAgent": "AI Companion",
+    "heroImageAlt": "Student writing assignment with AI smart grading assistance"
   },
-  "features": {
-    "title": "Key Features",
-    "aiGrading": "AI-Powered Grading",
-    "aiGradingDesc": "Use advanced AI technology to provide objective and consistent grading results",
-    "rubricManagement": "Rubric Management",
-    "rubricManagementDesc": "Create and manage detailed rubrics to ensure grading transparency",
-    "realTimeResults": "Real-time Results",
-    "realTimeResultsDesc": "Get quick grading results with detailed feedback suggestions"
+  "philosophy": {
+    "label": "Philosophy",
+    "title": "The Tension of Dialectic",
+    "description": "True insight is often formed in the tension of differing opinions. We introduce <1>'Productive Resistance'</1>, enabling AI not just to grade, but to constantly question and challenge, inviting you to defend your views and refine your reasoning in dialogue, transforming grading into a two-way thinking training.",
+    "points": {
+      "socratic": {
+        "title": "Socratic Inquiry",
+        "desc": " — Not just telling you what's wrong, but asking you why"
+      },
+      "dialectic": {
+        "title": "Dialectic Exchange",
+        "desc": " — Accompanying you to clarify and complete your thoughts"
+      }
+    }
+  },
+  "methodology": {
+    "label": "Methodology",
+    "title": "Three Steps from Idea to Feedback",
+    "steps": {
+      "featureExtraction": {
+        "title": "Understanding How You Think",
+        "desc": "AI identifies your current claims, evidence, and inference relationships as the basis for follow-up questions and responses."
+      },
+      "ruleBased": {
+        "title": "Follow-up Questions Based on Standards",
+        "desc": "Every piece of feedback is grounded; you can understand where the problem lies and answer again with your own thinking."
+      },
+      "iterative": {
+        "title": "Iterative Refinement in Feedback",
+        "desc": "Each response becomes the starting point for the next round of thinking, allowing the assignment to be not just graded, but rethought."
+      }
+    }
+  },
+  "growth": {
+    "label": "Growth",
+    "title": "A Mirror of <1>Thought</1>",
+    "description": "Lumos Grade is not just a grading tool, but a mirror that reflects the thinking process. By recording your <1>'thoughts'</1> and revised viewpoints during the dialogue, we visualize the implicit thinking process. What you see is not just a score, but how ideas are clarified step by step.",
+    "points": {
+      "mirroring": {
+        "title": "See Your Thinking Blind Spots",
+        "desc": " — See where you tend to overlook or get confused in your thinking"
+      },
+      "declaration": {
+        "title": "Anchor Your Stance",
+        "desc": " — Helps you clearly express your claims, making them easier to be questioned"
+      },
+      "archaeology": {
+        "title": "Review Thought Process",
+        "desc": " — See how your ideas have been revised and improved"
+      }
+    }
+  },
+  "cta": {
+    "title": "Ready to Have Your <1>Ideas</1> Questioned?",
+    "subtitle": "Join those who pursue understanding rather than scores, and let every piece of feedback promote your thinking.",
+    "button": {
+      "guest": "Start Thinking Challenge",
+      "user": "Enter the Loop"
+    }
+  },
+  "footer": {
+    "quote": "\"Lumos Grade is a tool for thought, not just for efficiency.\"",
+    "author": "— Inspired by Microsoft Research"
   }
 }
+

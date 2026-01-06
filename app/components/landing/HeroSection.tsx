@@ -29,7 +29,7 @@ const HeroSection = () => {
   }, [user]);
 
   return (
-    <section className="h-full w-full flex flex-col justify-center overflow-y-auto overflow-x-hidden">
+    <section className="min-h-screen w-full flex flex-col justify-center overflow-x-hidden">
       <div className="w-full min-h-full flex flex-col justify-center px-6 lg:px-12 xl:px-20 py-4 sm:py-12 lg:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center">
           {/* Text Content */}

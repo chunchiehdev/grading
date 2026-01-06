@@ -1,21 +1,74 @@
 {
   "hero": {
     "title": "Lumos Grade",
-    "subtitle": "AI 幫老師輕鬆評分，學生即時收到回饋，加快學習速度。",
-    "getStarted": "開始使用",
+    "subtitle": "上傳你的作業，AI 會追問你的想法、指出盲點，讓你把論點說清楚、想明白。",
+    "getStarted": "開始挑戰",
     "enterSystem": "進入系統",
     "tryAIAgent": "AI 學伴",
-    "learnMore": "了解更多",
-    "reLogin": "重新登入",
     "heroImageAlt": "學生撰寫作業，搭配 AI 智慧評分輔助"
   },
-  "features": {
-    "title": "主要功能",
-    "aiGrading": "AI 智慧",
-    "aiGradingDesc": "使用先進的 AI 技術提供客觀、一致的評分結果",
-    "rubricManagement": "評分標準管理",
-    "rubricManagementDesc": "建立和管理詳細的評分標準，確保評分的透明度",
-    "realTimeResults": "即時結果",
-    "realTimeResultsDesc": "快速獲得評分結果和詳細的回饋建議"
+  "philosophy": {
+    "label": "理念",
+    "title": "思辨的張力",
+    "description": "真正深刻的觀點，往往是在不同意見的拉扯中形成。我們引入<1>「有益的阻力」</1>，讓 AI 不只是給分，而是不斷提問、提出質疑，邀請你在對話中為觀點辯護、修正推理，將評分轉化為一場雙向的思考訓練。",
+    "points": {
+      "socratic": {
+        "title": "蘇格拉底式詰問",
+        "desc": " — 不只告訴你錯哪，而是一直問你為什麼"
+      },
+      "dialectic": {
+        "title": "辯證式交流",
+        "desc": " — 陪你把想法說清楚、說完整"
+      }
+    }
+  },
+  "methodology": {
+    "label": "方法論",
+    "title": "從想法到回饋的三步",
+    "steps": {
+      "featureExtraction": {
+        "title": "看懂你在怎麼想",
+        "desc": "AI 會辨識你當下的主張、依據與推論關係，作為後續追問與回應的基礎。"
+      },
+      "ruleBased": {
+        "title": "根據教師設立的標準提出追問",
+        "desc": "每個回饋都有依據，你可以理解問題所在，並用自己的思考再次回答。"
+      },
+      "iterative": {
+        "title": "在回饋中反覆修正",
+        "desc": "每一次回應都成為下一輪思考的起點，讓作業不只是被評分，而是被重新思考。"
+      }
+    }
+  },
+  "growth": {
+    "label": "成長",
+    "title": "思想的<1>一面鏡子</1>",
+    "description": "Lumos Grade 不只是評分工具，更是一面呈現思考過程的鏡子。透過紀錄你在對話中的<1>「想法」</1>與修正的觀點，我們將隱性的思考過程具象化。你看見的不只是分數，而是想法如何一步步被釐清的過程。",
+    "points": {
+      "mirroring": {
+        "title": "看見你的思考盲點",
+        "desc": " — 看到你思考中容易忽略或混亂的地方"
+      },
+      "declaration": {
+        "title": "固定你的立場",
+        "desc": " — 幫助你明確表達主張，方便被追問"
+      },
+      "archaeology": {
+        "title": "回顧思路歷程",
+        "desc": " — 看到你的想法如何被修正和提升"
+      }
+    }
+  },
+  "cta": {
+    "title": "準備好讓你的<1>想法</1>被追問了嗎？",
+    "subtitle": "和追求理解而非分數的人一起，讓每次回饋都促進你的思考。",
+    "button": {
+      "guest": "開始思考挑戰",
+      "user": "進入循環"
+    }
+  },
+  "footer": {
+    "quote": "\"Lumos Grade 是思考的工具，而不僅是效率的工具。\"",
+    "author": "— 靈感來自微軟研究院"
   }
 }

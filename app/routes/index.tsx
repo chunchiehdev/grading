@@ -1,5 +1,5 @@
 import { useRouteError, isRouteErrorResponse } from 'react-router';
-import { PrismaLanding } from '@/components/landing/PrismaLanding';
+import { PrismaLanding } from '@/components/landing/EntireLanding';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 
@@ -14,7 +14,7 @@ export default function LandingPage() {
 
   return (
     <>
-      <HeroSection />
+      <PrismaLanding />
     </>
   )
 }

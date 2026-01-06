@@ -155,7 +155,7 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
                     <img
                       src={user.picture}
                       alt={user.email}
-                      className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full"
+                      className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full border-2 border-[#2B2B2B] dark:border-gray-200"
                       referrerPolicy='no-referrer'
                     />
                   ) : (
@@ -256,7 +256,7 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
                     <img
                       src={user.picture}
                       alt={user.email}
-                      className="w-8 h-8 rounded-full"
+                      className="w-8 h-8 rounded-full border-2 border-[#2B2B2B] dark:border-gray-200"
                       referrerPolicy="no-referrer"
                     />
                   ) : (
