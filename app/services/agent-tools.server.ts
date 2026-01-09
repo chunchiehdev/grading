@@ -113,15 +113,19 @@ export const calculateConfidenceTool = tool({
 export const generateFeedbackTool = tool({
   description: `根據各項評分標準的分數和證據，生成結構化的評分反饋。
 
-  ⚠️ **重要：必須提供完整的 reasoning 欄位！**
+  ⚠️ **重要：以下欄位為必填！**
   
-  reasoning 欄位必須包含你對這份作業的完整評分推理：
-  - 對每個評分項目的逐項分析
-  - 引用學生原文作為證據（用「」標示）
-  - 解釋為什麼給這個分數
-  - 指出優點和可改進之處
+  1. **reasoning** - 完整的評分推理過程：
+     - 對每個評分項目的逐項分析
+     - 引用學生原文作為證據（用「」標示）
+     - 解釋為什麼給這個分數
+     - 指出優點和可改進之處
   
-  這個推理過程會顯示給教師和學生看，讓他們理解你的評分邏輯。
+  2. **sparringQuestions** - 對練問題【必填！】：
+     - 至少生成 1 個挑戰性問題
+     - 選擇學生表現最弱的評分維度
+     - 必須包含：related_rubric_id, target_quote, provocation_strategy, question, ai_hidden_reasoning
+     - 這是系統核心功能，缺少會導致錯誤
   
   此工具會：
   1. 保存你的評分推理過程
@@ -129,12 +133,29 @@ export const generateFeedbackTool = tool({
   3. 整合各項反饋
   4. 生成整體評語
   5. 計算總分
+  6. 生成對練問題供學生反思
 
   使用時機：完成所有評分標準的評分後，生成最終結果。`,
 
   inputSchema: GenerateFeedbackInputSchema,
 
-  execute: async ({ reasoning, criteriaScores, overallObservation, strengths, improvements, messageToStudent, topPriority, encouragement }) => {
+  execute: async ({ reasoning, criteriaScores, overallObservation, strengths, improvements, messageToStudent, topPriority, encouragement, sparringQuestions }) => {
+    // Debug: Log sparringQuestions input from AI (CRITICAL DEBUG)
+    logger.info(`🎯 [Agent Tool] generate_feedback called - sparringQuestions: ${sparringQuestions ? `YES (${sparringQuestions.length})` : 'NO/UNDEFINED'}`);
+    if (sparringQuestions && sparringQuestions.length > 0) {
+      logger.info(`🎯 [Agent Tool] sparringQuestions[0]: ${JSON.stringify(sparringQuestions[0]).substring(0, 300)}`);
+    }
+
+    // 🔴 Validation Failure Check: Enforce sparringQuestions
+    if (!sparringQuestions || sparringQuestions.length === 0) {
+      const errorMsg = `MISSING REQUIRED FIELD: sparringQuestions.
+You MUST provide at least 1 challenging "sparring question" based on your grading.
+This is a mandatory requirement. Please retry and include the 'sparringQuestions' array.`;
+      
+      logger.warn('[Agent Tool] Validation Failed: Missing sparringQuestions', { errorMsg });
+      throw new Error(errorMsg);
+    }
+    
     // 計算總分
     const totalScore = criteriaScores.reduce((sum: number, c: any) => sum + c.score, 0);
     const maxScore = criteriaScores.reduce((sum: number, c: any) => sum + c.maxScore, 0);
@@ -203,6 +224,7 @@ export const generateFeedbackTool = tool({
       percentage: percentage.toFixed(1),
       hasReasoning: !!reasoning,
       reasoningLength: reasoning?.length || 0,
+      sparringQuestionsCount: sparringQuestions?.length || 0,
     });
 
     return {
@@ -213,6 +235,8 @@ export const generateFeedbackTool = tool({
       maxScore,
       percentage: Math.round(percentage),
       summary: `總分：${totalScore}/${maxScore} (${percentage.toFixed(1)}%)`,
+      // 新增：對練問題（Sparring Questions）
+      sparringQuestions: sparringQuestions || [],
     };
   },
 });

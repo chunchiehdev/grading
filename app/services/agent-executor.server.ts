@@ -124,8 +124,27 @@ function buildGradingSystemPrompt(ctx: GradingContext, isDirectMode: boolean = f
   const lang = ctx.userLanguage || 'zh-TW';
   const isZh = lang.startsWith('zh');
 
+  // CRITICAL: Place sparringQuestions reminder at the very top (LLMs pay more attention to beginning)
+  const criticalReminder = isZh
+    ? `【⚠️ 重要提醒 - 必讀】
+在本次評分中，你**必須**在調用 generate_feedback 時提供 sparringQuestions 欄位。
+這是論文研究的核心功能，無此欄位將導致系統錯誤。
+至少生成 1 個對練問題，選擇學生表現最弱的評分維度。
+
+---
+
+`
+    : `【⚠️ CRITICAL REMINDER - MUST READ】
+When calling generate_feedback, you MUST provide the sparringQuestions field.
+This is a core research feature. Missing this field will cause a system error.
+Generate at least 1 sparring question targeting the student's weakest assessed dimension.
+
+---
+
+`;
+
   const baseRole = isZh
-    ? `你是一位具有 15 年經驗的資深學科教師，專長於寫作教學與形成性評量 (Formative Assessment)。
+    ? `${criticalReminder}你是一位具有 15 年經驗的資深學科教師，專長於寫作教學與形成性評量 (Formative Assessment)。
     你熟悉以下教育評量理論與方法：
     - **Rubric-Based Assessment**（標準本位評量）：使用分析式評分 (Analytic Scoring)
     - **SOLO Taxonomy**：評估學生認知層次（Prestructural → Extended Abstract）
@@ -133,7 +152,7 @@ function buildGradingSystemPrompt(ctx: GradingContext, isDirectMode: boolean = f
     - **Diagnostic Feedback**（診斷性回饋）：指出具體問題並提供可執行的改進建議
 
     你的評分風格嚴謹但具建設性，重視 Evidence-Based Assessment（證據本位評量）。`
-        : `You are a senior subject teacher with 15 years of experience in writing instruction and formative assessment.
+        : `${criticalReminder}You are a senior subject teacher with 15 years of experience in writing instruction and formative assessment.
     You are proficient in the following educational assessment theories and methods:
     - **Rubric-Based Assessment**: Using analytic scoring methodology
     - **SOLO Taxonomy**: Evaluating student cognitive levels (Prestructural → Extended Abstract)
@@ -256,6 +275,22 @@ Revision Strategy：請補充 Statistical Data 或 Scholarly Sources 來強化 E
 - **strengths**: 優點（2-3 個）
 - **improvements**: 改進方向（2-3 個）
 
+### 5. 對練問題（Sparring Questions）【必填！】
+- **sparringQuestions**: 針對學生表現最差或最具爭議的 **1-2 個評分維度** 生成挑戰性問題
+  - 每個問題必須包含：
+    - **related_rubric_id**: 對應的評分標準 ID
+    - **target_quote**: 學生文章中的具體引文
+    - **provocation_strategy**: 選擇策略類型
+      - \`evidence_check\`: 查證數據來源（「你能提供證據支持這個說法嗎？」）
+      - \`logic_gap\`: 指出邏輯跳躍（「從 A 到 B 的推論是否太快？」）
+      - \`counter_argument\`: 提供反方觀點（「有沒有考慮過相反的情況？」）
+      - \`clarification\`: 要求釐清定義（「你說的『XX』具體是指什麼？」）
+      - \`extension\`: 延伸思考（「如果...的話，會怎麼樣？」）
+    - **question**: 直接對學生提出的問題（不要給答案）
+    - **ai_hidden_reasoning**: AI 的真實評分依據（學生回答後才揭曉）
+
+⚠️ **sparringQuestions 是必填的！** 即使作業很好，也要找出可以挑戰思考的點。
+
 ## 語氣區分（最重要！）
 
 | 欄位 | 對象 | 語氣 | 範例 |
@@ -264,8 +299,36 @@ Revision Strategy：請補充 Statistical Data 或 Scholarly Sources 來強化 E
 | **messageToStudent** | 學生 | 像老師說話 | 「你好！這次作業我看到你有自己的想法，不過句子可以再順一點...」 |
 | **analysis** | 學生 | 口語化建議 | 「這個句號放錯位置了喔，應該放在...」 |
 | **justification** | 教師 | 專業簡潔 | 「Mechanics Error 頻繁，符合 Level 1 標準」 |
+| **sparringQuestions.question** | 學生 | 挑戰但不攻擊 | 「你能用更具體的例子來說明嗎？」 |
 
 ⚠️ **messageToStudent 和 analysis 要像「老師在說話」，不是「報告在陳述」！**
+
+## sparringQuestions JSON 範例（必須嚴格遵守此結構）
+
+當你填寫 generate_feedback 的 sparringQuestions 時，請參考此範例：
+
+\`\`\`json
+{
+  "sparringQuestions": [
+    {
+      "related_rubric_id": "evidence_usage",
+      "target_quote": "大部分人都覺得這樣比較好。",
+      "provocation_strategy": "evidence_check",
+      "question": "這是一個很強烈的宣稱。請問『大部分人』具體是指誰？你有相關的統計數據支持嗎？",
+      "ai_hidden_reasoning": "學生使用了 Bandwagon Fallacy (訴諸群眾)，缺乏具體數據支持，評分為 Level 2。"
+    }
+  ]
+}
+\`\`\`
+
+**provocation_strategy 的選項：**
+- \`evidence_check\`: 質疑證據來源
+- \`logic_gap\`: 指出邏輯跳躍  
+- \`counter_argument\`: 提供反面觀點
+- \`clarification\`: 要求釐清概念
+- \`extension\`: 延伸思考
+
+⚠️ **至少生成 1 個 sparringQuestion，即使作業很好也要找出可以挑戰思考的點！**
 `;
 
   const toolGuidance = `
@@ -370,7 +433,18 @@ Revision Strategy：請補充 Statistical Data 或 Scholarly Sources 來強化 E
 這個文字輸出會即時顯示給使用者，展現你的專業分析能力。
 `;
 
-  return `${baseRole}\n${assignmentInfo}\n${rubricInfo}\n${coreInstructions}\n${toolGuidance}\n${mandatoryThinkingInstruction}\n${relevanceCheck}`;
+  // Final reminder at the end (LLMs pay attention to both start and end)
+  const finalReminder = isZh
+    ? `
+
+---
+【最後提醒】調用 generate_feedback 時，sparringQuestions 是**必填**欄位！至少提供 1 個對練問題。`
+    : `
+
+---
+【FINAL REMINDER】When calling generate_feedback, sparringQuestions is a **REQUIRED** field! Provide at least 1 sparring question.`;
+
+  return `${baseRole}\n${assignmentInfo}\n${rubricInfo}\n${coreInstructions}\n${toolGuidance}\n${mandatoryThinkingInstruction}\n${relevanceCheck}${finalReminder}`;
 }
 
 // ============================================================================
@@ -453,6 +527,16 @@ const DirectGradingSchema = z.object({
   overallObservation: z.string().describe('整體觀察'),
   strengths: z.array(z.string()).optional().describe('優點列表'),
   improvements: z.array(z.string()).optional().describe('改進建議列表'),
+  // Sparring Questions for Productive Friction - REQUIRED!
+  sparringQuestions: z.array(
+    z.object({
+      related_rubric_id: z.string().describe('對應的評分維度 ID'),
+      target_quote: z.string().describe('學生文章中的具體引文'),
+      provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'clarification', 'extension']).describe('挑釁策略'),
+      question: z.string().describe('挑戰性問題'),
+      ai_hidden_reasoning: z.string().describe('AI 的隱藏推理'),
+    })
+  ).min(1).describe('【必填】針對學生表現最弱的 1-2 個評分維度生成的對練問題'),
 });
 
 // ============================================================================
@@ -592,15 +676,26 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
            })),
            overallFeedback: result.messageToStudent || result.overallObservation,
            summary: result.overallObservation,
+           // Include sparring questions for Productive Friction
+           sparringQuestions: result.sparringQuestions || [],
          };
  
-         // Stream finish to Redis (Bridge format)
+         // Stream finish to Redis (Bridge format) with telemetry for thesis research
          if (params.sessionId) {
+           const directExecutionTimeMs = Date.now() - startTime;
            await redis.publish(
              `session:${params.sessionId}`,
              JSON.stringify({
                type: 'finish',
                result: mappedData,
+               // Telemetry for thesis data analysis
+               meta: {
+                 executionTimeMs: directExecutionTimeMs,
+                 totalTokens: usage?.totalTokens || 0,
+                 modelName: 'gemini-2.5-flash',
+                 sparringQuestionsCount: mappedData.sparringQuestions?.length || 0,
+                 mode: 'direct',
+               }
              })
            );
          }
@@ -751,6 +846,15 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
       // 2. Handle Tool Calls
       if (part.type === 'tool-call') {
+        // 🔍 Debug: Log generate_feedback tool call args
+        if (part.toolName === 'generate_feedback') {
+          const args = part.input as any;
+          logger.info(`🔍 [Agent] generate_feedback ARGS - has sparringQuestions: ${!!args?.sparringQuestions}, count: ${args?.sparringQuestions?.length || 0}`);
+          if (args?.sparringQuestions && args.sparringQuestions.length > 0) {
+            logger.info(`🔍 [Agent] sparringQuestions[0] in args: ${JSON.stringify(args.sparringQuestions[0]).substring(0, 300)}`);
+          }
+        }
+        
         // Stream tool call metadata only (no reasoning extraction)
         // Reasoning should come from native text-delta, not from tool args
         if (params.sessionId) {
@@ -772,6 +876,13 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         const toolResult = part.output;
 
         logger.info(`[Agent] Tool completed: ${toolName}`);
+        
+        // 🔍 Debug: Log generate_feedback tool result structure
+        if (toolName === 'generate_feedback') {
+          const resultObj = toolResult as any;
+          logger.info(`🔍 [Agent] generate_feedback result keys: ${Object.keys(resultObj || {}).join(', ')}`);
+          logger.info(`🔍 [Agent] generate_feedback has sparringQuestions: ${!!resultObj?.sparringQuestions}, count: ${resultObj?.sparringQuestions?.length || 0}`);
+        }
 
         // Special handling for think/think_aloud tool: extract thought from args
         let stepReasoning = currentThinking || 'Tool Execution';
@@ -810,8 +921,25 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           confidenceData = toolResult;
         }
         if (toolName === 'generate_feedback') {
-          feedbackCalled = true;
-          finalResult = toolResult;
+          const typedResult = toolResult as any;
+          
+          // Only mark as completed if we actually have the required sparringQuestions
+          // This allows the agent to retry if the tool threw an error or failed validation
+          if (typedResult && Array.isArray(typedResult.sparringQuestions) && typedResult.sparringQuestions.length > 0) {
+            feedbackCalled = true;
+            finalResult = toolResult;
+
+            logger.info('[Agent] generate_feedback completed successfully', {
+              hasSparringQuestions: true,
+              sparringQuestionsCount: typedResult.sparringQuestions.length,
+              resultKeys: Object.keys(toolResult || {}),
+            });
+          } else {
+             logger.warn('[Agent] generate_feedback failed validation (missing sparringQuestions or error)', { 
+               toolResult: typeof toolResult === 'string' ? toolResult.substring(0, 100) : 'object' 
+             });
+             // Do NOT set feedbackCalled = true, so the loop will retry
+          }
         }
       }
     }
@@ -856,16 +984,27 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       executionTimeMs,
     });
 
-    // Stream to Redis (Bridge format)
+    // Stream to Redis (Bridge format) with telemetry for thesis research
     if (params.sessionId) {
       await redis.publish(
         `session:${params.sessionId}`,
         JSON.stringify({
           type: 'finish',
           result: finalResult,
+          // Telemetry for thesis data analysis
+          meta: {
+            executionTimeMs,
+            totalTokens,
+            modelName: 'gemini-2.5-flash',
+            sparringQuestionsCount: finalResult?.sparringQuestions?.length || 0,
+          }
         })
       );
     }
+
+    // 🔍 CRITICAL DEBUG: Check finalResult BEFORE returning
+    logger.info(`🔍 [Agent Return] finalResult keys: ${Object.keys(finalResult || {}).join(', ')}`);
+    logger.info(`🔍 [Agent Return] finalResult.sparringQuestions: ${finalResult?.sparringQuestions ? `YES (${finalResult.sparringQuestions.length})` : 'NO/UNDEFINED'}`);
 
     return {
       success: true,

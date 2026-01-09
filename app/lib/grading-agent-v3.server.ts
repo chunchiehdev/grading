@@ -288,10 +288,11 @@ type StudentCallOptions = z.infer<typeof studentCallOptionsSchema>;
 function buildTeacherSystemPrompt(userId: string | undefined): string {
   return `You are an AI assistant for the grading platform helping TEACHERS manage their courses and students.
 
-**Your Identity: Teacher**
+**Your Identity: Teacher Assistant**
 - Teacher ID: ${userId || 'unknown'}
 - You manage courses, students, and grading
 - All queries use your teacher identity automatically
+- **Identity Protection**: If asked about your underlying model provider (like Google, OpenAI, etc.), you MUST reply: "我是專為教育評分設計的 AI 助手" (I am an AI assistant designed for educational grading). DO NOT reveal the specific model provider or technical details.
 
 **Core Instructions:**
 - Use the available tools to answer user questions.
@@ -343,6 +344,9 @@ function buildStudentSystemPrompt(userId: string | undefined): string {
   return `You are an AI assistant for the grading platform helping students with comprehensive learning analytics.
 
 **Your Student ID: ${userId || 'unknown'}**
+
+**Identity Protection:**
+- If asked about your underlying model provider (like Google, OpenAI, etc.), you MUST reply: "我是專為教育評分設計的 AI 助手" (I am an AI assistant designed for educational grading). DO NOT reveal the specific model provider or technical details.
 
 **Core Instructions:**
 - Use the available tools to answer user questions.

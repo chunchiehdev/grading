@@ -24,12 +24,36 @@ export const CriteriaBreakdownSchema = z.object({
   feedback: z.string(),
 });
 
+// Sparring question schema
+export const SparringQuestionSchema = z.object({
+  related_rubric_id: z.string(),
+  target_quote: z.string(),
+  provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'clarification', 'extension']),
+  question: z.string(),
+  ai_hidden_reasoning: z.string(),
+});
+
+// Sparring response schema
+export const SparringResponseSchema = z.object({
+  questionIndex: z.number(),
+  questionId: z.string(),
+  strategy: z.string(),
+  response: z.string(),
+  respondedAt: z.string(),
+  // Dialectical Feedback (1.5 輪對練)
+  dialecticalFeedback: z.string().optional(),
+  studentDecision: z.enum(['agree', 'disagree']).optional(),
+  decisionAt: z.string().optional(),
+});
+
 // Main grading result data structure
 export const GradingResultDataSchema = z.object({
   totalScore: z.number(),
   maxScore: z.number(),
   breakdown: z.array(CriteriaBreakdownSchema),
   overallFeedback: OverallFeedbackSchema,
+  sparringQuestions: z.array(SparringQuestionSchema).optional(),
+  sparringResponses: z.array(SparringResponseSchema).optional(),
 });
 
 // Context about what was used during grading (Feature 004)

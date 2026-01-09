@@ -285,19 +285,23 @@ export async function processGradingResult(
         enableSimilarityCheck: result.assignmentAreaId !== null,
       });
 
+      // 🔍 CRITICAL: Check agentResult.data IMMEDIATELY after executeGradingAgent
+      logger.info(`🔍 [IMMEDIATE] agentResult.data keys: ${Object.keys(agentResult.data || {}).join(', ')}`);
+      logger.info(`🔍 [IMMEDIATE] agentResult.data.sparringQuestions: ${JSON.stringify((agentResult.data as any)?.sparringQuestions || 'UNDEFINED').substring(0, 300)}`);
+
       // Save Agent execution to database
       await saveAgentExecution(resultId, agentResult);
 
       if (agentResult.success && agentResult.data) {
-        // 🔍 Log the agentResult.data structure for debugging
-        logger.info('🔍 [Grading Engine] agentResult.data structure:', {
-          resultId,
-          data: JSON.stringify(agentResult.data, null, 2),
-          hasBreakdown: !!agentResult.data.breakdown,
-          breakdownType: agentResult.data.breakdown ? typeof agentResult.data.breakdown : 'undefined',
-          breakdownIsArray: Array.isArray(agentResult.data.breakdown),
-          breakdownLength: agentResult.data.breakdown?.length,
-        });
+        // Cast to any for sparringQuestions access (type will be updated separately)
+        const agentData = agentResult.data as any;
+        
+        // 🔍 Log the agentResult.data structure for debugging (use separate logs for visibility)
+        logger.info(`🔍 [Grading Engine] agentResult.data keys: ${Object.keys(agentData || {}).join(', ')}`);
+        logger.info(`🔍 [Grading Engine] hasSparringQuestions: ${!!agentData.sparringQuestions}, count: ${agentData.sparringQuestions?.length || 0}`);
+        if (agentData.sparringQuestions && agentData.sparringQuestions.length > 0) {
+          logger.info(`🔍 [Grading Engine] sparringQuestions[0]: ${JSON.stringify(agentData.sparringQuestions[0]).substring(0, 300)}`);
+        }
 
         // Convert to standard format with null safety
         if (!agentResult.data.breakdown || !Array.isArray(agentResult.data.breakdown)) {
@@ -374,10 +378,12 @@ export async function processGradingResult(
         gradingResponse = {
           success: true,
           result: {
-            breakdown: agentResult.data.breakdown,
+            breakdown: agentData.breakdown,
             totalScore,
             maxScore,
-            overallFeedback: agentResult.data.overallFeedback,
+            overallFeedback: agentData.overallFeedback,
+            // Sparring Questions for Productive Friction
+            sparringQuestions: agentData.sparringQuestions || [],
           },
           thoughtSummary,
           thinkingProcess, // New Field
@@ -503,6 +509,10 @@ export async function processGradingResult(
       // Also extract overallFeedback as string (handles both string and structured formats)
       const overallFeedbackStr = extractOverallFeedback(gradingResponse.result) || '';
 
+      // 🔍 CRITICAL DEBUG: Check sparringQuestions BEFORE saving to DB
+      logger.info(`🔍 [DB Save] gradingResponse.result.sparringQuestions: ${JSON.stringify(gradingResponse.result.sparringQuestions || 'UNDEFINED').substring(0, 300)}`);
+      logger.info(`🔍 [DB Save] sparringQuestions count: ${gradingResponse.result.sparringQuestions?.length || 0}`);
+
       await db.gradingResult.update({
         where: { id: resultId },
         data: {
@@ -513,6 +523,8 @@ export async function processGradingResult(
             maxScore: gradingResponse.result.maxScore,
             breakdown: gradingResponse.result.breakdown || [],
             overallFeedback: overallFeedbackStr,
+            // Sparring Questions for Productive Friction
+            sparringQuestions: gradingResponse.result.sparringQuestions || [],
           },
           thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
           thinkingProcess: gradingResponse.thinkingProcess, // Feature 012: Save raw thinking process
@@ -531,6 +543,14 @@ export async function processGradingResult(
       });
 
       logger.info(`💾 Saved thoughtSummary (${gradingResponse.thoughtSummary?.length || 0} chars) to DB`);
+      // 🆕 Debug: Log sparringQuestions saved to DB
+      logger.info(`🎯 [Grading Engine] sparringQuestions saved to DB:`, {
+        resultId,
+        sparringQuestionsCount: gradingResponse.result.sparringQuestions?.length || 0,
+        sparringQuestionsPreview: gradingResponse.result.sparringQuestions 
+          ? JSON.stringify(gradingResponse.result.sparringQuestions).substring(0, 200)
+          : 'empty',
+      });
 
       // Log grading success
       gradingLogger.addResult(
@@ -578,6 +598,7 @@ export async function processGradingResult(
           maxScore: gradingResponse.result.maxScore,
           breakdown: gradingResponse.result.breakdown || [],
           overallFeedback: overallFeedbackStr,
+          sparringQuestions: gradingResponse.result.sparringQuestions || [],
         };
       }
 

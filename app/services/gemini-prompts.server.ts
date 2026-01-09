@@ -265,6 +265,12 @@ export class GeminiPrompts {
                - 綜合評價該項目的表現
                - 解釋這個分數的根據
 
+            5. **對練問題 (Sparring Questions)**
+               - 針對學生表現最弱或最具爭議的 1-2 個評分標準
+               - 提出一個具挑戰性的問題，引導學生反思自己的論點
+               - 不要直接給出正確答案，而是指出邏輯漏洞或要求更多證據
+               - Strategy 應選用：evidence_check (查證), logic_gap (邏輯跳躍), counter_argument (反方觀點) 等
+
             **確保事項：**
             - 所有字串用雙引號，內容引用用「」
             - 回應為有效的 JSON，可直接解析

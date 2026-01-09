@@ -85,6 +85,7 @@ export default [
   route('/api/grade-with-rubric', './api/grade/with-rubric.ts'),
   route('/api/grade-progress', './api/grade/progress.ts'),
   route('/api/grade/init', './api/grade/init.ts'),
+  route('/api/logs', './api/logs.ts'), // Research Logging Endpoint
   route('/api/upload', './api/upload/index.ts'),
   route('/api/upload/create-id', './api/upload/create-id.ts'),
   route('/api/upload/delete-file', './api/upload/delete-file.ts'),
@@ -168,6 +169,7 @@ export default [
   route('/api/student/submit', './api/student/submit.ts'),
   route('/api/student/assignments', './api/student/assignments/index.ts'),
   route('/api/student/assignments/:assignmentId/draft', './api/student/assignments/$assignmentId/draft.ts'),
+  route('/api/student/assignments/:assignmentId/sparring-response', './routes/api/student/assignments/$assignmentId.sparring-response.ts'),
   route('/api/student/submissions/:submissionId/history', './routes/api/student/submissions/$submissionId.history.ts'),
 
   // Teacher Submission History API

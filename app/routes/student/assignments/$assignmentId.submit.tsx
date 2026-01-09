@@ -1,10 +1,11 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse, Link } from 'react-router';
 import { ErrorPage } from '@/components/errors/ErrorPage';
-import React, { useReducer, useEffect, useRef } from 'react';
+import React, { useReducer, useEffect, useRef, useCallback } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/submission.server';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
+import { GradingCarousel, type SparringResponseData } from '@/components/grading/GradingCarousel';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { ClientOnly } from '@/components/ui/client-only';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
 // Simplified state machine - Linus style: one clear data structure
 interface SubmissionState {
-  phase: 'upload' | 'analyze' | 'submit' | 'done';
+  phase: 'upload' | 'analyze' | 'sparring' | 'submit' | 'done';
   file: { id: string; name: string; size: number } | null;
   session: { 
     id: string; 
@@ -78,6 +79,7 @@ type Action =
   | { type: 'file_uploaded'; file: { id: string; name: string; size: number } }
   | { type: 'analysis_started'; sessionId: string }
   | { type: 'analysis_completed'; result: any; thoughtSummary?: string; thinkingProcess?: string; gradingRationale?: string }
+  | { type: 'sparring_completed' }
   | { type: 'submission_completed'; sessionId: string }
   | { type: 'error'; message: string }
   | { type: 'reset' }
@@ -91,9 +93,11 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
     case 'analysis_started':
       return { ...state, loading: true, session: { id: action.sessionId, result: null } };
     case 'analysis_completed':
+       // Check if there are sparring questions
+       const hasSparring = action.result.sparringQuestions && action.result.sparringQuestions.length > 0;
       return { 
         ...state, 
-        phase: 'submit', 
+        phase: hasSparring ? 'sparring' : 'submit', 
         loading: false, 
         session: { 
           ...state.session!, 
@@ -103,6 +107,8 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
           gradingRationale: action.gradingRationale
         } 
       };
+    case 'sparring_completed':
+      return { ...state, phase: 'submit' };
     case 'submission_completed':
       // Store the submitted sessionId to prevent duplicate submissions
       return { ...state, phase: 'done', loading: false, lastSubmittedSessionId: action.sessionId };
@@ -590,6 +596,25 @@ export default function SubmitAssignment() {
     clearFiles();
   };
 
+  // Handle sparring response - save to database
+  const handleSparringResponse = useCallback(async (data: SparringResponseData) => {
+    if (!state.session?.id) return;
+    
+    try {
+      await fetch(`/api/student/assignments/${assignment.id}/sparring-response`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: state.session.id,
+          ...data,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to save sparring response:', err);
+      // Non-critical, don't show error to user
+    }
+  }, [assignment.id, state.session?.id]);
+
   // Compute current submission status for clear state identification
   const getSubmissionStatus = () => {
     return {
@@ -969,7 +994,13 @@ export default function SubmitAssignment() {
         <aside ref={rightPanelRef} className="w-full lg:w-1/2 overflow-y-auto bg-background hide-scrollbar">
           <div className="p-4 sm:px-6 lg:px-8 py-8">
             {state.session?.result ? (
-              <GradingResultDisplay
+              <GradingCarousel
+                sparringQuestions={state.session.result.sparringQuestions}
+                savedResponses={state.session.result.sparringResponses}
+                onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+                onSparringResponse={handleSparringResponse}
+                assignmentId={assignment.id}
+                sessionId={state.session.id}
                 result={state.session.result}
                 normalizedScore={state.session.result._normalizedScore}
                 thoughtSummary={state.session.thoughtSummary}
@@ -978,85 +1009,10 @@ export default function SubmitAssignment() {
                 isLoading={state.loading}
               />
             ) : (
-              /* Empty State - Inviting & Organic */
-              <div className="flex h-full min-h-[500px] flex-col items-center justify-center space-y-6 px-8 text-center">
-                {/* Icon with organic background blob */}
-                <div className="relative">
-                  {/* Background blob */}
-                  <div className="absolute -inset-8 rounded-full bg-[#E07A5F]/10 blur-2xl"></div>
-                  
-                  {/* Sparkle Icon */}
-                  <div className="relative">
-                    <svg
-                      className="h-16 w-16 text-[#E07A5F] dark:text-[#E87D3E]"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      strokeWidth={1.5}
-                    >
-                      {/* Sparkle paths */}
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* Main Title */}
-                <div className="space-y-3">
-                  <h3 className="font-serif text-2xl font-light text-[#2B2B2B] dark:text-gray-100">
-                    {state.loading
-                      ? t('grading:ai.analyzing', 'AI 評分分析中...')
-                      : t('assignment:submit.readyToAnalyze', '準備進行分析')}
-                  </h3>
-
-                  {/* Description */}
-                  <p className="max-w-sm text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-                    {state.loading
-                      ? t(
-                          'grading:ai.analyzingDescription',
-                          'AI 正在仔細分析您的作業，這個過程會根據評分標準給予詳細回饋。'
-                        )
-                      : t(
-                          'assignment:submit.awaitingDescription',
-                          '上傳您的作業後，我將根據評分標準提供結構與邏輯的完整回饋。'
-                        )}
-                  </p>
-                </div>
-
-                {/* Loading indicator or decorative element */}
-                {state.loading ? (
-                  <div className="space-y-4">
-                    {/* Elegant loading bar */}
-                    <div className="mx-auto h-1 w-48 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                      <div className="h-full w-full origin-left animate-pulse bg-gradient-to-r from-[#E07A5F] to-[#D2691E] dark:from-[#E87D3E] dark:to-[#D2691E]"></div>
-                    </div>
-
-                    {/* AI thinking preview */}
-                    {state.session?.thinkingProcess && (
-                      <div className="mx-auto max-w-2xl border-l-2 border-[#E07A5F]/30 pl-4 text-left dark:border-[#E87D3E]/30">
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-500">
-                          {t('grading:aiThinkingProcess', 'AI 思考過程')}:
-                        </p>
-                        <div className="mt-2 max-h-[500px] overflow-y-auto pr-2 hide-scrollbar">
-                          <p className="text-sm leading-relaxed text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
-                            {state.session.thinkingProcess}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* Subtle decorative dots when idle */
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#E07A5F]/40"></div>
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#E07A5F]/20"></div>
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#E07A5F]/10"></div>
-                  </div>
-                )}
-              </div>
+              <GradingResultDisplay
+                isLoading={state.loading}
+                thinkingProcess={state.session?.thinkingProcess}
+              />
             )}
           </div>
         </aside>
@@ -1285,7 +1241,13 @@ export default function SubmitAssignment() {
 
         <TabsContent value="results" className="flex-1 overflow-y-auto m-0 p-4 min-h-0">
           {state.session?.result ? (
-            <GradingResultDisplay
+            <GradingCarousel
+              sparringQuestions={state.session.result.sparringQuestions}
+              savedResponses={state.session.result.sparringResponses}
+              onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+              onSparringResponse={handleSparringResponse}
+              assignmentId={assignment.id}
+              sessionId={state.session.id}
               result={state.session.result}
               normalizedScore={state.session.result._normalizedScore}
               thoughtSummary={state.session.thoughtSummary}
@@ -1294,12 +1256,10 @@ export default function SubmitAssignment() {
               isLoading={state.loading}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center min-h-[300px] space-y-4 text-center">
-              <svg className="h-12 w-12 text-[#E07A5F] dark:text-[#E87D3E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-              </svg>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{state.loading ? '評分中...' : '上傳作業後開始評分'}</p>
-            </div>
+            <GradingResultDisplay
+              isLoading={state.loading}
+              thinkingProcess={state.session?.thinkingProcess}
+            />
           )}
         </TabsContent>
       </Tabs>

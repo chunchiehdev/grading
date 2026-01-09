@@ -36,6 +36,21 @@ export interface Rubric {
   criteria: RubricCriteria[];
 }
 
+export type ProvocationStrategy = 
+  | 'evidence_check'    // 查證數據來源
+  | 'logic_gap'         // 指出邏輯跳躍
+  | 'counter_argument'  // 提供反方觀點
+  | 'clarification'     // 要求釐清定義
+  | 'extension';        // 延伸思考
+
+export interface SparringQuestion {
+  related_rubric_id: string;   // 對應的評分維度 ID (用於量化分析)
+  target_quote: string;        // 學生文章中的具體引文
+  provocation_strategy: ProvocationStrategy; // 策略標籤 (用於質性編碼)
+  question: string;            // 顯示給學生的問題
+  ai_hidden_reasoning: string; // AI 的評分依據 (揭曉時顯示)
+}
+
 // 結構化的整體回饋類型
 export interface OverallFeedbackStructured {
   documentStrengths?: string[];
@@ -55,6 +70,21 @@ export interface GradingResultData {
     feedback: string;
   }>;
   overallFeedback: string | OverallFeedbackStructured;
+  sparringQuestions?: SparringQuestion[];
+  sparringResponses?: SparringResponseData[];
+}
+
+// 學生對練回應資料結構
+export interface SparringResponseData {
+  questionIndex: number;
+  questionId: string;
+  strategy: string;
+  response: string;
+  respondedAt: string;
+  // Dialectical Feedback (1.5 輪對練)
+  dialecticalFeedback?: string;
+  studentDecision?: 'agree' | 'disagree';
+  decisionAt?: string;
 }
 
 /**

@@ -78,8 +78,27 @@ class SimpleGeminiService {
           type: Type.STRING,
           description: '作品整體評價，包括主要優點和改進方向',
         },
+        sparringQuestions: {
+          type: Type.ARRAY,
+          description: '針對學生表現最差或最具爭議的 1-2 個評分維度生成的對練問題',
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              related_rubric_id: { type: Type.STRING, description: '對應的評分維度 ID，必須與 breakdown 中的 criteriaId 一致' },
+              target_quote: { type: Type.STRING, description: '學生文章中的具體引文，作為發問的依據' },
+              provocation_strategy: { 
+                type: Type.STRING, 
+                enum: ['evidence_check', 'logic_gap', 'counter_argument', 'clarification', 'extension'],
+                description: '挑釁策略類型：查證(evidence_check)、邏輯跳躍(logic_gap)、反方觀點(counter_argument)、釐清(clarification)、延伸(extension)'
+              },
+              question: { type: Type.STRING, description: '直接對學生提出的挑戰性問題，不包含答案' },
+              ai_hidden_reasoning: { type: Type.STRING, description: '問題背後的邏輯與 AI 的真實評分依據 (這部分會被暫時隱藏)' }
+            },
+            required: ['related_rubric_id', 'target_quote', 'provocation_strategy', 'question', 'ai_hidden_reasoning']
+          }
+        },
       },
-      required: ['totalScore', 'maxScore', 'breakdown', 'overallFeedback'],
+      required: ['totalScore', 'maxScore', 'breakdown', 'overallFeedback', 'sparringQuestions'],
     };
   }
 
@@ -318,6 +337,7 @@ class SimpleGeminiService {
           };
         }),
         overallFeedback: parsed.overallFeedback || 'No overall feedback provided',
+        sparringQuestions: parsed.sparringQuestions || [],
       };
     } catch (error) {
       // Simple fallback - no complex repair logic

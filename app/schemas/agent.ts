@@ -124,6 +124,25 @@ export const ThinkAloudOutputSchema = z.object({
 // export const EvaluateSubtraitInputSchema = ...
 // export const MatchToLevelInputSchema = ...
 
+/**
+ * Sparring Question Schema - 對練問題（Productive Friction）
+ */
+export const ProvocationStrategySchema = z.enum([
+  'evidence_check',    // 查證數據來源
+  'logic_gap',         // 指出邏輯跳躍
+  'counter_argument',  // 提供反方觀點
+  'clarification',     // 要求釐清定義
+  'extension',         // 延伸思考
+]);
+
+export const SparringQuestionSchema = z.object({
+  related_rubric_id: z.string().describe('對應的評分維度 ID（必須與 criteriaScores 中的 criteriaId 一致）'),
+  target_quote: z.string().describe('學生文章中的具體引文，作為發問的依據'),
+  provocation_strategy: ProvocationStrategySchema.describe('挑釁策略類型'),
+  question: z.string().describe('直接對學生提出的挑戰性問題，不包含答案'),
+  ai_hidden_reasoning: z.string().describe('問題背後的邏輯與 AI 的真實評分依據（揭曉時才顯示給學生）'),
+});
+
 export const GenerateFeedbackInputSchema = z.object({
   // 新增：強制 AI 提供完整的評分推理過程
   reasoning: z.string().describe(`【完整思考過程】這是你作為評分者的內心獨白，會顯示給教師看。請用第一人稱，像老師批改作業時的思考：
@@ -156,4 +175,14 @@ export const GenerateFeedbackInputSchema = z.object({
   encouragement: z.string().optional().describe('給學生的鼓勵'),
   strengths: z.array(z.string()).optional(),
   improvements: z.array(z.string()).optional(),
+  // 對練問題（Sparring Questions）- 必填！
+  sparringQuestions: z.array(SparringQuestionSchema).min(1).describe(`
+    【必填】針對學生表現最差或最具爭議的 1-2 個評分維度生成的對練問題。
+    目的是引導學生反思，而非直接給答案。
+    每個問題必須：
+    1. 引用學生文章中的具體段落 (target_quote)
+    2. 使用挑釁策略標籤 (provocation_strategy)
+    3. 提供挑戰性問題 (question)
+    4. 提供 AI 的隱藏推理 (ai_hidden_reasoning)
+  `),
 });
