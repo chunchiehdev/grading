@@ -38,6 +38,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         picture: true,
         createdAt: true,
         hasSelectedRole: true,
+        aiEnabled: true,
       },
       orderBy,
     });

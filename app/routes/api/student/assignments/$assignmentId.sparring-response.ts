@@ -3,6 +3,7 @@ import { requireStudent } from '@/services/auth.server';
 import { db } from '@/lib/db.server';
 import logger from '@/utils/logger';
 import { generateDialecticalFeedback } from '@/services/dialectical-feedback.server';
+import { checkAIAccess } from '@/services/ai-access.server';
 import type { SparringQuestion } from '@/types/grading';
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -13,6 +14,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   try {
     const student = await requireStudent(request);
     const { assignmentId } = params;
+
+    // Check AI access permission
+    const aiAccess = await checkAIAccess(student.id);
+    if (!aiAccess.allowed) {
+      logger.warn('[SparringResponse] AI access denied', { studentId: student.id, reason: aiAccess.reason });
+      return data({ error: aiAccess.reason || 'AI access denied' }, { status: 403 });
+    }
 
     if (!assignmentId) {
       return data({ error: 'Assignment ID required' }, { status: 400 });

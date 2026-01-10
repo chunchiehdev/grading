@@ -12,6 +12,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { tool } from 'ai';
 import logger from '@/utils/logger';
+import { checkAIAccess, AIAccessDeniedError } from '@/services/ai-access.server';
 
 interface TokenUsage {
   promptTokens?: number;
@@ -1277,6 +1278,13 @@ export async function streamWithGradingAgent(
   });
 
   try {
+    // 0. Check AI Access Permission
+    const access = await checkAIAccess(userId);
+    if (!access.allowed) {
+      logger.warn('[Grading Agent V3] AI access denied', { userId, reason: access.reason });
+      throw new AIAccessDeniedError(access.reason || 'AI access denied');
+    }
+
     // 1. Select Model (Circuit Breaker)
     const { model, provider } = await selectResilientModel(sessionId, preferredProvider);
     

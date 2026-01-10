@@ -18,20 +18,33 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return Response.json({ error: 'User ID is required' }, { status: 400 });
   }
 
-  // Handle PATCH - Update user role
+  // Handle PATCH - Update user role or aiEnabled
   if (request.method === 'PATCH') {
     try {
       const body = await request.json();
-      const { role } = body;
+      const { role, aiEnabled } = body;
 
-      if (!role || !['STUDENT', 'TEACHER', 'ADMIN'].includes(role)) {
-        return Response.json({ error: 'Invalid role. Must be STUDENT, TEACHER, or ADMIN' }, { status: 400 });
+      // Validate that at least one field is being updated
+      const hasRoleUpdate = role !== undefined;
+      const hasAIEnabledUpdate = typeof aiEnabled === 'boolean';
+
+      if (!hasRoleUpdate && !hasAIEnabledUpdate) {
+        return Response.json({ 
+          error: 'Invalid request. Must provide role or aiEnabled field.' 
+        }, { status: 400 });
+      }
+
+      // Validate role if provided
+      if (hasRoleUpdate && !['STUDENT', 'TEACHER', 'ADMIN'].includes(role)) {
+        return Response.json({ 
+          error: 'Invalid role. Must be STUDENT, TEACHER, or ADMIN' 
+        }, { status: 400 });
       }
 
       // Check if user exists
       const existingUser = await db.user.findUnique({
         where: { id: userId },
-        select: { id: true, email: true, name: true, role: true },
+        select: { id: true, email: true, name: true, role: true, aiEnabled: true },
       });
 
       if (!existingUser) {
@@ -39,31 +52,53 @@ export async function action({ request, params }: ActionFunctionArgs) {
       }
 
       // Prevent self-role change to avoid accidental admin lockout
-      if (userId === admin.id) {
+      if (hasRoleUpdate && userId === admin.id) {
         return Response.json({ 
           error: 'Cannot change your own role. Use another admin account to modify your role.' 
         }, { status: 403 });
       }
 
-      // Update the user role
-      const updatedUser = await updateUserRoleAsAdmin(userId, role);
+      // Build update data
+      const updateData: { role?: string; aiEnabled?: boolean } = {};
+      if (hasRoleUpdate) updateData.role = role;
+      if (hasAIEnabledUpdate) updateData.aiEnabled = aiEnabled;
+
+      // Update the user
+      let updatedUser;
+      if (hasRoleUpdate) {
+        // Use auth service for role updates (may have additional logic)
+        updatedUser = await updateUserRoleAsAdmin(userId, role);
+        if (hasAIEnabledUpdate) {
+          // Also update aiEnabled
+          updatedUser = await db.user.update({
+            where: { id: userId },
+            data: { aiEnabled },
+          });
+        }
+      } else {
+        // Only aiEnabled update
+        updatedUser = await db.user.update({
+          where: { id: userId },
+          data: { aiEnabled },
+        });
+      }
 
       logger.info(
         {
           adminId: admin.id,
           adminEmail: admin.email,
           targetUserId: userId,
-          targetUserEmail: updatedUser.email,
-          oldRole: existingUser.role,
-          newRole: role,
+          targetUserEmail: existingUser.email,
+          ...(hasRoleUpdate && { oldRole: existingUser.role, newRole: role }),
+          ...(hasAIEnabledUpdate && { oldAIEnabled: existingUser.aiEnabled, newAIEnabled: aiEnabled }),
         },
-        'Admin updated user role'
+        'Admin updated user'
       );
 
       return Response.json({ success: true, user: updatedUser });
     } catch (error) {
-      logger.error({ error, userId, adminId: admin.id }, 'Error updating user role');
-      return Response.json({ error: 'Failed to update user role' }, { status: 500 });
+      logger.error({ error, userId, adminId: admin.id }, 'Error updating user');
+      return Response.json({ error: 'Failed to update user' }, { status: 500 });
     }
   }
 

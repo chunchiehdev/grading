@@ -502,11 +502,35 @@ export default function SubmitAssignment() {
 
       const sessionRes = await fetch('/api/grading/session', { method: 'POST', body: form });
       const sessionData = await sessionRes.json();
-      if (!sessionData.success) throw new Error(sessionData.error);
+      if (!sessionData.success) {
+        // API returns error as object: { message: string, code?: string }
+        const errorMessage = typeof sessionData.error === 'string' 
+          ? sessionData.error 
+          : sessionData.error?.message || 'Failed to create session';
+        throw new Error(errorMessage);
+      }
 
       dispatch({ type: 'analysis_started', sessionId: sessionData.data.sessionId });
 
-      // Save draft with sessionId to enable auto-resume
+      // Start grading FIRST - only save draft if grading actually starts
+      const startForm = new FormData();
+      startForm.append('action', 'start');
+      startForm.append('useDirectGrading', String(useDirectGrading));
+      const startRes = await fetch(`/api/grading/session/${sessionData.data.sessionId}`, {
+        method: 'POST',
+        body: startForm,
+      });
+      const startData = await startRes.json();
+      if (!startData.success) {
+        // API returns error as object: { message: string, code?: string }
+        const errorMessage = typeof startData.error === 'string' 
+          ? startData.error 
+          : startData.error?.message || 'Failed to start grading';
+        throw new Error(errorMessage);
+      }
+
+      // Only save draft with sessionId AFTER grading successfully started
+      // This prevents stuck 'analyzing' state if grading fails (e.g., AI access denied)
       try {
         await fetch(`/api/student/assignments/${assignment.id}/draft`, {
           method: 'POST',
@@ -526,17 +550,6 @@ export default function SubmitAssignment() {
       } catch (err) {
         console.error('Failed to save draft with session ID:', err);
       }
-
-      // Start grading
-      const startForm = new FormData();
-      startForm.append('action', 'start');
-      startForm.append('useDirectGrading', String(useDirectGrading));
-      const startRes = await fetch(`/api/grading/session/${sessionData.data.sessionId}`, {
-        method: 'POST',
-        body: startForm,
-      });
-      const startData = await startRes.json();
-      if (!startData.success) throw new Error(startData.error);
     } catch (err) {
       dispatch({
         type: 'error',

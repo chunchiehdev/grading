@@ -41,6 +41,9 @@ model User {
   // Notification relations
   notifications Notification[] @relation("UserNotifications")
 
+  // AI Access Control (Admin-managed)
+  aiEnabled Boolean @default(false) // New users cannot use AI until admin enables
+
   @@map("users")
 }
 

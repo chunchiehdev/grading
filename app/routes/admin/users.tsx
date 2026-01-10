@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 
 /**
@@ -39,6 +40,7 @@ interface User {
   picture: string;
   createdAt: string;
   hasSelectedRole: boolean;
+  aiEnabled: boolean;
 }
 
 interface UserStats {
@@ -144,6 +146,29 @@ export default function AdminUsersPage() {
       fetchUsers(sortBy, sortOrder);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update role');
+    }
+  };
+
+  // Handle AI access toggle
+  const handleAIToggle = async (userId: string, newValue: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiEnabled: newValue }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update AI access');
+      }
+
+      toast.success(newValue ? 'AI 功能已啟用' : 'AI 功能已停用');
+      // Refresh users
+      fetchUsers(sortBy, sortOrder);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update AI access');
     }
   };
 
@@ -263,6 +288,9 @@ export default function AdminUsersPage() {
                 >
                   Registered <SortIndicator field="createdAt" />
                 </th>
+                <th className="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                  AI
+                </th>
                 <th className="px-4 py-4 text-right text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">
                   Actions
                 </th>
@@ -328,6 +356,17 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="hidden px-4 py-5 md:table-cell">
                     <p className="font-serif text-sm text-gray-600 dark:text-gray-400">{formatDate(user.createdAt)}</p>
+                  </td>
+                  <td className="px-4 py-5 text-center">
+                    {user.role === 'ADMIN' ? (
+                      <span className="text-xs text-gray-400 dark:text-gray-500">Always</span>
+                    ) : (
+                      <Switch
+                        checked={user.aiEnabled}
+                        onCheckedChange={(checked) => handleAIToggle(user.id, checked)}
+                        className="data-[state=checked]:bg-[#D2691E] dark:data-[state=checked]:bg-[#E87D3E]"
+                      />
+                    )}
                   </td>
                   <td className="px-4 py-5">
                     <div className="flex justify-end gap-4">

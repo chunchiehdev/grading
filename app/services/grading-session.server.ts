@@ -1,5 +1,6 @@
 import { db, GradingSessionStatus, GradingStatus, type GradingSession, type GradingResult } from '@/types/database';
 import logger from '@/utils/logger';
+import { checkAIAccess } from '@/services/ai-access.server';
 
 export interface CreateGradingSessionRequest {
   userId: string;
@@ -425,6 +426,16 @@ export async function startGradingSession(
   useDirectGrading: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // Check AI access permission before starting grading
+    const aiAccess = await checkAIAccess(userId);
+    if (!aiAccess.allowed) {
+      logger.warn('[GradingSession] AI access denied', { userId, sessionId, reason: aiAccess.reason });
+      return {
+        success: false,
+        error: aiAccess.reason || 'AI 功能尚未開啟。請聯繫管理員啟用您的 AI 存取權限。',
+      };
+    }
+
     // Update session status to processing
     await db.gradingSession.update({
       where: {
