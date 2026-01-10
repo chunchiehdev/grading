@@ -36,14 +36,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
       db.agentChatSession.count(),
       db.gradingResult.count({ where: { status: 'COMPLETED' } }),
       db.agentChatSession.aggregate({ _sum: { totalTokens: true } }),
-      db.gradingResult.aggregate({ _sum: { gradingTokens: true } }),
+      db.gradingResult.aggregate({ _sum: { gradingTokens: true, sparringTokens: true } }), // Include sparring tokens
     ]);
 
   const overview = {
     totalChatSessions,
     totalGradingSessions,
     totalTokensUsed:
-      (chatTokenStats._sum.totalTokens || 0) + (gradingTokenStats._sum.gradingTokens || 0),
+      (chatTokenStats._sum.totalTokens || 0) + 
+      (gradingTokenStats._sum.gradingTokens || 0) + 
+      (gradingTokenStats._sum.sparringTokens || 0), // Sum sparring tokens
   };
 
   return { user, overview };

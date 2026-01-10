@@ -96,11 +96,18 @@ export default {
             transform: 'translateX(-100%) rotate(0deg)',
           },
         },
+        dot: {
+          '0%': { opacity: '0', transform: 'translateY(0)' },
+          '30%': { opacity: '1', transform: 'translateY(-2px)' },
+          '60%': { opacity: '1', transform: 'translateY(0)' },
+          '100%': { opacity: '0' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         crabWalk: 'crabWalk 10s linear infinite',
+        dot: 'dot 1.2s infinite',
       },
     },
   },

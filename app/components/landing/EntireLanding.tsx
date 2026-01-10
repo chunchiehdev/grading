@@ -336,8 +336,7 @@ const Footer = () => {
   return (
     <footer className="bg-[#FDFBF7] dark:bg-background border-t border-[#2C2C2C]/10 dark:border-border py-12 lg:py-16">
       <div className="w-full px-6 lg:px-12 xl:px-20">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6"></div>
-        <div className="mt-12 pt-8 border-t border-[#2C2C2C]/10 dark:border-border text-center">
+        <div className="mt-12 pt-8 border-[#2C2C2C]/10 dark:border-border text-center">
           <p className="font-serif text-lg italic text-[#2C2C2C]/60 dark:text-muted-foreground">{t('footer.quote')}</p>
           <p className="text-xs text-[#2C2C2C]/40 dark:text-muted-foreground/60 mt-2 font-light">{t('footer.author')}</p>
         </div>

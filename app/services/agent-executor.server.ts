@@ -276,7 +276,7 @@ Revision Strategy：請補充 Statistical Data 或 Scholarly Sources 來強化 E
 - **improvements**: 改進方向（2-3 個）
 
 ### 5. 對練問題（Sparring Questions）【必填！】
-- **sparringQuestions**: 針對學生表現最差或最具爭議的 **1-2 個評分維度** 生成挑戰性問題
+- **sparringQuestions**: 針對學生表現最差或最具爭議的點，生成 **5 個** 挑戰性問題
   - 每個問題必須包含：
     - **related_rubric_id**: 對應的評分標準 ID
     - **target_quote**: 學生文章中的具體引文
@@ -328,7 +328,7 @@ Revision Strategy：請補充 Statistical Data 或 Scholarly Sources 來強化 E
 - \`clarification\`: 要求釐清概念
 - \`extension\`: 延伸思考
 
-⚠️ **至少生成 1 個 sparringQuestion，即使作業很好也要找出可以挑戰思考的點！**
+⚠️ **生成 5 個 sparringQuestions，即使作業很好也要找出可以挑戰思考的點！**
 `;
 
   const toolGuidance = `
@@ -438,11 +438,11 @@ Revision Strategy：請補充 Statistical Data 或 Scholarly Sources 來強化 E
     ? `
 
 ---
-【最後提醒】調用 generate_feedback 時，sparringQuestions 是**必填**欄位！至少提供 1 個對練問題。`
+【最後提醒】調用 generate_feedback 時，sparringQuestions 是**必填**欄位！提供 **5 個** 對練問題。`
     : `
 
 ---
-【FINAL REMINDER】When calling generate_feedback, sparringQuestions is a **REQUIRED** field! Provide at least 1 sparring question.`;
+【FINAL REMINDER】When calling generate_feedback, sparringQuestions is a **REQUIRED** field! Provide **5** sparring questions.`;
 
   return `${baseRole}\n${assignmentInfo}\n${rubricInfo}\n${coreInstructions}\n${toolGuidance}\n${mandatoryThinkingInstruction}\n${relevanceCheck}${finalReminder}`;
 }
@@ -748,12 +748,42 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       model,
       instructions: buildGradingSystemPrompt(ctx),
       tools,
-      prepareStep: async () => {
+      prepareStep: async ({ steps: agentSteps }) => {
         stepCounter++;
-        logger.info(`[Agent] prepareStep ${stepCounter}`, { thinkCalled, confidenceCalled, feedbackCalled });
+        
+        // Use the agent's internal steps array to check tool completion status
+        // This is synchronous - the data is available immediately unlike our async stream handler
+        const completedToolNames = new Set<string>();
+        if (agentSteps && agentSteps.length > 0) {
+          for (const step of agentSteps) {
+            if (step.toolResults) {
+              for (const result of step.toolResults) {
+                completedToolNames.add(result.toolName);
+              }
+            }
+          }
+        }
+        
+        const hasThinkAloud = completedToolNames.has('think_aloud');
+        const hasConfidence = completedToolNames.has('calculate_confidence');
+        const hasFeedback = completedToolNames.has('generate_feedback');
+        
+        logger.info(`[Agent] prepareStep ${stepCounter}`, { 
+          agentStepsCount: agentSteps?.length || 0,
+          hasThinkAloud, 
+          hasConfidence, 
+          hasFeedback,
+          completedTools: Array.from(completedToolNames)
+        });
+        
+        // STEP 0: If feedback already generated, we're done - no more steps needed
+        if (hasFeedback) {
+          logger.info('[Agent] generate_feedback completed, signaling stop via toolChoice: none');
+          return { toolChoice: 'none' as const };
+        }
         
         // Force think_aloud tool on first step
-        if (!thinkCalled) {
+        if (!hasThinkAloud) {
           logger.info('[Agent] Forcing think_aloud tool on first step');
           return {
             toolChoice: { type: 'tool' as const, toolName: 'think_aloud' }
@@ -761,13 +791,13 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         }
         
         // STEP 2: After thinking, allow confidence calculation
-        if (thinkCalled && !confidenceCalled) {
+        if (hasThinkAloud && !hasConfidence) {
           logger.info('[Agent] Allowing calculate_confidence after thinking');
           return { toolChoice: 'auto' };  // Let model choose when to calculate confidence
         }
         
         // STEP 3: After confidence, force generate_feedback
-        if (confidenceCalled && !feedbackCalled) {
+        if (hasConfidence && !hasFeedback) {
           logger.info('[Agent] Forcing generate_feedback after calculate_confidence');
           return {
             toolChoice: { type: 'tool', toolName: 'generate_feedback' }
@@ -777,15 +807,27 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         // Default: allow any tool
         return { toolChoice: 'auto' };
       },
-      stopWhen: (result) => {
+      stopWhen: ({ steps: agentSteps }) => {
         // Safety: stop if max steps reached
-        if (stepCounter >= 10) return true;
-        
-        const lastStep = result.steps[result.steps.length - 1];
-        // Stop if generate_feedback was called
-        if (lastStep?.toolCalls?.some(call => call.toolName === 'generate_feedback')) {
+        if (stepCounter >= 10) {
+          logger.warn('[Agent] Max steps reached, stopping');
           return true;
         }
+        
+        // Check if generate_feedback has completed (has toolResults, not just toolCalls)
+        if (agentSteps && agentSteps.length > 0) {
+          for (const step of agentSteps) {
+            if (step.toolResults) {
+              for (const result of step.toolResults) {
+                if (result.toolName === 'generate_feedback') {
+                  logger.info('[Agent] generate_feedback has toolResult, stopping');
+                  return true;
+                }
+              }
+            }
+          }
+        }
+        
         return false;
       },
     });
@@ -852,6 +894,66 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           logger.info(`🔍 [Agent] generate_feedback ARGS - has sparringQuestions: ${!!args?.sparringQuestions}, count: ${args?.sparringQuestions?.length || 0}`);
           if (args?.sparringQuestions && args.sparringQuestions.length > 0) {
             logger.info(`🔍 [Agent] sparringQuestions[0] in args: ${JSON.stringify(args.sparringQuestions[0]).substring(0, 300)}`);
+          }
+          
+          // =========================================================
+          // ✅ [FIX] Early Capture: Save args as fallback in case 
+          // tool-result is never received (defense-in-depth)
+          // =========================================================
+          if (args && args.criteriaScores && args.sparringQuestions?.length > 0) {
+            logger.info('[Agent] 🟢 Early Capture: Saving generate_feedback args as fallback');
+            
+            // Compute the same fields that the tool's execute function computes
+            const totalScore = args.criteriaScores.reduce((sum: number, c: any) => sum + c.score, 0);
+            const maxScore = args.criteriaScores.reduce((sum: number, c: any) => sum + c.maxScore, 0);
+            const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+            
+            // Transform criteriaScores to breakdown format
+            const breakdown = args.criteriaScores.map((c: any) => ({
+              criteriaId: c.criteriaId,
+              name: c.name,
+              score: c.score,
+              feedback: c.analysis || c.justification || c.evidence || '無具體回饋',
+            }));
+            
+            // Build overallFeedback from multiple sources
+            let overallFeedback = args.messageToStudent || args.overallObservation || '';
+            if (args.topPriority) {
+              overallFeedback += `\n\n**優先改進：**\n${args.topPriority}`;
+            }
+            if (args.strengths?.length > 0) {
+              overallFeedback += `\n\n**優點：**\n${args.strengths.map((s: string) => `- ${s}`).join('\n')}`;
+            }
+            if (args.improvements?.length > 0) {
+              overallFeedback += `\n\n**改進建議：**\n${args.improvements.map((i: string) => `- ${i}`).join('\n')}`;
+            }
+            if (args.encouragement) {
+              overallFeedback += `\n\n${args.encouragement}`;
+            }
+            
+            // Only set as fallback if we don't already have a result
+            // tool-result will override this if it arrives
+            if (!finalResult) {
+              finalResult = {
+                reasoning: args.reasoning,
+                breakdown,
+                overallFeedback: overallFeedback.trim(),
+                totalScore,
+                maxScore,
+                percentage: Math.round(percentage),
+                summary: `總分：${totalScore}/${maxScore} (${percentage.toFixed(1)}%)`,
+                sparringQuestions: args.sparringQuestions || [],
+                // Mark as early capture for debugging
+                _source: 'early_capture',
+              };
+              feedbackCalled = true;
+              
+              logger.info('[Agent] 🟢 Early Capture complete', {
+                totalScore,
+                maxScore,
+                sparringQuestionsCount: args.sparringQuestions?.length || 0,
+              });
+            }
           }
         }
         
@@ -926,6 +1028,12 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           // Only mark as completed if we actually have the required sparringQuestions
           // This allows the agent to retry if the tool threw an error or failed validation
           if (typedResult && Array.isArray(typedResult.sparringQuestions) && typedResult.sparringQuestions.length > 0) {
+            // Check if we're overriding early capture
+            const wasEarlyCapture = finalResult?._source === 'early_capture';
+            if (wasEarlyCapture) {
+              logger.info('[Agent] 🔄 tool-result overriding early capture (preferred source)');
+            }
+            
             feedbackCalled = true;
             finalResult = toolResult;
 
@@ -933,6 +1041,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
               hasSparringQuestions: true,
               sparringQuestionsCount: typedResult.sparringQuestions.length,
               resultKeys: Object.keys(toolResult || {}),
+              source: 'tool_result',
             });
           } else {
              logger.warn('[Agent] generate_feedback failed validation (missing sparringQuestions or error)', { 
@@ -945,8 +1054,12 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     }
 
     if (!finalResult) {
-      logger.warn('[Agent] generate_feedback was not called, building fallback result from steps...');
+      logger.warn('[Agent] ❌ No result captured (neither tool-result nor early-capture), building fallback...');
       finalResult = buildFallbackResultFromSteps(steps, params.criteria);
+    } else if (finalResult._source === 'early_capture') {
+      logger.info('[Agent] ⚠️ Using early capture result (tool-result was not received)');
+    } else {
+      logger.info('[Agent] ✅ Using tool-result (preferred source)');
     }
 
     // 8. Build Response

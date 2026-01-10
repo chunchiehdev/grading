@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import type { SparringQuestion, ProvocationStrategy, SparringResponseData } from '@/types/grading';
-import { CheckCircle2, ChevronRight, ChevronLeft, List, ThumbsUp, ThumbsDown, Loader2, Send } from 'lucide-react';
+import { CheckCircle2, ChevronRight, ChevronLeft, List, ThumbsUp, ThumbsDown, Loader2, Send, ArrowRight } from 'lucide-react';
 import { useResearchLogger } from '@/hooks/useResearchLogger';
 import { Markdown } from '@/components/ui/markdown';
 import { cn } from '@/lib/utils';
@@ -252,15 +253,14 @@ export function SparringInterface({
       onResponse(updatedData);
     }
 
-    // 自動進入下一題或摘要
-    setTimeout(() => {
-      handleNext();
-    }, 300);
-  };
+    // 計算「包含這次選擇」的完成數
+    // 不能用 responsesMap state（非同步），要手動計算
+    const previouslyCompleted = Array.from(responsesMap.values())
+      .filter(r => r.studentDecision).length;
+    const isThisNewDecision = !responsesMap.get(currentIdx)?.studentDecision;
+    const newCompletedCount = previouslyCompleted + (isThisNewDecision ? 1 : 0);
 
-  const handleNext = () => {
-    const newCompletedCount = Array.from(responsesMap.values()).filter(r => r.studentDecision).length;
-    
+    // 判斷是否全部完成 → 自動跳轉 Summary
     if (newCompletedCount >= questions.length) {
       logEvent('REVEAL_SCORE', {
         totalQuestions: questions.length,
@@ -270,31 +270,41 @@ export function SparringInterface({
           decision: r.studentDecision,
         })),
       });
-      setViewMode('summary');
+      // 稍微延遲讓用戶看到「已完成」狀態
+      setTimeout(() => {
+        setViewMode('summary');
+      }, 500);
     } else {
-      // Find next incomplete question
-      let nextIdx = currentIdx + 1;
-      while (nextIdx < questions.length) {
-        const saved = responsesMap.get(nextIdx);
-        if (!saved || !saved.studentDecision) break;
-        nextIdx++;
-      }
-      if (nextIdx >= questions.length) {
-        // 從頭找
-        for (let i = 0; i < questions.length; i++) {
-          const saved = responsesMap.get(i);
-          if (!saved || !saved.studentDecision) {
-            nextIdx = i;
-            break;
+      // 還有未完成 → 自動跳到下一個未完成的問題
+      setTimeout(() => {
+        // Find next incomplete question
+        let nextIdx = currentIdx + 1;
+        while (nextIdx < questions.length) {
+          const saved = responsesMap.get(nextIdx);
+          if (!saved || !saved.studentDecision) break;
+          nextIdx++;
+        }
+        if (nextIdx >= questions.length) {
+          // 從頭找
+          for (let i = 0; i < questions.length; i++) {
+            if (i === currentIdx) continue; // 跳過當前題（剛完成）
+            const saved = responsesMap.get(i);
+            if (!saved || !saved.studentDecision) {
+              nextIdx = i;
+              break;
+            }
           }
         }
-      }
-      if (nextIdx >= questions.length) {
-        setViewMode('summary');
-        return;
-      }
-      setCurrentIdx(nextIdx);
+        if (nextIdx < questions.length) {
+          setCurrentIdx(nextIdx);
+        }
+      }, 300);
     }
+  };
+
+  const handleManualNext = () => {
+    const nextIdx = (currentIdx + 1) % questions.length;
+    setCurrentIdx(nextIdx);
   };
 
   const goToQuestion = (idx: number) => {
@@ -312,94 +322,88 @@ export function SparringInterface({
             <CheckCircle2 className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium">對練完成</span>
           </div>
-          <span className="text-xs text-muted-foreground">
-            {completedCount} / {questions.length}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {completedCount} / {questions.length}
+            </span>
+            {allCompleted && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={onComplete} 
+                      size="icon"
+                      className="h-8 w-8 rounded-full bg-[#E07A5F] hover:bg-[#D2691E] text-white shadow-md transition-all hover:scale-110"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>查看評分</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </div>
 
-        {/* Conversation History */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {/* Summary List - Refactored for cleanliness */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {questions.map((q, idx) => {
             const saved = responsesMap.get(idx);
             const isCompleted = saved?.studentDecision;
+            const isAgree = saved?.studentDecision === 'agree';
 
             return (
-              <div key={idx} className="space-y-3">
-                {/* AI Question - Left */}
-                <div className="flex justify-start">
-                  <div 
-                    className="text-sm leading-relaxed px-4 py-3 rounded-2xl rounded-tl-none bg-muted max-w-[85%] cursor-pointer hover:bg-muted/80 transition-colors"
-                    onClick={() => goToQuestion(idx)}
-                  >
-                    <p className="text-xs text-muted-foreground mb-1">問題 {idx + 1}</p>
-                    <p>{q.question}</p>
+              <div 
+                key={idx}
+                onClick={() => goToQuestion(idx)}
+                className="group flex items-center gap-4 p-4 rounded-2xl bg-white border border-border/50 hover:border-[#E07A5F]/50 hover:shadow-sm transition-all cursor-pointer dark:bg-zinc-900/50"
+              >
+                {/* Question Number */}
+                <div className={cn(
+                  "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
+                  isCompleted 
+                    ? isAgree ? "bg-[#2B2B2B] text-white" : "bg-muted text-muted-foreground"
+                    : "bg-[#E07A5F]/10 text-[#E07A5F]"
+                )}>
+                  {isCompleted ? (
+                     isAgree ? <ThumbsUp className="w-5 h-5" /> : <ThumbsDown className="w-5 h-5" />
+                  ) : (
+                    idx + 1
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-medium truncate mb-1 pr-4">{q.question}</p>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "text-xs px-2 py-0.5 rounded-full",
+                      isCompleted
+                        ? isAgree 
+                          ? "bg-[#2B2B2B]/10 text-[#2B2B2B] dark:bg-white/10 dark:text-white"
+                          : "bg-muted text-muted-foreground"
+                        : "bg-[#E07A5F]/10 text-[#E07A5F]"
+                    )}>
+                      {isCompleted 
+                        ? (isAgree ? '已採納建議' : '保留原觀點') 
+                        : '未完成'
+                      }
+                    </span>
+                    {saved?.decisionAt && (
+                      <span className="text-[10px] text-muted-foreground/60">
+                        {new Date(saved.decisionAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* User Response - Right */}
-                {saved?.response && (
-                  <div className="flex justify-end">
-                    <div className="text-sm leading-relaxed px-4 py-3 rounded-2xl rounded-tr-none bg-primary text-primary-foreground max-w-[85%]">
-                      {saved.response}
-                    </div>
-                  </div>
-                )}
-
-                {/* AI Feedback - Left */}
-                {saved?.dialecticalFeedback && (
-                  <div className="flex justify-start">
-                    <div className="text-sm leading-relaxed px-4 py-3 rounded-2xl rounded-tl-none bg-muted max-w-[85%]">
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <Markdown>{saved.dialecticalFeedback}</Markdown>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Decision indicator */}
-                {isCompleted && (
-                  <div className="flex justify-center">
-                    <span className={cn(
-                      'text-xs px-2 py-1 rounded-full',
-                      saved?.studentDecision === 'agree' 
-                        ? 'text-primary bg-primary/10' 
-                        : 'text-muted-foreground bg-muted'
-                    )}>
-                      {saved?.studentDecision === 'agree' ? '已採納建議' : '保留原觀點'}
-                    </span>
-                  </div>
-                )}
-
-                {/* Unanswered */}
-                {!saved?.response && (
-                  <div className="flex justify-center">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => goToQuestion(idx)}
-                      className="text-xs text-muted-foreground"
-                    >
-                      回答此題
-                    </Button>
-                  </div>
-                )}
+                {/* Arrow */}
+                <ChevronRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-[#E07A5F] transition-colors" />
               </div>
             );
           })}
-        </div>
-
-        {/* Action Footer */}
-        <div className="px-4 py-3 border-t">
-          {allCompleted ? (
-            <Button onClick={onComplete} className="w-full">
-              查看完整評分
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          ) : (
-            <p className="text-xs text-center text-muted-foreground">
-              完成所有問題後可查看評分
-            </p>
-          )}
         </div>
       </div>
     );
@@ -437,14 +441,59 @@ export function SparringInterface({
             {currentIdx + 1} / {questions.length}
           </span>
         </div>
-        {completedCount > 0 && (
-          <button
-            onClick={() => setViewMode('summary')}
-            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-          >
-            <List className="w-3.5 h-3.5" />
-          </button>
-        )}
+        
+        <div className="flex items-center gap-1">
+          <TooltipProvider>
+            <Tooltip>
+               <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => currentIdx > 0 && goToQuestion(currentIdx - 1)} 
+                  disabled={currentIdx === 0}
+                  className="rounded-full h-8 w-8 hover:bg-muted text-muted-foreground"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>上一題</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+               <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost"
+                  size="icon" 
+                  onClick={handleManualNext} 
+                  className="rounded-full h-8 w-8 hover:bg-muted text-muted-foreground"
+                >
+                   <ChevronRight className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>下一題</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {completedCount > 0 && (
+             <TooltipProvider>
+              <Tooltip>
+                 <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setViewMode('summary')}
+                    className="rounded-full h-8 w-8 hover:bg-muted text-muted-foreground"
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>查看總覽</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
 
       {/* Conversation Area */}
@@ -471,16 +520,24 @@ export function SparringInterface({
               placeholder="輸入你的想法..."
               className="min-h-[100px] resize-none bg-primary/5 border-primary/20 focus:border-primary/40"
             />
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleSubmitResponse} 
-                disabled={response.length < 10}
-                size="sm"
-                className="gap-1"
-              >
-                <Send className="w-3.5 h-3.5" />
-                送出
-              </Button>
+            <div className="flex justify-end pt-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={handleSubmitResponse} 
+                      disabled={response.length < 10}
+                      size="icon"
+                      className="h-12 w-12 rounded-full border-0 bg-[#E07A5F] text-white shadow-lg transition-transform hover:scale-110 hover:bg-[#D2691E] disabled:bg-gray-300 disabled:shadow-none dark:bg-[#E87D3E] dark:hover:bg-[#D2691E]"
+                    >
+                      <Send className="h-6 w-6 ml-0.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>發送回應 (至少10字)</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </div>
@@ -499,9 +556,13 @@ export function SparringInterface({
           {/* AI Typing - Left */}
           <div className="flex justify-start">
             <div className="text-sm px-4 py-3 rounded-2xl rounded-tl-none bg-muted max-w-[85%]">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span className="text-xs">思考中...</span>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <span className="text-xs">思考中</span>
+                <span className="flex gap-[2px] pt-[2px]">
+                  <span className="w-1 h-1 bg-current rounded-full animate-dot" />
+                  <span className="w-1 h-1 bg-current rounded-full animate-dot" style={{ animationDelay: '150ms' }} />
+                  <span className="w-1 h-1 bg-current rounded-full animate-dot" style={{ animationDelay: '300ms' }} />
+                </span>
               </div>
             </div>
           </div>
@@ -528,27 +589,43 @@ export function SparringInterface({
           </div>
 
           {/* Decision - Centered */}
-          <div className="flex justify-center pt-2">
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => handleDecision('agree')}
-                className="gap-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10"
-              >
-                <ThumbsUp className="w-3.5 h-3.5" />
-                <span className="text-xs">採納建議</span>
-              </Button>
-              <span className="text-muted-foreground/30">|</span>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => handleDecision('disagree')}
-                className="gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-              >
-                <ThumbsDown className="w-3.5 h-3.5" />
-                <span className="text-xs">保留原觀點</span>
-              </Button>
+          <div className="flex justify-center pt-4 pb-2">
+            <div className="flex items-center gap-8">
+              {/* Disagree - Neutral/Outline */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      size="icon"
+                      onClick={() => handleDecision('disagree')}
+                      className="h-14 w-14 rounded-full border-2 border-[#2B2B2B] bg-white text-[#2B2B2B] shadow-lg transition-transform hover:scale-110 hover:bg-gray-50 dark:border-gray-200 dark:bg-gray-800 dark:text-gray-200"
+                    >
+                      <ThumbsDown className="h-7 w-7" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>保留原觀點</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Agree - Primary/Dark */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      size="icon"
+                      onClick={() => handleDecision('agree')}
+                      className="h-14 w-14 rounded-full border-0 bg-[#2B2B2B] text-white shadow-lg transition-transform hover:scale-110 hover:bg-[#D2691E] dark:bg-white dark:text-black dark:hover:bg-[#E87D3E]"
+                    >
+                      <ThumbsUp className="h-7 w-7 pb-0.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>採納建議</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </>
@@ -588,21 +665,6 @@ export function SparringInterface({
       )}
       </div>
 
-      {/* Navigation Footer */}
-      {phase === 'completed' && (
-        <div className="px-4 py-3 border-t flex gap-2">
-          {currentIdx > 0 && (
-            <Button variant="ghost" size="sm" onClick={() => goToQuestion(currentIdx - 1)} className="flex-1">
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              上一題
-            </Button>
-          )}
-          <Button size="sm" onClick={handleNext} className="flex-1">
-            {allCompleted ? '查看摘要' : '下一題'}
-            <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

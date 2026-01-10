@@ -1,92 +1,13 @@
 import { cn } from '@/lib/utils';
 import { Markdown } from '@/components/ui/markdown';
 import { EmptyGradingState } from './EmptyGradingState';
-import { LoadingAnalysisIcon } from './LoadingAnalysisIcon';
 import { CompactStructuredFeedback } from './StructuredFeedback';
 import { GradingResultData } from '@/types/grading';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-
-
-
-const Typewriter = ({ text, minSpeed = 5, maxSpeed = 30 }: { text: string; minSpeed?: number; maxSpeed?: number }) => {
-  const [displayedText, setDisplayedText] = useState('');
-
-  useEffect(() => {
-    // 1. Handle Reset / New Content
-    if (!text) {
-      setDisplayedText('');
-      return;
-    }
-
-    // If text is shorter than what we displayed, or doesn't match the prefix, it's a new stream
-    if (text.length < displayedText.length || !text.startsWith(displayedText)) {
-      setDisplayedText('');
-      return;
-    }
-
-    // 2. Handle Completion
-    if (displayedText.length === text.length) return;
-
-    // 3. Calculate Next Chunk (Token Simulation)
-    const remaining = text.slice(displayedText.length);
-    
-    // Heuristic for token size:
-    // - CJK: 1-3 characters
-    // - Latin: 2-8 characters (roughly a word or part of word)
-    // - Punctuation/Newlines: usually end a token
-    
-    let chunkSize = 1;
-    const nextChar = remaining[0];
-    const isCJK = /[\u4e00-\u9fa5]/.test(nextChar);
-
-    if (isCJK) {
-      // Chinese: often 1-2 chars per token
-      chunkSize = Math.floor(Math.random() * 2) + 1; // 1 or 2
-    } else {
-      // English: try to find next word boundary
-      const spaceIndex = remaining.search(/\s/);
-      if (spaceIndex > 0 && spaceIndex <= 6) {
-        chunkSize = spaceIndex + 1; // Include the space
-      } else {
-        chunkSize = Math.floor(Math.random() * 4) + 2; // 2-5 chars
-      }
-    }
-
-    // Ensure we don't overshoot
-    chunkSize = Math.min(chunkSize, remaining.length);
-    const nextChunk = remaining.slice(0, chunkSize);
-
-    // 4. Calculate Delay (Simulate Inference Time)
-    // Base delay
-    let delay = Math.random() * (maxSpeed - minSpeed) + minSpeed;
-    
-    // Add "thinking" pauses for punctuation
-    if (/[,.!?;，。！？；：]/.test(nextChunk)) {
-      delay += 30; 
-    }
-    if (/\n/.test(nextChunk)) {
-      delay += 150; // Paragraph break pause
-    }
-    
-    // Occasional random "thinking" pause (1% chance)
-    if (Math.random() < 0.01) {
-      delay += 300;
-    }
-
-    const timeoutId = setTimeout(() => {
-      setDisplayedText(prev => prev + nextChunk);
-    }, delay);
-
-    return () => clearTimeout(timeoutId);
-  }, [text, displayedText, minSpeed, maxSpeed]);
-
-  return <Markdown>{displayedText}</Markdown>;
-};
 
 // Updated to work with new grading result format from database - types now imported from @/types/grading
 
@@ -101,7 +22,6 @@ interface GradingResultDisplayProps {
   isLoading?: boolean;
 }
 
-// Removed unused helper functions for cleaner code
 
 // Removed ScoreCard; score info will be integrated in a simple header.
 
@@ -181,7 +101,18 @@ export function GradingResultDisplay({
             <CollapsibleTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent text-sm font-medium text-muted-foreground">
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-                <span>{isLoading ? t('thinkingProcess.aiThinking') : t('thinkingProcess.viewProcess')}</span>
+                {isLoading ? (
+                  <span className="flex items-center gap-1 text-[#E07A5F] animate-pulse">
+                    <span>正在思考</span>
+                    <span className="flex gap-[2px] pt-[6px]">
+                      <span className="w-1 h-1 bg-current rounded-full animate-dot" />
+                      <span className="w-1 h-1 bg-current rounded-full animate-dot" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1 h-1 bg-current rounded-full animate-dot" style={{ animationDelay: '300ms' }} />
+                    </span>
+                  </span>
+                ) : (
+                  <span>{t('thinkingProcess.viewProcess')}</span>
+                )}
               </Button>
             </CollapsibleTrigger>
            </div>
@@ -199,7 +130,6 @@ export function GradingResultDisplay({
                     {isLoading ? (
                       <>
                         <Markdown>{activeThinkingProcess || ''}</Markdown>
-                        <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-purple-500/50 animate-pulse" />
                       </>
                     ) : (
                       <Markdown>{activeThinkingProcess || ''}</Markdown>

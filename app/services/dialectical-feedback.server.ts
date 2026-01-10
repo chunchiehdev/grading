@@ -9,7 +9,7 @@
  * - 促進 meta-cognition（後設認知）
  */
 
-import { generateText } from 'ai';
+import { generateText, type LanguageModelUsage } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import logger from '@/utils/logger';
 import { getKeyHealthTracker } from './gemini-key-health.server';
@@ -32,6 +32,7 @@ export interface DialecticalFeedbackResult {
   feedback?: string;
   error?: string;
   provider?: 'gemini' | 'fallback';
+  usage?: LanguageModelUsage;
 }
 
 // ============================================================================
@@ -229,10 +230,10 @@ export async function generateDialecticalFeedback(
     const prompt = generateDialecticalPrompt(params);
 
     const result = await generateText({
-      model: geminiProvider('gemini-2.5-flash-lite'),
+      model: geminiProvider('gemini-2.5-flash'),
       prompt,
       temperature: 0.7, 
-      maxOutputTokens: 300,  
+      maxOutputTokens: 8192,
     });
 
     const responseTimeMs = Date.now() - startTime;
@@ -244,12 +245,14 @@ export async function generateDialecticalFeedback(
       keyId: selectedKeyId,
       responseTimeMs,
       outputLength: result.text.length,
+      usage: result.usage,
     });
 
     return {
       success: true,
       feedback: result.text.trim(),
       provider: 'gemini',
+      usage: result.usage,
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;

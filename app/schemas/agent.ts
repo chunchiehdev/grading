@@ -177,7 +177,7 @@ export const GenerateFeedbackInputSchema = z.object({
   improvements: z.array(z.string()).optional(),
   // 對練問題（Sparring Questions）- 必填！
   sparringQuestions: z.array(SparringQuestionSchema).min(1).describe(`
-    【必填】針對學生表現最差或最具爭議的 1-2 個評分維度生成的對練問題。
+    【必填】針對學生表現最差或最具爭議的點生成的 5 個對練問題。
     目的是引導學生反思，而非直接給答案。
     每個問題必須：
     1. 引用學生文章中的具體段落 (target_quote)

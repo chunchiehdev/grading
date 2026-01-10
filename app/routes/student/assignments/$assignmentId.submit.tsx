@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Play, Check, FolderOpen, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -919,62 +920,88 @@ export default function SubmitAssignment() {
                         </div>
                       )}
 
-                      {/* Primary Action: AI Analysis or Re-analysis */}
-                      {(state.phase === 'analyze' || state.phase === 'submit') && (
-                        <Button
-                          onClick={startAnalysis}
-                          disabled={state.loading}
-                          variant={
-                            getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
-                              ? 'outline'
-                              : 'default'
-                          }
-                          className="w-full border-2 border-[#2B2B2B] py-3 font-medium transition-colors hover:bg-[#D2691E] hover:text-white dark:border-gray-200 dark:hover:bg-[#E87D3E]"
-                        >
-                          {state.loading
-                            ? '評分中...'
-                            : getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
-                              ? '重新評分'
-                              : '進行評分'}
-                        </Button>
-                      )}
+                      {/* Primary Actions Row */}
+                      <div className="flex items-center justify-center gap-6 py-2">
+                        {/* Reselect File - Folder (Neutral/White) */}
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="icon"
+                                onClick={handleResetFile}
+                                className="h-14 w-14 rounded-full border-2 border-[#2B2B2B] bg-white text-[#2B2B2B] shadow-lg transition-transform hover:scale-110 hover:bg-gray-50 dark:border-gray-200 dark:bg-gray-800 dark:text-gray-200"
+                              >
+                                <FolderOpen className="h-8 w-8" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{t('assignment:submit.reselectFile')}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
 
-                      {/* Submit Assignment */}
-                      {state.phase === 'submit' &&
-                        getSubmissionStatus().hasAnalysis &&
-                        getSubmissionStatus().hasNewAnalysis && (
+                        {/* Start Analysis - Play (Theme Accent: Orange) */}
+                        {(state.phase === 'analyze' || state.phase === 'submit') && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="block w-full">
-                                  <Button
-                                    onClick={submitFinal}
-                                    disabled={state.loading || getSubmissionStatus().isOverdue}
-                                    className="w-full border-2 border-[#2B2B2B] bg-[#2B2B2B] py-3 font-medium text-white transition-colors hover:bg-[#D2691E] dark:border-gray-200 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-[#E87D3E]"
-                                  >
-                                    {getSubmissionStatus().isOverdue
-                                      ? t('assignment:submit.overdueCannotSubmit')
-                                      : t('assignment:submit.submitAssignment')}
-                                  </Button>
-                                </span>
+                                <Button
+                                  onClick={startAnalysis}
+                                  disabled={state.loading}
+                                  size="icon"
+                                  className={`h-14 w-14 rounded-full border-0 text-white shadow-lg transition-transform hover:scale-110 ${
+                                    state.loading 
+                                      ? 'bg-gray-400' 
+                                      : 'bg-[#E07A5F] hover:bg-[#D2691E] dark:bg-[#E87D3E] dark:hover:bg-[#D2691E]'
+                                  }`}
+                                >
+                                  {state.loading ? (
+                                    <Loader2 className="h-8 w-8 animate-spin" />
+                                  ) : (
+                                    <Play className="h-8 w-8 ml-1 fill-current" />
+                                  )}
+                                </Button>
                               </TooltipTrigger>
-                              {getSubmissionStatus().isOverdue && (
-                                <TooltipContent>
-                                  <p>{t('assignment:submit.overdueTooltip')}</p>
-                                </TooltipContent>
-                              )}
+                              <TooltipContent>
+                                <p>
+                                  {state.loading
+                                    ? '評分中...'
+                                    : getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
+                                      ? '重新評分'
+                                      : '進行評分'}
+                                </p>
+                              </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         )}
 
-                      {/* Reselect File */}
-                      <Button
-                        variant="outline"
-                        onClick={handleResetFile}
-                        className="w-full border-2 border-[#2B2B2B] text-sm dark:border-gray-200"
-                      >
-                        {t('assignment:submit.reselectFile')}
-                      </Button>
+                        {/* Submit Assignment - Check (Theme Primary: Black/Dark) */}
+                        {state.phase === 'submit' &&
+                          getSubmissionStatus().hasAnalysis &&
+                          getSubmissionStatus().hasNewAnalysis && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    onClick={submitFinal}
+                                    disabled={state.loading || getSubmissionStatus().isOverdue}
+                                    size="icon"
+                                    className="h-14 w-14 rounded-full border-0 bg-[#2B2B2B] text-white shadow-lg transition-transform hover:scale-110 hover:bg-[#D2691E] dark:bg-white dark:text-black dark:hover:bg-[#E87D3E]"
+                                  >
+                                    <Check className="h-8 w-8" strokeWidth={3} />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>
+                                    {getSubmissionStatus().isOverdue
+                                      ? t('assignment:submit.overdueCannotSubmit')
+                                      : t('assignment:submit.submitAssignment')}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                      </div>
                     </div>
 
                     {/* Error Display */}

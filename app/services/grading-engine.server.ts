@@ -532,6 +532,7 @@ export async function processGradingResult(
           normalizedScore,
           gradingModel: gradingResponse.provider,
           gradingTokens: gradingResponse.metadata?.tokens,
+          sparringTokens: 0, // Initialize to 0 so subsequent increment operations work (NULL + N = NULL)
           gradingDuration: gradingResponse.metadata?.duration,
           usedContext: usedContext ? {
             assignmentAreaId: usedContext.assignmentAreaId,

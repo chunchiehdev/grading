@@ -15,6 +15,7 @@ interface GradingSession {
   confidenceScore: number | null;
   requiresReview: boolean;
   gradingTokens: number | null;
+  sparringTokens: number | null;
   gradingDuration: number | null;
   createdAt: string;
   uploadedFile: {
@@ -109,7 +110,10 @@ export function GradingSessionsTab() {
                 Confidence
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Tokens
+                Grading Tokens
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
+                Sparring Tokens
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
                 Review
@@ -195,6 +199,12 @@ export function GradingSessionsTab() {
                     <div className="flex items-center gap-1 text-sm text-gray-900">
                       <Clock className="h-3 w-3 text-gray-400" />
                       {session.gradingTokens?.toLocaleString() || '-'}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 text-sm text-gray-900">
+                      <Clock className="h-3 w-3 text-gray-400" />
+                      {session.sparringTokens?.toLocaleString() || '-'}
                     </div>
                   </td>
                   <td className="px-4 py-3">

@@ -90,6 +90,37 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
         if (feedbackResult.success && feedbackResult.feedback) {
           dialecticalFeedback = feedbackResult.feedback;
+
+          // Record token usage (Feature: Sparring Token Tracking)
+          // Prefer sessionId from request body, fallback to submission record
+          const targetSessionId = sessionId || submission.sessionId;
+          
+          if (feedbackResult.usage && targetSessionId) {
+            try {
+              // submission.filePath stores the UploadedFile ID
+              // Find existing record first, then update (handles NULL as 0)
+              const existingResult = await db.gradingResult.findFirst({
+                where: { 
+                  gradingSessionId: targetSessionId,
+                  uploadedFileId: submission.filePath 
+                },
+                select: { id: true, sparringTokens: true }
+              });
+
+              if (existingResult) {
+                const currentTokens = existingResult.sparringTokens ?? 0;
+                const newTokens = currentTokens + (feedbackResult.usage.totalTokens || 0);
+                
+                await db.gradingResult.update({
+                  where: { id: existingResult.id },
+                  data: { sparringTokens: newTokens }
+                });
+              }
+              logger.debug(`[SparringResponse] Updated tokens for session ${targetSessionId}: +${feedbackResult.usage.totalTokens}`);
+            } catch (tokenError) {
+              logger.error('[SparringResponse] Failed to update token usage', tokenError);
+            }
+          }
         }
 
         logger.info(`[SparringResponse] Generated dialectical feedback`, {

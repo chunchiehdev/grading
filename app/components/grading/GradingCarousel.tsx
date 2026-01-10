@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/carousel';
 import { SparringInterface } from './SparringInterface';
 import { GradingResultDisplay } from './GradingResultDisplay';
-import { BrainCircuit, FileText, Lock } from 'lucide-react';
+import { Swords, FileText, Lock } from 'lucide-react';
 import type { SparringQuestion, GradingResultData, SparringResponseData } from '@/types/grading';
 
 export type { SparringResponseData } from '@/types/grading';
@@ -118,7 +118,7 @@ export function GradingCarousel({
   
   // Build slides array
   const slides = [
-    { id: 'sparring', label: '對練', icon: BrainCircuit, locked: false },
+    { id: 'sparring', label: '對練', icon: Swords, locked: false },
     { id: 'result', label: '評分', icon: FileText, locked: !canViewResult },
   ];
 
@@ -197,25 +197,7 @@ export function GradingCarousel({
         </CarouselContent>
       </Carousel>
       
-      {/* Dot Indicators */}
-      <div className="flex items-center justify-center gap-2">
-        {slides.map((slide, idx) => (
-          <button
-            key={idx}
-            onClick={() => {
-              if (!slide.locked) {
-                api?.scrollTo(idx);
-              }
-            }}
-            disabled={slide.locked}
-            className={cn(
-              'w-2 h-2 rounded-full transition-colors',
-              current === idx ? 'bg-foreground' : 'bg-muted-foreground/30'
-            )}
-            aria-label={`Go to slide ${idx + 1}`}
-          />
-        ))}
-      </div>
+
     </div>
   );
 }
