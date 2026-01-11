@@ -1,9 +1,9 @@
 /**
- * Grading Platform Agent V3
+ * Platform Assistant
  *
- * Uses Vercel AI SDK v6 ToolLoopAgent class (official stable pattern)
- * Simplified version using Gemini 2.5 Flash for all operations
- * Focuses on database queries and report generation for grading platform
+ * AI Assistant for the grading platform using Vercel AI SDK v6 ToolLoopAgent.
+ * Supports Teacher and Student roles with context-specific prompts and tools.
+ * Handles database queries and report generation for comprehensive learning analytics.
  */
 
 import { ToolLoopAgent, stepCountIs, type ToolSet, generateText, generateObject, type LanguageModel, convertToModelMessages } from 'ai';
@@ -451,13 +451,13 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
             hasParams: !!input.params,
             teacherId: userId || 'UNDEFINED'
           },
-          '[Grading Agent V3] Teacher database_query tool called'
+          '[Platform Assistant] Teacher database_query tool called'
         );
         
         if (input.params) {
           logger.debug(
             { queryType: input.queryType, params: JSON.stringify(input.params) },
-            '[Grading Agent V3] Teacher query parameters'
+            '[Platform Assistant] Teacher query parameters'
           );
         }
 
@@ -473,7 +473,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
                 queryType: input.queryType, 
                 error: result.error,
               },
-              '[Grading Agent V3] Teacher database_query failed'
+              '[Platform Assistant] Teacher database_query failed'
             );
 
             return {
@@ -490,7 +490,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
         } catch (error) {
           logger.error(
             { queryType: input.queryType, error: error instanceof Error ? error.message : String(error) },
-            '[Grading Agent V3] Teacher database_query failed'
+            '[Platform Assistant] Teacher database_query failed'
           );
           return {
             success: false,
@@ -520,7 +520,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
       execute: async (input: { studentId: string; includeCharts?: boolean }): Promise<ReportGenerationResponse> => {
         logger.info(
           { studentId: input.studentId, includeCharts: input.includeCharts },
-          '[Grading Agent V3] Generate report tool called'
+          '[Platform Assistant] Generate report tool called'
         );
 
         try {
@@ -551,7 +551,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
               coursesCount: coursesData?.courses?.length || 0,
               submissionsCount: submissionsData?.submissions?.length || 0,
             },
-            '[Grading Agent V3] Data queried successfully'
+            '[Platform Assistant] Data queried successfully'
           );
 
           // Step 2: Generate chart configurations if requested
@@ -609,7 +609,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
 
             logger.info(
               { chartsGenerated: chartConfigs.length },
-              '[Grading Agent V3] Chart configurations generated'
+              '[Platform Assistant] Chart configurations generated'
             );
           }
 
@@ -681,7 +681,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
           const tmpDir = tmpdir();
           const pdfPath = path.join(tmpDir, pdfFileName);
 
-          logger.info({ pdfPath }, '[Grading Agent V3] Generating PDF');
+          logger.info({ pdfPath }, '[Platform Assistant] Generating PDF');
 
           const browser = await puppeteer.launch({
             headless: true,
@@ -707,7 +707,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
           await browser.close();
 
           const fileSize = (await fs.stat(pdfPath)).size;
-          logger.info({ pdfPath, fileSize }, '[Grading Agent V3] PDF generated successfully');
+          logger.info({ pdfPath, fileSize }, '[Platform Assistant] PDF generated successfully');
 
           // Step 5: Upload to MinIO
           const storageKey = `reports/${input.studentId}/${pdfFileName}`;
@@ -715,7 +715,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
 
           await uploadToStorage(pdfBuffer, storageKey, 'application/pdf');
 
-          logger.info({ storageKey, fileSize }, '[Grading Agent V3] PDF uploaded to storage');
+          logger.info({ storageKey, fileSize }, '[Platform Assistant] PDF uploaded to storage');
 
           // Clean up temporary file
           await fs.unlink(pdfPath);
@@ -743,7 +743,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
               error: error instanceof Error ? error.message : String(error),
               stack: error instanceof Error ? error.stack : undefined,
             },
-            '[Grading Agent V3] Generate report failed'
+            '[Platform Assistant] Generate report failed'
           );
           return {
             success: false,
@@ -764,7 +764,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
     callOptionsSchema: teacherCallOptionsSchema,
     // Explicitly set toolChoice to 'auto' to ensure vLLM receives the correct signal
     prepareStep: async ({ stepNumber, steps, messages, model }) => {
-      logger.debug('[Grading Agent V3] Teacher prepareStep', {
+      logger.debug('[Platform Assistant] Teacher prepareStep', {
         stepNumber,
         messageCount: messages.length,
         previousStepCount: steps.length,
@@ -772,7 +772,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
 
       // Context Management - Keep conversation within token limits
       if (messages.length > 25) {
-        logger.info('[Grading Agent V3] Teacher pruning messages', {
+        logger.info('[Platform Assistant] Teacher pruning messages', {
           stepNumber,
           beforeCount: messages.length,
           afterCount: 13,
@@ -799,7 +799,7 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
         const toolsUsed = lastStep.toolCalls?.map(c => c.toolName) || [];
         
         if (toolsUsed.length > 0) {
-          logger.info('[Grading Agent V3] Teacher Step Thinking', {
+          logger.info('[Platform Assistant] Teacher Step Thinking', {
             stepNumber: steps.length - 1,
             toolsUsed,
             timestamp: Date.now(),
@@ -870,14 +870,14 @@ Combine these tools to answer questions.
             hasParams: !!input.params,
             studentId: userId || 'UNDEFINED'
           },
-          '[Grading Agent V3] Student database_query tool called'
+          '[Platform Assistant] Student database_query tool called'
         );
 
         // Debug log for detailed params
         if (input.params) {
           logger.debug(
             { queryType: input.queryType, params: JSON.stringify(input.params) },
-            '[Grading Agent V3] Student query parameters'
+            '[Platform Assistant] Student query parameters'
           );
         }
 
@@ -902,7 +902,7 @@ Combine these tools to answer questions.
         } catch (error) {
           logger.error(
             { queryType: input.queryType, error: error instanceof Error ? error.message : String(error) },
-            '[Grading Agent V3] Student database_query failed'
+            '[Platform Assistant] Student database_query failed'
           );
           return {
             success: false,
@@ -940,7 +940,7 @@ Combine these tools to answer questions.
 
         logger.info(
           { studentId: userId, includeCharts: input.includeCharts },
-          '[Grading Agent V3] Student generate report tool called'
+          '[Platform Assistant] Student generate report tool called'
         );
 
         try {
@@ -971,7 +971,7 @@ Combine these tools to answer questions.
               coursesCount: coursesData?.courses?.length || 0,
               submissionsCount: submissionsData?.submissions?.length || 0,
             },
-            '[Grading Agent V3] Student data queried successfully'
+            '[Platform Assistant] Student data queried successfully'
           );
 
           // Step 2: Generate chart configurations if requested
@@ -1029,7 +1029,7 @@ Combine these tools to answer questions.
 
             logger.info(
               { chartsGenerated: chartConfigs.length },
-              '[Grading Agent V3] Student chart configurations generated'
+              '[Platform Assistant] Student chart configurations generated'
             );
           }
 
@@ -1101,7 +1101,7 @@ Combine these tools to answer questions.
           const tmpDir = tmpdir();
           const pdfPath = path.join(tmpDir, pdfFileName);
 
-          logger.info({ pdfPath }, '[Grading Agent V3] Student generating PDF');
+          logger.info({ pdfPath }, '[Platform Assistant] Student generating PDF');
 
           const browser = await puppeteer.launch({
             headless: true,
@@ -1127,7 +1127,7 @@ Combine these tools to answer questions.
           await browser.close();
 
           const fileSize = (await fs.stat(pdfPath)).size;
-          logger.info({ pdfPath, fileSize }, '[Grading Agent V3] Student PDF generated successfully');
+          logger.info({ pdfPath, fileSize }, '[Platform Assistant] Student PDF generated successfully');
 
           // Step 5: Upload to MinIO
           const storageKey = `reports/${userId}/${pdfFileName}`;
@@ -1135,7 +1135,7 @@ Combine these tools to answer questions.
 
           await uploadToStorage(pdfBuffer, storageKey, 'application/pdf');
 
-          logger.info({ storageKey, fileSize }, '[Grading Agent V3] Student PDF uploaded to storage');
+          logger.info({ storageKey, fileSize }, '[Platform Assistant] Student PDF uploaded to storage');
 
           // Clean up temporary file
           await fs.unlink(pdfPath);
@@ -1163,7 +1163,7 @@ Combine these tools to answer questions.
               error: error instanceof Error ? error.message : String(error),
               stack: error instanceof Error ? error.stack : undefined,
             },
-            '[Grading Agent V3] Student generate report failed'
+            '[Platform Assistant] Student generate report failed'
           );
           return {
             success: false,
@@ -1183,7 +1183,7 @@ Combine these tools to answer questions.
     stopWhen: stepCountIs(15),
     callOptionsSchema: studentCallOptionsSchema,
     prepareStep: async ({ stepNumber, steps, messages, model }) => {
-      logger.debug('[Grading Agent V3] Student prepareStep', {
+      logger.debug('[Platform Assistant] Student prepareStep', {
         stepNumber,
         messageCount: messages.length,
         previousStepCount: steps.length,
@@ -1191,7 +1191,7 @@ Combine these tools to answer questions.
 
       // Context Management - Keep conversation within token limits
       if (messages.length > 25) {
-        logger.info('[Grading Agent V3] Student pruning messages', {
+        logger.info('[Platform Assistant] Student pruning messages', {
           stepNumber,
           beforeCount: messages.length,
           afterCount: 13,
@@ -1217,7 +1217,7 @@ Combine these tools to answer questions.
         const toolsUsed = lastStep.toolCalls?.map(c => c.toolName) || [];
         
         if (toolsUsed.length > 0) {
-          logger.info('[Grading Agent V3] Student Step Thinking', {
+          logger.info('[Platform Assistant] Student Step Thinking', {
             stepNumber: steps.length - 1,
             toolsUsed,
             timestamp: Date.now(),
@@ -1243,7 +1243,7 @@ Combine these tools to answer questions.
 /**
  * Create appropriate agent based on user role
  */
-function createGradingAgent(userRole: 'TEACHER' | 'STUDENT', userId: string | undefined, model: LanguageModel) {
+function createPlatformAssistant(userRole: 'TEACHER' | 'STUDENT', userId: string | undefined, model: LanguageModel) {
   if (userRole === 'TEACHER') {
     return createTeacherAgent(userId, model);
   }
@@ -1259,7 +1259,7 @@ function createGradingAgent(userRole: 'TEACHER' | 'STUDENT', userId: string | un
  * @param userId - User ID
  * @param callOptions - Optional dynamic configuration (teacher or student options)
  */
-export async function streamWithGradingAgent(
+export async function streamWithPlatformAssistant(
   userRole: 'TEACHER' | 'STUDENT',
   messages: any[],
   userId?: string,
@@ -1269,7 +1269,7 @@ export async function streamWithGradingAgent(
 ) {
   const sessionId = `${userRole}_${userId}_${Date.now()}`;
   
-  logger.info('[Grading Agent V3] Initializing agent stream', {
+  logger.info('[Platform Assistant] Initializing agent stream', {
     userRole,
     messageCount: messages.length,
     userId: userId ? '***' : undefined,
@@ -1281,25 +1281,25 @@ export async function streamWithGradingAgent(
     // 0. Check AI Access Permission
     const access = await checkAIAccess(userId);
     if (!access.allowed) {
-      logger.warn('[Grading Agent V3] AI access denied', { userId, reason: access.reason });
+      logger.warn('[Platform Assistant] AI access denied', { userId, reason: access.reason });
       throw new AIAccessDeniedError(access.reason || 'AI access denied');
     }
 
     // 1. Select Model (Circuit Breaker)
     const { model, provider } = await selectResilientModel(sessionId, preferredProvider);
     
-    logger.info('[Grading Agent V3] Model selected', { sessionId, provider });
+    logger.info('[Platform Assistant] Model selected', { sessionId, provider });
 
     // 2. Create agent with role-specific configuration and selected model
-    const agent = createGradingAgent(userRole, userId, model);
+    const agent = createPlatformAssistant(userRole, userId, model);
 
-    logger.debug('[Grading Agent V3] Agent created successfully');
+    logger.debug('[Platform Assistant] Agent created successfully');
 
     // Use manual conversion flow to ensure robustness
     // 1. Convert UIMessages to ModelMessages
     // 2. Stream with agent
     // 3. Convert back to UIMessageStreamResponse
-    logger.info('[Grading Agent V3] Using manual convertToModelMessages -> agent.stream() flow', { 
+    logger.info('[Platform Assistant] Using manual convertToModelMessages -> agent.stream() flow', { 
       hasOptions: !!callOptions,
       sessionId,
       messagesCount: messages?.length || 0,
@@ -1309,7 +1309,7 @@ export async function streamWithGradingAgent(
       // 1. Convert UIMessages to ModelMessages explicitly
       const modelMessages = await convertToModelMessages(messages as any[]);
       
-      logger.debug('[Grading Agent V3] Converted to ModelMessages', {
+      logger.debug('[Platform Assistant] Converted to ModelMessages', {
         count: modelMessages.length,
         firstRole: modelMessages[0]?.role,
       });
@@ -1320,7 +1320,7 @@ export async function streamWithGradingAgent(
         options: callOptions || undefined,
       } as any);
 
-      logger.info('[Grading Agent V3] Agent stream created successfully', { sessionId });
+      logger.info('[Platform Assistant] Agent stream created successfully', { sessionId });
 
       // Handle onFinish callback if provided
       if (onFinish) {
@@ -1336,7 +1336,7 @@ export async function streamWithGradingAgent(
                 totalTokens: resultUsage.totalTokens || 0,
               };
             } catch (usageError) {
-              logger.warn('[Grading Agent V3] Could not retrieve token usage', { sessionId });
+              logger.warn('[Platform Assistant] Could not retrieve token usage', { sessionId });
             }
             
             await onFinish({ 
@@ -1345,7 +1345,7 @@ export async function streamWithGradingAgent(
               provider 
             });
           } catch (err) {
-            logger.error('[Grading Agent V3] Failed to process onFinish', err);
+            logger.error('[Platform Assistant] Failed to process onFinish', err);
           }
         });
       }
@@ -1353,7 +1353,7 @@ export async function streamWithGradingAgent(
       // Return the stream response - agent streams should use toUIMessageStreamResponse for useChat compatibility
       const response = streamResult.toUIMessageStreamResponse();
       
-      logger.info('[Grading Agent V3] Stream response created successfully', { sessionId });
+      logger.info('[Platform Assistant] Stream response created successfully', { sessionId });
       
       return response;
       
@@ -1384,10 +1384,10 @@ export async function streamWithGradingAgent(
         errorDetails.errorKeys = Object.keys(streamError);
       }
 
-      logger.error('[Grading Agent V3] Stream failed - DETAILED ERROR', errorDetails);
+      logger.error('[Platform Assistant] Stream failed - DETAILED ERROR', errorDetails);
       
       // Also log as string for easy reading
-      logger.error('[Grading Agent V3] Stream failed - STRING', {
+      logger.error('[Platform Assistant] Stream failed - STRING', {
         sessionId,
         errorString: JSON.stringify(streamError, null, 2),
       });
@@ -1395,7 +1395,7 @@ export async function streamWithGradingAgent(
       throw streamError;
     }
   } catch (error) {
-    logger.error('[Grading Agent V3] Fatal error in streamWithGradingAgent', {
+    logger.error('[Platform Assistant] Fatal error in streamWithGradingAgent', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       userRole,

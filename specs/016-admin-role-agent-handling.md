@@ -29,7 +29,7 @@ const finalUserRole = userRole || 'STUDENT';
 // 'ADMIN' 是 truthy，所以會被傳遞下去
 ```
 
-**檔案：`app/lib/grading-agent-v3.server.ts`**
+**檔案：`app/lib/platform-assistant.server.ts`**
 ```typescript
 // Line 1180-1185: Agent 建立邏輯
 function createGradingAgent(userRole: 'TEACHER' | 'STUDENT', userId: string | undefined) {
@@ -148,7 +148,7 @@ onError: (error) => {
 
 **1. 型別定義更新**
 ```typescript
-// app/lib/grading-agent-v3.server.ts
+// app/lib/platform-assistant.server.ts
 
 // 擴充 UserRole 型別
 type UserRole = 'TEACHER' | 'STUDENT' | 'ADMIN';
@@ -169,7 +169,7 @@ type AdminQueryType = z.infer<typeof adminQueryTypeEnum>;
 
 **2. Admin Agent 建立**
 ```typescript
-// app/lib/grading-agent-v3.server.ts
+// app/lib/platform-assistant.server.ts
 
 function createAdminAgent(userId: string | undefined) {
   const adminTools = {
@@ -265,7 +265,7 @@ Before calling ANY tool, explain your thinking in Chinese:
 
 **3. Agent 路由更新**
 ```typescript
-// app/lib/grading-agent-v3.server.ts
+// app/lib/platform-assistant.server.ts
 
 function createGradingAgent(userRole: 'TEACHER' | 'STUDENT' | 'ADMIN', userId: string | undefined) {
   if (userRole === 'ADMIN') {
@@ -481,7 +481,7 @@ describe('Agent Chat API - ADMIN Role', () => {
 
 - **當前實作**：
   - `app/api/agent-chat.ts`
-  - `app/lib/grading-agent-v3.server.ts`
+  - `app/lib/platform-assistant.server.ts`
   - `app/services/database-query.server.ts`
 
 - **相關 Spec**：

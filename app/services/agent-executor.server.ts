@@ -212,18 +212,26 @@ Revision Strategy：引用 Sherry Turkle「Alone Together」概念
 - overallObservation, strengths (2-3 個), improvements (2-3 個)
 
 ### sparringQuestions【必填，5 個】
-針對學生弱點生成挑戰性問題：
-\`\`\`json
-{
-  "related_rubric_id": "evidence_usage",
-  "target_quote": "大部分人都覺得這樣比較好。",
-  "provocation_strategy": "evidence_check",
-  "question": "請問『大部分人』具體是指誰？有統計數據嗎？",
-  "ai_hidden_reasoning": "Bandwagon Fallacy，缺數據支持"
-}
-\`\`\`
+針對學生作業生成「促進反思」的問題（非糾錯導向）：
 
-**provocation_strategy 選項**：evidence_check | logic_gap | counter_argument | clarification | extension
+**設計原則**：
+- 目標是讓學生「想深」，不是讓學生「改對」
+- 成功的對練 = 學生開始質疑自己的假設，或發現概念中的張力
+- 「我沒想過這個」是正面結果（Aporia）
+
+**策略使用指引**：
+- 「warrant_probe」(L2): 追問理由 — 你說 X 讓你滿足，為什麼？
+- 「evidence_check」(L2): 查證來源 — 這個數據是從哪裡來的？
+- 「logic_gap」(L3): 邏輯跳躍 — 從 A 到 B，中間少了什麼？
+- 「counter_argument」(L3): 反方觀點 — 有人可能會說...你怎麼看？
+- 「metacognitive」(L3): 寫作選擇 — 你為什麼選擇用這個方式表達？
+- 「conceptual」(L4): 概念辯證 — 『理想』對你來說意味著什麼？
+
+**限制**：
+- 至少 3 個問題必須是 L3+ 層級 (logic_gap / counter_argument / metacognitive / conceptual)
+- 避免只問「可以講具體一點嗎？」這類純澄清問題
+
+**provocation_strategy 選項**：evidence_check | logic_gap | counter_argument | warrant_probe | metacognitive | conceptual
 
 ## 語氣對照表
 
@@ -362,11 +370,11 @@ const DirectGradingSchema = z.object({
     z.object({
       related_rubric_id: z.string().describe('對應的評分維度 ID'),
       target_quote: z.string().describe('學生文章中的具體引文'),
-      provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'clarification', 'extension']).describe('挑釁策略'),
-      question: z.string().describe('挑戰性問題'),
+      provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'warrant_probe', 'metacognitive', 'conceptual']).describe('反思策略：L2 (warrant_probe, evidence_check) 或 L3+ (logic_gap, counter_argument, metacognitive, conceptual)'),
+      question: z.string().describe('促進反思的問題'),
       ai_hidden_reasoning: z.string().describe('AI 的隱藏推理'),
     })
-  ).min(1).describe('【必填】針對學生表現最弱的 1-2 個評分維度生成的對練問題'),
+  ).min(1).describe('【必填】針對學生作業生成促進反思的對練問題（至少 3 個 L3+ 層級）'),
 });
 
 // ============================================================================

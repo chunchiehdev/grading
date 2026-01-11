@@ -6,7 +6,7 @@
  */
 
 import type { ActionFunctionArgs } from 'react-router';
-import { streamWithGradingAgent } from '@/lib/grading-agent-v3.server';
+import { streamWithPlatformAssistant } from '@/services/platform-assistant.server';
 import { getUserId } from '@/services/auth.server';
 import { type UIMessage } from 'ai';
 import logger from '@/utils/logger';
@@ -249,7 +249,7 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     
     try {
-      const response = await streamWithGradingAgent(
+      const response = await streamWithPlatformAssistant(
         finalUserRole, 
         messages as UIMessage[],
         userId, 

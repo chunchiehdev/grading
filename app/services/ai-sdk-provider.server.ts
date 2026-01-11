@@ -42,7 +42,7 @@ const GradingResultSchema = z.object({
   sparringQuestions: z.array(z.object({
     related_rubric_id: z.string(),
     target_quote: z.string(),
-    provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'clarification', 'extension']),
+    provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'warrant_probe', 'metacognitive', 'conceptual']),
     question: z.string(),
     ai_hidden_reasoning: z.string(),
   })).optional(),

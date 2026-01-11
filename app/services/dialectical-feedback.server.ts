@@ -23,6 +23,12 @@ export interface DialecticalFeedbackParams {
   sparringQuestion: SparringQuestion;
   studentResponse: string;
   rubricCriterionName?: string;
+  /** 完整的評分維度資料（包含描述與等級） */
+  rubricCriterion?: {
+    description: string;
+    maxScore: number;
+    levels?: Array<{ score: number; description: string }>;
+  };
   fullAssignmentContent?: string;  // 學生完整作業內容（避免斷章取義）
   language?: 'zh' | 'en';
 }
@@ -40,7 +46,14 @@ export interface DialecticalFeedbackResult {
 // ============================================================================
 
 function generateDialecticalPrompt(params: DialecticalFeedbackParams): string {
-  const { sparringQuestion, studentResponse, rubricCriterionName, fullAssignmentContent, language = 'zh' } = params;
+  const { sparringQuestion, studentResponse, rubricCriterionName, rubricCriterion, fullAssignmentContent, language = 'zh' } = params;
+
+  // 組合完整的評分標準說明
+  const rubricContextSection = rubricCriterion ? `
+- 評分標準說明：${rubricCriterion.description}
+- 滿分：${rubricCriterion.maxScore} 分${rubricCriterion.levels && rubricCriterion.levels.length > 0 ? `
+- 評分等級：
+${rubricCriterion.levels.map(l => `  * ${l.score} 分：${l.description}`).join('\n')}` : ''}` : '';
 
   // 如果有完整作業內容，加入 context
   const fullContentSection = fullAssignmentContent 
@@ -114,7 +127,7 @@ ${fullAssignmentContent}
   return `你是一位蘇格拉底式的教學助理。學生剛剛回答了你的挑戰問題。
 
 ## 背景資訊
-- 評分維度：${rubricCriterionName || '一般'}
+- 評分維度：${rubricCriterionName || '一般'}${rubricContextSection}
 - 你原本的觀察：${sparringQuestion.ai_hidden_reasoning}
 - 你問的問題：${sparringQuestion.question}
 - 你質疑的特定段落：「${sparringQuestion.target_quote}」${fullContentSectionZh}
@@ -122,9 +135,35 @@ ${fullAssignmentContent}
 ## 學生回應
 「${studentResponse}」
 
+## 對練成功指標
+
+成功的對練**不是**讓學生「修正」作業，而是讓學生「反思」思考過程。
+
+以下都是正面結果：
+- 學生開始質疑自己原本的假設
+- 學生發現自己概念中的張力或矛盾
+- 學生說出「我沒想過這個」（Aporia）
+- 學生主動提出新的問題
+
+即使學生最後沒有「修正」作業，只要觸發了反思，對練就是成功的。
+
 ## 決策流程
 
 請先在內心將學生的回應分類為以下其中一種狀態，再採取對應策略：
+
+**狀態 E：測試/不當回應**
+- 徵兆：回答明顯不合理、違反常識、或有故意挑釁的意味（如：「練習打人」、「做壞事」等）
+- 策略：【不評價內容，追問動機】
+  1. 不要說「很獨特」或「很個人化」
+  2. 直接追問：「你說的 X 是指什麼？可以多說明一下嗎？」
+  3. 如果無法給出合理解釋：「這是你的幽默嗎？那你真正想表達的是什麼？」
+
+**狀態 F：反思覺醒 (Metacognitive Breakthrough)**
+- 徵兆：學生說「我沒想過」「好像有矛盾」「讓我重新想想」「你問得我開始懷疑了」
+- 策略：【肯定 + 不急著給答案】
+  1. 明確肯定這是有價值的發現：「這是一個很好的覺察。」
+  2. 不要急著告訴學生「正確答案」是什麼
+  3. 可以說：「這種張力本身就值得探索。你現在怎麼想？」
 
 **狀態 A：卡關/放棄**
 - 徵兆：說「不知道」、「沒想法」、「太難了」，或極短敷衍的回覆
@@ -145,7 +184,7 @@ ${fullAssignmentContent}
 - 徵兆：正面回應問題，嘗試解釋或提出修改方向
 - 策略：【深化對話】針對回答給予具體回饋，點出好在哪裡，或還有哪裡可以更好
 
-如果學生回應包含多種狀態，按優先順序處理：B (離題) > A (卡關) > C (防禦) > D (認真)
+如果學生回應包含多種狀態，按優先順序處理：E (測試) > F (反思覺醒) > B (離題) > A (卡關) > C (防禦) > D (認真)
 
 ## 輸出要求
 1. 不要輸出你的分類判斷或思考過程

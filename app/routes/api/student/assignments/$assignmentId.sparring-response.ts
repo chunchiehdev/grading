@@ -86,12 +86,59 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     if (response && sparringQuestion) {
       let dialecticalFeedback: string | undefined;
 
+      // 取得完整的評分標準（包含 description 和 levels）
+      // 從 AssignmentArea → Rubric → criteria JSON 中查找對應的 criterion
+      let rubricCriterion: { description: string; maxScore: number; levels?: Array<{ score: number; description: string }> } | undefined;
+      
+      try {
+        const assignmentArea = await db.assignmentArea.findUnique({
+          where: { id: assignmentId },
+          select: { 
+            rubric: { 
+              select: { criteria: true } 
+            } 
+          },
+        });
+        
+        if (assignmentArea?.rubric?.criteria) {
+          const criteriaArray = assignmentArea.rubric.criteria as Array<{
+            id: string;
+            name: string;
+            description: string;
+            maxScore: number;
+            levels?: Array<{ score: number; description: string }>;
+          }>;
+          
+          // 根據 related_rubric_id 找到對應的 criterion
+          const matchedCriterion = criteriaArray.find(
+            c => c.id === (sparringQuestion as SparringQuestion).related_rubric_id
+          );
+          
+          if (matchedCriterion) {
+            rubricCriterion = {
+              description: matchedCriterion.description,
+              maxScore: matchedCriterion.maxScore,
+              levels: matchedCriterion.levels,
+            };
+            logger.debug('[SparringResponse] Found rubric criterion', {
+              criterionId: matchedCriterion.id,
+              criterionName: matchedCriterion.name,
+              hasLevels: !!matchedCriterion.levels,
+            });
+          }
+        }
+      } catch (rubricError) {
+        logger.warn('[SparringResponse] Failed to fetch rubric criterion', rubricError);
+        // Continue without rubric criterion - it's optional
+      }
+
       // 呼叫 AI 生成辯證回饋
       try {
         const feedbackResult = await generateDialecticalFeedback({
           sparringQuestion: sparringQuestion as SparringQuestion,
           studentResponse: response,
           rubricCriterionName,
+          rubricCriterion,  // 傳入完整評分維度資料
           fullAssignmentContent,  // 傳入完整作業內容，避免 AI 斷章取義
           language: 'zh',
         });

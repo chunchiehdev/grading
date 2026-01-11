@@ -37,11 +37,12 @@ export interface Rubric {
 }
 
 export type ProvocationStrategy = 
-  | 'evidence_check'    // 查證數據來源
-  | 'logic_gap'         // 指出邏輯跳躍
-  | 'counter_argument'  // 提供反方觀點
-  | 'clarification'     // 要求釐清定義
-  | 'extension';        // 延伸思考
+  | 'evidence_check'    // L2: 查證數據來源
+  | 'logic_gap'         // L3: 指出邏輯跳躍
+  | 'counter_argument'  // L3: 提供反方觀點
+  | 'warrant_probe'     // L2: 追問理由（取代 clarification）
+  | 'metacognitive'     // L3: 詢問寫作選擇
+  | 'conceptual';       // L4: 概念辯證（取代 extension）
 
 export interface SparringQuestion {
   related_rubric_id: string;   // 對應的評分維度 ID (用於量化分析)
