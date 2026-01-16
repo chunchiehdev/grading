@@ -35,4 +35,9 @@ patches:
     target:
       kind: Deployment
       name: websocket
+  - path: migration-job-patch.yaml
+    target:
+      kind: Job
+      name: db-migrate
+
 
