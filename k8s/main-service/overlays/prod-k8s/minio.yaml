@@ -3,6 +3,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: minio-pvc
 spec:
+  storageClassName: local-nvme4tb
   accessModes:
     - ReadWriteOnce
   resources:
