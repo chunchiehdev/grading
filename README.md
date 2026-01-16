@@ -1,7 +1,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/chunchiehdev/grading)
 
 
-# Check the cluster first
+# Check the cluster first.
 
 
 ### Update the database schema
