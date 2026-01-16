@@ -46,6 +46,9 @@ spec:
             configMapKeyRef:
               name: gradsystem-config
               key: POSTGRES_DB
+        # Use PGDATA subdirectory to avoid "directory not empty" initdb error
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data

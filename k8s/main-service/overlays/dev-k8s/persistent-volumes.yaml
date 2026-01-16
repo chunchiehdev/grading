@@ -1,9 +1,10 @@
 ---
 # PostgreSQL PV
+# Note: Kustomize will add "-dev" suffix, so final name will be "postgres-pv-dev"
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: postgres-pv-dev
+  name: postgres-pv
 spec:
   capacity:
     storage: 2Gi
@@ -24,10 +25,11 @@ spec:
 
 ---
 # Redis PV
+# Note: Kustomize will add "-dev" suffix, so final name will be "redis-pv-dev"
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: redis-pv-dev
+  name: redis-pv
 spec:
   capacity:
     storage: 1Gi
@@ -48,13 +50,14 @@ spec:
 
 ---
 # MinIO PV
+# Note: Kustomize will add "-dev" suffix, so final name will be "minio-pv-dev"
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: minio-pv-dev
+  name: minio-pv
 spec:
   capacity:
-    storage: 2Gi
+    storage: 5Gi
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Delete
