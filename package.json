@@ -1,6 +1,6 @@
 {
   "name": "gradsystem",
-  "version": "1.55.4-dev.202601161740",
+  "version": "1.56.0-dev.202601161756",
   "private": true,
   "sideEffects": false,
   "type": "module",
