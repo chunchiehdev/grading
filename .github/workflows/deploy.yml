@@ -153,15 +153,22 @@ jobs:
         OVERLAY="${{ steps.k3s.outputs.OVERLAY }}"
         NS="${{ steps.k3s.outputs.NS }}"
         
+        # Determine job name based on environment
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          JOB_NAME="db-migrate"
+        else
+          JOB_NAME="db-migrate-dev"
+        fi
+        
         # Delete old migration job if exists
-        kubectl delete job db-migrate -n $NS --ignore-not-found
+        kubectl delete job $JOB_NAME -n $NS --ignore-not-found
         
         # Apply all resources (Deployment, Service, Secret, Job)
         kubectl apply -k $OVERLAY
         
         # Wait for migration job
         echo "⏳ Waiting for migration..."
-        kubectl wait --for=condition=complete job/db-migrate -n $NS --timeout=300s
+        kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=300s
         
         # Wait for deployment rollout
         echo "⏳ Waiting for rollout..."
@@ -189,11 +196,19 @@ jobs:
         KUBECONFIG: ./kubeconfig_mars
       run: |
         NS="gradsystem-dev"
-        kubectl delete job db-migrate -n $NS --ignore-not-found
+        
+        # Determine job name based on environment
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          JOB_NAME="db-migrate"
+        else
+          JOB_NAME="db-migrate-dev"
+        fi
+        
+        kubectl delete job $JOB_NAME -n $NS --ignore-not-found
         kubectl apply -k k8s/main-service/overlays/dev-k8s
         
         echo "⏳ Waiting for Mars migration..."
-        kubectl wait --for=condition=complete job/db-migrate -n $NS --timeout=300s
+        kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=300s
         
         echo "⏳ Waiting for Mars rollout..."
         kubectl rollout status deployment -n $NS -l app.kubernetes.io/name=gradsystem --timeout=300s
