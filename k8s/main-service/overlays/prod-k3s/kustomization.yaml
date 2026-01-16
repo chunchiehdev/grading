@@ -9,7 +9,8 @@ resources:
   - postgres.yaml
   - minio.yaml
 
-namespace: default
+namespace: prod
+
 
 images:
   - name: chunchiehdev/gradsystem

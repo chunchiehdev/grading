@@ -6,7 +6,7 @@ resources:
   - ingress.yaml
   - redis.yaml
 
-namespace: grading-pdf
+namespace: prod
 
 images:
   - name: chunchiehdev/grading-pdf
