@@ -123,3 +123,48 @@ spec:
             secretKeyRef:
               name: gradsystem-secret
               key: GOOGLE_SEARCH_ENGINE_ID
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: NODE_ENV
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: LOG_LEVEL
+        - name: PDF_PARSER_TIMEOUT_MS
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: PDF_PARSER_TIMEOUT_MS
+        - name: VLLM_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: VLLM_BASE_URL
+        - name: VLLM_MODEL_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: VLLM_MODEL_NAME
+        - name: VLLM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret
+              key: VLLM_API_KEY
+        - name: USE_AGENT_GRADING
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: USE_AGENT_GRADING
+        - name: AGENT_CONFIDENCE_THRESHOLD
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: AGENT_CONFIDENCE_THRESHOLD
+        - name: INTERNAL_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret
+              key: INTERNAL_API_KEY

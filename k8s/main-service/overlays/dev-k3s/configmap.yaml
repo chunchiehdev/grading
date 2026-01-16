@@ -3,10 +3,17 @@ kind: ConfigMap
 metadata:
   name: gradsystem-config
 data:
+  NODE_ENV: "development"
+  LOG_LEVEL: "info"
   OLLAMA_MODEL: "llama3.1:8b"
   OLLAMA_API_URL: "https://ollama.lazyinwork.com/api/chat/completions"
   POSTGRES_USER: "grading_admin"
   POSTGRES_DB: "grading_db"
   MINIO_ROOT_USER: "grading_admin"
   PDF_PARSER_API_URL: "https://gradingpdf.grading.software"
+  PDF_PARSER_TIMEOUT_MS: "30000"
   PRISMA_LOG_LEVEL: "error"
+  VLLM_BASE_URL: "https://vllmapi.agenticgrader.com/v1"
+  VLLM_MODEL_NAME: "Qwen/Qwen3-Coder-30B-A3B-Instruct-FP8"
+  USE_AGENT_GRADING: "true"
+  AGENT_CONFIDENCE_THRESHOLD: "0.7"
