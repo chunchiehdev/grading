@@ -127,7 +127,7 @@ jobs:
       run: |
         if [ "${{ github.ref_name }}" = "master" ]; then
           echo "OVERLAY=k8s/main-service/overlays/prod-k3s" >> $GITHUB_OUTPUT
-          echo "NS=default" >> $GITHUB_OUTPUT
+          echo "NS=prod" >> $GITHUB_OUTPUT
         else
           echo "OVERLAY=k8s/main-service/overlays/dev-k3s" >> $GITHUB_OUTPUT
           echo "NS=dev" >> $GITHUB_OUTPUT
@@ -182,10 +182,9 @@ jobs:
         echo "✅ K3s deployment complete!"
 
     # ============================================
-    # Deploy to Mars K8s (development only)
+    # Deploy to Mars K8s
     # ============================================
     - name: Generate Mars secrets
-      if: github.ref_name == 'development'
       run: |
         if [ "${{ github.ref_name }}" = "master" ]; then
           OVERLAY="k8s/main-service/overlays/prod-k8s"
@@ -196,7 +195,6 @@ jobs:
         fi
 
     - name: Update Mars image tag
-      if: github.ref_name == 'development'
       run: |
         if [ "${{ github.ref_name }}" = "master" ]; then
           OVERLAY="k8s/main-service/overlays/prod-k8s"
@@ -207,14 +205,13 @@ jobs:
         kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ github.ref_name }}
 
     - name: Deploy & Migrate (Mars)
-      if: github.ref_name == 'development'
       env:
         KUBECONFIG: ./kubeconfig_mars
       run: |
         # Determine overlay and namespace based on environment
         if [ "${{ github.ref_name }}" = "master" ]; then
           OVERLAY="k8s/main-service/overlays/prod-k8s"
-          NS="default"
+          NS="gradsystem-prod"
           JOB_NAME="db-migrate"
         else
           OVERLAY="k8s/main-service/overlays/dev-k8s"
@@ -258,5 +255,5 @@ jobs:
         echo "========================================"
         echo "✅ Deployment Complete"
         echo "Version: ${{ steps.package-version.outputs.VERSION }}"
-        echo "K3s: ✅ | Mars: ${{ github.ref_name == 'development' && '✅' || '⏭️ (skipped)' }}"
+        echo "K3s: ✅ | Mars: ✅"
         echo "========================================"
