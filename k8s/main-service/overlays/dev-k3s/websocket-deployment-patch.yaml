@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: websocket
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: websocket
+        image: chunchiehdev/websocket-server:development
+        env:
+        - name: NODE_ENV
+          value: "development"
+        - name: REDIS_HOST
+          value: "redis-dev"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret
+              key: REDIS_PASSWORD
+        - name: ALLOWED_ORIGINS
+          value: "http://localhost:3000,https://studentdev.grading.software"
+        - name: MAIN_API_URL
+          value: "http://gradsystem-dev"
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret
+              key: OPENAI_API_KEY
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret
+              key: GEMINI_API_KEY

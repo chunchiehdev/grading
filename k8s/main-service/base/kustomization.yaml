@@ -5,6 +5,8 @@ resources:
   - deployment.yaml
   - service.yaml
   - migration-job.yaml
+  - websocket-deployment.yaml
+  - websocket-service.yaml
 
 commonLabels:
   app.kubernetes.io/name: gradsystem

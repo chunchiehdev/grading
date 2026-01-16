@@ -5,6 +5,9 @@ resources:
   - ../../base
   - ingress.yaml
   - configmap.yaml
+  - redis.yaml
+  - postgres.yaml
+  - minio.yaml
 
 namespace: gradsystem-dev
 
@@ -28,3 +31,8 @@ secretGenerator:
 
 patches:
   - path: deployment-patch.yaml
+  - path: websocket-deployment-patch.yaml
+    target:
+      kind: Deployment
+      name: websocket
+
