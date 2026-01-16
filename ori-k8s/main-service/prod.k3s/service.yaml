@@ -1,0 +1,12 @@
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gradsystem-service
+spec:
+  selector:
+    app: gradsystem
+  ports:
+  - port: 80
+    targetPort: 3000
+  type: ClusterIP

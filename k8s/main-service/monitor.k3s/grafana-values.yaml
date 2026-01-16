@@ -1,0 +1,28 @@
+admin:
+  user: admin
+  password: admin123
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+plugins: grafana-piechart-panel,grafana-worldmap-panel,grafana-clock-panel
+
+service:
+  type: ClusterIP
+
+ingress:
+  enabled: true
+  hostname: grafana.grading.software
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  tls: true

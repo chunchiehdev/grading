@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grading-pdf-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grading-pdf-worker
+  template:
+    metadata:
+      labels:
+        app: grading-pdf-worker
+    spec:
+      containers:
+      - name: grading-pdf-worker
+        image: chunchiehdev/grading-pdf:PLACEHOLDER
+        imagePullPolicy: Always
+        command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: grading-pdf-config
+              key: REDIS_URL
+        - name: WORKER_CONCURRENCY
+          valueFrom:
+            configMapKeyRef:
+              name: grading-pdf-config
+              key: WORKER_CONCURRENCY
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: grading-pdf-config
+              key: LOG_LEVEL
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+        resources:
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+          requests:
+            memory: "512Mi"
+            cpu: "200m"

@@ -1,6 +1,8 @@
  /.cache
 /build
 .env
+.secrets.env
+*.secrets.env
 Architecture.md
 
 bundle-report.html
@@ -15,10 +17,10 @@ work/
 logs/
 sec/
 
-cicd/
+# cicd/
 
 # Cursor agent artifacts (may contain tokens/credentials)
 .cursor/
 
-grading-pdf-cicd/
+# grading-pdf-cicd/
 version.json

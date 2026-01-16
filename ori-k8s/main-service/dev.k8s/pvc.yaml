@@ -1,0 +1,88 @@
+---
+# PostgreSQL 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc-dev
+  namespace: gradsystem-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-nvme4tb
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+# pgAdmin 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgadmin-pvc-dev
+  namespace: gradsystem-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-nvme4tb
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Redis 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data-pvc-dev
+  namespace: gradsystem-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-nvme4tb
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# MinIO 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc-dev
+  namespace: gradsystem-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-nvme4tb
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-storage-pvc-dev
+  namespace: gradsystem-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-nvme4tb
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# WebSocket Server PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: websocket-storage-pvc-dev
+  namespace: gradsystem-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-nvme4tb
+  resources:
+    requests:
+      storage: 500Mi

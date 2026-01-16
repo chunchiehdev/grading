@@ -16,15 +16,16 @@ jobs:
     steps:
     - name: Start Deployment
       run: |
-        echo "Starting deployment process"
-        echo "Branch: ${{ github.ref }}"
-        echo "Commit: ${GITHUB_SHA::7}"
+        echo "🚀 Starting deployment - Branch: ${{ github.ref_name }}"
 
     - uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
+    # ============================================
+    # Version Management
+    # ============================================
     - name: Auto-update version based on commit message
       id: version-update
       run: |
@@ -33,96 +34,54 @@ jobs:
         EOF
         )
         COMMIT_FIRST_LINE=$(echo "$COMMIT_MSG" | head -n 1)
-        echo "Commit message (first line): $COMMIT_FIRST_LINE"
-
-        if [ ! -f "package.json" ]; then
-          echo "Error: package.json not found"
-          exit 1
-        fi
 
         if [ "${{ github.ref_name }}" = "master" ]; then
-          echo "Processing master branch - production versioning"
           if [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?!: ]] || [[ "$COMMIT_FIRST_LINE" =~ BREAKING.CHANGE ]]; then
-            echo "BREAKING CHANGE detected - bumping major version"
-            npm run version:major
-            echo "BUMP_TYPE=major" >> $GITHUB_OUTPUT
+            npm run version:major && echo "BUMP_TYPE=major" >> $GITHUB_OUTPUT
           elif [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?: ]]; then
-            echo "Feature detected - bumping minor version"
-            npm run version:minor
-            echo "BUMP_TYPE=minor" >> $GITHUB_OUTPUT
+            npm run version:minor && echo "BUMP_TYPE=minor" >> $GITHUB_OUTPUT
           elif [[ "$COMMIT_FIRST_LINE" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_FIRST_LINE" =~ ^perf(\(.+\))?: ]]; then
-            echo "Fix/perf detected - bumping patch version"
-            npm run version:patch
-            echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
+            npm run version:patch && echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
           else
-            echo "No version bump needed for this commit"
             echo "BUMP_TYPE=none" >> $GITHUB_OUTPUT
           fi
         else
-          echo "Processing development branch - prerelease versioning"
-
           CURRENT_VERSION=$(node -p "require('./package.json').version")
-          echo "Current version: $CURRENT_VERSION"
-
           BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-dev\.[0-9]*$//')
-          echo "Base version (without -dev suffix): $BASE_VERSION"
-
           npm version "$BASE_VERSION" --no-git-tag-version --allow-same-version
-
           if [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?: ]]; then
-            echo "Feature detected - bumping minor version"
             npm version minor --no-git-tag-version
-            echo "BUMP_TYPE=minor" >> $GITHUB_OUTPUT
           elif [[ "$COMMIT_FIRST_LINE" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_FIRST_LINE" =~ ^perf(\(.+\))?: ]]; then
-            echo "Fix/perf detected - bumping patch version"
             npm version patch --no-git-tag-version
-            echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
-          else
-            echo "No semantic version bump, keeping base version"
-            echo "BUMP_TYPE=dev" >> $GITHUB_OUTPUT
           fi
-
-          NEW_BASE_VERSION=$(node -p "require('./package.json').version")
-          TIMESTAMP=$(date +%Y%m%d%H%M)
-          NEW_VERSION="${NEW_BASE_VERSION}-dev.${TIMESTAMP}"
-
-          echo "Creating development version: $NEW_VERSION"
-          npm version "$NEW_VERSION" --no-git-tag-version
+          NEW_BASE=$(node -p "require('./package.json').version")
+          npm version "${NEW_BASE}-dev.$(date +%Y%m%d%H%M)" --no-git-tag-version
+          echo "BUMP_TYPE=dev" >> $GITHUB_OUTPUT
         fi
 
-    - name: Get version from package.json
+    - name: Get version
       id: package-version
-      run: |
-        VERSION=$(node -p "require('./package.json').version")
-        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-        echo "Package version: $VERSION"
+      run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
-    - name: Commit version bump
+    - name: Commit and push version bump
       if: steps.version-update.outputs.BUMP_TYPE != 'none'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add package.json
-        if [ "${{ github.ref_name }}" = "master" ]; then
-          git commit -m "chore: bump version to ${{ steps.package-version.outputs.VERSION }} [${{ steps.version-update.outputs.BUMP_TYPE }}] [skip ci]"
-        else
-          git commit -m "chore: bump dev version to ${{ steps.package-version.outputs.VERSION }} [development] [skip ci]"
-        fi
-
-    - name: Push version bump
-      if: steps.version-update.outputs.BUMP_TYPE != 'none'
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        git commit -m "chore: bump version to ${{ steps.package-version.outputs.VERSION }} [skip ci]"
         git push origin ${{ github.ref_name }}
 
+    # ============================================
+    # Docker Build
+    # ============================================
     - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_TOKEN }}
 
-    - name: Build and push Main Application Docker image
+    - name: Build and push Main App
       uses: docker/build-push-action@v5
       with:
         context: .
@@ -130,14 +89,12 @@ jobs:
         tags: |
           chunchiehdev/gradsystem:${{ github.ref_name }}
           chunchiehdev/gradsystem:${{ steps.package-version.outputs.VERSION }}-${{ github.ref_name }}
-          ${{ github.ref_name == 'master' && format('chunchiehdev/gradsystem:{0}', steps.package-version.outputs.VERSION) || '' }}
         build-args: |
           BUILD_VERSION=${{ steps.package-version.outputs.VERSION }}
           BUILD_BRANCH=${{ github.ref_name }}
           BUILD_COMMIT=${{ github.sha }}
-          BUILD_TIME=${{ github.event.head_commit.timestamp }}
 
-    - name: Build and push WebSocket Server Docker image
+    - name: Build and push WebSocket Server
       uses: docker/build-push-action@v5
       with:
         context: ./websocket-server
@@ -145,320 +102,123 @@ jobs:
         tags: |
           chunchiehdev/websocket-server:${{ github.ref_name }}
           chunchiehdev/websocket-server:${{ steps.package-version.outputs.VERSION }}-${{ github.ref_name }}
-          ${{ github.ref_name == 'master' && format('chunchiehdev/websocket-server:{0}', steps.package-version.outputs.VERSION) || '' }}
 
-    - name: Deploy to K3s
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        command_timeout: 10m
-        script: |
-          set +x
-          export KUBECONFIG=~/.kube/config
-          echo "Starting application deployment for ${{ github.ref_name }}"
-          echo "Version: ${{ steps.package-version.outputs.VERSION }}"
-
-          if [ "${{ github.ref_name }}" = "master" ]; then
-            DEPLOYMENT_FILE="prod/deployment.yaml"
-            SECRET_NAME="gradsystem-secret"
-            NAMESPACE="default"
-            DEPLOYMENT_NAME="gradsystem"
-          else
-            DEPLOYMENT_FILE="dev/deployment-dev.yaml"
-            SECRET_NAME="gradsystem-secret-dev"
-            NAMESPACE="dev"
-            DEPLOYMENT_NAME="gradsystem-dev"
-          fi
-
-          echo "Using deployment file: $DEPLOYMENT_FILE"
-          echo "Target namespace: $NAMESPACE"
-          echo "Secret name: $SECRET_NAME"
-
-          cd ~/gradsystem
-          if [ -f $DEPLOYMENT_FILE ]; then
-
-            echo "Running database migrations..."
-            
-            # Define a fixed Pod name for tracking
-            POD_NAME="migrate-$(date +%s)"
-            echo "Pod Name: $POD_NAME"
-
-            # 1. Start Pod in background (no --rm or --attach)
-            kubectl run $POD_NAME \
-              --restart=Never \
-              --image-pull-policy=Always \
-              --namespace=$NAMESPACE \
-              --image=chunchiehdev/gradsystem:${{ github.ref_name }} \
-              --env="DATABASE_URL=$(kubectl get secret $SECRET_NAME -n $NAMESPACE -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
-              --env="NODE_ENV=${{ github.ref_name == 'master' && 'production' || 'development' }}" \
-              --command -- /bin/sh -c "npx prisma migrate deploy --schema=/app/prisma/schema.prisma"
-
-            # 2. Wait for Pod to be ready (allow 5 minutes for image pull)
-            echo "Waiting for pod to start (pulling image if needed)..."
-            kubectl wait --for=condition=Ready pod/$POD_NAME -n $NAMESPACE --timeout=300s || true
-            
-            # 3. Check Pod status
-            POD_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
-            echo "Current Pod Status: $POD_STATUS"
-
-            if [ "$POD_STATUS" != "Running" ] && [ "$POD_STATUS" != "Succeeded" ]; then
-              echo "❌ Pod failed to start within timeout."
-              echo "=== POD DESCRIPTION (Why did it fail?) ==="
-              kubectl describe pod $POD_NAME -n $NAMESPACE
-              echo "=========================================="
-              kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
-              exit 1
-            fi
-
-            # 4. Stream logs
-            echo "Pod started! Streaming logs..."
-            kubectl logs -f $POD_NAME -n $NAMESPACE
-
-            # 5. Wait for Pod to reach terminal state (Succeeded or Failed)
-            echo "Waiting for pod to complete..."
-            for i in {1..60}; do
-              CURRENT_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-              if [ "$CURRENT_STATUS" = "Succeeded" ] || [ "$CURRENT_STATUS" = "Failed" ]; then
-                echo "Pod reached terminal state: $CURRENT_STATUS"
-                break
-              fi
-              sleep 1
-            done
-            
-            # 6. Check final execution status
-            FINAL_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
-            echo "Final Pod Status: $FINAL_STATUS"
-            
-            # Cleanup
-            kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
-
-            if [ "$FINAL_STATUS" != "Succeeded" ]; then
-               echo "❌ Migration script executed but failed (Exit Code not 0)"
-               exit 1
-            else
-               echo "✅ Migration completed successfully"
-            fi
-
-            if [ $? -eq 0 ]; then
-              echo "Migration successful, preparing application deployment..."
-
-              echo "Applying deployment configuration"
-              kubectl apply -f $DEPLOYMENT_FILE
-
-              echo "Triggering rollout restart to pull latest images..."
-              kubectl rollout restart deployment $DEPLOYMENT_NAME -n $NAMESPACE
-              kubectl rollout status deployment $DEPLOYMENT_NAME -n $NAMESPACE --timeout=5m
-
-              if [ -f "${NAMESPACE}/websocket-deployment-dev.yaml" ]; then
-                echo "Deploying WebSocket service..."
-                kubectl apply -f ${NAMESPACE}/websocket-deployment-dev.yaml
-                kubectl apply -f ${NAMESPACE}/websocket-service-dev.yaml
-                kubectl rollout restart deployment websocket-dev -n $NAMESPACE
-                kubectl rollout status deployment websocket-dev -n $NAMESPACE --timeout=5m
-                echo "WebSocket deployment completed"
-              fi
-
-              echo "All deployments completed successfully"
-            else
-              echo "Migration failed"
-              exit 1
-            fi
-          else
-            echo "Error: $DEPLOYMENT_FILE file not found"
-            exit 1
-          fi
-
-    - name: Deploy to Mars K8s
-      if: github.ref_name == 'development'
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.MARS_SERVER_HOST }}
-        username: ${{ secrets.MARS_SERVER_USER }}
-        key: ${{ secrets.MARS_SERVER_SSH_KEY }}
-        command_timeout: 10m
-        script: |
-          set -e
-          export KUBECONFIG=~/.kube/config
-
-          echo "Starting deployment to Mars K8s"
-          echo "Version: ${{ steps.package-version.outputs.VERSION }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Namespace: gradsystem-dev"
-
-          NAMESPACE="gradsystem-dev"
-          SECRET_NAME="gradsystem-secret-dev"
-
-          echo "Checking gradsystem directory..."
-          if [ ! -d "$HOME/gradsystem" ]; then
-            echo "Error: $HOME/gradsystem directory not found"
-            echo "Available directories in home:"
-            ls -la $HOME
-            exit 1
-          fi
-
-          if [ ! -d "$HOME/gradsystem/dev" ]; then
-            echo "Error: $HOME/gradsystem/dev directory not found"
-            echo "Available directories in gradsystem:"
-            ls -la $HOME/gradsystem
-            exit 1
-          fi
-
-          cd $HOME/gradsystem/dev
-
-          echo "Current directory: $(pwd)"
-          echo "Available files:"
-          ls -la
-
-          if [ ! -f deployment-dev.yaml ]; then
-            echo "Error: deployment-dev.yaml not found in $DEPLOYMENT_DIR"
-            exit 1
-          fi
-
-          echo "Current pod status:"
-          kubectl get pods -n $NAMESPACE
-
-          echo "Running database migrations..."
-          
-          # Define a fixed Pod name for tracking
-          POD_NAME="migrate-$(date +%s)"
-          echo "Pod Name: $POD_NAME"
-
-          # 1. Start Pod in background (no --rm or --attach)
-          kubectl run $POD_NAME \
-            --restart=Never \
-            --image-pull-policy=Always \
-            --namespace=$NAMESPACE \
-            --image=chunchiehdev/gradsystem:development \
-            --env="DATABASE_URL=$(kubectl get secret $SECRET_NAME -n $NAMESPACE -o jsonpath='{.data.DATABASE_URL}' | base64 -d)" \
-            --env="NODE_ENV=development" \
-            --command -- /bin/sh -c "npx prisma migrate deploy --schema=/app/prisma/schema.prisma"
-
-          # 2. Wait for Pod to be ready (allow 5 minutes for image pull)
-          echo "Waiting for pod to start (pulling image if needed)..."
-          kubectl wait --for=condition=Ready pod/$POD_NAME -n $NAMESPACE --timeout=300s || true
-          
-          # 3. Check Pod status
-          POD_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
-          echo "Current Pod Status: $POD_STATUS"
-
-          if [ "$POD_STATUS" != "Running" ] && [ "$POD_STATUS" != "Succeeded" ]; then
-            echo "❌ Pod failed to start within timeout."
-            echo "=== POD DESCRIPTION (Why did it fail?) ==="
-            kubectl describe pod $POD_NAME -n $NAMESPACE
-            echo "=========================================="
-            kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
-            exit 1
-          fi
-
-          # 4. Stream logs
-          echo "Pod started! Streaming logs..."
-          kubectl logs -f $POD_NAME -n $NAMESPACE
-
-          # 5. Wait for Pod to reach terminal state (Succeeded or Failed)
-          echo "Waiting for pod to complete..."
-          for i in {1..60}; do
-            CURRENT_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-            if [ "$CURRENT_STATUS" = "Succeeded" ] || [ "$CURRENT_STATUS" = "Failed" ]; then
-              echo "Pod reached terminal state: $CURRENT_STATUS"
-              break
-            fi
-            sleep 1
-          done
-          
-          # 6. Check final execution status
-          FINAL_STATUS=$(kubectl get pod $POD_NAME -n $NAMESPACE -o jsonpath='{.status.phase}')
-          echo "Final Pod Status: $FINAL_STATUS"
-          
-          # Cleanup
-          kubectl delete pod $POD_NAME -n $NAMESPACE --force --grace-period=0
-
-          if [ "$FINAL_STATUS" != "Succeeded" ]; then
-             echo "❌ Migration script executed but failed (Exit Code not 0)"
-             exit 1
-          else
-             echo "✅ Migration completed successfully"
-          fi
-
-          if [ $? -eq 0 ]; then
-            echo "Migration successful"
-
-            echo "Applying deployment configuration..."
-            kubectl apply -f deployment-dev.yaml
-
-            echo "Restarting gradsystem-dev deployment..."
-            kubectl rollout restart deployment gradsystem-dev -n $NAMESPACE
-
-            echo "Waiting for gradsystem-dev rollout to complete..."
-            kubectl rollout status deployment gradsystem-dev -n $NAMESPACE --timeout=300s
-
-            if [ -f websocket-deployment-dev.yaml ]; then
-              echo "Restarting websocket-dev deployment..."
-              kubectl apply -f websocket-deployment-dev.yaml
-              kubectl rollout restart deployment websocket-dev -n $NAMESPACE
-              kubectl rollout status deployment websocket-dev -n $NAMESPACE --timeout=300s
-              echo "WebSocket deployment completed"
-            else
-              echo "websocket-deployment-dev.yaml not found, skipping"
-            fi
-
-            echo "Final pod status:"
-            kubectl get pods -n $NAMESPACE
-
-            echo "Mars K8s deployment completed successfully"
-          else
-            echo "Migration failed, aborting deployment"
-            exit 1
-          fi
-
-    - name: Create and push tag
-      if: steps.version-update.outputs.BUMP_TYPE != 'none'
+    # ============================================
+    # Setup Tools
+    # ============================================
+    - name: Setup kubectl & Kustomize
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
+        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+        chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+        curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+        sudo mv kustomize /usr/local/bin/
 
+    - name: Prepare kubeconfig files
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_K3S }}" | base64 -d > kubeconfig_k3s
+        echo "${{ secrets.KUBE_CONFIG_MARS }}" | base64 -d > kubeconfig_mars
+        chmod 600 kubeconfig_k3s kubeconfig_mars
+
+    # ============================================
+    # Deploy to K3s
+    # ============================================
+    - name: Set K3s variables
+      id: k3s
+      run: |
         if [ "${{ github.ref_name }}" = "master" ]; then
-          echo "Creating production release tag"
-          git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Release v${{ steps.package-version.outputs.VERSION }}"
-          git push origin v${{ steps.package-version.outputs.VERSION }}
+          echo "OVERLAY=k8s/main-service/overlays/prod-k3s" >> $GITHUB_OUTPUT
+          echo "NS=default" >> $GITHUB_OUTPUT
         else
-          echo "Creating development tag"
-          git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Development release v${{ steps.package-version.outputs.VERSION }}"
-          git push origin v${{ steps.package-version.outputs.VERSION }}
+          echo "OVERLAY=k8s/main-service/overlays/dev-k3s" >> $GITHUB_OUTPUT
+          echo "NS=dev" >> $GITHUB_OUTPUT
         fi
 
-    - name: Create tag for current version (master only, no version bump)
-      if: github.ref_name == 'master' && steps.version-update.outputs.BUMP_TYPE == 'none'
+    - name: Generate K3s secrets
+      run: |
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          printf "%s" "${{ secrets.PROD_K3S_ENV_FILE }}" > ${{ steps.k3s.outputs.OVERLAY }}/.secrets.env
+        else
+          printf "%s" "${{ secrets.DEV_K3S_ENV_FILE }}" > ${{ steps.k3s.outputs.OVERLAY }}/.secrets.env
+        fi
+
+    - name: Update K3s image tag
+      run: |
+        cd ${{ steps.k3s.outputs.OVERLAY }}
+        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ github.ref_name }}
+
+    - name: Deploy & Migrate (K3s)
+      env:
+        KUBECONFIG: ./kubeconfig_k3s
+      run: |
+        OVERLAY="${{ steps.k3s.outputs.OVERLAY }}"
+        NS="${{ steps.k3s.outputs.NS }}"
+        
+        # Delete old migration job if exists
+        kubectl delete job db-migrate -n $NS --ignore-not-found
+        
+        # Apply all resources (Deployment, Service, Secret, Job)
+        kubectl apply -k $OVERLAY
+        
+        # Wait for migration job
+        echo "⏳ Waiting for migration..."
+        kubectl wait --for=condition=complete job/db-migrate -n $NS --timeout=300s
+        
+        # Wait for deployment rollout
+        echo "⏳ Waiting for rollout..."
+        kubectl rollout status deployment -n $NS -l app.kubernetes.io/name=gradsystem --timeout=300s
+        
+        echo "✅ K3s deployment complete!"
+
+    # ============================================
+    # Deploy to Mars K8s (development only)
+    # ============================================
+    - name: Generate Mars secrets
+      if: github.ref_name == 'development'
+      run: |
+        printf "%s" "${{ secrets.DEV_K8S_ENV_FILE }}" > k8s/main-service/overlays/dev-k8s/.secrets.env
+
+    - name: Update Mars image tag
+      if: github.ref_name == 'development'
+      run: |
+        cd k8s/main-service/overlays/dev-k8s
+        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:development
+
+    - name: Deploy & Migrate (Mars)
+      if: github.ref_name == 'development'
+      env:
+        KUBECONFIG: ./kubeconfig_mars
+      run: |
+        NS="gradsystem-dev"
+        kubectl delete job db-migrate -n $NS --ignore-not-found
+        kubectl apply -k k8s/main-service/overlays/dev-k8s
+        
+        echo "⏳ Waiting for Mars migration..."
+        kubectl wait --for=condition=complete job/db-migrate -n $NS --timeout=300s
+        
+        echo "⏳ Waiting for Mars rollout..."
+        kubectl rollout status deployment -n $NS -l app.kubernetes.io/name=gradsystem --timeout=300s
+        
+        echo "✅ Mars deployment complete!"
+
+    # ============================================
+    # Cleanup & Tagging
+    # ============================================
+    - name: Cleanup secrets
+      if: always()
+      run: rm -f k8s/main-service/overlays/*/.secrets.env kubeconfig_*
+
+    - name: Create git tag
+      if: steps.version-update.outputs.BUMP_TYPE != 'none'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Release v${{ steps.package-version.outputs.VERSION }}"
         git push origin v${{ steps.package-version.outputs.VERSION }}
 
-    - name: Deployment Summary
+    - name: Summary
       run: |
-        echo "Deployment Summary"
-        echo "-------------------"
-        echo "Pipeline completed successfully"
-        echo "Environment: ${{ github.ref_name == 'master' && 'production' || 'development' }}"
-        echo "Branch: ${{ github.ref }}"
+        echo "========================================"
+        echo "✅ Deployment Complete"
         echo "Version: ${{ steps.package-version.outputs.VERSION }}"
-        echo "Version bump: ${{ steps.version-update.outputs.BUMP_TYPE }}"
-        echo "Commit: ${{ github.sha }}"
-        echo "Build time: ${{ github.event.head_commit.timestamp }}"
-
-        if [ "${{ github.ref_name }}" = "master" ]; then
-          echo "Production release tag: v${{ steps.package-version.outputs.VERSION }}"
-          echo "Versioning: Semantic versioning based on commit messages"
-        else
-          if [ "${{ steps.version-update.outputs.BUMP_TYPE }}" != "none" ]; then
-            echo "Development tag: v${{ steps.package-version.outputs.VERSION }}"
-          fi
-          echo "Versioning: Prerelease with timestamp for development tracking"
-        fi
-
-    - name: Handle Failure
-      if: failure()
-      run: |
-        echo "Deployment encountered an issue"
+        echo "K3s: ✅ | Mars: ${{ github.ref_name == 'development' && '✅' || '⏭️ (skipped)' }}"
+        echo "========================================"

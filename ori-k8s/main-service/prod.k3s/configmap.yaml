@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gradsystem-config
+data:
+  OLLAMA_MODEL: "llama3.1:8b"
+  OLLAMA_API_URL: "https://ollama.lazyinwork.com/api/chat/completions"
+  POSTGRES_USER: "grading_admin"
+  POSTGRES_DB: "grading_db"
+  MINIO_ROOT_USER: "grading_admin"
+  PDF_PARSER_API_URL: "https://gradingpdf.grading.software"
+  PRISMA_LOG_LEVEL: "error"

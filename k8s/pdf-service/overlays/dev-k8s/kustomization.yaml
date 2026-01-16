@@ -1,0 +1,112 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - ingress.yaml
+  - redis.yaml
+
+namespace: grading-pdf-dev
+
+nameSuffix: -dev
+
+images:
+  - name: chunchiehdev/grading-pdf
+    newTag: master
+
+replicas:
+  - name: grading-pdf-api
+    count: 2
+  - name: grading-pdf-worker
+    count: 2
+
+patches:
+  # Add pod metadata environment variables for K8s
+  - target:
+      kind: Deployment
+      name: grading-pdf-api
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+      - op: add
+        path: /spec/template/spec/containers/0/env/1
+        value:
+          name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+      - op: add
+        path: /spec/template/spec/containers/0/env/2
+        value:
+          name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+      # Patch ConfigMap references to use -dev suffix
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
+      - op: replace
+        path: /spec/template/spec/containers/0/env/4/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
+      - op: replace
+        path: /spec/template/spec/containers/0/env/5/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
+  - target:
+      kind: Deployment
+      name: grading-pdf-worker
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/0
+        value:
+          name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+      - op: add
+        path: /spec/template/spec/containers/0/env/1
+        value:
+          name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+      - op: add
+        path: /spec/template/spec/containers/0/env/2
+        value:
+          name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+      # Patch ConfigMap references to use -dev suffix
+      - op: replace
+        path: /spec/template/spec/containers/0/env/3/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
+      - op: replace
+        path: /spec/template/spec/containers/0/env/4/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
+      - op: replace
+        path: /spec/template/spec/containers/0/env/5/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
+
+configMapGenerator:
+  - name: grading-pdf-config-dev
+    behavior: create
+    literals:
+      - REDIS_URL=redis://redis-dev:6379/0
+      - APP_MODE=development
+      - LOG_LEVEL=debug
+      - WORKER_CONCURRENCY=4
+
+generatorOptions:
+  disableNameSuffixHash: true

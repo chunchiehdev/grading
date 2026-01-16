@@ -1,0 +1,113 @@
+# pgAdmin Server Configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgadmin-servers-config
+  namespace: default
+data:
+  servers.json: |
+    {
+      "Servers": {
+        "1": {
+          "Name": "PostgreSQL",
+          "Group": "Servers",
+          "Host": "postgres",
+          "Port": 5432,
+          "MaintenanceDB": "grading_db",
+          "Username": "grading_admin",
+          "PassFile": "/tmp/pgpassfile",
+          "SSLMode": "prefer",
+          "Comment": "Auto-configured PostgreSQL server"
+        }
+      }
+    }
+  pgpassfile: |
+    postgres:5432:grading_db:grading_admin:password
+
+---
+# PVC for pgAdmin data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgadmin-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# pgAdmin Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgadmin
+  template:
+    metadata:
+      labels:
+        app: pgadmin
+    spec:
+      containers:
+      - name: pgadmin
+        image: dpage/pgadmin4:8.13
+        ports:
+        - containerPort: 80
+        env:
+        - name: PGADMIN_DEFAULT_EMAIL
+          value: "admin@admin.com"
+        - name: PGADMIN_DEFAULT_PASSWORD
+          value: "admin"
+        - name: PGADMIN_CONFIG_SERVER_MODE
+          value: "False"
+        - name: PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED
+          value: "False"
+        - name: PGADMIN_CONFIG_CONSOLE_LOG_LEVEL
+          value: "40"
+        - name: GUNICORN_ACCESS_LOGFILE
+          value: "/dev/null"
+        volumeMounts:
+        - name: pgadmin-storage
+          mountPath: /var/lib/pgadmin
+        - name: pgadmin-servers
+          mountPath: /pgadmin4/servers.json
+          subPath: servers.json
+        - name: pgadmin-servers
+          mountPath: /tmp/pgpassfile
+          subPath: pgpassfile
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+      volumes:
+      - name: pgadmin-storage
+        persistentVolumeClaim:
+          claimName: pgadmin-pvc
+      - name: pgadmin-servers
+        configMap:
+          name: pgadmin-servers-config
+
+---
+# pgAdmin Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgadmin
+  namespace: default
+spec:
+  selector:
+    app: pgadmin
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP

@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: websocket-dev
+  namespace: gradsystem-dev
+spec:
+  replicas: 2  
+  selector:
+    matchLabels:
+      app: websocket-dev
+  template:
+    metadata:
+      labels:
+        app: websocket-dev
+    spec:
+      containers:
+      - name: websocket-dev
+        env:
+        - name: NODE_ENV
+          value: "development"
+        - name: PORT
+          value: "3001"
+        - name: REDIS_HOST
+          value: "redis-dev"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: REDIS_PASSWORD
+        - name: ALLOWED_ORIGINS
+          value: "http://localhost:3000,http://devstudent.grading.software,https://devstudent.grading.software"
+        - name: MAIN_API_URL
+          value: "http://gradsystem-service-dev"
+        - name: MAIN_API_PORT
+          value: "80"
+        # AI API keys for WebSocket handlers
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: OPENAI_API_KEY
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: GEMINI_API_KEY
+        image: chunchiehdev/websocket-server:development
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3001
+        resources:
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3

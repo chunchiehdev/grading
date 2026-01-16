@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - ingress.yaml
+  - configmap.yaml
+
+namespace: default
+
+images:
+  - name: chunchiehdev/gradsystem
+    newTag: master
+
+replicas:
+  - name: gradsystem
+    count: 3
+
+# Secret Generator - reads from .secrets.env file
+# The file is generated at CI runtime, NOT committed to git
+secretGenerator:
+  - name: gradsystem-secret
+    envs:
+      - .secrets.env
+    type: Opaque
+
+patches:
+  - path: deployment-patch.yaml

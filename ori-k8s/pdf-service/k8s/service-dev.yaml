@@ -1,0 +1,14 @@
+# service-dev.yaml
+# Service for grading-pdf API
+apiVersion: v1
+kind: Service
+metadata:
+  name: grading-pdf-service-dev
+  namespace: grading-pdf-dev
+spec:
+  selector:
+    app: grading-pdf-api-dev
+  ports:
+  - port: 80
+    targetPort: 8000
+  type: ClusterIP

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grading-pdf-config
+  namespace: grading-pdf
+data:
+  APP_MODE: "production"
+  WORKER_CONCURRENCY: "4"
+  LOG_LEVEL: "info"
+  REDIS_URL: "redis://redis:6379" 

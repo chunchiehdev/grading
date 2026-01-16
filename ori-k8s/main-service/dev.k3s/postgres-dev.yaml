@@ -1,0 +1,195 @@
+# pgAdmin Server Configuration for Dev
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgadmin-servers-config-dev
+  namespace: dev
+data:
+  servers.json: |
+    {
+      "Servers": {
+        "1": {
+          "Name": "PostgreSQL Dev",
+          "Group": "Servers",
+          "Host": "postgres-dev",
+          "Port": 5432,
+          "MaintenanceDB": "grading_db",
+          "Username": "grading_admin",
+          "PassFile": "/tmp/pgpassfile",
+          "SSLMode": "prefer",
+          "Comment": "Auto-configured PostgreSQL server for dev"
+        }
+      }
+    }
+  pgpassfile: |
+    postgres-dev:5432:grading_db:grading_admin:password
+
+---
+# PVC for PostgreSQL data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc-dev
+  namespace: dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+
+---
+# PostgreSQL Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-dev
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-dev
+  template:
+    metadata:
+      labels:
+        app: postgres-dev
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config-dev
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config-dev
+              key: POSTGRES_DB
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc-dev
+
+---
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-dev
+  namespace: dev
+spec:
+  selector:
+    app: postgres-dev
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+
+---
+# PVC for pgAdmin data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgadmin-pvc-dev
+  namespace: dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# pgAdmin Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin-dev
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgadmin-dev
+  template:
+    metadata:
+      labels:
+        app: pgadmin-dev
+    spec:
+      containers:
+      - name: pgadmin
+        image: dpage/pgadmin4:8.13
+        ports:
+        - containerPort: 80
+        env:
+        - name: PGADMIN_DEFAULT_EMAIL
+          value: "admin@admin.com"
+        - name: PGADMIN_DEFAULT_PASSWORD
+          value: "admin"
+        - name: PGADMIN_CONFIG_SERVER_MODE
+          value: "False"
+        - name: PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED
+          value: "False"
+        - name: PGADMIN_CONFIG_CONSOLE_LOG_LEVEL
+          value: "40"
+        - name: GUNICORN_ACCESS_LOGFILE
+          value: "/dev/null"
+        volumeMounts:
+        - name: pgadmin-storage
+          mountPath: /var/lib/pgadmin
+        - name: pgadmin-servers
+          mountPath: /pgadmin4/servers.json
+          subPath: servers.json
+        - name: pgadmin-servers
+          mountPath: /tmp/pgpassfile
+          subPath: pgpassfile
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+      volumes:
+      - name: pgadmin-storage
+        persistentVolumeClaim:
+          claimName: pgadmin-pvc-dev
+      - name: pgadmin-servers
+        configMap:
+          name: pgadmin-servers-config-dev
+
+---
+# pgAdmin Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgadmin-dev
+  namespace: dev
+spec:
+  selector:
+    app: pgadmin-dev
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP 

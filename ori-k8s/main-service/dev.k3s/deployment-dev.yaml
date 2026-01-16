@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gradsystem-dev
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gradsystem-dev
+  template:
+    metadata:
+      labels:
+        app: gradsystem-dev
+    spec:
+      containers:
+      - name: gradsystem-dev
+        env:
+        - name: REDIS_HOST
+          value: "redis-dev"    
+        - name: REDIS_PORT
+          value: "6379"     
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: REDIS_PASSWORD
+        - name: MINIO_ENDPOINT
+          value: "minio-service-dev"
+        - name: MINIO_PORT
+          value: "9000"
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config-dev
+              key: MINIO_ROOT_USER
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: MINIO_ROOT_PASSWORD
+        - name: OLLAMA_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config-dev
+              key: OLLAMA_API_URL
+        - name: OLLAMA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: OLLAMA_API_KEY
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: DATABASE_URL
+        - name: THEME_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: THEME_SECRET        
+        - name: AUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: AUTH_SECRET
+        - name: GOOGLE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: GOOGLE_CLIENT_ID
+        - name: GOOGLE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: GOOGLE_CLIENT_SECRET
+        - name: GOOGLE_REDIRECT_URI
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: GOOGLE_REDIRECT_URI
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: GEMINI_API_KEY
+        - name: AUTH_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: AUTH_KEY
+        - name: PDF_PARSER_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config-dev
+              key: PDF_PARSER_API_URL
+        - name: GEMINI_API_KEY2
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: GEMINI_API_KEY2
+        - name: GEMINI_API_KEY3
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: GEMINI_API_KEY3
+        - name: PRISMA_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config-dev
+              key: PRISMA_LOG_LEVEL
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev
+              key: OPENAI_API_KEY
+        image: chunchiehdev/gradsystem:development  
+        imagePullPolicy: Always  
+        ports:
+        - containerPort: 3000
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3

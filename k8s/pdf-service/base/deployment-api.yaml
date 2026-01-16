@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grading-pdf-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grading-pdf-api
+  template:
+    metadata:
+      labels:
+        app: grading-pdf-api
+    spec:
+      containers:
+      - name: grading-pdf-api
+        image: chunchiehdev/grading-pdf:PLACEHOLDER
+        imagePullPolicy: Always
+        env:
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: grading-pdf-config
+              key: REDIS_URL
+        - name: APP_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: grading-pdf-config
+              key: APP_MODE
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: grading-pdf-config
+              key: LOG_LEVEL
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3

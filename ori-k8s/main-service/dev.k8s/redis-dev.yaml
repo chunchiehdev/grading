@@ -1,0 +1,53 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-dev
+  namespace: gradsystem-dev   
+spec:
+  selector:
+    matchLabels:
+      app: redis-dev   
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis-dev   
+    spec:
+      containers:
+      - name: redis-dev   
+        image: redis:7.2-alpine
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        args:
+        - redis-server
+        - --appendonly
+        - "yes"
+        - --requirepass
+        - $(REDIS_PASSWORD)
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gradsystem-secret-dev   
+              key: REDIS_PASSWORD
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-data-pvc-dev   
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-dev
+  namespace: gradsystem-dev   
+spec:
+  selector:
+    app: redis-dev   
+  ports:
+  - port: 6379
+    targetPort: 6379

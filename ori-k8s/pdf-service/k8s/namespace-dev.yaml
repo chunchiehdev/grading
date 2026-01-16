@@ -1,0 +1,6 @@
+# namespace-dev.yaml
+# Creates the namespace for grading-pdf development environment
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: grading-pdf-dev

@@ -1,0 +1,143 @@
+---
+# PostgreSQL PV
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-pv-dev
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-nvme4tb
+  local:
+    path: /mnt/nvme4tb/postgres-data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - mars
+
+---
+# pgAdmin PV
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pgadmin-pv-dev
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-nvme4tb
+  local:
+    path: /mnt/nvme4tb/pgadmin-data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - mars
+
+---
+# Redis PV
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-pv-dev
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-nvme4tb
+  local:
+    path: /mnt/nvme4tb/redis-data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - mars
+
+---
+# MinIO PV
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: minio-pv-dev
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-nvme4tb
+  local:
+    path: /mnt/nvme4tb/minio-data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - mars
+
+---
+# App Storage PV
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: app-storage-pv-dev
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-nvme4tb
+  local:
+    path: /mnt/nvme4tb/app-storage
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - mars
+
+---
+# WebSocket Storage PV
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: websocket-pv-dev
+spec:
+  capacity:
+    storage: 500Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-nvme4tb
+  local:
+    path: /mnt/nvme4tb/websocket-data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - mars

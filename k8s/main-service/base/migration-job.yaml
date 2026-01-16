@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrate
+  labels:
+    app.kubernetes.io/name: gradsystem
+    app.kubernetes.io/component: migration
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gradsystem
+        app.kubernetes.io/component: migration
+    spec:
+      containers:
+      - name: migrate
+        image: chunchiehdev/gradsystem:PLACEHOLDER
+        imagePullPolicy: Always
+        command: ["/bin/sh", "-c", "npx prisma migrate deploy --schema=/app/prisma/schema.prisma"]
+        envFrom:
+        - secretRef:
+            name: gradsystem-secret
+        env:
+        - name: NODE_ENV
+          value: "production"
+      restartPolicy: Never
