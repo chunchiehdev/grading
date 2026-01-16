@@ -168,7 +168,12 @@ jobs:
         
         # Wait for migration job
         echo "⏳ Waiting for migration..."
-        kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=300s
+        kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=600s || {
+          echo "❌ Migration job timed out or failed"
+          echo "📋 Job logs:"
+          kubectl logs -l app.kubernetes.io/component=migration -n $NS --tail=100
+          exit 1
+        }
         
         # Wait for deployment rollout
         echo "⏳ Waiting for rollout..."
@@ -182,33 +187,51 @@ jobs:
     - name: Generate Mars secrets
       if: github.ref_name == 'development'
       run: |
-        printf "%s" "${{ secrets.DEV_K8S_ENV_FILE }}" > k8s/main-service/overlays/dev-k8s/.secrets.env
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          OVERLAY="k8s/main-service/overlays/prod-k8s"
+          printf "%s" "${{ secrets.PROD_K8S_ENV_FILE }}" > $OVERLAY/.secrets.env
+        else
+          OVERLAY="k8s/main-service/overlays/dev-k8s"
+          printf "%s" "${{ secrets.DEV_K8S_ENV_FILE }}" > $OVERLAY/.secrets.env
+        fi
 
     - name: Update Mars image tag
       if: github.ref_name == 'development'
       run: |
-        cd k8s/main-service/overlays/dev-k8s
-        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:development
+        if [ "${{ github.ref_name }}" = "master" ]; then
+          OVERLAY="k8s/main-service/overlays/prod-k8s"
+        else
+          OVERLAY="k8s/main-service/overlays/dev-k8s"
+        fi
+        cd $OVERLAY
+        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ github.ref_name }}
 
     - name: Deploy & Migrate (Mars)
       if: github.ref_name == 'development'
       env:
         KUBECONFIG: ./kubeconfig_mars
       run: |
-        NS="gradsystem-dev"
-        
-        # Determine job name based on environment
+        # Determine overlay and namespace based on environment
         if [ "${{ github.ref_name }}" = "master" ]; then
+          OVERLAY="k8s/main-service/overlays/prod-k8s"
+          NS="default"
           JOB_NAME="db-migrate"
         else
+          OVERLAY="k8s/main-service/overlays/dev-k8s"
+          NS="gradsystem-dev"
           JOB_NAME="db-migrate-dev"
         fi
         
         kubectl delete job $JOB_NAME -n $NS --ignore-not-found
-        kubectl apply -k k8s/main-service/overlays/dev-k8s
+        kubectl apply -k $OVERLAY
         
         echo "⏳ Waiting for Mars migration..."
-        kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=300s
+        kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=600s || {
+          echo "❌ Migration job timed out or failed"
+          echo "📋 Job logs:"
+          kubectl logs -l app.kubernetes.io/component=migration -n $NS --tail=100
+          exit 1
+        }
         
         echo "⏳ Waiting for Mars rollout..."
         kubectl rollout status deployment -n $NS -l app.kubernetes.io/name=gradsystem --timeout=300s
