@@ -20,7 +20,7 @@ spec:
               name: gradsystem-secret
               key: REDIS_PASSWORD
         - name: ALLOWED_ORIGINS
-          value: "https://student.grading.software,https://www.grading.software"
+          value: "https://agenticgrader.com,https://www.agenticgrader.com"
         - name: MAIN_API_URL
           value: "http://gradsystem"
         - name: OPENAI_API_KEY

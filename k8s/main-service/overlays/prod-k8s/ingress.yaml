@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: gradsystem-ingress
-  namespace: default
+  namespace: gradsystem-prod
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     traefik.ingress.kubernetes.io/router.tls: "true"
@@ -14,11 +14,10 @@ spec:
   ingressClassName: traefik
   tls:
   - hosts:
-      # TODO: Update hostname for prod-k8s environment
-      - student-mars.grading.software
-    secretName: student-mars-grading-software-tls
+      - agenticgrader.com
+    secretName: agenticgrader-tls
   rules:
-  - host: student-mars.grading.software
+  - host: agenticgrader.com
     http:
       paths:
       - path: /

@@ -14,10 +14,10 @@ spec:
   ingressClassName: traefik
   tls:
   - hosts:
-      - devstudent.grading.software
-    secretName: dev-grading-software-tls
+      - dev.agenticgrader.com
+    secretName: dev-agenticgrader-tls
   rules:
-  - host: devstudent.grading.software
+  - host: dev.agenticgrader.com
     http:
       paths:
       - path: /socket.io
