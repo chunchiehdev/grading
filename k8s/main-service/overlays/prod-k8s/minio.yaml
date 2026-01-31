@@ -4,11 +4,12 @@ metadata:
   name: minio-pvc
 spec:
   storageClassName: local-nvme4tb
+  volumeName: minio-pv-prod
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 5Gi
+      storage: 20Gi
 
 ---
 apiVersion: apps/v1

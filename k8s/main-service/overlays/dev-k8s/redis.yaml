@@ -4,6 +4,7 @@ metadata:
   name: redis-data-pvc
 spec:
   storageClassName: local-nvme4tb
+  volumeName: redis-pv
   accessModes:
     - ReadWriteOnce
   resources:

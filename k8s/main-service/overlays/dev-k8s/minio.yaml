@@ -4,6 +4,7 @@ metadata:
   name: minio-pvc
 spec:
   storageClassName: local-nvme4tb
+  volumeName: minio-pv
   accessModes:
     - ReadWriteOnce
   resources:
