@@ -64,7 +64,7 @@ jobs:
       run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
     - name: Commit and push version bump
-      if: steps.version-update.outputs.BUMP_TYPE != 'none'
+      if: steps.version-update.outputs.BUMP_TYPE != 'none' && github.ref_name == 'master'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
@@ -243,7 +243,7 @@ jobs:
       run: rm -f k8s/main-service/overlays/*/.secrets.env kubeconfig_*
 
     - name: Create git tag
-      if: steps.version-update.outputs.BUMP_TYPE != 'none'
+      if: steps.version-update.outputs.BUMP_TYPE != 'none' && github.ref_name == 'master'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
