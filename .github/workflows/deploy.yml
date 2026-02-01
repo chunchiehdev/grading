@@ -264,6 +264,9 @@ jobs:
     - name: Sync version back to development
       if: github.ref_name == 'master' && steps.version-update.outputs.BUMP_TYPE != 'none'
       run: |
+        # Reset modified kustomization files before checkout
+        git checkout -- k8s/main-service/overlays/*/kustomization.yaml || true
+        
         git fetch origin development
         git checkout development
         git merge origin/master -m "chore: sync version ${{ steps.package-version.outputs.VERSION }} from master [skip ci]"
