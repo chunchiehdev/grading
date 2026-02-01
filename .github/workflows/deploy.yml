@@ -257,3 +257,15 @@ jobs:
         echo "Version: ${{ steps.package-version.outputs.VERSION }}"
         echo "K3s: ✅ | Mars: ✅"
         echo "========================================"
+
+    # ============================================
+    # Sync Version to Development
+    # ============================================
+    - name: Sync version back to development
+      if: github.ref_name == 'master' && steps.version-update.outputs.BUMP_TYPE != 'none'
+      run: |
+        git fetch origin development
+        git checkout development
+        git merge origin/master -m "chore: sync version ${{ steps.package-version.outputs.VERSION }} from master [skip ci]"
+        git push origin development
+        echo "✅ Synced version to development branch"
