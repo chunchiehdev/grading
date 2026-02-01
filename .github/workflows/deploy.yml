@@ -36,6 +36,15 @@ jobs:
         COMMIT_FIRST_LINE=$(echo "$COMMIT_MSG" | head -n 1)
 
         if [ "${{ github.ref_name }}" = "master" ]; then
+          # First, clean up any -dev.xxx suffix from version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          if [[ "$CURRENT_VERSION" =~ -dev\.[0-9]+ ]]; then
+            BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-dev\.[0-9]*$//')
+            npm version "$BASE_VERSION" --no-git-tag-version --allow-same-version
+            echo "Cleaned dev version: $CURRENT_VERSION -> $BASE_VERSION"
+          fi
+          
+          # Then, bump version based on commit message
           if [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?!: ]] || [[ "$COMMIT_FIRST_LINE" =~ BREAKING.CHANGE ]]; then
             npm run version:major && echo "BUMP_TYPE=major" >> $GITHUB_OUTPUT
           elif [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?: ]]; then
@@ -43,7 +52,9 @@ jobs:
           elif [[ "$COMMIT_FIRST_LINE" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_FIRST_LINE" =~ ^perf(\(.+\))?: ]]; then
             npm run version:patch && echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
           else
-            echo "BUMP_TYPE=none" >> $GITHUB_OUTPUT
+            # Default to patch for merge commits or other commit types
+            npm run version:patch && echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
+            echo "No conventional commit detected, defaulting to patch bump"
           fi
         else
           CURRENT_VERSION=$(node -p "require('./package.json').version")
