@@ -4,11 +4,12 @@ metadata:
   name: postgres-data-pvc
 spec:
   storageClassName: local-nvme4tb
+  volumeName: postgres-pv-prod
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 5Gi
+      storage: 10Gi
 ---
 
 apiVersion: apps/v1

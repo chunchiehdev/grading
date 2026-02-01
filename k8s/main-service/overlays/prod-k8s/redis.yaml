@@ -4,11 +4,12 @@ metadata:
   name: redis-data-pvc
 spec:
   storageClassName: local-nvme4tb
+  volumeName: redis-pv-prod
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: 5Gi
 ---
 
 apiVersion: apps/v1

@@ -4,6 +4,7 @@ metadata:
   name: postgres-pvc
 spec:
   storageClassName: local-nvme4tb
+  volumeName: postgres-pv
   accessModes:
     - ReadWriteOnce
   resources:
