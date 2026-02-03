@@ -65,7 +65,7 @@ jobs:
         push: true
         tags: |
           chunchiehdev/gradsystem:${{ github.ref_name }}
-          chunchiehdev/gradsystem:${{ steps.package-version.outputs.VERSION }}-${{ github.ref_name }}
+          chunchiehdev/gradsystem:${{ steps.package-version.outputs.VERSION }}
         build-args: |
           BUILD_VERSION=${{ steps.package-version.outputs.VERSION }}
           BUILD_BRANCH=${{ github.ref_name }}
@@ -78,7 +78,7 @@ jobs:
         push: true
         tags: |
           chunchiehdev/websocket-server:${{ github.ref_name }}
-          chunchiehdev/websocket-server:${{ steps.package-version.outputs.VERSION }}-${{ github.ref_name }}
+          chunchiehdev/websocket-server:${{ steps.package-version.outputs.VERSION }}
 
     # ============================================
     # Setup Tools
@@ -121,7 +121,10 @@ jobs:
     - name: Update K3s image tag
       run: |
         cd ${{ steps.k3s.outputs.OVERLAY }}
-        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ github.ref_name }}
+        # Use VERSION tag for rolling updates
+        # - Development: 1.57.3-dev.202602031500
+        # - Master: 1.58.0
+        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ steps.package-version.outputs.VERSION }}
 
     - name: Deploy & Migrate (K3s)
       env:
@@ -179,7 +182,8 @@ jobs:
           OVERLAY="k8s/main-service/overlays/dev-k8s"
         fi
         cd $OVERLAY
-        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ github.ref_name }}
+        # Use VERSION tag for rolling updates
+        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ steps.package-version.outputs.VERSION }}
 
     - name: Deploy & Migrate (Mars)
       env:
