@@ -29,50 +29,16 @@ jobs:
     - name: Auto-update version based on commit message
       id: version-update
       run: |
-        COMMIT_MSG=$(cat <<'EOF'
-        ${{ github.event.head_commit.message }}
-        EOF
-        )
-        COMMIT_FIRST_LINE=$(echo "$COMMIT_MSG" | head -n 1)
-
-        if [ "${{ github.ref_name }}" = "master" ]; then
-          # First, clean up any -dev.xxx suffix from version
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          if [[ "$CURRENT_VERSION" =~ -dev\.[0-9]+ ]]; then
-            BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-dev\.[0-9]*$//')
-            npm version "$BASE_VERSION" --no-git-tag-version --allow-same-version
-            echo "Cleaned dev version: $CURRENT_VERSION -> $BASE_VERSION"
-          fi
-          
-          # Then, bump version based on commit message
-          if [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?!: ]] || [[ "$COMMIT_FIRST_LINE" =~ BREAKING.CHANGE ]]; then
-            npm run version:major && echo "BUMP_TYPE=major" >> $GITHUB_OUTPUT
-          elif [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?: ]]; then
-            npm run version:minor && echo "BUMP_TYPE=minor" >> $GITHUB_OUTPUT
-          elif [[ "$COMMIT_FIRST_LINE" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_FIRST_LINE" =~ ^perf(\(.+\))?: ]]; then
-            npm run version:patch && echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
-          else
-            # Default to patch for merge commits or other commit types
-            npm run version:patch && echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
-            echo "No conventional commit detected, defaulting to patch bump"
-          fi
-        else
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-          BASE_VERSION=$(echo "$CURRENT_VERSION" | sed 's/-dev\.[0-9]*$//')
-          npm version "$BASE_VERSION" --no-git-tag-version --allow-same-version
-          if [[ "$COMMIT_FIRST_LINE" =~ ^feat(\(.+\))?: ]]; then
-            npm version minor --no-git-tag-version
-          elif [[ "$COMMIT_FIRST_LINE" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_FIRST_LINE" =~ ^perf(\(.+\))?: ]]; then
-            npm version patch --no-git-tag-version
-          fi
-          NEW_BASE=$(node -p "require('./package.json').version")
-          npm version "${NEW_BASE}-dev.$(date +%Y%m%d%H%M)" --no-git-tag-version
-          echo "BUMP_TYPE=dev" >> $GITHUB_OUTPUT
-        fi
+        chmod +x .github/scripts/auto-version.sh
+        .github/scripts/auto-version.sh "${{ github.ref_name }}" "${{ github.event.head_commit.message }}" >> $GITHUB_OUTPUT
 
     - name: Get version
       id: package-version
-      run: echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+      run: |
+        # Use DISPLAY_VERSION from auto-version.sh
+        # - Development: x.y.z-dev.TIMESTAMP (no package.json change)
+        # - Master: x.y.z (after bump)
+        echo "VERSION=${{ steps.version-update.outputs.DISPLAY_VERSION }}" >> $GITHUB_OUTPUT
 
     - name: Commit and push version bump
       if: steps.version-update.outputs.BUMP_TYPE != 'none' && github.ref_name == 'master'
