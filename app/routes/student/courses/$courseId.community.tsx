@@ -3,7 +3,8 @@ import { useLoaderData, useNavigate } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getPosts } from '@/services/coursePost.server';
 import { db } from '@/lib/db.server';
-import { CourseInfoSidebar } from '@/components/course-community/CourseInfoSidebar';
+import { getPresignedDownloadUrl } from '@/services/storage.server';
+import { CourseInfoSidebar, CourseInfoMobileTrigger } from '@/components/course-community/CourseInfoSidebar';
 import { CommunityCover } from '@/components/course-community/CommunityCover';
 import { CourseCommunityFeed } from '@/components/course-community/CourseCommunityFeed';
 
@@ -47,6 +48,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   const course = enrollment.class.course;
+
+  // Get presigned URL for cover image if exists
+  let coverImageUrl: string | null = null;
+  if (course.coverImage) {
+    try {
+      coverImageUrl = await getPresignedDownloadUrl(course.coverImage, 3600);
+    } catch (error) {
+      console.error('Failed to get cover image URL:', error);
+    }
+  }
 
   // Get posts for this course (show class-specific and course-wide posts)
   const postsData = await getPosts({
@@ -112,6 +123,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   return {
     student,
     course,
+    coverImageUrl,
     posts: postsData,
     stats: {
       memberCount: enrollmentCount,
@@ -124,7 +136,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export default function StudentCourseCommunity() {
-  const { student, course, posts, stats, memberAvatars } = useLoaderData<typeof loader>();
+  const { student, course, coverImageUrl, posts, stats, memberAvatars } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
   const handleLike = async (postId: string) => {
@@ -181,9 +193,19 @@ export default function StudentCourseCommunity() {
     allComments: undefined,
   }));
 
+  const courseInfoProps = {
+    course: {
+      name: course.name,
+      description: course.description,
+      createdAt: course.createdAt.toISOString(),
+    },
+    stats,
+    isPrivate: true,
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-[#18191A]">
-      <div className="flex">
+      <div className="flex flex-col lg:flex-row">
         {/* Main Content Area */}
         <main className="flex-1 min-w-0">
           {/* Cover Image */}
@@ -194,10 +216,16 @@ export default function StudentCourseCommunity() {
             isPrivate={true}
             isTeacher={false}
             courseId={course.id}
+            coverImage={coverImageUrl}
           />
 
+          {/* Mobile Navigation Bar */}
+          <div className="flex items-center gap-2 p-3 border-b border-[#E8E4DD] dark:border-[#393A3B] lg:hidden">
+            <CourseInfoMobileTrigger {...courseInfoProps} />
+          </div>
+
           {/* Feed Content */}
-          <div className="max-w-4xl mx-auto px-6 py-8">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
             <CourseCommunityFeed
               posts={postsForDisplay}
               currentUserId={student.id}
@@ -212,16 +240,8 @@ export default function StudentCourseCommunity() {
           </div>
         </main>
 
-        {/* Right Sidebar - Course Info */}
-        <CourseInfoSidebar
-          course={{
-            name: course.name,
-            description: course.description,
-            createdAt: course.createdAt.toISOString(),
-          }}
-          stats={stats}
-          isPrivate={true}
-        />
+        {/* Right Sidebar - Course Info (hidden on mobile/tablet) */}
+        <CourseInfoSidebar {...courseInfoProps} />
       </div>
     </div>
   );

@@ -194,6 +194,8 @@ export default [
   route('/api/enrollments', './api/enrollments.ts'),
 
   // Course Community API routes
+  route('/api/courses/:courseId/cover', './routes/api/courses.$courseId.cover.ts'),
+  route('/api/courses/:courseId/cover-url', './routes/api/courses.$courseId.cover-url.ts'),
   route('/api/courses/:courseId/posts', './routes/api.courses.$courseId.posts.ts'),
   route('/api/posts/:postId', './routes/api.posts.$postId.ts'),
   route('/api/posts/:postId/comments', './routes/api.posts.$postId.comments.ts'),

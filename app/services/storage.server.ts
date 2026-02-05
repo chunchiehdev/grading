@@ -6,9 +6,15 @@ import logger from '@/utils/logger';
 import type { S3Error, ReadableStreamBody } from '@/types/storage';
 
 /**
- * AWS S3 client instance configured with storage settings
+ * AWS S3 client instance for internal server-to-MinIO operations
  */
 export const s3Client = new S3Client(storageConfig.s3Config);
+
+/**
+ * AWS S3 client instance for generating browser-accessible presigned URLs
+ * Uses public endpoint that browsers can resolve
+ */
+const publicS3Client = new S3Client(storageConfig.publicS3Config);
 
 /**
  * Error types for better error handling and user feedback
@@ -373,7 +379,8 @@ export async function getPresignedDownloadUrl(key: string, expiresIn: number = 3
       Key: key,
     });
 
-    const url = await getSignedUrl(s3Client, command, { expiresIn });
+    // Use publicS3Client to generate URLs that browsers can access
+    const url = await getSignedUrl(publicS3Client, command, { expiresIn });
 
     logger.info(`Generated presigned URL for ${key} (expires in ${expiresIn}s)`);
     return url;
