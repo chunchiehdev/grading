@@ -110,11 +110,12 @@ export function CoursePostCard({
   const [showModal, setShowModal] = useState(false);
   const [allComments, setAllComments] = useState<Comment[]>(propAllComments);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [hasLoadedComments, setHasLoadedComments] = useState(propAllComments.length > 0);
   const isAuthor = post.author.id === currentUserId;
 
-  // Fetch all comments when modal opens (if not already provided)
+  // Fetch all comments when modal opens (if not already provided or loaded)
   useEffect(() => {
-    if (showModal && propAllComments.length === 0 && !isLoadingComments) {
+    if (showModal && !hasLoadedComments && !isLoadingComments) {
       setIsLoadingComments(true);
       fetch(`/api/posts/${post.id}/comments`)
         .then((res) => res.json())
@@ -129,20 +130,22 @@ export function CoursePostCard({
                 normalizedScore: c.gradingResult.normalizedScore,
                 result: c.gradingResult.result,
                 thoughtSummary: c.gradingResult.thoughtSummary,
-                createdAt: c.createdAt // API likely returns string already, but if it's nested in gradingResult it might be string too. Wait, c.gradingResult.createdAt.
+                createdAt: c.createdAt
               } : null,
             }));
             setAllComments(transformedComments);
           }
+          setHasLoadedComments(true);
         })
         .catch((error) => {
           console.error('Failed to load comments:', error);
+          setHasLoadedComments(true); // Prevent retry loop on error
         })
         .finally(() => {
           setIsLoadingComments(false);
         });
     }
-  }, [showModal, post.id, propAllComments.length, isLoadingComments]);
+  }, [showModal, post.id, hasLoadedComments, isLoadingComments]);
   const locale = i18n.language.startsWith('zh') ? zhTW : enUS;
 
   const handleLike = () => {

@@ -56,7 +56,8 @@
     "pending": "待繳交",
     "later": "稍後",
     "completed": "已完成",
-    "thisWeek": "本週截止"
+    "thisWeek": "本週截止",
+    "needsAttention": "需要注意"
   },
   "dueDate": {
     "noDueDate": "無截止日期",
