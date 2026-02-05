@@ -202,6 +202,9 @@ export default [
   route('/api/posts/:postId/like', './routes/api.posts.$postId.like.ts'),
   route('/api/comments/:commentId/grade', './routes/api.comments.$commentId.grade.ts'),
 
+  // File proxy route (for serving MinIO files to browsers)
+  route('/api/files/:key', './routes/api/files.$key.ts'),
+
   route('/health', './routes/health.tsx'),
 
   // Admin routes

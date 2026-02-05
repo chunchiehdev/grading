@@ -3,7 +3,7 @@ import { useLoaderData, useNavigate } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getPosts } from '@/services/coursePost.server';
 import { db } from '@/lib/db.server';
-import { getPresignedDownloadUrl } from '@/services/storage.server';
+
 import { CourseInfoSidebar, CourseInfoMobileTrigger } from '@/components/course-community/CourseInfoSidebar';
 import { CommunityCover } from '@/components/course-community/CommunityCover';
 import { CourseCommunityFeed } from '@/components/course-community/CourseCommunityFeed';
@@ -49,14 +49,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   const course = enrollment.class.course;
 
-  // Get presigned URL for cover image if exists
+  // Generate proxy URL for cover image if exists
   let coverImageUrl: string | null = null;
   if (course.coverImage) {
-    try {
-      coverImageUrl = await getPresignedDownloadUrl(course.coverImage, 3600);
-    } catch (error) {
-      console.error('Failed to get cover image URL:', error);
-    }
+    // Use API proxy route instead of presigned URL for browser access
+    coverImageUrl = `/api/files/${encodeURIComponent(course.coverImage)}`;
   }
 
   // Get posts for this course (show class-specific and course-wide posts)
