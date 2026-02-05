@@ -14,22 +14,25 @@ permissions:
   packages: write
 
 jobs:
-  build-and-deploy:
+  # ============================================
+  # Job 1: Build Docker Images (with cache)
+  # ============================================
+  build:
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'master' && 'production' || 'development' }}
+    outputs:
+      version: ${{ steps.package-version.outputs.VERSION }}
+      bump_type: ${{ steps.version-update.outputs.BUMP_TYPE }}
     steps:
-    - name: Start Deployment
-      run: |
-        echo "🚀 Starting deployment - Branch: ${{ github.ref_name }}"
+    - name: Start Build
+      run: echo "🚀 Starting build - Branch:${{ github.ref_name }}"
 
     - uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
-    # ============================================
     # Version Management
-    # ============================================
     - name: Auto-update version based on commit message
       id: version-update
       run: |
@@ -38,11 +41,7 @@ jobs:
 
     - name: Get version
       id: package-version
-      run: |
-        # Use DISPLAY_VERSION from auto-version.sh
-        # - Development: x.y.z-dev.TIMESTAMP (no package.json change)
-        # - Master: x.y.z (after bump)
-        echo "VERSION=${{ steps.version-update.outputs.DISPLAY_VERSION }}" >> $GITHUB_OUTPUT
+      run: echo "VERSION=${{ steps.version-update.outputs.DISPLAY_VERSION }}" >> $GITHUB_OUTPUT
 
     - name: Commit and push version bump
       if: steps.version-update.outputs.BUMP_TYPE != 'none' && github.ref_name == 'master'
@@ -53,9 +52,10 @@ jobs:
         git commit -m "chore: bump version to ${{ steps.package-version.outputs.VERSION }} [skip ci]"
         git push origin ${{ github.ref_name }}
 
-    # ============================================
-    # Docker Build
-    # ============================================
+    # Docker Build with Buildx + Cache
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
     - name: Login to Docker Hub
       uses: docker/login-action@v3
       with:
@@ -74,6 +74,8 @@ jobs:
           BUILD_VERSION=${{ steps.package-version.outputs.VERSION }}
           BUILD_BRANCH=${{ github.ref_name }}
           BUILD_COMMIT=${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
     - name: Build and push WebSocket Server
       uses: docker/build-push-action@v5
@@ -83,177 +85,222 @@ jobs:
         tags: |
           chunchiehdev/websocket-server:${{ github.ref_name }}
           chunchiehdev/websocket-server:${{ steps.package-version.outputs.VERSION }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
 
-    # ============================================
-    # Setup Tools
-    # ============================================
+  # ============================================
+  # Job 2: Deploy to K3s (parallel with Mars)
+  # ============================================
+  deploy-k3s:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'master' && 'production' || 'development' }}
+    steps:
+    - uses: actions/checkout@v4
+
+    # Cache kubectl & kustomize
+    - name: Cache k8s tools
+      id: cache-k8s-tools
+      uses: actions/cache@v4
+      with:
+        path: ~/k8s-tools
+        key: k8s-tools-kubectl-v1.28.0-kustomize-v5
+
     - name: Setup kubectl & Kustomize
       run: |
-        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
-        chmod +x kubectl && sudo mv kubectl /usr/local/bin/
-        curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-        sudo mv kustomize /usr/local/bin/
+        mkdir -p ~/k8s-tools
+        if [ ! -f ~/k8s-tools/kubectl ]; then
+          curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+          mv kubectl ~/k8s-tools/
+        fi
+        if [ ! -f ~/k8s-tools/kustomize ]; then
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          mv kustomize ~/k8s-tools/
+        fi
+        chmod +x ~/k8s-tools/*
+        echo "$HOME/k8s-tools" >> $GITHUB_PATH
 
-    - name: Prepare kubeconfig files
+    - name: Prepare kubeconfig
       run: |
         echo "${{ secrets.KUBE_CONFIG_K3S }}" | base64 -d > kubeconfig_k3s
-        echo "${{ secrets.KUBE_CONFIG_MARS }}" | base64 -d > kubeconfig_mars
-        chmod 600 kubeconfig_k3s kubeconfig_mars
+        chmod 600 kubeconfig_k3s
 
-    # ============================================
-    # Deploy to K3s
-    # ============================================
-    - name: Set K3s variables
-      id: k3s
+    - name: Set variables
+      id: vars
       run: |
         if [ "${{ github.ref_name }}" = "master" ]; then
           echo "OVERLAY=k8s/main-service/overlays/prod-k3s" >> $GITHUB_OUTPUT
           echo "NS=prod" >> $GITHUB_OUTPUT
+          echo "JOB_NAME=db-migrate" >> $GITHUB_OUTPUT
         else
           echo "OVERLAY=k8s/main-service/overlays/dev-k3s" >> $GITHUB_OUTPUT
           echo "NS=dev" >> $GITHUB_OUTPUT
+          echo "JOB_NAME=db-migrate-dev" >> $GITHUB_OUTPUT
         fi
 
-    - name: Generate K3s secrets
+    - name: Generate secrets
       run: |
         if [ "${{ github.ref_name }}" = "master" ]; then
-          printf "%s" "${{ secrets.PROD_K3S_ENV_FILE }}" > ${{ steps.k3s.outputs.OVERLAY }}/.secrets.env
+          printf "%s" "${{ secrets.PROD_K3S_ENV_FILE }}" > ${{ steps.vars.outputs.OVERLAY }}/.secrets.env
         else
-          printf "%s" "${{ secrets.DEV_K3S_ENV_FILE }}" > ${{ steps.k3s.outputs.OVERLAY }}/.secrets.env
+          printf "%s" "${{ secrets.DEV_K3S_ENV_FILE }}" > ${{ steps.vars.outputs.OVERLAY }}/.secrets.env
         fi
 
-    - name: Update K3s image tag
+    - name: Update image tag
       run: |
-        cd ${{ steps.k3s.outputs.OVERLAY }}
-        # Use VERSION tag for rolling updates
-        # - Development: 1.57.3-dev.202602031500
-        # - Master: 1.58.0
-        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ steps.package-version.outputs.VERSION }}
+        cd ${{ steps.vars.outputs.OVERLAY }}
+        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ needs.build.outputs.version }}
 
-    - name: Deploy & Migrate (K3s)
+    - name: Deploy & Migrate
       env:
         KUBECONFIG: ./kubeconfig_k3s
       run: |
-        OVERLAY="${{ steps.k3s.outputs.OVERLAY }}"
-        NS="${{ steps.k3s.outputs.NS }}"
+        OVERLAY="${{ steps.vars.outputs.OVERLAY }}"
+        NS="${{ steps.vars.outputs.NS }}"
+        JOB_NAME="${{ steps.vars.outputs.JOB_NAME }}"
         
-        # Determine job name based on environment
-        if [ "${{ github.ref_name }}" = "master" ]; then
-          JOB_NAME="db-migrate"
-        else
-          JOB_NAME="db-migrate-dev"
-        fi
-        
-        # Delete old migration job if exists
-        kubectl delete job $JOB_NAME -n $NS --ignore-not-found
-        
-        # Apply all resources (Deployment, Service, Secret, Job)
+        kubectl delete job $JOB_NAME -n $NS --ignore-not-found --wait=true
         kubectl apply -k $OVERLAY
         
-        # Wait for migration job
         echo "⏳ Waiting for migration..."
         kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=600s || {
-          echo "❌ Migration job timed out or failed"
-          echo "📋 Job logs:"
+          echo "❌ Migration failed"
           kubectl logs -l app.kubernetes.io/component=migration -n $NS --tail=100
           exit 1
         }
         
-        # Wait for deployment rollout
         echo "⏳ Waiting for rollout..."
         kubectl rollout status deployment -n $NS -l app.kubernetes.io/name=gradsystem --timeout=300s
-        
         echo "✅ K3s deployment complete!"
 
-    # ============================================
-    # Deploy to Mars K8s
-    # ============================================
-    - name: Generate Mars secrets
+    - name: Cleanup
+      if: always()
+      run: rm -f ${{ steps.vars.outputs.OVERLAY }}/.secrets.env kubeconfig_k3s
+
+  # ============================================
+  # Job 3: Deploy to Mars (parallel with K3s)
+  # ============================================
+  deploy-mars:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'master' && 'production' || 'development' }}
+    steps:
+    - uses: actions/checkout@v4
+
+    # Cache kubectl & kustomize
+    - name: Cache k8s tools
+      id: cache-k8s-tools
+      uses: actions/cache@v4
+      with:
+        path: ~/k8s-tools
+        key: k8s-tools-kubectl-v1.28.0-kustomize-v5
+
+    - name: Setup kubectl & Kustomize
+      run: |
+        mkdir -p ~/k8s-tools
+        if [ ! -f ~/k8s-tools/kubectl ]; then
+          curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+          mv kubectl ~/k8s-tools/
+        fi
+        if [ ! -f ~/k8s-tools/kustomize ]; then
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          mv kustomize ~/k8s-tools/
+        fi
+        chmod +x ~/k8s-tools/*
+        echo "$HOME/k8s-tools" >> $GITHUB_PATH
+
+    - name: Prepare kubeconfig
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_MARS }}" | base64 -d > kubeconfig_mars
+        chmod 600 kubeconfig_mars
+
+    - name: Set variables
+      id: vars
       run: |
         if [ "${{ github.ref_name }}" = "master" ]; then
-          OVERLAY="k8s/main-service/overlays/prod-k8s"
-          printf "%s" "${{ secrets.PROD_K8S_ENV_FILE }}" > $OVERLAY/.secrets.env
+          echo "OVERLAY=k8s/main-service/overlays/prod-k8s" >> $GITHUB_OUTPUT
+          echo "NS=gradsystem-prod" >> $GITHUB_OUTPUT
+          echo "JOB_NAME=db-migrate" >> $GITHUB_OUTPUT
         else
-          OVERLAY="k8s/main-service/overlays/dev-k8s"
-          printf "%s" "${{ secrets.DEV_K8S_ENV_FILE }}" > $OVERLAY/.secrets.env
+          echo "OVERLAY=k8s/main-service/overlays/dev-k8s" >> $GITHUB_OUTPUT
+          echo "NS=gradsystem-dev" >> $GITHUB_OUTPUT
+          echo "JOB_NAME=db-migrate-dev" >> $GITHUB_OUTPUT
         fi
 
-    - name: Update Mars image tag
+    - name: Generate secrets
       run: |
         if [ "${{ github.ref_name }}" = "master" ]; then
-          OVERLAY="k8s/main-service/overlays/prod-k8s"
+          printf "%s" "${{ secrets.PROD_K8S_ENV_FILE }}" > ${{ steps.vars.outputs.OVERLAY }}/.secrets.env
         else
-          OVERLAY="k8s/main-service/overlays/dev-k8s"
+          printf "%s" "${{ secrets.DEV_K8S_ENV_FILE }}" > ${{ steps.vars.outputs.OVERLAY }}/.secrets.env
         fi
-        cd $OVERLAY
-        # Use VERSION tag for rolling updates
-        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ steps.package-version.outputs.VERSION }}
 
-    - name: Deploy & Migrate (Mars)
+    - name: Update image tag
+      run: |
+        cd ${{ steps.vars.outputs.OVERLAY }}
+        kustomize edit set image chunchiehdev/gradsystem=chunchiehdev/gradsystem:${{ needs.build.outputs.version }}
+
+    - name: Deploy & Migrate
       env:
         KUBECONFIG: ./kubeconfig_mars
       run: |
-        # Determine overlay and namespace based on environment
-        if [ "${{ github.ref_name }}" = "master" ]; then
-          OVERLAY="k8s/main-service/overlays/prod-k8s"
-          NS="gradsystem-prod"
-          JOB_NAME="db-migrate"
-        else
-          OVERLAY="k8s/main-service/overlays/dev-k8s"
-          NS="gradsystem-dev"
-          JOB_NAME="db-migrate-dev"
-        fi
+        OVERLAY="${{ steps.vars.outputs.OVERLAY }}"
+        NS="${{ steps.vars.outputs.NS }}"
+        JOB_NAME="${{ steps.vars.outputs.JOB_NAME }}"
         
-        kubectl delete job $JOB_NAME -n $NS --ignore-not-found
+        kubectl delete job $JOB_NAME -n $NS --ignore-not-found --wait=true
         kubectl apply -k $OVERLAY
         
         echo "⏳ Waiting for Mars migration..."
         kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=600s || {
-          echo "❌ Migration job timed out or failed"
-          echo "📋 Job logs:"
+          echo "❌ Migration failed"
           kubectl logs -l app.kubernetes.io/component=migration -n $NS --tail=100
           exit 1
         }
         
         echo "⏳ Waiting for Mars rollout..."
         kubectl rollout status deployment -n $NS -l app.kubernetes.io/name=gradsystem --timeout=300s
-        
         echo "✅ Mars deployment complete!"
 
-    # ============================================
-    # Cleanup & Tagging
-    # ============================================
-    - name: Cleanup secrets
+    - name: Cleanup
       if: always()
-      run: rm -f k8s/main-service/overlays/*/.secrets.env kubeconfig_*
+      run: rm -f ${{ steps.vars.outputs.OVERLAY }}/.secrets.env kubeconfig_mars
+
+  # ============================================
+  # Job 4: Post-deploy (tagging, sync)
+  # ============================================
+  post-deploy:
+    needs: [build, deploy-k3s, deploy-mars]
+    runs-on: ubuntu-latest
+    if: always() && needs.build.result == 'success'
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
 
     - name: Create git tag
-      if: steps.version-update.outputs.BUMP_TYPE != 'none' && github.ref_name == 'master'
+      if: needs.build.outputs.bump_type != 'none' && github.ref_name == 'master'
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git tag -a v${{ steps.package-version.outputs.VERSION }} -m "Release v${{ steps.package-version.outputs.VERSION }}"
-        git push origin v${{ steps.package-version.outputs.VERSION }}
+        git tag -a v${{ needs.build.outputs.version }} -m "Release v${{ needs.build.outputs.version }}"
+        git push origin v${{ needs.build.outputs.version }}
+
+    - name: Sync version back to development
+      if: github.ref_name == 'master' && needs.build.outputs.bump_type != 'none'
+      run: |
+        git fetch origin development
+        git checkout development
+        git merge origin/master -m "chore: sync version ${{ needs.build.outputs.version }} from master [skip ci]"
+        git push origin development
+        echo "✅ Synced version to development branch"
 
     - name: Summary
       run: |
         echo "========================================"
         echo "✅ Deployment Complete"
-        echo "Version: ${{ steps.package-version.outputs.VERSION }}"
-        echo "K3s: ✅ | Mars: ✅"
+        echo "Version: ${{ needs.build.outputs.version }}"
+        echo "K3s: ${{ needs.deploy-k3s.result }}"
+        echo "Mars: ${{ needs.deploy-mars.result }}"
         echo "========================================"
-
-    # ============================================
-    # Sync Version to Development
-    # ============================================
-    - name: Sync version back to development
-      if: github.ref_name == 'master' && steps.version-update.outputs.BUMP_TYPE != 'none'
-      run: |
-        # Reset modified kustomization files before checkout
-        git checkout -- k8s/main-service/overlays/*/kustomization.yaml || true
-        
-        git fetch origin development
-        git checkout development
-        git merge origin/master -m "chore: sync version ${{ steps.package-version.outputs.VERSION }} from master [skip ci]"
-        git push origin development
-        echo "✅ Synced version to development branch"
