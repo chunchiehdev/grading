@@ -34,6 +34,7 @@ export type User = {
   name: string;
   picture: string;
   role: 'TEACHER' | 'STUDENT' | 'ADMIN' | null;
+  hasSelectedRole: boolean;
 };
 
 type LoaderData = {
@@ -198,7 +199,8 @@ export async function loader({ request }: { request: Request }) {
   // Handle public paths
   if (isPublicPath(path)) {
     if (user && path === '/auth/login') {
-      if (user.role) {
+      // Check if user has selected a role (not just if role exists)
+      if (user.hasSelectedRole && user.role) {
         throw redirect(getRoleBasedDashboard(user.role));
       }
       throw redirect('/auth/select-role');
@@ -216,7 +218,9 @@ export async function loader({ request }: { request: Request }) {
     throw redirect(`/auth/login?redirectTo=${encodeURIComponent(path)}`);
   }
 
-  if (!user.role && path !== '/auth/select-role') {
+  // Force role selection if user hasn't explicitly selected a role
+  // This prevents defaulting to student - user MUST make an explicit choice
+  if (!user.hasSelectedRole && path !== '/auth/select-role') {
     throw redirect('/auth/select-role');
   }
 
