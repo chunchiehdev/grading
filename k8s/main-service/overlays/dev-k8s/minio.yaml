@@ -103,7 +103,7 @@ spec:
         args:
         - |
           sleep 15;
-          /usr/bin/mc alias set myminio http://minio-service:9000 "$(MINIO_ROOT_USER)" "$(MINIO_ROOT_PASSWORD)";
+          /usr/bin/mc alias set myminio http://minio-service-dev:9000 "$(MINIO_ROOT_USER)" "$(MINIO_ROOT_PASSWORD)";
           /usr/bin/mc mb myminio/grading-files --ignore-existing;
           /usr/bin/mc anonymous set download myminio/grading-files;
         env:

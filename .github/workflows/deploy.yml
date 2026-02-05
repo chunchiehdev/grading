@@ -132,10 +132,12 @@ jobs:
           echo "OVERLAY=k8s/main-service/overlays/prod-k3s" >> $GITHUB_OUTPUT
           echo "NS=prod" >> $GITHUB_OUTPUT
           echo "JOB_NAME=db-migrate" >> $GITHUB_OUTPUT
+          echo "BUCKET_JOB=createbuckets" >> $GITHUB_OUTPUT
         else
           echo "OVERLAY=k8s/main-service/overlays/dev-k3s" >> $GITHUB_OUTPUT
           echo "NS=dev" >> $GITHUB_OUTPUT
           echo "JOB_NAME=db-migrate-dev" >> $GITHUB_OUTPUT
+          echo "BUCKET_JOB=createbuckets-dev" >> $GITHUB_OUTPUT
         fi
 
     - name: Generate secrets
@@ -158,9 +160,19 @@ jobs:
         OVERLAY="${{ steps.vars.outputs.OVERLAY }}"
         NS="${{ steps.vars.outputs.NS }}"
         JOB_NAME="${{ steps.vars.outputs.JOB_NAME }}"
+        BUCKET_JOB="${{ steps.vars.outputs.BUCKET_JOB }}"
         
+        # Delete old jobs to ensure fresh runs
         kubectl delete job $JOB_NAME -n $NS --ignore-not-found --wait=true
+        kubectl delete job $BUCKET_JOB -n $NS --ignore-not-found --wait=true
+        
         kubectl apply -k $OVERLAY
+        
+        echo "⏳ Waiting for MinIO bucket creation..."
+        kubectl wait --for=condition=complete job/$BUCKET_JOB -n $NS --timeout=120s || {
+          echo "⚠️  MinIO bucket creation timed out (may already exist)"
+          kubectl logs -l app=createbuckets -n $NS --tail=50 || true
+        }
         
         echo "⏳ Waiting for migration..."
         kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=600s || {
@@ -221,10 +233,12 @@ jobs:
           echo "OVERLAY=k8s/main-service/overlays/prod-k8s" >> $GITHUB_OUTPUT
           echo "NS=gradsystem-prod" >> $GITHUB_OUTPUT
           echo "JOB_NAME=db-migrate" >> $GITHUB_OUTPUT
+          echo "BUCKET_JOB=createbuckets" >> $GITHUB_OUTPUT
         else
           echo "OVERLAY=k8s/main-service/overlays/dev-k8s" >> $GITHUB_OUTPUT
           echo "NS=gradsystem-dev" >> $GITHUB_OUTPUT
           echo "JOB_NAME=db-migrate-dev" >> $GITHUB_OUTPUT
+          echo "BUCKET_JOB=createbuckets-dev" >> $GITHUB_OUTPUT
         fi
 
     - name: Generate secrets
@@ -247,9 +261,19 @@ jobs:
         OVERLAY="${{ steps.vars.outputs.OVERLAY }}"
         NS="${{ steps.vars.outputs.NS }}"
         JOB_NAME="${{ steps.vars.outputs.JOB_NAME }}"
+        BUCKET_JOB="${{ steps.vars.outputs.BUCKET_JOB }}"
         
+        # Delete old jobs to ensure fresh runs
         kubectl delete job $JOB_NAME -n $NS --ignore-not-found --wait=true
+        kubectl delete job $BUCKET_JOB -n $NS --ignore-not-found --wait=true
+        
         kubectl apply -k $OVERLAY
+        
+        echo "⏳ Waiting for MinIO bucket creation..."
+        kubectl wait --for=condition=complete job/$BUCKET_JOB -n $NS --timeout=120s || {
+          echo "⚠️  MinIO bucket creation timed out (may already exist)"
+          kubectl logs -l app=createbuckets -n $NS --tail=50 || true
+        }
         
         echo "⏳ Waiting for Mars migration..."
         kubectl wait --for=condition=complete job/$JOB_NAME -n $NS --timeout=600s || {
@@ -286,15 +310,6 @@ jobs:
         git config --local user.name "GitHub Action"
         git tag -a v${{ needs.build.outputs.version }} -m "Release v${{ needs.build.outputs.version }}"
         git push origin v${{ needs.build.outputs.version }}
-
-    - name: Sync version back to development
-      if: github.ref_name == 'master' && needs.build.outputs.bump_type != 'none'
-      run: |
-        git fetch origin development
-        git checkout development
-        git merge origin/master -m "chore: sync version ${{ needs.build.outputs.version }} from master [skip ci]"
-        git push origin development
-        echo "✅ Synced version to development branch"
 
     - name: Summary
       run: |

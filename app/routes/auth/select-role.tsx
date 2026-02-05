@@ -154,8 +154,8 @@ export function SelectRolePage(_: SelectRoleProps) {
           >
             {/* Selected Indicator */}
             {selectedRole === 'STUDENT' && (
-              <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center z-10">
-                <Check className="w-3.5 h-3.5 text-primary-foreground" />
+              <div className="absolute top-2 left-2 w-6 h-6 bg-[hsl(var(--accent-emphasis))] rounded-full flex items-center justify-center z-10">
+                <Check className="w-3.5 h-3.5 text-[hsl(var(--accent-emphasis-foreground))]" />
               </div>
             )}
 
@@ -185,7 +185,7 @@ export function SelectRolePage(_: SelectRoleProps) {
                     handleConfirm();
                   }}
                   disabled={isSubmitting}
-                  className="absolute bottom-2 right-2 w-10 h-10 sm:w-12 sm:h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center hover:bg-primary/90 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none shadow-lg animate-in fade-in zoom-in duration-300"
+                  className="absolute bottom-2 right-2 w-10 h-10 sm:w-12 sm:h-12 bg-[hsl(var(--accent-emphasis))] text-[hsl(var(--accent-emphasis-foreground))] rounded-full flex items-center justify-center hover:bg-[hsl(var(--accent-emphasis))]/80 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none shadow-lg animate-in fade-in zoom-in duration-300"
                   aria-label={isSubmitting ? t('selectRolePage.savingButton') : 'Confirm student role'}
                 >
                   <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-0.5 transition-transform" />
@@ -205,8 +205,8 @@ export function SelectRolePage(_: SelectRoleProps) {
           >
             {/* Selected Indicator */}
             {selectedRole === 'TEACHER' && (
-              <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center z-10">
-                <Check className="w-3.5 h-3.5 text-primary-foreground" />
+              <div className="absolute top-2 left-2 w-6 h-6 bg-[hsl(var(--accent-emphasis))] rounded-full flex items-center justify-center z-10">
+                <Check className="w-3.5 h-3.5 text-[hsl(var(--accent-emphasis-foreground))]" />
               </div>
             )}
 
@@ -236,7 +236,7 @@ export function SelectRolePage(_: SelectRoleProps) {
                     handleConfirm();
                   }}
                   disabled={isSubmitting}
-                  className="absolute bottom-2 right-2 w-10 h-10 sm:w-12 sm:h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center hover:bg-primary/90 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none shadow-lg animate-in fade-in zoom-in duration-300"
+                  className="absolute bottom-2 right-2 w-10 h-10 sm:w-12 sm:h-12 bg-[hsl(var(--accent-emphasis))] text-[hsl(var(--accent-emphasis-foreground))] rounded-full flex items-center justify-center hover:bg-[hsl(var(--accent-emphasis))]/80 hover:scale-110 transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none shadow-lg animate-in fade-in zoom-in duration-300"
                   aria-label={isSubmitting ? t('selectRolePage.savingButton') : 'Confirm teacher role'}
                 >
                   <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 group-hover:translate-x-0.5 transition-transform" />
