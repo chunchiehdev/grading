@@ -163,8 +163,11 @@ export function SelectRolePage(_: SelectRoleProps) {
             <div className="flex-[7] flex items-center justify-center min-h-0">
               <div className="w-full h-full mx-auto p-2">
                 <img
-                  src="/student.png"
+                  src="/student.webp"
                   alt="Student"
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
                   className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-lighten group-hover:scale-105 transition-transform duration-300"
                   style={{ imageRendering: 'crisp-edges' }}
                 />
@@ -214,8 +217,11 @@ export function SelectRolePage(_: SelectRoleProps) {
             <div className="flex-[7] flex items-center justify-center min-h-0">
               <div className="w-full h-full mx-auto p-2">
                 <img
-                  src="/teacher.png"
+                  src="/teacher.webp"
                   alt="Teacher"
+                  loading="eager"
+                  fetchPriority="high"
+                  decoding="async"
                   className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-lighten group-hover:scale-105 transition-transform duration-300"
                   style={{ imageRendering: 'crisp-edges' }}
                 />
