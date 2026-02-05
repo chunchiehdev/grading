@@ -58,10 +58,14 @@ export function CoursesContent({ data }: CoursesContentProps) {
       </div>
 
       {/* 課程列表 */}
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,380px))] gap-6 justify-start">
-        {courses.map((course) => (
-          <CourseCard key={course.id} course={course} />
-        ))}
+      <div className="w-full">
+        <div className="mx-auto w-full max-w-[1200px] 2xl:max-w-[1800px] 3xl:max-w-[2400px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-6 place-content-start justify-items-stretch">
+            {courses.map((course) => (
+              <CourseCard key={course.id} course={course} />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

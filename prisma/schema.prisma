@@ -44,6 +44,13 @@ model User {
   // AI Access Control (Admin-managed)
   aiEnabled Boolean @default(false) // New users cannot use AI until admin enables
 
+  // Course Community relations
+  authoredPosts    CoursePost[]        @relation("AuthoredPosts")
+  authoredComments CoursePostComment[] @relation("AuthoredComments")
+  postLikes        CoursePostLike[]    @relation("PostLikes")
+  commentLikes     CoursePostCommentLike[] @relation("CommentLikes")
+  commentGradings  CommentGradingResult[] @relation("CommentGrader")
+
   @@map("users")
 }
 
@@ -67,6 +74,7 @@ model Course {
   assignmentAreas AssignmentArea[]
   invitationCodes InvitationCode[]
   notifications   Notification[]   @relation("CourseNotifications")
+  posts           CoursePost[] // Course community posts
 
   @@index([teacherId])
   @@index([code])
@@ -100,6 +108,7 @@ model Class {
   enrollments     Enrollment[] // Students enrolled in this class
   assignmentAreas AssignmentArea[] // Assignments specific to this class
   invitationCodes InvitationCode[] // Invitation codes for this class
+  posts           CoursePost[] // Class-specific community posts
 
   @@index([courseId])
   @@index([assistantId])
@@ -133,6 +142,7 @@ model AssignmentArea {
   submissions    Submission[]
   notifications  Notification[]  @relation("AssignmentNotifications")
   gradingResults GradingResult[] // NEW: Reverse relation for context-aware grading
+  posts          CoursePost[] // Assignment-linked posts
 
   @@index([courseId])
   @@index([classId])
@@ -181,6 +191,9 @@ model Submission {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
+  comment CoursePostComment? // Submission can be linked to a comment
+
   @@index([studentId])
   @@index([assignmentAreaId])
   @@index([status])
@@ -213,6 +226,8 @@ model Rubric {
   // Relations
   gradingResults  GradingResult[]
   assignmentAreas AssignmentArea[] @relation("AssignmentAreaRubrics")
+  commentGradings CommentGradingResult[] @relation("CommentGradingRubric")
+  communityPosts  CoursePost[] @relation("PostRubric")
 
   @@index([userId, isActive])
   @@index([teacherId, isTemplate])
@@ -511,6 +526,147 @@ enum NotificationType {
   ASSIGNMENT_DUE_SOON // Assignment due in 24 hours
   SUBMISSION_GRADED // Teacher graded submission
   COURSE_ANNOUNCEMENT // General course announcement
+}
+
+// ============================================================================
+// COURSE COMMUNITY: Posts, Comments, Likes
+// ============================================================================
+
+enum PostType {
+  ANNOUNCEMENT
+  ASSIGNMENT
+  DISCUSSION
+  MATERIAL
+}
+
+model CoursePost {
+  id       String   @id @default(uuid())
+  courseId String
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  classId  String?
+  class    Class?   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User     @relation("AuthoredPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  authorRole UserRole
+  type     PostType @default(DISCUSSION)
+  title    String   @db.VarChar(255)
+  content  String   @db.Text
+  attachments Json?
+  assignmentAreaId String?
+  assignmentArea   AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)
+  
+  // Direct rubric link for community assignments (alternative to assignmentArea)
+  rubricId    String?
+  rubric      Rubric? @relation("PostRubric", fields: [rubricId], references: [id], onDelete: SetNull)
+  
+  likeCount    Int     @default(0)
+  commentCount Int     @default(0)
+  isPinned     Boolean @default(false)
+  isArchived   Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  comments CoursePostComment[]
+  likes    CoursePostLike[]
+
+  @@index([courseId, createdAt])
+  @@index([classId, createdAt])
+  @@index([authorId])
+  @@index([type])
+  @@index([assignmentAreaId])
+  @@index([rubricId])
+  @@index([isPinned, isArchived, createdAt])
+  @@map("course_posts")
+}
+
+model CoursePostComment {
+  id       String   @id @default(uuid())
+  postId   String
+  post     CoursePost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId String
+  author   User     @relation("AuthoredComments", fields: [authorId], references: [id], onDelete: Cascade)
+  authorRole UserRole
+  content  String   @db.Text
+  attachments Json?
+  submissionId String? @unique
+  submission   Submission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  parentCommentId String?
+  parentComment   CoursePostComment? @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         CoursePostComment[] @relation("CommentReplies")
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime?
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  likes CoursePostCommentLike[]
+  gradingResult CommentGradingResult?
+
+  @@index([postId, createdAt])
+  @@index([authorId])
+  @@index([submissionId])
+  @@index([parentCommentId])
+  @@index([isDeleted])
+  @@map("course_post_comments")
+}
+
+// Grading result for community post comments (reflection assignments)
+model CommentGradingResult {
+  id        String   @id @default(uuid())
+  commentId String   @unique
+  comment   CoursePostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  graderId  String
+  grader    User     @relation("CommentGrader", fields: [graderId], references: [id], onDelete: Cascade)
+  rubricId  String
+  rubric    Rubric   @relation("CommentGradingRubric", fields: [rubricId], references: [id], onDelete: Restrict)
+
+  // Grading result data
+  result          Json     // { totalScore, maxScore, breakdown, overallFeedback }
+  normalizedScore Float?   // 100-point scale
+  thoughtSummary  String?  @db.Text // AI thinking process
+  thinkingProcess String?  @db.Text // Raw AI thinking
+  gradingRationale String? @db.Text // Formal grading rationale
+
+  // Metadata
+  gradingModel    String?  @db.VarChar(100)
+  gradingTokens   Int?
+  gradingDuration Int?     // milliseconds
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([graderId])
+  @@index([rubricId])
+  @@map("comment_grading_results")
+}
+
+model CoursePostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  post      CoursePost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("PostLikes", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+  @@map("course_post_likes")
+}
+
+model CoursePostCommentLike {
+  id        String   @id @default(uuid())
+  commentId String
+  comment   CoursePostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("CommentLikes", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("course_post_comment_likes")
 }
 
 // ============================================================================

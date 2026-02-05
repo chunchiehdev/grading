@@ -6,7 +6,6 @@ import {
   isRouteErrorResponse,
 } from 'react-router';
 import type { LoaderFunctionArgs } from 'react-router';
-import { ModernNavigation } from '@/components/ui/modern-navigation';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
 import { requireStudent } from '@/services/auth.server';
@@ -110,16 +109,6 @@ export default function StudentLayout() {
           <div className="h-full bg-primary animate-pulse w-full" />
         </div>
       )}
-
-      {/* Modern Navigation */}
-      <ModernNavigation
-        tabs={[
-          { label: t('dashboard:title'), value: 'dashboard', to: '/student' },
-          { label: t('course:courses'), value: 'courses', to: '/student/courses' },
-          { label: t('course:assignments'), value: 'assignments', to: '/student/assignments' },
-          { label: t('course:assignment.submissions'), value: 'submissions', to: '/student/submissions' },
-        ]}
-      />
 
       <div className="w-[90%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto pt-6 md:pt-8 lg:pt-10 xl:pt-12 2xl:pt-16">
         <Outlet />

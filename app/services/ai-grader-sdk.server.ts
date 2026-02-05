@@ -52,6 +52,20 @@ export interface GradeWithAIParams {
    * User language for formatting thought summary
    */
   language?: 'zh' | 'en';
+  /**
+   * Optional context hash for caching
+   */
+  contextHash?: string;
+  /**
+   * Optional cached content (if created externally, but usually we pass the hash and let the provider handle it)
+   * Actually, let's pass the raw context content so the provider can create the cache if needed.
+   */
+  contextContent?: string;
+  /**
+   * Optional user prompt (dynamic part only) when using caching.
+   * If provided, cached path uses this instead of full prompt to avoid duplication.
+   */
+  userPrompt?: string;
 }
 
 export interface GradeWithAISuccess {
@@ -93,13 +107,15 @@ export type GradeWithAIResult = GradeWithAISuccess | GradeWithAIFailure;
  * @returns Grading result with success/failure status
  */
 export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithAIResult> {
-  const { prompt, userId, resultId, temperature, skipFallback = false, language = 'zh' } = params;
+  const { prompt, userId, resultId, temperature, skipFallback = false, language = 'zh', contextHash, contextContent, userPrompt } = params;
 
   logger.info('Starting AI grading', {
     userId,
     resultId,
     promptLength: prompt.length,
     language,
+    contextHash,
+    contextContent: !!contextContent, // Log presence only
   });
 
   // Step 1: Try Gemini (with KeyHealthTracker)
@@ -109,6 +125,9 @@ export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithA
     resultId,
     temperature,
     language,
+    contextHash,
+    contextContent,
+    userPrompt,
   });
 
   if (geminiResult.success) {

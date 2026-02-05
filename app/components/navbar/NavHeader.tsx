@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { Share2, LogOut, User as UserIcon, Globe, Settings, Bell, MessageSquare, Menu } from 'lucide-react';
-import { Link, useLoaderData, useLocation, useNavigate } from 'react-router';
+import { Link, useLoaderData, useLocation, useNavigate, NavLink } from 'react-router';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
@@ -19,13 +19,22 @@ import { useSubmissionStore } from '@/stores/submissionStore';
 import { useChatHistoryStore } from '@/stores/chatHistoryStore';
 import { NotificationCenter } from '@/components/teacher/NotificationCenter';
 
+interface NavigationTab {
+  label: string;
+  value: string;
+  to: string;
+  icon: React.ReactNode;
+  end?: boolean;
+}
+
 interface NavHeaderProps {
   title?: string;
   onShare?: () => void;
   className?: string;
+  tabs?: NavigationTab[];
 }
 
-export function NavHeader({ title, onShare, className }: NavHeaderProps) {
+export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
   // Always call hooks in the same order - before any early returns
   const { user, versionInfo } = useLoaderData() as { user: User | null; versionInfo: VersionInfo | null };
 
@@ -111,12 +120,38 @@ export function NavHeader({ title, onShare, className }: NavHeaderProps) {
             </Link>
           </div>
 
-          {/* Center Section - Mobile Title */}
-          <div className="absolute left-1/2 -translate-x-1/2 sm:hidden">
-            <div className="text-sm font-medium text-foreground/80 truncate max-w-32">
-              {title || safeT('title', 'Grading System')}
+          {/* Center Section - Navigation Icons */}
+          {tabs && tabs.length > 0 && (
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-3">
+              {tabs.map((tab) => (
+                <NavLink key={tab.value} to={tab.to} end={tab.end ?? true} prefetch="intent" title={tab.label}>
+                  {({ isActive }) => (
+                    <Button
+                      variant="ghost"
+                      size="icon-lg"
+                      className={cn(
+                        'transition-colors',
+                        isActive
+                          ? 'text-primary bg-primary/10 hover:bg-primary/15'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      )}
+                    >
+                      {tab.icon}
+                    </Button>
+                  )}
+                </NavLink>
+              ))}
             </div>
-          </div>
+          )}
+
+          {/* Center Section - Mobile Title (fallback when no tabs) */}
+          {!tabs && (
+            <div className="absolute left-1/2 -translate-x-1/2 sm:hidden">
+              <div className="text-sm font-medium text-foreground/80 truncate max-w-32">
+                {title || safeT('title', 'Grading System')}
+              </div>
+            </div>
+          )}
 
           {/* Right Section - Desktop Controls */}
           <div className="hidden md:flex items-center gap-3 lg:gap-4 2xl:gap-5">

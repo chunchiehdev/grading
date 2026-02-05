@@ -121,11 +121,18 @@ export default function CourseDetail() {
         title={course.name}
         subtitle={undefined}
         actions={
-          <Button asChild variant="outline">
-            <Link to={`/teacher/courses/${course.id}/edit`}>
-              <Pencil />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+              <Link to={`/teacher/courses/${course.id}/community`}>
+                {t('course:community.title', '社群')}
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to={`/teacher/courses/${course.id}/edit`}>
+                <Pencil />
+              </Link>
+            </Button>
+          </div>
         }
         showInlineActions={true}
       />

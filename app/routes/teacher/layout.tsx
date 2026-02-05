@@ -8,7 +8,6 @@ import {
   isRouteErrorResponse,
 } from 'react-router';
 import type { LoaderFunctionArgs } from 'react-router';
-import { ModernNavigation } from '@/components/ui/modern-navigation';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -111,57 +110,50 @@ export default function TeacherLayout() {
         </div>
       )}
 
-      {/* Modern Navigation */}
-      <ModernNavigation
-        tabs={[
-          { label: t('dashboard:title'), value: 'dashboard', to: '/teacher' },
-          { label: t('course:courses'), value: 'courses', to: '/teacher/courses' },
-          { label: t('rubric:title'), value: 'rubrics', to: '/teacher/rubrics' },
-        ]}
-        actions={
-          <>
-            {/* Show Create Course button only when courses exist */}
-            {hasCourses && isCoursesPage && (
-              <>
-                {/* Mobile: Icon only */}
-                <Button asChild variant="emphasis" size="icon-lg" className="md:hidden rounded-2xl">
-                  <Link to="/teacher/courses/new">
-                    <Plus className="w-5 h-5" />
-                    <span className="sr-only">{t('course:new')}</span>
-                  </Link>
-                </Button>
-                {/* Desktop: Icon + Text */}
-                <Button asChild variant="emphasis" className="hidden md:flex text-sm lg:text-base px-6 lg:px-8 h-10">
-                  <Link to="/teacher/courses/new">
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('course:new')}
-                  </Link>
-                </Button>
-              </>
-            )}
+      {/* Action buttons bar */}
+      <div className="w-[90%] sm:w-[85%] lg:w-[80%] mx-auto py-3">
+        <div className="flex justify-end gap-2">
+          {/* Show Create Course button only when courses exist */}
+          {hasCourses && isCoursesPage && (
+            <>
+              {/* Mobile: Icon only */}
+              <Button asChild variant="emphasis" size="icon-lg" className="md:hidden rounded-2xl">
+                <Link to="/teacher/courses/new">
+                  <Plus className="w-5 h-5" />
+                  <span className="sr-only">{t('course:new')}</span>
+                </Link>
+              </Button>
+              {/* Desktop: Icon + Text */}
+              <Button asChild variant="emphasis" className="hidden md:flex text-sm lg:text-base px-6 lg:px-8 h-10">
+                <Link to="/teacher/courses/new">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t('course:new')}
+                </Link>
+              </Button>
+            </>
+          )}
 
-            {/* Show Create Rubric button only when rubrics exist */}
-            {hasRubrics && isRubricsPage && (
-              <>
-                {/* Mobile: Icon only */}
-                <Button asChild variant="emphasis" size="icon-lg" className="md:hidden rounded-2xl">
-                  <Link to="/teacher/rubrics/new">
-                    <Plus className="w-5 h-5" />
-                    <span className="sr-only">{t('rubric:create')}</span>
-                  </Link>
-                </Button>
-                {/* Desktop: Icon + Text */}
-                <Button asChild variant="emphasis" className="hidden md:flex text-sm lg:text-base px-6 lg:px-8 h-10">
-                  <Link to="/teacher/rubrics/new">
-                    <Plus className="w-4 h-4 mr-2" />
-                    {t('rubric:create')}
-                  </Link>
-                </Button>
-              </>
-            )}
-          </>
-        }
-      />
+          {/* Show Create Rubric button only when rubrics exist */}
+          {hasRubrics && isRubricsPage && (
+            <>
+              {/* Mobile: Icon only */}
+              <Button asChild variant="emphasis" size="icon-lg" className="md:hidden rounded-2xl">
+                <Link to="/teacher/rubrics/new">
+                  <Plus className="w-5 h-5" />
+                  <span className="sr-only">{t('rubric:create')}</span>
+                </Link>
+              </Button>
+              {/* Desktop: Icon + Text */}
+              <Button asChild variant="emphasis" className="hidden md:flex text-sm lg:text-base px-6 lg:px-8 h-10">
+                <Link to="/teacher/rubrics/new">
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t('rubric:create')}
+                </Link>
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
 
       <div className="w-[90%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto pt-6 md:pt-8 lg:pt-10 xl:pt-12 2xl:pt-16">
         <Outlet />

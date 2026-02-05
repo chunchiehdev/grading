@@ -385,6 +385,11 @@
       "selectPrompt": "Please select weekday and period to set class time"
     }
   },
+  "community": {
+    "title": "Community",
+    "emptyStateCTA": "While waiting for assignments, why not connect with your classmates in the community?",
+    "goToCommunity": "Go to Community"
+  },
   "discovery": {
     "discover": "Discover Courses",
     "title": "Discover Courses",

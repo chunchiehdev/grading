@@ -8,7 +8,7 @@
 import logger from '@/utils/logger';
 
 // Configuration
-const MAX_INPUT_TOKENS = parseInt(process.env.MAX_INPUT_TOKENS || '40000'); // 30K default (conservative)
+const MAX_INPUT_TOKENS = parseInt(process.env.MAX_INPUT_TOKENS || '1000000'); // 1M default for Gemini Flash
 const CHARS_PER_TOKEN_CHINESE = 2;  // Chinese: ~2 chars per token
 const CHARS_PER_TOKEN_OTHER = 4;    // English/Other: ~4 chars per token
 

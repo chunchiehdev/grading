@@ -87,20 +87,21 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
         </div>
 
         {/* Teacher Info - 固定高度區域 */}
-        <div className="px-4 sm:px-6 py-4">
-          <div className="flex items-center gap-3">
+        <div className="px-4 sm:px-6 py-4 overflow-hidden">
+          <div className="flex items-center gap-3 min-w-0">
             <img
               src={assignment.course.teacher.picture}
               alt={assignment.course.teacher.name}
               className="w-10 h-10 rounded-full object-cover bg-muted flex-shrink-0"
               referrerPolicy='no-referrer'
             />
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <div className="text-sm sm:text-base font-medium text-muted-foreground truncate">
                 {assignment.course.teacher.name}
               </div>
               <div className="text-xs sm:text-sm text-muted-foreground truncate">
-                {t('assignmentCard.rubric')}: {assignment.rubric.name}
+                <span>{t('assignmentCard.rubric')}: </span>
+                <span title={assignment.rubric.name}>{assignment.rubric.name}</span>
               </div>
             </div>
           </div>

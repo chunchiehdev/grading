@@ -56,7 +56,8 @@
     "pending": "Pending",
     "later": "Later",
     "completed": "Completed",
-    "thisWeek": "This Week"
+    "thisWeek": "This Week",
+    "needsAttention": "Needs Attention"
   },
   "dueDate": {
     "noDueDate": "No due date",

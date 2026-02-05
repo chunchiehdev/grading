@@ -14,6 +14,7 @@ import {
 } from '@/schemas/rubric-data';
 import { extractOverallFeedback } from '@/utils/grading-helpers';
 import { gradingQueue } from './queue.server';
+import { GeminiCacheManager } from './gemini-cache.server';
 
 /**
  * Simple grading engine - no fallback hell, no special cases
@@ -234,13 +235,20 @@ export async function processGradingResult(
     });
 
     // Generate and log the prompt (for research traceability)
-    const prompt = GeminiPrompts.generateTextGradingPrompt(gradingRequest);
+    const splitPrompt = GeminiPrompts.generateSplitGradingPrompt(gradingRequest);
+    const prompt = `${splitPrompt.cachedContent}\n\n${splitPrompt.userPrompt}`;
     const promptTokenEstimate = Math.ceil(prompt.length / 3.5); // Simple token estimate
     gradingLogger.addPromptInfo(sessionId, prompt, promptTokenEstimate, userLanguage);
+    
+    // Calculate context hash for caching (must include system instruction as it's part of the cache config)
+    const contextContent = splitPrompt.cachedContent;
+    // We include systemInstruction in the hash so that prompt updates invalidate the cache
+    const contextHash = GeminiCacheManager.hashContent(contextContent + splitPrompt.systemInstruction);
 
     let gradingResponse;
 
     if (useAgentGrading) {
+      // ... (Agent path unchanged for now, it handles its own prompts)
       // Agent-based grading path (AI SDK 6 beta)
       const { executeGradingAgent } = await import('./agent-executor.server');
       const { saveAgentExecution } = await import('./agent-logger.server');
@@ -428,10 +436,13 @@ export async function processGradingResult(
     } else if (useAISDK) {
       // New AI SDK grading path
       const sdkResult = await gradeWithAI({
-        prompt,
+        prompt, // Use full prompt as fallback / standard
         userId: _userId,
         resultId,
         language: userLanguage,
+        contextHash,
+        contextContent,
+        userPrompt: splitPrompt.userPrompt,
       });
 
       if (sdkResult.success) {
