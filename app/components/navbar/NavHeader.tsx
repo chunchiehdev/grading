@@ -5,10 +5,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
-import { Share2, LogOut, User as UserIcon, Globe, Settings, Bell, MessageSquare, Menu } from 'lucide-react';
+import { Share2, LogOut, User as UserIcon, Globe, Settings, Bell, MessageSquare, Menu, Moon, Sun } from 'lucide-react';
 import { Link, useLoaderData, useLocation, useNavigate, NavLink } from 'react-router';
+import * as React from 'react';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { useSubmissionStore } from '@/stores/submissionStore';
 import { useChatHistoryStore } from '@/stores/chatHistoryStore';
 import { NotificationCenter } from '@/components/teacher/NotificationCenter';
+import { useUiStore } from '@/stores/uiStore';
 
 interface NavigationTab {
   label: string;
@@ -50,6 +54,9 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const isOnAgentPlayground = location.pathname.startsWith('/agent-playground');
+  
+  // Theme and language store for mobile menu
+  const { theme, setTheme, language, toggleLanguage } = useUiStore();
 
   // Early return after all hooks are called - root.tsx already handles conditional rendering
   if (!user) {
@@ -198,91 +205,70 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem disabled>
-                  <span className="text-sm truncate">{user.email}</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="cursor-pointer">
-                    <Settings className="w-4 h-4 mr-2" />
-                    {safeT('settings', 'Settings')}
-                  </Link>
-                </DropdownMenuItem>
-                {user.role === 'ADMIN' && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin" className="cursor-pointer">
-                      <UserIcon className="w-4 h-4 mr-2" />
-                      Admin Center
+              <DropdownMenuContent align="end" className="w-72 p-0">
+                {/* User Info - Centered like Google */}
+                <div className="flex flex-col items-center gap-3 px-6 py-6">
+                  {user.picture ? (
+                    <img
+                      src={user.picture}
+                      alt={user.email}
+                      className="w-20 h-20 rounded-full border-4 border-background shadow-sm"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-4 border-background shadow-sm">
+                      <UserIcon className="w-10 h-10 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="text-center">
+                    <p className="text-base font-medium leading-none">{user.email}</p>
+                    <p className="text-sm text-muted-foreground mt-1.5">
+                      {user.role === 'TEACHER' ? safeT('teacher', 'Teacher') : safeT('student', 'Student')}
+                    </p>
+                  </div>
+                  
+                  {/* Primary CTA Button - Google style */}
+                  <Button 
+                    asChild 
+                    variant="outline" 
+                    className="w-full mt-2 rounded-full border-2 hover:bg-accent"
+                  >
+                    <Link to="/settings">
+                      {safeT('manageAccount', 'Manage Account')}
                     </Link>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                {versionInfo && (
-                  <>
-                    <DropdownMenuItem disabled>
-                      <div className="flex flex-col gap-1.5 w-full">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">Version</span>
-                          <Badge variant="outline" className="text-xs px-2 py-0.5 font-mono">
-                            v{versionInfo.version}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">Environment</span>
-                          <Badge
-                            variant={versionInfo.environment === 'production' ? 'default' : 'secondary'}
-                            className="text-xs px-2 py-0.5"
-                          >
-                            {versionInfo.environment === 'production' ? 'Production' : 'Development'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">Branch</span>
-                          <span className="text-xs font-mono text-foreground/70">{versionInfo.branch}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">Commit</span>
-                          <span className="text-xs font-mono text-foreground/70" title={versionInfo.commitHash}>
-                            {versionInfo.commitHash.substring(0, 7)}
-                          </span>
-                        </div>
-                      </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  {safeT('logout', 'Logout')}
-                </DropdownMenuItem>
+                  </Button>
+                </div>
+                
+                {/* Secondary Actions - Google style cards */}
+                <div className="px-4 pb-4 grid grid-cols-2 gap-3">
+                  {user.role === 'ADMIN' && (
+                    <Button 
+                      asChild 
+                      variant="secondary" 
+                      className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                    >
+                      <Link to="/admin">
+                        <UserIcon className="w-5 h-5" />
+                        <span className="text-xs">{safeT('adminCenter', 'Admin')}</span>
+                      </Link>
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    variant="secondary" 
+                    className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span className="text-xs">{safeT('logout', 'Sign out')}</span>
+                  </Button>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
 
-          {/* Right Section - Mobile: User Avatar & Notifications */}
+          {/* Right Section - Mobile: User Avatar Only */}
           <div className="flex md:hidden items-center gap-2">
-            <ModeToggle />
-            {isTeacher && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="relative px-2">
-                    <Bell className="w-5 h-5" />
-                    {unreadCount > 0 && (
-                      <Badge
-                        variant="destructive"
-                        className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
-                      >
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </Badge>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 p-0">
-                  <NotificationCenter />
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
             {/* User Avatar with Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -301,40 +287,97 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem disabled>
-                  <span className="text-sm truncate">{user.email}</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="cursor-pointer">
-                    <Settings className="w-4 h-4 mr-2" />
-                    {safeT('settings', 'Settings')}
-                  </Link>
-                </DropdownMenuItem>
-                {user.role === 'ADMIN' && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/admin" className="cursor-pointer">
-                      <UserIcon className="w-4 h-4 mr-2" />
-                      Admin Center
-                    </Link>
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <div className="flex items-center justify-between w-full cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4" />
-                      {safeT('language', 'Language')}
+              <DropdownMenuContent align="end" className="w-72 p-0">
+                {/* User Info - Centered like Google */}
+                <div className="flex flex-col items-center gap-3 px-6 py-6">
+                  {user.picture ? (
+                    <img
+                      src={user.picture}
+                      alt={user.email}
+                      className="w-20 h-20 rounded-full border-4 border-background shadow-sm"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-4 border-background shadow-sm">
+                      <UserIcon className="w-10 h-10 text-muted-foreground" />
                     </div>
-                    <LanguageSwitcher />
+                  )}
+                  <div className="text-center">
+                    <p className="text-base font-medium leading-none">{user.email}</p>
+                    <p className="text-sm text-muted-foreground mt-1.5">
+                      {user.role === 'TEACHER' ? safeT('teacher', 'Teacher') : safeT('student', 'Student')}
+                    </p>
                   </div>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 cursor-pointer">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  {safeT('logout', 'Logout')}
-                </DropdownMenuItem>
+                  
+                  {/* Primary CTA Button - Google style */}
+                  <Button 
+                    asChild 
+                    variant="outline" 
+                    className="w-full mt-2 rounded-full border-2 hover:bg-accent"
+                  >
+                    <Link to="/settings">
+                      {safeT('manageAccount', 'Manage Account')}
+                    </Link>
+                  </Button>
+                </div>
+                
+                {/* Quick Settings - Mobile Only */}
+                <div className="px-4 pb-3 grid grid-cols-2 gap-3">
+                  <Button 
+                    variant="secondary" 
+                    className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTheme(theme === 'light' ? 'dark' : 'light');
+                    }}
+                  >
+                    <div className="relative w-5 h-5 flex items-center justify-center">
+                      <Sun className="absolute w-5 h-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute w-5 h-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    </div>
+                    <span className="text-xs">{safeT('theme', 'Theme')}</span>
+                  </Button>
+                  
+                  <Button 
+                    variant="secondary" 
+                    className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleLanguage();
+                    }}
+                  >
+                    <Globe className="w-5 h-5" />
+                    <span className="text-xs font-medium">{language === 'zh' ? '中文' : 'EN'}</span>
+                  </Button>
+                </div>
+                
+                {/* Secondary Actions - Google style cards */}
+                <div className="px-4 pb-4 grid grid-cols-2 gap-3">
+                  {user.role === 'ADMIN' && (
+                    <Button 
+                      asChild 
+                      variant="secondary" 
+                      className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                    >
+                      <Link to="/admin">
+                        <UserIcon className="w-5 h-5" />
+                        <span className="text-xs">{safeT('adminCenter', 'Admin')}</span>
+                      </Link>
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    variant="secondary" 
+                    className={cn(
+                      "h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl",
+                      user.role === 'ADMIN' ? "" : "col-span-2"
+                    )}
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="w-5 h-5" />
+                    <span className="text-xs">{safeT('logout', 'Sign out')}</span>
+                  </Button>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
