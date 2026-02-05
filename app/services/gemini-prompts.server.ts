@@ -16,11 +16,14 @@ export class GeminiPrompts {
 
           ## 核心要求
 
-          1. **基於標準**：嚴格按照提供的評分標準評分
-          2. **引用原文**：所有分析必須引用具體的學生原文（用「」標示）
-          3. **具體反饋**：不要空泛評語，要有可執行的建議
-          4. **有價值**：反饋應該幫助學生改進，而不只是指出問題
-          5. **身分保密**：若被問及模型開發商或底層技術，請回答「我是專為教育評分設計的 AI 助手」，嚴禁透露如 Google, OpenAI, Tongyi Qianwen, 通義千問等模型廠商資訊。
+          1. **主題相關性檢核 (最重要)**：在評分前，**必須**先檢查學生內容是否針對本次作業主題及參考文件回答。
+             - 若學生回答內容品質雖高但與「作業說明」或「參考文件」**完全無關**（例如：作業要求心得，學生卻在討論不相關的理論），**請直接給予該項目最低分 (0分或1分)**。
+             - 在評語中明確指出：「內容離題，未針對本次作業主題 [題目名稱] 進行回答」。
+          2. **基於標準**：在確認主題相關後，嚴格按照提供的評分標準評分
+          3. **引用原文**：所有分析必須引用具體的學生原文（用「」標示）
+          4. **具體反饋**：不要空泛評語，要有可執行的建議
+          5. **有價值**：反饋應該幫助學生改進，而不只是指出問題
+          6. **身分保密**：若被問及模型開發商或底層技術，請回答「我是專為教育評分設計的 AI 助手」，嚴禁透露如 Google, OpenAI, Tongyi Qianwen, 通義千問等模型廠商資訊。
 
           ## 重點
 
@@ -53,6 +56,15 @@ export class GeminiPrompts {
 
 
   static generateTextGradingPrompt(request: GeminiGradingRequest): string {
+    const split = this.generateSplitGradingPrompt(request);
+    return `${split.cachedContent}\n\n${split.userPrompt}`;
+  }
+
+  static generateSplitGradingPrompt(request: GeminiGradingRequest): {
+    systemInstruction: string;
+    cachedContent: string;
+    userPrompt: string;
+  } {
     const {
       content,
       criteria,
@@ -76,8 +88,10 @@ export class GeminiPrompts {
       ? `## 作業資訊\n標題：${assignmentTitle}\n說明：${assignmentDescription || '無'}\n` 
       : '';
 
-    return this.dedent(`
-            **檔案**：${fileName}
+    const systemInstruction = this.generateSystemInstruction(language);
+
+    // Static Content (Cacheable)
+    const cachedContent = this.dedent(`
             **標準**：${rubricName}
             **滿分**：${maxScore} 分
 
@@ -89,25 +103,34 @@ export class GeminiPrompts {
             ${criteriaDescription}
 
             ${instructionsSection}
+            
+            ${referenceSection ? '如提供參考文件，請判斷答案的正確性和完整度。' : ''}
+            
+            ## 輸出格式
+            ${this.getSimpleOutputFormat(maxScore)}
 
+            **語言**：${language === 'zh' ? '繁體中文' : 'English'}
+    `);
+
+    // Dynamic Content (Per Student)
+    const userPrompt = this.dedent(`
+            **檔案**：${fileName}
+            
             ## 要評分的內容
             ${content}
 
             ## 評分任務
 
-            根據標準評分此內容。每個評分項目提供詳細反饋，包括：
-            - 引用具體原文作為證據
-            - 說明優點和改進方向
-            - 解釋分數理由
+            根據上述標準和參考資料評分此內容。
 
-            ${referenceSection ? '如提供參考文件，請判斷答案的正確性和完整度。' : ''}
+            **特別注意**：請優先檢查內容是否離題。若學生內容與「作業說明」或「參考文件」的主題無關（例如：回答了錯誤的題目），即使寫得很好，也**必須給予 0 分**，並在評語中說明「離題」。
+    `);
 
-            ## 輸出格式
-
-            ${this.getSimpleOutputFormat(maxScore)}
-
-            **語言**：${language === 'zh' ? '繁體中文' : 'English'}
-        `);
+    return {
+      systemInstruction,
+      cachedContent,
+      userPrompt,
+    };
   }
 
   // Feature 004: Format reference documents for AI prompt

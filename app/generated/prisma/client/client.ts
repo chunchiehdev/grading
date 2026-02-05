@@ -90,6 +90,31 @@ export type Msg = runtime.Types.Result.DefaultSelection<Prisma.$MsgPayload>
  */
 export type Notification = runtime.Types.Result.DefaultSelection<Prisma.$NotificationPayload>
 /**
+ * Model CoursePost
+ * 
+ */
+export type CoursePost = runtime.Types.Result.DefaultSelection<Prisma.$CoursePostPayload>
+/**
+ * Model CoursePostComment
+ * 
+ */
+export type CoursePostComment = runtime.Types.Result.DefaultSelection<Prisma.$CoursePostCommentPayload>
+/**
+ * Model CommentGradingResult
+ * 
+ */
+export type CommentGradingResult = runtime.Types.Result.DefaultSelection<Prisma.$CommentGradingResultPayload>
+/**
+ * Model CoursePostLike
+ * 
+ */
+export type CoursePostLike = runtime.Types.Result.DefaultSelection<Prisma.$CoursePostLikePayload>
+/**
+ * Model CoursePostCommentLike
+ * 
+ */
+export type CoursePostCommentLike = runtime.Types.Result.DefaultSelection<Prisma.$CoursePostCommentLikePayload>
+/**
  * Model AgentChatSession
  * 
  */
@@ -177,6 +202,16 @@ export const NotificationType = {
 
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType]
 
+
+export const PostType = {
+  ANNOUNCEMENT: 'ANNOUNCEMENT',
+  ASSIGNMENT: 'ASSIGNMENT',
+  DISCUSSION: 'DISCUSSION',
+  MATERIAL: 'MATERIAL'
+} as const
+
+export type PostType = (typeof PostType)[keyof typeof PostType]
+
 }
 
 export type GradingSessionStatus = $Enums.GradingSessionStatus
@@ -207,6 +242,10 @@ export type NotificationType = $Enums.NotificationType
 
 export const NotificationType = $Enums.NotificationType
 
+export type PostType = $Enums.PostType
+
+export const PostType = $Enums.PostType
+
 
 
 /**
@@ -220,7 +259,7 @@ const config: runtime.GetPrismaClientConfig = {
       "value": "prisma-client"
     },
     "output": {
-      "value": "/home/chunc/workspace/grading/app/generated/prisma/client",
+      "value": "/app/app/generated/prisma/client",
       "fromEnvVar": null
     },
     "config": {
@@ -242,7 +281,7 @@ const config: runtime.GetPrismaClientConfig = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/home/chunc/workspace/grading/prisma/schema.prisma",
+    "sourceFilePath": "/app/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativePath": "../../../../prisma",
@@ -252,16 +291,17 @@ const config: runtime.GetPrismaClientConfig = {
     "db"
   ],
   "activeProvider": "postgresql",
+  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
         "fromEnvVar": "DATABASE_URL",
-        "value": "postgresql://grading_admin:password@localhost:5432/grading_db"
+        "value": null
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\", \"debian-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id              String   @id @default(uuid())\n  email           String   @unique\n  role            UserRole @default(STUDENT) // New role field with default to STUDENT\n  hasSelectedRole Boolean  @default(false) // Track if user has explicitly selected a role\n  name            String   @db.VarChar(255)\n  picture         String   @db.VarChar(500)\n  createdAt       DateTime @default(now())\n  updatedAt       DateTime @updatedAt\n\n  // Relations\n  rubrics         Rubric[]\n  gradingSessions GradingSession[]\n  uploadedFiles   UploadedFile[]\n\n  // Teacher-specific relations\n  courses          Course[]\n  teacherRubrics   Rubric[] @relation(\"TeacherRubrics\")\n  assistantClasses Class[]  @relation(\"ClassAssistants\")\n\n  // Student-specific relations\n  submissions     Submission[]\n  enrollments     Enrollment[]\n  usedInvitations InvitationCode[] @relation(\"InvitationCodeUsage\")\n\n  // Chat relations\n  chats             Chat[]\n  agentChatSessions AgentChatSession[] @relation(\"UserAgentChatSessions\")\n\n  // Notification relations\n  notifications Notification[] @relation(\"UserNotifications\")\n\n  // AI Access Control (Admin-managed)\n  aiEnabled Boolean @default(false) // New users cannot use AI until admin enables\n\n  @@map(\"users\")\n}\n\n// Course management for teachers\nmodel Course {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  code        String? @db.VarChar(50) // Course code (e.g., \"CS 201\", \"MATH 101\")\n  description String? @db.Text\n  teacherId   String\n  teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)\n\n  // Course-level settings (shared across all classes)\n  syllabus String? @db.Text // Course syllabus\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  classes         Class[] // A course can have multiple classes/sections\n  assignmentAreas AssignmentArea[]\n  invitationCodes InvitationCode[]\n  notifications   Notification[]   @relation(\"CourseNotifications\")\n\n  @@index([teacherId])\n  @@index([code])\n  @@map(\"courses\")\n}\n\n// Class/Section within a course (班次/班級)\nmodel Class {\n  id       String @id @default(uuid())\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  name String @db.VarChar(100) // \"101班\", \"Section A\", \"週五下午班\"\n\n  // Schedule information (JSON structure for flexibility)\n  // Format: { weekday: string, periodCode: string, room?: string }\n  schedule Json?\n\n  capacity Int? // Maximum number of students (null = unlimited)\n\n  // Optional: Teaching assistant for this class\n  assistantId String?\n  assistant   User?   @relation(\"ClassAssistants\", fields: [assistantId], references: [id], onDelete: SetNull)\n\n  isActive Boolean @default(true) // Whether this class is currently active\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  enrollments     Enrollment[] // Students enrolled in this class\n  assignmentAreas AssignmentArea[] // Assignments specific to this class\n  invitationCodes InvitationCode[] // Invitation codes for this class\n\n  @@index([courseId])\n  @@index([assistantId])\n  @@map(\"classes\")\n}\n\n// Assignment areas within courses\nmodel AssignmentArea {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  description String? @db.Text\n  courseId    String\n  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Assignment can be specific to a class (null = all classes)\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric    @relation(\"AssignmentAreaRubrics\", fields: [rubricId], references: [id], onDelete: Restrict)\n  dueDate  DateTime?\n\n  // AI Grading Context (Feature 004)\n  referenceFileIds    String? @db.Text // JSON array of UploadedFile IDs (max 5 files)\n  customGradingPrompt String? @db.Text // Custom grading instructions (max 5000 chars)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  submissions    Submission[]\n  notifications  Notification[]  @relation(\"AssignmentNotifications\")\n  gradingResults GradingResult[] // NEW: Reverse relation for context-aware grading\n\n  @@index([courseId])\n  @@index([classId])\n  @@index([rubricId])\n  @@map(\"assignment_areas\")\n}\n\n// Student submissions to assignment areas\nmodel Submission {\n  id               String         @id @default(uuid())\n  studentId        String\n  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)\n  assignmentAreaId String\n  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)\n\n  // Version Control Fields (Feature: Submission History)\n  version           Int          @default(1)\n  isLatest          Boolean      @default(true)\n  previousVersionId String? // 前一個版本的 ID\n  previousVersion   Submission?  @relation(\"VersionHistory\", fields: [previousVersionId], references: [id], onDelete: NoAction, onUpdate: NoAction)\n  nextVersions      Submission[] @relation(\"VersionHistory\")\n\n  filePath   String   @db.VarChar(500) // Path/URL of uploaded assignment\n  uploadedAt DateTime @default(now())\n\n  // AI analysis and grading\n  sessionId        String? // GradingSession ID for linking AI results\n  aiAnalysisResult Json? // AI analysis results\n  thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿 (Deprecated)\n  thinkingProcess  String? @db.Text // AI 的原始思考過程\n  gradingRationale String? @db.Text // AI 的正式評分推理\n  finalScore       Int? // Final score\n  normalizedScore  Float? // 100-point normalized score from AI grading\n\n  // Context transparency (Feature 004) - copied from GradingResult\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  teacherFeedback String?          @db.Text\n  status          SubmissionStatus @default(SUBMITTED)\n\n  // Soft delete fields (for teacher deletion)\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime?\n  deletedBy String? // Teacher user ID who deleted this submission\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([studentId])\n  @@index([assignmentAreaId])\n  @@index([status])\n  @@index([studentId, assignmentAreaId, version])\n  @@index([isLatest])\n  @@index([isDeleted]) // Index for filtering deleted submissions\n  @@map(\"submissions\")\n}\n\n// 評分標準表\nmodel Rubric {\n  id        String  @id @default(uuid())\n  userId    String\n  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  teacherId String? // New field for teacher-created rubrics\n  teacher   User?   @relation(\"TeacherRubrics\", fields: [teacherId], references: [id], onDelete: Cascade)\n\n  name        String  @db.VarChar(255)\n  description String  @db.Text\n  version     Int     @default(1) // 版本號\n  isActive    Boolean @default(true) // 是否為當前版本\n  isTemplate  Boolean @default(false) // Whether it's a reusable template\n\n  // 評分標準結構 (JSON)\n  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults  GradingResult[]\n  assignmentAreas AssignmentArea[] @relation(\"AssignmentAreaRubrics\")\n\n  @@index([userId, isActive])\n  @@index([teacherId, isTemplate])\n  @@map(\"rubrics\")\n}\n\n// 評分對話 - 一次評分請求可包含多個檔案\nmodel GradingSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  status   GradingSessionStatus @default(PENDING)\n  progress Int                  @default(0) // 整體進度 0-100\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, status])\n  @@map(\"grading_sessions\")\n}\n\n// 上傳的檔案記錄\nmodel UploadedFile {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  fileName         String @db.VarChar(500)\n  originalFileName String @db.VarChar(500)\n  fileKey          String @unique // S3 key\n  fileSize         Int\n  mimeType         String @db.VarChar(100)\n\n  // 檔案處理狀態\n  parseStatus         FileParseStatus @default(PENDING)\n  parsedContent       String?         @db.Text // 解析後的文字內容\n  parsedContentTokens Int? // Estimated token count (for cost control)\n  parseError          String? // 解析錯誤訊息\n\n  // 軟刪除標記\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime? // 刪除時間\n\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  expiresAt DateTime? // 檔案過期時間，用於自動清理\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, parseStatus])\n  @@index([userId, isDeleted]) // 用於過濾已刪除檔案\n  @@index([expiresAt]) // 用於清理過期檔案\n  @@map(\"uploaded_files\")\n}\n\n// 評分結果 - 每個檔案對應一個評分標準的結果\nmodel GradingResult {\n  id               String         @id @default(uuid())\n  gradingSessionId String\n  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)\n\n  uploadedFileId String\n  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // AI Grading Context (Feature 004)\n  assignmentAreaId String?\n  assignmentArea   AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)\n\n  // 評分狀態和結果\n  status   GradingStatus @default(PENDING)\n  progress Int           @default(0) // 此項評分進度 0-100\n\n  // LLM評分結果 (JSON結構)\n  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }\n  errorMessage String? // 評分失敗時的錯誤訊息\n\n  // AI Thinking Process (Feature 005: Thinking Models)\n  thoughtSummary   String? @db.Text // AI 的思考過程摘要 (Deprecated)\n  thinkingProcess  String? @db.Text // AI 的原始思考過程\n  gradingRationale String? @db.Text // AI 的正式評分推理\n\n  // Context transparency (Feature 004)\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  // 100 分制正規化分數\n  normalizedScore Float? // (totalScore / maxScore) * 100\n\n  // 評分原始數據\n  gradingModel    String? @db.VarChar(100) // 使用的模型名稱\n  gradingTokens   Int? // 消耗的tokens數量\n  sparringTokens  Int? // 辯證對練消耗的 tokens (Feature: Sparring)\n  gradingDuration Int? // 評分耗時(毫秒)\n\n  // Agent-based grading fields (AI SDK 6)\n  agentSteps         Json? // Agent 執行的所有步驟記錄\n  toolCalls          Json? // 所有工具調用的詳細記錄\n  confidenceScore    Float? // 0-1 信心度分數\n  requiresReview     Boolean   @default(false) // 是否需要人工審核\n  reviewedBy         String? // 審核者 userId\n  reviewedAt         DateTime? // 審核時間\n  agentModel         String?   @db.VarChar(100) // Agent 使用的模型\n  agentExecutionTime Int? // Agent 總執行時間(毫秒)\n\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime? // 評分完成時間\n\n  // Relations\n  agentLogs AgentExecutionLog[]\n\n  @@index([gradingSessionId, status])\n  @@index([uploadedFileId])\n  @@index([rubricId])\n  @@index([assignmentAreaId]) // NEW: Index for JOIN performance\n  @@index([normalizedScore])\n  @@index([requiresReview, createdAt]) // NEW: For review queue\n  @@map(\"grading_results\")\n}\n\n// Agent執行記錄 - 詳細追蹤每個步驟\nmodel AgentExecutionLog {\n  id              String        @id @default(uuid())\n  gradingResultId String\n  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)\n\n  stepNumber Int // 步驟編號\n  toolName   String?  @db.VarChar(100) // 工具名稱（null = 純推理步驟）\n  toolInput  Json? // 工具輸入參數\n  toolOutput Json? // 工具輸出結果\n  reasoning  String?  @db.Text // AI 的推理過程\n  durationMs Int? // 此步驟耗時\n  timestamp  DateTime @default(now())\n\n  @@index([gradingResultId, stepNumber])\n  @@map(\"agent_execution_logs\")\n}\n\n// 評分會話狀態\nenum GradingSessionStatus {\n  PENDING // 等待開始\n  PROCESSING // 評分中\n  COMPLETED // 全部完成\n  FAILED // 失敗\n  CANCELLED // 已取消\n}\n\n// 單項評分狀態\nenum GradingStatus {\n  PENDING // 等待評分\n  PROCESSING // 評分中\n  COMPLETED // 評分完成\n  FAILED // 評分失敗\n  SKIPPED // 跳過(檔案解析失敗等)\n}\n\n// 檔案解析狀態\nenum FileParseStatus {\n  PENDING // 等待解析\n  PROCESSING // 解析中\n  COMPLETED // 解析完成\n  FAILED // 解析失敗\n}\n\n// User roles\nenum UserRole {\n  STUDENT\n  TEACHER\n  ADMIN\n}\n\n// Submission status\nenum SubmissionStatus {\n  DRAFT // File uploaded but not yet submitted\n  SUBMITTED // Just submitted\n  ANALYZED // AI analysis complete\n  GRADED // Teacher has provided feedback/grade\n}\n\n// Course enrollment for students\nmodel Enrollment {\n  id        String @id @default(uuid())\n  studentId String\n  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)\n\n  // Student enrolls in a specific class\n  classId String\n  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  enrolledAt DateTime @default(now())\n\n  // Optional: Track student performance in this enrollment\n  finalGrade Float?\n  attendance Json? // Attendance records\n\n  @@unique([studentId, classId])\n  @@index([studentId])\n  @@index([classId])\n  @@map(\"enrollments\")\n}\n\n// Course invitation codes\nmodel InvitationCode {\n  id       String @id @default(uuid())\n  code     String @unique @db.VarChar(50)\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Invitation code can be specific to a class\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime  @default(now())\n  expiresAt DateTime\n  isUsed    Boolean   @default(false)\n  usedAt    DateTime?\n  usedById  String?\n  usedBy    User?     @relation(\"InvitationCodeUsage\", fields: [usedById], references: [id])\n\n  @@index([code])\n  @@index([courseId])\n  @@index([classId])\n  @@index([expiresAt])\n  @@map(\"invitation_codes\")\n}\n\n// AI Chat system\nmodel Chat {\n  id        String   @id @default(uuid())\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  title     String?  @db.VarChar(100)\n  context   Json? // {courseId, assignmentId, type}\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  msgs Msg[]\n\n  @@index([userId])\n  @@index([createdAt])\n  @@map(\"chats\")\n}\n\nmodel Msg {\n  id      String   @id @default(uuid())\n  chatId  String\n  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)\n  role    Role\n  content String   @db.Text\n  data    Json? // Generated rubric data, error info, etc\n  time    DateTime @default(now())\n\n  @@index([chatId])\n  @@index([time])\n  @@map(\"messages\")\n}\n\nenum Role {\n  USER\n  AI\n}\n\n// Real-time notifications for course activities\nmodel Notification {\n  id           String           @id @default(uuid())\n  type         NotificationType\n  userId       String\n  user         User             @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  courseId     String?\n  course       Course?          @relation(\"CourseNotifications\", fields: [courseId], references: [id], onDelete: Cascade)\n  assignmentId String?\n  assignment   AssignmentArea?  @relation(\"AssignmentNotifications\", fields: [assignmentId], references: [id], onDelete: Cascade)\n  title        String           @db.VarChar(255)\n  message      String           @db.Text\n  isRead       Boolean          @default(false)\n  readAt       DateTime?\n  data         Json? // Additional notification data\n  createdAt    DateTime         @default(now())\n\n  @@index([userId, isRead])\n  @@index([courseId])\n  @@index([type])\n  @@index([createdAt])\n  @@map(\"notifications\")\n}\n\nenum NotificationType {\n  ASSIGNMENT_CREATED // New assignment published\n  ASSIGNMENT_DUE_SOON // Assignment due in 24 hours\n  SUBMISSION_GRADED // Teacher graded submission\n  COURSE_ANNOUNCEMENT // General course announcement\n}\n\n// ============================================================================\n// ADMIN ANALYTICS: Agent Chat Session Tracking\n// ============================================================================\n\nmodel AgentChatSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(\"UserAgentChatSessions\", fields: [userId], references: [id], onDelete: Cascade)\n\n  // Session metadata\n  title         String? @db.VarChar(255)\n  userRole      String  @db.VarChar(20) // TEACHER | STUDENT | ADMIN\n  modelProvider String? @db.VarChar(50) // gemini | local | auto\n\n  // Performance tracking\n  totalTokens   Int @default(0)\n  totalSteps    Int @default(0)\n  totalDuration Int @default(0) // milliseconds\n\n  // Status\n  status       String   @default(\"ACTIVE\") // ACTIVE | IDLE | ERROR\n  lastActivity DateTime @default(now())\n\n  // Soft delete\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime?\n  deletedBy String?\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  messages AgentChatMessage[]\n  stepLogs AgentChatStepLog[]\n\n  @@index([userId, createdAt])\n  @@index([userId, isDeleted, lastActivity])\n  @@index([status])\n  @@index([userRole])\n  @@map(\"agent_chat_sessions\")\n}\n\nmodel AgentChatMessage {\n  id        String           @id @default(uuid())\n  sessionId String\n  session   AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)\n\n  role    String @db.VarChar(20) // user | assistant | system\n  content String @db.Text\n\n  // Token tracking (per message)\n  promptTokens     Int?\n  completionTokens Int?\n  totalTokens      Int?\n\n  timestamp DateTime @default(now())\n\n  @@index([sessionId, timestamp])\n  @@map(\"agent_chat_messages\")\n}\n\nmodel AgentChatStepLog {\n  id        String           @id @default(uuid())\n  sessionId String\n  session   AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)\n\n  stepNumber Int\n  toolName   String? @db.VarChar(100)\n  toolInput  Json?\n  toolOutput Json?\n  reasoning  String? @db.Text\n\n  durationMs Int?\n  timestamp  DateTime @default(now())\n\n  @@index([sessionId, stepNumber])\n  @@map(\"agent_chat_step_logs\")\n}\n",
-  "inlineSchemaHash": "e061e258ded78dca178d21c8b80705688d065e875ba4015cbc44d768e04343ef",
+  "inlineSchema": "generator client {\n  provider      = \"prisma-client\"\n  output        = \"../app/generated/prisma/client\"\n  binaryTargets = [\"native\", \"linux-musl-openssl-3.0.x\", \"debian-openssl-3.0.x\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel User {\n  id              String   @id @default(uuid())\n  email           String   @unique\n  role            UserRole @default(STUDENT) // New role field with default to STUDENT\n  hasSelectedRole Boolean  @default(false) // Track if user has explicitly selected a role\n  name            String   @db.VarChar(255)\n  picture         String   @db.VarChar(500)\n  createdAt       DateTime @default(now())\n  updatedAt       DateTime @updatedAt\n\n  // Relations\n  rubrics         Rubric[]\n  gradingSessions GradingSession[]\n  uploadedFiles   UploadedFile[]\n\n  // Teacher-specific relations\n  courses          Course[]\n  teacherRubrics   Rubric[] @relation(\"TeacherRubrics\")\n  assistantClasses Class[]  @relation(\"ClassAssistants\")\n\n  // Student-specific relations\n  submissions     Submission[]\n  enrollments     Enrollment[]\n  usedInvitations InvitationCode[] @relation(\"InvitationCodeUsage\")\n\n  // Chat relations\n  chats             Chat[]\n  agentChatSessions AgentChatSession[] @relation(\"UserAgentChatSessions\")\n\n  // Notification relations\n  notifications Notification[] @relation(\"UserNotifications\")\n\n  // AI Access Control (Admin-managed)\n  aiEnabled Boolean @default(false) // New users cannot use AI until admin enables\n\n  // Course Community relations\n  authoredPosts    CoursePost[]            @relation(\"AuthoredPosts\")\n  authoredComments CoursePostComment[]     @relation(\"AuthoredComments\")\n  postLikes        CoursePostLike[]        @relation(\"PostLikes\")\n  commentLikes     CoursePostCommentLike[] @relation(\"CommentLikes\")\n  commentGradings  CommentGradingResult[]  @relation(\"CommentGrader\")\n\n  @@map(\"users\")\n}\n\n// Course management for teachers\nmodel Course {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  code        String? @db.VarChar(50) // Course code (e.g., \"CS 201\", \"MATH 101\")\n  description String? @db.Text\n  teacherId   String\n  teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)\n\n  // Course-level settings (shared across all classes)\n  syllabus String? @db.Text // Course syllabus\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  classes         Class[] // A course can have multiple classes/sections\n  assignmentAreas AssignmentArea[]\n  invitationCodes InvitationCode[]\n  notifications   Notification[]   @relation(\"CourseNotifications\")\n  posts           CoursePost[] // Course community posts\n\n  @@index([teacherId])\n  @@index([code])\n  @@map(\"courses\")\n}\n\n// Class/Section within a course (班次/班級)\nmodel Class {\n  id       String @id @default(uuid())\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  name String @db.VarChar(100) // \"101班\", \"Section A\", \"週五下午班\"\n\n  // Schedule information (JSON structure for flexibility)\n  // Format: { weekday: string, periodCode: string, room?: string }\n  schedule Json?\n\n  capacity Int? // Maximum number of students (null = unlimited)\n\n  // Optional: Teaching assistant for this class\n  assistantId String?\n  assistant   User?   @relation(\"ClassAssistants\", fields: [assistantId], references: [id], onDelete: SetNull)\n\n  isActive Boolean @default(true) // Whether this class is currently active\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  enrollments     Enrollment[] // Students enrolled in this class\n  assignmentAreas AssignmentArea[] // Assignments specific to this class\n  invitationCodes InvitationCode[] // Invitation codes for this class\n  posts           CoursePost[] // Class-specific community posts\n\n  @@index([courseId])\n  @@index([assistantId])\n  @@map(\"classes\")\n}\n\n// Assignment areas within courses\nmodel AssignmentArea {\n  id          String  @id @default(uuid())\n  name        String  @db.VarChar(255)\n  description String? @db.Text\n  courseId    String\n  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Assignment can be specific to a class (null = all classes)\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric    @relation(\"AssignmentAreaRubrics\", fields: [rubricId], references: [id], onDelete: Restrict)\n  dueDate  DateTime?\n\n  // AI Grading Context (Feature 004)\n  referenceFileIds    String? @db.Text // JSON array of UploadedFile IDs (max 5 files)\n  customGradingPrompt String? @db.Text // Custom grading instructions (max 5000 chars)\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  submissions    Submission[]\n  notifications  Notification[]  @relation(\"AssignmentNotifications\")\n  gradingResults GradingResult[] // NEW: Reverse relation for context-aware grading\n  posts          CoursePost[] // Assignment-linked posts\n\n  @@index([courseId])\n  @@index([classId])\n  @@index([rubricId])\n  @@map(\"assignment_areas\")\n}\n\n// Student submissions to assignment areas\nmodel Submission {\n  id               String         @id @default(uuid())\n  studentId        String\n  student          User           @relation(fields: [studentId], references: [id], onDelete: Cascade)\n  assignmentAreaId String\n  assignmentArea   AssignmentArea @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)\n\n  // Version Control Fields (Feature: Submission History)\n  version           Int          @default(1)\n  isLatest          Boolean      @default(true)\n  previousVersionId String? // 前一個版本的 ID\n  previousVersion   Submission?  @relation(\"VersionHistory\", fields: [previousVersionId], references: [id], onDelete: NoAction, onUpdate: NoAction)\n  nextVersions      Submission[] @relation(\"VersionHistory\")\n\n  filePath   String   @db.VarChar(500) // Path/URL of uploaded assignment\n  uploadedAt DateTime @default(now())\n\n  // AI analysis and grading\n  sessionId        String? // GradingSession ID for linking AI results\n  aiAnalysisResult Json? // AI analysis results\n  thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿 (Deprecated)\n  thinkingProcess  String? @db.Text // AI 的原始思考過程\n  gradingRationale String? @db.Text // AI 的正式評分推理\n  finalScore       Int? // Final score\n  normalizedScore  Float? // 100-point normalized score from AI grading\n\n  // Context transparency (Feature 004) - copied from GradingResult\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  teacherFeedback String?          @db.Text\n  status          SubmissionStatus @default(SUBMITTED)\n\n  // Soft delete fields (for teacher deletion)\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime?\n  deletedBy String? // Teacher user ID who deleted this submission\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  comment CoursePostComment? // Submission can be linked to a comment\n\n  @@index([studentId])\n  @@index([assignmentAreaId])\n  @@index([status])\n  @@index([studentId, assignmentAreaId, version])\n  @@index([isLatest])\n  @@index([isDeleted]) // Index for filtering deleted submissions\n  @@map(\"submissions\")\n}\n\n// 評分標準表\nmodel Rubric {\n  id        String  @id @default(uuid())\n  userId    String\n  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)\n  teacherId String? // New field for teacher-created rubrics\n  teacher   User?   @relation(\"TeacherRubrics\", fields: [teacherId], references: [id], onDelete: Cascade)\n\n  name        String  @db.VarChar(255)\n  description String  @db.Text\n  version     Int     @default(1) // 版本號\n  isActive    Boolean @default(true) // 是否為當前版本\n  isTemplate  Boolean @default(false) // Whether it's a reusable template\n\n  // 評分標準結構 (JSON)\n  criteria Json // [{ id, name, description, maxScore, levels: [{ score, description }] }]\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults  GradingResult[]\n  assignmentAreas AssignmentArea[]       @relation(\"AssignmentAreaRubrics\")\n  commentGradings CommentGradingResult[] @relation(\"CommentGradingRubric\")\n  communityPosts  CoursePost[]           @relation(\"PostRubric\")\n\n  @@index([userId, isActive])\n  @@index([teacherId, isTemplate])\n  @@map(\"rubrics\")\n}\n\n// 評分對話 - 一次評分請求可包含多個檔案\nmodel GradingSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  status   GradingSessionStatus @default(PENDING)\n  progress Int                  @default(0) // 整體進度 0-100\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, status])\n  @@map(\"grading_sessions\")\n}\n\n// 上傳的檔案記錄\nmodel UploadedFile {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  fileName         String @db.VarChar(500)\n  originalFileName String @db.VarChar(500)\n  fileKey          String @unique // S3 key\n  fileSize         Int\n  mimeType         String @db.VarChar(100)\n\n  // 檔案處理狀態\n  parseStatus         FileParseStatus @default(PENDING)\n  parsedContent       String?         @db.Text // 解析後的文字內容\n  parsedContentTokens Int? // Estimated token count (for cost control)\n  parseError          String? // 解析錯誤訊息\n\n  // 軟刪除標記\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime? // 刪除時間\n\n  createdAt DateTime  @default(now())\n  updatedAt DateTime  @updatedAt\n  expiresAt DateTime? // 檔案過期時間，用於自動清理\n\n  // Relations\n  gradingResults GradingResult[]\n\n  @@index([userId, parseStatus])\n  @@index([userId, isDeleted]) // 用於過濾已刪除檔案\n  @@index([expiresAt]) // 用於清理過期檔案\n  @@map(\"uploaded_files\")\n}\n\n// 評分結果 - 每個檔案對應一個評分標準的結果\nmodel GradingResult {\n  id               String         @id @default(uuid())\n  gradingSessionId String\n  gradingSession   GradingSession @relation(fields: [gradingSessionId], references: [id], onDelete: Cascade)\n\n  uploadedFileId String\n  uploadedFile   UploadedFile @relation(fields: [uploadedFileId], references: [id], onDelete: Cascade)\n\n  rubricId String\n  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // AI Grading Context (Feature 004)\n  assignmentAreaId String?\n  assignmentArea   AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: SetNull)\n\n  // 評分狀態和結果\n  status   GradingStatus @default(PENDING)\n  progress Int           @default(0) // 此項評分進度 0-100\n\n  // LLM評分結果 (JSON結構)\n  result       Json? // { totalScore, maxScore, breakdown: [{ criteriaId, score, feedback }], overallFeedback }\n  errorMessage String? // 評分失敗時的錯誤訊息\n\n  // AI Thinking Process (Feature 005: Thinking Models)\n  thoughtSummary   String? @db.Text // AI 的思考過程摘要 (Deprecated)\n  thinkingProcess  String? @db.Text // AI 的原始思考過程\n  gradingRationale String? @db.Text // AI 的正式評分推理\n\n  // Context transparency (Feature 004)\n  usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }\n\n  // 100 分制正規化分數\n  normalizedScore Float? // (totalScore / maxScore) * 100\n\n  // 評分原始數據\n  gradingModel    String? @db.VarChar(100) // 使用的模型名稱\n  gradingTokens   Int? // 消耗的tokens數量\n  sparringTokens  Int? // 辯證對練消耗的 tokens (Feature: Sparring)\n  gradingDuration Int? // 評分耗時(毫秒)\n\n  // Agent-based grading fields (AI SDK 6)\n  agentSteps         Json? // Agent 執行的所有步驟記錄\n  toolCalls          Json? // 所有工具調用的詳細記錄\n  confidenceScore    Float? // 0-1 信心度分數\n  requiresReview     Boolean   @default(false) // 是否需要人工審核\n  reviewedBy         String? // 審核者 userId\n  reviewedAt         DateTime? // 審核時間\n  agentModel         String?   @db.VarChar(100) // Agent 使用的模型\n  agentExecutionTime Int? // Agent 總執行時間(毫秒)\n\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime  @updatedAt\n  completedAt DateTime? // 評分完成時間\n\n  // Relations\n  agentLogs AgentExecutionLog[]\n\n  @@index([gradingSessionId, status])\n  @@index([uploadedFileId])\n  @@index([rubricId])\n  @@index([assignmentAreaId]) // NEW: Index for JOIN performance\n  @@index([normalizedScore])\n  @@index([requiresReview, createdAt]) // NEW: For review queue\n  @@map(\"grading_results\")\n}\n\n// Agent執行記錄 - 詳細追蹤每個步驟\nmodel AgentExecutionLog {\n  id              String        @id @default(uuid())\n  gradingResultId String\n  gradingResult   GradingResult @relation(fields: [gradingResultId], references: [id], onDelete: Cascade)\n\n  stepNumber Int // 步驟編號\n  toolName   String?  @db.VarChar(100) // 工具名稱（null = 純推理步驟）\n  toolInput  Json? // 工具輸入參數\n  toolOutput Json? // 工具輸出結果\n  reasoning  String?  @db.Text // AI 的推理過程\n  durationMs Int? // 此步驟耗時\n  timestamp  DateTime @default(now())\n\n  @@index([gradingResultId, stepNumber])\n  @@map(\"agent_execution_logs\")\n}\n\n// 評分會話狀態\nenum GradingSessionStatus {\n  PENDING // 等待開始\n  PROCESSING // 評分中\n  COMPLETED // 全部完成\n  FAILED // 失敗\n  CANCELLED // 已取消\n}\n\n// 單項評分狀態\nenum GradingStatus {\n  PENDING // 等待評分\n  PROCESSING // 評分中\n  COMPLETED // 評分完成\n  FAILED // 評分失敗\n  SKIPPED // 跳過(檔案解析失敗等)\n}\n\n// 檔案解析狀態\nenum FileParseStatus {\n  PENDING // 等待解析\n  PROCESSING // 解析中\n  COMPLETED // 解析完成\n  FAILED // 解析失敗\n}\n\n// User roles\nenum UserRole {\n  STUDENT\n  TEACHER\n  ADMIN\n}\n\n// Submission status\nenum SubmissionStatus {\n  DRAFT // File uploaded but not yet submitted\n  SUBMITTED // Just submitted\n  ANALYZED // AI analysis complete\n  GRADED // Teacher has provided feedback/grade\n}\n\n// Course enrollment for students\nmodel Enrollment {\n  id        String @id @default(uuid())\n  studentId String\n  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)\n\n  // Student enrolls in a specific class\n  classId String\n  class   Class  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  enrolledAt DateTime @default(now())\n\n  // Optional: Track student performance in this enrollment\n  finalGrade Float?\n  attendance Json? // Attendance records\n\n  @@unique([studentId, classId])\n  @@index([studentId])\n  @@index([classId])\n  @@map(\"enrollments\")\n}\n\n// Course invitation codes\nmodel InvitationCode {\n  id       String @id @default(uuid())\n  code     String @unique @db.VarChar(50)\n  courseId String\n  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)\n\n  // Optional: Invitation code can be specific to a class\n  classId String?\n  class   Class?  @relation(fields: [classId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime  @default(now())\n  expiresAt DateTime\n  isUsed    Boolean   @default(false)\n  usedAt    DateTime?\n  usedById  String?\n  usedBy    User?     @relation(\"InvitationCodeUsage\", fields: [usedById], references: [id])\n\n  @@index([code])\n  @@index([courseId])\n  @@index([classId])\n  @@index([expiresAt])\n  @@map(\"invitation_codes\")\n}\n\n// AI Chat system\nmodel Chat {\n  id        String   @id @default(uuid())\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n  title     String?  @db.VarChar(100)\n  context   Json? // {courseId, assignmentId, type}\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  msgs Msg[]\n\n  @@index([userId])\n  @@index([createdAt])\n  @@map(\"chats\")\n}\n\nmodel Msg {\n  id      String   @id @default(uuid())\n  chatId  String\n  chat    Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)\n  role    Role\n  content String   @db.Text\n  data    Json? // Generated rubric data, error info, etc\n  time    DateTime @default(now())\n\n  @@index([chatId])\n  @@index([time])\n  @@map(\"messages\")\n}\n\nenum Role {\n  USER\n  AI\n}\n\n// Real-time notifications for course activities\nmodel Notification {\n  id           String           @id @default(uuid())\n  type         NotificationType\n  userId       String\n  user         User             @relation(\"UserNotifications\", fields: [userId], references: [id], onDelete: Cascade)\n  courseId     String?\n  course       Course?          @relation(\"CourseNotifications\", fields: [courseId], references: [id], onDelete: Cascade)\n  assignmentId String?\n  assignment   AssignmentArea?  @relation(\"AssignmentNotifications\", fields: [assignmentId], references: [id], onDelete: Cascade)\n  title        String           @db.VarChar(255)\n  message      String           @db.Text\n  isRead       Boolean          @default(false)\n  readAt       DateTime?\n  data         Json? // Additional notification data\n  createdAt    DateTime         @default(now())\n\n  @@index([userId, isRead])\n  @@index([courseId])\n  @@index([type])\n  @@index([createdAt])\n  @@map(\"notifications\")\n}\n\nenum NotificationType {\n  ASSIGNMENT_CREATED // New assignment published\n  ASSIGNMENT_DUE_SOON // Assignment due in 24 hours\n  SUBMISSION_GRADED // Teacher graded submission\n  COURSE_ANNOUNCEMENT // General course announcement\n}\n\n// ============================================================================\n// COURSE COMMUNITY: Posts, Comments, Likes\n// ============================================================================\n\nenum PostType {\n  ANNOUNCEMENT\n  ASSIGNMENT\n  DISCUSSION\n  MATERIAL\n}\n\nmodel CoursePost {\n  id               String          @id @default(uuid())\n  courseId         String\n  course           Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)\n  classId          String?\n  class            Class?          @relation(fields: [classId], references: [id], onDelete: Cascade)\n  authorId         String\n  author           User            @relation(\"AuthoredPosts\", fields: [authorId], references: [id], onDelete: Cascade)\n  authorRole       UserRole\n  type             PostType        @default(DISCUSSION)\n  title            String          @db.VarChar(255)\n  content          String          @db.Text\n  attachments      Json?\n  assignmentAreaId String?\n  assignmentArea   AssignmentArea? @relation(fields: [assignmentAreaId], references: [id], onDelete: Cascade)\n\n  // Direct rubric link for community assignments (alternative to assignmentArea)\n  rubricId String?\n  rubric   Rubric? @relation(\"PostRubric\", fields: [rubricId], references: [id], onDelete: SetNull)\n\n  likeCount    Int      @default(0)\n  commentCount Int      @default(0)\n  isPinned     Boolean  @default(false)\n  isArchived   Boolean  @default(false)\n  createdAt    DateTime @default(now())\n  updatedAt    DateTime @updatedAt\n\n  // Relations\n  comments CoursePostComment[]\n  likes    CoursePostLike[]\n\n  @@index([courseId, createdAt])\n  @@index([classId, createdAt])\n  @@index([authorId])\n  @@index([type])\n  @@index([assignmentAreaId])\n  @@index([rubricId])\n  @@index([isPinned, isArchived, createdAt])\n  @@map(\"course_posts\")\n}\n\nmodel CoursePostComment {\n  id              String              @id @default(uuid())\n  postId          String\n  post            CoursePost          @relation(fields: [postId], references: [id], onDelete: Cascade)\n  authorId        String\n  author          User                @relation(\"AuthoredComments\", fields: [authorId], references: [id], onDelete: Cascade)\n  authorRole      UserRole\n  content         String              @db.Text\n  attachments     Json?\n  submissionId    String?             @unique\n  submission      Submission?         @relation(fields: [submissionId], references: [id], onDelete: Cascade)\n  parentCommentId String?\n  parentComment   CoursePostComment?  @relation(\"CommentReplies\", fields: [parentCommentId], references: [id], onDelete: Cascade)\n  replies         CoursePostComment[] @relation(\"CommentReplies\")\n  isEdited        Boolean             @default(false)\n  editedAt        DateTime?\n  isDeleted       Boolean             @default(false)\n  deletedAt       DateTime?\n  createdAt       DateTime            @default(now())\n  updatedAt       DateTime            @updatedAt\n\n  // Relations\n  likes         CoursePostCommentLike[]\n  gradingResult CommentGradingResult?\n\n  @@index([postId, createdAt])\n  @@index([authorId])\n  @@index([submissionId])\n  @@index([parentCommentId])\n  @@index([isDeleted])\n  @@map(\"course_post_comments\")\n}\n\n// Grading result for community post comments (reflection assignments)\nmodel CommentGradingResult {\n  id        String            @id @default(uuid())\n  commentId String            @unique\n  comment   CoursePostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)\n  graderId  String\n  grader    User              @relation(\"CommentGrader\", fields: [graderId], references: [id], onDelete: Cascade)\n  rubricId  String\n  rubric    Rubric            @relation(\"CommentGradingRubric\", fields: [rubricId], references: [id], onDelete: Restrict)\n\n  // Grading result data\n  result           Json // { totalScore, maxScore, breakdown, overallFeedback }\n  normalizedScore  Float? // 100-point scale\n  thoughtSummary   String? @db.Text // AI thinking process\n  thinkingProcess  String? @db.Text // Raw AI thinking\n  gradingRationale String? @db.Text // Formal grading rationale\n\n  // Metadata\n  gradingModel    String? @db.VarChar(100)\n  gradingTokens   Int?\n  gradingDuration Int? // milliseconds\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  @@index([graderId])\n  @@index([rubricId])\n  @@map(\"comment_grading_results\")\n}\n\nmodel CoursePostLike {\n  id        String     @id @default(uuid())\n  postId    String\n  post      CoursePost @relation(fields: [postId], references: [id], onDelete: Cascade)\n  userId    String\n  user      User       @relation(\"PostLikes\", fields: [userId], references: [id], onDelete: Cascade)\n  createdAt DateTime   @default(now())\n\n  @@unique([postId, userId])\n  @@index([userId])\n  @@map(\"course_post_likes\")\n}\n\nmodel CoursePostCommentLike {\n  id        String            @id @default(uuid())\n  commentId String\n  comment   CoursePostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)\n  userId    String\n  user      User              @relation(\"CommentLikes\", fields: [userId], references: [id], onDelete: Cascade)\n  createdAt DateTime          @default(now())\n\n  @@unique([commentId, userId])\n  @@index([userId])\n  @@map(\"course_post_comment_likes\")\n}\n\n// ============================================================================\n// ADMIN ANALYTICS: Agent Chat Session Tracking\n// ============================================================================\n\nmodel AgentChatSession {\n  id     String @id @default(uuid())\n  userId String\n  user   User   @relation(\"UserAgentChatSessions\", fields: [userId], references: [id], onDelete: Cascade)\n\n  // Session metadata\n  title         String? @db.VarChar(255)\n  userRole      String  @db.VarChar(20) // TEACHER | STUDENT | ADMIN\n  modelProvider String? @db.VarChar(50) // gemini | local | auto\n\n  // Performance tracking\n  totalTokens   Int @default(0)\n  totalSteps    Int @default(0)\n  totalDuration Int @default(0) // milliseconds\n\n  // Status\n  status       String   @default(\"ACTIVE\") // ACTIVE | IDLE | ERROR\n  lastActivity DateTime @default(now())\n\n  // Soft delete\n  isDeleted Boolean   @default(false)\n  deletedAt DateTime?\n  deletedBy String?\n\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  // Relations\n  messages AgentChatMessage[]\n  stepLogs AgentChatStepLog[]\n\n  @@index([userId, createdAt])\n  @@index([userId, isDeleted, lastActivity])\n  @@index([status])\n  @@index([userRole])\n  @@map(\"agent_chat_sessions\")\n}\n\nmodel AgentChatMessage {\n  id        String           @id @default(uuid())\n  sessionId String\n  session   AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)\n\n  role    String @db.VarChar(20) // user | assistant | system\n  content String @db.Text\n\n  // Token tracking (per message)\n  promptTokens     Int?\n  completionTokens Int?\n  totalTokens      Int?\n\n  timestamp DateTime @default(now())\n\n  @@index([sessionId, timestamp])\n  @@map(\"agent_chat_messages\")\n}\n\nmodel AgentChatStepLog {\n  id        String           @id @default(uuid())\n  sessionId String\n  session   AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)\n\n  stepNumber Int\n  toolName   String? @db.VarChar(100)\n  toolInput  Json?\n  toolOutput Json?\n  reasoning  String? @db.Text\n\n  durationMs Int?\n  timestamp  DateTime @default(now())\n\n  @@index([sessionId, stepNumber])\n  @@map(\"agent_chat_step_logs\")\n}\n",
+  "inlineSchemaHash": "59e9a1c6c805037ecccffe8ee8ee5a1577328414acc463ba238e079cada82b3e",
   "copyEngine": true,
   "runtimeDataModel": {
     "models": {},
@@ -272,7 +312,7 @@ const config: runtime.GetPrismaClientConfig = {
 }
 config.dirname = __dirname
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UserRole\",\"nativeType\":null,\"default\":\"STUDENT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"hasSelectedRole\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"picture\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFiles\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherRubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantClasses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedInvitations\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chats\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentChatSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatSession\",\"nativeType\":null,\"relationName\":\"UserAgentChatSessions\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiEnabled\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Course\":{\"dbName\":\"courses\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"syllabus\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"classes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Class\":{\"dbName\":\"classes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"schedule\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"capacity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistant\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[\"assistantId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AssignmentArea\":{\"dbName\":\"assignment_areas\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"referenceFileIds\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"customGradingPrompt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Submission\":{\"dbName\":\"submissions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isLatest\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"previousVersionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"previousVersion\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"VersionHistory\",\"relationFromFields\":[\"previousVersionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"NoAction\",\"relationOnUpdate\":\"NoAction\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"nextVersions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"VersionHistory\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"filePath\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiAnalysisResult\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thinkingProcess\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingRationale\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherFeedback\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"SubmissionStatus\",\"nativeType\":null,\"default\":\"SUBMITTED\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedBy\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isTemplate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingSession\":{\"dbName\":\"grading_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingSessionStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"UploadedFile\":{\"dbName\":\"uploaded_files\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseStatus\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"FileParseStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContent\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContentTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseError\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingResult\":{\"dbName\":\"grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSession\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[\"gradingSessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFileId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFile\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[\"uploadedFileId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"errorMessage\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thinkingProcess\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingRationale\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sparringTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentSteps\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolCalls\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"confidenceScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requiresReview\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedBy\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentExecutionTime\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentLogs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentExecutionLog\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentExecutionLog\":{\"dbName\":\"agent_execution_logs\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResultId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResult\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[\"gradingResultId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepNumber\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolInput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolOutput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reasoning\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"durationMs\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Enrollment\":{\"dbName\":\"enrollments\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrolledAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalGrade\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"attendance\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"studentId\",\"classId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"studentId\",\"classId\"]}],\"isGenerated\":false},\"InvitationCode\":{\"dbName\":\"invitation_codes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isUsed\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedById\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedBy\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[\"usedById\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Chat\":{\"dbName\":\"chats\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"context\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"msgs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Msg\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Msg\":{\"dbName\":\"messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chatId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chat\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[\"chatId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Role\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"time\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Notification\":{\"dbName\":\"notifications\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"type\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"NotificationType\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[\"assignmentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"message\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isRead\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"readAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentChatSession\":{\"dbName\":\"agent_chat_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserAgentChatSessions\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userRole\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"modelProvider\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalSteps\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":\"ACTIVE\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"lastActivity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedBy\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"messages\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatMessage\",\"nativeType\":null,\"relationName\":\"AgentChatMessageToAgentChatSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepLogs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatStepLog\",\"nativeType\":null,\"relationName\":\"AgentChatSessionToAgentChatStepLog\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentChatMessage\":{\"dbName\":\"agent_chat_messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"session\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatSession\",\"nativeType\":null,\"relationName\":\"AgentChatMessageToAgentChatSession\",\"relationFromFields\":[\"sessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"promptTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"completionTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentChatStepLog\":{\"dbName\":\"agent_chat_step_logs\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"session\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatSession\",\"nativeType\":null,\"relationName\":\"AgentChatSessionToAgentChatStepLog\",\"relationFromFields\":[\"sessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepNumber\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolInput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolOutput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reasoning\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"durationMs\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"GradingSessionStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"CANCELLED\",\"dbName\":null}],\"dbName\":null},\"GradingStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"SKIPPED\",\"dbName\":null}],\"dbName\":null},\"FileParseStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null}],\"dbName\":null},\"UserRole\":{\"values\":[{\"name\":\"STUDENT\",\"dbName\":null},{\"name\":\"TEACHER\",\"dbName\":null},{\"name\":\"ADMIN\",\"dbName\":null}],\"dbName\":null},\"SubmissionStatus\":{\"values\":[{\"name\":\"DRAFT\",\"dbName\":null},{\"name\":\"SUBMITTED\",\"dbName\":null},{\"name\":\"ANALYZED\",\"dbName\":null},{\"name\":\"GRADED\",\"dbName\":null}],\"dbName\":null},\"Role\":{\"values\":[{\"name\":\"USER\",\"dbName\":null},{\"name\":\"AI\",\"dbName\":null}],\"dbName\":null},\"NotificationType\":{\"values\":[{\"name\":\"ASSIGNMENT_CREATED\",\"dbName\":null},{\"name\":\"ASSIGNMENT_DUE_SOON\",\"dbName\":null},{\"name\":\"SUBMISSION_GRADED\",\"dbName\":null},{\"name\":\"COURSE_ANNOUNCEMENT\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"dbName\":\"users\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"email\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"UserRole\",\"nativeType\":null,\"default\":\"STUDENT\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"hasSelectedRole\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"picture\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"rubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFiles\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherRubrics\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantClasses\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedInvitations\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chats\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentChatSessions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatSession\",\"nativeType\":null,\"relationName\":\"UserAgentChatSessions\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiEnabled\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"authoredPosts\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePost\",\"nativeType\":null,\"relationName\":\"AuthoredPosts\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"authoredComments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostComment\",\"nativeType\":null,\"relationName\":\"AuthoredComments\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"postLikes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostLike\",\"nativeType\":null,\"relationName\":\"PostLikes\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"commentLikes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostCommentLike\",\"nativeType\":null,\"relationName\":\"CommentLikes\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"commentGradings\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CommentGradingResult\",\"nativeType\":null,\"relationName\":\"CommentGrader\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Course\":{\"dbName\":\"courses\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CourseToUser\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"syllabus\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"classes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"posts\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePost\",\"nativeType\":null,\"relationName\":\"CourseToCoursePost\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Class\":{\"dbName\":\"classes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"ClassToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"schedule\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"capacity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistantId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assistant\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ClassAssistants\",\"relationFromFields\":[\"assistantId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"enrollments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Enrollment\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"invitationCodes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"InvitationCode\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"posts\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePost\",\"nativeType\":null,\"relationName\":\"ClassToCoursePost\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AssignmentArea\":{\"dbName\":\"assignment_areas\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCourse\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToClass\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"dueDate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"referenceFileIds\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"customGradingPrompt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"submissions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"notifications\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Notification\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"posts\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePost\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCoursePost\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Submission\":{\"dbName\":\"submissions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"SubmissionToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToSubmission\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isLatest\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"previousVersionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"previousVersion\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"VersionHistory\",\"relationFromFields\":[\"previousVersionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"NoAction\",\"relationOnUpdate\":\"NoAction\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"nextVersions\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"VersionHistory\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"filePath\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"aiAnalysisResult\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thinkingProcess\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingRationale\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherFeedback\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"SubmissionStatus\",\"nativeType\":null,\"default\":\"SUBMITTED\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedBy\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"comment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostComment\",\"nativeType\":null,\"relationName\":\"CoursePostCommentToSubmission\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Rubric\":{\"dbName\":\"rubrics\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"RubricToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacherId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"teacher\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"TeacherRubrics\",\"relationFromFields\":[\"teacherId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"name\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"description\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"version\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":1,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isActive\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":true,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isTemplate\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"criteria\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreas\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaRubrics\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"commentGradings\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CommentGradingResult\",\"nativeType\":null,\"relationName\":\"CommentGradingRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"communityPosts\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePost\",\"nativeType\":null,\"relationName\":\"PostRubric\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingSession\":{\"dbName\":\"grading_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"GradingSessionToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingSessionStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"UploadedFile\":{\"dbName\":\"uploaded_files\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UploadedFileToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"originalFileName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"500\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileKey\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"fileSize\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"mimeType\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseStatus\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"FileParseStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContent\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parsedContentTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parseError\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResults\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"GradingResult\":{\"dbName\":\"grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingSession\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingSession\",\"nativeType\":null,\"relationName\":\"GradingResultToGradingSession\",\"relationFromFields\":[\"gradingSessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFileId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"uploadedFile\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UploadedFile\",\"nativeType\":null,\"relationName\":\"GradingResultToUploadedFile\",\"relationFromFields\":[\"uploadedFileId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"GradingResultToRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToGradingResult\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"GradingStatus\",\"nativeType\":null,\"default\":\"PENDING\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"progress\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"errorMessage\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thinkingProcess\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingRationale\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedContext\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sparringTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentSteps\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolCalls\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"confidenceScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"requiresReview\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedBy\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reviewedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentExecutionTime\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"completedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"agentLogs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentExecutionLog\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentExecutionLog\":{\"dbName\":\"agent_execution_logs\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResultId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResult\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"GradingResult\",\"nativeType\":null,\"relationName\":\"AgentExecutionLogToGradingResult\",\"relationFromFields\":[\"gradingResultId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepNumber\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolInput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolOutput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reasoning\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"durationMs\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Enrollment\":{\"dbName\":\"enrollments\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"studentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"student\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"EnrollmentToUser\",\"relationFromFields\":[\"studentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToEnrollment\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"enrolledAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"finalGrade\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"attendance\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"studentId\",\"classId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"studentId\",\"classId\"]}],\"isGenerated\":false},\"InvitationCode\":{\"dbName\":\"invitation_codes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"code\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToInvitationCode\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToInvitationCode\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"expiresAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isUsed\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedById\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"usedBy\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"InvitationCodeUsage\",\"relationFromFields\":[\"usedById\"],\"relationToFields\":[\"id\"],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Chat\":{\"dbName\":\"chats\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"ChatToUser\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"context\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"msgs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Msg\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Msg\":{\"dbName\":\"messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chatId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"chat\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Chat\",\"nativeType\":null,\"relationName\":\"ChatToMsg\",\"relationFromFields\":[\"chatId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Role\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"time\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"Notification\":{\"dbName\":\"notifications\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"type\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"NotificationType\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserNotifications\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseNotifications\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentNotifications\",\"relationFromFields\":[\"assignmentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"message\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isRead\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"readAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"data\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"CoursePost\":{\"dbName\":\"course_posts\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"courseId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"course\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Course\",\"nativeType\":null,\"relationName\":\"CourseToCoursePost\",\"relationFromFields\":[\"courseId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"classId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"class\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Class\",\"nativeType\":null,\"relationName\":\"ClassToCoursePost\",\"relationFromFields\":[\"classId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"authorId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"author\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"AuthoredPosts\",\"relationFromFields\":[\"authorId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"authorRole\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UserRole\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"type\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"PostType\",\"nativeType\":null,\"default\":\"DISCUSSION\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"attachments\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentAreaId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"assignmentArea\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AssignmentArea\",\"nativeType\":null,\"relationName\":\"AssignmentAreaToCoursePost\",\"relationFromFields\":[\"assignmentAreaId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"PostRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"SetNull\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"likeCount\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"commentCount\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isPinned\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isArchived\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"comments\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostComment\",\"nativeType\":null,\"relationName\":\"CoursePostToCoursePostComment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"likes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostLike\",\"nativeType\":null,\"relationName\":\"CoursePostToCoursePostLike\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"CoursePostComment\":{\"dbName\":\"course_post_comments\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"postId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"post\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePost\",\"nativeType\":null,\"relationName\":\"CoursePostToCoursePostComment\",\"relationFromFields\":[\"postId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"authorId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"author\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"AuthoredComments\",\"relationFromFields\":[\"authorId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"authorRole\",\"kind\":\"enum\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"UserRole\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"attachments\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submissionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":true,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"submission\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Submission\",\"nativeType\":null,\"relationName\":\"CoursePostCommentToSubmission\",\"relationFromFields\":[\"submissionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parentCommentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"parentComment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostComment\",\"nativeType\":null,\"relationName\":\"CommentReplies\",\"relationFromFields\":[\"parentCommentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"replies\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostComment\",\"nativeType\":null,\"relationName\":\"CommentReplies\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isEdited\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"editedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"likes\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostCommentLike\",\"nativeType\":null,\"relationName\":\"CoursePostCommentToCoursePostCommentLike\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingResult\",\"kind\":\"object\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CommentGradingResult\",\"nativeType\":null,\"relationName\":\"CommentGradingResultToCoursePostComment\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"CommentGradingResult\":{\"dbName\":\"comment_grading_results\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"commentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":true,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"comment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostComment\",\"nativeType\":null,\"relationName\":\"CommentGradingResultToCoursePostComment\",\"relationFromFields\":[\"commentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"graderId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"grader\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CommentGrader\",\"relationFromFields\":[\"graderId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubricId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"rubric\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Rubric\",\"nativeType\":null,\"relationName\":\"CommentGradingRubric\",\"relationFromFields\":[\"rubricId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Restrict\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"result\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"normalizedScore\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Float\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thoughtSummary\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"thinkingProcess\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingRationale\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingModel\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"gradingDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"CoursePostLike\":{\"dbName\":\"course_post_likes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"postId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"post\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePost\",\"nativeType\":null,\"relationName\":\"CoursePostToCoursePostLike\",\"relationFromFields\":[\"postId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"PostLikes\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"postId\",\"userId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"postId\",\"userId\"]}],\"isGenerated\":false},\"CoursePostCommentLike\":{\"dbName\":\"course_post_comment_likes\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"commentId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"comment\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"CoursePostComment\",\"nativeType\":null,\"relationName\":\"CoursePostCommentToCoursePostCommentLike\",\"relationFromFields\":[\"commentId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"CommentLikes\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[[\"commentId\",\"userId\"]],\"uniqueIndexes\":[{\"name\":null,\"fields\":[\"commentId\",\"userId\"]}],\"isGenerated\":false},\"AgentChatSession\":{\"dbName\":\"agent_chat_sessions\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"user\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"User\",\"nativeType\":null,\"relationName\":\"UserAgentChatSessions\",\"relationFromFields\":[\"userId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"title\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"255\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"userRole\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"modelProvider\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"50\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalSteps\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalDuration\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Int\",\"nativeType\":null,\"default\":0,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"status\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":\"ACTIVE\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"lastActivity\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"isDeleted\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"Boolean\",\"nativeType\":null,\"default\":false,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"deletedBy\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"DateTime\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":true},{\"name\":\"messages\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatMessage\",\"nativeType\":null,\"relationName\":\"AgentChatMessageToAgentChatSession\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepLogs\",\"kind\":\"object\",\"isList\":true,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatStepLog\",\"nativeType\":null,\"relationName\":\"AgentChatSessionToAgentChatStepLog\",\"relationFromFields\":[],\"relationToFields\":[],\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentChatMessage\":{\"dbName\":\"agent_chat_messages\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"session\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatSession\",\"nativeType\":null,\"relationName\":\"AgentChatMessageToAgentChatSession\",\"relationFromFields\":[\"sessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"role\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"20\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"content\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"promptTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"completionTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"totalTokens\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false},\"AgentChatStepLog\":{\"dbName\":\"agent_chat_step_logs\",\"schema\":null,\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":true,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"String\",\"nativeType\":null,\"default\":{\"name\":\"uuid\",\"args\":[4]},\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"sessionId\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":true,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"session\",\"kind\":\"object\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"AgentChatSession\",\"nativeType\":null,\"relationName\":\"AgentChatSessionToAgentChatStepLog\",\"relationFromFields\":[\"sessionId\"],\"relationToFields\":[\"id\"],\"relationOnDelete\":\"Cascade\",\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"stepNumber\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolName\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"VarChar\",[\"100\"]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolInput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"toolOutput\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Json\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"reasoning\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"String\",\"nativeType\":[\"Text\",[]],\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"durationMs\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":false,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":false,\"type\":\"Int\",\"nativeType\":null,\"isGenerated\":false,\"isUpdatedAt\":false},{\"name\":\"timestamp\",\"kind\":\"scalar\",\"isList\":false,\"isRequired\":true,\"isUnique\":false,\"isId\":false,\"isReadOnly\":false,\"hasDefaultValue\":true,\"type\":\"DateTime\",\"nativeType\":null,\"default\":{\"name\":\"now\",\"args\":[]},\"isGenerated\":false,\"isUpdatedAt\":false}],\"primaryKey\":null,\"uniqueFields\":[],\"uniqueIndexes\":[],\"isGenerated\":false}},\"enums\":{\"GradingSessionStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"CANCELLED\",\"dbName\":null}],\"dbName\":null},\"GradingStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null},{\"name\":\"SKIPPED\",\"dbName\":null}],\"dbName\":null},\"FileParseStatus\":{\"values\":[{\"name\":\"PENDING\",\"dbName\":null},{\"name\":\"PROCESSING\",\"dbName\":null},{\"name\":\"COMPLETED\",\"dbName\":null},{\"name\":\"FAILED\",\"dbName\":null}],\"dbName\":null},\"UserRole\":{\"values\":[{\"name\":\"STUDENT\",\"dbName\":null},{\"name\":\"TEACHER\",\"dbName\":null},{\"name\":\"ADMIN\",\"dbName\":null}],\"dbName\":null},\"SubmissionStatus\":{\"values\":[{\"name\":\"DRAFT\",\"dbName\":null},{\"name\":\"SUBMITTED\",\"dbName\":null},{\"name\":\"ANALYZED\",\"dbName\":null},{\"name\":\"GRADED\",\"dbName\":null}],\"dbName\":null},\"Role\":{\"values\":[{\"name\":\"USER\",\"dbName\":null},{\"name\":\"AI\",\"dbName\":null}],\"dbName\":null},\"NotificationType\":{\"values\":[{\"name\":\"ASSIGNMENT_CREATED\",\"dbName\":null},{\"name\":\"ASSIGNMENT_DUE_SOON\",\"dbName\":null},{\"name\":\"SUBMISSION_GRADED\",\"dbName\":null},{\"name\":\"COURSE_ANNOUNCEMENT\",\"dbName\":null}],\"dbName\":null},\"PostType\":{\"values\":[{\"name\":\"ANNOUNCEMENT\",\"dbName\":null},{\"name\":\"ASSIGNMENT\",\"dbName\":null},{\"name\":\"DISCUSSION\",\"dbName\":null},{\"name\":\"MATERIAL\",\"dbName\":null}],\"dbName\":null}},\"types\":{}}")
 config.engineWasm = undefined
 config.compilerWasm = undefined
 
@@ -568,6 +608,56 @@ export interface PrismaClient<
     * ```
     */
   get notification(): Prisma.NotificationDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.coursePost`: Exposes CRUD operations for the **CoursePost** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CoursePosts
+    * const coursePosts = await prisma.coursePost.findMany()
+    * ```
+    */
+  get coursePost(): Prisma.CoursePostDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.coursePostComment`: Exposes CRUD operations for the **CoursePostComment** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CoursePostComments
+    * const coursePostComments = await prisma.coursePostComment.findMany()
+    * ```
+    */
+  get coursePostComment(): Prisma.CoursePostCommentDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.commentGradingResult`: Exposes CRUD operations for the **CommentGradingResult** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CommentGradingResults
+    * const commentGradingResults = await prisma.commentGradingResult.findMany()
+    * ```
+    */
+  get commentGradingResult(): Prisma.CommentGradingResultDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.coursePostLike`: Exposes CRUD operations for the **CoursePostLike** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CoursePostLikes
+    * const coursePostLikes = await prisma.coursePostLike.findMany()
+    * ```
+    */
+  get coursePostLike(): Prisma.CoursePostLikeDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.coursePostCommentLike`: Exposes CRUD operations for the **CoursePostCommentLike** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CoursePostCommentLikes
+    * const coursePostCommentLikes = await prisma.coursePostCommentLike.findMany()
+    * ```
+    */
+  get coursePostCommentLike(): Prisma.CoursePostCommentLikeDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.agentChatSession`: Exposes CRUD operations for the **AgentChatSession** model.
@@ -993,6 +1083,11 @@ export namespace Prisma {
     Chat: 'Chat',
     Msg: 'Msg',
     Notification: 'Notification',
+    CoursePost: 'CoursePost',
+    CoursePostComment: 'CoursePostComment',
+    CommentGradingResult: 'CommentGradingResult',
+    CoursePostLike: 'CoursePostLike',
+    CoursePostCommentLike: 'CoursePostCommentLike',
     AgentChatSession: 'AgentChatSession',
     AgentChatMessage: 'AgentChatMessage',
     AgentChatStepLog: 'AgentChatStepLog'
@@ -1014,7 +1109,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification" | "agentChatSession" | "agentChatMessage" | "agentChatStepLog"
+      modelProps: "user" | "course" | "class" | "assignmentArea" | "submission" | "rubric" | "gradingSession" | "uploadedFile" | "gradingResult" | "agentExecutionLog" | "enrollment" | "invitationCode" | "chat" | "msg" | "notification" | "coursePost" | "coursePostComment" | "commentGradingResult" | "coursePostLike" | "coursePostCommentLike" | "agentChatSession" | "agentChatMessage" | "agentChatStepLog"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -2128,6 +2223,376 @@ export namespace Prisma {
           }
         }
       }
+      CoursePost: {
+        payload: Prisma.$CoursePostPayload<ExtArgs>
+        fields: Prisma.CoursePostFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CoursePostFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CoursePostFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload>
+          }
+          findFirst: {
+            args: Prisma.CoursePostFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CoursePostFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload>
+          }
+          findMany: {
+            args: Prisma.CoursePostFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload>[]
+          }
+          create: {
+            args: Prisma.CoursePostCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload>
+          }
+          createMany: {
+            args: Prisma.CoursePostCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CoursePostCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload>[]
+          }
+          delete: {
+            args: Prisma.CoursePostDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload>
+          }
+          update: {
+            args: Prisma.CoursePostUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload>
+          }
+          deleteMany: {
+            args: Prisma.CoursePostDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CoursePostUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CoursePostUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload>[]
+          }
+          upsert: {
+            args: Prisma.CoursePostUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostPayload>
+          }
+          aggregate: {
+            args: Prisma.CoursePostAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateCoursePost>
+          }
+          groupBy: {
+            args: Prisma.CoursePostGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CoursePostGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CoursePostCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CoursePostCountAggregateOutputType> | number
+          }
+        }
+      }
+      CoursePostComment: {
+        payload: Prisma.$CoursePostCommentPayload<ExtArgs>
+        fields: Prisma.CoursePostCommentFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CoursePostCommentFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CoursePostCommentFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload>
+          }
+          findFirst: {
+            args: Prisma.CoursePostCommentFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CoursePostCommentFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload>
+          }
+          findMany: {
+            args: Prisma.CoursePostCommentFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload>[]
+          }
+          create: {
+            args: Prisma.CoursePostCommentCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload>
+          }
+          createMany: {
+            args: Prisma.CoursePostCommentCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CoursePostCommentCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload>[]
+          }
+          delete: {
+            args: Prisma.CoursePostCommentDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload>
+          }
+          update: {
+            args: Prisma.CoursePostCommentUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload>
+          }
+          deleteMany: {
+            args: Prisma.CoursePostCommentDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CoursePostCommentUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CoursePostCommentUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload>[]
+          }
+          upsert: {
+            args: Prisma.CoursePostCommentUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentPayload>
+          }
+          aggregate: {
+            args: Prisma.CoursePostCommentAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateCoursePostComment>
+          }
+          groupBy: {
+            args: Prisma.CoursePostCommentGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CoursePostCommentGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CoursePostCommentCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CoursePostCommentCountAggregateOutputType> | number
+          }
+        }
+      }
+      CommentGradingResult: {
+        payload: Prisma.$CommentGradingResultPayload<ExtArgs>
+        fields: Prisma.CommentGradingResultFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CommentGradingResultFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CommentGradingResultFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload>
+          }
+          findFirst: {
+            args: Prisma.CommentGradingResultFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CommentGradingResultFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload>
+          }
+          findMany: {
+            args: Prisma.CommentGradingResultFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload>[]
+          }
+          create: {
+            args: Prisma.CommentGradingResultCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload>
+          }
+          createMany: {
+            args: Prisma.CommentGradingResultCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CommentGradingResultCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload>[]
+          }
+          delete: {
+            args: Prisma.CommentGradingResultDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload>
+          }
+          update: {
+            args: Prisma.CommentGradingResultUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload>
+          }
+          deleteMany: {
+            args: Prisma.CommentGradingResultDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CommentGradingResultUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CommentGradingResultUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload>[]
+          }
+          upsert: {
+            args: Prisma.CommentGradingResultUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CommentGradingResultPayload>
+          }
+          aggregate: {
+            args: Prisma.CommentGradingResultAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateCommentGradingResult>
+          }
+          groupBy: {
+            args: Prisma.CommentGradingResultGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CommentGradingResultGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CommentGradingResultCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CommentGradingResultCountAggregateOutputType> | number
+          }
+        }
+      }
+      CoursePostLike: {
+        payload: Prisma.$CoursePostLikePayload<ExtArgs>
+        fields: Prisma.CoursePostLikeFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CoursePostLikeFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CoursePostLikeFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload>
+          }
+          findFirst: {
+            args: Prisma.CoursePostLikeFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CoursePostLikeFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload>
+          }
+          findMany: {
+            args: Prisma.CoursePostLikeFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload>[]
+          }
+          create: {
+            args: Prisma.CoursePostLikeCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload>
+          }
+          createMany: {
+            args: Prisma.CoursePostLikeCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CoursePostLikeCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload>[]
+          }
+          delete: {
+            args: Prisma.CoursePostLikeDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload>
+          }
+          update: {
+            args: Prisma.CoursePostLikeUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload>
+          }
+          deleteMany: {
+            args: Prisma.CoursePostLikeDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CoursePostLikeUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CoursePostLikeUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload>[]
+          }
+          upsert: {
+            args: Prisma.CoursePostLikeUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostLikePayload>
+          }
+          aggregate: {
+            args: Prisma.CoursePostLikeAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateCoursePostLike>
+          }
+          groupBy: {
+            args: Prisma.CoursePostLikeGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CoursePostLikeGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CoursePostLikeCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CoursePostLikeCountAggregateOutputType> | number
+          }
+        }
+      }
+      CoursePostCommentLike: {
+        payload: Prisma.$CoursePostCommentLikePayload<ExtArgs>
+        fields: Prisma.CoursePostCommentLikeFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CoursePostCommentLikeFindUniqueArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CoursePostCommentLikeFindUniqueOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload>
+          }
+          findFirst: {
+            args: Prisma.CoursePostCommentLikeFindFirstArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CoursePostCommentLikeFindFirstOrThrowArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload>
+          }
+          findMany: {
+            args: Prisma.CoursePostCommentLikeFindManyArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload>[]
+          }
+          create: {
+            args: Prisma.CoursePostCommentLikeCreateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload>
+          }
+          createMany: {
+            args: Prisma.CoursePostCommentLikeCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CoursePostCommentLikeCreateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload>[]
+          }
+          delete: {
+            args: Prisma.CoursePostCommentLikeDeleteArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload>
+          }
+          update: {
+            args: Prisma.CoursePostCommentLikeUpdateArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload>
+          }
+          deleteMany: {
+            args: Prisma.CoursePostCommentLikeDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CoursePostCommentLikeUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CoursePostCommentLikeUpdateManyAndReturnArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload>[]
+          }
+          upsert: {
+            args: Prisma.CoursePostCommentLikeUpsertArgs<ExtArgs>
+            result: runtime.Types.Utils.PayloadToResult<Prisma.$CoursePostCommentLikePayload>
+          }
+          aggregate: {
+            args: Prisma.CoursePostCommentLikeAggregateArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<AggregateCoursePostCommentLike>
+          }
+          groupBy: {
+            args: Prisma.CoursePostCommentLikeGroupByArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CoursePostCommentLikeGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CoursePostCommentLikeCountArgs<ExtArgs>
+            result: runtime.Types.Utils.Optional<CoursePostCommentLikeCountAggregateOutputType> | number
+          }
+        }
+      }
       AgentChatSession: {
         payload: Prisma.$AgentChatSessionPayload<ExtArgs>
         fields: Prisma.AgentChatSessionFieldRefs
@@ -2449,6 +2914,11 @@ export namespace Prisma {
     chat?: ChatOmit
     msg?: MsgOmit
     notification?: NotificationOmit
+    coursePost?: CoursePostOmit
+    coursePostComment?: CoursePostCommentOmit
+    commentGradingResult?: CommentGradingResultOmit
+    coursePostLike?: CoursePostLikeOmit
+    coursePostCommentLike?: CoursePostCommentLikeOmit
     agentChatSession?: AgentChatSessionOmit
     agentChatMessage?: AgentChatMessageOmit
     agentChatStepLog?: AgentChatStepLogOmit
@@ -2555,6 +3025,11 @@ export namespace Prisma {
     chats: number
     agentChatSessions: number
     notifications: number
+    authoredPosts: number
+    authoredComments: number
+    postLikes: number
+    commentLikes: number
+    commentGradings: number
   }
 
   export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2570,6 +3045,11 @@ export namespace Prisma {
     chats?: boolean | UserCountOutputTypeCountChatsArgs
     agentChatSessions?: boolean | UserCountOutputTypeCountAgentChatSessionsArgs
     notifications?: boolean | UserCountOutputTypeCountNotificationsArgs
+    authoredPosts?: boolean | UserCountOutputTypeCountAuthoredPostsArgs
+    authoredComments?: boolean | UserCountOutputTypeCountAuthoredCommentsArgs
+    postLikes?: boolean | UserCountOutputTypeCountPostLikesArgs
+    commentLikes?: boolean | UserCountOutputTypeCountCommentLikesArgs
+    commentGradings?: boolean | UserCountOutputTypeCountCommentGradingsArgs
   }
 
   // Custom InputTypes
@@ -2667,6 +3147,41 @@ export namespace Prisma {
     where?: NotificationWhereInput
   }
 
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountAuthoredPostsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountAuthoredCommentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostCommentWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountPostLikesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostLikeWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountCommentLikesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostCommentLikeWhereInput
+  }
+
+  /**
+   * UserCountOutputType without action
+   */
+  export type UserCountOutputTypeCountCommentGradingsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CommentGradingResultWhereInput
+  }
+
 
   /**
    * Count Type CourseCountOutputType
@@ -2677,6 +3192,7 @@ export namespace Prisma {
     assignmentAreas: number
     invitationCodes: number
     notifications: number
+    posts: number
   }
 
   export type CourseCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2684,6 +3200,7 @@ export namespace Prisma {
     assignmentAreas?: boolean | CourseCountOutputTypeCountAssignmentAreasArgs
     invitationCodes?: boolean | CourseCountOutputTypeCountInvitationCodesArgs
     notifications?: boolean | CourseCountOutputTypeCountNotificationsArgs
+    posts?: boolean | CourseCountOutputTypeCountPostsArgs
   }
 
   // Custom InputTypes
@@ -2725,6 +3242,13 @@ export namespace Prisma {
     where?: NotificationWhereInput
   }
 
+  /**
+   * CourseCountOutputType without action
+   */
+  export type CourseCountOutputTypeCountPostsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostWhereInput
+  }
+
 
   /**
    * Count Type ClassCountOutputType
@@ -2734,12 +3258,14 @@ export namespace Prisma {
     enrollments: number
     assignmentAreas: number
     invitationCodes: number
+    posts: number
   }
 
   export type ClassCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     enrollments?: boolean | ClassCountOutputTypeCountEnrollmentsArgs
     assignmentAreas?: boolean | ClassCountOutputTypeCountAssignmentAreasArgs
     invitationCodes?: boolean | ClassCountOutputTypeCountInvitationCodesArgs
+    posts?: boolean | ClassCountOutputTypeCountPostsArgs
   }
 
   // Custom InputTypes
@@ -2774,6 +3300,13 @@ export namespace Prisma {
     where?: InvitationCodeWhereInput
   }
 
+  /**
+   * ClassCountOutputType without action
+   */
+  export type ClassCountOutputTypeCountPostsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostWhereInput
+  }
+
 
   /**
    * Count Type AssignmentAreaCountOutputType
@@ -2783,12 +3316,14 @@ export namespace Prisma {
     submissions: number
     notifications: number
     gradingResults: number
+    posts: number
   }
 
   export type AssignmentAreaCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     submissions?: boolean | AssignmentAreaCountOutputTypeCountSubmissionsArgs
     notifications?: boolean | AssignmentAreaCountOutputTypeCountNotificationsArgs
     gradingResults?: boolean | AssignmentAreaCountOutputTypeCountGradingResultsArgs
+    posts?: boolean | AssignmentAreaCountOutputTypeCountPostsArgs
   }
 
   // Custom InputTypes
@@ -2821,6 +3356,13 @@ export namespace Prisma {
    */
   export type AssignmentAreaCountOutputTypeCountGradingResultsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     where?: GradingResultWhereInput
+  }
+
+  /**
+   * AssignmentAreaCountOutputType without action
+   */
+  export type AssignmentAreaCountOutputTypeCountPostsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostWhereInput
   }
 
 
@@ -2862,11 +3404,15 @@ export namespace Prisma {
   export type RubricCountOutputType = {
     gradingResults: number
     assignmentAreas: number
+    commentGradings: number
+    communityPosts: number
   }
 
   export type RubricCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     gradingResults?: boolean | RubricCountOutputTypeCountGradingResultsArgs
     assignmentAreas?: boolean | RubricCountOutputTypeCountAssignmentAreasArgs
+    commentGradings?: boolean | RubricCountOutputTypeCountCommentGradingsArgs
+    communityPosts?: boolean | RubricCountOutputTypeCountCommunityPostsArgs
   }
 
   // Custom InputTypes
@@ -2892,6 +3438,20 @@ export namespace Prisma {
    */
   export type RubricCountOutputTypeCountAssignmentAreasArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     where?: AssignmentAreaWhereInput
+  }
+
+  /**
+   * RubricCountOutputType without action
+   */
+  export type RubricCountOutputTypeCountCommentGradingsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CommentGradingResultWhereInput
+  }
+
+  /**
+   * RubricCountOutputType without action
+   */
+  export type RubricCountOutputTypeCountCommunityPostsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostWhereInput
   }
 
 
@@ -3016,6 +3576,86 @@ export namespace Prisma {
    */
   export type ChatCountOutputTypeCountMsgsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
     where?: MsgWhereInput
+  }
+
+
+  /**
+   * Count Type CoursePostCountOutputType
+   */
+
+  export type CoursePostCountOutputType = {
+    comments: number
+    likes: number
+  }
+
+  export type CoursePostCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    comments?: boolean | CoursePostCountOutputTypeCountCommentsArgs
+    likes?: boolean | CoursePostCountOutputTypeCountLikesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * CoursePostCountOutputType without action
+   */
+  export type CoursePostCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCountOutputType
+     */
+    select?: CoursePostCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * CoursePostCountOutputType without action
+   */
+  export type CoursePostCountOutputTypeCountCommentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostCommentWhereInput
+  }
+
+  /**
+   * CoursePostCountOutputType without action
+   */
+  export type CoursePostCountOutputTypeCountLikesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostLikeWhereInput
+  }
+
+
+  /**
+   * Count Type CoursePostCommentCountOutputType
+   */
+
+  export type CoursePostCommentCountOutputType = {
+    replies: number
+    likes: number
+  }
+
+  export type CoursePostCommentCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    replies?: boolean | CoursePostCommentCountOutputTypeCountRepliesArgs
+    likes?: boolean | CoursePostCommentCountOutputTypeCountLikesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * CoursePostCommentCountOutputType without action
+   */
+  export type CoursePostCommentCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentCountOutputType
+     */
+    select?: CoursePostCommentCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * CoursePostCommentCountOutputType without action
+   */
+  export type CoursePostCommentCountOutputTypeCountRepliesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostCommentWhereInput
+  }
+
+  /**
+   * CoursePostCommentCountOutputType without action
+   */
+  export type CoursePostCommentCountOutputTypeCountLikesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostCommentLikeWhereInput
   }
 
 
@@ -3271,6 +3911,11 @@ export namespace Prisma {
     chats?: boolean | User$chatsArgs<ExtArgs>
     agentChatSessions?: boolean | User$agentChatSessionsArgs<ExtArgs>
     notifications?: boolean | User$notificationsArgs<ExtArgs>
+    authoredPosts?: boolean | User$authoredPostsArgs<ExtArgs>
+    authoredComments?: boolean | User$authoredCommentsArgs<ExtArgs>
+    postLikes?: boolean | User$postLikesArgs<ExtArgs>
+    commentLikes?: boolean | User$commentLikesArgs<ExtArgs>
+    commentGradings?: boolean | User$commentGradingsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
 
@@ -3324,6 +3969,11 @@ export namespace Prisma {
     chats?: boolean | User$chatsArgs<ExtArgs>
     agentChatSessions?: boolean | User$agentChatSessionsArgs<ExtArgs>
     notifications?: boolean | User$notificationsArgs<ExtArgs>
+    authoredPosts?: boolean | User$authoredPostsArgs<ExtArgs>
+    authoredComments?: boolean | User$authoredCommentsArgs<ExtArgs>
+    postLikes?: boolean | User$postLikesArgs<ExtArgs>
+    commentLikes?: boolean | User$commentLikesArgs<ExtArgs>
+    commentGradings?: boolean | User$commentGradingsArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -3344,6 +3994,11 @@ export namespace Prisma {
       chats: Prisma.$ChatPayload<ExtArgs>[]
       agentChatSessions: Prisma.$AgentChatSessionPayload<ExtArgs>[]
       notifications: Prisma.$NotificationPayload<ExtArgs>[]
+      authoredPosts: Prisma.$CoursePostPayload<ExtArgs>[]
+      authoredComments: Prisma.$CoursePostCommentPayload<ExtArgs>[]
+      postLikes: Prisma.$CoursePostLikePayload<ExtArgs>[]
+      commentLikes: Prisma.$CoursePostCommentLikePayload<ExtArgs>[]
+      commentGradings: Prisma.$CommentGradingResultPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
@@ -3761,6 +4416,11 @@ export namespace Prisma {
     chats<T extends User$chatsArgs<ExtArgs> = {}>(args?: Subset<T, User$chatsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ChatPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     agentChatSessions<T extends User$agentChatSessionsArgs<ExtArgs> = {}>(args?: Subset<T, User$agentChatSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AgentChatSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     notifications<T extends User$notificationsArgs<ExtArgs> = {}>(args?: Subset<T, User$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    authoredPosts<T extends User$authoredPostsArgs<ExtArgs> = {}>(args?: Subset<T, User$authoredPostsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    authoredComments<T extends User$authoredCommentsArgs<ExtArgs> = {}>(args?: Subset<T, User$authoredCommentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    postLikes<T extends User$postLikesArgs<ExtArgs> = {}>(args?: Subset<T, User$postLikesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    commentLikes<T extends User$commentLikesArgs<ExtArgs> = {}>(args?: Subset<T, User$commentLikesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    commentGradings<T extends User$commentGradingsArgs<ExtArgs> = {}>(args?: Subset<T, User$commentGradingsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -4475,6 +5135,126 @@ export namespace Prisma {
   }
 
   /**
+   * User.authoredPosts
+   */
+  export type User$authoredPostsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    where?: CoursePostWhereInput
+    orderBy?: CoursePostOrderByWithRelationInput | CoursePostOrderByWithRelationInput[]
+    cursor?: CoursePostWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostScalarFieldEnum | CoursePostScalarFieldEnum[]
+  }
+
+  /**
+   * User.authoredComments
+   */
+  export type User$authoredCommentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    where?: CoursePostCommentWhereInput
+    orderBy?: CoursePostCommentOrderByWithRelationInput | CoursePostCommentOrderByWithRelationInput[]
+    cursor?: CoursePostCommentWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostCommentScalarFieldEnum | CoursePostCommentScalarFieldEnum[]
+  }
+
+  /**
+   * User.postLikes
+   */
+  export type User$postLikesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    where?: CoursePostLikeWhereInput
+    orderBy?: CoursePostLikeOrderByWithRelationInput | CoursePostLikeOrderByWithRelationInput[]
+    cursor?: CoursePostLikeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostLikeScalarFieldEnum | CoursePostLikeScalarFieldEnum[]
+  }
+
+  /**
+   * User.commentLikes
+   */
+  export type User$commentLikesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    where?: CoursePostCommentLikeWhereInput
+    orderBy?: CoursePostCommentLikeOrderByWithRelationInput | CoursePostCommentLikeOrderByWithRelationInput[]
+    cursor?: CoursePostCommentLikeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostCommentLikeScalarFieldEnum | CoursePostCommentLikeScalarFieldEnum[]
+  }
+
+  /**
+   * User.commentGradings
+   */
+  export type User$commentGradingsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    where?: CommentGradingResultWhereInput
+    orderBy?: CommentGradingResultOrderByWithRelationInput | CommentGradingResultOrderByWithRelationInput[]
+    cursor?: CommentGradingResultWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CommentGradingResultScalarFieldEnum | CommentGradingResultScalarFieldEnum[]
+  }
+
+  /**
    * User without action
    */
   export type UserDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -4686,6 +5466,7 @@ export namespace Prisma {
     assignmentAreas?: boolean | Course$assignmentAreasArgs<ExtArgs>
     invitationCodes?: boolean | Course$invitationCodesArgs<ExtArgs>
     notifications?: boolean | Course$notificationsArgs<ExtArgs>
+    posts?: boolean | Course$postsArgs<ExtArgs>
     _count?: boolean | CourseCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["course"]>
 
@@ -4731,6 +5512,7 @@ export namespace Prisma {
     assignmentAreas?: boolean | Course$assignmentAreasArgs<ExtArgs>
     invitationCodes?: boolean | Course$invitationCodesArgs<ExtArgs>
     notifications?: boolean | Course$notificationsArgs<ExtArgs>
+    posts?: boolean | Course$postsArgs<ExtArgs>
     _count?: boolean | CourseCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type CourseIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -4748,6 +5530,7 @@ export namespace Prisma {
       assignmentAreas: Prisma.$AssignmentAreaPayload<ExtArgs>[]
       invitationCodes: Prisma.$InvitationCodePayload<ExtArgs>[]
       notifications: Prisma.$NotificationPayload<ExtArgs>[]
+      posts: Prisma.$CoursePostPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
@@ -5157,6 +5940,7 @@ export namespace Prisma {
     assignmentAreas<T extends Course$assignmentAreasArgs<ExtArgs> = {}>(args?: Subset<T, Course$assignmentAreasArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssignmentAreaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     invitationCodes<T extends Course$invitationCodesArgs<ExtArgs> = {}>(args?: Subset<T, Course$invitationCodesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvitationCodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     notifications<T extends Course$notificationsArgs<ExtArgs> = {}>(args?: Subset<T, Course$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    posts<T extends Course$postsArgs<ExtArgs> = {}>(args?: Subset<T, Course$postsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5686,6 +6470,30 @@ export namespace Prisma {
   }
 
   /**
+   * Course.posts
+   */
+  export type Course$postsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    where?: CoursePostWhereInput
+    orderBy?: CoursePostOrderByWithRelationInput | CoursePostOrderByWithRelationInput[]
+    cursor?: CoursePostWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostScalarFieldEnum | CoursePostScalarFieldEnum[]
+  }
+
+  /**
    * Course without action
    */
   export type CourseDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -5935,6 +6743,7 @@ export namespace Prisma {
     enrollments?: boolean | Class$enrollmentsArgs<ExtArgs>
     assignmentAreas?: boolean | Class$assignmentAreasArgs<ExtArgs>
     invitationCodes?: boolean | Class$invitationCodesArgs<ExtArgs>
+    posts?: boolean | Class$postsArgs<ExtArgs>
     _count?: boolean | ClassCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["class"]>
 
@@ -5985,6 +6794,7 @@ export namespace Prisma {
     enrollments?: boolean | Class$enrollmentsArgs<ExtArgs>
     assignmentAreas?: boolean | Class$assignmentAreasArgs<ExtArgs>
     invitationCodes?: boolean | Class$invitationCodesArgs<ExtArgs>
+    posts?: boolean | Class$postsArgs<ExtArgs>
     _count?: boolean | ClassCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ClassIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -6004,6 +6814,7 @@ export namespace Prisma {
       enrollments: Prisma.$EnrollmentPayload<ExtArgs>[]
       assignmentAreas: Prisma.$AssignmentAreaPayload<ExtArgs>[]
       invitationCodes: Prisma.$InvitationCodePayload<ExtArgs>[]
+      posts: Prisma.$CoursePostPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
@@ -6414,6 +7225,7 @@ export namespace Prisma {
     enrollments<T extends Class$enrollmentsArgs<ExtArgs> = {}>(args?: Subset<T, Class$enrollmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$EnrollmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     assignmentAreas<T extends Class$assignmentAreasArgs<ExtArgs> = {}>(args?: Subset<T, Class$assignmentAreasArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssignmentAreaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     invitationCodes<T extends Class$invitationCodesArgs<ExtArgs> = {}>(args?: Subset<T, Class$invitationCodesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvitationCodePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    posts<T extends Class$postsArgs<ExtArgs> = {}>(args?: Subset<T, Class$postsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -6939,6 +7751,30 @@ export namespace Prisma {
   }
 
   /**
+   * Class.posts
+   */
+  export type Class$postsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    where?: CoursePostWhereInput
+    orderBy?: CoursePostOrderByWithRelationInput | CoursePostOrderByWithRelationInput[]
+    cursor?: CoursePostWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostScalarFieldEnum | CoursePostScalarFieldEnum[]
+  }
+
+  /**
    * Class without action
    */
   export type ClassDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -7175,6 +8011,7 @@ export namespace Prisma {
     submissions?: boolean | AssignmentArea$submissionsArgs<ExtArgs>
     notifications?: boolean | AssignmentArea$notificationsArgs<ExtArgs>
     gradingResults?: boolean | AssignmentArea$gradingResultsArgs<ExtArgs>
+    posts?: boolean | AssignmentArea$postsArgs<ExtArgs>
     _count?: boolean | AssignmentAreaCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["assignmentArea"]>
 
@@ -7234,6 +8071,7 @@ export namespace Prisma {
     submissions?: boolean | AssignmentArea$submissionsArgs<ExtArgs>
     notifications?: boolean | AssignmentArea$notificationsArgs<ExtArgs>
     gradingResults?: boolean | AssignmentArea$gradingResultsArgs<ExtArgs>
+    posts?: boolean | AssignmentArea$postsArgs<ExtArgs>
     _count?: boolean | AssignmentAreaCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type AssignmentAreaIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -7256,6 +8094,7 @@ export namespace Prisma {
       submissions: Prisma.$SubmissionPayload<ExtArgs>[]
       notifications: Prisma.$NotificationPayload<ExtArgs>[]
       gradingResults: Prisma.$GradingResultPayload<ExtArgs>[]
+      posts: Prisma.$CoursePostPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
@@ -7669,6 +8508,7 @@ export namespace Prisma {
     submissions<T extends AssignmentArea$submissionsArgs<ExtArgs> = {}>(args?: Subset<T, AssignmentArea$submissionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     notifications<T extends AssignmentArea$notificationsArgs<ExtArgs> = {}>(args?: Subset<T, AssignmentArea$notificationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$NotificationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     gradingResults<T extends AssignmentArea$gradingResultsArgs<ExtArgs> = {}>(args?: Subset<T, AssignmentArea$gradingResultsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    posts<T extends AssignmentArea$postsArgs<ExtArgs> = {}>(args?: Subset<T, AssignmentArea$postsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -8196,6 +9036,30 @@ export namespace Prisma {
   }
 
   /**
+   * AssignmentArea.posts
+   */
+  export type AssignmentArea$postsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    where?: CoursePostWhereInput
+    orderBy?: CoursePostOrderByWithRelationInput | CoursePostOrderByWithRelationInput[]
+    cursor?: CoursePostWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostScalarFieldEnum | CoursePostScalarFieldEnum[]
+  }
+
+  /**
    * AssignmentArea without action
    */
   export type AssignmentAreaDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -8560,6 +9424,7 @@ export namespace Prisma {
     assignmentArea?: boolean | AssignmentAreaDefaultArgs<ExtArgs>
     previousVersion?: boolean | Submission$previousVersionArgs<ExtArgs>
     nextVersions?: boolean | Submission$nextVersionsArgs<ExtArgs>
+    comment?: boolean | Submission$commentArgs<ExtArgs>
     _count?: boolean | SubmissionCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["submission"]>
 
@@ -8653,6 +9518,7 @@ export namespace Prisma {
     assignmentArea?: boolean | AssignmentAreaDefaultArgs<ExtArgs>
     previousVersion?: boolean | Submission$previousVersionArgs<ExtArgs>
     nextVersions?: boolean | Submission$nextVersionsArgs<ExtArgs>
+    comment?: boolean | Submission$commentArgs<ExtArgs>
     _count?: boolean | SubmissionCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type SubmissionIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -8673,6 +9539,7 @@ export namespace Prisma {
       assignmentArea: Prisma.$AssignmentAreaPayload<ExtArgs>
       previousVersion: Prisma.$SubmissionPayload<ExtArgs> | null
       nextVersions: Prisma.$SubmissionPayload<ExtArgs>[]
+      comment: Prisma.$CoursePostCommentPayload<ExtArgs> | null
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
@@ -9096,6 +9963,7 @@ export namespace Prisma {
     assignmentArea<T extends AssignmentAreaDefaultArgs<ExtArgs> = {}>(args?: Subset<T, AssignmentAreaDefaultArgs<ExtArgs>>): Prisma__AssignmentAreaClient<runtime.Types.Result.GetResult<Prisma.$AssignmentAreaPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     previousVersion<T extends Submission$previousVersionArgs<ExtArgs> = {}>(args?: Subset<T, Submission$previousVersionArgs<ExtArgs>>): Prisma__SubmissionClient<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     nextVersions<T extends Submission$nextVersionsArgs<ExtArgs> = {}>(args?: Subset<T, Submission$nextVersionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    comment<T extends Submission$commentArgs<ExtArgs> = {}>(args?: Subset<T, Submission$commentArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -9587,6 +10455,25 @@ export namespace Prisma {
   }
 
   /**
+   * Submission.comment
+   */
+  export type Submission$commentArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    where?: CoursePostCommentWhereInput
+  }
+
+  /**
    * Submission without action
    */
   export type SubmissionDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -9851,6 +10738,8 @@ export namespace Prisma {
     teacher?: boolean | Rubric$teacherArgs<ExtArgs>
     gradingResults?: boolean | Rubric$gradingResultsArgs<ExtArgs>
     assignmentAreas?: boolean | Rubric$assignmentAreasArgs<ExtArgs>
+    commentGradings?: boolean | Rubric$commentGradingsArgs<ExtArgs>
+    communityPosts?: boolean | Rubric$communityPostsArgs<ExtArgs>
     _count?: boolean | RubricCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["rubric"]>
 
@@ -9906,6 +10795,8 @@ export namespace Prisma {
     teacher?: boolean | Rubric$teacherArgs<ExtArgs>
     gradingResults?: boolean | Rubric$gradingResultsArgs<ExtArgs>
     assignmentAreas?: boolean | Rubric$assignmentAreasArgs<ExtArgs>
+    commentGradings?: boolean | Rubric$commentGradingsArgs<ExtArgs>
+    communityPosts?: boolean | Rubric$communityPostsArgs<ExtArgs>
     _count?: boolean | RubricCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type RubricIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -9924,6 +10815,8 @@ export namespace Prisma {
       teacher: Prisma.$UserPayload<ExtArgs> | null
       gradingResults: Prisma.$GradingResultPayload<ExtArgs>[]
       assignmentAreas: Prisma.$AssignmentAreaPayload<ExtArgs>[]
+      commentGradings: Prisma.$CommentGradingResultPayload<ExtArgs>[]
+      communityPosts: Prisma.$CoursePostPayload<ExtArgs>[]
     }
     scalars: runtime.Types.Extensions.GetPayloadResult<{
       id: string
@@ -10335,6 +11228,8 @@ export namespace Prisma {
     teacher<T extends Rubric$teacherArgs<ExtArgs> = {}>(args?: Subset<T, Rubric$teacherArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     gradingResults<T extends Rubric$gradingResultsArgs<ExtArgs> = {}>(args?: Subset<T, Rubric$gradingResultsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     assignmentAreas<T extends Rubric$assignmentAreasArgs<ExtArgs> = {}>(args?: Subset<T, Rubric$assignmentAreasArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssignmentAreaPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    commentGradings<T extends Rubric$commentGradingsArgs<ExtArgs> = {}>(args?: Subset<T, Rubric$commentGradingsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    communityPosts<T extends Rubric$communityPostsArgs<ExtArgs> = {}>(args?: Subset<T, Rubric$communityPostsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -10835,6 +11730,54 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: AssignmentAreaScalarFieldEnum | AssignmentAreaScalarFieldEnum[]
+  }
+
+  /**
+   * Rubric.commentGradings
+   */
+  export type Rubric$commentGradingsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    where?: CommentGradingResultWhereInput
+    orderBy?: CommentGradingResultOrderByWithRelationInput | CommentGradingResultOrderByWithRelationInput[]
+    cursor?: CommentGradingResultWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CommentGradingResultScalarFieldEnum | CommentGradingResultScalarFieldEnum[]
+  }
+
+  /**
+   * Rubric.communityPosts
+   */
+  export type Rubric$communityPostsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    where?: CoursePostWhereInput
+    orderBy?: CoursePostOrderByWithRelationInput | CoursePostOrderByWithRelationInput[]
+    cursor?: CoursePostWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostScalarFieldEnum | CoursePostScalarFieldEnum[]
   }
 
   /**
@@ -21509,6 +22452,6050 @@ export namespace Prisma {
 
 
   /**
+   * Model CoursePost
+   */
+
+  export type AggregateCoursePost = {
+    _count: CoursePostCountAggregateOutputType | null
+    _avg: CoursePostAvgAggregateOutputType | null
+    _sum: CoursePostSumAggregateOutputType | null
+    _min: CoursePostMinAggregateOutputType | null
+    _max: CoursePostMaxAggregateOutputType | null
+  }
+
+  export type CoursePostAvgAggregateOutputType = {
+    likeCount: number | null
+    commentCount: number | null
+  }
+
+  export type CoursePostSumAggregateOutputType = {
+    likeCount: number | null
+    commentCount: number | null
+  }
+
+  export type CoursePostMinAggregateOutputType = {
+    id: string | null
+    courseId: string | null
+    classId: string | null
+    authorId: string | null
+    authorRole: $Enums.UserRole | null
+    type: $Enums.PostType | null
+    title: string | null
+    content: string | null
+    assignmentAreaId: string | null
+    rubricId: string | null
+    likeCount: number | null
+    commentCount: number | null
+    isPinned: boolean | null
+    isArchived: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CoursePostMaxAggregateOutputType = {
+    id: string | null
+    courseId: string | null
+    classId: string | null
+    authorId: string | null
+    authorRole: $Enums.UserRole | null
+    type: $Enums.PostType | null
+    title: string | null
+    content: string | null
+    assignmentAreaId: string | null
+    rubricId: string | null
+    likeCount: number | null
+    commentCount: number | null
+    isPinned: boolean | null
+    isArchived: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CoursePostCountAggregateOutputType = {
+    id: number
+    courseId: number
+    classId: number
+    authorId: number
+    authorRole: number
+    type: number
+    title: number
+    content: number
+    attachments: number
+    assignmentAreaId: number
+    rubricId: number
+    likeCount: number
+    commentCount: number
+    isPinned: number
+    isArchived: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type CoursePostAvgAggregateInputType = {
+    likeCount?: true
+    commentCount?: true
+  }
+
+  export type CoursePostSumAggregateInputType = {
+    likeCount?: true
+    commentCount?: true
+  }
+
+  export type CoursePostMinAggregateInputType = {
+    id?: true
+    courseId?: true
+    classId?: true
+    authorId?: true
+    authorRole?: true
+    type?: true
+    title?: true
+    content?: true
+    assignmentAreaId?: true
+    rubricId?: true
+    likeCount?: true
+    commentCount?: true
+    isPinned?: true
+    isArchived?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CoursePostMaxAggregateInputType = {
+    id?: true
+    courseId?: true
+    classId?: true
+    authorId?: true
+    authorRole?: true
+    type?: true
+    title?: true
+    content?: true
+    assignmentAreaId?: true
+    rubricId?: true
+    likeCount?: true
+    commentCount?: true
+    isPinned?: true
+    isArchived?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CoursePostCountAggregateInputType = {
+    id?: true
+    courseId?: true
+    classId?: true
+    authorId?: true
+    authorRole?: true
+    type?: true
+    title?: true
+    content?: true
+    attachments?: true
+    assignmentAreaId?: true
+    rubricId?: true
+    likeCount?: true
+    commentCount?: true
+    isPinned?: true
+    isArchived?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type CoursePostAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CoursePost to aggregate.
+     */
+    where?: CoursePostWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePosts to fetch.
+     */
+    orderBy?: CoursePostOrderByWithRelationInput | CoursePostOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CoursePostWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePosts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePosts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CoursePosts
+    **/
+    _count?: true | CoursePostCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: CoursePostAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: CoursePostSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CoursePostMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CoursePostMaxAggregateInputType
+  }
+
+  export type GetCoursePostAggregateType<T extends CoursePostAggregateArgs> = {
+        [P in keyof T & keyof AggregateCoursePost]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCoursePost[P]>
+      : GetScalarType<T[P], AggregateCoursePost[P]>
+  }
+
+
+
+
+  export type CoursePostGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostWhereInput
+    orderBy?: CoursePostOrderByWithAggregationInput | CoursePostOrderByWithAggregationInput[]
+    by: CoursePostScalarFieldEnum[] | CoursePostScalarFieldEnum
+    having?: CoursePostScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CoursePostCountAggregateInputType | true
+    _avg?: CoursePostAvgAggregateInputType
+    _sum?: CoursePostSumAggregateInputType
+    _min?: CoursePostMinAggregateInputType
+    _max?: CoursePostMaxAggregateInputType
+  }
+
+  export type CoursePostGroupByOutputType = {
+    id: string
+    courseId: string
+    classId: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type: $Enums.PostType
+    title: string
+    content: string
+    attachments: JsonValue | null
+    assignmentAreaId: string | null
+    rubricId: string | null
+    likeCount: number
+    commentCount: number
+    isPinned: boolean
+    isArchived: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: CoursePostCountAggregateOutputType | null
+    _avg: CoursePostAvgAggregateOutputType | null
+    _sum: CoursePostSumAggregateOutputType | null
+    _min: CoursePostMinAggregateOutputType | null
+    _max: CoursePostMaxAggregateOutputType | null
+  }
+
+  type GetCoursePostGroupByPayload<T extends CoursePostGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CoursePostGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CoursePostGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CoursePostGroupByOutputType[P]>
+            : GetScalarType<T[P], CoursePostGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CoursePostSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    courseId?: boolean
+    classId?: boolean
+    authorId?: boolean
+    authorRole?: boolean
+    type?: boolean
+    title?: boolean
+    content?: boolean
+    attachments?: boolean
+    assignmentAreaId?: boolean
+    rubricId?: boolean
+    likeCount?: boolean
+    commentCount?: boolean
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | CoursePost$classArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    assignmentArea?: boolean | CoursePost$assignmentAreaArgs<ExtArgs>
+    rubric?: boolean | CoursePost$rubricArgs<ExtArgs>
+    comments?: boolean | CoursePost$commentsArgs<ExtArgs>
+    likes?: boolean | CoursePost$likesArgs<ExtArgs>
+    _count?: boolean | CoursePostCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePost"]>
+
+  export type CoursePostSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    courseId?: boolean
+    classId?: boolean
+    authorId?: boolean
+    authorRole?: boolean
+    type?: boolean
+    title?: boolean
+    content?: boolean
+    attachments?: boolean
+    assignmentAreaId?: boolean
+    rubricId?: boolean
+    likeCount?: boolean
+    commentCount?: boolean
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | CoursePost$classArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    assignmentArea?: boolean | CoursePost$assignmentAreaArgs<ExtArgs>
+    rubric?: boolean | CoursePost$rubricArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePost"]>
+
+  export type CoursePostSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    courseId?: boolean
+    classId?: boolean
+    authorId?: boolean
+    authorRole?: boolean
+    type?: boolean
+    title?: boolean
+    content?: boolean
+    attachments?: boolean
+    assignmentAreaId?: boolean
+    rubricId?: boolean
+    likeCount?: boolean
+    commentCount?: boolean
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | CoursePost$classArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    assignmentArea?: boolean | CoursePost$assignmentAreaArgs<ExtArgs>
+    rubric?: boolean | CoursePost$rubricArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePost"]>
+
+  export type CoursePostSelectScalar = {
+    id?: boolean
+    courseId?: boolean
+    classId?: boolean
+    authorId?: boolean
+    authorRole?: boolean
+    type?: boolean
+    title?: boolean
+    content?: boolean
+    attachments?: boolean
+    assignmentAreaId?: boolean
+    rubricId?: boolean
+    likeCount?: boolean
+    commentCount?: boolean
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type CoursePostOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "courseId" | "classId" | "authorId" | "authorRole" | "type" | "title" | "content" | "attachments" | "assignmentAreaId" | "rubricId" | "likeCount" | "commentCount" | "isPinned" | "isArchived" | "createdAt" | "updatedAt", ExtArgs["result"]["coursePost"]>
+  export type CoursePostInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | CoursePost$classArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    assignmentArea?: boolean | CoursePost$assignmentAreaArgs<ExtArgs>
+    rubric?: boolean | CoursePost$rubricArgs<ExtArgs>
+    comments?: boolean | CoursePost$commentsArgs<ExtArgs>
+    likes?: boolean | CoursePost$likesArgs<ExtArgs>
+    _count?: boolean | CoursePostCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type CoursePostIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | CoursePost$classArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    assignmentArea?: boolean | CoursePost$assignmentAreaArgs<ExtArgs>
+    rubric?: boolean | CoursePost$rubricArgs<ExtArgs>
+  }
+  export type CoursePostIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    course?: boolean | CourseDefaultArgs<ExtArgs>
+    class?: boolean | CoursePost$classArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    assignmentArea?: boolean | CoursePost$assignmentAreaArgs<ExtArgs>
+    rubric?: boolean | CoursePost$rubricArgs<ExtArgs>
+  }
+
+  export type $CoursePostPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "CoursePost"
+    objects: {
+      course: Prisma.$CoursePayload<ExtArgs>
+      class: Prisma.$ClassPayload<ExtArgs> | null
+      author: Prisma.$UserPayload<ExtArgs>
+      assignmentArea: Prisma.$AssignmentAreaPayload<ExtArgs> | null
+      rubric: Prisma.$RubricPayload<ExtArgs> | null
+      comments: Prisma.$CoursePostCommentPayload<ExtArgs>[]
+      likes: Prisma.$CoursePostLikePayload<ExtArgs>[]
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      courseId: string
+      classId: string | null
+      authorId: string
+      authorRole: $Enums.UserRole
+      type: $Enums.PostType
+      title: string
+      content: string
+      attachments: Prisma.JsonValue | null
+      assignmentAreaId: string | null
+      rubricId: string | null
+      likeCount: number
+      commentCount: number
+      isPinned: boolean
+      isArchived: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["coursePost"]>
+    composites: {}
+  }
+
+  export type CoursePostGetPayload<S extends boolean | null | undefined | CoursePostDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$CoursePostPayload, S>
+
+  export type CoursePostCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<CoursePostFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CoursePostCountAggregateInputType | true
+    }
+
+  export interface CoursePostDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CoursePost'], meta: { name: 'CoursePost' } }
+    /**
+     * Find zero or one CoursePost that matches the filter.
+     * @param {CoursePostFindUniqueArgs} args - Arguments to find a CoursePost
+     * @example
+     * // Get one CoursePost
+     * const coursePost = await prisma.coursePost.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CoursePostFindUniqueArgs>(args: SelectSubset<T, CoursePostFindUniqueArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CoursePost that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CoursePostFindUniqueOrThrowArgs} args - Arguments to find a CoursePost
+     * @example
+     * // Get one CoursePost
+     * const coursePost = await prisma.coursePost.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CoursePostFindUniqueOrThrowArgs>(args: SelectSubset<T, CoursePostFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CoursePost that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostFindFirstArgs} args - Arguments to find a CoursePost
+     * @example
+     * // Get one CoursePost
+     * const coursePost = await prisma.coursePost.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CoursePostFindFirstArgs>(args?: SelectSubset<T, CoursePostFindFirstArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CoursePost that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostFindFirstOrThrowArgs} args - Arguments to find a CoursePost
+     * @example
+     * // Get one CoursePost
+     * const coursePost = await prisma.coursePost.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CoursePostFindFirstOrThrowArgs>(args?: SelectSubset<T, CoursePostFindFirstOrThrowArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CoursePosts that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CoursePosts
+     * const coursePosts = await prisma.coursePost.findMany()
+     * 
+     * // Get first 10 CoursePosts
+     * const coursePosts = await prisma.coursePost.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const coursePostWithIdOnly = await prisma.coursePost.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CoursePostFindManyArgs>(args?: SelectSubset<T, CoursePostFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CoursePost.
+     * @param {CoursePostCreateArgs} args - Arguments to create a CoursePost.
+     * @example
+     * // Create one CoursePost
+     * const CoursePost = await prisma.coursePost.create({
+     *   data: {
+     *     // ... data to create a CoursePost
+     *   }
+     * })
+     * 
+     */
+    create<T extends CoursePostCreateArgs>(args: SelectSubset<T, CoursePostCreateArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CoursePosts.
+     * @param {CoursePostCreateManyArgs} args - Arguments to create many CoursePosts.
+     * @example
+     * // Create many CoursePosts
+     * const coursePost = await prisma.coursePost.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CoursePostCreateManyArgs>(args?: SelectSubset<T, CoursePostCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CoursePosts and returns the data saved in the database.
+     * @param {CoursePostCreateManyAndReturnArgs} args - Arguments to create many CoursePosts.
+     * @example
+     * // Create many CoursePosts
+     * const coursePost = await prisma.coursePost.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CoursePosts and only return the `id`
+     * const coursePostWithIdOnly = await prisma.coursePost.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CoursePostCreateManyAndReturnArgs>(args?: SelectSubset<T, CoursePostCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CoursePost.
+     * @param {CoursePostDeleteArgs} args - Arguments to delete one CoursePost.
+     * @example
+     * // Delete one CoursePost
+     * const CoursePost = await prisma.coursePost.delete({
+     *   where: {
+     *     // ... filter to delete one CoursePost
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CoursePostDeleteArgs>(args: SelectSubset<T, CoursePostDeleteArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CoursePost.
+     * @param {CoursePostUpdateArgs} args - Arguments to update one CoursePost.
+     * @example
+     * // Update one CoursePost
+     * const coursePost = await prisma.coursePost.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CoursePostUpdateArgs>(args: SelectSubset<T, CoursePostUpdateArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CoursePosts.
+     * @param {CoursePostDeleteManyArgs} args - Arguments to filter CoursePosts to delete.
+     * @example
+     * // Delete a few CoursePosts
+     * const { count } = await prisma.coursePost.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CoursePostDeleteManyArgs>(args?: SelectSubset<T, CoursePostDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CoursePosts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CoursePosts
+     * const coursePost = await prisma.coursePost.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CoursePostUpdateManyArgs>(args: SelectSubset<T, CoursePostUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CoursePosts and returns the data updated in the database.
+     * @param {CoursePostUpdateManyAndReturnArgs} args - Arguments to update many CoursePosts.
+     * @example
+     * // Update many CoursePosts
+     * const coursePost = await prisma.coursePost.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more CoursePosts and only return the `id`
+     * const coursePostWithIdOnly = await prisma.coursePost.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CoursePostUpdateManyAndReturnArgs>(args: SelectSubset<T, CoursePostUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CoursePost.
+     * @param {CoursePostUpsertArgs} args - Arguments to update or create a CoursePost.
+     * @example
+     * // Update or create a CoursePost
+     * const coursePost = await prisma.coursePost.upsert({
+     *   create: {
+     *     // ... data to create a CoursePost
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CoursePost we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CoursePostUpsertArgs>(args: SelectSubset<T, CoursePostUpsertArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CoursePosts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCountArgs} args - Arguments to filter CoursePosts to count.
+     * @example
+     * // Count the number of CoursePosts
+     * const count = await prisma.coursePost.count({
+     *   where: {
+     *     // ... the filter for the CoursePosts we want to count
+     *   }
+     * })
+    **/
+    count<T extends CoursePostCountArgs>(
+      args?: Subset<T, CoursePostCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CoursePostCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CoursePost.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CoursePostAggregateArgs>(args: Subset<T, CoursePostAggregateArgs>): Prisma.PrismaPromise<GetCoursePostAggregateType<T>>
+
+    /**
+     * Group by CoursePost.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CoursePostGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CoursePostGroupByArgs['orderBy'] }
+        : { orderBy?: CoursePostGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CoursePostGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCoursePostGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CoursePost model
+   */
+  readonly fields: CoursePostFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CoursePost.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CoursePostClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    course<T extends CourseDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CourseDefaultArgs<ExtArgs>>): Prisma__CourseClient<runtime.Types.Result.GetResult<Prisma.$CoursePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    class<T extends CoursePost$classArgs<ExtArgs> = {}>(args?: Subset<T, CoursePost$classArgs<ExtArgs>>): Prisma__ClassClient<runtime.Types.Result.GetResult<Prisma.$ClassPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    author<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    assignmentArea<T extends CoursePost$assignmentAreaArgs<ExtArgs> = {}>(args?: Subset<T, CoursePost$assignmentAreaArgs<ExtArgs>>): Prisma__AssignmentAreaClient<runtime.Types.Result.GetResult<Prisma.$AssignmentAreaPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    rubric<T extends CoursePost$rubricArgs<ExtArgs> = {}>(args?: Subset<T, CoursePost$rubricArgs<ExtArgs>>): Prisma__RubricClient<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    comments<T extends CoursePost$commentsArgs<ExtArgs> = {}>(args?: Subset<T, CoursePost$commentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    likes<T extends CoursePost$likesArgs<ExtArgs> = {}>(args?: Subset<T, CoursePost$likesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CoursePost model
+   */
+  export interface CoursePostFieldRefs {
+    readonly id: FieldRef<"CoursePost", 'String'>
+    readonly courseId: FieldRef<"CoursePost", 'String'>
+    readonly classId: FieldRef<"CoursePost", 'String'>
+    readonly authorId: FieldRef<"CoursePost", 'String'>
+    readonly authorRole: FieldRef<"CoursePost", 'UserRole'>
+    readonly type: FieldRef<"CoursePost", 'PostType'>
+    readonly title: FieldRef<"CoursePost", 'String'>
+    readonly content: FieldRef<"CoursePost", 'String'>
+    readonly attachments: FieldRef<"CoursePost", 'Json'>
+    readonly assignmentAreaId: FieldRef<"CoursePost", 'String'>
+    readonly rubricId: FieldRef<"CoursePost", 'String'>
+    readonly likeCount: FieldRef<"CoursePost", 'Int'>
+    readonly commentCount: FieldRef<"CoursePost", 'Int'>
+    readonly isPinned: FieldRef<"CoursePost", 'Boolean'>
+    readonly isArchived: FieldRef<"CoursePost", 'Boolean'>
+    readonly createdAt: FieldRef<"CoursePost", 'DateTime'>
+    readonly updatedAt: FieldRef<"CoursePost", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CoursePost findUnique
+   */
+  export type CoursePostFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePost to fetch.
+     */
+    where: CoursePostWhereUniqueInput
+  }
+
+  /**
+   * CoursePost findUniqueOrThrow
+   */
+  export type CoursePostFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePost to fetch.
+     */
+    where: CoursePostWhereUniqueInput
+  }
+
+  /**
+   * CoursePost findFirst
+   */
+  export type CoursePostFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePost to fetch.
+     */
+    where?: CoursePostWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePosts to fetch.
+     */
+    orderBy?: CoursePostOrderByWithRelationInput | CoursePostOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CoursePosts.
+     */
+    cursor?: CoursePostWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePosts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePosts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CoursePosts.
+     */
+    distinct?: CoursePostScalarFieldEnum | CoursePostScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePost findFirstOrThrow
+   */
+  export type CoursePostFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePost to fetch.
+     */
+    where?: CoursePostWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePosts to fetch.
+     */
+    orderBy?: CoursePostOrderByWithRelationInput | CoursePostOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CoursePosts.
+     */
+    cursor?: CoursePostWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePosts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePosts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CoursePosts.
+     */
+    distinct?: CoursePostScalarFieldEnum | CoursePostScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePost findMany
+   */
+  export type CoursePostFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePosts to fetch.
+     */
+    where?: CoursePostWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePosts to fetch.
+     */
+    orderBy?: CoursePostOrderByWithRelationInput | CoursePostOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CoursePosts.
+     */
+    cursor?: CoursePostWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePosts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePosts.
+     */
+    skip?: number
+    distinct?: CoursePostScalarFieldEnum | CoursePostScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePost create
+   */
+  export type CoursePostCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CoursePost.
+     */
+    data: XOR<CoursePostCreateInput, CoursePostUncheckedCreateInput>
+  }
+
+  /**
+   * CoursePost createMany
+   */
+  export type CoursePostCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CoursePosts.
+     */
+    data: CoursePostCreateManyInput | CoursePostCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CoursePost createManyAndReturn
+   */
+  export type CoursePostCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * The data used to create many CoursePosts.
+     */
+    data: CoursePostCreateManyInput | CoursePostCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CoursePost update
+   */
+  export type CoursePostUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CoursePost.
+     */
+    data: XOR<CoursePostUpdateInput, CoursePostUncheckedUpdateInput>
+    /**
+     * Choose, which CoursePost to update.
+     */
+    where: CoursePostWhereUniqueInput
+  }
+
+  /**
+   * CoursePost updateMany
+   */
+  export type CoursePostUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CoursePosts.
+     */
+    data: XOR<CoursePostUpdateManyMutationInput, CoursePostUncheckedUpdateManyInput>
+    /**
+     * Filter which CoursePosts to update
+     */
+    where?: CoursePostWhereInput
+    /**
+     * Limit how many CoursePosts to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CoursePost updateManyAndReturn
+   */
+  export type CoursePostUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * The data used to update CoursePosts.
+     */
+    data: XOR<CoursePostUpdateManyMutationInput, CoursePostUncheckedUpdateManyInput>
+    /**
+     * Filter which CoursePosts to update
+     */
+    where?: CoursePostWhereInput
+    /**
+     * Limit how many CoursePosts to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CoursePost upsert
+   */
+  export type CoursePostUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CoursePost to update in case it exists.
+     */
+    where: CoursePostWhereUniqueInput
+    /**
+     * In case the CoursePost found by the `where` argument doesn't exist, create a new CoursePost with this data.
+     */
+    create: XOR<CoursePostCreateInput, CoursePostUncheckedCreateInput>
+    /**
+     * In case the CoursePost was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CoursePostUpdateInput, CoursePostUncheckedUpdateInput>
+  }
+
+  /**
+   * CoursePost delete
+   */
+  export type CoursePostDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+    /**
+     * Filter which CoursePost to delete.
+     */
+    where: CoursePostWhereUniqueInput
+  }
+
+  /**
+   * CoursePost deleteMany
+   */
+  export type CoursePostDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CoursePosts to delete
+     */
+    where?: CoursePostWhereInput
+    /**
+     * Limit how many CoursePosts to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CoursePost.class
+   */
+  export type CoursePost$classArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Class
+     */
+    select?: ClassSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Class
+     */
+    omit?: ClassOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ClassInclude<ExtArgs> | null
+    where?: ClassWhereInput
+  }
+
+  /**
+   * CoursePost.assignmentArea
+   */
+  export type CoursePost$assignmentAreaArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AssignmentArea
+     */
+    select?: AssignmentAreaSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the AssignmentArea
+     */
+    omit?: AssignmentAreaOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AssignmentAreaInclude<ExtArgs> | null
+    where?: AssignmentAreaWhereInput
+  }
+
+  /**
+   * CoursePost.rubric
+   */
+  export type CoursePost$rubricArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rubric
+     */
+    select?: RubricSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Rubric
+     */
+    omit?: RubricOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: RubricInclude<ExtArgs> | null
+    where?: RubricWhereInput
+  }
+
+  /**
+   * CoursePost.comments
+   */
+  export type CoursePost$commentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    where?: CoursePostCommentWhereInput
+    orderBy?: CoursePostCommentOrderByWithRelationInput | CoursePostCommentOrderByWithRelationInput[]
+    cursor?: CoursePostCommentWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostCommentScalarFieldEnum | CoursePostCommentScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePost.likes
+   */
+  export type CoursePost$likesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    where?: CoursePostLikeWhereInput
+    orderBy?: CoursePostLikeOrderByWithRelationInput | CoursePostLikeOrderByWithRelationInput[]
+    cursor?: CoursePostLikeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostLikeScalarFieldEnum | CoursePostLikeScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePost without action
+   */
+  export type CoursePostDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePost
+     */
+    select?: CoursePostSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePost
+     */
+    omit?: CoursePostOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model CoursePostComment
+   */
+
+  export type AggregateCoursePostComment = {
+    _count: CoursePostCommentCountAggregateOutputType | null
+    _min: CoursePostCommentMinAggregateOutputType | null
+    _max: CoursePostCommentMaxAggregateOutputType | null
+  }
+
+  export type CoursePostCommentMinAggregateOutputType = {
+    id: string | null
+    postId: string | null
+    authorId: string | null
+    authorRole: $Enums.UserRole | null
+    content: string | null
+    submissionId: string | null
+    parentCommentId: string | null
+    isEdited: boolean | null
+    editedAt: Date | null
+    isDeleted: boolean | null
+    deletedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CoursePostCommentMaxAggregateOutputType = {
+    id: string | null
+    postId: string | null
+    authorId: string | null
+    authorRole: $Enums.UserRole | null
+    content: string | null
+    submissionId: string | null
+    parentCommentId: string | null
+    isEdited: boolean | null
+    editedAt: Date | null
+    isDeleted: boolean | null
+    deletedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CoursePostCommentCountAggregateOutputType = {
+    id: number
+    postId: number
+    authorId: number
+    authorRole: number
+    content: number
+    attachments: number
+    submissionId: number
+    parentCommentId: number
+    isEdited: number
+    editedAt: number
+    isDeleted: number
+    deletedAt: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type CoursePostCommentMinAggregateInputType = {
+    id?: true
+    postId?: true
+    authorId?: true
+    authorRole?: true
+    content?: true
+    submissionId?: true
+    parentCommentId?: true
+    isEdited?: true
+    editedAt?: true
+    isDeleted?: true
+    deletedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CoursePostCommentMaxAggregateInputType = {
+    id?: true
+    postId?: true
+    authorId?: true
+    authorRole?: true
+    content?: true
+    submissionId?: true
+    parentCommentId?: true
+    isEdited?: true
+    editedAt?: true
+    isDeleted?: true
+    deletedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CoursePostCommentCountAggregateInputType = {
+    id?: true
+    postId?: true
+    authorId?: true
+    authorRole?: true
+    content?: true
+    attachments?: true
+    submissionId?: true
+    parentCommentId?: true
+    isEdited?: true
+    editedAt?: true
+    isDeleted?: true
+    deletedAt?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type CoursePostCommentAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CoursePostComment to aggregate.
+     */
+    where?: CoursePostCommentWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostComments to fetch.
+     */
+    orderBy?: CoursePostCommentOrderByWithRelationInput | CoursePostCommentOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CoursePostCommentWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostComments from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostComments.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CoursePostComments
+    **/
+    _count?: true | CoursePostCommentCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CoursePostCommentMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CoursePostCommentMaxAggregateInputType
+  }
+
+  export type GetCoursePostCommentAggregateType<T extends CoursePostCommentAggregateArgs> = {
+        [P in keyof T & keyof AggregateCoursePostComment]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCoursePostComment[P]>
+      : GetScalarType<T[P], AggregateCoursePostComment[P]>
+  }
+
+
+
+
+  export type CoursePostCommentGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostCommentWhereInput
+    orderBy?: CoursePostCommentOrderByWithAggregationInput | CoursePostCommentOrderByWithAggregationInput[]
+    by: CoursePostCommentScalarFieldEnum[] | CoursePostCommentScalarFieldEnum
+    having?: CoursePostCommentScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CoursePostCommentCountAggregateInputType | true
+    _min?: CoursePostCommentMinAggregateInputType
+    _max?: CoursePostCommentMaxAggregateInputType
+  }
+
+  export type CoursePostCommentGroupByOutputType = {
+    id: string
+    postId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments: JsonValue | null
+    submissionId: string | null
+    parentCommentId: string | null
+    isEdited: boolean
+    editedAt: Date | null
+    isDeleted: boolean
+    deletedAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: CoursePostCommentCountAggregateOutputType | null
+    _min: CoursePostCommentMinAggregateOutputType | null
+    _max: CoursePostCommentMaxAggregateOutputType | null
+  }
+
+  type GetCoursePostCommentGroupByPayload<T extends CoursePostCommentGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CoursePostCommentGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CoursePostCommentGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CoursePostCommentGroupByOutputType[P]>
+            : GetScalarType<T[P], CoursePostCommentGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CoursePostCommentSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    postId?: boolean
+    authorId?: boolean
+    authorRole?: boolean
+    content?: boolean
+    attachments?: boolean
+    submissionId?: boolean
+    parentCommentId?: boolean
+    isEdited?: boolean
+    editedAt?: boolean
+    isDeleted?: boolean
+    deletedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    submission?: boolean | CoursePostComment$submissionArgs<ExtArgs>
+    parentComment?: boolean | CoursePostComment$parentCommentArgs<ExtArgs>
+    replies?: boolean | CoursePostComment$repliesArgs<ExtArgs>
+    likes?: boolean | CoursePostComment$likesArgs<ExtArgs>
+    gradingResult?: boolean | CoursePostComment$gradingResultArgs<ExtArgs>
+    _count?: boolean | CoursePostCommentCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePostComment"]>
+
+  export type CoursePostCommentSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    postId?: boolean
+    authorId?: boolean
+    authorRole?: boolean
+    content?: boolean
+    attachments?: boolean
+    submissionId?: boolean
+    parentCommentId?: boolean
+    isEdited?: boolean
+    editedAt?: boolean
+    isDeleted?: boolean
+    deletedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    submission?: boolean | CoursePostComment$submissionArgs<ExtArgs>
+    parentComment?: boolean | CoursePostComment$parentCommentArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePostComment"]>
+
+  export type CoursePostCommentSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    postId?: boolean
+    authorId?: boolean
+    authorRole?: boolean
+    content?: boolean
+    attachments?: boolean
+    submissionId?: boolean
+    parentCommentId?: boolean
+    isEdited?: boolean
+    editedAt?: boolean
+    isDeleted?: boolean
+    deletedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    submission?: boolean | CoursePostComment$submissionArgs<ExtArgs>
+    parentComment?: boolean | CoursePostComment$parentCommentArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePostComment"]>
+
+  export type CoursePostCommentSelectScalar = {
+    id?: boolean
+    postId?: boolean
+    authorId?: boolean
+    authorRole?: boolean
+    content?: boolean
+    attachments?: boolean
+    submissionId?: boolean
+    parentCommentId?: boolean
+    isEdited?: boolean
+    editedAt?: boolean
+    isDeleted?: boolean
+    deletedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type CoursePostCommentOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "postId" | "authorId" | "authorRole" | "content" | "attachments" | "submissionId" | "parentCommentId" | "isEdited" | "editedAt" | "isDeleted" | "deletedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["coursePostComment"]>
+  export type CoursePostCommentInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    submission?: boolean | CoursePostComment$submissionArgs<ExtArgs>
+    parentComment?: boolean | CoursePostComment$parentCommentArgs<ExtArgs>
+    replies?: boolean | CoursePostComment$repliesArgs<ExtArgs>
+    likes?: boolean | CoursePostComment$likesArgs<ExtArgs>
+    gradingResult?: boolean | CoursePostComment$gradingResultArgs<ExtArgs>
+    _count?: boolean | CoursePostCommentCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type CoursePostCommentIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    submission?: boolean | CoursePostComment$submissionArgs<ExtArgs>
+    parentComment?: boolean | CoursePostComment$parentCommentArgs<ExtArgs>
+  }
+  export type CoursePostCommentIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    author?: boolean | UserDefaultArgs<ExtArgs>
+    submission?: boolean | CoursePostComment$submissionArgs<ExtArgs>
+    parentComment?: boolean | CoursePostComment$parentCommentArgs<ExtArgs>
+  }
+
+  export type $CoursePostCommentPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "CoursePostComment"
+    objects: {
+      post: Prisma.$CoursePostPayload<ExtArgs>
+      author: Prisma.$UserPayload<ExtArgs>
+      submission: Prisma.$SubmissionPayload<ExtArgs> | null
+      parentComment: Prisma.$CoursePostCommentPayload<ExtArgs> | null
+      replies: Prisma.$CoursePostCommentPayload<ExtArgs>[]
+      likes: Prisma.$CoursePostCommentLikePayload<ExtArgs>[]
+      gradingResult: Prisma.$CommentGradingResultPayload<ExtArgs> | null
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      postId: string
+      authorId: string
+      authorRole: $Enums.UserRole
+      content: string
+      attachments: Prisma.JsonValue | null
+      submissionId: string | null
+      parentCommentId: string | null
+      isEdited: boolean
+      editedAt: Date | null
+      isDeleted: boolean
+      deletedAt: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["coursePostComment"]>
+    composites: {}
+  }
+
+  export type CoursePostCommentGetPayload<S extends boolean | null | undefined | CoursePostCommentDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload, S>
+
+  export type CoursePostCommentCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<CoursePostCommentFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CoursePostCommentCountAggregateInputType | true
+    }
+
+  export interface CoursePostCommentDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CoursePostComment'], meta: { name: 'CoursePostComment' } }
+    /**
+     * Find zero or one CoursePostComment that matches the filter.
+     * @param {CoursePostCommentFindUniqueArgs} args - Arguments to find a CoursePostComment
+     * @example
+     * // Get one CoursePostComment
+     * const coursePostComment = await prisma.coursePostComment.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CoursePostCommentFindUniqueArgs>(args: SelectSubset<T, CoursePostCommentFindUniqueArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CoursePostComment that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CoursePostCommentFindUniqueOrThrowArgs} args - Arguments to find a CoursePostComment
+     * @example
+     * // Get one CoursePostComment
+     * const coursePostComment = await prisma.coursePostComment.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CoursePostCommentFindUniqueOrThrowArgs>(args: SelectSubset<T, CoursePostCommentFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CoursePostComment that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentFindFirstArgs} args - Arguments to find a CoursePostComment
+     * @example
+     * // Get one CoursePostComment
+     * const coursePostComment = await prisma.coursePostComment.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CoursePostCommentFindFirstArgs>(args?: SelectSubset<T, CoursePostCommentFindFirstArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CoursePostComment that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentFindFirstOrThrowArgs} args - Arguments to find a CoursePostComment
+     * @example
+     * // Get one CoursePostComment
+     * const coursePostComment = await prisma.coursePostComment.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CoursePostCommentFindFirstOrThrowArgs>(args?: SelectSubset<T, CoursePostCommentFindFirstOrThrowArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CoursePostComments that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CoursePostComments
+     * const coursePostComments = await prisma.coursePostComment.findMany()
+     * 
+     * // Get first 10 CoursePostComments
+     * const coursePostComments = await prisma.coursePostComment.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const coursePostCommentWithIdOnly = await prisma.coursePostComment.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CoursePostCommentFindManyArgs>(args?: SelectSubset<T, CoursePostCommentFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CoursePostComment.
+     * @param {CoursePostCommentCreateArgs} args - Arguments to create a CoursePostComment.
+     * @example
+     * // Create one CoursePostComment
+     * const CoursePostComment = await prisma.coursePostComment.create({
+     *   data: {
+     *     // ... data to create a CoursePostComment
+     *   }
+     * })
+     * 
+     */
+    create<T extends CoursePostCommentCreateArgs>(args: SelectSubset<T, CoursePostCommentCreateArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CoursePostComments.
+     * @param {CoursePostCommentCreateManyArgs} args - Arguments to create many CoursePostComments.
+     * @example
+     * // Create many CoursePostComments
+     * const coursePostComment = await prisma.coursePostComment.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CoursePostCommentCreateManyArgs>(args?: SelectSubset<T, CoursePostCommentCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CoursePostComments and returns the data saved in the database.
+     * @param {CoursePostCommentCreateManyAndReturnArgs} args - Arguments to create many CoursePostComments.
+     * @example
+     * // Create many CoursePostComments
+     * const coursePostComment = await prisma.coursePostComment.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CoursePostComments and only return the `id`
+     * const coursePostCommentWithIdOnly = await prisma.coursePostComment.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CoursePostCommentCreateManyAndReturnArgs>(args?: SelectSubset<T, CoursePostCommentCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CoursePostComment.
+     * @param {CoursePostCommentDeleteArgs} args - Arguments to delete one CoursePostComment.
+     * @example
+     * // Delete one CoursePostComment
+     * const CoursePostComment = await prisma.coursePostComment.delete({
+     *   where: {
+     *     // ... filter to delete one CoursePostComment
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CoursePostCommentDeleteArgs>(args: SelectSubset<T, CoursePostCommentDeleteArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CoursePostComment.
+     * @param {CoursePostCommentUpdateArgs} args - Arguments to update one CoursePostComment.
+     * @example
+     * // Update one CoursePostComment
+     * const coursePostComment = await prisma.coursePostComment.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CoursePostCommentUpdateArgs>(args: SelectSubset<T, CoursePostCommentUpdateArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CoursePostComments.
+     * @param {CoursePostCommentDeleteManyArgs} args - Arguments to filter CoursePostComments to delete.
+     * @example
+     * // Delete a few CoursePostComments
+     * const { count } = await prisma.coursePostComment.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CoursePostCommentDeleteManyArgs>(args?: SelectSubset<T, CoursePostCommentDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CoursePostComments.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CoursePostComments
+     * const coursePostComment = await prisma.coursePostComment.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CoursePostCommentUpdateManyArgs>(args: SelectSubset<T, CoursePostCommentUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CoursePostComments and returns the data updated in the database.
+     * @param {CoursePostCommentUpdateManyAndReturnArgs} args - Arguments to update many CoursePostComments.
+     * @example
+     * // Update many CoursePostComments
+     * const coursePostComment = await prisma.coursePostComment.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more CoursePostComments and only return the `id`
+     * const coursePostCommentWithIdOnly = await prisma.coursePostComment.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CoursePostCommentUpdateManyAndReturnArgs>(args: SelectSubset<T, CoursePostCommentUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CoursePostComment.
+     * @param {CoursePostCommentUpsertArgs} args - Arguments to update or create a CoursePostComment.
+     * @example
+     * // Update or create a CoursePostComment
+     * const coursePostComment = await prisma.coursePostComment.upsert({
+     *   create: {
+     *     // ... data to create a CoursePostComment
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CoursePostComment we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CoursePostCommentUpsertArgs>(args: SelectSubset<T, CoursePostCommentUpsertArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CoursePostComments.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentCountArgs} args - Arguments to filter CoursePostComments to count.
+     * @example
+     * // Count the number of CoursePostComments
+     * const count = await prisma.coursePostComment.count({
+     *   where: {
+     *     // ... the filter for the CoursePostComments we want to count
+     *   }
+     * })
+    **/
+    count<T extends CoursePostCommentCountArgs>(
+      args?: Subset<T, CoursePostCommentCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CoursePostCommentCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CoursePostComment.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CoursePostCommentAggregateArgs>(args: Subset<T, CoursePostCommentAggregateArgs>): Prisma.PrismaPromise<GetCoursePostCommentAggregateType<T>>
+
+    /**
+     * Group by CoursePostComment.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CoursePostCommentGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CoursePostCommentGroupByArgs['orderBy'] }
+        : { orderBy?: CoursePostCommentGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CoursePostCommentGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCoursePostCommentGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CoursePostComment model
+   */
+  readonly fields: CoursePostCommentFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CoursePostComment.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CoursePostCommentClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    post<T extends CoursePostDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CoursePostDefaultArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    author<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    submission<T extends CoursePostComment$submissionArgs<ExtArgs> = {}>(args?: Subset<T, CoursePostComment$submissionArgs<ExtArgs>>): Prisma__SubmissionClient<runtime.Types.Result.GetResult<Prisma.$SubmissionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    parentComment<T extends CoursePostComment$parentCommentArgs<ExtArgs> = {}>(args?: Subset<T, CoursePostComment$parentCommentArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    replies<T extends CoursePostComment$repliesArgs<ExtArgs> = {}>(args?: Subset<T, CoursePostComment$repliesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    likes<T extends CoursePostComment$likesArgs<ExtArgs> = {}>(args?: Subset<T, CoursePostComment$likesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    gradingResult<T extends CoursePostComment$gradingResultArgs<ExtArgs> = {}>(args?: Subset<T, CoursePostComment$gradingResultArgs<ExtArgs>>): Prisma__CommentGradingResultClient<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CoursePostComment model
+   */
+  export interface CoursePostCommentFieldRefs {
+    readonly id: FieldRef<"CoursePostComment", 'String'>
+    readonly postId: FieldRef<"CoursePostComment", 'String'>
+    readonly authorId: FieldRef<"CoursePostComment", 'String'>
+    readonly authorRole: FieldRef<"CoursePostComment", 'UserRole'>
+    readonly content: FieldRef<"CoursePostComment", 'String'>
+    readonly attachments: FieldRef<"CoursePostComment", 'Json'>
+    readonly submissionId: FieldRef<"CoursePostComment", 'String'>
+    readonly parentCommentId: FieldRef<"CoursePostComment", 'String'>
+    readonly isEdited: FieldRef<"CoursePostComment", 'Boolean'>
+    readonly editedAt: FieldRef<"CoursePostComment", 'DateTime'>
+    readonly isDeleted: FieldRef<"CoursePostComment", 'Boolean'>
+    readonly deletedAt: FieldRef<"CoursePostComment", 'DateTime'>
+    readonly createdAt: FieldRef<"CoursePostComment", 'DateTime'>
+    readonly updatedAt: FieldRef<"CoursePostComment", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CoursePostComment findUnique
+   */
+  export type CoursePostCommentFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostComment to fetch.
+     */
+    where: CoursePostCommentWhereUniqueInput
+  }
+
+  /**
+   * CoursePostComment findUniqueOrThrow
+   */
+  export type CoursePostCommentFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostComment to fetch.
+     */
+    where: CoursePostCommentWhereUniqueInput
+  }
+
+  /**
+   * CoursePostComment findFirst
+   */
+  export type CoursePostCommentFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostComment to fetch.
+     */
+    where?: CoursePostCommentWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostComments to fetch.
+     */
+    orderBy?: CoursePostCommentOrderByWithRelationInput | CoursePostCommentOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CoursePostComments.
+     */
+    cursor?: CoursePostCommentWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostComments from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostComments.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CoursePostComments.
+     */
+    distinct?: CoursePostCommentScalarFieldEnum | CoursePostCommentScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostComment findFirstOrThrow
+   */
+  export type CoursePostCommentFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostComment to fetch.
+     */
+    where?: CoursePostCommentWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostComments to fetch.
+     */
+    orderBy?: CoursePostCommentOrderByWithRelationInput | CoursePostCommentOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CoursePostComments.
+     */
+    cursor?: CoursePostCommentWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostComments from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostComments.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CoursePostComments.
+     */
+    distinct?: CoursePostCommentScalarFieldEnum | CoursePostCommentScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostComment findMany
+   */
+  export type CoursePostCommentFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostComments to fetch.
+     */
+    where?: CoursePostCommentWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostComments to fetch.
+     */
+    orderBy?: CoursePostCommentOrderByWithRelationInput | CoursePostCommentOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CoursePostComments.
+     */
+    cursor?: CoursePostCommentWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostComments from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostComments.
+     */
+    skip?: number
+    distinct?: CoursePostCommentScalarFieldEnum | CoursePostCommentScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostComment create
+   */
+  export type CoursePostCommentCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CoursePostComment.
+     */
+    data: XOR<CoursePostCommentCreateInput, CoursePostCommentUncheckedCreateInput>
+  }
+
+  /**
+   * CoursePostComment createMany
+   */
+  export type CoursePostCommentCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CoursePostComments.
+     */
+    data: CoursePostCommentCreateManyInput | CoursePostCommentCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CoursePostComment createManyAndReturn
+   */
+  export type CoursePostCommentCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * The data used to create many CoursePostComments.
+     */
+    data: CoursePostCommentCreateManyInput | CoursePostCommentCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CoursePostComment update
+   */
+  export type CoursePostCommentUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CoursePostComment.
+     */
+    data: XOR<CoursePostCommentUpdateInput, CoursePostCommentUncheckedUpdateInput>
+    /**
+     * Choose, which CoursePostComment to update.
+     */
+    where: CoursePostCommentWhereUniqueInput
+  }
+
+  /**
+   * CoursePostComment updateMany
+   */
+  export type CoursePostCommentUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CoursePostComments.
+     */
+    data: XOR<CoursePostCommentUpdateManyMutationInput, CoursePostCommentUncheckedUpdateManyInput>
+    /**
+     * Filter which CoursePostComments to update
+     */
+    where?: CoursePostCommentWhereInput
+    /**
+     * Limit how many CoursePostComments to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CoursePostComment updateManyAndReturn
+   */
+  export type CoursePostCommentUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * The data used to update CoursePostComments.
+     */
+    data: XOR<CoursePostCommentUpdateManyMutationInput, CoursePostCommentUncheckedUpdateManyInput>
+    /**
+     * Filter which CoursePostComments to update
+     */
+    where?: CoursePostCommentWhereInput
+    /**
+     * Limit how many CoursePostComments to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CoursePostComment upsert
+   */
+  export type CoursePostCommentUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CoursePostComment to update in case it exists.
+     */
+    where: CoursePostCommentWhereUniqueInput
+    /**
+     * In case the CoursePostComment found by the `where` argument doesn't exist, create a new CoursePostComment with this data.
+     */
+    create: XOR<CoursePostCommentCreateInput, CoursePostCommentUncheckedCreateInput>
+    /**
+     * In case the CoursePostComment was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CoursePostCommentUpdateInput, CoursePostCommentUncheckedUpdateInput>
+  }
+
+  /**
+   * CoursePostComment delete
+   */
+  export type CoursePostCommentDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    /**
+     * Filter which CoursePostComment to delete.
+     */
+    where: CoursePostCommentWhereUniqueInput
+  }
+
+  /**
+   * CoursePostComment deleteMany
+   */
+  export type CoursePostCommentDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CoursePostComments to delete
+     */
+    where?: CoursePostCommentWhereInput
+    /**
+     * Limit how many CoursePostComments to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CoursePostComment.submission
+   */
+  export type CoursePostComment$submissionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Submission
+     */
+    select?: SubmissionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Submission
+     */
+    omit?: SubmissionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SubmissionInclude<ExtArgs> | null
+    where?: SubmissionWhereInput
+  }
+
+  /**
+   * CoursePostComment.parentComment
+   */
+  export type CoursePostComment$parentCommentArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    where?: CoursePostCommentWhereInput
+  }
+
+  /**
+   * CoursePostComment.replies
+   */
+  export type CoursePostComment$repliesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+    where?: CoursePostCommentWhereInput
+    orderBy?: CoursePostCommentOrderByWithRelationInput | CoursePostCommentOrderByWithRelationInput[]
+    cursor?: CoursePostCommentWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostCommentScalarFieldEnum | CoursePostCommentScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostComment.likes
+   */
+  export type CoursePostComment$likesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    where?: CoursePostCommentLikeWhereInput
+    orderBy?: CoursePostCommentLikeOrderByWithRelationInput | CoursePostCommentLikeOrderByWithRelationInput[]
+    cursor?: CoursePostCommentLikeWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CoursePostCommentLikeScalarFieldEnum | CoursePostCommentLikeScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostComment.gradingResult
+   */
+  export type CoursePostComment$gradingResultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    where?: CommentGradingResultWhereInput
+  }
+
+  /**
+   * CoursePostComment without action
+   */
+  export type CoursePostCommentDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostComment
+     */
+    select?: CoursePostCommentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostComment
+     */
+    omit?: CoursePostCommentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model CommentGradingResult
+   */
+
+  export type AggregateCommentGradingResult = {
+    _count: CommentGradingResultCountAggregateOutputType | null
+    _avg: CommentGradingResultAvgAggregateOutputType | null
+    _sum: CommentGradingResultSumAggregateOutputType | null
+    _min: CommentGradingResultMinAggregateOutputType | null
+    _max: CommentGradingResultMaxAggregateOutputType | null
+  }
+
+  export type CommentGradingResultAvgAggregateOutputType = {
+    normalizedScore: number | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+  }
+
+  export type CommentGradingResultSumAggregateOutputType = {
+    normalizedScore: number | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+  }
+
+  export type CommentGradingResultMinAggregateOutputType = {
+    id: string | null
+    commentId: string | null
+    graderId: string | null
+    rubricId: string | null
+    normalizedScore: number | null
+    thoughtSummary: string | null
+    thinkingProcess: string | null
+    gradingRationale: string | null
+    gradingModel: string | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CommentGradingResultMaxAggregateOutputType = {
+    id: string | null
+    commentId: string | null
+    graderId: string | null
+    rubricId: string | null
+    normalizedScore: number | null
+    thoughtSummary: string | null
+    thinkingProcess: string | null
+    gradingRationale: string | null
+    gradingModel: string | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CommentGradingResultCountAggregateOutputType = {
+    id: number
+    commentId: number
+    graderId: number
+    rubricId: number
+    result: number
+    normalizedScore: number
+    thoughtSummary: number
+    thinkingProcess: number
+    gradingRationale: number
+    gradingModel: number
+    gradingTokens: number
+    gradingDuration: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type CommentGradingResultAvgAggregateInputType = {
+    normalizedScore?: true
+    gradingTokens?: true
+    gradingDuration?: true
+  }
+
+  export type CommentGradingResultSumAggregateInputType = {
+    normalizedScore?: true
+    gradingTokens?: true
+    gradingDuration?: true
+  }
+
+  export type CommentGradingResultMinAggregateInputType = {
+    id?: true
+    commentId?: true
+    graderId?: true
+    rubricId?: true
+    normalizedScore?: true
+    thoughtSummary?: true
+    thinkingProcess?: true
+    gradingRationale?: true
+    gradingModel?: true
+    gradingTokens?: true
+    gradingDuration?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CommentGradingResultMaxAggregateInputType = {
+    id?: true
+    commentId?: true
+    graderId?: true
+    rubricId?: true
+    normalizedScore?: true
+    thoughtSummary?: true
+    thinkingProcess?: true
+    gradingRationale?: true
+    gradingModel?: true
+    gradingTokens?: true
+    gradingDuration?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CommentGradingResultCountAggregateInputType = {
+    id?: true
+    commentId?: true
+    graderId?: true
+    rubricId?: true
+    result?: true
+    normalizedScore?: true
+    thoughtSummary?: true
+    thinkingProcess?: true
+    gradingRationale?: true
+    gradingModel?: true
+    gradingTokens?: true
+    gradingDuration?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type CommentGradingResultAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CommentGradingResult to aggregate.
+     */
+    where?: CommentGradingResultWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CommentGradingResults to fetch.
+     */
+    orderBy?: CommentGradingResultOrderByWithRelationInput | CommentGradingResultOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CommentGradingResultWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CommentGradingResults from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CommentGradingResults.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CommentGradingResults
+    **/
+    _count?: true | CommentGradingResultCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: CommentGradingResultAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: CommentGradingResultSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CommentGradingResultMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CommentGradingResultMaxAggregateInputType
+  }
+
+  export type GetCommentGradingResultAggregateType<T extends CommentGradingResultAggregateArgs> = {
+        [P in keyof T & keyof AggregateCommentGradingResult]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCommentGradingResult[P]>
+      : GetScalarType<T[P], AggregateCommentGradingResult[P]>
+  }
+
+
+
+
+  export type CommentGradingResultGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CommentGradingResultWhereInput
+    orderBy?: CommentGradingResultOrderByWithAggregationInput | CommentGradingResultOrderByWithAggregationInput[]
+    by: CommentGradingResultScalarFieldEnum[] | CommentGradingResultScalarFieldEnum
+    having?: CommentGradingResultScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CommentGradingResultCountAggregateInputType | true
+    _avg?: CommentGradingResultAvgAggregateInputType
+    _sum?: CommentGradingResultSumAggregateInputType
+    _min?: CommentGradingResultMinAggregateInputType
+    _max?: CommentGradingResultMaxAggregateInputType
+  }
+
+  export type CommentGradingResultGroupByOutputType = {
+    id: string
+    commentId: string
+    graderId: string
+    rubricId: string
+    result: JsonValue
+    normalizedScore: number | null
+    thoughtSummary: string | null
+    thinkingProcess: string | null
+    gradingRationale: string | null
+    gradingModel: string | null
+    gradingTokens: number | null
+    gradingDuration: number | null
+    createdAt: Date
+    updatedAt: Date
+    _count: CommentGradingResultCountAggregateOutputType | null
+    _avg: CommentGradingResultAvgAggregateOutputType | null
+    _sum: CommentGradingResultSumAggregateOutputType | null
+    _min: CommentGradingResultMinAggregateOutputType | null
+    _max: CommentGradingResultMaxAggregateOutputType | null
+  }
+
+  type GetCommentGradingResultGroupByPayload<T extends CommentGradingResultGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CommentGradingResultGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CommentGradingResultGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CommentGradingResultGroupByOutputType[P]>
+            : GetScalarType<T[P], CommentGradingResultGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CommentGradingResultSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    commentId?: boolean
+    graderId?: boolean
+    rubricId?: boolean
+    result?: boolean
+    normalizedScore?: boolean
+    thoughtSummary?: boolean
+    thinkingProcess?: boolean
+    gradingRationale?: boolean
+    gradingModel?: boolean
+    gradingTokens?: boolean
+    gradingDuration?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    grader?: boolean | UserDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["commentGradingResult"]>
+
+  export type CommentGradingResultSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    commentId?: boolean
+    graderId?: boolean
+    rubricId?: boolean
+    result?: boolean
+    normalizedScore?: boolean
+    thoughtSummary?: boolean
+    thinkingProcess?: boolean
+    gradingRationale?: boolean
+    gradingModel?: boolean
+    gradingTokens?: boolean
+    gradingDuration?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    grader?: boolean | UserDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["commentGradingResult"]>
+
+  export type CommentGradingResultSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    commentId?: boolean
+    graderId?: boolean
+    rubricId?: boolean
+    result?: boolean
+    normalizedScore?: boolean
+    thoughtSummary?: boolean
+    thinkingProcess?: boolean
+    gradingRationale?: boolean
+    gradingModel?: boolean
+    gradingTokens?: boolean
+    gradingDuration?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    grader?: boolean | UserDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["commentGradingResult"]>
+
+  export type CommentGradingResultSelectScalar = {
+    id?: boolean
+    commentId?: boolean
+    graderId?: boolean
+    rubricId?: boolean
+    result?: boolean
+    normalizedScore?: boolean
+    thoughtSummary?: boolean
+    thinkingProcess?: boolean
+    gradingRationale?: boolean
+    gradingModel?: boolean
+    gradingTokens?: boolean
+    gradingDuration?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type CommentGradingResultOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "commentId" | "graderId" | "rubricId" | "result" | "normalizedScore" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "gradingModel" | "gradingTokens" | "gradingDuration" | "createdAt" | "updatedAt", ExtArgs["result"]["commentGradingResult"]>
+  export type CommentGradingResultInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    grader?: boolean | UserDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }
+  export type CommentGradingResultIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    grader?: boolean | UserDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }
+  export type CommentGradingResultIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    grader?: boolean | UserDefaultArgs<ExtArgs>
+    rubric?: boolean | RubricDefaultArgs<ExtArgs>
+  }
+
+  export type $CommentGradingResultPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "CommentGradingResult"
+    objects: {
+      comment: Prisma.$CoursePostCommentPayload<ExtArgs>
+      grader: Prisma.$UserPayload<ExtArgs>
+      rubric: Prisma.$RubricPayload<ExtArgs>
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      commentId: string
+      graderId: string
+      rubricId: string
+      result: Prisma.JsonValue
+      normalizedScore: number | null
+      thoughtSummary: string | null
+      thinkingProcess: string | null
+      gradingRationale: string | null
+      gradingModel: string | null
+      gradingTokens: number | null
+      gradingDuration: number | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["commentGradingResult"]>
+    composites: {}
+  }
+
+  export type CommentGradingResultGetPayload<S extends boolean | null | undefined | CommentGradingResultDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload, S>
+
+  export type CommentGradingResultCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<CommentGradingResultFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CommentGradingResultCountAggregateInputType | true
+    }
+
+  export interface CommentGradingResultDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CommentGradingResult'], meta: { name: 'CommentGradingResult' } }
+    /**
+     * Find zero or one CommentGradingResult that matches the filter.
+     * @param {CommentGradingResultFindUniqueArgs} args - Arguments to find a CommentGradingResult
+     * @example
+     * // Get one CommentGradingResult
+     * const commentGradingResult = await prisma.commentGradingResult.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CommentGradingResultFindUniqueArgs>(args: SelectSubset<T, CommentGradingResultFindUniqueArgs<ExtArgs>>): Prisma__CommentGradingResultClient<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CommentGradingResult that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CommentGradingResultFindUniqueOrThrowArgs} args - Arguments to find a CommentGradingResult
+     * @example
+     * // Get one CommentGradingResult
+     * const commentGradingResult = await prisma.commentGradingResult.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CommentGradingResultFindUniqueOrThrowArgs>(args: SelectSubset<T, CommentGradingResultFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CommentGradingResultClient<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CommentGradingResult that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CommentGradingResultFindFirstArgs} args - Arguments to find a CommentGradingResult
+     * @example
+     * // Get one CommentGradingResult
+     * const commentGradingResult = await prisma.commentGradingResult.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CommentGradingResultFindFirstArgs>(args?: SelectSubset<T, CommentGradingResultFindFirstArgs<ExtArgs>>): Prisma__CommentGradingResultClient<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CommentGradingResult that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CommentGradingResultFindFirstOrThrowArgs} args - Arguments to find a CommentGradingResult
+     * @example
+     * // Get one CommentGradingResult
+     * const commentGradingResult = await prisma.commentGradingResult.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CommentGradingResultFindFirstOrThrowArgs>(args?: SelectSubset<T, CommentGradingResultFindFirstOrThrowArgs<ExtArgs>>): Prisma__CommentGradingResultClient<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CommentGradingResults that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CommentGradingResultFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CommentGradingResults
+     * const commentGradingResults = await prisma.commentGradingResult.findMany()
+     * 
+     * // Get first 10 CommentGradingResults
+     * const commentGradingResults = await prisma.commentGradingResult.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const commentGradingResultWithIdOnly = await prisma.commentGradingResult.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CommentGradingResultFindManyArgs>(args?: SelectSubset<T, CommentGradingResultFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CommentGradingResult.
+     * @param {CommentGradingResultCreateArgs} args - Arguments to create a CommentGradingResult.
+     * @example
+     * // Create one CommentGradingResult
+     * const CommentGradingResult = await prisma.commentGradingResult.create({
+     *   data: {
+     *     // ... data to create a CommentGradingResult
+     *   }
+     * })
+     * 
+     */
+    create<T extends CommentGradingResultCreateArgs>(args: SelectSubset<T, CommentGradingResultCreateArgs<ExtArgs>>): Prisma__CommentGradingResultClient<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CommentGradingResults.
+     * @param {CommentGradingResultCreateManyArgs} args - Arguments to create many CommentGradingResults.
+     * @example
+     * // Create many CommentGradingResults
+     * const commentGradingResult = await prisma.commentGradingResult.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CommentGradingResultCreateManyArgs>(args?: SelectSubset<T, CommentGradingResultCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CommentGradingResults and returns the data saved in the database.
+     * @param {CommentGradingResultCreateManyAndReturnArgs} args - Arguments to create many CommentGradingResults.
+     * @example
+     * // Create many CommentGradingResults
+     * const commentGradingResult = await prisma.commentGradingResult.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CommentGradingResults and only return the `id`
+     * const commentGradingResultWithIdOnly = await prisma.commentGradingResult.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CommentGradingResultCreateManyAndReturnArgs>(args?: SelectSubset<T, CommentGradingResultCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CommentGradingResult.
+     * @param {CommentGradingResultDeleteArgs} args - Arguments to delete one CommentGradingResult.
+     * @example
+     * // Delete one CommentGradingResult
+     * const CommentGradingResult = await prisma.commentGradingResult.delete({
+     *   where: {
+     *     // ... filter to delete one CommentGradingResult
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CommentGradingResultDeleteArgs>(args: SelectSubset<T, CommentGradingResultDeleteArgs<ExtArgs>>): Prisma__CommentGradingResultClient<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CommentGradingResult.
+     * @param {CommentGradingResultUpdateArgs} args - Arguments to update one CommentGradingResult.
+     * @example
+     * // Update one CommentGradingResult
+     * const commentGradingResult = await prisma.commentGradingResult.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CommentGradingResultUpdateArgs>(args: SelectSubset<T, CommentGradingResultUpdateArgs<ExtArgs>>): Prisma__CommentGradingResultClient<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CommentGradingResults.
+     * @param {CommentGradingResultDeleteManyArgs} args - Arguments to filter CommentGradingResults to delete.
+     * @example
+     * // Delete a few CommentGradingResults
+     * const { count } = await prisma.commentGradingResult.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CommentGradingResultDeleteManyArgs>(args?: SelectSubset<T, CommentGradingResultDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CommentGradingResults.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CommentGradingResultUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CommentGradingResults
+     * const commentGradingResult = await prisma.commentGradingResult.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CommentGradingResultUpdateManyArgs>(args: SelectSubset<T, CommentGradingResultUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CommentGradingResults and returns the data updated in the database.
+     * @param {CommentGradingResultUpdateManyAndReturnArgs} args - Arguments to update many CommentGradingResults.
+     * @example
+     * // Update many CommentGradingResults
+     * const commentGradingResult = await prisma.commentGradingResult.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more CommentGradingResults and only return the `id`
+     * const commentGradingResultWithIdOnly = await prisma.commentGradingResult.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CommentGradingResultUpdateManyAndReturnArgs>(args: SelectSubset<T, CommentGradingResultUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CommentGradingResult.
+     * @param {CommentGradingResultUpsertArgs} args - Arguments to update or create a CommentGradingResult.
+     * @example
+     * // Update or create a CommentGradingResult
+     * const commentGradingResult = await prisma.commentGradingResult.upsert({
+     *   create: {
+     *     // ... data to create a CommentGradingResult
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CommentGradingResult we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CommentGradingResultUpsertArgs>(args: SelectSubset<T, CommentGradingResultUpsertArgs<ExtArgs>>): Prisma__CommentGradingResultClient<runtime.Types.Result.GetResult<Prisma.$CommentGradingResultPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CommentGradingResults.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CommentGradingResultCountArgs} args - Arguments to filter CommentGradingResults to count.
+     * @example
+     * // Count the number of CommentGradingResults
+     * const count = await prisma.commentGradingResult.count({
+     *   where: {
+     *     // ... the filter for the CommentGradingResults we want to count
+     *   }
+     * })
+    **/
+    count<T extends CommentGradingResultCountArgs>(
+      args?: Subset<T, CommentGradingResultCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CommentGradingResultCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CommentGradingResult.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CommentGradingResultAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CommentGradingResultAggregateArgs>(args: Subset<T, CommentGradingResultAggregateArgs>): Prisma.PrismaPromise<GetCommentGradingResultAggregateType<T>>
+
+    /**
+     * Group by CommentGradingResult.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CommentGradingResultGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CommentGradingResultGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CommentGradingResultGroupByArgs['orderBy'] }
+        : { orderBy?: CommentGradingResultGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CommentGradingResultGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCommentGradingResultGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CommentGradingResult model
+   */
+  readonly fields: CommentGradingResultFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CommentGradingResult.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CommentGradingResultClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    comment<T extends CoursePostCommentDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CoursePostCommentDefaultArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    grader<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    rubric<T extends RubricDefaultArgs<ExtArgs> = {}>(args?: Subset<T, RubricDefaultArgs<ExtArgs>>): Prisma__RubricClient<runtime.Types.Result.GetResult<Prisma.$RubricPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CommentGradingResult model
+   */
+  export interface CommentGradingResultFieldRefs {
+    readonly id: FieldRef<"CommentGradingResult", 'String'>
+    readonly commentId: FieldRef<"CommentGradingResult", 'String'>
+    readonly graderId: FieldRef<"CommentGradingResult", 'String'>
+    readonly rubricId: FieldRef<"CommentGradingResult", 'String'>
+    readonly result: FieldRef<"CommentGradingResult", 'Json'>
+    readonly normalizedScore: FieldRef<"CommentGradingResult", 'Float'>
+    readonly thoughtSummary: FieldRef<"CommentGradingResult", 'String'>
+    readonly thinkingProcess: FieldRef<"CommentGradingResult", 'String'>
+    readonly gradingRationale: FieldRef<"CommentGradingResult", 'String'>
+    readonly gradingModel: FieldRef<"CommentGradingResult", 'String'>
+    readonly gradingTokens: FieldRef<"CommentGradingResult", 'Int'>
+    readonly gradingDuration: FieldRef<"CommentGradingResult", 'Int'>
+    readonly createdAt: FieldRef<"CommentGradingResult", 'DateTime'>
+    readonly updatedAt: FieldRef<"CommentGradingResult", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CommentGradingResult findUnique
+   */
+  export type CommentGradingResultFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    /**
+     * Filter, which CommentGradingResult to fetch.
+     */
+    where: CommentGradingResultWhereUniqueInput
+  }
+
+  /**
+   * CommentGradingResult findUniqueOrThrow
+   */
+  export type CommentGradingResultFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    /**
+     * Filter, which CommentGradingResult to fetch.
+     */
+    where: CommentGradingResultWhereUniqueInput
+  }
+
+  /**
+   * CommentGradingResult findFirst
+   */
+  export type CommentGradingResultFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    /**
+     * Filter, which CommentGradingResult to fetch.
+     */
+    where?: CommentGradingResultWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CommentGradingResults to fetch.
+     */
+    orderBy?: CommentGradingResultOrderByWithRelationInput | CommentGradingResultOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CommentGradingResults.
+     */
+    cursor?: CommentGradingResultWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CommentGradingResults from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CommentGradingResults.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CommentGradingResults.
+     */
+    distinct?: CommentGradingResultScalarFieldEnum | CommentGradingResultScalarFieldEnum[]
+  }
+
+  /**
+   * CommentGradingResult findFirstOrThrow
+   */
+  export type CommentGradingResultFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    /**
+     * Filter, which CommentGradingResult to fetch.
+     */
+    where?: CommentGradingResultWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CommentGradingResults to fetch.
+     */
+    orderBy?: CommentGradingResultOrderByWithRelationInput | CommentGradingResultOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CommentGradingResults.
+     */
+    cursor?: CommentGradingResultWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CommentGradingResults from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CommentGradingResults.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CommentGradingResults.
+     */
+    distinct?: CommentGradingResultScalarFieldEnum | CommentGradingResultScalarFieldEnum[]
+  }
+
+  /**
+   * CommentGradingResult findMany
+   */
+  export type CommentGradingResultFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    /**
+     * Filter, which CommentGradingResults to fetch.
+     */
+    where?: CommentGradingResultWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CommentGradingResults to fetch.
+     */
+    orderBy?: CommentGradingResultOrderByWithRelationInput | CommentGradingResultOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CommentGradingResults.
+     */
+    cursor?: CommentGradingResultWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CommentGradingResults from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CommentGradingResults.
+     */
+    skip?: number
+    distinct?: CommentGradingResultScalarFieldEnum | CommentGradingResultScalarFieldEnum[]
+  }
+
+  /**
+   * CommentGradingResult create
+   */
+  export type CommentGradingResultCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CommentGradingResult.
+     */
+    data: XOR<CommentGradingResultCreateInput, CommentGradingResultUncheckedCreateInput>
+  }
+
+  /**
+   * CommentGradingResult createMany
+   */
+  export type CommentGradingResultCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CommentGradingResults.
+     */
+    data: CommentGradingResultCreateManyInput | CommentGradingResultCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CommentGradingResult createManyAndReturn
+   */
+  export type CommentGradingResultCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * The data used to create many CommentGradingResults.
+     */
+    data: CommentGradingResultCreateManyInput | CommentGradingResultCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CommentGradingResult update
+   */
+  export type CommentGradingResultUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CommentGradingResult.
+     */
+    data: XOR<CommentGradingResultUpdateInput, CommentGradingResultUncheckedUpdateInput>
+    /**
+     * Choose, which CommentGradingResult to update.
+     */
+    where: CommentGradingResultWhereUniqueInput
+  }
+
+  /**
+   * CommentGradingResult updateMany
+   */
+  export type CommentGradingResultUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CommentGradingResults.
+     */
+    data: XOR<CommentGradingResultUpdateManyMutationInput, CommentGradingResultUncheckedUpdateManyInput>
+    /**
+     * Filter which CommentGradingResults to update
+     */
+    where?: CommentGradingResultWhereInput
+    /**
+     * Limit how many CommentGradingResults to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CommentGradingResult updateManyAndReturn
+   */
+  export type CommentGradingResultUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * The data used to update CommentGradingResults.
+     */
+    data: XOR<CommentGradingResultUpdateManyMutationInput, CommentGradingResultUncheckedUpdateManyInput>
+    /**
+     * Filter which CommentGradingResults to update
+     */
+    where?: CommentGradingResultWhereInput
+    /**
+     * Limit how many CommentGradingResults to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CommentGradingResult upsert
+   */
+  export type CommentGradingResultUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CommentGradingResult to update in case it exists.
+     */
+    where: CommentGradingResultWhereUniqueInput
+    /**
+     * In case the CommentGradingResult found by the `where` argument doesn't exist, create a new CommentGradingResult with this data.
+     */
+    create: XOR<CommentGradingResultCreateInput, CommentGradingResultUncheckedCreateInput>
+    /**
+     * In case the CommentGradingResult was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CommentGradingResultUpdateInput, CommentGradingResultUncheckedUpdateInput>
+  }
+
+  /**
+   * CommentGradingResult delete
+   */
+  export type CommentGradingResultDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+    /**
+     * Filter which CommentGradingResult to delete.
+     */
+    where: CommentGradingResultWhereUniqueInput
+  }
+
+  /**
+   * CommentGradingResult deleteMany
+   */
+  export type CommentGradingResultDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CommentGradingResults to delete
+     */
+    where?: CommentGradingResultWhereInput
+    /**
+     * Limit how many CommentGradingResults to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CommentGradingResult without action
+   */
+  export type CommentGradingResultDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CommentGradingResult
+     */
+    select?: CommentGradingResultSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CommentGradingResult
+     */
+    omit?: CommentGradingResultOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CommentGradingResultInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model CoursePostLike
+   */
+
+  export type AggregateCoursePostLike = {
+    _count: CoursePostLikeCountAggregateOutputType | null
+    _min: CoursePostLikeMinAggregateOutputType | null
+    _max: CoursePostLikeMaxAggregateOutputType | null
+  }
+
+  export type CoursePostLikeMinAggregateOutputType = {
+    id: string | null
+    postId: string | null
+    userId: string | null
+    createdAt: Date | null
+  }
+
+  export type CoursePostLikeMaxAggregateOutputType = {
+    id: string | null
+    postId: string | null
+    userId: string | null
+    createdAt: Date | null
+  }
+
+  export type CoursePostLikeCountAggregateOutputType = {
+    id: number
+    postId: number
+    userId: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type CoursePostLikeMinAggregateInputType = {
+    id?: true
+    postId?: true
+    userId?: true
+    createdAt?: true
+  }
+
+  export type CoursePostLikeMaxAggregateInputType = {
+    id?: true
+    postId?: true
+    userId?: true
+    createdAt?: true
+  }
+
+  export type CoursePostLikeCountAggregateInputType = {
+    id?: true
+    postId?: true
+    userId?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type CoursePostLikeAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CoursePostLike to aggregate.
+     */
+    where?: CoursePostLikeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostLikes to fetch.
+     */
+    orderBy?: CoursePostLikeOrderByWithRelationInput | CoursePostLikeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CoursePostLikeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostLikes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostLikes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CoursePostLikes
+    **/
+    _count?: true | CoursePostLikeCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CoursePostLikeMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CoursePostLikeMaxAggregateInputType
+  }
+
+  export type GetCoursePostLikeAggregateType<T extends CoursePostLikeAggregateArgs> = {
+        [P in keyof T & keyof AggregateCoursePostLike]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCoursePostLike[P]>
+      : GetScalarType<T[P], AggregateCoursePostLike[P]>
+  }
+
+
+
+
+  export type CoursePostLikeGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostLikeWhereInput
+    orderBy?: CoursePostLikeOrderByWithAggregationInput | CoursePostLikeOrderByWithAggregationInput[]
+    by: CoursePostLikeScalarFieldEnum[] | CoursePostLikeScalarFieldEnum
+    having?: CoursePostLikeScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CoursePostLikeCountAggregateInputType | true
+    _min?: CoursePostLikeMinAggregateInputType
+    _max?: CoursePostLikeMaxAggregateInputType
+  }
+
+  export type CoursePostLikeGroupByOutputType = {
+    id: string
+    postId: string
+    userId: string
+    createdAt: Date
+    _count: CoursePostLikeCountAggregateOutputType | null
+    _min: CoursePostLikeMinAggregateOutputType | null
+    _max: CoursePostLikeMaxAggregateOutputType | null
+  }
+
+  type GetCoursePostLikeGroupByPayload<T extends CoursePostLikeGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CoursePostLikeGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CoursePostLikeGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CoursePostLikeGroupByOutputType[P]>
+            : GetScalarType<T[P], CoursePostLikeGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CoursePostLikeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    postId?: boolean
+    userId?: boolean
+    createdAt?: boolean
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePostLike"]>
+
+  export type CoursePostLikeSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    postId?: boolean
+    userId?: boolean
+    createdAt?: boolean
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePostLike"]>
+
+  export type CoursePostLikeSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    postId?: boolean
+    userId?: boolean
+    createdAt?: boolean
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePostLike"]>
+
+  export type CoursePostLikeSelectScalar = {
+    id?: boolean
+    postId?: boolean
+    userId?: boolean
+    createdAt?: boolean
+  }
+
+  export type CoursePostLikeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "postId" | "userId" | "createdAt", ExtArgs["result"]["coursePostLike"]>
+  export type CoursePostLikeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type CoursePostLikeIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type CoursePostLikeIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    post?: boolean | CoursePostDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $CoursePostLikePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "CoursePostLike"
+    objects: {
+      post: Prisma.$CoursePostPayload<ExtArgs>
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      postId: string
+      userId: string
+      createdAt: Date
+    }, ExtArgs["result"]["coursePostLike"]>
+    composites: {}
+  }
+
+  export type CoursePostLikeGetPayload<S extends boolean | null | undefined | CoursePostLikeDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload, S>
+
+  export type CoursePostLikeCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<CoursePostLikeFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CoursePostLikeCountAggregateInputType | true
+    }
+
+  export interface CoursePostLikeDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CoursePostLike'], meta: { name: 'CoursePostLike' } }
+    /**
+     * Find zero or one CoursePostLike that matches the filter.
+     * @param {CoursePostLikeFindUniqueArgs} args - Arguments to find a CoursePostLike
+     * @example
+     * // Get one CoursePostLike
+     * const coursePostLike = await prisma.coursePostLike.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CoursePostLikeFindUniqueArgs>(args: SelectSubset<T, CoursePostLikeFindUniqueArgs<ExtArgs>>): Prisma__CoursePostLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CoursePostLike that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CoursePostLikeFindUniqueOrThrowArgs} args - Arguments to find a CoursePostLike
+     * @example
+     * // Get one CoursePostLike
+     * const coursePostLike = await prisma.coursePostLike.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CoursePostLikeFindUniqueOrThrowArgs>(args: SelectSubset<T, CoursePostLikeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CoursePostLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CoursePostLike that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostLikeFindFirstArgs} args - Arguments to find a CoursePostLike
+     * @example
+     * // Get one CoursePostLike
+     * const coursePostLike = await prisma.coursePostLike.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CoursePostLikeFindFirstArgs>(args?: SelectSubset<T, CoursePostLikeFindFirstArgs<ExtArgs>>): Prisma__CoursePostLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CoursePostLike that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostLikeFindFirstOrThrowArgs} args - Arguments to find a CoursePostLike
+     * @example
+     * // Get one CoursePostLike
+     * const coursePostLike = await prisma.coursePostLike.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CoursePostLikeFindFirstOrThrowArgs>(args?: SelectSubset<T, CoursePostLikeFindFirstOrThrowArgs<ExtArgs>>): Prisma__CoursePostLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CoursePostLikes that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostLikeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CoursePostLikes
+     * const coursePostLikes = await prisma.coursePostLike.findMany()
+     * 
+     * // Get first 10 CoursePostLikes
+     * const coursePostLikes = await prisma.coursePostLike.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const coursePostLikeWithIdOnly = await prisma.coursePostLike.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CoursePostLikeFindManyArgs>(args?: SelectSubset<T, CoursePostLikeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CoursePostLike.
+     * @param {CoursePostLikeCreateArgs} args - Arguments to create a CoursePostLike.
+     * @example
+     * // Create one CoursePostLike
+     * const CoursePostLike = await prisma.coursePostLike.create({
+     *   data: {
+     *     // ... data to create a CoursePostLike
+     *   }
+     * })
+     * 
+     */
+    create<T extends CoursePostLikeCreateArgs>(args: SelectSubset<T, CoursePostLikeCreateArgs<ExtArgs>>): Prisma__CoursePostLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CoursePostLikes.
+     * @param {CoursePostLikeCreateManyArgs} args - Arguments to create many CoursePostLikes.
+     * @example
+     * // Create many CoursePostLikes
+     * const coursePostLike = await prisma.coursePostLike.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CoursePostLikeCreateManyArgs>(args?: SelectSubset<T, CoursePostLikeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CoursePostLikes and returns the data saved in the database.
+     * @param {CoursePostLikeCreateManyAndReturnArgs} args - Arguments to create many CoursePostLikes.
+     * @example
+     * // Create many CoursePostLikes
+     * const coursePostLike = await prisma.coursePostLike.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CoursePostLikes and only return the `id`
+     * const coursePostLikeWithIdOnly = await prisma.coursePostLike.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CoursePostLikeCreateManyAndReturnArgs>(args?: SelectSubset<T, CoursePostLikeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CoursePostLike.
+     * @param {CoursePostLikeDeleteArgs} args - Arguments to delete one CoursePostLike.
+     * @example
+     * // Delete one CoursePostLike
+     * const CoursePostLike = await prisma.coursePostLike.delete({
+     *   where: {
+     *     // ... filter to delete one CoursePostLike
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CoursePostLikeDeleteArgs>(args: SelectSubset<T, CoursePostLikeDeleteArgs<ExtArgs>>): Prisma__CoursePostLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CoursePostLike.
+     * @param {CoursePostLikeUpdateArgs} args - Arguments to update one CoursePostLike.
+     * @example
+     * // Update one CoursePostLike
+     * const coursePostLike = await prisma.coursePostLike.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CoursePostLikeUpdateArgs>(args: SelectSubset<T, CoursePostLikeUpdateArgs<ExtArgs>>): Prisma__CoursePostLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CoursePostLikes.
+     * @param {CoursePostLikeDeleteManyArgs} args - Arguments to filter CoursePostLikes to delete.
+     * @example
+     * // Delete a few CoursePostLikes
+     * const { count } = await prisma.coursePostLike.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CoursePostLikeDeleteManyArgs>(args?: SelectSubset<T, CoursePostLikeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CoursePostLikes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostLikeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CoursePostLikes
+     * const coursePostLike = await prisma.coursePostLike.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CoursePostLikeUpdateManyArgs>(args: SelectSubset<T, CoursePostLikeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CoursePostLikes and returns the data updated in the database.
+     * @param {CoursePostLikeUpdateManyAndReturnArgs} args - Arguments to update many CoursePostLikes.
+     * @example
+     * // Update many CoursePostLikes
+     * const coursePostLike = await prisma.coursePostLike.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more CoursePostLikes and only return the `id`
+     * const coursePostLikeWithIdOnly = await prisma.coursePostLike.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CoursePostLikeUpdateManyAndReturnArgs>(args: SelectSubset<T, CoursePostLikeUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CoursePostLike.
+     * @param {CoursePostLikeUpsertArgs} args - Arguments to update or create a CoursePostLike.
+     * @example
+     * // Update or create a CoursePostLike
+     * const coursePostLike = await prisma.coursePostLike.upsert({
+     *   create: {
+     *     // ... data to create a CoursePostLike
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CoursePostLike we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CoursePostLikeUpsertArgs>(args: SelectSubset<T, CoursePostLikeUpsertArgs<ExtArgs>>): Prisma__CoursePostLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostLikePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CoursePostLikes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostLikeCountArgs} args - Arguments to filter CoursePostLikes to count.
+     * @example
+     * // Count the number of CoursePostLikes
+     * const count = await prisma.coursePostLike.count({
+     *   where: {
+     *     // ... the filter for the CoursePostLikes we want to count
+     *   }
+     * })
+    **/
+    count<T extends CoursePostLikeCountArgs>(
+      args?: Subset<T, CoursePostLikeCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CoursePostLikeCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CoursePostLike.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostLikeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CoursePostLikeAggregateArgs>(args: Subset<T, CoursePostLikeAggregateArgs>): Prisma.PrismaPromise<GetCoursePostLikeAggregateType<T>>
+
+    /**
+     * Group by CoursePostLike.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostLikeGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CoursePostLikeGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CoursePostLikeGroupByArgs['orderBy'] }
+        : { orderBy?: CoursePostLikeGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CoursePostLikeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCoursePostLikeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CoursePostLike model
+   */
+  readonly fields: CoursePostLikeFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CoursePostLike.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CoursePostLikeClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    post<T extends CoursePostDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CoursePostDefaultArgs<ExtArgs>>): Prisma__CoursePostClient<runtime.Types.Result.GetResult<Prisma.$CoursePostPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CoursePostLike model
+   */
+  export interface CoursePostLikeFieldRefs {
+    readonly id: FieldRef<"CoursePostLike", 'String'>
+    readonly postId: FieldRef<"CoursePostLike", 'String'>
+    readonly userId: FieldRef<"CoursePostLike", 'String'>
+    readonly createdAt: FieldRef<"CoursePostLike", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CoursePostLike findUnique
+   */
+  export type CoursePostLikeFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostLike to fetch.
+     */
+    where: CoursePostLikeWhereUniqueInput
+  }
+
+  /**
+   * CoursePostLike findUniqueOrThrow
+   */
+  export type CoursePostLikeFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostLike to fetch.
+     */
+    where: CoursePostLikeWhereUniqueInput
+  }
+
+  /**
+   * CoursePostLike findFirst
+   */
+  export type CoursePostLikeFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostLike to fetch.
+     */
+    where?: CoursePostLikeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostLikes to fetch.
+     */
+    orderBy?: CoursePostLikeOrderByWithRelationInput | CoursePostLikeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CoursePostLikes.
+     */
+    cursor?: CoursePostLikeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostLikes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostLikes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CoursePostLikes.
+     */
+    distinct?: CoursePostLikeScalarFieldEnum | CoursePostLikeScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostLike findFirstOrThrow
+   */
+  export type CoursePostLikeFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostLike to fetch.
+     */
+    where?: CoursePostLikeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostLikes to fetch.
+     */
+    orderBy?: CoursePostLikeOrderByWithRelationInput | CoursePostLikeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CoursePostLikes.
+     */
+    cursor?: CoursePostLikeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostLikes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostLikes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CoursePostLikes.
+     */
+    distinct?: CoursePostLikeScalarFieldEnum | CoursePostLikeScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostLike findMany
+   */
+  export type CoursePostLikeFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostLikes to fetch.
+     */
+    where?: CoursePostLikeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostLikes to fetch.
+     */
+    orderBy?: CoursePostLikeOrderByWithRelationInput | CoursePostLikeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CoursePostLikes.
+     */
+    cursor?: CoursePostLikeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostLikes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostLikes.
+     */
+    skip?: number
+    distinct?: CoursePostLikeScalarFieldEnum | CoursePostLikeScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostLike create
+   */
+  export type CoursePostLikeCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CoursePostLike.
+     */
+    data: XOR<CoursePostLikeCreateInput, CoursePostLikeUncheckedCreateInput>
+  }
+
+  /**
+   * CoursePostLike createMany
+   */
+  export type CoursePostLikeCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CoursePostLikes.
+     */
+    data: CoursePostLikeCreateManyInput | CoursePostLikeCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CoursePostLike createManyAndReturn
+   */
+  export type CoursePostLikeCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * The data used to create many CoursePostLikes.
+     */
+    data: CoursePostLikeCreateManyInput | CoursePostLikeCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CoursePostLike update
+   */
+  export type CoursePostLikeUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CoursePostLike.
+     */
+    data: XOR<CoursePostLikeUpdateInput, CoursePostLikeUncheckedUpdateInput>
+    /**
+     * Choose, which CoursePostLike to update.
+     */
+    where: CoursePostLikeWhereUniqueInput
+  }
+
+  /**
+   * CoursePostLike updateMany
+   */
+  export type CoursePostLikeUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CoursePostLikes.
+     */
+    data: XOR<CoursePostLikeUpdateManyMutationInput, CoursePostLikeUncheckedUpdateManyInput>
+    /**
+     * Filter which CoursePostLikes to update
+     */
+    where?: CoursePostLikeWhereInput
+    /**
+     * Limit how many CoursePostLikes to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CoursePostLike updateManyAndReturn
+   */
+  export type CoursePostLikeUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * The data used to update CoursePostLikes.
+     */
+    data: XOR<CoursePostLikeUpdateManyMutationInput, CoursePostLikeUncheckedUpdateManyInput>
+    /**
+     * Filter which CoursePostLikes to update
+     */
+    where?: CoursePostLikeWhereInput
+    /**
+     * Limit how many CoursePostLikes to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CoursePostLike upsert
+   */
+  export type CoursePostLikeUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CoursePostLike to update in case it exists.
+     */
+    where: CoursePostLikeWhereUniqueInput
+    /**
+     * In case the CoursePostLike found by the `where` argument doesn't exist, create a new CoursePostLike with this data.
+     */
+    create: XOR<CoursePostLikeCreateInput, CoursePostLikeUncheckedCreateInput>
+    /**
+     * In case the CoursePostLike was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CoursePostLikeUpdateInput, CoursePostLikeUncheckedUpdateInput>
+  }
+
+  /**
+   * CoursePostLike delete
+   */
+  export type CoursePostLikeDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+    /**
+     * Filter which CoursePostLike to delete.
+     */
+    where: CoursePostLikeWhereUniqueInput
+  }
+
+  /**
+   * CoursePostLike deleteMany
+   */
+  export type CoursePostLikeDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CoursePostLikes to delete
+     */
+    where?: CoursePostLikeWhereInput
+    /**
+     * Limit how many CoursePostLikes to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CoursePostLike without action
+   */
+  export type CoursePostLikeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostLike
+     */
+    select?: CoursePostLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostLike
+     */
+    omit?: CoursePostLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostLikeInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model CoursePostCommentLike
+   */
+
+  export type AggregateCoursePostCommentLike = {
+    _count: CoursePostCommentLikeCountAggregateOutputType | null
+    _min: CoursePostCommentLikeMinAggregateOutputType | null
+    _max: CoursePostCommentLikeMaxAggregateOutputType | null
+  }
+
+  export type CoursePostCommentLikeMinAggregateOutputType = {
+    id: string | null
+    commentId: string | null
+    userId: string | null
+    createdAt: Date | null
+  }
+
+  export type CoursePostCommentLikeMaxAggregateOutputType = {
+    id: string | null
+    commentId: string | null
+    userId: string | null
+    createdAt: Date | null
+  }
+
+  export type CoursePostCommentLikeCountAggregateOutputType = {
+    id: number
+    commentId: number
+    userId: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type CoursePostCommentLikeMinAggregateInputType = {
+    id?: true
+    commentId?: true
+    userId?: true
+    createdAt?: true
+  }
+
+  export type CoursePostCommentLikeMaxAggregateInputType = {
+    id?: true
+    commentId?: true
+    userId?: true
+    createdAt?: true
+  }
+
+  export type CoursePostCommentLikeCountAggregateInputType = {
+    id?: true
+    commentId?: true
+    userId?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type CoursePostCommentLikeAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CoursePostCommentLike to aggregate.
+     */
+    where?: CoursePostCommentLikeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostCommentLikes to fetch.
+     */
+    orderBy?: CoursePostCommentLikeOrderByWithRelationInput | CoursePostCommentLikeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CoursePostCommentLikeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostCommentLikes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostCommentLikes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CoursePostCommentLikes
+    **/
+    _count?: true | CoursePostCommentLikeCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CoursePostCommentLikeMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CoursePostCommentLikeMaxAggregateInputType
+  }
+
+  export type GetCoursePostCommentLikeAggregateType<T extends CoursePostCommentLikeAggregateArgs> = {
+        [P in keyof T & keyof AggregateCoursePostCommentLike]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCoursePostCommentLike[P]>
+      : GetScalarType<T[P], AggregateCoursePostCommentLike[P]>
+  }
+
+
+
+
+  export type CoursePostCommentLikeGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    where?: CoursePostCommentLikeWhereInput
+    orderBy?: CoursePostCommentLikeOrderByWithAggregationInput | CoursePostCommentLikeOrderByWithAggregationInput[]
+    by: CoursePostCommentLikeScalarFieldEnum[] | CoursePostCommentLikeScalarFieldEnum
+    having?: CoursePostCommentLikeScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CoursePostCommentLikeCountAggregateInputType | true
+    _min?: CoursePostCommentLikeMinAggregateInputType
+    _max?: CoursePostCommentLikeMaxAggregateInputType
+  }
+
+  export type CoursePostCommentLikeGroupByOutputType = {
+    id: string
+    commentId: string
+    userId: string
+    createdAt: Date
+    _count: CoursePostCommentLikeCountAggregateOutputType | null
+    _min: CoursePostCommentLikeMinAggregateOutputType | null
+    _max: CoursePostCommentLikeMaxAggregateOutputType | null
+  }
+
+  type GetCoursePostCommentLikeGroupByPayload<T extends CoursePostCommentLikeGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CoursePostCommentLikeGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CoursePostCommentLikeGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CoursePostCommentLikeGroupByOutputType[P]>
+            : GetScalarType<T[P], CoursePostCommentLikeGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CoursePostCommentLikeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    commentId?: boolean
+    userId?: boolean
+    createdAt?: boolean
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePostCommentLike"]>
+
+  export type CoursePostCommentLikeSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    commentId?: boolean
+    userId?: boolean
+    createdAt?: boolean
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePostCommentLike"]>
+
+  export type CoursePostCommentLikeSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
+    id?: boolean
+    commentId?: boolean
+    userId?: boolean
+    createdAt?: boolean
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["coursePostCommentLike"]>
+
+  export type CoursePostCommentLikeSelectScalar = {
+    id?: boolean
+    commentId?: boolean
+    userId?: boolean
+    createdAt?: boolean
+  }
+
+  export type CoursePostCommentLikeOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "commentId" | "userId" | "createdAt", ExtArgs["result"]["coursePostCommentLike"]>
+  export type CoursePostCommentLikeInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type CoursePostCommentLikeIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+  export type CoursePostCommentLikeIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    comment?: boolean | CoursePostCommentDefaultArgs<ExtArgs>
+    user?: boolean | UserDefaultArgs<ExtArgs>
+  }
+
+  export type $CoursePostCommentLikePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    name: "CoursePostCommentLike"
+    objects: {
+      comment: Prisma.$CoursePostCommentPayload<ExtArgs>
+      user: Prisma.$UserPayload<ExtArgs>
+    }
+    scalars: runtime.Types.Extensions.GetPayloadResult<{
+      id: string
+      commentId: string
+      userId: string
+      createdAt: Date
+    }, ExtArgs["result"]["coursePostCommentLike"]>
+    composites: {}
+  }
+
+  export type CoursePostCommentLikeGetPayload<S extends boolean | null | undefined | CoursePostCommentLikeDefaultArgs> = runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload, S>
+
+  export type CoursePostCommentLikeCountArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> =
+    Omit<CoursePostCommentLikeFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CoursePostCommentLikeCountAggregateInputType | true
+    }
+
+  export interface CoursePostCommentLikeDelegate<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CoursePostCommentLike'], meta: { name: 'CoursePostCommentLike' } }
+    /**
+     * Find zero or one CoursePostCommentLike that matches the filter.
+     * @param {CoursePostCommentLikeFindUniqueArgs} args - Arguments to find a CoursePostCommentLike
+     * @example
+     * // Get one CoursePostCommentLike
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CoursePostCommentLikeFindUniqueArgs>(args: SelectSubset<T, CoursePostCommentLikeFindUniqueArgs<ExtArgs>>): Prisma__CoursePostCommentLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one CoursePostCommentLike that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CoursePostCommentLikeFindUniqueOrThrowArgs} args - Arguments to find a CoursePostCommentLike
+     * @example
+     * // Get one CoursePostCommentLike
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CoursePostCommentLikeFindUniqueOrThrowArgs>(args: SelectSubset<T, CoursePostCommentLikeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CoursePostCommentLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CoursePostCommentLike that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentLikeFindFirstArgs} args - Arguments to find a CoursePostCommentLike
+     * @example
+     * // Get one CoursePostCommentLike
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CoursePostCommentLikeFindFirstArgs>(args?: SelectSubset<T, CoursePostCommentLikeFindFirstArgs<ExtArgs>>): Prisma__CoursePostCommentLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first CoursePostCommentLike that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentLikeFindFirstOrThrowArgs} args - Arguments to find a CoursePostCommentLike
+     * @example
+     * // Get one CoursePostCommentLike
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CoursePostCommentLikeFindFirstOrThrowArgs>(args?: SelectSubset<T, CoursePostCommentLikeFindFirstOrThrowArgs<ExtArgs>>): Prisma__CoursePostCommentLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more CoursePostCommentLikes that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentLikeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CoursePostCommentLikes
+     * const coursePostCommentLikes = await prisma.coursePostCommentLike.findMany()
+     * 
+     * // Get first 10 CoursePostCommentLikes
+     * const coursePostCommentLikes = await prisma.coursePostCommentLike.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const coursePostCommentLikeWithIdOnly = await prisma.coursePostCommentLike.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CoursePostCommentLikeFindManyArgs>(args?: SelectSubset<T, CoursePostCommentLikeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a CoursePostCommentLike.
+     * @param {CoursePostCommentLikeCreateArgs} args - Arguments to create a CoursePostCommentLike.
+     * @example
+     * // Create one CoursePostCommentLike
+     * const CoursePostCommentLike = await prisma.coursePostCommentLike.create({
+     *   data: {
+     *     // ... data to create a CoursePostCommentLike
+     *   }
+     * })
+     * 
+     */
+    create<T extends CoursePostCommentLikeCreateArgs>(args: SelectSubset<T, CoursePostCommentLikeCreateArgs<ExtArgs>>): Prisma__CoursePostCommentLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many CoursePostCommentLikes.
+     * @param {CoursePostCommentLikeCreateManyArgs} args - Arguments to create many CoursePostCommentLikes.
+     * @example
+     * // Create many CoursePostCommentLikes
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CoursePostCommentLikeCreateManyArgs>(args?: SelectSubset<T, CoursePostCommentLikeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CoursePostCommentLikes and returns the data saved in the database.
+     * @param {CoursePostCommentLikeCreateManyAndReturnArgs} args - Arguments to create many CoursePostCommentLikes.
+     * @example
+     * // Create many CoursePostCommentLikes
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CoursePostCommentLikes and only return the `id`
+     * const coursePostCommentLikeWithIdOnly = await prisma.coursePostCommentLike.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CoursePostCommentLikeCreateManyAndReturnArgs>(args?: SelectSubset<T, CoursePostCommentLikeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a CoursePostCommentLike.
+     * @param {CoursePostCommentLikeDeleteArgs} args - Arguments to delete one CoursePostCommentLike.
+     * @example
+     * // Delete one CoursePostCommentLike
+     * const CoursePostCommentLike = await prisma.coursePostCommentLike.delete({
+     *   where: {
+     *     // ... filter to delete one CoursePostCommentLike
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CoursePostCommentLikeDeleteArgs>(args: SelectSubset<T, CoursePostCommentLikeDeleteArgs<ExtArgs>>): Prisma__CoursePostCommentLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one CoursePostCommentLike.
+     * @param {CoursePostCommentLikeUpdateArgs} args - Arguments to update one CoursePostCommentLike.
+     * @example
+     * // Update one CoursePostCommentLike
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CoursePostCommentLikeUpdateArgs>(args: SelectSubset<T, CoursePostCommentLikeUpdateArgs<ExtArgs>>): Prisma__CoursePostCommentLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more CoursePostCommentLikes.
+     * @param {CoursePostCommentLikeDeleteManyArgs} args - Arguments to filter CoursePostCommentLikes to delete.
+     * @example
+     * // Delete a few CoursePostCommentLikes
+     * const { count } = await prisma.coursePostCommentLike.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CoursePostCommentLikeDeleteManyArgs>(args?: SelectSubset<T, CoursePostCommentLikeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CoursePostCommentLikes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentLikeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CoursePostCommentLikes
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CoursePostCommentLikeUpdateManyArgs>(args: SelectSubset<T, CoursePostCommentLikeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CoursePostCommentLikes and returns the data updated in the database.
+     * @param {CoursePostCommentLikeUpdateManyAndReturnArgs} args - Arguments to update many CoursePostCommentLikes.
+     * @example
+     * // Update many CoursePostCommentLikes
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more CoursePostCommentLikes and only return the `id`
+     * const coursePostCommentLikeWithIdOnly = await prisma.coursePostCommentLike.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CoursePostCommentLikeUpdateManyAndReturnArgs>(args: SelectSubset<T, CoursePostCommentLikeUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one CoursePostCommentLike.
+     * @param {CoursePostCommentLikeUpsertArgs} args - Arguments to update or create a CoursePostCommentLike.
+     * @example
+     * // Update or create a CoursePostCommentLike
+     * const coursePostCommentLike = await prisma.coursePostCommentLike.upsert({
+     *   create: {
+     *     // ... data to create a CoursePostCommentLike
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CoursePostCommentLike we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CoursePostCommentLikeUpsertArgs>(args: SelectSubset<T, CoursePostCommentLikeUpsertArgs<ExtArgs>>): Prisma__CoursePostCommentLikeClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentLikePayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of CoursePostCommentLikes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentLikeCountArgs} args - Arguments to filter CoursePostCommentLikes to count.
+     * @example
+     * // Count the number of CoursePostCommentLikes
+     * const count = await prisma.coursePostCommentLike.count({
+     *   where: {
+     *     // ... the filter for the CoursePostCommentLikes we want to count
+     *   }
+     * })
+    **/
+    count<T extends CoursePostCommentLikeCountArgs>(
+      args?: Subset<T, CoursePostCommentLikeCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends runtime.Types.Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CoursePostCommentLikeCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CoursePostCommentLike.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentLikeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CoursePostCommentLikeAggregateArgs>(args: Subset<T, CoursePostCommentLikeAggregateArgs>): Prisma.PrismaPromise<GetCoursePostCommentLikeAggregateType<T>>
+
+    /**
+     * Group by CoursePostCommentLike.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CoursePostCommentLikeGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CoursePostCommentLikeGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CoursePostCommentLikeGroupByArgs['orderBy'] }
+        : { orderBy?: CoursePostCommentLikeGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CoursePostCommentLikeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCoursePostCommentLikeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CoursePostCommentLike model
+   */
+  readonly fields: CoursePostCommentLikeFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CoursePostCommentLike.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CoursePostCommentLikeClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    comment<T extends CoursePostCommentDefaultArgs<ExtArgs> = {}>(args?: Subset<T, CoursePostCommentDefaultArgs<ExtArgs>>): Prisma__CoursePostCommentClient<runtime.Types.Result.GetResult<Prisma.$CoursePostCommentPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): runtime.Types.Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): runtime.Types.Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): runtime.Types.Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CoursePostCommentLike model
+   */
+  export interface CoursePostCommentLikeFieldRefs {
+    readonly id: FieldRef<"CoursePostCommentLike", 'String'>
+    readonly commentId: FieldRef<"CoursePostCommentLike", 'String'>
+    readonly userId: FieldRef<"CoursePostCommentLike", 'String'>
+    readonly createdAt: FieldRef<"CoursePostCommentLike", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CoursePostCommentLike findUnique
+   */
+  export type CoursePostCommentLikeFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostCommentLike to fetch.
+     */
+    where: CoursePostCommentLikeWhereUniqueInput
+  }
+
+  /**
+   * CoursePostCommentLike findUniqueOrThrow
+   */
+  export type CoursePostCommentLikeFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostCommentLike to fetch.
+     */
+    where: CoursePostCommentLikeWhereUniqueInput
+  }
+
+  /**
+   * CoursePostCommentLike findFirst
+   */
+  export type CoursePostCommentLikeFindFirstArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostCommentLike to fetch.
+     */
+    where?: CoursePostCommentLikeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostCommentLikes to fetch.
+     */
+    orderBy?: CoursePostCommentLikeOrderByWithRelationInput | CoursePostCommentLikeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CoursePostCommentLikes.
+     */
+    cursor?: CoursePostCommentLikeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostCommentLikes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostCommentLikes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CoursePostCommentLikes.
+     */
+    distinct?: CoursePostCommentLikeScalarFieldEnum | CoursePostCommentLikeScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostCommentLike findFirstOrThrow
+   */
+  export type CoursePostCommentLikeFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostCommentLike to fetch.
+     */
+    where?: CoursePostCommentLikeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostCommentLikes to fetch.
+     */
+    orderBy?: CoursePostCommentLikeOrderByWithRelationInput | CoursePostCommentLikeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CoursePostCommentLikes.
+     */
+    cursor?: CoursePostCommentLikeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostCommentLikes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostCommentLikes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CoursePostCommentLikes.
+     */
+    distinct?: CoursePostCommentLikeScalarFieldEnum | CoursePostCommentLikeScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostCommentLike findMany
+   */
+  export type CoursePostCommentLikeFindManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    /**
+     * Filter, which CoursePostCommentLikes to fetch.
+     */
+    where?: CoursePostCommentLikeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CoursePostCommentLikes to fetch.
+     */
+    orderBy?: CoursePostCommentLikeOrderByWithRelationInput | CoursePostCommentLikeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CoursePostCommentLikes.
+     */
+    cursor?: CoursePostCommentLikeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CoursePostCommentLikes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CoursePostCommentLikes.
+     */
+    skip?: number
+    distinct?: CoursePostCommentLikeScalarFieldEnum | CoursePostCommentLikeScalarFieldEnum[]
+  }
+
+  /**
+   * CoursePostCommentLike create
+   */
+  export type CoursePostCommentLikeCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CoursePostCommentLike.
+     */
+    data: XOR<CoursePostCommentLikeCreateInput, CoursePostCommentLikeUncheckedCreateInput>
+  }
+
+  /**
+   * CoursePostCommentLike createMany
+   */
+  export type CoursePostCommentLikeCreateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CoursePostCommentLikes.
+     */
+    data: CoursePostCommentLikeCreateManyInput | CoursePostCommentLikeCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CoursePostCommentLike createManyAndReturn
+   */
+  export type CoursePostCommentLikeCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * The data used to create many CoursePostCommentLikes.
+     */
+    data: CoursePostCommentLikeCreateManyInput | CoursePostCommentLikeCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CoursePostCommentLike update
+   */
+  export type CoursePostCommentLikeUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CoursePostCommentLike.
+     */
+    data: XOR<CoursePostCommentLikeUpdateInput, CoursePostCommentLikeUncheckedUpdateInput>
+    /**
+     * Choose, which CoursePostCommentLike to update.
+     */
+    where: CoursePostCommentLikeWhereUniqueInput
+  }
+
+  /**
+   * CoursePostCommentLike updateMany
+   */
+  export type CoursePostCommentLikeUpdateManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CoursePostCommentLikes.
+     */
+    data: XOR<CoursePostCommentLikeUpdateManyMutationInput, CoursePostCommentLikeUncheckedUpdateManyInput>
+    /**
+     * Filter which CoursePostCommentLikes to update
+     */
+    where?: CoursePostCommentLikeWhereInput
+    /**
+     * Limit how many CoursePostCommentLikes to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * CoursePostCommentLike updateManyAndReturn
+   */
+  export type CoursePostCommentLikeUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * The data used to update CoursePostCommentLikes.
+     */
+    data: XOR<CoursePostCommentLikeUpdateManyMutationInput, CoursePostCommentLikeUncheckedUpdateManyInput>
+    /**
+     * Filter which CoursePostCommentLikes to update
+     */
+    where?: CoursePostCommentLikeWhereInput
+    /**
+     * Limit how many CoursePostCommentLikes to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CoursePostCommentLike upsert
+   */
+  export type CoursePostCommentLikeUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CoursePostCommentLike to update in case it exists.
+     */
+    where: CoursePostCommentLikeWhereUniqueInput
+    /**
+     * In case the CoursePostCommentLike found by the `where` argument doesn't exist, create a new CoursePostCommentLike with this data.
+     */
+    create: XOR<CoursePostCommentLikeCreateInput, CoursePostCommentLikeUncheckedCreateInput>
+    /**
+     * In case the CoursePostCommentLike was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CoursePostCommentLikeUpdateInput, CoursePostCommentLikeUncheckedUpdateInput>
+  }
+
+  /**
+   * CoursePostCommentLike delete
+   */
+  export type CoursePostCommentLikeDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+    /**
+     * Filter which CoursePostCommentLike to delete.
+     */
+    where: CoursePostCommentLikeWhereUniqueInput
+  }
+
+  /**
+   * CoursePostCommentLike deleteMany
+   */
+  export type CoursePostCommentLikeDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Filter which CoursePostCommentLikes to delete
+     */
+    where?: CoursePostCommentLikeWhereInput
+    /**
+     * Limit how many CoursePostCommentLikes to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * CoursePostCommentLike without action
+   */
+  export type CoursePostCommentLikeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CoursePostCommentLike
+     */
+    select?: CoursePostCommentLikeSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the CoursePostCommentLike
+     */
+    omit?: CoursePostCommentLikeOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CoursePostCommentLikeInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Model AgentChatSession
    */
 
@@ -25348,6 +32335,89 @@ export namespace Prisma {
   export type NotificationScalarFieldEnum = (typeof NotificationScalarFieldEnum)[keyof typeof NotificationScalarFieldEnum]
 
 
+  export const CoursePostScalarFieldEnum = {
+    id: 'id',
+    courseId: 'courseId',
+    classId: 'classId',
+    authorId: 'authorId',
+    authorRole: 'authorRole',
+    type: 'type',
+    title: 'title',
+    content: 'content',
+    attachments: 'attachments',
+    assignmentAreaId: 'assignmentAreaId',
+    rubricId: 'rubricId',
+    likeCount: 'likeCount',
+    commentCount: 'commentCount',
+    isPinned: 'isPinned',
+    isArchived: 'isArchived',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  } as const
+
+  export type CoursePostScalarFieldEnum = (typeof CoursePostScalarFieldEnum)[keyof typeof CoursePostScalarFieldEnum]
+
+
+  export const CoursePostCommentScalarFieldEnum = {
+    id: 'id',
+    postId: 'postId',
+    authorId: 'authorId',
+    authorRole: 'authorRole',
+    content: 'content',
+    attachments: 'attachments',
+    submissionId: 'submissionId',
+    parentCommentId: 'parentCommentId',
+    isEdited: 'isEdited',
+    editedAt: 'editedAt',
+    isDeleted: 'isDeleted',
+    deletedAt: 'deletedAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  } as const
+
+  export type CoursePostCommentScalarFieldEnum = (typeof CoursePostCommentScalarFieldEnum)[keyof typeof CoursePostCommentScalarFieldEnum]
+
+
+  export const CommentGradingResultScalarFieldEnum = {
+    id: 'id',
+    commentId: 'commentId',
+    graderId: 'graderId',
+    rubricId: 'rubricId',
+    result: 'result',
+    normalizedScore: 'normalizedScore',
+    thoughtSummary: 'thoughtSummary',
+    thinkingProcess: 'thinkingProcess',
+    gradingRationale: 'gradingRationale',
+    gradingModel: 'gradingModel',
+    gradingTokens: 'gradingTokens',
+    gradingDuration: 'gradingDuration',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  } as const
+
+  export type CommentGradingResultScalarFieldEnum = (typeof CommentGradingResultScalarFieldEnum)[keyof typeof CommentGradingResultScalarFieldEnum]
+
+
+  export const CoursePostLikeScalarFieldEnum = {
+    id: 'id',
+    postId: 'postId',
+    userId: 'userId',
+    createdAt: 'createdAt'
+  } as const
+
+  export type CoursePostLikeScalarFieldEnum = (typeof CoursePostLikeScalarFieldEnum)[keyof typeof CoursePostLikeScalarFieldEnum]
+
+
+  export const CoursePostCommentLikeScalarFieldEnum = {
+    id: 'id',
+    commentId: 'commentId',
+    userId: 'userId',
+    createdAt: 'createdAt'
+  } as const
+
+  export type CoursePostCommentLikeScalarFieldEnum = (typeof CoursePostCommentLikeScalarFieldEnum)[keyof typeof CoursePostCommentLikeScalarFieldEnum]
+
+
   export const AgentChatSessionScalarFieldEnum = {
     id: 'id',
     userId: 'userId',
@@ -25624,6 +32694,20 @@ export namespace Prisma {
    */
   export type ListEnumNotificationTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'NotificationType[]'>
     
+
+
+  /**
+   * Reference to a field of type 'PostType'
+   */
+  export type EnumPostTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PostType'>
+    
+
+
+  /**
+   * Reference to a field of type 'PostType[]'
+   */
+  export type ListEnumPostTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PostType[]'>
+    
   /**
    * Deep Input Types
    */
@@ -25654,6 +32738,11 @@ export namespace Prisma {
     chats?: ChatListRelationFilter
     agentChatSessions?: AgentChatSessionListRelationFilter
     notifications?: NotificationListRelationFilter
+    authoredPosts?: CoursePostListRelationFilter
+    authoredComments?: CoursePostCommentListRelationFilter
+    postLikes?: CoursePostLikeListRelationFilter
+    commentLikes?: CoursePostCommentLikeListRelationFilter
+    commentGradings?: CommentGradingResultListRelationFilter
   }
 
   export type UserOrderByWithRelationInput = {
@@ -25678,6 +32767,11 @@ export namespace Prisma {
     chats?: ChatOrderByRelationAggregateInput
     agentChatSessions?: AgentChatSessionOrderByRelationAggregateInput
     notifications?: NotificationOrderByRelationAggregateInput
+    authoredPosts?: CoursePostOrderByRelationAggregateInput
+    authoredComments?: CoursePostCommentOrderByRelationAggregateInput
+    postLikes?: CoursePostLikeOrderByRelationAggregateInput
+    commentLikes?: CoursePostCommentLikeOrderByRelationAggregateInput
+    commentGradings?: CommentGradingResultOrderByRelationAggregateInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -25705,6 +32799,11 @@ export namespace Prisma {
     chats?: ChatListRelationFilter
     agentChatSessions?: AgentChatSessionListRelationFilter
     notifications?: NotificationListRelationFilter
+    authoredPosts?: CoursePostListRelationFilter
+    authoredComments?: CoursePostCommentListRelationFilter
+    postLikes?: CoursePostLikeListRelationFilter
+    commentLikes?: CoursePostCommentLikeListRelationFilter
+    commentGradings?: CommentGradingResultListRelationFilter
   }, "id" | "email">
 
   export type UserOrderByWithAggregationInput = {
@@ -25754,6 +32853,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaListRelationFilter
     invitationCodes?: InvitationCodeListRelationFilter
     notifications?: NotificationListRelationFilter
+    posts?: CoursePostListRelationFilter
   }
 
   export type CourseOrderByWithRelationInput = {
@@ -25770,6 +32870,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaOrderByRelationAggregateInput
     invitationCodes?: InvitationCodeOrderByRelationAggregateInput
     notifications?: NotificationOrderByRelationAggregateInput
+    posts?: CoursePostOrderByRelationAggregateInput
   }
 
   export type CourseWhereUniqueInput = Prisma.AtLeast<{
@@ -25789,6 +32890,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaListRelationFilter
     invitationCodes?: InvitationCodeListRelationFilter
     notifications?: NotificationListRelationFilter
+    posts?: CoursePostListRelationFilter
   }, "id">
 
   export type CourseOrderByWithAggregationInput = {
@@ -25837,6 +32939,7 @@ export namespace Prisma {
     enrollments?: EnrollmentListRelationFilter
     assignmentAreas?: AssignmentAreaListRelationFilter
     invitationCodes?: InvitationCodeListRelationFilter
+    posts?: CoursePostListRelationFilter
   }
 
   export type ClassOrderByWithRelationInput = {
@@ -25854,6 +32957,7 @@ export namespace Prisma {
     enrollments?: EnrollmentOrderByRelationAggregateInput
     assignmentAreas?: AssignmentAreaOrderByRelationAggregateInput
     invitationCodes?: InvitationCodeOrderByRelationAggregateInput
+    posts?: CoursePostOrderByRelationAggregateInput
   }
 
   export type ClassWhereUniqueInput = Prisma.AtLeast<{
@@ -25874,6 +32978,7 @@ export namespace Prisma {
     enrollments?: EnrollmentListRelationFilter
     assignmentAreas?: AssignmentAreaListRelationFilter
     invitationCodes?: InvitationCodeListRelationFilter
+    posts?: CoursePostListRelationFilter
   }, "id">
 
   export type ClassOrderByWithAggregationInput = {
@@ -25929,6 +33034,7 @@ export namespace Prisma {
     submissions?: SubmissionListRelationFilter
     notifications?: NotificationListRelationFilter
     gradingResults?: GradingResultListRelationFilter
+    posts?: CoursePostListRelationFilter
   }
 
   export type AssignmentAreaOrderByWithRelationInput = {
@@ -25949,6 +33055,7 @@ export namespace Prisma {
     submissions?: SubmissionOrderByRelationAggregateInput
     notifications?: NotificationOrderByRelationAggregateInput
     gradingResults?: GradingResultOrderByRelationAggregateInput
+    posts?: CoursePostOrderByRelationAggregateInput
   }
 
   export type AssignmentAreaWhereUniqueInput = Prisma.AtLeast<{
@@ -25972,6 +33079,7 @@ export namespace Prisma {
     submissions?: SubmissionListRelationFilter
     notifications?: NotificationListRelationFilter
     gradingResults?: GradingResultListRelationFilter
+    posts?: CoursePostListRelationFilter
   }, "id">
 
   export type AssignmentAreaOrderByWithAggregationInput = {
@@ -26039,6 +33147,7 @@ export namespace Prisma {
     assignmentArea?: XOR<AssignmentAreaScalarRelationFilter, AssignmentAreaWhereInput>
     previousVersion?: XOR<SubmissionNullableScalarRelationFilter, SubmissionWhereInput> | null
     nextVersions?: SubmissionListRelationFilter
+    comment?: XOR<CoursePostCommentNullableScalarRelationFilter, CoursePostCommentWhereInput> | null
   }
 
   export type SubmissionOrderByWithRelationInput = {
@@ -26069,6 +33178,7 @@ export namespace Prisma {
     assignmentArea?: AssignmentAreaOrderByWithRelationInput
     previousVersion?: SubmissionOrderByWithRelationInput
     nextVersions?: SubmissionOrderByRelationAggregateInput
+    comment?: CoursePostCommentOrderByWithRelationInput
   }
 
   export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
@@ -26102,6 +33212,7 @@ export namespace Prisma {
     assignmentArea?: XOR<AssignmentAreaScalarRelationFilter, AssignmentAreaWhereInput>
     previousVersion?: XOR<SubmissionNullableScalarRelationFilter, SubmissionWhereInput> | null
     nextVersions?: SubmissionListRelationFilter
+    comment?: XOR<CoursePostCommentNullableScalarRelationFilter, CoursePostCommentWhereInput> | null
   }, "id">
 
   export type SubmissionOrderByWithAggregationInput = {
@@ -26183,6 +33294,8 @@ export namespace Prisma {
     teacher?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     gradingResults?: GradingResultListRelationFilter
     assignmentAreas?: AssignmentAreaListRelationFilter
+    commentGradings?: CommentGradingResultListRelationFilter
+    communityPosts?: CoursePostListRelationFilter
   }
 
   export type RubricOrderByWithRelationInput = {
@@ -26201,6 +33314,8 @@ export namespace Prisma {
     teacher?: UserOrderByWithRelationInput
     gradingResults?: GradingResultOrderByRelationAggregateInput
     assignmentAreas?: AssignmentAreaOrderByRelationAggregateInput
+    commentGradings?: CommentGradingResultOrderByRelationAggregateInput
+    communityPosts?: CoursePostOrderByRelationAggregateInput
   }
 
   export type RubricWhereUniqueInput = Prisma.AtLeast<{
@@ -26222,6 +33337,8 @@ export namespace Prisma {
     teacher?: XOR<UserNullableScalarRelationFilter, UserWhereInput> | null
     gradingResults?: GradingResultListRelationFilter
     assignmentAreas?: AssignmentAreaListRelationFilter
+    commentGradings?: CommentGradingResultListRelationFilter
+    communityPosts?: CoursePostListRelationFilter
   }, "id">
 
   export type RubricOrderByWithAggregationInput = {
@@ -27067,6 +34184,475 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"Notification"> | Date | string
   }
 
+  export type CoursePostWhereInput = {
+    AND?: CoursePostWhereInput | CoursePostWhereInput[]
+    OR?: CoursePostWhereInput[]
+    NOT?: CoursePostWhereInput | CoursePostWhereInput[]
+    id?: StringFilter<"CoursePost"> | string
+    courseId?: StringFilter<"CoursePost"> | string
+    classId?: StringNullableFilter<"CoursePost"> | string | null
+    authorId?: StringFilter<"CoursePost"> | string
+    authorRole?: EnumUserRoleFilter<"CoursePost"> | $Enums.UserRole
+    type?: EnumPostTypeFilter<"CoursePost"> | $Enums.PostType
+    title?: StringFilter<"CoursePost"> | string
+    content?: StringFilter<"CoursePost"> | string
+    attachments?: JsonNullableFilter<"CoursePost">
+    assignmentAreaId?: StringNullableFilter<"CoursePost"> | string | null
+    rubricId?: StringNullableFilter<"CoursePost"> | string | null
+    likeCount?: IntFilter<"CoursePost"> | number
+    commentCount?: IntFilter<"CoursePost"> | number
+    isPinned?: BoolFilter<"CoursePost"> | boolean
+    isArchived?: BoolFilter<"CoursePost"> | boolean
+    createdAt?: DateTimeFilter<"CoursePost"> | Date | string
+    updatedAt?: DateTimeFilter<"CoursePost"> | Date | string
+    course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    class?: XOR<ClassNullableScalarRelationFilter, ClassWhereInput> | null
+    author?: XOR<UserScalarRelationFilter, UserWhereInput>
+    assignmentArea?: XOR<AssignmentAreaNullableScalarRelationFilter, AssignmentAreaWhereInput> | null
+    rubric?: XOR<RubricNullableScalarRelationFilter, RubricWhereInput> | null
+    comments?: CoursePostCommentListRelationFilter
+    likes?: CoursePostLikeListRelationFilter
+  }
+
+  export type CoursePostOrderByWithRelationInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    classId?: SortOrderInput | SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    type?: SortOrder
+    title?: SortOrder
+    content?: SortOrder
+    attachments?: SortOrderInput | SortOrder
+    assignmentAreaId?: SortOrderInput | SortOrder
+    rubricId?: SortOrderInput | SortOrder
+    likeCount?: SortOrder
+    commentCount?: SortOrder
+    isPinned?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    course?: CourseOrderByWithRelationInput
+    class?: ClassOrderByWithRelationInput
+    author?: UserOrderByWithRelationInput
+    assignmentArea?: AssignmentAreaOrderByWithRelationInput
+    rubric?: RubricOrderByWithRelationInput
+    comments?: CoursePostCommentOrderByRelationAggregateInput
+    likes?: CoursePostLikeOrderByRelationAggregateInput
+  }
+
+  export type CoursePostWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: CoursePostWhereInput | CoursePostWhereInput[]
+    OR?: CoursePostWhereInput[]
+    NOT?: CoursePostWhereInput | CoursePostWhereInput[]
+    courseId?: StringFilter<"CoursePost"> | string
+    classId?: StringNullableFilter<"CoursePost"> | string | null
+    authorId?: StringFilter<"CoursePost"> | string
+    authorRole?: EnumUserRoleFilter<"CoursePost"> | $Enums.UserRole
+    type?: EnumPostTypeFilter<"CoursePost"> | $Enums.PostType
+    title?: StringFilter<"CoursePost"> | string
+    content?: StringFilter<"CoursePost"> | string
+    attachments?: JsonNullableFilter<"CoursePost">
+    assignmentAreaId?: StringNullableFilter<"CoursePost"> | string | null
+    rubricId?: StringNullableFilter<"CoursePost"> | string | null
+    likeCount?: IntFilter<"CoursePost"> | number
+    commentCount?: IntFilter<"CoursePost"> | number
+    isPinned?: BoolFilter<"CoursePost"> | boolean
+    isArchived?: BoolFilter<"CoursePost"> | boolean
+    createdAt?: DateTimeFilter<"CoursePost"> | Date | string
+    updatedAt?: DateTimeFilter<"CoursePost"> | Date | string
+    course?: XOR<CourseScalarRelationFilter, CourseWhereInput>
+    class?: XOR<ClassNullableScalarRelationFilter, ClassWhereInput> | null
+    author?: XOR<UserScalarRelationFilter, UserWhereInput>
+    assignmentArea?: XOR<AssignmentAreaNullableScalarRelationFilter, AssignmentAreaWhereInput> | null
+    rubric?: XOR<RubricNullableScalarRelationFilter, RubricWhereInput> | null
+    comments?: CoursePostCommentListRelationFilter
+    likes?: CoursePostLikeListRelationFilter
+  }, "id">
+
+  export type CoursePostOrderByWithAggregationInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    classId?: SortOrderInput | SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    type?: SortOrder
+    title?: SortOrder
+    content?: SortOrder
+    attachments?: SortOrderInput | SortOrder
+    assignmentAreaId?: SortOrderInput | SortOrder
+    rubricId?: SortOrderInput | SortOrder
+    likeCount?: SortOrder
+    commentCount?: SortOrder
+    isPinned?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: CoursePostCountOrderByAggregateInput
+    _avg?: CoursePostAvgOrderByAggregateInput
+    _max?: CoursePostMaxOrderByAggregateInput
+    _min?: CoursePostMinOrderByAggregateInput
+    _sum?: CoursePostSumOrderByAggregateInput
+  }
+
+  export type CoursePostScalarWhereWithAggregatesInput = {
+    AND?: CoursePostScalarWhereWithAggregatesInput | CoursePostScalarWhereWithAggregatesInput[]
+    OR?: CoursePostScalarWhereWithAggregatesInput[]
+    NOT?: CoursePostScalarWhereWithAggregatesInput | CoursePostScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"CoursePost"> | string
+    courseId?: StringWithAggregatesFilter<"CoursePost"> | string
+    classId?: StringNullableWithAggregatesFilter<"CoursePost"> | string | null
+    authorId?: StringWithAggregatesFilter<"CoursePost"> | string
+    authorRole?: EnumUserRoleWithAggregatesFilter<"CoursePost"> | $Enums.UserRole
+    type?: EnumPostTypeWithAggregatesFilter<"CoursePost"> | $Enums.PostType
+    title?: StringWithAggregatesFilter<"CoursePost"> | string
+    content?: StringWithAggregatesFilter<"CoursePost"> | string
+    attachments?: JsonNullableWithAggregatesFilter<"CoursePost">
+    assignmentAreaId?: StringNullableWithAggregatesFilter<"CoursePost"> | string | null
+    rubricId?: StringNullableWithAggregatesFilter<"CoursePost"> | string | null
+    likeCount?: IntWithAggregatesFilter<"CoursePost"> | number
+    commentCount?: IntWithAggregatesFilter<"CoursePost"> | number
+    isPinned?: BoolWithAggregatesFilter<"CoursePost"> | boolean
+    isArchived?: BoolWithAggregatesFilter<"CoursePost"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"CoursePost"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"CoursePost"> | Date | string
+  }
+
+  export type CoursePostCommentWhereInput = {
+    AND?: CoursePostCommentWhereInput | CoursePostCommentWhereInput[]
+    OR?: CoursePostCommentWhereInput[]
+    NOT?: CoursePostCommentWhereInput | CoursePostCommentWhereInput[]
+    id?: StringFilter<"CoursePostComment"> | string
+    postId?: StringFilter<"CoursePostComment"> | string
+    authorId?: StringFilter<"CoursePostComment"> | string
+    authorRole?: EnumUserRoleFilter<"CoursePostComment"> | $Enums.UserRole
+    content?: StringFilter<"CoursePostComment"> | string
+    attachments?: JsonNullableFilter<"CoursePostComment">
+    submissionId?: StringNullableFilter<"CoursePostComment"> | string | null
+    parentCommentId?: StringNullableFilter<"CoursePostComment"> | string | null
+    isEdited?: BoolFilter<"CoursePostComment"> | boolean
+    editedAt?: DateTimeNullableFilter<"CoursePostComment"> | Date | string | null
+    isDeleted?: BoolFilter<"CoursePostComment"> | boolean
+    deletedAt?: DateTimeNullableFilter<"CoursePostComment"> | Date | string | null
+    createdAt?: DateTimeFilter<"CoursePostComment"> | Date | string
+    updatedAt?: DateTimeFilter<"CoursePostComment"> | Date | string
+    post?: XOR<CoursePostScalarRelationFilter, CoursePostWhereInput>
+    author?: XOR<UserScalarRelationFilter, UserWhereInput>
+    submission?: XOR<SubmissionNullableScalarRelationFilter, SubmissionWhereInput> | null
+    parentComment?: XOR<CoursePostCommentNullableScalarRelationFilter, CoursePostCommentWhereInput> | null
+    replies?: CoursePostCommentListRelationFilter
+    likes?: CoursePostCommentLikeListRelationFilter
+    gradingResult?: XOR<CommentGradingResultNullableScalarRelationFilter, CommentGradingResultWhereInput> | null
+  }
+
+  export type CoursePostCommentOrderByWithRelationInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    content?: SortOrder
+    attachments?: SortOrderInput | SortOrder
+    submissionId?: SortOrderInput | SortOrder
+    parentCommentId?: SortOrderInput | SortOrder
+    isEdited?: SortOrder
+    editedAt?: SortOrderInput | SortOrder
+    isDeleted?: SortOrder
+    deletedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    post?: CoursePostOrderByWithRelationInput
+    author?: UserOrderByWithRelationInput
+    submission?: SubmissionOrderByWithRelationInput
+    parentComment?: CoursePostCommentOrderByWithRelationInput
+    replies?: CoursePostCommentOrderByRelationAggregateInput
+    likes?: CoursePostCommentLikeOrderByRelationAggregateInput
+    gradingResult?: CommentGradingResultOrderByWithRelationInput
+  }
+
+  export type CoursePostCommentWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    submissionId?: string
+    AND?: CoursePostCommentWhereInput | CoursePostCommentWhereInput[]
+    OR?: CoursePostCommentWhereInput[]
+    NOT?: CoursePostCommentWhereInput | CoursePostCommentWhereInput[]
+    postId?: StringFilter<"CoursePostComment"> | string
+    authorId?: StringFilter<"CoursePostComment"> | string
+    authorRole?: EnumUserRoleFilter<"CoursePostComment"> | $Enums.UserRole
+    content?: StringFilter<"CoursePostComment"> | string
+    attachments?: JsonNullableFilter<"CoursePostComment">
+    parentCommentId?: StringNullableFilter<"CoursePostComment"> | string | null
+    isEdited?: BoolFilter<"CoursePostComment"> | boolean
+    editedAt?: DateTimeNullableFilter<"CoursePostComment"> | Date | string | null
+    isDeleted?: BoolFilter<"CoursePostComment"> | boolean
+    deletedAt?: DateTimeNullableFilter<"CoursePostComment"> | Date | string | null
+    createdAt?: DateTimeFilter<"CoursePostComment"> | Date | string
+    updatedAt?: DateTimeFilter<"CoursePostComment"> | Date | string
+    post?: XOR<CoursePostScalarRelationFilter, CoursePostWhereInput>
+    author?: XOR<UserScalarRelationFilter, UserWhereInput>
+    submission?: XOR<SubmissionNullableScalarRelationFilter, SubmissionWhereInput> | null
+    parentComment?: XOR<CoursePostCommentNullableScalarRelationFilter, CoursePostCommentWhereInput> | null
+    replies?: CoursePostCommentListRelationFilter
+    likes?: CoursePostCommentLikeListRelationFilter
+    gradingResult?: XOR<CommentGradingResultNullableScalarRelationFilter, CommentGradingResultWhereInput> | null
+  }, "id" | "submissionId">
+
+  export type CoursePostCommentOrderByWithAggregationInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    content?: SortOrder
+    attachments?: SortOrderInput | SortOrder
+    submissionId?: SortOrderInput | SortOrder
+    parentCommentId?: SortOrderInput | SortOrder
+    isEdited?: SortOrder
+    editedAt?: SortOrderInput | SortOrder
+    isDeleted?: SortOrder
+    deletedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: CoursePostCommentCountOrderByAggregateInput
+    _max?: CoursePostCommentMaxOrderByAggregateInput
+    _min?: CoursePostCommentMinOrderByAggregateInput
+  }
+
+  export type CoursePostCommentScalarWhereWithAggregatesInput = {
+    AND?: CoursePostCommentScalarWhereWithAggregatesInput | CoursePostCommentScalarWhereWithAggregatesInput[]
+    OR?: CoursePostCommentScalarWhereWithAggregatesInput[]
+    NOT?: CoursePostCommentScalarWhereWithAggregatesInput | CoursePostCommentScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"CoursePostComment"> | string
+    postId?: StringWithAggregatesFilter<"CoursePostComment"> | string
+    authorId?: StringWithAggregatesFilter<"CoursePostComment"> | string
+    authorRole?: EnumUserRoleWithAggregatesFilter<"CoursePostComment"> | $Enums.UserRole
+    content?: StringWithAggregatesFilter<"CoursePostComment"> | string
+    attachments?: JsonNullableWithAggregatesFilter<"CoursePostComment">
+    submissionId?: StringNullableWithAggregatesFilter<"CoursePostComment"> | string | null
+    parentCommentId?: StringNullableWithAggregatesFilter<"CoursePostComment"> | string | null
+    isEdited?: BoolWithAggregatesFilter<"CoursePostComment"> | boolean
+    editedAt?: DateTimeNullableWithAggregatesFilter<"CoursePostComment"> | Date | string | null
+    isDeleted?: BoolWithAggregatesFilter<"CoursePostComment"> | boolean
+    deletedAt?: DateTimeNullableWithAggregatesFilter<"CoursePostComment"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"CoursePostComment"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"CoursePostComment"> | Date | string
+  }
+
+  export type CommentGradingResultWhereInput = {
+    AND?: CommentGradingResultWhereInput | CommentGradingResultWhereInput[]
+    OR?: CommentGradingResultWhereInput[]
+    NOT?: CommentGradingResultWhereInput | CommentGradingResultWhereInput[]
+    id?: StringFilter<"CommentGradingResult"> | string
+    commentId?: StringFilter<"CommentGradingResult"> | string
+    graderId?: StringFilter<"CommentGradingResult"> | string
+    rubricId?: StringFilter<"CommentGradingResult"> | string
+    result?: JsonFilter<"CommentGradingResult">
+    normalizedScore?: FloatNullableFilter<"CommentGradingResult"> | number | null
+    thoughtSummary?: StringNullableFilter<"CommentGradingResult"> | string | null
+    thinkingProcess?: StringNullableFilter<"CommentGradingResult"> | string | null
+    gradingRationale?: StringNullableFilter<"CommentGradingResult"> | string | null
+    gradingModel?: StringNullableFilter<"CommentGradingResult"> | string | null
+    gradingTokens?: IntNullableFilter<"CommentGradingResult"> | number | null
+    gradingDuration?: IntNullableFilter<"CommentGradingResult"> | number | null
+    createdAt?: DateTimeFilter<"CommentGradingResult"> | Date | string
+    updatedAt?: DateTimeFilter<"CommentGradingResult"> | Date | string
+    comment?: XOR<CoursePostCommentScalarRelationFilter, CoursePostCommentWhereInput>
+    grader?: XOR<UserScalarRelationFilter, UserWhereInput>
+    rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
+  }
+
+  export type CommentGradingResultOrderByWithRelationInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    graderId?: SortOrder
+    rubricId?: SortOrder
+    result?: SortOrder
+    normalizedScore?: SortOrderInput | SortOrder
+    thoughtSummary?: SortOrderInput | SortOrder
+    thinkingProcess?: SortOrderInput | SortOrder
+    gradingRationale?: SortOrderInput | SortOrder
+    gradingModel?: SortOrderInput | SortOrder
+    gradingTokens?: SortOrderInput | SortOrder
+    gradingDuration?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    comment?: CoursePostCommentOrderByWithRelationInput
+    grader?: UserOrderByWithRelationInput
+    rubric?: RubricOrderByWithRelationInput
+  }
+
+  export type CommentGradingResultWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    commentId?: string
+    AND?: CommentGradingResultWhereInput | CommentGradingResultWhereInput[]
+    OR?: CommentGradingResultWhereInput[]
+    NOT?: CommentGradingResultWhereInput | CommentGradingResultWhereInput[]
+    graderId?: StringFilter<"CommentGradingResult"> | string
+    rubricId?: StringFilter<"CommentGradingResult"> | string
+    result?: JsonFilter<"CommentGradingResult">
+    normalizedScore?: FloatNullableFilter<"CommentGradingResult"> | number | null
+    thoughtSummary?: StringNullableFilter<"CommentGradingResult"> | string | null
+    thinkingProcess?: StringNullableFilter<"CommentGradingResult"> | string | null
+    gradingRationale?: StringNullableFilter<"CommentGradingResult"> | string | null
+    gradingModel?: StringNullableFilter<"CommentGradingResult"> | string | null
+    gradingTokens?: IntNullableFilter<"CommentGradingResult"> | number | null
+    gradingDuration?: IntNullableFilter<"CommentGradingResult"> | number | null
+    createdAt?: DateTimeFilter<"CommentGradingResult"> | Date | string
+    updatedAt?: DateTimeFilter<"CommentGradingResult"> | Date | string
+    comment?: XOR<CoursePostCommentScalarRelationFilter, CoursePostCommentWhereInput>
+    grader?: XOR<UserScalarRelationFilter, UserWhereInput>
+    rubric?: XOR<RubricScalarRelationFilter, RubricWhereInput>
+  }, "id" | "commentId">
+
+  export type CommentGradingResultOrderByWithAggregationInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    graderId?: SortOrder
+    rubricId?: SortOrder
+    result?: SortOrder
+    normalizedScore?: SortOrderInput | SortOrder
+    thoughtSummary?: SortOrderInput | SortOrder
+    thinkingProcess?: SortOrderInput | SortOrder
+    gradingRationale?: SortOrderInput | SortOrder
+    gradingModel?: SortOrderInput | SortOrder
+    gradingTokens?: SortOrderInput | SortOrder
+    gradingDuration?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: CommentGradingResultCountOrderByAggregateInput
+    _avg?: CommentGradingResultAvgOrderByAggregateInput
+    _max?: CommentGradingResultMaxOrderByAggregateInput
+    _min?: CommentGradingResultMinOrderByAggregateInput
+    _sum?: CommentGradingResultSumOrderByAggregateInput
+  }
+
+  export type CommentGradingResultScalarWhereWithAggregatesInput = {
+    AND?: CommentGradingResultScalarWhereWithAggregatesInput | CommentGradingResultScalarWhereWithAggregatesInput[]
+    OR?: CommentGradingResultScalarWhereWithAggregatesInput[]
+    NOT?: CommentGradingResultScalarWhereWithAggregatesInput | CommentGradingResultScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"CommentGradingResult"> | string
+    commentId?: StringWithAggregatesFilter<"CommentGradingResult"> | string
+    graderId?: StringWithAggregatesFilter<"CommentGradingResult"> | string
+    rubricId?: StringWithAggregatesFilter<"CommentGradingResult"> | string
+    result?: JsonWithAggregatesFilter<"CommentGradingResult">
+    normalizedScore?: FloatNullableWithAggregatesFilter<"CommentGradingResult"> | number | null
+    thoughtSummary?: StringNullableWithAggregatesFilter<"CommentGradingResult"> | string | null
+    thinkingProcess?: StringNullableWithAggregatesFilter<"CommentGradingResult"> | string | null
+    gradingRationale?: StringNullableWithAggregatesFilter<"CommentGradingResult"> | string | null
+    gradingModel?: StringNullableWithAggregatesFilter<"CommentGradingResult"> | string | null
+    gradingTokens?: IntNullableWithAggregatesFilter<"CommentGradingResult"> | number | null
+    gradingDuration?: IntNullableWithAggregatesFilter<"CommentGradingResult"> | number | null
+    createdAt?: DateTimeWithAggregatesFilter<"CommentGradingResult"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"CommentGradingResult"> | Date | string
+  }
+
+  export type CoursePostLikeWhereInput = {
+    AND?: CoursePostLikeWhereInput | CoursePostLikeWhereInput[]
+    OR?: CoursePostLikeWhereInput[]
+    NOT?: CoursePostLikeWhereInput | CoursePostLikeWhereInput[]
+    id?: StringFilter<"CoursePostLike"> | string
+    postId?: StringFilter<"CoursePostLike"> | string
+    userId?: StringFilter<"CoursePostLike"> | string
+    createdAt?: DateTimeFilter<"CoursePostLike"> | Date | string
+    post?: XOR<CoursePostScalarRelationFilter, CoursePostWhereInput>
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type CoursePostLikeOrderByWithRelationInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+    post?: CoursePostOrderByWithRelationInput
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type CoursePostLikeWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    postId_userId?: CoursePostLikePostIdUserIdCompoundUniqueInput
+    AND?: CoursePostLikeWhereInput | CoursePostLikeWhereInput[]
+    OR?: CoursePostLikeWhereInput[]
+    NOT?: CoursePostLikeWhereInput | CoursePostLikeWhereInput[]
+    postId?: StringFilter<"CoursePostLike"> | string
+    userId?: StringFilter<"CoursePostLike"> | string
+    createdAt?: DateTimeFilter<"CoursePostLike"> | Date | string
+    post?: XOR<CoursePostScalarRelationFilter, CoursePostWhereInput>
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id" | "postId_userId">
+
+  export type CoursePostLikeOrderByWithAggregationInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+    _count?: CoursePostLikeCountOrderByAggregateInput
+    _max?: CoursePostLikeMaxOrderByAggregateInput
+    _min?: CoursePostLikeMinOrderByAggregateInput
+  }
+
+  export type CoursePostLikeScalarWhereWithAggregatesInput = {
+    AND?: CoursePostLikeScalarWhereWithAggregatesInput | CoursePostLikeScalarWhereWithAggregatesInput[]
+    OR?: CoursePostLikeScalarWhereWithAggregatesInput[]
+    NOT?: CoursePostLikeScalarWhereWithAggregatesInput | CoursePostLikeScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"CoursePostLike"> | string
+    postId?: StringWithAggregatesFilter<"CoursePostLike"> | string
+    userId?: StringWithAggregatesFilter<"CoursePostLike"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"CoursePostLike"> | Date | string
+  }
+
+  export type CoursePostCommentLikeWhereInput = {
+    AND?: CoursePostCommentLikeWhereInput | CoursePostCommentLikeWhereInput[]
+    OR?: CoursePostCommentLikeWhereInput[]
+    NOT?: CoursePostCommentLikeWhereInput | CoursePostCommentLikeWhereInput[]
+    id?: StringFilter<"CoursePostCommentLike"> | string
+    commentId?: StringFilter<"CoursePostCommentLike"> | string
+    userId?: StringFilter<"CoursePostCommentLike"> | string
+    createdAt?: DateTimeFilter<"CoursePostCommentLike"> | Date | string
+    comment?: XOR<CoursePostCommentScalarRelationFilter, CoursePostCommentWhereInput>
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }
+
+  export type CoursePostCommentLikeOrderByWithRelationInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+    comment?: CoursePostCommentOrderByWithRelationInput
+    user?: UserOrderByWithRelationInput
+  }
+
+  export type CoursePostCommentLikeWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    commentId_userId?: CoursePostCommentLikeCommentIdUserIdCompoundUniqueInput
+    AND?: CoursePostCommentLikeWhereInput | CoursePostCommentLikeWhereInput[]
+    OR?: CoursePostCommentLikeWhereInput[]
+    NOT?: CoursePostCommentLikeWhereInput | CoursePostCommentLikeWhereInput[]
+    commentId?: StringFilter<"CoursePostCommentLike"> | string
+    userId?: StringFilter<"CoursePostCommentLike"> | string
+    createdAt?: DateTimeFilter<"CoursePostCommentLike"> | Date | string
+    comment?: XOR<CoursePostCommentScalarRelationFilter, CoursePostCommentWhereInput>
+    user?: XOR<UserScalarRelationFilter, UserWhereInput>
+  }, "id" | "commentId_userId">
+
+  export type CoursePostCommentLikeOrderByWithAggregationInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+    _count?: CoursePostCommentLikeCountOrderByAggregateInput
+    _max?: CoursePostCommentLikeMaxOrderByAggregateInput
+    _min?: CoursePostCommentLikeMinOrderByAggregateInput
+  }
+
+  export type CoursePostCommentLikeScalarWhereWithAggregatesInput = {
+    AND?: CoursePostCommentLikeScalarWhereWithAggregatesInput | CoursePostCommentLikeScalarWhereWithAggregatesInput[]
+    OR?: CoursePostCommentLikeScalarWhereWithAggregatesInput[]
+    NOT?: CoursePostCommentLikeScalarWhereWithAggregatesInput | CoursePostCommentLikeScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"CoursePostCommentLike"> | string
+    commentId?: StringWithAggregatesFilter<"CoursePostCommentLike"> | string
+    userId?: StringWithAggregatesFilter<"CoursePostCommentLike"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"CoursePostCommentLike"> | Date | string
+  }
+
   export type AgentChatSessionWhereInput = {
     AND?: AgentChatSessionWhereInput | AgentChatSessionWhereInput[]
     OR?: AgentChatSessionWhereInput[]
@@ -27351,6 +34937,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateInput = {
@@ -27375,6 +34966,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserUpdateInput = {
@@ -27399,6 +34995,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
@@ -27423,6 +35024,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type UserCreateManyInput = {
@@ -27474,6 +35080,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
     notifications?: NotificationCreateNestedManyWithoutCourseInput
+    posts?: CoursePostCreateNestedManyWithoutCourseInput
   }
 
   export type CourseUncheckedCreateInput = {
@@ -27489,6 +35096,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutCourseInput
   }
 
   export type CourseUpdateInput = {
@@ -27504,6 +35112,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUpdateManyWithoutCourseNestedInput
   }
 
   export type CourseUncheckedUpdateInput = {
@@ -27519,6 +35128,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutCourseNestedInput
   }
 
   export type CourseCreateManyInput = {
@@ -27566,6 +35176,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutClassInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+    posts?: CoursePostCreateNestedManyWithoutClassInput
   }
 
   export type ClassUncheckedCreateInput = {
@@ -27581,6 +35192,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutClassInput
   }
 
   export type ClassUpdateInput = {
@@ -27596,6 +35208,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUpdateManyWithoutClassNestedInput
   }
 
   export type ClassUncheckedUpdateInput = {
@@ -27611,6 +35224,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutClassNestedInput
   }
 
   export type ClassCreateManyInput = {
@@ -27662,6 +35276,7 @@ export namespace Prisma {
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaUncheckedCreateInput = {
@@ -27679,6 +35294,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaUpdateInput = {
@@ -27696,6 +35312,7 @@ export namespace Prisma {
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateInput = {
@@ -27713,6 +35330,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaCreateManyInput = {
@@ -27779,6 +35397,7 @@ export namespace Prisma {
     assignmentArea: AssignmentAreaCreateNestedOneWithoutSubmissionsInput
     previousVersion?: SubmissionCreateNestedOneWithoutNextVersionsInput
     nextVersions?: SubmissionCreateNestedManyWithoutPreviousVersionInput
+    comment?: CoursePostCommentCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionUncheckedCreateInput = {
@@ -27806,6 +35425,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     nextVersions?: SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
+    comment?: CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionUpdateInput = {
@@ -27833,6 +35453,7 @@ export namespace Prisma {
     assignmentArea?: AssignmentAreaUpdateOneRequiredWithoutSubmissionsNestedInput
     previousVersion?: SubmissionUpdateOneWithoutNextVersionsNestedInput
     nextVersions?: SubmissionUpdateManyWithoutPreviousVersionNestedInput
+    comment?: CoursePostCommentUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionUncheckedUpdateInput = {
@@ -27860,6 +35481,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     nextVersions?: SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
+    comment?: CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionCreateManyInput = {
@@ -27951,6 +35573,8 @@ export namespace Prisma {
     teacher?: UserCreateNestedOneWithoutTeacherRubricsInput
     gradingResults?: GradingResultCreateNestedManyWithoutRubricInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUncheckedCreateInput = {
@@ -27967,6 +35591,8 @@ export namespace Prisma {
     updatedAt?: Date | string
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutRubricInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostUncheckedCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUpdateInput = {
@@ -27983,6 +35609,8 @@ export namespace Prisma {
     teacher?: UserUpdateOneWithoutTeacherRubricsNestedInput
     gradingResults?: GradingResultUpdateManyWithoutRubricNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateInput = {
@@ -27999,6 +35627,8 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     gradingResults?: GradingResultUncheckedUpdateManyWithoutRubricNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUncheckedUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricCreateManyInput = {
@@ -28915,6 +36545,486 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type CoursePostCreateInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutPostsInput
+    class?: ClassCreateNestedOneWithoutPostsInput
+    author: UserCreateNestedOneWithoutAuthoredPostsInput
+    assignmentArea?: AssignmentAreaCreateNestedOneWithoutPostsInput
+    rubric?: RubricCreateNestedOneWithoutCommunityPostsInput
+    comments?: CoursePostCommentCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostUncheckedCreateInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comments?: CoursePostCommentUncheckedCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeUncheckedCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutPostsNestedInput
+    class?: ClassUpdateOneWithoutPostsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredPostsNestedInput
+    assignmentArea?: AssignmentAreaUpdateOneWithoutPostsNestedInput
+    rubric?: RubricUpdateOneWithoutCommunityPostsNestedInput
+    comments?: CoursePostCommentUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comments?: CoursePostCommentUncheckedUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUncheckedUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostCreateManyInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CoursePostUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentCreateInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    post: CoursePostCreateNestedOneWithoutCommentsInput
+    author: UserCreateNestedOneWithoutAuthoredCommentsInput
+    submission?: SubmissionCreateNestedOneWithoutCommentInput
+    parentComment?: CoursePostCommentCreateNestedOneWithoutRepliesInput
+    replies?: CoursePostCommentCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentUncheckedCreateInput = {
+    id?: string
+    postId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    replies?: CoursePostCommentUncheckedCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultUncheckedCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    post?: CoursePostUpdateOneRequiredWithoutCommentsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredCommentsNestedInput
+    submission?: SubmissionUpdateOneWithoutCommentNestedInput
+    parentComment?: CoursePostCommentUpdateOneWithoutRepliesNestedInput
+    replies?: CoursePostCommentUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    replies?: CoursePostCommentUncheckedUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUncheckedUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUncheckedUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentCreateManyInput = {
+    id?: string
+    postId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CoursePostCommentUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CommentGradingResultCreateInput = {
+    id?: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comment: CoursePostCommentCreateNestedOneWithoutGradingResultInput
+    grader: UserCreateNestedOneWithoutCommentGradingsInput
+    rubric: RubricCreateNestedOneWithoutCommentGradingsInput
+  }
+
+  export type CommentGradingResultUncheckedCreateInput = {
+    id?: string
+    commentId: string
+    graderId: string
+    rubricId: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CommentGradingResultUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comment?: CoursePostCommentUpdateOneRequiredWithoutGradingResultNestedInput
+    grader?: UserUpdateOneRequiredWithoutCommentGradingsNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutCommentGradingsNestedInput
+  }
+
+  export type CommentGradingResultUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    graderId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CommentGradingResultCreateManyInput = {
+    id?: string
+    commentId: string
+    graderId: string
+    rubricId: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CommentGradingResultUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CommentGradingResultUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    graderId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostLikeCreateInput = {
+    id?: string
+    createdAt?: Date | string
+    post: CoursePostCreateNestedOneWithoutLikesInput
+    user: UserCreateNestedOneWithoutPostLikesInput
+  }
+
+  export type CoursePostLikeUncheckedCreateInput = {
+    id?: string
+    postId: string
+    userId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostLikeUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    post?: CoursePostUpdateOneRequiredWithoutLikesNestedInput
+    user?: UserUpdateOneRequiredWithoutPostLikesNestedInput
+  }
+
+  export type CoursePostLikeUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostLikeCreateManyInput = {
+    id?: string
+    postId: string
+    userId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostLikeUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostLikeUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentLikeCreateInput = {
+    id?: string
+    createdAt?: Date | string
+    comment: CoursePostCommentCreateNestedOneWithoutLikesInput
+    user: UserCreateNestedOneWithoutCommentLikesInput
+  }
+
+  export type CoursePostCommentLikeUncheckedCreateInput = {
+    id?: string
+    commentId: string
+    userId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostCommentLikeUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comment?: CoursePostCommentUpdateOneRequiredWithoutLikesNestedInput
+    user?: UserUpdateOneRequiredWithoutCommentLikesNestedInput
+  }
+
+  export type CoursePostCommentLikeUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentLikeCreateManyInput = {
+    id?: string
+    commentId: string
+    userId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostCommentLikeUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentLikeUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type AgentChatSessionCreateInput = {
     id?: string
     title?: string | null
@@ -29311,6 +37421,36 @@ export namespace Prisma {
     none?: NotificationWhereInput
   }
 
+  export type CoursePostListRelationFilter = {
+    every?: CoursePostWhereInput
+    some?: CoursePostWhereInput
+    none?: CoursePostWhereInput
+  }
+
+  export type CoursePostCommentListRelationFilter = {
+    every?: CoursePostCommentWhereInput
+    some?: CoursePostCommentWhereInput
+    none?: CoursePostCommentWhereInput
+  }
+
+  export type CoursePostLikeListRelationFilter = {
+    every?: CoursePostLikeWhereInput
+    some?: CoursePostLikeWhereInput
+    none?: CoursePostLikeWhereInput
+  }
+
+  export type CoursePostCommentLikeListRelationFilter = {
+    every?: CoursePostCommentLikeWhereInput
+    some?: CoursePostCommentLikeWhereInput
+    none?: CoursePostCommentLikeWhereInput
+  }
+
+  export type CommentGradingResultListRelationFilter = {
+    every?: CommentGradingResultWhereInput
+    some?: CommentGradingResultWhereInput
+    none?: CommentGradingResultWhereInput
+  }
+
   export type RubricOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -29352,6 +37492,26 @@ export namespace Prisma {
   }
 
   export type NotificationOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type CoursePostOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type CoursePostCommentOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type CoursePostLikeOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type CoursePostCommentLikeOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type CommentGradingResultOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -29779,6 +37939,11 @@ export namespace Prisma {
   export type SubmissionNullableScalarRelationFilter = {
     is?: SubmissionWhereInput | null
     isNot?: SubmissionWhereInput | null
+  }
+
+  export type CoursePostCommentNullableScalarRelationFilter = {
+    is?: CoursePostCommentWhereInput | null
+    isNot?: CoursePostCommentWhereInput | null
   }
 
   export type SubmissionCountOrderByAggregateInput = {
@@ -30562,6 +38727,273 @@ export namespace Prisma {
     _max?: NestedEnumNotificationTypeFilter<$PrismaModel>
   }
 
+  export type EnumPostTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.PostType | EnumPostTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PostType[] | ListEnumPostTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PostType[] | ListEnumPostTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPostTypeFilter<$PrismaModel> | $Enums.PostType
+  }
+
+  export type RubricNullableScalarRelationFilter = {
+    is?: RubricWhereInput | null
+    isNot?: RubricWhereInput | null
+  }
+
+  export type CoursePostCountOrderByAggregateInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    classId?: SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    type?: SortOrder
+    title?: SortOrder
+    content?: SortOrder
+    attachments?: SortOrder
+    assignmentAreaId?: SortOrder
+    rubricId?: SortOrder
+    likeCount?: SortOrder
+    commentCount?: SortOrder
+    isPinned?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CoursePostAvgOrderByAggregateInput = {
+    likeCount?: SortOrder
+    commentCount?: SortOrder
+  }
+
+  export type CoursePostMaxOrderByAggregateInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    classId?: SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    type?: SortOrder
+    title?: SortOrder
+    content?: SortOrder
+    assignmentAreaId?: SortOrder
+    rubricId?: SortOrder
+    likeCount?: SortOrder
+    commentCount?: SortOrder
+    isPinned?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CoursePostMinOrderByAggregateInput = {
+    id?: SortOrder
+    courseId?: SortOrder
+    classId?: SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    type?: SortOrder
+    title?: SortOrder
+    content?: SortOrder
+    assignmentAreaId?: SortOrder
+    rubricId?: SortOrder
+    likeCount?: SortOrder
+    commentCount?: SortOrder
+    isPinned?: SortOrder
+    isArchived?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CoursePostSumOrderByAggregateInput = {
+    likeCount?: SortOrder
+    commentCount?: SortOrder
+  }
+
+  export type EnumPostTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PostType | EnumPostTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PostType[] | ListEnumPostTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PostType[] | ListEnumPostTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPostTypeWithAggregatesFilter<$PrismaModel> | $Enums.PostType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPostTypeFilter<$PrismaModel>
+    _max?: NestedEnumPostTypeFilter<$PrismaModel>
+  }
+
+  export type CoursePostScalarRelationFilter = {
+    is?: CoursePostWhereInput
+    isNot?: CoursePostWhereInput
+  }
+
+  export type CommentGradingResultNullableScalarRelationFilter = {
+    is?: CommentGradingResultWhereInput | null
+    isNot?: CommentGradingResultWhereInput | null
+  }
+
+  export type CoursePostCommentCountOrderByAggregateInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    content?: SortOrder
+    attachments?: SortOrder
+    submissionId?: SortOrder
+    parentCommentId?: SortOrder
+    isEdited?: SortOrder
+    editedAt?: SortOrder
+    isDeleted?: SortOrder
+    deletedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CoursePostCommentMaxOrderByAggregateInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    content?: SortOrder
+    submissionId?: SortOrder
+    parentCommentId?: SortOrder
+    isEdited?: SortOrder
+    editedAt?: SortOrder
+    isDeleted?: SortOrder
+    deletedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CoursePostCommentMinOrderByAggregateInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    authorId?: SortOrder
+    authorRole?: SortOrder
+    content?: SortOrder
+    submissionId?: SortOrder
+    parentCommentId?: SortOrder
+    isEdited?: SortOrder
+    editedAt?: SortOrder
+    isDeleted?: SortOrder
+    deletedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CoursePostCommentScalarRelationFilter = {
+    is?: CoursePostCommentWhereInput
+    isNot?: CoursePostCommentWhereInput
+  }
+
+  export type CommentGradingResultCountOrderByAggregateInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    graderId?: SortOrder
+    rubricId?: SortOrder
+    result?: SortOrder
+    normalizedScore?: SortOrder
+    thoughtSummary?: SortOrder
+    thinkingProcess?: SortOrder
+    gradingRationale?: SortOrder
+    gradingModel?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CommentGradingResultAvgOrderByAggregateInput = {
+    normalizedScore?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
+  }
+
+  export type CommentGradingResultMaxOrderByAggregateInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    graderId?: SortOrder
+    rubricId?: SortOrder
+    normalizedScore?: SortOrder
+    thoughtSummary?: SortOrder
+    thinkingProcess?: SortOrder
+    gradingRationale?: SortOrder
+    gradingModel?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CommentGradingResultMinOrderByAggregateInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    graderId?: SortOrder
+    rubricId?: SortOrder
+    normalizedScore?: SortOrder
+    thoughtSummary?: SortOrder
+    thinkingProcess?: SortOrder
+    gradingRationale?: SortOrder
+    gradingModel?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CommentGradingResultSumOrderByAggregateInput = {
+    normalizedScore?: SortOrder
+    gradingTokens?: SortOrder
+    gradingDuration?: SortOrder
+  }
+
+  export type CoursePostLikePostIdUserIdCompoundUniqueInput = {
+    postId: string
+    userId: string
+  }
+
+  export type CoursePostLikeCountOrderByAggregateInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CoursePostLikeMaxOrderByAggregateInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CoursePostLikeMinOrderByAggregateInput = {
+    id?: SortOrder
+    postId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CoursePostCommentLikeCommentIdUserIdCompoundUniqueInput = {
+    commentId: string
+    userId: string
+  }
+
+  export type CoursePostCommentLikeCountOrderByAggregateInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CoursePostCommentLikeMaxOrderByAggregateInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type CoursePostCommentLikeMinOrderByAggregateInput = {
+    id?: SortOrder
+    commentId?: SortOrder
+    userId?: SortOrder
+    createdAt?: SortOrder
+  }
+
   export type AgentChatMessageListRelationFilter = {
     every?: AgentChatMessageWhereInput
     some?: AgentChatMessageWhereInput
@@ -30824,6 +39256,41 @@ export namespace Prisma {
     connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
   }
 
+  export type CoursePostCreateNestedManyWithoutAuthorInput = {
+    create?: XOR<CoursePostCreateWithoutAuthorInput, CoursePostUncheckedCreateWithoutAuthorInput> | CoursePostCreateWithoutAuthorInput[] | CoursePostUncheckedCreateWithoutAuthorInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutAuthorInput | CoursePostCreateOrConnectWithoutAuthorInput[]
+    createMany?: CoursePostCreateManyAuthorInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+  }
+
+  export type CoursePostCommentCreateNestedManyWithoutAuthorInput = {
+    create?: XOR<CoursePostCommentCreateWithoutAuthorInput, CoursePostCommentUncheckedCreateWithoutAuthorInput> | CoursePostCommentCreateWithoutAuthorInput[] | CoursePostCommentUncheckedCreateWithoutAuthorInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutAuthorInput | CoursePostCommentCreateOrConnectWithoutAuthorInput[]
+    createMany?: CoursePostCommentCreateManyAuthorInputEnvelope
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+  }
+
+  export type CoursePostLikeCreateNestedManyWithoutUserInput = {
+    create?: XOR<CoursePostLikeCreateWithoutUserInput, CoursePostLikeUncheckedCreateWithoutUserInput> | CoursePostLikeCreateWithoutUserInput[] | CoursePostLikeUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CoursePostLikeCreateOrConnectWithoutUserInput | CoursePostLikeCreateOrConnectWithoutUserInput[]
+    createMany?: CoursePostLikeCreateManyUserInputEnvelope
+    connect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+  }
+
+  export type CoursePostCommentLikeCreateNestedManyWithoutUserInput = {
+    create?: XOR<CoursePostCommentLikeCreateWithoutUserInput, CoursePostCommentLikeUncheckedCreateWithoutUserInput> | CoursePostCommentLikeCreateWithoutUserInput[] | CoursePostCommentLikeUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CoursePostCommentLikeCreateOrConnectWithoutUserInput | CoursePostCommentLikeCreateOrConnectWithoutUserInput[]
+    createMany?: CoursePostCommentLikeCreateManyUserInputEnvelope
+    connect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+  }
+
+  export type CommentGradingResultCreateNestedManyWithoutGraderInput = {
+    create?: XOR<CommentGradingResultCreateWithoutGraderInput, CommentGradingResultUncheckedCreateWithoutGraderInput> | CommentGradingResultCreateWithoutGraderInput[] | CommentGradingResultUncheckedCreateWithoutGraderInput[]
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutGraderInput | CommentGradingResultCreateOrConnectWithoutGraderInput[]
+    createMany?: CommentGradingResultCreateManyGraderInputEnvelope
+    connect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+  }
+
   export type RubricUncheckedCreateNestedManyWithoutUserInput = {
     create?: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput> | RubricCreateWithoutUserInput[] | RubricUncheckedCreateWithoutUserInput[]
     connectOrCreate?: RubricCreateOrConnectWithoutUserInput | RubricCreateOrConnectWithoutUserInput[]
@@ -30906,6 +39373,41 @@ export namespace Prisma {
     connectOrCreate?: NotificationCreateOrConnectWithoutUserInput | NotificationCreateOrConnectWithoutUserInput[]
     createMany?: NotificationCreateManyUserInputEnvelope
     connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+  }
+
+  export type CoursePostUncheckedCreateNestedManyWithoutAuthorInput = {
+    create?: XOR<CoursePostCreateWithoutAuthorInput, CoursePostUncheckedCreateWithoutAuthorInput> | CoursePostCreateWithoutAuthorInput[] | CoursePostUncheckedCreateWithoutAuthorInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutAuthorInput | CoursePostCreateOrConnectWithoutAuthorInput[]
+    createMany?: CoursePostCreateManyAuthorInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+  }
+
+  export type CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput = {
+    create?: XOR<CoursePostCommentCreateWithoutAuthorInput, CoursePostCommentUncheckedCreateWithoutAuthorInput> | CoursePostCommentCreateWithoutAuthorInput[] | CoursePostCommentUncheckedCreateWithoutAuthorInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutAuthorInput | CoursePostCommentCreateOrConnectWithoutAuthorInput[]
+    createMany?: CoursePostCommentCreateManyAuthorInputEnvelope
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+  }
+
+  export type CoursePostLikeUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<CoursePostLikeCreateWithoutUserInput, CoursePostLikeUncheckedCreateWithoutUserInput> | CoursePostLikeCreateWithoutUserInput[] | CoursePostLikeUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CoursePostLikeCreateOrConnectWithoutUserInput | CoursePostLikeCreateOrConnectWithoutUserInput[]
+    createMany?: CoursePostLikeCreateManyUserInputEnvelope
+    connect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+  }
+
+  export type CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput = {
+    create?: XOR<CoursePostCommentLikeCreateWithoutUserInput, CoursePostCommentLikeUncheckedCreateWithoutUserInput> | CoursePostCommentLikeCreateWithoutUserInput[] | CoursePostCommentLikeUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CoursePostCommentLikeCreateOrConnectWithoutUserInput | CoursePostCommentLikeCreateOrConnectWithoutUserInput[]
+    createMany?: CoursePostCommentLikeCreateManyUserInputEnvelope
+    connect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+  }
+
+  export type CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput = {
+    create?: XOR<CommentGradingResultCreateWithoutGraderInput, CommentGradingResultUncheckedCreateWithoutGraderInput> | CommentGradingResultCreateWithoutGraderInput[] | CommentGradingResultUncheckedCreateWithoutGraderInput[]
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutGraderInput | CommentGradingResultCreateOrConnectWithoutGraderInput[]
+    createMany?: CommentGradingResultCreateManyGraderInputEnvelope
+    connect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -31092,6 +39594,76 @@ export namespace Prisma {
     deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
+  export type CoursePostUpdateManyWithoutAuthorNestedInput = {
+    create?: XOR<CoursePostCreateWithoutAuthorInput, CoursePostUncheckedCreateWithoutAuthorInput> | CoursePostCreateWithoutAuthorInput[] | CoursePostUncheckedCreateWithoutAuthorInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutAuthorInput | CoursePostCreateOrConnectWithoutAuthorInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutAuthorInput | CoursePostUpsertWithWhereUniqueWithoutAuthorInput[]
+    createMany?: CoursePostCreateManyAuthorInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutAuthorInput | CoursePostUpdateWithWhereUniqueWithoutAuthorInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutAuthorInput | CoursePostUpdateManyWithWhereWithoutAuthorInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+  }
+
+  export type CoursePostCommentUpdateManyWithoutAuthorNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutAuthorInput, CoursePostCommentUncheckedCreateWithoutAuthorInput> | CoursePostCommentCreateWithoutAuthorInput[] | CoursePostCommentUncheckedCreateWithoutAuthorInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutAuthorInput | CoursePostCommentCreateOrConnectWithoutAuthorInput[]
+    upsert?: CoursePostCommentUpsertWithWhereUniqueWithoutAuthorInput | CoursePostCommentUpsertWithWhereUniqueWithoutAuthorInput[]
+    createMany?: CoursePostCommentCreateManyAuthorInputEnvelope
+    set?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    disconnect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    delete?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    update?: CoursePostCommentUpdateWithWhereUniqueWithoutAuthorInput | CoursePostCommentUpdateWithWhereUniqueWithoutAuthorInput[]
+    updateMany?: CoursePostCommentUpdateManyWithWhereWithoutAuthorInput | CoursePostCommentUpdateManyWithWhereWithoutAuthorInput[]
+    deleteMany?: CoursePostCommentScalarWhereInput | CoursePostCommentScalarWhereInput[]
+  }
+
+  export type CoursePostLikeUpdateManyWithoutUserNestedInput = {
+    create?: XOR<CoursePostLikeCreateWithoutUserInput, CoursePostLikeUncheckedCreateWithoutUserInput> | CoursePostLikeCreateWithoutUserInput[] | CoursePostLikeUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CoursePostLikeCreateOrConnectWithoutUserInput | CoursePostLikeCreateOrConnectWithoutUserInput[]
+    upsert?: CoursePostLikeUpsertWithWhereUniqueWithoutUserInput | CoursePostLikeUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: CoursePostLikeCreateManyUserInputEnvelope
+    set?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    disconnect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    delete?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    connect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    update?: CoursePostLikeUpdateWithWhereUniqueWithoutUserInput | CoursePostLikeUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: CoursePostLikeUpdateManyWithWhereWithoutUserInput | CoursePostLikeUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: CoursePostLikeScalarWhereInput | CoursePostLikeScalarWhereInput[]
+  }
+
+  export type CoursePostCommentLikeUpdateManyWithoutUserNestedInput = {
+    create?: XOR<CoursePostCommentLikeCreateWithoutUserInput, CoursePostCommentLikeUncheckedCreateWithoutUserInput> | CoursePostCommentLikeCreateWithoutUserInput[] | CoursePostCommentLikeUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CoursePostCommentLikeCreateOrConnectWithoutUserInput | CoursePostCommentLikeCreateOrConnectWithoutUserInput[]
+    upsert?: CoursePostCommentLikeUpsertWithWhereUniqueWithoutUserInput | CoursePostCommentLikeUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: CoursePostCommentLikeCreateManyUserInputEnvelope
+    set?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    disconnect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    delete?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    connect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    update?: CoursePostCommentLikeUpdateWithWhereUniqueWithoutUserInput | CoursePostCommentLikeUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: CoursePostCommentLikeUpdateManyWithWhereWithoutUserInput | CoursePostCommentLikeUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: CoursePostCommentLikeScalarWhereInput | CoursePostCommentLikeScalarWhereInput[]
+  }
+
+  export type CommentGradingResultUpdateManyWithoutGraderNestedInput = {
+    create?: XOR<CommentGradingResultCreateWithoutGraderInput, CommentGradingResultUncheckedCreateWithoutGraderInput> | CommentGradingResultCreateWithoutGraderInput[] | CommentGradingResultUncheckedCreateWithoutGraderInput[]
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutGraderInput | CommentGradingResultCreateOrConnectWithoutGraderInput[]
+    upsert?: CommentGradingResultUpsertWithWhereUniqueWithoutGraderInput | CommentGradingResultUpsertWithWhereUniqueWithoutGraderInput[]
+    createMany?: CommentGradingResultCreateManyGraderInputEnvelope
+    set?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    disconnect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    delete?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    connect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    update?: CommentGradingResultUpdateWithWhereUniqueWithoutGraderInput | CommentGradingResultUpdateWithWhereUniqueWithoutGraderInput[]
+    updateMany?: CommentGradingResultUpdateManyWithWhereWithoutGraderInput | CommentGradingResultUpdateManyWithWhereWithoutGraderInput[]
+    deleteMany?: CommentGradingResultScalarWhereInput | CommentGradingResultScalarWhereInput[]
+  }
+
   export type RubricUncheckedUpdateManyWithoutUserNestedInput = {
     create?: XOR<RubricCreateWithoutUserInput, RubricUncheckedCreateWithoutUserInput> | RubricCreateWithoutUserInput[] | RubricUncheckedCreateWithoutUserInput[]
     connectOrCreate?: RubricCreateOrConnectWithoutUserInput | RubricCreateOrConnectWithoutUserInput[]
@@ -31260,6 +39832,76 @@ export namespace Prisma {
     deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
+  export type CoursePostUncheckedUpdateManyWithoutAuthorNestedInput = {
+    create?: XOR<CoursePostCreateWithoutAuthorInput, CoursePostUncheckedCreateWithoutAuthorInput> | CoursePostCreateWithoutAuthorInput[] | CoursePostUncheckedCreateWithoutAuthorInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutAuthorInput | CoursePostCreateOrConnectWithoutAuthorInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutAuthorInput | CoursePostUpsertWithWhereUniqueWithoutAuthorInput[]
+    createMany?: CoursePostCreateManyAuthorInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutAuthorInput | CoursePostUpdateWithWhereUniqueWithoutAuthorInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutAuthorInput | CoursePostUpdateManyWithWhereWithoutAuthorInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+  }
+
+  export type CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutAuthorInput, CoursePostCommentUncheckedCreateWithoutAuthorInput> | CoursePostCommentCreateWithoutAuthorInput[] | CoursePostCommentUncheckedCreateWithoutAuthorInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutAuthorInput | CoursePostCommentCreateOrConnectWithoutAuthorInput[]
+    upsert?: CoursePostCommentUpsertWithWhereUniqueWithoutAuthorInput | CoursePostCommentUpsertWithWhereUniqueWithoutAuthorInput[]
+    createMany?: CoursePostCommentCreateManyAuthorInputEnvelope
+    set?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    disconnect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    delete?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    update?: CoursePostCommentUpdateWithWhereUniqueWithoutAuthorInput | CoursePostCommentUpdateWithWhereUniqueWithoutAuthorInput[]
+    updateMany?: CoursePostCommentUpdateManyWithWhereWithoutAuthorInput | CoursePostCommentUpdateManyWithWhereWithoutAuthorInput[]
+    deleteMany?: CoursePostCommentScalarWhereInput | CoursePostCommentScalarWhereInput[]
+  }
+
+  export type CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<CoursePostLikeCreateWithoutUserInput, CoursePostLikeUncheckedCreateWithoutUserInput> | CoursePostLikeCreateWithoutUserInput[] | CoursePostLikeUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CoursePostLikeCreateOrConnectWithoutUserInput | CoursePostLikeCreateOrConnectWithoutUserInput[]
+    upsert?: CoursePostLikeUpsertWithWhereUniqueWithoutUserInput | CoursePostLikeUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: CoursePostLikeCreateManyUserInputEnvelope
+    set?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    disconnect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    delete?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    connect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    update?: CoursePostLikeUpdateWithWhereUniqueWithoutUserInput | CoursePostLikeUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: CoursePostLikeUpdateManyWithWhereWithoutUserInput | CoursePostLikeUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: CoursePostLikeScalarWhereInput | CoursePostLikeScalarWhereInput[]
+  }
+
+  export type CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput = {
+    create?: XOR<CoursePostCommentLikeCreateWithoutUserInput, CoursePostCommentLikeUncheckedCreateWithoutUserInput> | CoursePostCommentLikeCreateWithoutUserInput[] | CoursePostCommentLikeUncheckedCreateWithoutUserInput[]
+    connectOrCreate?: CoursePostCommentLikeCreateOrConnectWithoutUserInput | CoursePostCommentLikeCreateOrConnectWithoutUserInput[]
+    upsert?: CoursePostCommentLikeUpsertWithWhereUniqueWithoutUserInput | CoursePostCommentLikeUpsertWithWhereUniqueWithoutUserInput[]
+    createMany?: CoursePostCommentLikeCreateManyUserInputEnvelope
+    set?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    disconnect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    delete?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    connect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    update?: CoursePostCommentLikeUpdateWithWhereUniqueWithoutUserInput | CoursePostCommentLikeUpdateWithWhereUniqueWithoutUserInput[]
+    updateMany?: CoursePostCommentLikeUpdateManyWithWhereWithoutUserInput | CoursePostCommentLikeUpdateManyWithWhereWithoutUserInput[]
+    deleteMany?: CoursePostCommentLikeScalarWhereInput | CoursePostCommentLikeScalarWhereInput[]
+  }
+
+  export type CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput = {
+    create?: XOR<CommentGradingResultCreateWithoutGraderInput, CommentGradingResultUncheckedCreateWithoutGraderInput> | CommentGradingResultCreateWithoutGraderInput[] | CommentGradingResultUncheckedCreateWithoutGraderInput[]
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutGraderInput | CommentGradingResultCreateOrConnectWithoutGraderInput[]
+    upsert?: CommentGradingResultUpsertWithWhereUniqueWithoutGraderInput | CommentGradingResultUpsertWithWhereUniqueWithoutGraderInput[]
+    createMany?: CommentGradingResultCreateManyGraderInputEnvelope
+    set?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    disconnect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    delete?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    connect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    update?: CommentGradingResultUpdateWithWhereUniqueWithoutGraderInput | CommentGradingResultUpdateWithWhereUniqueWithoutGraderInput[]
+    updateMany?: CommentGradingResultUpdateManyWithWhereWithoutGraderInput | CommentGradingResultUpdateManyWithWhereWithoutGraderInput[]
+    deleteMany?: CommentGradingResultScalarWhereInput | CommentGradingResultScalarWhereInput[]
+  }
+
   export type UserCreateNestedOneWithoutCoursesInput = {
     create?: XOR<UserCreateWithoutCoursesInput, UserUncheckedCreateWithoutCoursesInput>
     connectOrCreate?: UserCreateOrConnectWithoutCoursesInput
@@ -31294,6 +39936,13 @@ export namespace Prisma {
     connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
   }
 
+  export type CoursePostCreateNestedManyWithoutCourseInput = {
+    create?: XOR<CoursePostCreateWithoutCourseInput, CoursePostUncheckedCreateWithoutCourseInput> | CoursePostCreateWithoutCourseInput[] | CoursePostUncheckedCreateWithoutCourseInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutCourseInput | CoursePostCreateOrConnectWithoutCourseInput[]
+    createMany?: CoursePostCreateManyCourseInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+  }
+
   export type ClassUncheckedCreateNestedManyWithoutCourseInput = {
     create?: XOR<ClassCreateWithoutCourseInput, ClassUncheckedCreateWithoutCourseInput> | ClassCreateWithoutCourseInput[] | ClassUncheckedCreateWithoutCourseInput[]
     connectOrCreate?: ClassCreateOrConnectWithoutCourseInput | ClassCreateOrConnectWithoutCourseInput[]
@@ -31320,6 +39969,13 @@ export namespace Prisma {
     connectOrCreate?: NotificationCreateOrConnectWithoutCourseInput | NotificationCreateOrConnectWithoutCourseInput[]
     createMany?: NotificationCreateManyCourseInputEnvelope
     connect?: NotificationWhereUniqueInput | NotificationWhereUniqueInput[]
+  }
+
+  export type CoursePostUncheckedCreateNestedManyWithoutCourseInput = {
+    create?: XOR<CoursePostCreateWithoutCourseInput, CoursePostUncheckedCreateWithoutCourseInput> | CoursePostCreateWithoutCourseInput[] | CoursePostUncheckedCreateWithoutCourseInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutCourseInput | CoursePostCreateOrConnectWithoutCourseInput[]
+    createMany?: CoursePostCreateManyCourseInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
   }
 
   export type NullableStringFieldUpdateOperationsInput = {
@@ -31390,6 +40046,20 @@ export namespace Prisma {
     deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
+  export type CoursePostUpdateManyWithoutCourseNestedInput = {
+    create?: XOR<CoursePostCreateWithoutCourseInput, CoursePostUncheckedCreateWithoutCourseInput> | CoursePostCreateWithoutCourseInput[] | CoursePostUncheckedCreateWithoutCourseInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutCourseInput | CoursePostCreateOrConnectWithoutCourseInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutCourseInput | CoursePostUpsertWithWhereUniqueWithoutCourseInput[]
+    createMany?: CoursePostCreateManyCourseInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutCourseInput | CoursePostUpdateWithWhereUniqueWithoutCourseInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutCourseInput | CoursePostUpdateManyWithWhereWithoutCourseInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+  }
+
   export type ClassUncheckedUpdateManyWithoutCourseNestedInput = {
     create?: XOR<ClassCreateWithoutCourseInput, ClassUncheckedCreateWithoutCourseInput> | ClassCreateWithoutCourseInput[] | ClassUncheckedCreateWithoutCourseInput[]
     connectOrCreate?: ClassCreateOrConnectWithoutCourseInput | ClassCreateOrConnectWithoutCourseInput[]
@@ -31446,6 +40116,20 @@ export namespace Prisma {
     deleteMany?: NotificationScalarWhereInput | NotificationScalarWhereInput[]
   }
 
+  export type CoursePostUncheckedUpdateManyWithoutCourseNestedInput = {
+    create?: XOR<CoursePostCreateWithoutCourseInput, CoursePostUncheckedCreateWithoutCourseInput> | CoursePostCreateWithoutCourseInput[] | CoursePostUncheckedCreateWithoutCourseInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutCourseInput | CoursePostCreateOrConnectWithoutCourseInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutCourseInput | CoursePostUpsertWithWhereUniqueWithoutCourseInput[]
+    createMany?: CoursePostCreateManyCourseInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutCourseInput | CoursePostUpdateWithWhereUniqueWithoutCourseInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutCourseInput | CoursePostUpdateManyWithWhereWithoutCourseInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+  }
+
   export type CourseCreateNestedOneWithoutClassesInput = {
     create?: XOR<CourseCreateWithoutClassesInput, CourseUncheckedCreateWithoutClassesInput>
     connectOrCreate?: CourseCreateOrConnectWithoutClassesInput
@@ -31479,6 +40163,13 @@ export namespace Prisma {
     connect?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
   }
 
+  export type CoursePostCreateNestedManyWithoutClassInput = {
+    create?: XOR<CoursePostCreateWithoutClassInput, CoursePostUncheckedCreateWithoutClassInput> | CoursePostCreateWithoutClassInput[] | CoursePostUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutClassInput | CoursePostCreateOrConnectWithoutClassInput[]
+    createMany?: CoursePostCreateManyClassInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+  }
+
   export type EnrollmentUncheckedCreateNestedManyWithoutClassInput = {
     create?: XOR<EnrollmentCreateWithoutClassInput, EnrollmentUncheckedCreateWithoutClassInput> | EnrollmentCreateWithoutClassInput[] | EnrollmentUncheckedCreateWithoutClassInput[]
     connectOrCreate?: EnrollmentCreateOrConnectWithoutClassInput | EnrollmentCreateOrConnectWithoutClassInput[]
@@ -31498,6 +40189,13 @@ export namespace Prisma {
     connectOrCreate?: InvitationCodeCreateOrConnectWithoutClassInput | InvitationCodeCreateOrConnectWithoutClassInput[]
     createMany?: InvitationCodeCreateManyClassInputEnvelope
     connect?: InvitationCodeWhereUniqueInput | InvitationCodeWhereUniqueInput[]
+  }
+
+  export type CoursePostUncheckedCreateNestedManyWithoutClassInput = {
+    create?: XOR<CoursePostCreateWithoutClassInput, CoursePostUncheckedCreateWithoutClassInput> | CoursePostCreateWithoutClassInput[] | CoursePostUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutClassInput | CoursePostCreateOrConnectWithoutClassInput[]
+    createMany?: CoursePostCreateManyClassInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
   }
 
   export type NullableIntFieldUpdateOperationsInput = {
@@ -31568,6 +40266,20 @@ export namespace Prisma {
     deleteMany?: InvitationCodeScalarWhereInput | InvitationCodeScalarWhereInput[]
   }
 
+  export type CoursePostUpdateManyWithoutClassNestedInput = {
+    create?: XOR<CoursePostCreateWithoutClassInput, CoursePostUncheckedCreateWithoutClassInput> | CoursePostCreateWithoutClassInput[] | CoursePostUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutClassInput | CoursePostCreateOrConnectWithoutClassInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutClassInput | CoursePostUpsertWithWhereUniqueWithoutClassInput[]
+    createMany?: CoursePostCreateManyClassInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutClassInput | CoursePostUpdateWithWhereUniqueWithoutClassInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutClassInput | CoursePostUpdateManyWithWhereWithoutClassInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+  }
+
   export type EnrollmentUncheckedUpdateManyWithoutClassNestedInput = {
     create?: XOR<EnrollmentCreateWithoutClassInput, EnrollmentUncheckedCreateWithoutClassInput> | EnrollmentCreateWithoutClassInput[] | EnrollmentUncheckedCreateWithoutClassInput[]
     connectOrCreate?: EnrollmentCreateOrConnectWithoutClassInput | EnrollmentCreateOrConnectWithoutClassInput[]
@@ -31610,6 +40322,20 @@ export namespace Prisma {
     deleteMany?: InvitationCodeScalarWhereInput | InvitationCodeScalarWhereInput[]
   }
 
+  export type CoursePostUncheckedUpdateManyWithoutClassNestedInput = {
+    create?: XOR<CoursePostCreateWithoutClassInput, CoursePostUncheckedCreateWithoutClassInput> | CoursePostCreateWithoutClassInput[] | CoursePostUncheckedCreateWithoutClassInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutClassInput | CoursePostCreateOrConnectWithoutClassInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutClassInput | CoursePostUpsertWithWhereUniqueWithoutClassInput[]
+    createMany?: CoursePostCreateManyClassInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutClassInput | CoursePostUpdateWithWhereUniqueWithoutClassInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutClassInput | CoursePostUpdateManyWithWhereWithoutClassInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+  }
+
   export type CourseCreateNestedOneWithoutAssignmentAreasInput = {
     create?: XOR<CourseCreateWithoutAssignmentAreasInput, CourseUncheckedCreateWithoutAssignmentAreasInput>
     connectOrCreate?: CourseCreateOrConnectWithoutAssignmentAreasInput
@@ -31649,6 +40375,13 @@ export namespace Prisma {
     connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
   }
 
+  export type CoursePostCreateNestedManyWithoutAssignmentAreaInput = {
+    create?: XOR<CoursePostCreateWithoutAssignmentAreaInput, CoursePostUncheckedCreateWithoutAssignmentAreaInput> | CoursePostCreateWithoutAssignmentAreaInput[] | CoursePostUncheckedCreateWithoutAssignmentAreaInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutAssignmentAreaInput | CoursePostCreateOrConnectWithoutAssignmentAreaInput[]
+    createMany?: CoursePostCreateManyAssignmentAreaInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+  }
+
   export type SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput = {
     create?: XOR<SubmissionCreateWithoutAssignmentAreaInput, SubmissionUncheckedCreateWithoutAssignmentAreaInput> | SubmissionCreateWithoutAssignmentAreaInput[] | SubmissionUncheckedCreateWithoutAssignmentAreaInput[]
     connectOrCreate?: SubmissionCreateOrConnectWithoutAssignmentAreaInput | SubmissionCreateOrConnectWithoutAssignmentAreaInput[]
@@ -31668,6 +40401,13 @@ export namespace Prisma {
     connectOrCreate?: GradingResultCreateOrConnectWithoutAssignmentAreaInput | GradingResultCreateOrConnectWithoutAssignmentAreaInput[]
     createMany?: GradingResultCreateManyAssignmentAreaInputEnvelope
     connect?: GradingResultWhereUniqueInput | GradingResultWhereUniqueInput[]
+  }
+
+  export type CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput = {
+    create?: XOR<CoursePostCreateWithoutAssignmentAreaInput, CoursePostUncheckedCreateWithoutAssignmentAreaInput> | CoursePostCreateWithoutAssignmentAreaInput[] | CoursePostUncheckedCreateWithoutAssignmentAreaInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutAssignmentAreaInput | CoursePostCreateOrConnectWithoutAssignmentAreaInput[]
+    createMany?: CoursePostCreateManyAssignmentAreaInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
   }
 
   export type NullableDateTimeFieldUpdateOperationsInput = {
@@ -31742,6 +40482,20 @@ export namespace Prisma {
     deleteMany?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
   }
 
+  export type CoursePostUpdateManyWithoutAssignmentAreaNestedInput = {
+    create?: XOR<CoursePostCreateWithoutAssignmentAreaInput, CoursePostUncheckedCreateWithoutAssignmentAreaInput> | CoursePostCreateWithoutAssignmentAreaInput[] | CoursePostUncheckedCreateWithoutAssignmentAreaInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutAssignmentAreaInput | CoursePostCreateOrConnectWithoutAssignmentAreaInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutAssignmentAreaInput | CoursePostUpsertWithWhereUniqueWithoutAssignmentAreaInput[]
+    createMany?: CoursePostCreateManyAssignmentAreaInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutAssignmentAreaInput | CoursePostUpdateWithWhereUniqueWithoutAssignmentAreaInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutAssignmentAreaInput | CoursePostUpdateManyWithWhereWithoutAssignmentAreaInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+  }
+
   export type SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput = {
     create?: XOR<SubmissionCreateWithoutAssignmentAreaInput, SubmissionUncheckedCreateWithoutAssignmentAreaInput> | SubmissionCreateWithoutAssignmentAreaInput[] | SubmissionUncheckedCreateWithoutAssignmentAreaInput[]
     connectOrCreate?: SubmissionCreateOrConnectWithoutAssignmentAreaInput | SubmissionCreateOrConnectWithoutAssignmentAreaInput[]
@@ -31784,6 +40538,20 @@ export namespace Prisma {
     deleteMany?: GradingResultScalarWhereInput | GradingResultScalarWhereInput[]
   }
 
+  export type CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput = {
+    create?: XOR<CoursePostCreateWithoutAssignmentAreaInput, CoursePostUncheckedCreateWithoutAssignmentAreaInput> | CoursePostCreateWithoutAssignmentAreaInput[] | CoursePostUncheckedCreateWithoutAssignmentAreaInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutAssignmentAreaInput | CoursePostCreateOrConnectWithoutAssignmentAreaInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutAssignmentAreaInput | CoursePostUpsertWithWhereUniqueWithoutAssignmentAreaInput[]
+    createMany?: CoursePostCreateManyAssignmentAreaInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutAssignmentAreaInput | CoursePostUpdateWithWhereUniqueWithoutAssignmentAreaInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutAssignmentAreaInput | CoursePostUpdateManyWithWhereWithoutAssignmentAreaInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+  }
+
   export type UserCreateNestedOneWithoutSubmissionsInput = {
     create?: XOR<UserCreateWithoutSubmissionsInput, UserUncheckedCreateWithoutSubmissionsInput>
     connectOrCreate?: UserCreateOrConnectWithoutSubmissionsInput
@@ -31809,11 +40577,23 @@ export namespace Prisma {
     connect?: SubmissionWhereUniqueInput | SubmissionWhereUniqueInput[]
   }
 
+  export type CoursePostCommentCreateNestedOneWithoutSubmissionInput = {
+    create?: XOR<CoursePostCommentCreateWithoutSubmissionInput, CoursePostCommentUncheckedCreateWithoutSubmissionInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutSubmissionInput
+    connect?: CoursePostCommentWhereUniqueInput
+  }
+
   export type SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput = {
     create?: XOR<SubmissionCreateWithoutPreviousVersionInput, SubmissionUncheckedCreateWithoutPreviousVersionInput> | SubmissionCreateWithoutPreviousVersionInput[] | SubmissionUncheckedCreateWithoutPreviousVersionInput[]
     connectOrCreate?: SubmissionCreateOrConnectWithoutPreviousVersionInput | SubmissionCreateOrConnectWithoutPreviousVersionInput[]
     createMany?: SubmissionCreateManyPreviousVersionInputEnvelope
     connect?: SubmissionWhereUniqueInput | SubmissionWhereUniqueInput[]
+  }
+
+  export type CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput = {
+    create?: XOR<CoursePostCommentCreateWithoutSubmissionInput, CoursePostCommentUncheckedCreateWithoutSubmissionInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutSubmissionInput
+    connect?: CoursePostCommentWhereUniqueInput
   }
 
   export type IntFieldUpdateOperationsInput = {
@@ -31876,6 +40656,16 @@ export namespace Prisma {
     deleteMany?: SubmissionScalarWhereInput | SubmissionScalarWhereInput[]
   }
 
+  export type CoursePostCommentUpdateOneWithoutSubmissionNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutSubmissionInput, CoursePostCommentUncheckedCreateWithoutSubmissionInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutSubmissionInput
+    upsert?: CoursePostCommentUpsertWithoutSubmissionInput
+    disconnect?: CoursePostCommentWhereInput | boolean
+    delete?: CoursePostCommentWhereInput | boolean
+    connect?: CoursePostCommentWhereUniqueInput
+    update?: XOR<XOR<CoursePostCommentUpdateToOneWithWhereWithoutSubmissionInput, CoursePostCommentUpdateWithoutSubmissionInput>, CoursePostCommentUncheckedUpdateWithoutSubmissionInput>
+  }
+
   export type SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput = {
     create?: XOR<SubmissionCreateWithoutPreviousVersionInput, SubmissionUncheckedCreateWithoutPreviousVersionInput> | SubmissionCreateWithoutPreviousVersionInput[] | SubmissionUncheckedCreateWithoutPreviousVersionInput[]
     connectOrCreate?: SubmissionCreateOrConnectWithoutPreviousVersionInput | SubmissionCreateOrConnectWithoutPreviousVersionInput[]
@@ -31888,6 +40678,16 @@ export namespace Prisma {
     update?: SubmissionUpdateWithWhereUniqueWithoutPreviousVersionInput | SubmissionUpdateWithWhereUniqueWithoutPreviousVersionInput[]
     updateMany?: SubmissionUpdateManyWithWhereWithoutPreviousVersionInput | SubmissionUpdateManyWithWhereWithoutPreviousVersionInput[]
     deleteMany?: SubmissionScalarWhereInput | SubmissionScalarWhereInput[]
+  }
+
+  export type CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutSubmissionInput, CoursePostCommentUncheckedCreateWithoutSubmissionInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutSubmissionInput
+    upsert?: CoursePostCommentUpsertWithoutSubmissionInput
+    disconnect?: CoursePostCommentWhereInput | boolean
+    delete?: CoursePostCommentWhereInput | boolean
+    connect?: CoursePostCommentWhereUniqueInput
+    update?: XOR<XOR<CoursePostCommentUpdateToOneWithWhereWithoutSubmissionInput, CoursePostCommentUpdateWithoutSubmissionInput>, CoursePostCommentUncheckedUpdateWithoutSubmissionInput>
   }
 
   export type UserCreateNestedOneWithoutRubricsInput = {
@@ -31916,6 +40716,20 @@ export namespace Prisma {
     connect?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
   }
 
+  export type CommentGradingResultCreateNestedManyWithoutRubricInput = {
+    create?: XOR<CommentGradingResultCreateWithoutRubricInput, CommentGradingResultUncheckedCreateWithoutRubricInput> | CommentGradingResultCreateWithoutRubricInput[] | CommentGradingResultUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutRubricInput | CommentGradingResultCreateOrConnectWithoutRubricInput[]
+    createMany?: CommentGradingResultCreateManyRubricInputEnvelope
+    connect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+  }
+
+  export type CoursePostCreateNestedManyWithoutRubricInput = {
+    create?: XOR<CoursePostCreateWithoutRubricInput, CoursePostUncheckedCreateWithoutRubricInput> | CoursePostCreateWithoutRubricInput[] | CoursePostUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutRubricInput | CoursePostCreateOrConnectWithoutRubricInput[]
+    createMany?: CoursePostCreateManyRubricInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+  }
+
   export type GradingResultUncheckedCreateNestedManyWithoutRubricInput = {
     create?: XOR<GradingResultCreateWithoutRubricInput, GradingResultUncheckedCreateWithoutRubricInput> | GradingResultCreateWithoutRubricInput[] | GradingResultUncheckedCreateWithoutRubricInput[]
     connectOrCreate?: GradingResultCreateOrConnectWithoutRubricInput | GradingResultCreateOrConnectWithoutRubricInput[]
@@ -31928,6 +40742,20 @@ export namespace Prisma {
     connectOrCreate?: AssignmentAreaCreateOrConnectWithoutRubricInput | AssignmentAreaCreateOrConnectWithoutRubricInput[]
     createMany?: AssignmentAreaCreateManyRubricInputEnvelope
     connect?: AssignmentAreaWhereUniqueInput | AssignmentAreaWhereUniqueInput[]
+  }
+
+  export type CommentGradingResultUncheckedCreateNestedManyWithoutRubricInput = {
+    create?: XOR<CommentGradingResultCreateWithoutRubricInput, CommentGradingResultUncheckedCreateWithoutRubricInput> | CommentGradingResultCreateWithoutRubricInput[] | CommentGradingResultUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutRubricInput | CommentGradingResultCreateOrConnectWithoutRubricInput[]
+    createMany?: CommentGradingResultCreateManyRubricInputEnvelope
+    connect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+  }
+
+  export type CoursePostUncheckedCreateNestedManyWithoutRubricInput = {
+    create?: XOR<CoursePostCreateWithoutRubricInput, CoursePostUncheckedCreateWithoutRubricInput> | CoursePostCreateWithoutRubricInput[] | CoursePostUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutRubricInput | CoursePostCreateOrConnectWithoutRubricInput[]
+    createMany?: CoursePostCreateManyRubricInputEnvelope
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
   }
 
   export type UserUpdateOneRequiredWithoutRubricsNestedInput = {
@@ -31976,6 +40804,34 @@ export namespace Prisma {
     deleteMany?: AssignmentAreaScalarWhereInput | AssignmentAreaScalarWhereInput[]
   }
 
+  export type CommentGradingResultUpdateManyWithoutRubricNestedInput = {
+    create?: XOR<CommentGradingResultCreateWithoutRubricInput, CommentGradingResultUncheckedCreateWithoutRubricInput> | CommentGradingResultCreateWithoutRubricInput[] | CommentGradingResultUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutRubricInput | CommentGradingResultCreateOrConnectWithoutRubricInput[]
+    upsert?: CommentGradingResultUpsertWithWhereUniqueWithoutRubricInput | CommentGradingResultUpsertWithWhereUniqueWithoutRubricInput[]
+    createMany?: CommentGradingResultCreateManyRubricInputEnvelope
+    set?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    disconnect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    delete?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    connect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    update?: CommentGradingResultUpdateWithWhereUniqueWithoutRubricInput | CommentGradingResultUpdateWithWhereUniqueWithoutRubricInput[]
+    updateMany?: CommentGradingResultUpdateManyWithWhereWithoutRubricInput | CommentGradingResultUpdateManyWithWhereWithoutRubricInput[]
+    deleteMany?: CommentGradingResultScalarWhereInput | CommentGradingResultScalarWhereInput[]
+  }
+
+  export type CoursePostUpdateManyWithoutRubricNestedInput = {
+    create?: XOR<CoursePostCreateWithoutRubricInput, CoursePostUncheckedCreateWithoutRubricInput> | CoursePostCreateWithoutRubricInput[] | CoursePostUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutRubricInput | CoursePostCreateOrConnectWithoutRubricInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutRubricInput | CoursePostUpsertWithWhereUniqueWithoutRubricInput[]
+    createMany?: CoursePostCreateManyRubricInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutRubricInput | CoursePostUpdateWithWhereUniqueWithoutRubricInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutRubricInput | CoursePostUpdateManyWithWhereWithoutRubricInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+  }
+
   export type GradingResultUncheckedUpdateManyWithoutRubricNestedInput = {
     create?: XOR<GradingResultCreateWithoutRubricInput, GradingResultUncheckedCreateWithoutRubricInput> | GradingResultCreateWithoutRubricInput[] | GradingResultUncheckedCreateWithoutRubricInput[]
     connectOrCreate?: GradingResultCreateOrConnectWithoutRubricInput | GradingResultCreateOrConnectWithoutRubricInput[]
@@ -32002,6 +40858,34 @@ export namespace Prisma {
     update?: AssignmentAreaUpdateWithWhereUniqueWithoutRubricInput | AssignmentAreaUpdateWithWhereUniqueWithoutRubricInput[]
     updateMany?: AssignmentAreaUpdateManyWithWhereWithoutRubricInput | AssignmentAreaUpdateManyWithWhereWithoutRubricInput[]
     deleteMany?: AssignmentAreaScalarWhereInput | AssignmentAreaScalarWhereInput[]
+  }
+
+  export type CommentGradingResultUncheckedUpdateManyWithoutRubricNestedInput = {
+    create?: XOR<CommentGradingResultCreateWithoutRubricInput, CommentGradingResultUncheckedCreateWithoutRubricInput> | CommentGradingResultCreateWithoutRubricInput[] | CommentGradingResultUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutRubricInput | CommentGradingResultCreateOrConnectWithoutRubricInput[]
+    upsert?: CommentGradingResultUpsertWithWhereUniqueWithoutRubricInput | CommentGradingResultUpsertWithWhereUniqueWithoutRubricInput[]
+    createMany?: CommentGradingResultCreateManyRubricInputEnvelope
+    set?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    disconnect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    delete?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    connect?: CommentGradingResultWhereUniqueInput | CommentGradingResultWhereUniqueInput[]
+    update?: CommentGradingResultUpdateWithWhereUniqueWithoutRubricInput | CommentGradingResultUpdateWithWhereUniqueWithoutRubricInput[]
+    updateMany?: CommentGradingResultUpdateManyWithWhereWithoutRubricInput | CommentGradingResultUpdateManyWithWhereWithoutRubricInput[]
+    deleteMany?: CommentGradingResultScalarWhereInput | CommentGradingResultScalarWhereInput[]
+  }
+
+  export type CoursePostUncheckedUpdateManyWithoutRubricNestedInput = {
+    create?: XOR<CoursePostCreateWithoutRubricInput, CoursePostUncheckedCreateWithoutRubricInput> | CoursePostCreateWithoutRubricInput[] | CoursePostUncheckedCreateWithoutRubricInput[]
+    connectOrCreate?: CoursePostCreateOrConnectWithoutRubricInput | CoursePostCreateOrConnectWithoutRubricInput[]
+    upsert?: CoursePostUpsertWithWhereUniqueWithoutRubricInput | CoursePostUpsertWithWhereUniqueWithoutRubricInput[]
+    createMany?: CoursePostCreateManyRubricInputEnvelope
+    set?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    disconnect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    delete?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    connect?: CoursePostWhereUniqueInput | CoursePostWhereUniqueInput[]
+    update?: CoursePostUpdateWithWhereUniqueWithoutRubricInput | CoursePostUpdateWithWhereUniqueWithoutRubricInput[]
+    updateMany?: CoursePostUpdateManyWithWhereWithoutRubricInput | CoursePostUpdateManyWithWhereWithoutRubricInput[]
+    deleteMany?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
   }
 
   export type UserCreateNestedOneWithoutGradingSessionsInput = {
@@ -32438,6 +41322,444 @@ export namespace Prisma {
     delete?: AssignmentAreaWhereInput | boolean
     connect?: AssignmentAreaWhereUniqueInput
     update?: XOR<XOR<AssignmentAreaUpdateToOneWithWhereWithoutNotificationsInput, AssignmentAreaUpdateWithoutNotificationsInput>, AssignmentAreaUncheckedUpdateWithoutNotificationsInput>
+  }
+
+  export type CourseCreateNestedOneWithoutPostsInput = {
+    create?: XOR<CourseCreateWithoutPostsInput, CourseUncheckedCreateWithoutPostsInput>
+    connectOrCreate?: CourseCreateOrConnectWithoutPostsInput
+    connect?: CourseWhereUniqueInput
+  }
+
+  export type ClassCreateNestedOneWithoutPostsInput = {
+    create?: XOR<ClassCreateWithoutPostsInput, ClassUncheckedCreateWithoutPostsInput>
+    connectOrCreate?: ClassCreateOrConnectWithoutPostsInput
+    connect?: ClassWhereUniqueInput
+  }
+
+  export type UserCreateNestedOneWithoutAuthoredPostsInput = {
+    create?: XOR<UserCreateWithoutAuthoredPostsInput, UserUncheckedCreateWithoutAuthoredPostsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAuthoredPostsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type AssignmentAreaCreateNestedOneWithoutPostsInput = {
+    create?: XOR<AssignmentAreaCreateWithoutPostsInput, AssignmentAreaUncheckedCreateWithoutPostsInput>
+    connectOrCreate?: AssignmentAreaCreateOrConnectWithoutPostsInput
+    connect?: AssignmentAreaWhereUniqueInput
+  }
+
+  export type RubricCreateNestedOneWithoutCommunityPostsInput = {
+    create?: XOR<RubricCreateWithoutCommunityPostsInput, RubricUncheckedCreateWithoutCommunityPostsInput>
+    connectOrCreate?: RubricCreateOrConnectWithoutCommunityPostsInput
+    connect?: RubricWhereUniqueInput
+  }
+
+  export type CoursePostCommentCreateNestedManyWithoutPostInput = {
+    create?: XOR<CoursePostCommentCreateWithoutPostInput, CoursePostCommentUncheckedCreateWithoutPostInput> | CoursePostCommentCreateWithoutPostInput[] | CoursePostCommentUncheckedCreateWithoutPostInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutPostInput | CoursePostCommentCreateOrConnectWithoutPostInput[]
+    createMany?: CoursePostCommentCreateManyPostInputEnvelope
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+  }
+
+  export type CoursePostLikeCreateNestedManyWithoutPostInput = {
+    create?: XOR<CoursePostLikeCreateWithoutPostInput, CoursePostLikeUncheckedCreateWithoutPostInput> | CoursePostLikeCreateWithoutPostInput[] | CoursePostLikeUncheckedCreateWithoutPostInput[]
+    connectOrCreate?: CoursePostLikeCreateOrConnectWithoutPostInput | CoursePostLikeCreateOrConnectWithoutPostInput[]
+    createMany?: CoursePostLikeCreateManyPostInputEnvelope
+    connect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+  }
+
+  export type CoursePostCommentUncheckedCreateNestedManyWithoutPostInput = {
+    create?: XOR<CoursePostCommentCreateWithoutPostInput, CoursePostCommentUncheckedCreateWithoutPostInput> | CoursePostCommentCreateWithoutPostInput[] | CoursePostCommentUncheckedCreateWithoutPostInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutPostInput | CoursePostCommentCreateOrConnectWithoutPostInput[]
+    createMany?: CoursePostCommentCreateManyPostInputEnvelope
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+  }
+
+  export type CoursePostLikeUncheckedCreateNestedManyWithoutPostInput = {
+    create?: XOR<CoursePostLikeCreateWithoutPostInput, CoursePostLikeUncheckedCreateWithoutPostInput> | CoursePostLikeCreateWithoutPostInput[] | CoursePostLikeUncheckedCreateWithoutPostInput[]
+    connectOrCreate?: CoursePostLikeCreateOrConnectWithoutPostInput | CoursePostLikeCreateOrConnectWithoutPostInput[]
+    createMany?: CoursePostLikeCreateManyPostInputEnvelope
+    connect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+  }
+
+  export type EnumPostTypeFieldUpdateOperationsInput = {
+    set?: $Enums.PostType
+  }
+
+  export type CourseUpdateOneRequiredWithoutPostsNestedInput = {
+    create?: XOR<CourseCreateWithoutPostsInput, CourseUncheckedCreateWithoutPostsInput>
+    connectOrCreate?: CourseCreateOrConnectWithoutPostsInput
+    upsert?: CourseUpsertWithoutPostsInput
+    connect?: CourseWhereUniqueInput
+    update?: XOR<XOR<CourseUpdateToOneWithWhereWithoutPostsInput, CourseUpdateWithoutPostsInput>, CourseUncheckedUpdateWithoutPostsInput>
+  }
+
+  export type ClassUpdateOneWithoutPostsNestedInput = {
+    create?: XOR<ClassCreateWithoutPostsInput, ClassUncheckedCreateWithoutPostsInput>
+    connectOrCreate?: ClassCreateOrConnectWithoutPostsInput
+    upsert?: ClassUpsertWithoutPostsInput
+    disconnect?: ClassWhereInput | boolean
+    delete?: ClassWhereInput | boolean
+    connect?: ClassWhereUniqueInput
+    update?: XOR<XOR<ClassUpdateToOneWithWhereWithoutPostsInput, ClassUpdateWithoutPostsInput>, ClassUncheckedUpdateWithoutPostsInput>
+  }
+
+  export type UserUpdateOneRequiredWithoutAuthoredPostsNestedInput = {
+    create?: XOR<UserCreateWithoutAuthoredPostsInput, UserUncheckedCreateWithoutAuthoredPostsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAuthoredPostsInput
+    upsert?: UserUpsertWithoutAuthoredPostsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutAuthoredPostsInput, UserUpdateWithoutAuthoredPostsInput>, UserUncheckedUpdateWithoutAuthoredPostsInput>
+  }
+
+  export type AssignmentAreaUpdateOneWithoutPostsNestedInput = {
+    create?: XOR<AssignmentAreaCreateWithoutPostsInput, AssignmentAreaUncheckedCreateWithoutPostsInput>
+    connectOrCreate?: AssignmentAreaCreateOrConnectWithoutPostsInput
+    upsert?: AssignmentAreaUpsertWithoutPostsInput
+    disconnect?: AssignmentAreaWhereInput | boolean
+    delete?: AssignmentAreaWhereInput | boolean
+    connect?: AssignmentAreaWhereUniqueInput
+    update?: XOR<XOR<AssignmentAreaUpdateToOneWithWhereWithoutPostsInput, AssignmentAreaUpdateWithoutPostsInput>, AssignmentAreaUncheckedUpdateWithoutPostsInput>
+  }
+
+  export type RubricUpdateOneWithoutCommunityPostsNestedInput = {
+    create?: XOR<RubricCreateWithoutCommunityPostsInput, RubricUncheckedCreateWithoutCommunityPostsInput>
+    connectOrCreate?: RubricCreateOrConnectWithoutCommunityPostsInput
+    upsert?: RubricUpsertWithoutCommunityPostsInput
+    disconnect?: RubricWhereInput | boolean
+    delete?: RubricWhereInput | boolean
+    connect?: RubricWhereUniqueInput
+    update?: XOR<XOR<RubricUpdateToOneWithWhereWithoutCommunityPostsInput, RubricUpdateWithoutCommunityPostsInput>, RubricUncheckedUpdateWithoutCommunityPostsInput>
+  }
+
+  export type CoursePostCommentUpdateManyWithoutPostNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutPostInput, CoursePostCommentUncheckedCreateWithoutPostInput> | CoursePostCommentCreateWithoutPostInput[] | CoursePostCommentUncheckedCreateWithoutPostInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutPostInput | CoursePostCommentCreateOrConnectWithoutPostInput[]
+    upsert?: CoursePostCommentUpsertWithWhereUniqueWithoutPostInput | CoursePostCommentUpsertWithWhereUniqueWithoutPostInput[]
+    createMany?: CoursePostCommentCreateManyPostInputEnvelope
+    set?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    disconnect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    delete?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    update?: CoursePostCommentUpdateWithWhereUniqueWithoutPostInput | CoursePostCommentUpdateWithWhereUniqueWithoutPostInput[]
+    updateMany?: CoursePostCommentUpdateManyWithWhereWithoutPostInput | CoursePostCommentUpdateManyWithWhereWithoutPostInput[]
+    deleteMany?: CoursePostCommentScalarWhereInput | CoursePostCommentScalarWhereInput[]
+  }
+
+  export type CoursePostLikeUpdateManyWithoutPostNestedInput = {
+    create?: XOR<CoursePostLikeCreateWithoutPostInput, CoursePostLikeUncheckedCreateWithoutPostInput> | CoursePostLikeCreateWithoutPostInput[] | CoursePostLikeUncheckedCreateWithoutPostInput[]
+    connectOrCreate?: CoursePostLikeCreateOrConnectWithoutPostInput | CoursePostLikeCreateOrConnectWithoutPostInput[]
+    upsert?: CoursePostLikeUpsertWithWhereUniqueWithoutPostInput | CoursePostLikeUpsertWithWhereUniqueWithoutPostInput[]
+    createMany?: CoursePostLikeCreateManyPostInputEnvelope
+    set?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    disconnect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    delete?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    connect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    update?: CoursePostLikeUpdateWithWhereUniqueWithoutPostInput | CoursePostLikeUpdateWithWhereUniqueWithoutPostInput[]
+    updateMany?: CoursePostLikeUpdateManyWithWhereWithoutPostInput | CoursePostLikeUpdateManyWithWhereWithoutPostInput[]
+    deleteMany?: CoursePostLikeScalarWhereInput | CoursePostLikeScalarWhereInput[]
+  }
+
+  export type CoursePostCommentUncheckedUpdateManyWithoutPostNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutPostInput, CoursePostCommentUncheckedCreateWithoutPostInput> | CoursePostCommentCreateWithoutPostInput[] | CoursePostCommentUncheckedCreateWithoutPostInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutPostInput | CoursePostCommentCreateOrConnectWithoutPostInput[]
+    upsert?: CoursePostCommentUpsertWithWhereUniqueWithoutPostInput | CoursePostCommentUpsertWithWhereUniqueWithoutPostInput[]
+    createMany?: CoursePostCommentCreateManyPostInputEnvelope
+    set?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    disconnect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    delete?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    update?: CoursePostCommentUpdateWithWhereUniqueWithoutPostInput | CoursePostCommentUpdateWithWhereUniqueWithoutPostInput[]
+    updateMany?: CoursePostCommentUpdateManyWithWhereWithoutPostInput | CoursePostCommentUpdateManyWithWhereWithoutPostInput[]
+    deleteMany?: CoursePostCommentScalarWhereInput | CoursePostCommentScalarWhereInput[]
+  }
+
+  export type CoursePostLikeUncheckedUpdateManyWithoutPostNestedInput = {
+    create?: XOR<CoursePostLikeCreateWithoutPostInput, CoursePostLikeUncheckedCreateWithoutPostInput> | CoursePostLikeCreateWithoutPostInput[] | CoursePostLikeUncheckedCreateWithoutPostInput[]
+    connectOrCreate?: CoursePostLikeCreateOrConnectWithoutPostInput | CoursePostLikeCreateOrConnectWithoutPostInput[]
+    upsert?: CoursePostLikeUpsertWithWhereUniqueWithoutPostInput | CoursePostLikeUpsertWithWhereUniqueWithoutPostInput[]
+    createMany?: CoursePostLikeCreateManyPostInputEnvelope
+    set?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    disconnect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    delete?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    connect?: CoursePostLikeWhereUniqueInput | CoursePostLikeWhereUniqueInput[]
+    update?: CoursePostLikeUpdateWithWhereUniqueWithoutPostInput | CoursePostLikeUpdateWithWhereUniqueWithoutPostInput[]
+    updateMany?: CoursePostLikeUpdateManyWithWhereWithoutPostInput | CoursePostLikeUpdateManyWithWhereWithoutPostInput[]
+    deleteMany?: CoursePostLikeScalarWhereInput | CoursePostLikeScalarWhereInput[]
+  }
+
+  export type CoursePostCreateNestedOneWithoutCommentsInput = {
+    create?: XOR<CoursePostCreateWithoutCommentsInput, CoursePostUncheckedCreateWithoutCommentsInput>
+    connectOrCreate?: CoursePostCreateOrConnectWithoutCommentsInput
+    connect?: CoursePostWhereUniqueInput
+  }
+
+  export type UserCreateNestedOneWithoutAuthoredCommentsInput = {
+    create?: XOR<UserCreateWithoutAuthoredCommentsInput, UserUncheckedCreateWithoutAuthoredCommentsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAuthoredCommentsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type SubmissionCreateNestedOneWithoutCommentInput = {
+    create?: XOR<SubmissionCreateWithoutCommentInput, SubmissionUncheckedCreateWithoutCommentInput>
+    connectOrCreate?: SubmissionCreateOrConnectWithoutCommentInput
+    connect?: SubmissionWhereUniqueInput
+  }
+
+  export type CoursePostCommentCreateNestedOneWithoutRepliesInput = {
+    create?: XOR<CoursePostCommentCreateWithoutRepliesInput, CoursePostCommentUncheckedCreateWithoutRepliesInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutRepliesInput
+    connect?: CoursePostCommentWhereUniqueInput
+  }
+
+  export type CoursePostCommentCreateNestedManyWithoutParentCommentInput = {
+    create?: XOR<CoursePostCommentCreateWithoutParentCommentInput, CoursePostCommentUncheckedCreateWithoutParentCommentInput> | CoursePostCommentCreateWithoutParentCommentInput[] | CoursePostCommentUncheckedCreateWithoutParentCommentInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutParentCommentInput | CoursePostCommentCreateOrConnectWithoutParentCommentInput[]
+    createMany?: CoursePostCommentCreateManyParentCommentInputEnvelope
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+  }
+
+  export type CoursePostCommentLikeCreateNestedManyWithoutCommentInput = {
+    create?: XOR<CoursePostCommentLikeCreateWithoutCommentInput, CoursePostCommentLikeUncheckedCreateWithoutCommentInput> | CoursePostCommentLikeCreateWithoutCommentInput[] | CoursePostCommentLikeUncheckedCreateWithoutCommentInput[]
+    connectOrCreate?: CoursePostCommentLikeCreateOrConnectWithoutCommentInput | CoursePostCommentLikeCreateOrConnectWithoutCommentInput[]
+    createMany?: CoursePostCommentLikeCreateManyCommentInputEnvelope
+    connect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+  }
+
+  export type CommentGradingResultCreateNestedOneWithoutCommentInput = {
+    create?: XOR<CommentGradingResultCreateWithoutCommentInput, CommentGradingResultUncheckedCreateWithoutCommentInput>
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutCommentInput
+    connect?: CommentGradingResultWhereUniqueInput
+  }
+
+  export type CoursePostCommentUncheckedCreateNestedManyWithoutParentCommentInput = {
+    create?: XOR<CoursePostCommentCreateWithoutParentCommentInput, CoursePostCommentUncheckedCreateWithoutParentCommentInput> | CoursePostCommentCreateWithoutParentCommentInput[] | CoursePostCommentUncheckedCreateWithoutParentCommentInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutParentCommentInput | CoursePostCommentCreateOrConnectWithoutParentCommentInput[]
+    createMany?: CoursePostCommentCreateManyParentCommentInputEnvelope
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+  }
+
+  export type CoursePostCommentLikeUncheckedCreateNestedManyWithoutCommentInput = {
+    create?: XOR<CoursePostCommentLikeCreateWithoutCommentInput, CoursePostCommentLikeUncheckedCreateWithoutCommentInput> | CoursePostCommentLikeCreateWithoutCommentInput[] | CoursePostCommentLikeUncheckedCreateWithoutCommentInput[]
+    connectOrCreate?: CoursePostCommentLikeCreateOrConnectWithoutCommentInput | CoursePostCommentLikeCreateOrConnectWithoutCommentInput[]
+    createMany?: CoursePostCommentLikeCreateManyCommentInputEnvelope
+    connect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+  }
+
+  export type CommentGradingResultUncheckedCreateNestedOneWithoutCommentInput = {
+    create?: XOR<CommentGradingResultCreateWithoutCommentInput, CommentGradingResultUncheckedCreateWithoutCommentInput>
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutCommentInput
+    connect?: CommentGradingResultWhereUniqueInput
+  }
+
+  export type CoursePostUpdateOneRequiredWithoutCommentsNestedInput = {
+    create?: XOR<CoursePostCreateWithoutCommentsInput, CoursePostUncheckedCreateWithoutCommentsInput>
+    connectOrCreate?: CoursePostCreateOrConnectWithoutCommentsInput
+    upsert?: CoursePostUpsertWithoutCommentsInput
+    connect?: CoursePostWhereUniqueInput
+    update?: XOR<XOR<CoursePostUpdateToOneWithWhereWithoutCommentsInput, CoursePostUpdateWithoutCommentsInput>, CoursePostUncheckedUpdateWithoutCommentsInput>
+  }
+
+  export type UserUpdateOneRequiredWithoutAuthoredCommentsNestedInput = {
+    create?: XOR<UserCreateWithoutAuthoredCommentsInput, UserUncheckedCreateWithoutAuthoredCommentsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutAuthoredCommentsInput
+    upsert?: UserUpsertWithoutAuthoredCommentsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutAuthoredCommentsInput, UserUpdateWithoutAuthoredCommentsInput>, UserUncheckedUpdateWithoutAuthoredCommentsInput>
+  }
+
+  export type SubmissionUpdateOneWithoutCommentNestedInput = {
+    create?: XOR<SubmissionCreateWithoutCommentInput, SubmissionUncheckedCreateWithoutCommentInput>
+    connectOrCreate?: SubmissionCreateOrConnectWithoutCommentInput
+    upsert?: SubmissionUpsertWithoutCommentInput
+    disconnect?: SubmissionWhereInput | boolean
+    delete?: SubmissionWhereInput | boolean
+    connect?: SubmissionWhereUniqueInput
+    update?: XOR<XOR<SubmissionUpdateToOneWithWhereWithoutCommentInput, SubmissionUpdateWithoutCommentInput>, SubmissionUncheckedUpdateWithoutCommentInput>
+  }
+
+  export type CoursePostCommentUpdateOneWithoutRepliesNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutRepliesInput, CoursePostCommentUncheckedCreateWithoutRepliesInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutRepliesInput
+    upsert?: CoursePostCommentUpsertWithoutRepliesInput
+    disconnect?: CoursePostCommentWhereInput | boolean
+    delete?: CoursePostCommentWhereInput | boolean
+    connect?: CoursePostCommentWhereUniqueInput
+    update?: XOR<XOR<CoursePostCommentUpdateToOneWithWhereWithoutRepliesInput, CoursePostCommentUpdateWithoutRepliesInput>, CoursePostCommentUncheckedUpdateWithoutRepliesInput>
+  }
+
+  export type CoursePostCommentUpdateManyWithoutParentCommentNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutParentCommentInput, CoursePostCommentUncheckedCreateWithoutParentCommentInput> | CoursePostCommentCreateWithoutParentCommentInput[] | CoursePostCommentUncheckedCreateWithoutParentCommentInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutParentCommentInput | CoursePostCommentCreateOrConnectWithoutParentCommentInput[]
+    upsert?: CoursePostCommentUpsertWithWhereUniqueWithoutParentCommentInput | CoursePostCommentUpsertWithWhereUniqueWithoutParentCommentInput[]
+    createMany?: CoursePostCommentCreateManyParentCommentInputEnvelope
+    set?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    disconnect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    delete?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    update?: CoursePostCommentUpdateWithWhereUniqueWithoutParentCommentInput | CoursePostCommentUpdateWithWhereUniqueWithoutParentCommentInput[]
+    updateMany?: CoursePostCommentUpdateManyWithWhereWithoutParentCommentInput | CoursePostCommentUpdateManyWithWhereWithoutParentCommentInput[]
+    deleteMany?: CoursePostCommentScalarWhereInput | CoursePostCommentScalarWhereInput[]
+  }
+
+  export type CoursePostCommentLikeUpdateManyWithoutCommentNestedInput = {
+    create?: XOR<CoursePostCommentLikeCreateWithoutCommentInput, CoursePostCommentLikeUncheckedCreateWithoutCommentInput> | CoursePostCommentLikeCreateWithoutCommentInput[] | CoursePostCommentLikeUncheckedCreateWithoutCommentInput[]
+    connectOrCreate?: CoursePostCommentLikeCreateOrConnectWithoutCommentInput | CoursePostCommentLikeCreateOrConnectWithoutCommentInput[]
+    upsert?: CoursePostCommentLikeUpsertWithWhereUniqueWithoutCommentInput | CoursePostCommentLikeUpsertWithWhereUniqueWithoutCommentInput[]
+    createMany?: CoursePostCommentLikeCreateManyCommentInputEnvelope
+    set?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    disconnect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    delete?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    connect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    update?: CoursePostCommentLikeUpdateWithWhereUniqueWithoutCommentInput | CoursePostCommentLikeUpdateWithWhereUniqueWithoutCommentInput[]
+    updateMany?: CoursePostCommentLikeUpdateManyWithWhereWithoutCommentInput | CoursePostCommentLikeUpdateManyWithWhereWithoutCommentInput[]
+    deleteMany?: CoursePostCommentLikeScalarWhereInput | CoursePostCommentLikeScalarWhereInput[]
+  }
+
+  export type CommentGradingResultUpdateOneWithoutCommentNestedInput = {
+    create?: XOR<CommentGradingResultCreateWithoutCommentInput, CommentGradingResultUncheckedCreateWithoutCommentInput>
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutCommentInput
+    upsert?: CommentGradingResultUpsertWithoutCommentInput
+    disconnect?: CommentGradingResultWhereInput | boolean
+    delete?: CommentGradingResultWhereInput | boolean
+    connect?: CommentGradingResultWhereUniqueInput
+    update?: XOR<XOR<CommentGradingResultUpdateToOneWithWhereWithoutCommentInput, CommentGradingResultUpdateWithoutCommentInput>, CommentGradingResultUncheckedUpdateWithoutCommentInput>
+  }
+
+  export type CoursePostCommentUncheckedUpdateManyWithoutParentCommentNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutParentCommentInput, CoursePostCommentUncheckedCreateWithoutParentCommentInput> | CoursePostCommentCreateWithoutParentCommentInput[] | CoursePostCommentUncheckedCreateWithoutParentCommentInput[]
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutParentCommentInput | CoursePostCommentCreateOrConnectWithoutParentCommentInput[]
+    upsert?: CoursePostCommentUpsertWithWhereUniqueWithoutParentCommentInput | CoursePostCommentUpsertWithWhereUniqueWithoutParentCommentInput[]
+    createMany?: CoursePostCommentCreateManyParentCommentInputEnvelope
+    set?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    disconnect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    delete?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    connect?: CoursePostCommentWhereUniqueInput | CoursePostCommentWhereUniqueInput[]
+    update?: CoursePostCommentUpdateWithWhereUniqueWithoutParentCommentInput | CoursePostCommentUpdateWithWhereUniqueWithoutParentCommentInput[]
+    updateMany?: CoursePostCommentUpdateManyWithWhereWithoutParentCommentInput | CoursePostCommentUpdateManyWithWhereWithoutParentCommentInput[]
+    deleteMany?: CoursePostCommentScalarWhereInput | CoursePostCommentScalarWhereInput[]
+  }
+
+  export type CoursePostCommentLikeUncheckedUpdateManyWithoutCommentNestedInput = {
+    create?: XOR<CoursePostCommentLikeCreateWithoutCommentInput, CoursePostCommentLikeUncheckedCreateWithoutCommentInput> | CoursePostCommentLikeCreateWithoutCommentInput[] | CoursePostCommentLikeUncheckedCreateWithoutCommentInput[]
+    connectOrCreate?: CoursePostCommentLikeCreateOrConnectWithoutCommentInput | CoursePostCommentLikeCreateOrConnectWithoutCommentInput[]
+    upsert?: CoursePostCommentLikeUpsertWithWhereUniqueWithoutCommentInput | CoursePostCommentLikeUpsertWithWhereUniqueWithoutCommentInput[]
+    createMany?: CoursePostCommentLikeCreateManyCommentInputEnvelope
+    set?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    disconnect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    delete?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    connect?: CoursePostCommentLikeWhereUniqueInput | CoursePostCommentLikeWhereUniqueInput[]
+    update?: CoursePostCommentLikeUpdateWithWhereUniqueWithoutCommentInput | CoursePostCommentLikeUpdateWithWhereUniqueWithoutCommentInput[]
+    updateMany?: CoursePostCommentLikeUpdateManyWithWhereWithoutCommentInput | CoursePostCommentLikeUpdateManyWithWhereWithoutCommentInput[]
+    deleteMany?: CoursePostCommentLikeScalarWhereInput | CoursePostCommentLikeScalarWhereInput[]
+  }
+
+  export type CommentGradingResultUncheckedUpdateOneWithoutCommentNestedInput = {
+    create?: XOR<CommentGradingResultCreateWithoutCommentInput, CommentGradingResultUncheckedCreateWithoutCommentInput>
+    connectOrCreate?: CommentGradingResultCreateOrConnectWithoutCommentInput
+    upsert?: CommentGradingResultUpsertWithoutCommentInput
+    disconnect?: CommentGradingResultWhereInput | boolean
+    delete?: CommentGradingResultWhereInput | boolean
+    connect?: CommentGradingResultWhereUniqueInput
+    update?: XOR<XOR<CommentGradingResultUpdateToOneWithWhereWithoutCommentInput, CommentGradingResultUpdateWithoutCommentInput>, CommentGradingResultUncheckedUpdateWithoutCommentInput>
+  }
+
+  export type CoursePostCommentCreateNestedOneWithoutGradingResultInput = {
+    create?: XOR<CoursePostCommentCreateWithoutGradingResultInput, CoursePostCommentUncheckedCreateWithoutGradingResultInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutGradingResultInput
+    connect?: CoursePostCommentWhereUniqueInput
+  }
+
+  export type UserCreateNestedOneWithoutCommentGradingsInput = {
+    create?: XOR<UserCreateWithoutCommentGradingsInput, UserUncheckedCreateWithoutCommentGradingsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutCommentGradingsInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type RubricCreateNestedOneWithoutCommentGradingsInput = {
+    create?: XOR<RubricCreateWithoutCommentGradingsInput, RubricUncheckedCreateWithoutCommentGradingsInput>
+    connectOrCreate?: RubricCreateOrConnectWithoutCommentGradingsInput
+    connect?: RubricWhereUniqueInput
+  }
+
+  export type CoursePostCommentUpdateOneRequiredWithoutGradingResultNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutGradingResultInput, CoursePostCommentUncheckedCreateWithoutGradingResultInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutGradingResultInput
+    upsert?: CoursePostCommentUpsertWithoutGradingResultInput
+    connect?: CoursePostCommentWhereUniqueInput
+    update?: XOR<XOR<CoursePostCommentUpdateToOneWithWhereWithoutGradingResultInput, CoursePostCommentUpdateWithoutGradingResultInput>, CoursePostCommentUncheckedUpdateWithoutGradingResultInput>
+  }
+
+  export type UserUpdateOneRequiredWithoutCommentGradingsNestedInput = {
+    create?: XOR<UserCreateWithoutCommentGradingsInput, UserUncheckedCreateWithoutCommentGradingsInput>
+    connectOrCreate?: UserCreateOrConnectWithoutCommentGradingsInput
+    upsert?: UserUpsertWithoutCommentGradingsInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutCommentGradingsInput, UserUpdateWithoutCommentGradingsInput>, UserUncheckedUpdateWithoutCommentGradingsInput>
+  }
+
+  export type RubricUpdateOneRequiredWithoutCommentGradingsNestedInput = {
+    create?: XOR<RubricCreateWithoutCommentGradingsInput, RubricUncheckedCreateWithoutCommentGradingsInput>
+    connectOrCreate?: RubricCreateOrConnectWithoutCommentGradingsInput
+    upsert?: RubricUpsertWithoutCommentGradingsInput
+    connect?: RubricWhereUniqueInput
+    update?: XOR<XOR<RubricUpdateToOneWithWhereWithoutCommentGradingsInput, RubricUpdateWithoutCommentGradingsInput>, RubricUncheckedUpdateWithoutCommentGradingsInput>
+  }
+
+  export type CoursePostCreateNestedOneWithoutLikesInput = {
+    create?: XOR<CoursePostCreateWithoutLikesInput, CoursePostUncheckedCreateWithoutLikesInput>
+    connectOrCreate?: CoursePostCreateOrConnectWithoutLikesInput
+    connect?: CoursePostWhereUniqueInput
+  }
+
+  export type UserCreateNestedOneWithoutPostLikesInput = {
+    create?: XOR<UserCreateWithoutPostLikesInput, UserUncheckedCreateWithoutPostLikesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutPostLikesInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type CoursePostUpdateOneRequiredWithoutLikesNestedInput = {
+    create?: XOR<CoursePostCreateWithoutLikesInput, CoursePostUncheckedCreateWithoutLikesInput>
+    connectOrCreate?: CoursePostCreateOrConnectWithoutLikesInput
+    upsert?: CoursePostUpsertWithoutLikesInput
+    connect?: CoursePostWhereUniqueInput
+    update?: XOR<XOR<CoursePostUpdateToOneWithWhereWithoutLikesInput, CoursePostUpdateWithoutLikesInput>, CoursePostUncheckedUpdateWithoutLikesInput>
+  }
+
+  export type UserUpdateOneRequiredWithoutPostLikesNestedInput = {
+    create?: XOR<UserCreateWithoutPostLikesInput, UserUncheckedCreateWithoutPostLikesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutPostLikesInput
+    upsert?: UserUpsertWithoutPostLikesInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutPostLikesInput, UserUpdateWithoutPostLikesInput>, UserUncheckedUpdateWithoutPostLikesInput>
+  }
+
+  export type CoursePostCommentCreateNestedOneWithoutLikesInput = {
+    create?: XOR<CoursePostCommentCreateWithoutLikesInput, CoursePostCommentUncheckedCreateWithoutLikesInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutLikesInput
+    connect?: CoursePostCommentWhereUniqueInput
+  }
+
+  export type UserCreateNestedOneWithoutCommentLikesInput = {
+    create?: XOR<UserCreateWithoutCommentLikesInput, UserUncheckedCreateWithoutCommentLikesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutCommentLikesInput
+    connect?: UserWhereUniqueInput
+  }
+
+  export type CoursePostCommentUpdateOneRequiredWithoutLikesNestedInput = {
+    create?: XOR<CoursePostCommentCreateWithoutLikesInput, CoursePostCommentUncheckedCreateWithoutLikesInput>
+    connectOrCreate?: CoursePostCommentCreateOrConnectWithoutLikesInput
+    upsert?: CoursePostCommentUpsertWithoutLikesInput
+    connect?: CoursePostCommentWhereUniqueInput
+    update?: XOR<XOR<CoursePostCommentUpdateToOneWithWhereWithoutLikesInput, CoursePostCommentUpdateWithoutLikesInput>, CoursePostCommentUncheckedUpdateWithoutLikesInput>
+  }
+
+  export type UserUpdateOneRequiredWithoutCommentLikesNestedInput = {
+    create?: XOR<UserCreateWithoutCommentLikesInput, UserUncheckedCreateWithoutCommentLikesInput>
+    connectOrCreate?: UserCreateOrConnectWithoutCommentLikesInput
+    upsert?: UserUpsertWithoutCommentLikesInput
+    connect?: UserWhereUniqueInput
+    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutCommentLikesInput, UserUpdateWithoutCommentLikesInput>, UserUncheckedUpdateWithoutCommentLikesInput>
   }
 
   export type UserCreateNestedOneWithoutAgentChatSessionsInput = {
@@ -32948,6 +42270,23 @@ export namespace Prisma {
     _max?: NestedEnumNotificationTypeFilter<$PrismaModel>
   }
 
+  export type NestedEnumPostTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.PostType | EnumPostTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PostType[] | ListEnumPostTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PostType[] | ListEnumPostTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPostTypeFilter<$PrismaModel> | $Enums.PostType
+  }
+
+  export type NestedEnumPostTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PostType | EnumPostTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PostType[] | ListEnumPostTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PostType[] | ListEnumPostTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPostTypeWithAggregatesFilter<$PrismaModel> | $Enums.PostType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPostTypeFilter<$PrismaModel>
+    _max?: NestedEnumPostTypeFilter<$PrismaModel>
+  }
+
   export type RubricCreateWithoutUserInput = {
     id?: string
     name: string
@@ -32961,6 +42300,8 @@ export namespace Prisma {
     teacher?: UserCreateNestedOneWithoutTeacherRubricsInput
     gradingResults?: GradingResultCreateNestedManyWithoutRubricInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUncheckedCreateWithoutUserInput = {
@@ -32976,6 +42317,8 @@ export namespace Prisma {
     updatedAt?: Date | string
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutRubricInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostUncheckedCreateNestedManyWithoutRubricInput
   }
 
   export type RubricCreateOrConnectWithoutUserInput = {
@@ -33076,6 +42419,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
     notifications?: NotificationCreateNestedManyWithoutCourseInput
+    posts?: CoursePostCreateNestedManyWithoutCourseInput
   }
 
   export type CourseUncheckedCreateWithoutTeacherInput = {
@@ -33090,6 +42434,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutCourseInput
   }
 
   export type CourseCreateOrConnectWithoutTeacherInput = {
@@ -33115,6 +42460,8 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutRubricsInput
     gradingResults?: GradingResultCreateNestedManyWithoutRubricInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUncheckedCreateWithoutTeacherInput = {
@@ -33130,6 +42477,8 @@ export namespace Prisma {
     updatedAt?: Date | string
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutRubricInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostUncheckedCreateNestedManyWithoutRubricInput
   }
 
   export type RubricCreateOrConnectWithoutTeacherInput = {
@@ -33154,6 +42503,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutClassInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+    posts?: CoursePostCreateNestedManyWithoutClassInput
   }
 
   export type ClassUncheckedCreateWithoutAssistantInput = {
@@ -33168,6 +42518,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutClassInput
   }
 
   export type ClassCreateOrConnectWithoutAssistantInput = {
@@ -33204,6 +42555,7 @@ export namespace Prisma {
     assignmentArea: AssignmentAreaCreateNestedOneWithoutSubmissionsInput
     previousVersion?: SubmissionCreateNestedOneWithoutNextVersionsInput
     nextVersions?: SubmissionCreateNestedManyWithoutPreviousVersionInput
+    comment?: CoursePostCommentCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionUncheckedCreateWithoutStudentInput = {
@@ -33230,6 +42582,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     nextVersions?: SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
+    comment?: CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionCreateOrConnectWithoutStudentInput = {
@@ -33409,6 +42762,192 @@ export namespace Prisma {
 
   export type NotificationCreateManyUserInputEnvelope = {
     data: NotificationCreateManyUserInput | NotificationCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CoursePostCreateWithoutAuthorInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutPostsInput
+    class?: ClassCreateNestedOneWithoutPostsInput
+    assignmentArea?: AssignmentAreaCreateNestedOneWithoutPostsInput
+    rubric?: RubricCreateNestedOneWithoutCommunityPostsInput
+    comments?: CoursePostCommentCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostUncheckedCreateWithoutAuthorInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comments?: CoursePostCommentUncheckedCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeUncheckedCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostCreateOrConnectWithoutAuthorInput = {
+    where: CoursePostWhereUniqueInput
+    create: XOR<CoursePostCreateWithoutAuthorInput, CoursePostUncheckedCreateWithoutAuthorInput>
+  }
+
+  export type CoursePostCreateManyAuthorInputEnvelope = {
+    data: CoursePostCreateManyAuthorInput | CoursePostCreateManyAuthorInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CoursePostCommentCreateWithoutAuthorInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    post: CoursePostCreateNestedOneWithoutCommentsInput
+    submission?: SubmissionCreateNestedOneWithoutCommentInput
+    parentComment?: CoursePostCommentCreateNestedOneWithoutRepliesInput
+    replies?: CoursePostCommentCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentUncheckedCreateWithoutAuthorInput = {
+    id?: string
+    postId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    replies?: CoursePostCommentUncheckedCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultUncheckedCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentCreateOrConnectWithoutAuthorInput = {
+    where: CoursePostCommentWhereUniqueInput
+    create: XOR<CoursePostCommentCreateWithoutAuthorInput, CoursePostCommentUncheckedCreateWithoutAuthorInput>
+  }
+
+  export type CoursePostCommentCreateManyAuthorInputEnvelope = {
+    data: CoursePostCommentCreateManyAuthorInput | CoursePostCommentCreateManyAuthorInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CoursePostLikeCreateWithoutUserInput = {
+    id?: string
+    createdAt?: Date | string
+    post: CoursePostCreateNestedOneWithoutLikesInput
+  }
+
+  export type CoursePostLikeUncheckedCreateWithoutUserInput = {
+    id?: string
+    postId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostLikeCreateOrConnectWithoutUserInput = {
+    where: CoursePostLikeWhereUniqueInput
+    create: XOR<CoursePostLikeCreateWithoutUserInput, CoursePostLikeUncheckedCreateWithoutUserInput>
+  }
+
+  export type CoursePostLikeCreateManyUserInputEnvelope = {
+    data: CoursePostLikeCreateManyUserInput | CoursePostLikeCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CoursePostCommentLikeCreateWithoutUserInput = {
+    id?: string
+    createdAt?: Date | string
+    comment: CoursePostCommentCreateNestedOneWithoutLikesInput
+  }
+
+  export type CoursePostCommentLikeUncheckedCreateWithoutUserInput = {
+    id?: string
+    commentId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostCommentLikeCreateOrConnectWithoutUserInput = {
+    where: CoursePostCommentLikeWhereUniqueInput
+    create: XOR<CoursePostCommentLikeCreateWithoutUserInput, CoursePostCommentLikeUncheckedCreateWithoutUserInput>
+  }
+
+  export type CoursePostCommentLikeCreateManyUserInputEnvelope = {
+    data: CoursePostCommentLikeCreateManyUserInput | CoursePostCommentLikeCreateManyUserInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CommentGradingResultCreateWithoutGraderInput = {
+    id?: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comment: CoursePostCommentCreateNestedOneWithoutGradingResultInput
+    rubric: RubricCreateNestedOneWithoutCommentGradingsInput
+  }
+
+  export type CommentGradingResultUncheckedCreateWithoutGraderInput = {
+    id?: string
+    commentId: string
+    rubricId: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CommentGradingResultCreateOrConnectWithoutGraderInput = {
+    where: CommentGradingResultWhereUniqueInput
+    create: XOR<CommentGradingResultCreateWithoutGraderInput, CommentGradingResultUncheckedCreateWithoutGraderInput>
+  }
+
+  export type CommentGradingResultCreateManyGraderInputEnvelope = {
+    data: CommentGradingResultCreateManyGraderInput | CommentGradingResultCreateManyGraderInput[]
     skipDuplicates?: boolean
   }
 
@@ -33790,6 +43329,169 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Notification"> | Date | string
   }
 
+  export type CoursePostUpsertWithWhereUniqueWithoutAuthorInput = {
+    where: CoursePostWhereUniqueInput
+    update: XOR<CoursePostUpdateWithoutAuthorInput, CoursePostUncheckedUpdateWithoutAuthorInput>
+    create: XOR<CoursePostCreateWithoutAuthorInput, CoursePostUncheckedCreateWithoutAuthorInput>
+  }
+
+  export type CoursePostUpdateWithWhereUniqueWithoutAuthorInput = {
+    where: CoursePostWhereUniqueInput
+    data: XOR<CoursePostUpdateWithoutAuthorInput, CoursePostUncheckedUpdateWithoutAuthorInput>
+  }
+
+  export type CoursePostUpdateManyWithWhereWithoutAuthorInput = {
+    where: CoursePostScalarWhereInput
+    data: XOR<CoursePostUpdateManyMutationInput, CoursePostUncheckedUpdateManyWithoutAuthorInput>
+  }
+
+  export type CoursePostScalarWhereInput = {
+    AND?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+    OR?: CoursePostScalarWhereInput[]
+    NOT?: CoursePostScalarWhereInput | CoursePostScalarWhereInput[]
+    id?: StringFilter<"CoursePost"> | string
+    courseId?: StringFilter<"CoursePost"> | string
+    classId?: StringNullableFilter<"CoursePost"> | string | null
+    authorId?: StringFilter<"CoursePost"> | string
+    authorRole?: EnumUserRoleFilter<"CoursePost"> | $Enums.UserRole
+    type?: EnumPostTypeFilter<"CoursePost"> | $Enums.PostType
+    title?: StringFilter<"CoursePost"> | string
+    content?: StringFilter<"CoursePost"> | string
+    attachments?: JsonNullableFilter<"CoursePost">
+    assignmentAreaId?: StringNullableFilter<"CoursePost"> | string | null
+    rubricId?: StringNullableFilter<"CoursePost"> | string | null
+    likeCount?: IntFilter<"CoursePost"> | number
+    commentCount?: IntFilter<"CoursePost"> | number
+    isPinned?: BoolFilter<"CoursePost"> | boolean
+    isArchived?: BoolFilter<"CoursePost"> | boolean
+    createdAt?: DateTimeFilter<"CoursePost"> | Date | string
+    updatedAt?: DateTimeFilter<"CoursePost"> | Date | string
+  }
+
+  export type CoursePostCommentUpsertWithWhereUniqueWithoutAuthorInput = {
+    where: CoursePostCommentWhereUniqueInput
+    update: XOR<CoursePostCommentUpdateWithoutAuthorInput, CoursePostCommentUncheckedUpdateWithoutAuthorInput>
+    create: XOR<CoursePostCommentCreateWithoutAuthorInput, CoursePostCommentUncheckedCreateWithoutAuthorInput>
+  }
+
+  export type CoursePostCommentUpdateWithWhereUniqueWithoutAuthorInput = {
+    where: CoursePostCommentWhereUniqueInput
+    data: XOR<CoursePostCommentUpdateWithoutAuthorInput, CoursePostCommentUncheckedUpdateWithoutAuthorInput>
+  }
+
+  export type CoursePostCommentUpdateManyWithWhereWithoutAuthorInput = {
+    where: CoursePostCommentScalarWhereInput
+    data: XOR<CoursePostCommentUpdateManyMutationInput, CoursePostCommentUncheckedUpdateManyWithoutAuthorInput>
+  }
+
+  export type CoursePostCommentScalarWhereInput = {
+    AND?: CoursePostCommentScalarWhereInput | CoursePostCommentScalarWhereInput[]
+    OR?: CoursePostCommentScalarWhereInput[]
+    NOT?: CoursePostCommentScalarWhereInput | CoursePostCommentScalarWhereInput[]
+    id?: StringFilter<"CoursePostComment"> | string
+    postId?: StringFilter<"CoursePostComment"> | string
+    authorId?: StringFilter<"CoursePostComment"> | string
+    authorRole?: EnumUserRoleFilter<"CoursePostComment"> | $Enums.UserRole
+    content?: StringFilter<"CoursePostComment"> | string
+    attachments?: JsonNullableFilter<"CoursePostComment">
+    submissionId?: StringNullableFilter<"CoursePostComment"> | string | null
+    parentCommentId?: StringNullableFilter<"CoursePostComment"> | string | null
+    isEdited?: BoolFilter<"CoursePostComment"> | boolean
+    editedAt?: DateTimeNullableFilter<"CoursePostComment"> | Date | string | null
+    isDeleted?: BoolFilter<"CoursePostComment"> | boolean
+    deletedAt?: DateTimeNullableFilter<"CoursePostComment"> | Date | string | null
+    createdAt?: DateTimeFilter<"CoursePostComment"> | Date | string
+    updatedAt?: DateTimeFilter<"CoursePostComment"> | Date | string
+  }
+
+  export type CoursePostLikeUpsertWithWhereUniqueWithoutUserInput = {
+    where: CoursePostLikeWhereUniqueInput
+    update: XOR<CoursePostLikeUpdateWithoutUserInput, CoursePostLikeUncheckedUpdateWithoutUserInput>
+    create: XOR<CoursePostLikeCreateWithoutUserInput, CoursePostLikeUncheckedCreateWithoutUserInput>
+  }
+
+  export type CoursePostLikeUpdateWithWhereUniqueWithoutUserInput = {
+    where: CoursePostLikeWhereUniqueInput
+    data: XOR<CoursePostLikeUpdateWithoutUserInput, CoursePostLikeUncheckedUpdateWithoutUserInput>
+  }
+
+  export type CoursePostLikeUpdateManyWithWhereWithoutUserInput = {
+    where: CoursePostLikeScalarWhereInput
+    data: XOR<CoursePostLikeUpdateManyMutationInput, CoursePostLikeUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type CoursePostLikeScalarWhereInput = {
+    AND?: CoursePostLikeScalarWhereInput | CoursePostLikeScalarWhereInput[]
+    OR?: CoursePostLikeScalarWhereInput[]
+    NOT?: CoursePostLikeScalarWhereInput | CoursePostLikeScalarWhereInput[]
+    id?: StringFilter<"CoursePostLike"> | string
+    postId?: StringFilter<"CoursePostLike"> | string
+    userId?: StringFilter<"CoursePostLike"> | string
+    createdAt?: DateTimeFilter<"CoursePostLike"> | Date | string
+  }
+
+  export type CoursePostCommentLikeUpsertWithWhereUniqueWithoutUserInput = {
+    where: CoursePostCommentLikeWhereUniqueInput
+    update: XOR<CoursePostCommentLikeUpdateWithoutUserInput, CoursePostCommentLikeUncheckedUpdateWithoutUserInput>
+    create: XOR<CoursePostCommentLikeCreateWithoutUserInput, CoursePostCommentLikeUncheckedCreateWithoutUserInput>
+  }
+
+  export type CoursePostCommentLikeUpdateWithWhereUniqueWithoutUserInput = {
+    where: CoursePostCommentLikeWhereUniqueInput
+    data: XOR<CoursePostCommentLikeUpdateWithoutUserInput, CoursePostCommentLikeUncheckedUpdateWithoutUserInput>
+  }
+
+  export type CoursePostCommentLikeUpdateManyWithWhereWithoutUserInput = {
+    where: CoursePostCommentLikeScalarWhereInput
+    data: XOR<CoursePostCommentLikeUpdateManyMutationInput, CoursePostCommentLikeUncheckedUpdateManyWithoutUserInput>
+  }
+
+  export type CoursePostCommentLikeScalarWhereInput = {
+    AND?: CoursePostCommentLikeScalarWhereInput | CoursePostCommentLikeScalarWhereInput[]
+    OR?: CoursePostCommentLikeScalarWhereInput[]
+    NOT?: CoursePostCommentLikeScalarWhereInput | CoursePostCommentLikeScalarWhereInput[]
+    id?: StringFilter<"CoursePostCommentLike"> | string
+    commentId?: StringFilter<"CoursePostCommentLike"> | string
+    userId?: StringFilter<"CoursePostCommentLike"> | string
+    createdAt?: DateTimeFilter<"CoursePostCommentLike"> | Date | string
+  }
+
+  export type CommentGradingResultUpsertWithWhereUniqueWithoutGraderInput = {
+    where: CommentGradingResultWhereUniqueInput
+    update: XOR<CommentGradingResultUpdateWithoutGraderInput, CommentGradingResultUncheckedUpdateWithoutGraderInput>
+    create: XOR<CommentGradingResultCreateWithoutGraderInput, CommentGradingResultUncheckedCreateWithoutGraderInput>
+  }
+
+  export type CommentGradingResultUpdateWithWhereUniqueWithoutGraderInput = {
+    where: CommentGradingResultWhereUniqueInput
+    data: XOR<CommentGradingResultUpdateWithoutGraderInput, CommentGradingResultUncheckedUpdateWithoutGraderInput>
+  }
+
+  export type CommentGradingResultUpdateManyWithWhereWithoutGraderInput = {
+    where: CommentGradingResultScalarWhereInput
+    data: XOR<CommentGradingResultUpdateManyMutationInput, CommentGradingResultUncheckedUpdateManyWithoutGraderInput>
+  }
+
+  export type CommentGradingResultScalarWhereInput = {
+    AND?: CommentGradingResultScalarWhereInput | CommentGradingResultScalarWhereInput[]
+    OR?: CommentGradingResultScalarWhereInput[]
+    NOT?: CommentGradingResultScalarWhereInput | CommentGradingResultScalarWhereInput[]
+    id?: StringFilter<"CommentGradingResult"> | string
+    commentId?: StringFilter<"CommentGradingResult"> | string
+    graderId?: StringFilter<"CommentGradingResult"> | string
+    rubricId?: StringFilter<"CommentGradingResult"> | string
+    result?: JsonFilter<"CommentGradingResult">
+    normalizedScore?: FloatNullableFilter<"CommentGradingResult"> | number | null
+    thoughtSummary?: StringNullableFilter<"CommentGradingResult"> | string | null
+    thinkingProcess?: StringNullableFilter<"CommentGradingResult"> | string | null
+    gradingRationale?: StringNullableFilter<"CommentGradingResult"> | string | null
+    gradingModel?: StringNullableFilter<"CommentGradingResult"> | string | null
+    gradingTokens?: IntNullableFilter<"CommentGradingResult"> | number | null
+    gradingDuration?: IntNullableFilter<"CommentGradingResult"> | number | null
+    createdAt?: DateTimeFilter<"CommentGradingResult"> | Date | string
+    updatedAt?: DateTimeFilter<"CommentGradingResult"> | Date | string
+  }
+
   export type UserCreateWithoutCoursesInput = {
     id?: string
     email: string
@@ -33811,6 +43513,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutCoursesInput = {
@@ -33834,6 +43541,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutCoursesInput = {
@@ -33853,6 +43565,7 @@ export namespace Prisma {
     enrollments?: EnrollmentCreateNestedManyWithoutClassInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+    posts?: CoursePostCreateNestedManyWithoutClassInput
   }
 
   export type ClassUncheckedCreateWithoutCourseInput = {
@@ -33867,6 +43580,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutClassInput
   }
 
   export type ClassCreateOrConnectWithoutCourseInput = {
@@ -33893,6 +43607,7 @@ export namespace Prisma {
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaUncheckedCreateWithoutCourseInput = {
@@ -33909,6 +43624,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaCreateOrConnectWithoutCourseInput = {
@@ -33989,6 +43705,58 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type CoursePostCreateWithoutCourseInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    class?: ClassCreateNestedOneWithoutPostsInput
+    author: UserCreateNestedOneWithoutAuthoredPostsInput
+    assignmentArea?: AssignmentAreaCreateNestedOneWithoutPostsInput
+    rubric?: RubricCreateNestedOneWithoutCommunityPostsInput
+    comments?: CoursePostCommentCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostUncheckedCreateWithoutCourseInput = {
+    id?: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comments?: CoursePostCommentUncheckedCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeUncheckedCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostCreateOrConnectWithoutCourseInput = {
+    where: CoursePostWhereUniqueInput
+    create: XOR<CoursePostCreateWithoutCourseInput, CoursePostUncheckedCreateWithoutCourseInput>
+  }
+
+  export type CoursePostCreateManyCourseInputEnvelope = {
+    data: CoursePostCreateManyCourseInput | CoursePostCreateManyCourseInput[]
+    skipDuplicates?: boolean
+  }
+
   export type UserUpsertWithoutCoursesInput = {
     update: XOR<UserUpdateWithoutCoursesInput, UserUncheckedUpdateWithoutCoursesInput>
     create: XOR<UserCreateWithoutCoursesInput, UserUncheckedCreateWithoutCoursesInput>
@@ -34021,6 +43789,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutCoursesInput = {
@@ -34044,6 +43817,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type ClassUpsertWithWhereUniqueWithoutCourseInput = {
@@ -34127,6 +43905,22 @@ export namespace Prisma {
     data: XOR<NotificationUpdateManyMutationInput, NotificationUncheckedUpdateManyWithoutCourseInput>
   }
 
+  export type CoursePostUpsertWithWhereUniqueWithoutCourseInput = {
+    where: CoursePostWhereUniqueInput
+    update: XOR<CoursePostUpdateWithoutCourseInput, CoursePostUncheckedUpdateWithoutCourseInput>
+    create: XOR<CoursePostCreateWithoutCourseInput, CoursePostUncheckedCreateWithoutCourseInput>
+  }
+
+  export type CoursePostUpdateWithWhereUniqueWithoutCourseInput = {
+    where: CoursePostWhereUniqueInput
+    data: XOR<CoursePostUpdateWithoutCourseInput, CoursePostUncheckedUpdateWithoutCourseInput>
+  }
+
+  export type CoursePostUpdateManyWithWhereWithoutCourseInput = {
+    where: CoursePostScalarWhereInput
+    data: XOR<CoursePostUpdateManyMutationInput, CoursePostUncheckedUpdateManyWithoutCourseInput>
+  }
+
   export type CourseCreateWithoutClassesInput = {
     id?: string
     name: string
@@ -34139,6 +43933,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
     notifications?: NotificationCreateNestedManyWithoutCourseInput
+    posts?: CoursePostCreateNestedManyWithoutCourseInput
   }
 
   export type CourseUncheckedCreateWithoutClassesInput = {
@@ -34153,6 +43948,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutCourseInput
   }
 
   export type CourseCreateOrConnectWithoutClassesInput = {
@@ -34181,6 +43977,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutAssistantClassesInput = {
@@ -34204,6 +44005,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutAssistantClassesInput = {
@@ -34251,6 +44057,7 @@ export namespace Prisma {
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaUncheckedCreateWithoutClassInput = {
@@ -34267,6 +44074,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaCreateOrConnectWithoutClassInput = {
@@ -34311,6 +44119,58 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type CoursePostCreateWithoutClassInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutPostsInput
+    author: UserCreateNestedOneWithoutAuthoredPostsInput
+    assignmentArea?: AssignmentAreaCreateNestedOneWithoutPostsInput
+    rubric?: RubricCreateNestedOneWithoutCommunityPostsInput
+    comments?: CoursePostCommentCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostUncheckedCreateWithoutClassInput = {
+    id?: string
+    courseId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comments?: CoursePostCommentUncheckedCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeUncheckedCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostCreateOrConnectWithoutClassInput = {
+    where: CoursePostWhereUniqueInput
+    create: XOR<CoursePostCreateWithoutClassInput, CoursePostUncheckedCreateWithoutClassInput>
+  }
+
+  export type CoursePostCreateManyClassInputEnvelope = {
+    data: CoursePostCreateManyClassInput | CoursePostCreateManyClassInput[]
+    skipDuplicates?: boolean
+  }
+
   export type CourseUpsertWithoutClassesInput = {
     update: XOR<CourseUpdateWithoutClassesInput, CourseUncheckedUpdateWithoutClassesInput>
     create: XOR<CourseCreateWithoutClassesInput, CourseUncheckedCreateWithoutClassesInput>
@@ -34334,6 +44194,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUpdateManyWithoutCourseNestedInput
   }
 
   export type CourseUncheckedUpdateWithoutClassesInput = {
@@ -34348,6 +44209,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutCourseNestedInput
   }
 
   export type UserUpsertWithoutAssistantClassesInput = {
@@ -34382,6 +44244,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAssistantClassesInput = {
@@ -34405,6 +44272,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type EnrollmentUpsertWithWhereUniqueWithoutClassInput = {
@@ -34455,6 +44327,22 @@ export namespace Prisma {
     data: XOR<InvitationCodeUpdateManyMutationInput, InvitationCodeUncheckedUpdateManyWithoutClassInput>
   }
 
+  export type CoursePostUpsertWithWhereUniqueWithoutClassInput = {
+    where: CoursePostWhereUniqueInput
+    update: XOR<CoursePostUpdateWithoutClassInput, CoursePostUncheckedUpdateWithoutClassInput>
+    create: XOR<CoursePostCreateWithoutClassInput, CoursePostUncheckedCreateWithoutClassInput>
+  }
+
+  export type CoursePostUpdateWithWhereUniqueWithoutClassInput = {
+    where: CoursePostWhereUniqueInput
+    data: XOR<CoursePostUpdateWithoutClassInput, CoursePostUncheckedUpdateWithoutClassInput>
+  }
+
+  export type CoursePostUpdateManyWithWhereWithoutClassInput = {
+    where: CoursePostScalarWhereInput
+    data: XOR<CoursePostUpdateManyMutationInput, CoursePostUncheckedUpdateManyWithoutClassInput>
+  }
+
   export type CourseCreateWithoutAssignmentAreasInput = {
     id?: string
     name: string
@@ -34467,6 +44355,7 @@ export namespace Prisma {
     classes?: ClassCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
     notifications?: NotificationCreateNestedManyWithoutCourseInput
+    posts?: CoursePostCreateNestedManyWithoutCourseInput
   }
 
   export type CourseUncheckedCreateWithoutAssignmentAreasInput = {
@@ -34481,6 +44370,7 @@ export namespace Prisma {
     classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutCourseInput
   }
 
   export type CourseCreateOrConnectWithoutAssignmentAreasInput = {
@@ -34500,6 +44390,7 @@ export namespace Prisma {
     assistant?: UserCreateNestedOneWithoutAssistantClassesInput
     enrollments?: EnrollmentCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+    posts?: CoursePostCreateNestedManyWithoutClassInput
   }
 
   export type ClassUncheckedCreateWithoutAssignmentAreasInput = {
@@ -34514,6 +44405,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutClassInput
   }
 
   export type ClassCreateOrConnectWithoutAssignmentAreasInput = {
@@ -34534,6 +44426,8 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutRubricsInput
     teacher?: UserCreateNestedOneWithoutTeacherRubricsInput
     gradingResults?: GradingResultCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUncheckedCreateWithoutAssignmentAreasInput = {
@@ -34549,6 +44443,8 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostUncheckedCreateNestedManyWithoutRubricInput
   }
 
   export type RubricCreateOrConnectWithoutAssignmentAreasInput = {
@@ -34580,6 +44476,7 @@ export namespace Prisma {
     student: UserCreateNestedOneWithoutSubmissionsInput
     previousVersion?: SubmissionCreateNestedOneWithoutNextVersionsInput
     nextVersions?: SubmissionCreateNestedManyWithoutPreviousVersionInput
+    comment?: CoursePostCommentCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionUncheckedCreateWithoutAssignmentAreaInput = {
@@ -34606,6 +44503,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     nextVersions?: SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
+    comment?: CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionCreateOrConnectWithoutAssignmentAreaInput = {
@@ -34728,6 +44626,58 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type CoursePostCreateWithoutAssignmentAreaInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutPostsInput
+    class?: ClassCreateNestedOneWithoutPostsInput
+    author: UserCreateNestedOneWithoutAuthoredPostsInput
+    rubric?: RubricCreateNestedOneWithoutCommunityPostsInput
+    comments?: CoursePostCommentCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostUncheckedCreateWithoutAssignmentAreaInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comments?: CoursePostCommentUncheckedCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeUncheckedCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostCreateOrConnectWithoutAssignmentAreaInput = {
+    where: CoursePostWhereUniqueInput
+    create: XOR<CoursePostCreateWithoutAssignmentAreaInput, CoursePostUncheckedCreateWithoutAssignmentAreaInput>
+  }
+
+  export type CoursePostCreateManyAssignmentAreaInputEnvelope = {
+    data: CoursePostCreateManyAssignmentAreaInput | CoursePostCreateManyAssignmentAreaInput[]
+    skipDuplicates?: boolean
+  }
+
   export type CourseUpsertWithoutAssignmentAreasInput = {
     update: XOR<CourseUpdateWithoutAssignmentAreasInput, CourseUncheckedUpdateWithoutAssignmentAreasInput>
     create: XOR<CourseCreateWithoutAssignmentAreasInput, CourseUncheckedCreateWithoutAssignmentAreasInput>
@@ -34751,6 +44701,7 @@ export namespace Prisma {
     classes?: ClassUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUpdateManyWithoutCourseNestedInput
   }
 
   export type CourseUncheckedUpdateWithoutAssignmentAreasInput = {
@@ -34765,6 +44716,7 @@ export namespace Prisma {
     classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutCourseNestedInput
   }
 
   export type ClassUpsertWithoutAssignmentAreasInput = {
@@ -34790,6 +44742,7 @@ export namespace Prisma {
     assistant?: UserUpdateOneWithoutAssistantClassesNestedInput
     enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUpdateManyWithoutClassNestedInput
   }
 
   export type ClassUncheckedUpdateWithoutAssignmentAreasInput = {
@@ -34804,6 +44757,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutClassNestedInput
   }
 
   export type RubricUpsertWithoutAssignmentAreasInput = {
@@ -34830,6 +44784,8 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutRubricsNestedInput
     teacher?: UserUpdateOneWithoutTeacherRubricsNestedInput
     gradingResults?: GradingResultUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateWithoutAssignmentAreasInput = {
@@ -34845,6 +44801,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     gradingResults?: GradingResultUncheckedUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUncheckedUpdateManyWithoutRubricNestedInput
   }
 
   export type SubmissionUpsertWithWhereUniqueWithoutAssignmentAreaInput = {
@@ -34930,6 +44888,22 @@ export namespace Prisma {
     completedAt?: DateTimeNullableFilter<"GradingResult"> | Date | string | null
   }
 
+  export type CoursePostUpsertWithWhereUniqueWithoutAssignmentAreaInput = {
+    where: CoursePostWhereUniqueInput
+    update: XOR<CoursePostUpdateWithoutAssignmentAreaInput, CoursePostUncheckedUpdateWithoutAssignmentAreaInput>
+    create: XOR<CoursePostCreateWithoutAssignmentAreaInput, CoursePostUncheckedCreateWithoutAssignmentAreaInput>
+  }
+
+  export type CoursePostUpdateWithWhereUniqueWithoutAssignmentAreaInput = {
+    where: CoursePostWhereUniqueInput
+    data: XOR<CoursePostUpdateWithoutAssignmentAreaInput, CoursePostUncheckedUpdateWithoutAssignmentAreaInput>
+  }
+
+  export type CoursePostUpdateManyWithWhereWithoutAssignmentAreaInput = {
+    where: CoursePostScalarWhereInput
+    data: XOR<CoursePostUpdateManyMutationInput, CoursePostUncheckedUpdateManyWithoutAssignmentAreaInput>
+  }
+
   export type UserCreateWithoutSubmissionsInput = {
     id?: string
     email: string
@@ -34951,6 +44925,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutSubmissionsInput = {
@@ -34974,6 +44953,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutSubmissionsInput = {
@@ -34995,6 +44979,7 @@ export namespace Prisma {
     rubric: RubricCreateNestedOneWithoutAssignmentAreasInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaUncheckedCreateWithoutSubmissionsInput = {
@@ -35011,6 +44996,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     notifications?: NotificationUncheckedCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaCreateOrConnectWithoutSubmissionsInput = {
@@ -35042,6 +45028,7 @@ export namespace Prisma {
     student: UserCreateNestedOneWithoutSubmissionsInput
     assignmentArea: AssignmentAreaCreateNestedOneWithoutSubmissionsInput
     previousVersion?: SubmissionCreateNestedOneWithoutNextVersionsInput
+    comment?: CoursePostCommentCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionUncheckedCreateWithoutNextVersionsInput = {
@@ -35068,6 +45055,7 @@ export namespace Prisma {
     deletedBy?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    comment?: CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionCreateOrConnectWithoutNextVersionsInput = {
@@ -35099,6 +45087,7 @@ export namespace Prisma {
     student: UserCreateNestedOneWithoutSubmissionsInput
     assignmentArea: AssignmentAreaCreateNestedOneWithoutSubmissionsInput
     nextVersions?: SubmissionCreateNestedManyWithoutPreviousVersionInput
+    comment?: CoursePostCommentCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionUncheckedCreateWithoutPreviousVersionInput = {
@@ -35125,6 +45114,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     nextVersions?: SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
+    comment?: CoursePostCommentUncheckedCreateNestedOneWithoutSubmissionInput
   }
 
   export type SubmissionCreateOrConnectWithoutPreviousVersionInput = {
@@ -35135,6 +45125,49 @@ export namespace Prisma {
   export type SubmissionCreateManyPreviousVersionInputEnvelope = {
     data: SubmissionCreateManyPreviousVersionInput | SubmissionCreateManyPreviousVersionInput[]
     skipDuplicates?: boolean
+  }
+
+  export type CoursePostCommentCreateWithoutSubmissionInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    post: CoursePostCreateNestedOneWithoutCommentsInput
+    author: UserCreateNestedOneWithoutAuthoredCommentsInput
+    parentComment?: CoursePostCommentCreateNestedOneWithoutRepliesInput
+    replies?: CoursePostCommentCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentUncheckedCreateWithoutSubmissionInput = {
+    id?: string
+    postId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    replies?: CoursePostCommentUncheckedCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultUncheckedCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentCreateOrConnectWithoutSubmissionInput = {
+    where: CoursePostCommentWhereUniqueInput
+    create: XOR<CoursePostCommentCreateWithoutSubmissionInput, CoursePostCommentUncheckedCreateWithoutSubmissionInput>
   }
 
   export type UserUpsertWithoutSubmissionsInput = {
@@ -35169,6 +45202,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutSubmissionsInput = {
@@ -35192,6 +45230,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type AssignmentAreaUpsertWithoutSubmissionsInput = {
@@ -35219,6 +45262,7 @@ export namespace Prisma {
     rubric?: RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateWithoutSubmissionsInput = {
@@ -35235,6 +45279,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     notifications?: NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type SubmissionUpsertWithoutNextVersionsInput = {
@@ -35272,6 +45317,7 @@ export namespace Prisma {
     student?: UserUpdateOneRequiredWithoutSubmissionsNestedInput
     assignmentArea?: AssignmentAreaUpdateOneRequiredWithoutSubmissionsNestedInput
     previousVersion?: SubmissionUpdateOneWithoutNextVersionsNestedInput
+    comment?: CoursePostCommentUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionUncheckedUpdateWithoutNextVersionsInput = {
@@ -35298,6 +45344,7 @@ export namespace Prisma {
     deletedBy?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comment?: CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionUpsertWithWhereUniqueWithoutPreviousVersionInput = {
@@ -35314,6 +45361,55 @@ export namespace Prisma {
   export type SubmissionUpdateManyWithWhereWithoutPreviousVersionInput = {
     where: SubmissionScalarWhereInput
     data: XOR<SubmissionUpdateManyMutationInput, SubmissionUncheckedUpdateManyWithoutPreviousVersionInput>
+  }
+
+  export type CoursePostCommentUpsertWithoutSubmissionInput = {
+    update: XOR<CoursePostCommentUpdateWithoutSubmissionInput, CoursePostCommentUncheckedUpdateWithoutSubmissionInput>
+    create: XOR<CoursePostCommentCreateWithoutSubmissionInput, CoursePostCommentUncheckedCreateWithoutSubmissionInput>
+    where?: CoursePostCommentWhereInput
+  }
+
+  export type CoursePostCommentUpdateToOneWithWhereWithoutSubmissionInput = {
+    where?: CoursePostCommentWhereInput
+    data: XOR<CoursePostCommentUpdateWithoutSubmissionInput, CoursePostCommentUncheckedUpdateWithoutSubmissionInput>
+  }
+
+  export type CoursePostCommentUpdateWithoutSubmissionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    post?: CoursePostUpdateOneRequiredWithoutCommentsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredCommentsNestedInput
+    parentComment?: CoursePostCommentUpdateOneWithoutRepliesNestedInput
+    replies?: CoursePostCommentUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateWithoutSubmissionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    replies?: CoursePostCommentUncheckedUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUncheckedUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUncheckedUpdateOneWithoutCommentNestedInput
   }
 
   export type UserCreateWithoutRubricsInput = {
@@ -35337,6 +45433,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutRubricsInput = {
@@ -35360,6 +45461,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutRubricsInput = {
@@ -35388,6 +45494,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutTeacherRubricsInput = {
@@ -35411,6 +45522,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutTeacherRubricsInput = {
@@ -35506,6 +45622,7 @@ export namespace Prisma {
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaUncheckedCreateWithoutRubricInput = {
@@ -35522,6 +45639,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutAssignmentInput
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaCreateOrConnectWithoutRubricInput = {
@@ -35531,6 +45649,100 @@ export namespace Prisma {
 
   export type AssignmentAreaCreateManyRubricInputEnvelope = {
     data: AssignmentAreaCreateManyRubricInput | AssignmentAreaCreateManyRubricInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CommentGradingResultCreateWithoutRubricInput = {
+    id?: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comment: CoursePostCommentCreateNestedOneWithoutGradingResultInput
+    grader: UserCreateNestedOneWithoutCommentGradingsInput
+  }
+
+  export type CommentGradingResultUncheckedCreateWithoutRubricInput = {
+    id?: string
+    commentId: string
+    graderId: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CommentGradingResultCreateOrConnectWithoutRubricInput = {
+    where: CommentGradingResultWhereUniqueInput
+    create: XOR<CommentGradingResultCreateWithoutRubricInput, CommentGradingResultUncheckedCreateWithoutRubricInput>
+  }
+
+  export type CommentGradingResultCreateManyRubricInputEnvelope = {
+    data: CommentGradingResultCreateManyRubricInput | CommentGradingResultCreateManyRubricInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CoursePostCreateWithoutRubricInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutPostsInput
+    class?: ClassCreateNestedOneWithoutPostsInput
+    author: UserCreateNestedOneWithoutAuthoredPostsInput
+    assignmentArea?: AssignmentAreaCreateNestedOneWithoutPostsInput
+    comments?: CoursePostCommentCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostUncheckedCreateWithoutRubricInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comments?: CoursePostCommentUncheckedCreateNestedManyWithoutPostInput
+    likes?: CoursePostLikeUncheckedCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostCreateOrConnectWithoutRubricInput = {
+    where: CoursePostWhereUniqueInput
+    create: XOR<CoursePostCreateWithoutRubricInput, CoursePostUncheckedCreateWithoutRubricInput>
+  }
+
+  export type CoursePostCreateManyRubricInputEnvelope = {
+    data: CoursePostCreateManyRubricInput | CoursePostCreateManyRubricInput[]
     skipDuplicates?: boolean
   }
 
@@ -35566,6 +45778,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutRubricsInput = {
@@ -35589,6 +45806,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUpsertWithoutTeacherRubricsInput = {
@@ -35623,6 +45845,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutTeacherRubricsInput = {
@@ -35646,6 +45873,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type GradingResultUpsertWithWhereUniqueWithoutRubricInput = {
@@ -35680,6 +45912,38 @@ export namespace Prisma {
     data: XOR<AssignmentAreaUpdateManyMutationInput, AssignmentAreaUncheckedUpdateManyWithoutRubricInput>
   }
 
+  export type CommentGradingResultUpsertWithWhereUniqueWithoutRubricInput = {
+    where: CommentGradingResultWhereUniqueInput
+    update: XOR<CommentGradingResultUpdateWithoutRubricInput, CommentGradingResultUncheckedUpdateWithoutRubricInput>
+    create: XOR<CommentGradingResultCreateWithoutRubricInput, CommentGradingResultUncheckedCreateWithoutRubricInput>
+  }
+
+  export type CommentGradingResultUpdateWithWhereUniqueWithoutRubricInput = {
+    where: CommentGradingResultWhereUniqueInput
+    data: XOR<CommentGradingResultUpdateWithoutRubricInput, CommentGradingResultUncheckedUpdateWithoutRubricInput>
+  }
+
+  export type CommentGradingResultUpdateManyWithWhereWithoutRubricInput = {
+    where: CommentGradingResultScalarWhereInput
+    data: XOR<CommentGradingResultUpdateManyMutationInput, CommentGradingResultUncheckedUpdateManyWithoutRubricInput>
+  }
+
+  export type CoursePostUpsertWithWhereUniqueWithoutRubricInput = {
+    where: CoursePostWhereUniqueInput
+    update: XOR<CoursePostUpdateWithoutRubricInput, CoursePostUncheckedUpdateWithoutRubricInput>
+    create: XOR<CoursePostCreateWithoutRubricInput, CoursePostUncheckedCreateWithoutRubricInput>
+  }
+
+  export type CoursePostUpdateWithWhereUniqueWithoutRubricInput = {
+    where: CoursePostWhereUniqueInput
+    data: XOR<CoursePostUpdateWithoutRubricInput, CoursePostUncheckedUpdateWithoutRubricInput>
+  }
+
+  export type CoursePostUpdateManyWithWhereWithoutRubricInput = {
+    where: CoursePostScalarWhereInput
+    data: XOR<CoursePostUpdateManyMutationInput, CoursePostUncheckedUpdateManyWithoutRubricInput>
+  }
+
   export type UserCreateWithoutGradingSessionsInput = {
     id?: string
     email: string
@@ -35701,6 +45965,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutGradingSessionsInput = {
@@ -35724,6 +45993,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutGradingSessionsInput = {
@@ -35837,6 +46111,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutGradingSessionsInput = {
@@ -35860,6 +46139,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type GradingResultUpsertWithWhereUniqueWithoutGradingSessionInput = {
@@ -35899,6 +46183,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutUploadedFilesInput = {
@@ -35922,6 +46211,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutUploadedFilesInput = {
@@ -36035,6 +46329,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutUploadedFilesInput = {
@@ -36058,6 +46357,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type GradingResultUpsertWithWhereUniqueWithoutUploadedFileInput = {
@@ -36155,6 +46459,8 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutRubricsInput
     teacher?: UserCreateNestedOneWithoutTeacherRubricsInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostCreateNestedManyWithoutRubricInput
   }
 
   export type RubricUncheckedCreateWithoutGradingResultsInput = {
@@ -36170,6 +46476,8 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostUncheckedCreateNestedManyWithoutRubricInput
   }
 
   export type RubricCreateOrConnectWithoutGradingResultsInput = {
@@ -36191,6 +46499,7 @@ export namespace Prisma {
     rubric: RubricCreateNestedOneWithoutAssignmentAreasInput
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationCreateNestedManyWithoutAssignmentInput
+    posts?: CoursePostCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaUncheckedCreateWithoutGradingResultsInput = {
@@ -36207,6 +46516,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     submissions?: SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutAssignmentInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaCreateOrConnectWithoutGradingResultsInput = {
@@ -36348,6 +46658,8 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutRubricsNestedInput
     teacher?: UserUpdateOneWithoutTeacherRubricsNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateWithoutGradingResultsInput = {
@@ -36363,6 +46675,8 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUncheckedUpdateManyWithoutRubricNestedInput
   }
 
   export type AssignmentAreaUpsertWithoutGradingResultsInput = {
@@ -36390,6 +46704,7 @@ export namespace Prisma {
     rubric?: RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
+    posts?: CoursePostUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateWithoutGradingResultsInput = {
@@ -36406,6 +46721,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     submissions?: SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AgentExecutionLogUpsertWithWhereUniqueWithoutGradingResultInput = {
@@ -36604,6 +46920,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutEnrollmentsInput = {
@@ -36627,6 +46948,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutEnrollmentsInput = {
@@ -36646,6 +46972,7 @@ export namespace Prisma {
     assistant?: UserCreateNestedOneWithoutAssistantClassesInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+    posts?: CoursePostCreateNestedManyWithoutClassInput
   }
 
   export type ClassUncheckedCreateWithoutEnrollmentsInput = {
@@ -36660,6 +46987,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutClassInput
   }
 
   export type ClassCreateOrConnectWithoutEnrollmentsInput = {
@@ -36699,6 +47027,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutEnrollmentsInput = {
@@ -36722,6 +47055,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type ClassUpsertWithoutEnrollmentsInput = {
@@ -36747,6 +47085,7 @@ export namespace Prisma {
     assistant?: UserUpdateOneWithoutAssistantClassesNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUpdateManyWithoutClassNestedInput
   }
 
   export type ClassUncheckedUpdateWithoutEnrollmentsInput = {
@@ -36761,6 +47100,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutClassNestedInput
   }
 
   export type CourseCreateWithoutInvitationCodesInput = {
@@ -36775,6 +47115,7 @@ export namespace Prisma {
     classes?: ClassCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     notifications?: NotificationCreateNestedManyWithoutCourseInput
+    posts?: CoursePostCreateNestedManyWithoutCourseInput
   }
 
   export type CourseUncheckedCreateWithoutInvitationCodesInput = {
@@ -36789,6 +47130,7 @@ export namespace Prisma {
     classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutCourseInput
   }
 
   export type CourseCreateOrConnectWithoutInvitationCodesInput = {
@@ -36808,6 +47150,7 @@ export namespace Prisma {
     assistant?: UserCreateNestedOneWithoutAssistantClassesInput
     enrollments?: EnrollmentCreateNestedManyWithoutClassInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
+    posts?: CoursePostCreateNestedManyWithoutClassInput
   }
 
   export type ClassUncheckedCreateWithoutInvitationCodesInput = {
@@ -36822,6 +47165,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutClassInput
   }
 
   export type ClassCreateOrConnectWithoutInvitationCodesInput = {
@@ -36850,6 +47194,11 @@ export namespace Prisma {
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutUsedInvitationsInput = {
@@ -36873,6 +47222,11 @@ export namespace Prisma {
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutUsedInvitationsInput = {
@@ -36903,6 +47257,7 @@ export namespace Prisma {
     classes?: ClassUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUpdateManyWithoutCourseNestedInput
   }
 
   export type CourseUncheckedUpdateWithoutInvitationCodesInput = {
@@ -36917,6 +47272,7 @@ export namespace Prisma {
     classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutCourseNestedInput
   }
 
   export type ClassUpsertWithoutInvitationCodesInput = {
@@ -36942,6 +47298,7 @@ export namespace Prisma {
     assistant?: UserUpdateOneWithoutAssistantClassesNestedInput
     enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUpdateManyWithoutClassNestedInput
   }
 
   export type ClassUncheckedUpdateWithoutInvitationCodesInput = {
@@ -36956,6 +47313,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutClassNestedInput
   }
 
   export type UserUpsertWithoutUsedInvitationsInput = {
@@ -36990,6 +47348,11 @@ export namespace Prisma {
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutUsedInvitationsInput = {
@@ -37013,6 +47376,11 @@ export namespace Prisma {
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type UserCreateWithoutChatsInput = {
@@ -37036,6 +47404,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutChatsInput = {
@@ -37059,6 +47432,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutChatsInput = {
@@ -37124,6 +47502,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutChatsInput = {
@@ -37147,6 +47530,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type MsgUpsertWithWhereUniqueWithoutChatInput = {
@@ -37250,6 +47638,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutNotificationsInput = {
@@ -37273,6 +47666,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutNotificationsInput = {
@@ -37292,6 +47690,7 @@ export namespace Prisma {
     classes?: ClassCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
+    posts?: CoursePostCreateNestedManyWithoutCourseInput
   }
 
   export type CourseUncheckedCreateWithoutNotificationsInput = {
@@ -37306,6 +47705,7 @@ export namespace Prisma {
     classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
     assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
     invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutCourseInput
   }
 
   export type CourseCreateOrConnectWithoutNotificationsInput = {
@@ -37327,6 +47727,7 @@ export namespace Prisma {
     rubric: RubricCreateNestedOneWithoutAssignmentAreasInput
     submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
     gradingResults?: GradingResultCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaUncheckedCreateWithoutNotificationsInput = {
@@ -37343,6 +47744,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     submissions?: SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
     gradingResults?: GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
+    posts?: CoursePostUncheckedCreateNestedManyWithoutAssignmentAreaInput
   }
 
   export type AssignmentAreaCreateOrConnectWithoutNotificationsInput = {
@@ -37382,6 +47784,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutNotificationsInput = {
@@ -37405,6 +47812,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type CourseUpsertWithoutNotificationsInput = {
@@ -37430,6 +47842,7 @@ export namespace Prisma {
     classes?: ClassUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUpdateManyWithoutCourseNestedInput
   }
 
   export type CourseUncheckedUpdateWithoutNotificationsInput = {
@@ -37444,6 +47857,7 @@ export namespace Prisma {
     classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutCourseNestedInput
   }
 
   export type AssignmentAreaUpsertWithoutNotificationsInput = {
@@ -37471,6 +47885,7 @@ export namespace Prisma {
     rubric?: RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
     gradingResults?: GradingResultUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateWithoutNotificationsInput = {
@@ -37487,6 +47902,1935 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     submissions?: SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
     gradingResults?: GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  }
+
+  export type CourseCreateWithoutPostsInput = {
+    id?: string
+    name: string
+    code?: string | null
+    description?: string | null
+    syllabus?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    teacher: UserCreateNestedOneWithoutCoursesInput
+    classes?: ClassCreateNestedManyWithoutCourseInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutCourseInput
+    invitationCodes?: InvitationCodeCreateNestedManyWithoutCourseInput
+    notifications?: NotificationCreateNestedManyWithoutCourseInput
+  }
+
+  export type CourseUncheckedCreateWithoutPostsInput = {
+    id?: string
+    name: string
+    code?: string | null
+    description?: string | null
+    teacherId: string
+    syllabus?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    classes?: ClassUncheckedCreateNestedManyWithoutCourseInput
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutCourseInput
+    invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutCourseInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutCourseInput
+  }
+
+  export type CourseCreateOrConnectWithoutPostsInput = {
+    where: CourseWhereUniqueInput
+    create: XOR<CourseCreateWithoutPostsInput, CourseUncheckedCreateWithoutPostsInput>
+  }
+
+  export type ClassCreateWithoutPostsInput = {
+    id?: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutClassesInput
+    assistant?: UserCreateNestedOneWithoutAssistantClassesInput
+    enrollments?: EnrollmentCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassUncheckedCreateWithoutPostsInput = {
+    id?: string
+    courseId: string
+    name: string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: number | null
+    assistantId?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutClassInput
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutClassInput
+    invitationCodes?: InvitationCodeUncheckedCreateNestedManyWithoutClassInput
+  }
+
+  export type ClassCreateOrConnectWithoutPostsInput = {
+    where: ClassWhereUniqueInput
+    create: XOR<ClassCreateWithoutPostsInput, ClassUncheckedCreateWithoutPostsInput>
+  }
+
+  export type UserCreateWithoutAuthoredPostsInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
+    courses?: CourseCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
+    chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
+    notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
+  }
+
+  export type UserUncheckedCreateWithoutAuthoredPostsInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
+    courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+    chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
+  }
+
+  export type UserCreateOrConnectWithoutAuthoredPostsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutAuthoredPostsInput, UserUncheckedCreateWithoutAuthoredPostsInput>
+  }
+
+  export type AssignmentAreaCreateWithoutPostsInput = {
+    id?: string
+    name: string
+    description?: string | null
+    dueDate?: Date | string | null
+    referenceFileIds?: string | null
+    customGradingPrompt?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutAssignmentAreasInput
+    class?: ClassCreateNestedOneWithoutAssignmentAreasInput
+    rubric: RubricCreateNestedOneWithoutAssignmentAreasInput
+    submissions?: SubmissionCreateNestedManyWithoutAssignmentAreaInput
+    notifications?: NotificationCreateNestedManyWithoutAssignmentInput
+    gradingResults?: GradingResultCreateNestedManyWithoutAssignmentAreaInput
+  }
+
+  export type AssignmentAreaUncheckedCreateWithoutPostsInput = {
+    id?: string
+    name: string
+    description?: string | null
+    courseId: string
+    classId?: string | null
+    rubricId: string
+    dueDate?: Date | string | null
+    referenceFileIds?: string | null
+    customGradingPrompt?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    submissions?: SubmissionUncheckedCreateNestedManyWithoutAssignmentAreaInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutAssignmentInput
+    gradingResults?: GradingResultUncheckedCreateNestedManyWithoutAssignmentAreaInput
+  }
+
+  export type AssignmentAreaCreateOrConnectWithoutPostsInput = {
+    where: AssignmentAreaWhereUniqueInput
+    create: XOR<AssignmentAreaCreateWithoutPostsInput, AssignmentAreaUncheckedCreateWithoutPostsInput>
+  }
+
+  export type RubricCreateWithoutCommunityPostsInput = {
+    id?: string
+    name: string
+    description: string
+    version?: number
+    isActive?: boolean
+    isTemplate?: boolean
+    criteria: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutRubricsInput
+    teacher?: UserCreateNestedOneWithoutTeacherRubricsInput
+    gradingResults?: GradingResultCreateNestedManyWithoutRubricInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutRubricInput
+  }
+
+  export type RubricUncheckedCreateWithoutCommunityPostsInput = {
+    id?: string
+    userId: string
+    teacherId?: string | null
+    name: string
+    description: string
+    version?: number
+    isActive?: boolean
+    isTemplate?: boolean
+    criteria: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    gradingResults?: GradingResultUncheckedCreateNestedManyWithoutRubricInput
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutRubricInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutRubricInput
+  }
+
+  export type RubricCreateOrConnectWithoutCommunityPostsInput = {
+    where: RubricWhereUniqueInput
+    create: XOR<RubricCreateWithoutCommunityPostsInput, RubricUncheckedCreateWithoutCommunityPostsInput>
+  }
+
+  export type CoursePostCommentCreateWithoutPostInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    author: UserCreateNestedOneWithoutAuthoredCommentsInput
+    submission?: SubmissionCreateNestedOneWithoutCommentInput
+    parentComment?: CoursePostCommentCreateNestedOneWithoutRepliesInput
+    replies?: CoursePostCommentCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentUncheckedCreateWithoutPostInput = {
+    id?: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    replies?: CoursePostCommentUncheckedCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultUncheckedCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentCreateOrConnectWithoutPostInput = {
+    where: CoursePostCommentWhereUniqueInput
+    create: XOR<CoursePostCommentCreateWithoutPostInput, CoursePostCommentUncheckedCreateWithoutPostInput>
+  }
+
+  export type CoursePostCommentCreateManyPostInputEnvelope = {
+    data: CoursePostCommentCreateManyPostInput | CoursePostCommentCreateManyPostInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CoursePostLikeCreateWithoutPostInput = {
+    id?: string
+    createdAt?: Date | string
+    user: UserCreateNestedOneWithoutPostLikesInput
+  }
+
+  export type CoursePostLikeUncheckedCreateWithoutPostInput = {
+    id?: string
+    userId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostLikeCreateOrConnectWithoutPostInput = {
+    where: CoursePostLikeWhereUniqueInput
+    create: XOR<CoursePostLikeCreateWithoutPostInput, CoursePostLikeUncheckedCreateWithoutPostInput>
+  }
+
+  export type CoursePostLikeCreateManyPostInputEnvelope = {
+    data: CoursePostLikeCreateManyPostInput | CoursePostLikeCreateManyPostInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CourseUpsertWithoutPostsInput = {
+    update: XOR<CourseUpdateWithoutPostsInput, CourseUncheckedUpdateWithoutPostsInput>
+    create: XOR<CourseCreateWithoutPostsInput, CourseUncheckedCreateWithoutPostsInput>
+    where?: CourseWhereInput
+  }
+
+  export type CourseUpdateToOneWithWhereWithoutPostsInput = {
+    where?: CourseWhereInput
+    data: XOR<CourseUpdateWithoutPostsInput, CourseUncheckedUpdateWithoutPostsInput>
+  }
+
+  export type CourseUpdateWithoutPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    teacher?: UserUpdateOneRequiredWithoutCoursesNestedInput
+    classes?: ClassUpdateManyWithoutCourseNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
+    invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
+    notifications?: NotificationUpdateManyWithoutCourseNestedInput
+  }
+
+  export type CourseUncheckedUpdateWithoutPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    teacherId?: StringFieldUpdateOperationsInput | string
+    syllabus?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    classes?: ClassUncheckedUpdateManyWithoutCourseNestedInput
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
+    invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
+  }
+
+  export type ClassUpsertWithoutPostsInput = {
+    update: XOR<ClassUpdateWithoutPostsInput, ClassUncheckedUpdateWithoutPostsInput>
+    create: XOR<ClassCreateWithoutPostsInput, ClassUncheckedCreateWithoutPostsInput>
+    where?: ClassWhereInput
+  }
+
+  export type ClassUpdateToOneWithWhereWithoutPostsInput = {
+    where?: ClassWhereInput
+    data: XOR<ClassUpdateWithoutPostsInput, ClassUncheckedUpdateWithoutPostsInput>
+  }
+
+  export type ClassUpdateWithoutPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutClassesNestedInput
+    assistant?: UserUpdateOneWithoutAssistantClassesNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+  }
+
+  export type ClassUncheckedUpdateWithoutPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    schedule?: NullableJsonNullValueInput | InputJsonValue
+    capacity?: NullableIntFieldUpdateOperationsInput | number | null
+    assistantId?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
+    invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+  }
+
+  export type UserUpsertWithoutAuthoredPostsInput = {
+    update: XOR<UserUpdateWithoutAuthoredPostsInput, UserUncheckedUpdateWithoutAuthoredPostsInput>
+    create: XOR<UserCreateWithoutAuthoredPostsInput, UserUncheckedCreateWithoutAuthoredPostsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutAuthoredPostsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutAuthoredPostsInput, UserUncheckedUpdateWithoutAuthoredPostsInput>
+  }
+
+  export type UserUpdateWithoutAuthoredPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
+    courses?: CourseUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutAuthoredPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
+    courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
+  }
+
+  export type AssignmentAreaUpsertWithoutPostsInput = {
+    update: XOR<AssignmentAreaUpdateWithoutPostsInput, AssignmentAreaUncheckedUpdateWithoutPostsInput>
+    create: XOR<AssignmentAreaCreateWithoutPostsInput, AssignmentAreaUncheckedCreateWithoutPostsInput>
+    where?: AssignmentAreaWhereInput
+  }
+
+  export type AssignmentAreaUpdateToOneWithWhereWithoutPostsInput = {
+    where?: AssignmentAreaWhereInput
+    data: XOR<AssignmentAreaUpdateWithoutPostsInput, AssignmentAreaUncheckedUpdateWithoutPostsInput>
+  }
+
+  export type AssignmentAreaUpdateWithoutPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    referenceFileIds?: NullableStringFieldUpdateOperationsInput | string | null
+    customGradingPrompt?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutAssignmentAreasNestedInput
+    class?: ClassUpdateOneWithoutAssignmentAreasNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutAssignmentAreasNestedInput
+    submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
+    notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
+    gradingResults?: GradingResultUpdateManyWithoutAssignmentAreaNestedInput
+  }
+
+  export type AssignmentAreaUncheckedUpdateWithoutPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: StringFieldUpdateOperationsInput | string
+    dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    referenceFileIds?: NullableStringFieldUpdateOperationsInput | string | null
+    customGradingPrompt?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    submissions?: SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
+    gradingResults?: GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+  }
+
+  export type RubricUpsertWithoutCommunityPostsInput = {
+    update: XOR<RubricUpdateWithoutCommunityPostsInput, RubricUncheckedUpdateWithoutCommunityPostsInput>
+    create: XOR<RubricCreateWithoutCommunityPostsInput, RubricUncheckedCreateWithoutCommunityPostsInput>
+    where?: RubricWhereInput
+  }
+
+  export type RubricUpdateToOneWithWhereWithoutCommunityPostsInput = {
+    where?: RubricWhereInput
+    data: XOR<RubricUpdateWithoutCommunityPostsInput, RubricUncheckedUpdateWithoutCommunityPostsInput>
+  }
+
+  export type RubricUpdateWithoutCommunityPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    isTemplate?: BoolFieldUpdateOperationsInput | boolean
+    criteria?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutRubricsNestedInput
+    teacher?: UserUpdateOneWithoutTeacherRubricsNestedInput
+    gradingResults?: GradingResultUpdateManyWithoutRubricNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutRubricNestedInput
+  }
+
+  export type RubricUncheckedUpdateWithoutCommunityPostsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    teacherId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    isTemplate?: BoolFieldUpdateOperationsInput | boolean
+    criteria?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    gradingResults?: GradingResultUncheckedUpdateManyWithoutRubricNestedInput
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutRubricNestedInput
+  }
+
+  export type CoursePostCommentUpsertWithWhereUniqueWithoutPostInput = {
+    where: CoursePostCommentWhereUniqueInput
+    update: XOR<CoursePostCommentUpdateWithoutPostInput, CoursePostCommentUncheckedUpdateWithoutPostInput>
+    create: XOR<CoursePostCommentCreateWithoutPostInput, CoursePostCommentUncheckedCreateWithoutPostInput>
+  }
+
+  export type CoursePostCommentUpdateWithWhereUniqueWithoutPostInput = {
+    where: CoursePostCommentWhereUniqueInput
+    data: XOR<CoursePostCommentUpdateWithoutPostInput, CoursePostCommentUncheckedUpdateWithoutPostInput>
+  }
+
+  export type CoursePostCommentUpdateManyWithWhereWithoutPostInput = {
+    where: CoursePostCommentScalarWhereInput
+    data: XOR<CoursePostCommentUpdateManyMutationInput, CoursePostCommentUncheckedUpdateManyWithoutPostInput>
+  }
+
+  export type CoursePostLikeUpsertWithWhereUniqueWithoutPostInput = {
+    where: CoursePostLikeWhereUniqueInput
+    update: XOR<CoursePostLikeUpdateWithoutPostInput, CoursePostLikeUncheckedUpdateWithoutPostInput>
+    create: XOR<CoursePostLikeCreateWithoutPostInput, CoursePostLikeUncheckedCreateWithoutPostInput>
+  }
+
+  export type CoursePostLikeUpdateWithWhereUniqueWithoutPostInput = {
+    where: CoursePostLikeWhereUniqueInput
+    data: XOR<CoursePostLikeUpdateWithoutPostInput, CoursePostLikeUncheckedUpdateWithoutPostInput>
+  }
+
+  export type CoursePostLikeUpdateManyWithWhereWithoutPostInput = {
+    where: CoursePostLikeScalarWhereInput
+    data: XOR<CoursePostLikeUpdateManyMutationInput, CoursePostLikeUncheckedUpdateManyWithoutPostInput>
+  }
+
+  export type CoursePostCreateWithoutCommentsInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutPostsInput
+    class?: ClassCreateNestedOneWithoutPostsInput
+    author: UserCreateNestedOneWithoutAuthoredPostsInput
+    assignmentArea?: AssignmentAreaCreateNestedOneWithoutPostsInput
+    rubric?: RubricCreateNestedOneWithoutCommunityPostsInput
+    likes?: CoursePostLikeCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostUncheckedCreateWithoutCommentsInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    likes?: CoursePostLikeUncheckedCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostCreateOrConnectWithoutCommentsInput = {
+    where: CoursePostWhereUniqueInput
+    create: XOR<CoursePostCreateWithoutCommentsInput, CoursePostUncheckedCreateWithoutCommentsInput>
+  }
+
+  export type UserCreateWithoutAuthoredCommentsInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
+    courses?: CourseCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
+    chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
+    notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
+  }
+
+  export type UserUncheckedCreateWithoutAuthoredCommentsInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
+    courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+    chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
+  }
+
+  export type UserCreateOrConnectWithoutAuthoredCommentsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutAuthoredCommentsInput, UserUncheckedCreateWithoutAuthoredCommentsInput>
+  }
+
+  export type SubmissionCreateWithoutCommentInput = {
+    id?: string
+    version?: number
+    isLatest?: boolean
+    filePath: string
+    uploadedAt?: Date | string
+    sessionId?: string | null
+    aiAnalysisResult?: NullableJsonNullValueInput | InputJsonValue
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    finalScore?: number | null
+    normalizedScore?: number | null
+    usedContext?: NullableJsonNullValueInput | InputJsonValue
+    teacherFeedback?: string | null
+    status?: $Enums.SubmissionStatus
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    deletedBy?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    student: UserCreateNestedOneWithoutSubmissionsInput
+    assignmentArea: AssignmentAreaCreateNestedOneWithoutSubmissionsInput
+    previousVersion?: SubmissionCreateNestedOneWithoutNextVersionsInput
+    nextVersions?: SubmissionCreateNestedManyWithoutPreviousVersionInput
+  }
+
+  export type SubmissionUncheckedCreateWithoutCommentInput = {
+    id?: string
+    studentId: string
+    assignmentAreaId: string
+    version?: number
+    isLatest?: boolean
+    previousVersionId?: string | null
+    filePath: string
+    uploadedAt?: Date | string
+    sessionId?: string | null
+    aiAnalysisResult?: NullableJsonNullValueInput | InputJsonValue
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    finalScore?: number | null
+    normalizedScore?: number | null
+    usedContext?: NullableJsonNullValueInput | InputJsonValue
+    teacherFeedback?: string | null
+    status?: $Enums.SubmissionStatus
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    deletedBy?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    nextVersions?: SubmissionUncheckedCreateNestedManyWithoutPreviousVersionInput
+  }
+
+  export type SubmissionCreateOrConnectWithoutCommentInput = {
+    where: SubmissionWhereUniqueInput
+    create: XOR<SubmissionCreateWithoutCommentInput, SubmissionUncheckedCreateWithoutCommentInput>
+  }
+
+  export type CoursePostCommentCreateWithoutRepliesInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    post: CoursePostCreateNestedOneWithoutCommentsInput
+    author: UserCreateNestedOneWithoutAuthoredCommentsInput
+    submission?: SubmissionCreateNestedOneWithoutCommentInput
+    parentComment?: CoursePostCommentCreateNestedOneWithoutRepliesInput
+    likes?: CoursePostCommentLikeCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentUncheckedCreateWithoutRepliesInput = {
+    id?: string
+    postId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    likes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultUncheckedCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentCreateOrConnectWithoutRepliesInput = {
+    where: CoursePostCommentWhereUniqueInput
+    create: XOR<CoursePostCommentCreateWithoutRepliesInput, CoursePostCommentUncheckedCreateWithoutRepliesInput>
+  }
+
+  export type CoursePostCommentCreateWithoutParentCommentInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    post: CoursePostCreateNestedOneWithoutCommentsInput
+    author: UserCreateNestedOneWithoutAuthoredCommentsInput
+    submission?: SubmissionCreateNestedOneWithoutCommentInput
+    replies?: CoursePostCommentCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentUncheckedCreateWithoutParentCommentInput = {
+    id?: string
+    postId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    replies?: CoursePostCommentUncheckedCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutCommentInput
+    gradingResult?: CommentGradingResultUncheckedCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentCreateOrConnectWithoutParentCommentInput = {
+    where: CoursePostCommentWhereUniqueInput
+    create: XOR<CoursePostCommentCreateWithoutParentCommentInput, CoursePostCommentUncheckedCreateWithoutParentCommentInput>
+  }
+
+  export type CoursePostCommentCreateManyParentCommentInputEnvelope = {
+    data: CoursePostCommentCreateManyParentCommentInput | CoursePostCommentCreateManyParentCommentInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CoursePostCommentLikeCreateWithoutCommentInput = {
+    id?: string
+    createdAt?: Date | string
+    user: UserCreateNestedOneWithoutCommentLikesInput
+  }
+
+  export type CoursePostCommentLikeUncheckedCreateWithoutCommentInput = {
+    id?: string
+    userId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostCommentLikeCreateOrConnectWithoutCommentInput = {
+    where: CoursePostCommentLikeWhereUniqueInput
+    create: XOR<CoursePostCommentLikeCreateWithoutCommentInput, CoursePostCommentLikeUncheckedCreateWithoutCommentInput>
+  }
+
+  export type CoursePostCommentLikeCreateManyCommentInputEnvelope = {
+    data: CoursePostCommentLikeCreateManyCommentInput | CoursePostCommentLikeCreateManyCommentInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CommentGradingResultCreateWithoutCommentInput = {
+    id?: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    grader: UserCreateNestedOneWithoutCommentGradingsInput
+    rubric: RubricCreateNestedOneWithoutCommentGradingsInput
+  }
+
+  export type CommentGradingResultUncheckedCreateWithoutCommentInput = {
+    id?: string
+    graderId: string
+    rubricId: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CommentGradingResultCreateOrConnectWithoutCommentInput = {
+    where: CommentGradingResultWhereUniqueInput
+    create: XOR<CommentGradingResultCreateWithoutCommentInput, CommentGradingResultUncheckedCreateWithoutCommentInput>
+  }
+
+  export type CoursePostUpsertWithoutCommentsInput = {
+    update: XOR<CoursePostUpdateWithoutCommentsInput, CoursePostUncheckedUpdateWithoutCommentsInput>
+    create: XOR<CoursePostCreateWithoutCommentsInput, CoursePostUncheckedCreateWithoutCommentsInput>
+    where?: CoursePostWhereInput
+  }
+
+  export type CoursePostUpdateToOneWithWhereWithoutCommentsInput = {
+    where?: CoursePostWhereInput
+    data: XOR<CoursePostUpdateWithoutCommentsInput, CoursePostUncheckedUpdateWithoutCommentsInput>
+  }
+
+  export type CoursePostUpdateWithoutCommentsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutPostsNestedInput
+    class?: ClassUpdateOneWithoutPostsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredPostsNestedInput
+    assignmentArea?: AssignmentAreaUpdateOneWithoutPostsNestedInput
+    rubric?: RubricUpdateOneWithoutCommunityPostsNestedInput
+    likes?: CoursePostLikeUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateWithoutCommentsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    likes?: CoursePostLikeUncheckedUpdateManyWithoutPostNestedInput
+  }
+
+  export type UserUpsertWithoutAuthoredCommentsInput = {
+    update: XOR<UserUpdateWithoutAuthoredCommentsInput, UserUncheckedUpdateWithoutAuthoredCommentsInput>
+    create: XOR<UserCreateWithoutAuthoredCommentsInput, UserUncheckedCreateWithoutAuthoredCommentsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutAuthoredCommentsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutAuthoredCommentsInput, UserUncheckedUpdateWithoutAuthoredCommentsInput>
+  }
+
+  export type UserUpdateWithoutAuthoredCommentsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
+    courses?: CourseUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutAuthoredCommentsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
+    courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
+  }
+
+  export type SubmissionUpsertWithoutCommentInput = {
+    update: XOR<SubmissionUpdateWithoutCommentInput, SubmissionUncheckedUpdateWithoutCommentInput>
+    create: XOR<SubmissionCreateWithoutCommentInput, SubmissionUncheckedCreateWithoutCommentInput>
+    where?: SubmissionWhereInput
+  }
+
+  export type SubmissionUpdateToOneWithWhereWithoutCommentInput = {
+    where?: SubmissionWhereInput
+    data: XOR<SubmissionUpdateWithoutCommentInput, SubmissionUncheckedUpdateWithoutCommentInput>
+  }
+
+  export type SubmissionUpdateWithoutCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isLatest?: BoolFieldUpdateOperationsInput | boolean
+    filePath?: StringFieldUpdateOperationsInput | string
+    uploadedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    aiAnalysisResult?: NullableJsonNullValueInput | InputJsonValue
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    finalScore?: NullableIntFieldUpdateOperationsInput | number | null
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    usedContext?: NullableJsonNullValueInput | InputJsonValue
+    teacherFeedback?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    deletedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    student?: UserUpdateOneRequiredWithoutSubmissionsNestedInput
+    assignmentArea?: AssignmentAreaUpdateOneRequiredWithoutSubmissionsNestedInput
+    previousVersion?: SubmissionUpdateOneWithoutNextVersionsNestedInput
+    nextVersions?: SubmissionUpdateManyWithoutPreviousVersionNestedInput
+  }
+
+  export type SubmissionUncheckedUpdateWithoutCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    studentId?: StringFieldUpdateOperationsInput | string
+    assignmentAreaId?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isLatest?: BoolFieldUpdateOperationsInput | boolean
+    previousVersionId?: NullableStringFieldUpdateOperationsInput | string | null
+    filePath?: StringFieldUpdateOperationsInput | string
+    uploadedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    sessionId?: NullableStringFieldUpdateOperationsInput | string | null
+    aiAnalysisResult?: NullableJsonNullValueInput | InputJsonValue
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    finalScore?: NullableIntFieldUpdateOperationsInput | number | null
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    usedContext?: NullableJsonNullValueInput | InputJsonValue
+    teacherFeedback?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    deletedBy?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    nextVersions?: SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
+  }
+
+  export type CoursePostCommentUpsertWithoutRepliesInput = {
+    update: XOR<CoursePostCommentUpdateWithoutRepliesInput, CoursePostCommentUncheckedUpdateWithoutRepliesInput>
+    create: XOR<CoursePostCommentCreateWithoutRepliesInput, CoursePostCommentUncheckedCreateWithoutRepliesInput>
+    where?: CoursePostCommentWhereInput
+  }
+
+  export type CoursePostCommentUpdateToOneWithWhereWithoutRepliesInput = {
+    where?: CoursePostCommentWhereInput
+    data: XOR<CoursePostCommentUpdateWithoutRepliesInput, CoursePostCommentUncheckedUpdateWithoutRepliesInput>
+  }
+
+  export type CoursePostCommentUpdateWithoutRepliesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    post?: CoursePostUpdateOneRequiredWithoutCommentsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredCommentsNestedInput
+    submission?: SubmissionUpdateOneWithoutCommentNestedInput
+    parentComment?: CoursePostCommentUpdateOneWithoutRepliesNestedInput
+    likes?: CoursePostCommentLikeUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateWithoutRepliesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    likes?: CoursePostCommentLikeUncheckedUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUncheckedUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUpsertWithWhereUniqueWithoutParentCommentInput = {
+    where: CoursePostCommentWhereUniqueInput
+    update: XOR<CoursePostCommentUpdateWithoutParentCommentInput, CoursePostCommentUncheckedUpdateWithoutParentCommentInput>
+    create: XOR<CoursePostCommentCreateWithoutParentCommentInput, CoursePostCommentUncheckedCreateWithoutParentCommentInput>
+  }
+
+  export type CoursePostCommentUpdateWithWhereUniqueWithoutParentCommentInput = {
+    where: CoursePostCommentWhereUniqueInput
+    data: XOR<CoursePostCommentUpdateWithoutParentCommentInput, CoursePostCommentUncheckedUpdateWithoutParentCommentInput>
+  }
+
+  export type CoursePostCommentUpdateManyWithWhereWithoutParentCommentInput = {
+    where: CoursePostCommentScalarWhereInput
+    data: XOR<CoursePostCommentUpdateManyMutationInput, CoursePostCommentUncheckedUpdateManyWithoutParentCommentInput>
+  }
+
+  export type CoursePostCommentLikeUpsertWithWhereUniqueWithoutCommentInput = {
+    where: CoursePostCommentLikeWhereUniqueInput
+    update: XOR<CoursePostCommentLikeUpdateWithoutCommentInput, CoursePostCommentLikeUncheckedUpdateWithoutCommentInput>
+    create: XOR<CoursePostCommentLikeCreateWithoutCommentInput, CoursePostCommentLikeUncheckedCreateWithoutCommentInput>
+  }
+
+  export type CoursePostCommentLikeUpdateWithWhereUniqueWithoutCommentInput = {
+    where: CoursePostCommentLikeWhereUniqueInput
+    data: XOR<CoursePostCommentLikeUpdateWithoutCommentInput, CoursePostCommentLikeUncheckedUpdateWithoutCommentInput>
+  }
+
+  export type CoursePostCommentLikeUpdateManyWithWhereWithoutCommentInput = {
+    where: CoursePostCommentLikeScalarWhereInput
+    data: XOR<CoursePostCommentLikeUpdateManyMutationInput, CoursePostCommentLikeUncheckedUpdateManyWithoutCommentInput>
+  }
+
+  export type CommentGradingResultUpsertWithoutCommentInput = {
+    update: XOR<CommentGradingResultUpdateWithoutCommentInput, CommentGradingResultUncheckedUpdateWithoutCommentInput>
+    create: XOR<CommentGradingResultCreateWithoutCommentInput, CommentGradingResultUncheckedCreateWithoutCommentInput>
+    where?: CommentGradingResultWhereInput
+  }
+
+  export type CommentGradingResultUpdateToOneWithWhereWithoutCommentInput = {
+    where?: CommentGradingResultWhereInput
+    data: XOR<CommentGradingResultUpdateWithoutCommentInput, CommentGradingResultUncheckedUpdateWithoutCommentInput>
+  }
+
+  export type CommentGradingResultUpdateWithoutCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    grader?: UserUpdateOneRequiredWithoutCommentGradingsNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutCommentGradingsNestedInput
+  }
+
+  export type CommentGradingResultUncheckedUpdateWithoutCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    graderId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentCreateWithoutGradingResultInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    post: CoursePostCreateNestedOneWithoutCommentsInput
+    author: UserCreateNestedOneWithoutAuthoredCommentsInput
+    submission?: SubmissionCreateNestedOneWithoutCommentInput
+    parentComment?: CoursePostCommentCreateNestedOneWithoutRepliesInput
+    replies?: CoursePostCommentCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeCreateNestedManyWithoutCommentInput
+  }
+
+  export type CoursePostCommentUncheckedCreateWithoutGradingResultInput = {
+    id?: string
+    postId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    replies?: CoursePostCommentUncheckedCreateNestedManyWithoutParentCommentInput
+    likes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutCommentInput
+  }
+
+  export type CoursePostCommentCreateOrConnectWithoutGradingResultInput = {
+    where: CoursePostCommentWhereUniqueInput
+    create: XOR<CoursePostCommentCreateWithoutGradingResultInput, CoursePostCommentUncheckedCreateWithoutGradingResultInput>
+  }
+
+  export type UserCreateWithoutCommentGradingsInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
+    courses?: CourseCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
+    chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
+    notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+  }
+
+  export type UserUncheckedCreateWithoutCommentGradingsInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
+    courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+    chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+  }
+
+  export type UserCreateOrConnectWithoutCommentGradingsInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutCommentGradingsInput, UserUncheckedCreateWithoutCommentGradingsInput>
+  }
+
+  export type RubricCreateWithoutCommentGradingsInput = {
+    id?: string
+    name: string
+    description: string
+    version?: number
+    isActive?: boolean
+    isTemplate?: boolean
+    criteria: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutRubricsInput
+    teacher?: UserCreateNestedOneWithoutTeacherRubricsInput
+    gradingResults?: GradingResultCreateNestedManyWithoutRubricInput
+    assignmentAreas?: AssignmentAreaCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostCreateNestedManyWithoutRubricInput
+  }
+
+  export type RubricUncheckedCreateWithoutCommentGradingsInput = {
+    id?: string
+    userId: string
+    teacherId?: string | null
+    name: string
+    description: string
+    version?: number
+    isActive?: boolean
+    isTemplate?: boolean
+    criteria: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    gradingResults?: GradingResultUncheckedCreateNestedManyWithoutRubricInput
+    assignmentAreas?: AssignmentAreaUncheckedCreateNestedManyWithoutRubricInput
+    communityPosts?: CoursePostUncheckedCreateNestedManyWithoutRubricInput
+  }
+
+  export type RubricCreateOrConnectWithoutCommentGradingsInput = {
+    where: RubricWhereUniqueInput
+    create: XOR<RubricCreateWithoutCommentGradingsInput, RubricUncheckedCreateWithoutCommentGradingsInput>
+  }
+
+  export type CoursePostCommentUpsertWithoutGradingResultInput = {
+    update: XOR<CoursePostCommentUpdateWithoutGradingResultInput, CoursePostCommentUncheckedUpdateWithoutGradingResultInput>
+    create: XOR<CoursePostCommentCreateWithoutGradingResultInput, CoursePostCommentUncheckedCreateWithoutGradingResultInput>
+    where?: CoursePostCommentWhereInput
+  }
+
+  export type CoursePostCommentUpdateToOneWithWhereWithoutGradingResultInput = {
+    where?: CoursePostCommentWhereInput
+    data: XOR<CoursePostCommentUpdateWithoutGradingResultInput, CoursePostCommentUncheckedUpdateWithoutGradingResultInput>
+  }
+
+  export type CoursePostCommentUpdateWithoutGradingResultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    post?: CoursePostUpdateOneRequiredWithoutCommentsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredCommentsNestedInput
+    submission?: SubmissionUpdateOneWithoutCommentNestedInput
+    parentComment?: CoursePostCommentUpdateOneWithoutRepliesNestedInput
+    replies?: CoursePostCommentUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUpdateManyWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateWithoutGradingResultInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    replies?: CoursePostCommentUncheckedUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUncheckedUpdateManyWithoutCommentNestedInput
+  }
+
+  export type UserUpsertWithoutCommentGradingsInput = {
+    update: XOR<UserUpdateWithoutCommentGradingsInput, UserUncheckedUpdateWithoutCommentGradingsInput>
+    create: XOR<UserCreateWithoutCommentGradingsInput, UserUncheckedCreateWithoutCommentGradingsInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutCommentGradingsInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutCommentGradingsInput, UserUncheckedUpdateWithoutCommentGradingsInput>
+  }
+
+  export type UserUpdateWithoutCommentGradingsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
+    courses?: CourseUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutCommentGradingsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
+    courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type RubricUpsertWithoutCommentGradingsInput = {
+    update: XOR<RubricUpdateWithoutCommentGradingsInput, RubricUncheckedUpdateWithoutCommentGradingsInput>
+    create: XOR<RubricCreateWithoutCommentGradingsInput, RubricUncheckedCreateWithoutCommentGradingsInput>
+    where?: RubricWhereInput
+  }
+
+  export type RubricUpdateToOneWithWhereWithoutCommentGradingsInput = {
+    where?: RubricWhereInput
+    data: XOR<RubricUpdateWithoutCommentGradingsInput, RubricUncheckedUpdateWithoutCommentGradingsInput>
+  }
+
+  export type RubricUpdateWithoutCommentGradingsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    isTemplate?: BoolFieldUpdateOperationsInput | boolean
+    criteria?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutRubricsNestedInput
+    teacher?: UserUpdateOneWithoutTeacherRubricsNestedInput
+    gradingResults?: GradingResultUpdateManyWithoutRubricNestedInput
+    assignmentAreas?: AssignmentAreaUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUpdateManyWithoutRubricNestedInput
+  }
+
+  export type RubricUncheckedUpdateWithoutCommentGradingsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    teacherId?: NullableStringFieldUpdateOperationsInput | string | null
+    name?: StringFieldUpdateOperationsInput | string
+    description?: StringFieldUpdateOperationsInput | string
+    version?: IntFieldUpdateOperationsInput | number
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    isTemplate?: BoolFieldUpdateOperationsInput | boolean
+    criteria?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    gradingResults?: GradingResultUncheckedUpdateManyWithoutRubricNestedInput
+    assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUncheckedUpdateManyWithoutRubricNestedInput
+  }
+
+  export type CoursePostCreateWithoutLikesInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    course: CourseCreateNestedOneWithoutPostsInput
+    class?: ClassCreateNestedOneWithoutPostsInput
+    author: UserCreateNestedOneWithoutAuthoredPostsInput
+    assignmentArea?: AssignmentAreaCreateNestedOneWithoutPostsInput
+    rubric?: RubricCreateNestedOneWithoutCommunityPostsInput
+    comments?: CoursePostCommentCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostUncheckedCreateWithoutLikesInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    comments?: CoursePostCommentUncheckedCreateNestedManyWithoutPostInput
+  }
+
+  export type CoursePostCreateOrConnectWithoutLikesInput = {
+    where: CoursePostWhereUniqueInput
+    create: XOR<CoursePostCreateWithoutLikesInput, CoursePostUncheckedCreateWithoutLikesInput>
+  }
+
+  export type UserCreateWithoutPostLikesInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
+    courses?: CourseCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
+    chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
+    notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
+  }
+
+  export type UserUncheckedCreateWithoutPostLikesInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
+    courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+    chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
+  }
+
+  export type UserCreateOrConnectWithoutPostLikesInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutPostLikesInput, UserUncheckedCreateWithoutPostLikesInput>
+  }
+
+  export type CoursePostUpsertWithoutLikesInput = {
+    update: XOR<CoursePostUpdateWithoutLikesInput, CoursePostUncheckedUpdateWithoutLikesInput>
+    create: XOR<CoursePostCreateWithoutLikesInput, CoursePostUncheckedCreateWithoutLikesInput>
+    where?: CoursePostWhereInput
+  }
+
+  export type CoursePostUpdateToOneWithWhereWithoutLikesInput = {
+    where?: CoursePostWhereInput
+    data: XOR<CoursePostUpdateWithoutLikesInput, CoursePostUncheckedUpdateWithoutLikesInput>
+  }
+
+  export type CoursePostUpdateWithoutLikesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutPostsNestedInput
+    class?: ClassUpdateOneWithoutPostsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredPostsNestedInput
+    assignmentArea?: AssignmentAreaUpdateOneWithoutPostsNestedInput
+    rubric?: RubricUpdateOneWithoutCommunityPostsNestedInput
+    comments?: CoursePostCommentUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateWithoutLikesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comments?: CoursePostCommentUncheckedUpdateManyWithoutPostNestedInput
+  }
+
+  export type UserUpsertWithoutPostLikesInput = {
+    update: XOR<UserUpdateWithoutPostLikesInput, UserUncheckedUpdateWithoutPostLikesInput>
+    create: XOR<UserCreateWithoutPostLikesInput, UserUncheckedCreateWithoutPostLikesInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutPostLikesInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutPostLikesInput, UserUncheckedUpdateWithoutPostLikesInput>
+  }
+
+  export type UserUpdateWithoutPostLikesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
+    courses?: CourseUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutPostLikesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
+    courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
+  }
+
+  export type CoursePostCommentCreateWithoutLikesInput = {
+    id?: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    post: CoursePostCreateNestedOneWithoutCommentsInput
+    author: UserCreateNestedOneWithoutAuthoredCommentsInput
+    submission?: SubmissionCreateNestedOneWithoutCommentInput
+    parentComment?: CoursePostCommentCreateNestedOneWithoutRepliesInput
+    replies?: CoursePostCommentCreateNestedManyWithoutParentCommentInput
+    gradingResult?: CommentGradingResultCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentUncheckedCreateWithoutLikesInput = {
+    id?: string
+    postId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    replies?: CoursePostCommentUncheckedCreateNestedManyWithoutParentCommentInput
+    gradingResult?: CommentGradingResultUncheckedCreateNestedOneWithoutCommentInput
+  }
+
+  export type CoursePostCommentCreateOrConnectWithoutLikesInput = {
+    where: CoursePostCommentWhereUniqueInput
+    create: XOR<CoursePostCommentCreateWithoutLikesInput, CoursePostCommentUncheckedCreateWithoutLikesInput>
+  }
+
+  export type UserCreateWithoutCommentLikesInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileCreateNestedManyWithoutUserInput
+    courses?: CourseCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
+    chats?: ChatCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionCreateNestedManyWithoutUserInput
+    notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
+  }
+
+  export type UserUncheckedCreateWithoutCommentLikesInput = {
+    id?: string
+    email: string
+    role?: $Enums.UserRole
+    hasSelectedRole?: boolean
+    name: string
+    picture: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    aiEnabled?: boolean
+    rubrics?: RubricUncheckedCreateNestedManyWithoutUserInput
+    gradingSessions?: GradingSessionUncheckedCreateNestedManyWithoutUserInput
+    uploadedFiles?: UploadedFileUncheckedCreateNestedManyWithoutUserInput
+    courses?: CourseUncheckedCreateNestedManyWithoutTeacherInput
+    teacherRubrics?: RubricUncheckedCreateNestedManyWithoutTeacherInput
+    assistantClasses?: ClassUncheckedCreateNestedManyWithoutAssistantInput
+    submissions?: SubmissionUncheckedCreateNestedManyWithoutStudentInput
+    enrollments?: EnrollmentUncheckedCreateNestedManyWithoutStudentInput
+    usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
+    chats?: ChatUncheckedCreateNestedManyWithoutUserInput
+    agentChatSessions?: AgentChatSessionUncheckedCreateNestedManyWithoutUserInput
+    notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
+  }
+
+  export type UserCreateOrConnectWithoutCommentLikesInput = {
+    where: UserWhereUniqueInput
+    create: XOR<UserCreateWithoutCommentLikesInput, UserUncheckedCreateWithoutCommentLikesInput>
+  }
+
+  export type CoursePostCommentUpsertWithoutLikesInput = {
+    update: XOR<CoursePostCommentUpdateWithoutLikesInput, CoursePostCommentUncheckedUpdateWithoutLikesInput>
+    create: XOR<CoursePostCommentCreateWithoutLikesInput, CoursePostCommentUncheckedCreateWithoutLikesInput>
+    where?: CoursePostCommentWhereInput
+  }
+
+  export type CoursePostCommentUpdateToOneWithWhereWithoutLikesInput = {
+    where?: CoursePostCommentWhereInput
+    data: XOR<CoursePostCommentUpdateWithoutLikesInput, CoursePostCommentUncheckedUpdateWithoutLikesInput>
+  }
+
+  export type CoursePostCommentUpdateWithoutLikesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    post?: CoursePostUpdateOneRequiredWithoutCommentsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredCommentsNestedInput
+    submission?: SubmissionUpdateOneWithoutCommentNestedInput
+    parentComment?: CoursePostCommentUpdateOneWithoutRepliesNestedInput
+    replies?: CoursePostCommentUpdateManyWithoutParentCommentNestedInput
+    gradingResult?: CommentGradingResultUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateWithoutLikesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    replies?: CoursePostCommentUncheckedUpdateManyWithoutParentCommentNestedInput
+    gradingResult?: CommentGradingResultUncheckedUpdateOneWithoutCommentNestedInput
+  }
+
+  export type UserUpsertWithoutCommentLikesInput = {
+    update: XOR<UserUpdateWithoutCommentLikesInput, UserUncheckedUpdateWithoutCommentLikesInput>
+    create: XOR<UserCreateWithoutCommentLikesInput, UserUncheckedCreateWithoutCommentLikesInput>
+    where?: UserWhereInput
+  }
+
+  export type UserUpdateToOneWithWhereWithoutCommentLikesInput = {
+    where?: UserWhereInput
+    data: XOR<UserUpdateWithoutCommentLikesInput, UserUncheckedUpdateWithoutCommentLikesInput>
+  }
+
+  export type UserUpdateWithoutCommentLikesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUpdateManyWithoutUserNestedInput
+    courses?: CourseUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
+  }
+
+  export type UserUncheckedUpdateWithoutCommentLikesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    email?: StringFieldUpdateOperationsInput | string
+    role?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    hasSelectedRole?: BoolFieldUpdateOperationsInput | boolean
+    name?: StringFieldUpdateOperationsInput | string
+    picture?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    aiEnabled?: BoolFieldUpdateOperationsInput | boolean
+    rubrics?: RubricUncheckedUpdateManyWithoutUserNestedInput
+    gradingSessions?: GradingSessionUncheckedUpdateManyWithoutUserNestedInput
+    uploadedFiles?: UploadedFileUncheckedUpdateManyWithoutUserNestedInput
+    courses?: CourseUncheckedUpdateManyWithoutTeacherNestedInput
+    teacherRubrics?: RubricUncheckedUpdateManyWithoutTeacherNestedInput
+    assistantClasses?: ClassUncheckedUpdateManyWithoutAssistantNestedInput
+    submissions?: SubmissionUncheckedUpdateManyWithoutStudentNestedInput
+    enrollments?: EnrollmentUncheckedUpdateManyWithoutStudentNestedInput
+    usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
+    chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
+    agentChatSessions?: AgentChatSessionUncheckedUpdateManyWithoutUserNestedInput
+    notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type UserCreateWithoutAgentChatSessionsInput = {
@@ -37510,6 +49854,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeCreateNestedManyWithoutUsedByInput
     chats?: ChatCreateNestedManyWithoutUserInput
     notifications?: NotificationCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultCreateNestedManyWithoutGraderInput
   }
 
   export type UserUncheckedCreateWithoutAgentChatSessionsInput = {
@@ -37533,6 +49882,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeUncheckedCreateNestedManyWithoutUsedByInput
     chats?: ChatUncheckedCreateNestedManyWithoutUserInput
     notifications?: NotificationUncheckedCreateNestedManyWithoutUserInput
+    authoredPosts?: CoursePostUncheckedCreateNestedManyWithoutAuthorInput
+    authoredComments?: CoursePostCommentUncheckedCreateNestedManyWithoutAuthorInput
+    postLikes?: CoursePostLikeUncheckedCreateNestedManyWithoutUserInput
+    commentLikes?: CoursePostCommentLikeUncheckedCreateNestedManyWithoutUserInput
+    commentGradings?: CommentGradingResultUncheckedCreateNestedManyWithoutGraderInput
   }
 
   export type UserCreateOrConnectWithoutAgentChatSessionsInput = {
@@ -37634,6 +49988,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeUpdateManyWithoutUsedByNestedInput
     chats?: ChatUpdateManyWithoutUserNestedInput
     notifications?: NotificationUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutGraderNestedInput
   }
 
   export type UserUncheckedUpdateWithoutAgentChatSessionsInput = {
@@ -37657,6 +50016,11 @@ export namespace Prisma {
     usedInvitations?: InvitationCodeUncheckedUpdateManyWithoutUsedByNestedInput
     chats?: ChatUncheckedUpdateManyWithoutUserNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutUserNestedInput
+    authoredPosts?: CoursePostUncheckedUpdateManyWithoutAuthorNestedInput
+    authoredComments?: CoursePostCommentUncheckedUpdateManyWithoutAuthorNestedInput
+    postLikes?: CoursePostLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentLikes?: CoursePostCommentLikeUncheckedUpdateManyWithoutUserNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutGraderNestedInput
   }
 
   export type AgentChatMessageUpsertWithWhereUniqueWithoutSessionInput = {
@@ -38059,6 +50423,69 @@ export namespace Prisma {
     createdAt?: Date | string
   }
 
+  export type CoursePostCreateManyAuthorInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CoursePostCommentCreateManyAuthorInput = {
+    id?: string
+    postId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CoursePostLikeCreateManyUserInput = {
+    id?: string
+    postId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostCommentLikeCreateManyUserInput = {
+    id?: string
+    commentId: string
+    createdAt?: Date | string
+  }
+
+  export type CommentGradingResultCreateManyGraderInput = {
+    id?: string
+    commentId: string
+    rubricId: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type RubricUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
@@ -38072,6 +50499,8 @@ export namespace Prisma {
     teacher?: UserUpdateOneWithoutTeacherRubricsNestedInput
     gradingResults?: GradingResultUpdateManyWithoutRubricNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateWithoutUserInput = {
@@ -38087,6 +50516,8 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     gradingResults?: GradingResultUncheckedUpdateManyWithoutRubricNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUncheckedUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateManyWithoutUserInput = {
@@ -38196,6 +50627,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUpdateManyWithoutCourseNestedInput
   }
 
   export type CourseUncheckedUpdateWithoutTeacherInput = {
@@ -38210,6 +50642,7 @@ export namespace Prisma {
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutCourseNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutCourseNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutCourseNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutCourseNestedInput
   }
 
   export type CourseUncheckedUpdateManyWithoutTeacherInput = {
@@ -38235,6 +50668,8 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutRubricsNestedInput
     gradingResults?: GradingResultUpdateManyWithoutRubricNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateWithoutTeacherInput = {
@@ -38250,6 +50685,8 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     gradingResults?: GradingResultUncheckedUpdateManyWithoutRubricNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutRubricNestedInput
+    commentGradings?: CommentGradingResultUncheckedUpdateManyWithoutRubricNestedInput
+    communityPosts?: CoursePostUncheckedUpdateManyWithoutRubricNestedInput
   }
 
   export type RubricUncheckedUpdateManyWithoutTeacherInput = {
@@ -38277,6 +50714,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUpdateManyWithoutClassNestedInput
   }
 
   export type ClassUncheckedUpdateWithoutAssistantInput = {
@@ -38291,6 +50729,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutClassNestedInput
   }
 
   export type ClassUncheckedUpdateManyWithoutAssistantInput = {
@@ -38328,6 +50767,7 @@ export namespace Prisma {
     assignmentArea?: AssignmentAreaUpdateOneRequiredWithoutSubmissionsNestedInput
     previousVersion?: SubmissionUpdateOneWithoutNextVersionsNestedInput
     nextVersions?: SubmissionUpdateManyWithoutPreviousVersionNestedInput
+    comment?: CoursePostCommentUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionUncheckedUpdateWithoutStudentInput = {
@@ -38354,6 +50794,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     nextVersions?: SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
+    comment?: CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
@@ -38558,6 +50999,205 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type CoursePostUpdateWithoutAuthorInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutPostsNestedInput
+    class?: ClassUpdateOneWithoutPostsNestedInput
+    assignmentArea?: AssignmentAreaUpdateOneWithoutPostsNestedInput
+    rubric?: RubricUpdateOneWithoutCommunityPostsNestedInput
+    comments?: CoursePostCommentUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateWithoutAuthorInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comments?: CoursePostCommentUncheckedUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUncheckedUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateManyWithoutAuthorInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentUpdateWithoutAuthorInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    post?: CoursePostUpdateOneRequiredWithoutCommentsNestedInput
+    submission?: SubmissionUpdateOneWithoutCommentNestedInput
+    parentComment?: CoursePostCommentUpdateOneWithoutRepliesNestedInput
+    replies?: CoursePostCommentUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateWithoutAuthorInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    replies?: CoursePostCommentUncheckedUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUncheckedUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUncheckedUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateManyWithoutAuthorInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostLikeUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    post?: CoursePostUpdateOneRequiredWithoutLikesNestedInput
+  }
+
+  export type CoursePostLikeUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostLikeUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentLikeUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comment?: CoursePostCommentUpdateOneRequiredWithoutLikesNestedInput
+  }
+
+  export type CoursePostCommentLikeUncheckedUpdateWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentLikeUncheckedUpdateManyWithoutUserInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CommentGradingResultUpdateWithoutGraderInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comment?: CoursePostCommentUpdateOneRequiredWithoutGradingResultNestedInput
+    rubric?: RubricUpdateOneRequiredWithoutCommentGradingsNestedInput
+  }
+
+  export type CommentGradingResultUncheckedUpdateWithoutGraderInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CommentGradingResultUncheckedUpdateManyWithoutGraderInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    rubricId?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type ClassCreateManyCourseInput = {
     id?: string
     name: string
@@ -38606,6 +51246,25 @@ export namespace Prisma {
     createdAt?: Date | string
   }
 
+  export type CoursePostCreateManyCourseInput = {
+    id?: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type ClassUpdateWithoutCourseInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
@@ -38618,6 +51277,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUpdateManyWithoutClassNestedInput
     assignmentAreas?: AssignmentAreaUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUpdateManyWithoutClassNestedInput
   }
 
   export type ClassUncheckedUpdateWithoutCourseInput = {
@@ -38632,6 +51292,7 @@ export namespace Prisma {
     enrollments?: EnrollmentUncheckedUpdateManyWithoutClassNestedInput
     assignmentAreas?: AssignmentAreaUncheckedUpdateManyWithoutClassNestedInput
     invitationCodes?: InvitationCodeUncheckedUpdateManyWithoutClassNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutClassNestedInput
   }
 
   export type ClassUncheckedUpdateManyWithoutCourseInput = {
@@ -38659,6 +51320,7 @@ export namespace Prisma {
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateWithoutCourseInput = {
@@ -38675,6 +51337,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateManyWithoutCourseInput = {
@@ -38762,6 +51425,67 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type CoursePostUpdateWithoutCourseInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    class?: ClassUpdateOneWithoutPostsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredPostsNestedInput
+    assignmentArea?: AssignmentAreaUpdateOneWithoutPostsNestedInput
+    rubric?: RubricUpdateOneWithoutCommunityPostsNestedInput
+    comments?: CoursePostCommentUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateWithoutCourseInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comments?: CoursePostCommentUncheckedUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUncheckedUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateManyWithoutCourseInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type EnrollmentCreateManyClassInput = {
     id?: string
     studentId: string
@@ -38792,6 +51516,25 @@ export namespace Prisma {
     isUsed?: boolean
     usedAt?: Date | string | null
     usedById?: string | null
+  }
+
+  export type CoursePostCreateManyClassInput = {
+    id?: string
+    courseId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
   }
 
   export type EnrollmentUpdateWithoutClassInput = {
@@ -38832,6 +51575,7 @@ export namespace Prisma {
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateWithoutClassInput = {
@@ -38848,6 +51592,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateManyWithoutClassInput = {
@@ -38894,6 +51639,67 @@ export namespace Prisma {
     isUsed?: BoolFieldUpdateOperationsInput | boolean
     usedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     usedById?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type CoursePostUpdateWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutPostsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredPostsNestedInput
+    assignmentArea?: AssignmentAreaUpdateOneWithoutPostsNestedInput
+    rubric?: RubricUpdateOneWithoutCommunityPostsNestedInput
+    comments?: CoursePostCommentUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comments?: CoursePostCommentUncheckedUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUncheckedUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateManyWithoutClassInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type SubmissionCreateManyAssignmentAreaInput = {
@@ -38965,6 +51771,25 @@ export namespace Prisma {
     completedAt?: Date | string | null
   }
 
+  export type CoursePostCreateManyAssignmentAreaInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    rubricId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type SubmissionUpdateWithoutAssignmentAreaInput = {
     id?: StringFieldUpdateOperationsInput | string
     version?: IntFieldUpdateOperationsInput | number
@@ -38989,6 +51814,7 @@ export namespace Prisma {
     student?: UserUpdateOneRequiredWithoutSubmissionsNestedInput
     previousVersion?: SubmissionUpdateOneWithoutNextVersionsNestedInput
     nextVersions?: SubmissionUpdateManyWithoutPreviousVersionNestedInput
+    comment?: CoursePostCommentUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionUncheckedUpdateWithoutAssignmentAreaInput = {
@@ -39015,6 +51841,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     nextVersions?: SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
+    comment?: CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionUncheckedUpdateManyWithoutAssignmentAreaInput = {
@@ -39176,6 +52003,67 @@ export namespace Prisma {
     completedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
+  export type CoursePostUpdateWithoutAssignmentAreaInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutPostsNestedInput
+    class?: ClassUpdateOneWithoutPostsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredPostsNestedInput
+    rubric?: RubricUpdateOneWithoutCommunityPostsNestedInput
+    comments?: CoursePostCommentUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateWithoutAssignmentAreaInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comments?: CoursePostCommentUncheckedUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUncheckedUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateManyWithoutAssignmentAreaInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    rubricId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type SubmissionCreateManyPreviousVersionInput = {
     id?: string
     studentId: string
@@ -39225,6 +52113,7 @@ export namespace Prisma {
     student?: UserUpdateOneRequiredWithoutSubmissionsNestedInput
     assignmentArea?: AssignmentAreaUpdateOneRequiredWithoutSubmissionsNestedInput
     nextVersions?: SubmissionUpdateManyWithoutPreviousVersionNestedInput
+    comment?: CoursePostCommentUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionUncheckedUpdateWithoutPreviousVersionInput = {
@@ -39251,6 +52140,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     nextVersions?: SubmissionUncheckedUpdateManyWithoutPreviousVersionNestedInput
+    comment?: CoursePostCommentUncheckedUpdateOneWithoutSubmissionNestedInput
   }
 
   export type SubmissionUncheckedUpdateManyWithoutPreviousVersionInput = {
@@ -39318,6 +52208,41 @@ export namespace Prisma {
     dueDate?: Date | string | null
     referenceFileIds?: string | null
     customGradingPrompt?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CommentGradingResultCreateManyRubricInput = {
+    id?: string
+    commentId: string
+    graderId: string
+    result: JsonNullValueInput | InputJsonValue
+    normalizedScore?: number | null
+    thoughtSummary?: string | null
+    thinkingProcess?: string | null
+    gradingRationale?: string | null
+    gradingModel?: string | null
+    gradingTokens?: number | null
+    gradingDuration?: number | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CoursePostCreateManyRubricInput = {
+    id?: string
+    courseId: string
+    classId?: string | null
+    authorId: string
+    authorRole: $Enums.UserRole
+    type?: $Enums.PostType
+    title: string
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: string | null
+    likeCount?: number
+    commentCount?: number
+    isPinned?: boolean
+    isArchived?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -39431,6 +52356,7 @@ export namespace Prisma {
     submissions?: SubmissionUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateWithoutRubricInput = {
@@ -39447,6 +52373,7 @@ export namespace Prisma {
     submissions?: SubmissionUncheckedUpdateManyWithoutAssignmentAreaNestedInput
     notifications?: NotificationUncheckedUpdateManyWithoutAssignmentNestedInput
     gradingResults?: GradingResultUncheckedUpdateManyWithoutAssignmentAreaNestedInput
+    posts?: CoursePostUncheckedUpdateManyWithoutAssignmentAreaNestedInput
   }
 
   export type AssignmentAreaUncheckedUpdateManyWithoutRubricInput = {
@@ -39458,6 +52385,115 @@ export namespace Prisma {
     dueDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     referenceFileIds?: NullableStringFieldUpdateOperationsInput | string | null
     customGradingPrompt?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CommentGradingResultUpdateWithoutRubricInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comment?: CoursePostCommentUpdateOneRequiredWithoutGradingResultNestedInput
+    grader?: UserUpdateOneRequiredWithoutCommentGradingsNestedInput
+  }
+
+  export type CommentGradingResultUncheckedUpdateWithoutRubricInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    graderId?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CommentGradingResultUncheckedUpdateManyWithoutRubricInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    commentId?: StringFieldUpdateOperationsInput | string
+    graderId?: StringFieldUpdateOperationsInput | string
+    result?: JsonNullValueInput | InputJsonValue
+    normalizedScore?: NullableFloatFieldUpdateOperationsInput | number | null
+    thoughtSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    thinkingProcess?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingRationale?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingModel?: NullableStringFieldUpdateOperationsInput | string | null
+    gradingTokens?: NullableIntFieldUpdateOperationsInput | number | null
+    gradingDuration?: NullableIntFieldUpdateOperationsInput | number | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostUpdateWithoutRubricInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    course?: CourseUpdateOneRequiredWithoutPostsNestedInput
+    class?: ClassUpdateOneWithoutPostsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredPostsNestedInput
+    assignmentArea?: AssignmentAreaUpdateOneWithoutPostsNestedInput
+    comments?: CoursePostCommentUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateWithoutRubricInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    comments?: CoursePostCommentUncheckedUpdateManyWithoutPostNestedInput
+    likes?: CoursePostLikeUncheckedUpdateManyWithoutPostNestedInput
+  }
+
+  export type CoursePostUncheckedUpdateManyWithoutRubricInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    courseId?: StringFieldUpdateOperationsInput | string
+    classId?: NullableStringFieldUpdateOperationsInput | string | null
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    type?: EnumPostTypeFieldUpdateOperationsInput | $Enums.PostType
+    title?: StringFieldUpdateOperationsInput | string
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    assignmentAreaId?: NullableStringFieldUpdateOperationsInput | string | null
+    likeCount?: IntFieldUpdateOperationsInput | number
+    commentCount?: IntFieldUpdateOperationsInput | number
+    isPinned?: BoolFieldUpdateOperationsInput | boolean
+    isArchived?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -39788,6 +52824,194 @@ export namespace Prisma {
     content?: StringFieldUpdateOperationsInput | string
     data?: NullableJsonNullValueInput | InputJsonValue
     time?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentCreateManyPostInput = {
+    id?: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    parentCommentId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CoursePostLikeCreateManyPostInput = {
+    id?: string
+    userId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostCommentUpdateWithoutPostInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    author?: UserUpdateOneRequiredWithoutAuthoredCommentsNestedInput
+    submission?: SubmissionUpdateOneWithoutCommentNestedInput
+    parentComment?: CoursePostCommentUpdateOneWithoutRepliesNestedInput
+    replies?: CoursePostCommentUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateWithoutPostInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    replies?: CoursePostCommentUncheckedUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUncheckedUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUncheckedUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateManyWithoutPostInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    parentCommentId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostLikeUpdateWithoutPostInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutPostLikesNestedInput
+  }
+
+  export type CoursePostLikeUncheckedUpdateWithoutPostInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostLikeUncheckedUpdateManyWithoutPostInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentCreateManyParentCommentInput = {
+    id?: string
+    postId: string
+    authorId: string
+    authorRole: $Enums.UserRole
+    content: string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: string | null
+    isEdited?: boolean
+    editedAt?: Date | string | null
+    isDeleted?: boolean
+    deletedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CoursePostCommentLikeCreateManyCommentInput = {
+    id?: string
+    userId: string
+    createdAt?: Date | string
+  }
+
+  export type CoursePostCommentUpdateWithoutParentCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    post?: CoursePostUpdateOneRequiredWithoutCommentsNestedInput
+    author?: UserUpdateOneRequiredWithoutAuthoredCommentsNestedInput
+    submission?: SubmissionUpdateOneWithoutCommentNestedInput
+    replies?: CoursePostCommentUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateWithoutParentCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    replies?: CoursePostCommentUncheckedUpdateManyWithoutParentCommentNestedInput
+    likes?: CoursePostCommentLikeUncheckedUpdateManyWithoutCommentNestedInput
+    gradingResult?: CommentGradingResultUncheckedUpdateOneWithoutCommentNestedInput
+  }
+
+  export type CoursePostCommentUncheckedUpdateManyWithoutParentCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    postId?: StringFieldUpdateOperationsInput | string
+    authorId?: StringFieldUpdateOperationsInput | string
+    authorRole?: EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+    content?: StringFieldUpdateOperationsInput | string
+    attachments?: NullableJsonNullValueInput | InputJsonValue
+    submissionId?: NullableStringFieldUpdateOperationsInput | string | null
+    isEdited?: BoolFieldUpdateOperationsInput | boolean
+    editedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    isDeleted?: BoolFieldUpdateOperationsInput | boolean
+    deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentLikeUpdateWithoutCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutCommentLikesNestedInput
+  }
+
+  export type CoursePostCommentLikeUncheckedUpdateWithoutCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CoursePostCommentLikeUncheckedUpdateManyWithoutCommentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type AgentChatMessageCreateManySessionInput = {

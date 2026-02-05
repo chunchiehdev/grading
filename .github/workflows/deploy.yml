@@ -5,6 +5,10 @@ on:
       - "master"
       - "development"
 
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   packages: write

@@ -59,6 +59,10 @@ export default [
     route('rubrics/new', './routes/teacher/rubrics/new.tsx'),
     route('rubrics/:rubricId', './routes/teacher/rubrics/$rubricId.tsx'),
     route('rubrics/:rubricId/edit', './routes/teacher/rubrics/$rubricId.edit.tsx'),
+    
+    // Course Community routes
+    route('courses/:courseId/community', './routes/teacher/courses/$courseId.community.tsx'),
+    route('courses/:courseId/posts/:postId', './routes/teacher/courses/$courseId.posts.$postId.tsx'),
   ]),
 
   // Student Platform routes
@@ -79,6 +83,10 @@ export default [
     route('submissions/:submissionId', './routes/student/submissions/$submissionId.tsx'),
     route('submissions/:submissionId/history', './routes/student/submissions/$submissionId.history.tsx'),
     route('submissions/compare', './routes/student/submissions/compare.tsx'),
+    
+    // Course Community routes
+    route('courses/:courseId/posts/:postId', './routes/student/courses/$courseId.posts.$postId.tsx'),
+    route('courses/:courseId/community', './routes/student/courses/$courseId.community.tsx'),
   ]),
 
   // API routes
@@ -184,6 +192,13 @@ export default [
   // Course Discovery and Enrollment API routes
   route('/api/courses/discover', './api/courses/discover.ts'),
   route('/api/enrollments', './api/enrollments.ts'),
+
+  // Course Community API routes
+  route('/api/courses/:courseId/posts', './routes/api.courses.$courseId.posts.ts'),
+  route('/api/posts/:postId', './routes/api.posts.$postId.ts'),
+  route('/api/posts/:postId/comments', './routes/api.posts.$postId.comments.ts'),
+  route('/api/posts/:postId/like', './routes/api.posts.$postId.like.ts'),
+  route('/api/comments/:commentId/grade', './routes/api.comments.$commentId.grade.ts'),
 
   route('/health', './routes/health.tsx'),
 

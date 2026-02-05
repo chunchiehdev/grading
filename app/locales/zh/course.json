@@ -398,6 +398,11 @@
       "selectPrompt": "請選擇星期和節次以設定上課時間"
     }
   },
+  "community": {
+    "title": "課程社群",
+    "emptyStateCTA": "在等待作業的同時，不妨先到社群和同學互動吧！",
+    "goToCommunity": "前往社群"
+  },
   "discovery": {
     "discover": "探索課程",
     "title": "探索課程",

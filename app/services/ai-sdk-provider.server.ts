@@ -24,6 +24,8 @@ import { z } from 'zod';
 import logger from '@/utils/logger';
 import { getKeyHealthTracker, type ErrorType } from './gemini-key-health.server';
 import { formatThoughtSummary } from './thought-formatter.server';
+import { GoogleGenAI } from '@google/genai';
+import { GeminiCacheManager } from './gemini-cache.server';
 
 // Zod schema for grading result (matching legacy GradingResultData format)
 const CriterionGradeSchema = z.object({
@@ -56,6 +58,9 @@ interface GradingParams {
   resultId: string;
   temperature?: number;
   language?: 'zh' | 'en';
+  contextHash?: string;
+  contextContent?: string;
+  userPrompt?: string;
 }
 
 interface GradingSuccess {
@@ -148,7 +153,7 @@ function hasMultipleGeminiKeys(): boolean {
  * Grade with Gemini using AI SDK and KeyHealthTracker
  */
 export async function gradeWithGemini(params: GradingParams): Promise<GradingResult> {
-  const { prompt, userId, resultId, temperature = 0.3, language = 'zh' } = params;
+  const { prompt, userId, resultId, temperature = 0.3, language = 'zh', contextHash, contextContent, userPrompt } = params;
   const healthTracker = getKeyHealthTracker();
 
   // Select best key using KeyHealthTracker
@@ -165,6 +170,45 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
   }
 
   const apiKey = getApiKeyById(selectedKeyId);
+  
+  // Feature: Context Caching
+  // If context is provided, try to use/create a cache and use the cached path
+  if (contextHash && contextContent) {
+    try {
+      // Use explicit version suffix for caching as per docs
+      const cacheModel = 'gemini-2.5-flash'; 
+      const cacheName = await GeminiCacheManager.ensureCache(
+        apiKey,
+        selectedKeyId,
+        contextHash,
+        contextContent,
+        undefined, // System instruction managed via prompts for now or inside content
+        cacheModel
+      );
+
+      if (cacheName) {
+         return await gradeWithGeminiCached({
+           apiKey,
+           cacheName,
+           model: cacheModel,
+           prompt: userPrompt || prompt, // Use userPrompt if available to avoid duplicating context
+           userId,
+           resultId,
+           keyId: selectedKeyId,
+           temperature,
+           language,
+         });
+      }
+    } catch (error) {
+       logger.warn('Failed to use Gemini Context Caching, falling back to standard prompt', {
+         userId,
+         resultId,
+         error: String(error)
+       });
+       // Fallthrough to standard execution
+    }
+  }
+
   const geminiProvider = createGoogleGenerativeAI({ apiKey });
   const startTime = Date.now();
 
@@ -301,6 +345,154 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
       error: error instanceof Error ? error.message : 'Unknown Gemini error',
       provider: 'gemini',
       keyId: selectedKeyId,
+    };
+  }
+}
+
+
+
+/**
+ * Grade using an existing Gemini Context Cache (bypassing AI SDK for the call, using official Client)
+ */
+async function gradeWithGeminiCached(params: {
+  apiKey: string;
+  cacheName: string;
+  model: string;
+  prompt: string;
+  userId: string;
+  resultId: string;
+  keyId: string;
+  temperature: number;
+  language: string;
+}): Promise<GradingResult> {
+  const { apiKey, cacheName, model, prompt, userId, resultId, keyId, temperature, language } = params;
+  const startTime = Date.now();
+  const healthTracker = getKeyHealthTracker();
+
+  try {
+    const client = new GoogleGenAI({ apiKey });
+    
+    logger.info('Grading with Gemini (Cached)', {
+      userId,
+      resultId,
+      keyId,
+      cacheName,
+      model,
+    });
+
+    // Use JSON schema for structured output
+    // We can't easily convert Zod to JSON Schema here without a lib, 
+    // but we can request JSON responseMimeType and trust the prompt + parsing.
+    // Or we rely on the prompt instructing JSON.
+    // The prompt explicitly asks for JSON format (GeminiPrompts.getSimpleOutputFormat).
+    
+    const response = await client.models.generateContent({
+      model,
+      config: {
+        temperature,
+        cachedContent: cacheName,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT',
+          properties: {
+            breakdown: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  criteriaId: { type: 'STRING' },
+                  name: { type: 'STRING' },
+                  score: { type: 'NUMBER' },
+                  feedback: { type: 'STRING' }
+                },
+                required: ['criteriaId', 'name', 'score', 'feedback']
+              }
+            },
+            overallFeedback: { type: 'STRING' }
+          },
+          required: ['breakdown', 'overallFeedback']
+        }
+      },
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }]
+    });
+
+    const responseTimeMs = Date.now() - startTime;
+    await healthTracker.recordSuccess(keyId, responseTimeMs);
+
+    const text = response.text;
+    if (!text) {
+        throw new Error('Empty response from cached model');
+    }
+
+    // Parse JSON
+    let parsed: any;
+    try {
+        parsed = JSON.parse(text);
+    } catch (e) {
+        throw new Error('Failed to parse JSON from cached model response');
+    }
+
+    // Validate with Zod
+    const validation = GradingResultSchema.safeParse(parsed);
+    if (!validation.success) {
+        throw new Error(`Validation failed: ${validation.error.message}`);
+    }
+    
+    // Success!
+    const data = validation.data;
+    
+    // Usage metadata
+    const usage = response.usageMetadata ? {
+        promptTokens: response.usageMetadata.promptTokenCount || 0,
+        completionTokens: response.usageMetadata.candidatesTokenCount || 0,
+        totalTokens: response.usageMetadata.totalTokenCount || 0,
+    } : { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+
+    logger.info('Gemini cached grading succeeded', {
+        userId,
+        resultId,
+        cacheName,
+        usage,
+    });
+    
+    return {
+        success: true,
+        data,
+        usage,
+        provider: 'gemini',
+        keyId,
+        responseTimeMs,
+        // Cached path might not support "thinking" field capture unless we request it via config?
+        // Gemini 1.5 doesn't have "Thinking" feature like 2.0/2.5 logic?
+        // 1.5 Flash is standard. 
+        // We can ignore thinkingProcess for cached path or implement it if model supports it.
+        // For now, we omit thinkingProcess if not returned.
+    };
+
+  } catch (error) {
+    const responseTimeMs = Date.now() - startTime;
+    const errorType = classifyGeminiError(error);
+    await healthTracker.recordFailure(keyId, errorType, String(error));
+    
+    logger.error('Gemini cached grading failed', {
+        userId,
+        resultId,
+        keyId,
+        cacheName,
+        message: (error as any).message,
+        status: (error as any).status,
+        errorDetails: JSON.stringify(error)
+    });
+    console.error('Gemini Cached Grading Error:', error);
+
+    return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown Gemini Timeout',
+        provider: 'gemini',
+        keyId,
     };
   }
 }

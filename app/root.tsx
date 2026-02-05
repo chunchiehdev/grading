@@ -9,7 +9,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import type { VersionInfo } from '@/services/version.server';
 import { useTranslation } from 'react-i18next';
 import { getServerLocale } from './localization/i18n';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { getSession, commitSession } from '@/sessions.server';
 import { toast as sonnerToast } from 'sonner';
@@ -17,6 +17,7 @@ import { useWebSocket, useWebSocketEvent } from '@/lib/websocket';
 import type { SubmissionNotification } from '@/lib/websocket/types';
 import { StoreInitializer } from '@/components/store/StoreInitializer';
 import { useSubmissionStore } from '@/stores/submissionStore';
+import { LayoutDashboard, BookOpen, ClipboardList, Send, ListChecks } from 'lucide-react';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -263,7 +264,7 @@ function Document({ children }: { children: React.ReactNode }) {
 
 function Layout() {
   const { user, isPublicPath, locale, toast, unreadNotifications } = useLoaderData() as LoaderData;
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation(['dashboard', 'course', 'rubric']);
   const location = useLocation();
   const currentPath = location.pathname;
   const isFullWidth = isFullWidthPath(currentPath);
@@ -272,6 +273,32 @@ function Layout() {
 
   // Get submission store action for teachers
   const handleNewSubmission = useSubmissionStore((state) => state.handleNewSubmission);
+
+  // Navigation tabs based on user role
+  const navigationTabs = useMemo(() => {
+    if (!user?.role) return undefined;
+
+    if (user.role === 'TEACHER' || user.role === 'ADMIN') {
+      if (!currentPath.startsWith('/teacher')) return undefined;
+      return [
+        { label: t('dashboard:title'), value: 'dashboard', to: '/teacher', icon: <LayoutDashboard /> },
+        { label: t('course:courses'), value: 'courses', to: '/teacher/courses', icon: <BookOpen /> },
+        { label: t('rubric:title'), value: 'rubrics', to: '/teacher/rubrics', icon: <ListChecks /> },
+      ];
+    }
+
+    if (user.role === 'STUDENT') {
+      if (!currentPath.startsWith('/student')) return undefined;
+      return [
+        { label: t('dashboard:title'), value: 'dashboard', to: '/student', icon: <LayoutDashboard /> },
+        { label: t('course:courses'), value: 'courses', to: '/student/courses', icon: <BookOpen /> },
+        { label: t('course:assignments'), value: 'assignments', to: '/student/assignments', icon: <ClipboardList /> },
+        { label: t('course:assignment.submissions'), value: 'submissions', to: '/student/submissions', icon: <Send /> },
+      ];
+    }
+
+    return undefined;
+  }, [user?.role, currentPath, t]);
 
   const onSubmissionNotification = useCallback(
     async (notification: SubmissionNotification) => {
@@ -321,7 +348,7 @@ function Layout() {
       {/* NavHeader - fixed height, won't shrink */}
       {/* Skip for agent-playground: it renders its own NavHeader in a different layout position */}
       {(user || !isPublicPath) && !currentPath.startsWith('/agent-playground') && (
-        <NavHeader className="flex-shrink-0 bg-background " />
+        <NavHeader className="flex-shrink-0 bg-background" tabs={navigationTabs} />
       )}
 
       {/* Main content area - fills remaining space */}

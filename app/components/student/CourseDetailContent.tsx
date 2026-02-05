@@ -1,10 +1,23 @@
-import { FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  ChevronRight,
+  FileText,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Calendar,
+  BookOpen,
+  User,
+  Users,
+} from 'lucide-react';
 import { Link } from 'react-router';
-import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
 import type { StudentCourseDetailData } from '@/services/student-course-detail.server';
 import type { StudentInfo, StudentAssignmentInfo } from '@/types/student';
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 
 interface CourseDetailContentProps {
   data: StudentCourseDetailData & {
@@ -12,227 +25,99 @@ interface CourseDetailContentProps {
   };
 }
 
-export function CourseDetailContent({ data }: CourseDetailContentProps) {
-  const { t } = useTranslation(['course', 'assignment', 'common']);
-  const { course, assignments, stats, student } = data;
+// ============================================================================
+// Compact Course Header
+// ============================================================================
+interface CourseHeaderProps {
+  course: StudentCourseDetailData['course'];
+  stats?: { total: number; completed: number; pending: number };
+}
 
-  // 分組作業：逾期 > 本週 > 稍後 > 已完成
-  const groupedAssignments = useMemo(() => {
-    const now = new Date();
-    const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-    const overdue: StudentAssignmentInfo[] = [];
-    const thisWeek: StudentAssignmentInfo[] = [];
-    const later: StudentAssignmentInfo[] = [];
-    const completed: StudentAssignmentInfo[] = [];
-
-    assignments.forEach((assignment) => {
-      const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
-      const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
-
-      // 已完成
-      if (submission?.status === 'GRADED') {
-        completed.push(assignment);
-        return;
-      }
-
-      // 未完成但有截止日期
-      if (assignment.dueDate) {
-        const dueDate = new Date(assignment.dueDate);
-        if (dueDate < now && !hasSubmission) {
-          overdue.push(assignment);
-        } else if (dueDate <= oneWeekLater) {
-          thisWeek.push(assignment);
-        } else {
-          later.push(assignment);
-        }
-      } else {
-        // 無截止日期
-        later.push(assignment);
-      }
-    });
-
-    // 排序：逾期和本週按日期升序，稍後和已完成按創建時間降序
-    overdue.sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0));
-    thisWeek.sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0));
-
-    return { overdue, thisWeek, later, completed };
-  }, [assignments, student.id]);
-
-  const [showLater, setShowLater] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(false);
-
-  // 當沒有作業時，使用簡化版 header（不 sticky）
-  const hasAssignments = assignments.length > 0;
+function CourseHeader({ course, stats }: CourseHeaderProps) {
+  const { t } = useTranslation('course');
+  const completionRate = stats && stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   return (
-    <div className="w-full bg-background min-h-screen">
-      {hasAssignments ? (
-        <>
-          {/* 有作業時：極簡 sticky header */}
-          <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl font-semibold text-foreground truncate">{course.name}</h1>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {course.teacher.name}
-                  {course.description && (
-                    <>
-                      {' '}
-                      • <span className="hidden sm:inline">{course.description}</span>
-                    </>
-                  )}
-                </p>
-              </div>
-              <div className="ml-4 text-right flex-shrink-0">
-                <div className="text-2xl font-bold text-foreground">
-                  {stats.completed}/{stats.total}
-                </div>
-                <div className="text-xs text-muted-foreground">{t('course:detail.completed')}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* 作業列表 - 分層展示 */}
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-            <div className="space-y-8">
-              {/* 逾期作業 - 最突出 */}
-              {groupedAssignments.overdue.length > 0 && (
-                <section>
-                  <h2 className="text-sm font-bold text-red-600 dark:text-red-400 uppercase tracking-wider mb-3">
-                    {t('assignment:status.overdue')} ({groupedAssignments.overdue.length})
-                  </h2>
-                  <div className="space-y-2">
-                    {groupedAssignments.overdue.map((assignment) => (
-                      <AssignmentItem
-                        key={assignment.id}
-                        assignment={assignment}
-                        studentId={student.id}
-                        priority="high"
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* 本週截止 - 次明顯 */}
-              {groupedAssignments.thisWeek.length > 0 && (
-                <section>
-                  <h2 className="text-sm font-semibold text-orange-600 dark:text-orange-400 uppercase tracking-wider mb-3">
-                    {t('assignment:status.thisWeek')} ({groupedAssignments.thisWeek.length})
-                  </h2>
-                  <div className="space-y-2">
-                    {groupedAssignments.thisWeek.map((assignment) => (
-                      <AssignmentItem
-                        key={assignment.id}
-                        assignment={assignment}
-                        studentId={student.id}
-                        priority="medium"
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* 稍後作業 - 可摺疊 */}
-              {groupedAssignments.later.length > 0 && (
-                <section>
-                  <button
-                    onClick={() => setShowLater(!showLater)}
-                    className="w-full flex items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3"
-                  >
-                    <span className="uppercase tracking-wider">
-                      {t('assignment:status.later')} ({groupedAssignments.later.length})
-                    </span>
-                    {showLater ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  {showLater && (
-                    <div className="space-y-2">
-                      {groupedAssignments.later.map((assignment) => (
-                        <AssignmentItem key={assignment.id} assignment={assignment} studentId={student.id} priority="low" />
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )}
-
-              {/* 已完成 - 灰色、可摺疊 */}
-              {groupedAssignments.completed.length > 0 && (
-                <section>
-                  <button
-                    onClick={() => setShowCompleted(!showCompleted)}
-                    className="w-full flex items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-3"
-                  >
-                    <span className="uppercase tracking-wider">
-                      {t('assignment:status.completed')} ({groupedAssignments.completed.length})
-                    </span>
-                    {showCompleted ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
-                  {showCompleted && (
-                    <div className="space-y-2 opacity-60">
-                      {groupedAssignments.completed.map((assignment) => (
-                        <AssignmentItem
-                          key={assignment.id}
-                          assignment={assignment}
-                          studentId={student.id}
-                          priority="completed"
-                        />
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )}
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* 沒有作業時：統一的簡潔 header */}
-          <div className="border-b border-border">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-              <div className="flex items-center gap-4">
-                <img
-                  src={course.teacher.picture || '/default-avatar.png'}
-                  alt={course.teacher.name}
-                  className="w-12 h-12 rounded-full object-cover bg-muted flex-shrink-0"
-                  referrerPolicy='no-referrer'
-                />
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-2xl font-semibold text-foreground mb-1">{course.name}</h1>
-                  <p className="text-sm text-muted-foreground">
-                    {course.teacher.name}
-                    {course.description && (
-                      <>
-                        {' '}
-                        • <span className="hidden sm:inline">{course.description}</span>
-                      </>
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Empty state - 極簡 */}
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-24">
-            <div className="text-center space-y-3">
-              <p className="text-muted-foreground">{t('course:detail.noAssignmentsDescription')}</p>
-            </div>
-          </div>
-        </>
-      )}
+    <div className="pb-8">
+      {/* Course Info with Community Button */}
+      <div className="flex items-start gap-6 mb-6">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-3xl font-bold text-foreground tracking-tight leading-tight mb-2">
+            {course.name}
+          </h1>
+          {course.description && (
+            <p className="text-base text-muted-foreground leading-relaxed">
+              {course.description}
+            </p>
+          )}
+        </div>
+        
+        {/* Community Button */}
+        <Button
+          asChild
+          variant="ghost"
+          size="icon-2xl"
+          className="flex-shrink-0"
+          title={t('community.title', '社群')}
+        >
+          <Link to={`/student/courses/${course.id}/community`}>
+            <Users />
+          </Link>
+        </Button>
+      </div>
+      
+      <Separator className="my-6" />
+      
+      {/* Teacher Info with Avatar */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">{t('detail.teacher', '授課教師')}:</span>
+        <Avatar className="h-6 w-6">
+          <AvatarImage src={course.teacher.picture || '/default-avatar.png'} alt={course.teacher.name} referrerPolicy="no-referrer" />
+          <AvatarFallback>{course.teacher.name.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <span className="text-sm font-medium text-foreground">{course.teacher.name}</span>
+      </div>
     </div>
   );
 }
 
-// Assignment Item - Canvas-inspired simple design
-interface AssignmentItemProps {
-  assignment: StudentAssignmentInfo;
-  studentId: string;
-  priority: 'high' | 'medium' | 'low' | 'completed';
+// ============================================================================
+// Empty State - Calm, editorial style
+// ============================================================================
+interface EmptyStateProps {
+  courseId: string;
 }
 
-function AssignmentItem({ assignment, studentId, priority }: AssignmentItemProps) {
+function EmptyState({ courseId }: EmptyStateProps) {
+  const { t } = useTranslation('course');
+
+  return (
+    <div className="py-24">
+      <div className="max-w-lg mx-auto text-center">
+        <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mx-auto mb-8">
+          <BookOpen className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-2xl font-semibold text-foreground mb-3">
+          {t('detail.noAssignments', '目前沒有作業')}
+        </h2>
+        <p className="text-base text-muted-foreground font-light leading-relaxed mb-10">
+          {t('detail.noAssignmentsDescription', '老師還沒有發布作業，請稍後再回來查看')}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Assignment Card - Editorial, soft color tints
+// ============================================================================
+interface AssignmentCardProps {
+  assignment: StudentAssignmentInfo;
+  studentId: string;
+  status: 'urgent' | 'pending' | 'completed';
+}
+
+function AssignmentCard({ assignment, studentId, status }: AssignmentCardProps) {
   const { t } = useTranslation('assignment');
   const submission = assignment.submissions.find((sub) => sub.studentId === studentId);
 
@@ -245,78 +130,221 @@ function AssignmentItem({ assignment, studentId, priority }: AssignmentItemProps
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
-      return t('dueDate.overdue', { days: Math.abs(diffDays) });
+      return { text: t('dueDate.overdue', { days: Math.abs(diffDays) }), isOverdue: true };
     } else if (diffDays === 0) {
-      return t('dueDate.dueToday');
+      return { text: t('dueDate.dueToday'), isOverdue: false };
     } else if (diffDays === 1) {
-      return t('dueDate.dueTomorrow');
+      return { text: t('dueDate.dueTomorrow'), isOverdue: false };
     } else if (diffDays <= 7) {
-      return t('dueDate.dueInDays', { days: diffDays });
+      return { text: t('dueDate.dueInDays', { days: diffDays }), isOverdue: false };
     } else {
-      return date.toLocaleDateString();
+      return { text: date.toLocaleDateString(), isOverdue: false };
     }
   };
 
-  // 根據優先級決定樣式
-  const getPriorityStyles = () => {
-    switch (priority) {
-      case 'high':
-        return 'border border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100/50 dark:hover:bg-red-950/30';
-      case 'medium':
-        return 'border border-orange-200 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-950/20 hover:bg-orange-100/50 dark:hover:bg-orange-950/30';
-      case 'low':
-        return 'border border-border hover:bg-accent/50';
-      case 'completed':
-        return 'border border-green-200 dark:border-green-900 bg-muted/30 hover:bg-muted/50';
-      default:
-        return 'border border-border hover:bg-accent/50';
-    }
+  const dueInfo = formatDueDate(assignment.dueDate);
+  const hasScore = submission?.status === 'GRADED' && submission.finalScore !== null;
+
+  // Status styling - soft background tints
+  const cardStyles = {
+    urgent: 'bg-orange-50/50 dark:bg-orange-950/20 hover:bg-orange-50 dark:hover:bg-orange-950/30',
+    pending: 'bg-background hover:bg-muted/30',
+    completed: 'bg-emerald-50/30 dark:bg-emerald-950/10 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20',
   };
+
+  const iconStyles = {
+    urgent: 'text-orange-600 dark:text-orange-500',
+    pending: 'text-muted-foreground',
+    completed: 'text-emerald-600 dark:text-emerald-500',
+  };
+
+  const StatusIcon = status === 'completed' ? CheckCircle2 : status === 'urgent' ? AlertTriangle : Clock;
 
   return (
-    <Link
-      to={`/student/assignments/${assignment.id}/submit`}
-      className={`block rounded-md transition-all duration-150 ${getPriorityStyles()}`}
-    >
-      <div className="px-4 py-3">
-        {/* 標題行 */}
-        <div className="flex items-start justify-between gap-3 mb-1">
-          <h3
-            className={`text-base font-semibold ${priority === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'}`}
-          >
-            {assignment.name}
-          </h3>
-          {submission?.status === 'GRADED' && submission.finalScore !== null && (
-            <span className="text-lg font-bold text-green-600 dark:text-green-400 flex-shrink-0">
-              {submission.finalScore}
-            </span>
+    <Link to={`/student/assignments/${assignment.id}/submit`} className="block group">
+      <div className={cn(
+        'relative h-full p-6 rounded-2xl border transition-all duration-200',
+        cardStyles[status],
+        status === 'completed' ? 'border-emerald-200/50 dark:border-emerald-900/30' : 'border-border',
+        'hover:shadow-md hover:-translate-y-0.5'
+      )}>
+        
+        {/* Icon - Top left */}
+        <div className="mb-4">
+          <StatusIcon className={cn('w-5 h-5', iconStyles[status])} strokeWidth={1.5} />
+        </div>
+
+        {/* Title */}
+        <h3 className={cn(
+          'text-lg font-semibold mb-2 leading-snug',
+          status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'
+        )}>
+          {assignment.name}
+        </h3>
+
+        {/* Metadata */}
+        <div className="space-y-2 mb-4">
+          {dueInfo && (
+            <div className={cn(
+              'text-sm font-medium',
+              dueInfo.isOverdue ? 'text-orange-700 dark:text-orange-400' : 'text-muted-foreground'
+            )}>
+              {dueInfo.text}
+            </div>
+          )}
+          
+          {assignment.class && (
+            <div className="text-xs text-muted-foreground">
+              {assignment.class.name}
+            </div>
           )}
         </div>
 
-        {/* 描述（如果有） */}
-        {assignment.description && priority !== 'completed' && (
-          <p className="text-sm text-muted-foreground line-clamp-1 mb-2">{assignment.description}</p>
-        )}
-
-        {/* 底部元資訊 - 極簡 */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {assignment.dueDate && (
-            <>
-              <span className={priority === 'high' ? 'font-semibold text-red-600 dark:text-red-400' : ''}>
-                {formatDueDate(assignment.dueDate)}
-              </span>
-              <span>•</span>
-            </>
+        {/* Score or Arrow */}
+        <div className="flex items-end justify-between mt-auto pt-4">
+          {hasScore ? (
+            <div>
+              <div className="text-3xl font-bold text-foreground tabular-nums">{submission.finalScore}</div>
+              <div className="text-xs text-muted-foreground uppercase tracking-wide">/ 100</div>
+            </div>
+          ) : (
+            <div className="flex-1" />
           )}
-          <span>{assignment.rubric.name}</span>
-          {assignment.class && (
-            <>
-              <span>•</span>
-              <span>{assignment.class.name}</span>
-            </>
-          )}
+          <ChevronRight className={cn(
+            'w-5 h-5 transition-opacity',
+            hasScore ? 'opacity-0 group-hover:opacity-30' : 'opacity-0 group-hover:opacity-100',
+            iconStyles[status]
+          )} />
         </div>
       </div>
     </Link>
+  );
+}
+
+// ============================================================================
+// Section Header - Editorial, typography-driven
+// ============================================================================
+interface SectionHeaderProps {
+  title: string;
+  count: number;
+}
+
+function SectionHeader({ title, count }: SectionHeaderProps) {
+  return (
+    <div className="mb-6">
+      <h2 className="text-2xl font-bold text-foreground inline-block">{title}</h2>
+      <span className="text-2xl font-light text-muted-foreground ml-3">({count})</span>
+    </div>
+  );
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+export function CourseDetailContent({ data }: CourseDetailContentProps) {
+  const { t } = useTranslation(['course', 'assignment']);
+  const { course, assignments, stats, student } = data;
+
+  const groupedAssignments = useMemo(() => {
+    const now = new Date();
+    const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const urgent: StudentAssignmentInfo[] = [];
+    const pending: StudentAssignmentInfo[] = [];
+    const completed: StudentAssignmentInfo[] = [];
+
+    assignments.forEach((assignment) => {
+      const hasSubmission = assignment.submissions.some((sub) => sub.studentId === student.id);
+      const submission = assignment.submissions.find((sub) => sub.studentId === student.id);
+
+      // Completed
+      if (submission?.status === 'GRADED') {
+        completed.push(assignment);
+        return;
+      }
+
+      // Check urgency
+      if (assignment.dueDate) {
+        const dueDate = new Date(assignment.dueDate);
+        if (dueDate < now && !hasSubmission) {
+          // Overdue
+          urgent.push(assignment);
+        } else if (dueDate <= oneWeekLater) {
+          // Due soon
+          urgent.push(assignment);
+        } else {
+          pending.push(assignment);
+        }
+      } else {
+        pending.push(assignment);
+      }
+    });
+
+    // Sort urgent by due date
+    urgent.sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0));
+
+    return { urgent, pending, completed };
+  }, [assignments, student.id]);
+
+  const hasAssignments = assignments.length > 0;
+
+  return (
+    <div className="min-h-screen">
+      {/* Header - No bar, just content */}
+      <CourseHeader course={course} stats={hasAssignments ? stats : undefined} />
+
+      {hasAssignments ? (
+        /* Assignment Grid - Generous spacing */
+        <div className="pb-16">
+          {/* Urgent / Due Soon Section */}
+          {groupedAssignments.urgent.length > 0 && (
+            <div className="mb-16">
+              <SectionHeader
+                title={t('assignment:status.needsAttention', '需要注意')}
+                count={groupedAssignments.urgent.length}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {groupedAssignments.urgent.map((assignment) => (
+                  <AssignmentCard key={assignment.id} assignment={assignment} studentId={student.id} status="urgent" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pending Section */}
+          {groupedAssignments.pending.length > 0 && (
+            <div className="mb-16">
+              <SectionHeader
+                title={t('assignment:status.later', '稍後')}
+                count={groupedAssignments.pending.length}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {groupedAssignments.pending.map((assignment) => (
+                  <AssignmentCard key={assignment.id} assignment={assignment} studentId={student.id} status="pending" />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Completed Section */}
+          {groupedAssignments.completed.length > 0 && (
+            <div>
+              <SectionHeader
+                title={t('assignment:status.completed', '已完成')}
+                count={groupedAssignments.completed.length}
+              />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {groupedAssignments.completed.map((assignment) => (
+                  <AssignmentCard key={assignment.id} assignment={assignment} studentId={student.id} status="completed" />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Empty State View */
+        <EmptyState courseId={course.id} />
+      )}
+    </div>
   );
 }
