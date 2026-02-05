@@ -21,5 +21,19 @@
   "contact": "聯絡我們",
   "feedback": "意見反饋",
   "share": "分享",
-  "loggingOut": "登出中..."
+  "loggingOut": "登出中...",
+  "notifications": "通知",
+  "adminCenter": "管理中心",
+  "theme": "主題",
+  "account": "帳號",
+  "system": "系統",
+  "teacher": "教師",
+  "student": "學生",
+  "version": "版本",
+  "environment": "環境",
+  "branch": "分支",
+  "commit": "提交",
+  "production": "正式環境",
+  "development": "開發環境",
+  "manageAccount": "管理帳號"
 }

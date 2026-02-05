@@ -21,5 +21,19 @@
   "contact": "Contact Us",
   "feedback": "Feedback",
   "share": "Share",
-  "loggingOut": "Logging out..."
+  "loggingOut": "Logging out...",
+  "notifications": "Notifications",
+  "adminCenter": "Admin Center",
+  "theme": "Theme",
+  "account": "Account",
+  "system": "System",
+  "teacher": "Teacher",
+  "student": "Student",
+  "version": "Version",
+  "environment": "Environment",
+  "branch": "Branch",
+  "commit": "Commit",
+  "production": "Production",
+  "development": "Development",
+  "manageAccount": "Manage Account"
 }
