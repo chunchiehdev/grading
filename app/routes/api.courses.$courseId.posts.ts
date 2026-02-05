@@ -4,12 +4,7 @@ import { requireAuth } from '@/services/auth.server';
 import {
   createPost,
   getPosts,
-  getPostById,
-  updatePost,
-  deletePost,
-  togglePostLike,
   canAccessCourse,
-  canModifyPost,
 } from '@/services/coursePost.server';
 import type { PostType } from '@/generated/prisma/client';
 
@@ -94,6 +89,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return Response.json({ success: true, data: result });
   }
 
+
   if (request.method === 'POST') {
     // Create post
     const body = await request.json();
@@ -128,110 +124,4 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
-}
-
-/**
- * GET /api/posts/:postId - Get a single post
- * PUT /api/posts/:postId - Update a post
- * DELETE /api/posts/:postId - Delete a post
- */
-export async function postAction({ request, params }: ActionFunctionArgs) {
-  const user = await requireAuth(request);
-  const { postId } = params;
-
-  if (!postId) {
-    return Response.json({ success: false, error: 'Post ID is required' }, { status: 400 });
-  }
-
-  const post = await getPostById(postId);
-  if (!post) {
-    return Response.json({ success: false, error: 'Post not found' }, { status: 404 });
-  }
-
-  // Check access to course
-  const hasAccess = await canAccessCourse(user.id, post.courseId);
-  if (!hasAccess) {
-    return Response.json({ success: false, error: 'Access denied' }, { status: 403 });
-  }
-
-  if (request.method === 'GET') {
-    // Get post detail
-    return Response.json({ success: true, data: post });
-  }
-
-  if (request.method === 'PUT') {
-    // Update post - only author or teacher can update
-    const canModify = await canModifyPost(user.id, postId);
-    if (!canModify) {
-      return Response.json({ success: false, error: 'Access denied' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const validation = UpdatePostSchema.safeParse(body);
-
-    if (!validation.success) {
-      return Response.json(
-        { success: false, error: 'Invalid input', details: validation.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const updated = await updatePost(postId, validation.data);
-    if (!updated) {
-      return Response.json({ success: false, error: 'Failed to update post' }, { status: 500 });
-    }
-
-    return Response.json({ success: true, data: updated });
-  }
-
-  if (request.method === 'DELETE') {
-    // Delete post - only author or teacher can delete
-    const canModify = await canModifyPost(user.id, postId);
-    if (!canModify) {
-      return Response.json({ success: false, error: 'Access denied' }, { status: 403 });
-    }
-
-    const success = await deletePost(postId);
-    if (!success) {
-      return Response.json({ success: false, error: 'Failed to delete post' }, { status: 500 });
-    }
-
-    return Response.json({ success: true });
-  }
-
-  return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
-}
-
-/**
- * POST /api/posts/:postId/like - Toggle like on a post
- */
-export async function likeAction({ request, params }: ActionFunctionArgs) {
-  const user = await requireAuth(request);
-  const { postId } = params;
-
-  if (!postId) {
-    return Response.json({ success: false, error: 'Post ID is required' }, { status: 400 });
-  }
-
-  if (request.method !== 'POST') {
-    return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
-  }
-
-  const post = await getPostById(postId);
-  if (!post) {
-    return Response.json({ success: false, error: 'Post not found' }, { status: 404 });
-  }
-
-  // Check access
-  const hasAccess = await canAccessCourse(user.id, post.courseId);
-  if (!hasAccess) {
-    return Response.json({ success: false, error: 'Access denied' }, { status: 403 });
-  }
-
-  const result = await togglePostLike(postId, user.id);
-  if (!result) {
-    return Response.json({ success: false, error: 'Failed to toggle like' }, { status: 500 });
-  }
-
-  return Response.json({ success: true, data: result });
 }

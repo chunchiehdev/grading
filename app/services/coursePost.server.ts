@@ -492,6 +492,15 @@ export async function getComments(postId: string, options?: { limit?: number; of
                   role: true,
                 },
               },
+              gradingResult: {
+                select: {
+                  id: true,
+                  normalizedScore: true,
+                  result: true,
+                  thoughtSummary: true,
+                  createdAt: true,
+                },
+              },
             },
             orderBy: {
               createdAt: 'asc',

@@ -73,9 +73,23 @@ export default function TeacherPostDetailPage() {
   const commentsForDisplay = comments.map((comment) => ({
     ...comment,
     createdAt: new Date(comment.createdAt).toISOString(),
+    gradingResult: comment.gradingResult
+      ? {
+          ...comment.gradingResult,
+          result: comment.gradingResult.result as any,
+          createdAt: new Date(comment.gradingResult.createdAt).toISOString(),
+        }
+      : null,
     replies: comment.replies?.map((reply) => ({
       ...reply,
       createdAt: new Date(reply.createdAt).toISOString(),
+      gradingResult: reply.gradingResult
+        ? {
+            ...reply.gradingResult,
+            result: reply.gradingResult.result as any,
+            createdAt: new Date(reply.gradingResult.createdAt).toISOString(),
+          }
+        : null,
     })),
   }));
 

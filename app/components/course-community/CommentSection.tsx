@@ -31,7 +31,7 @@ interface Comment {
   } | null;
   gradingResult?: {
     id: string;
-    normalizedScore: number;
+    normalizedScore: number | null;
     result: {
       breakdown?: Array<{
         name: string;
@@ -41,7 +41,7 @@ interface Comment {
       }>;
       overallFeedback?: string;
     };
-    thoughtSummary?: string;
+    thoughtSummary?: string | null;
     createdAt: string;
   } | null;
   replies?: Comment[];
@@ -267,7 +267,9 @@ export function CommentSection({
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center justify-between">
                                                         <span className="text-lg font-bold text-[#15803D] dark:text-[#86EFAC]">
-                              {comment.gradingResult.normalizedScore.toFixed(1)} 分
+                              {comment.gradingResult.normalizedScore !== null 
+                                ? `${comment.gradingResult.normalizedScore.toFixed(1)} 分`
+                                : '-- 分'}
                             </span>
                           </div>
                           {comment.gradingResult.result.overallFeedback && (
