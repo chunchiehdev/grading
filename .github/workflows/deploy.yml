@@ -311,6 +311,16 @@ jobs:
         git tag -a v${{ needs.build.outputs.version }} -m "Release v${{ needs.build.outputs.version }}"
         git push origin v${{ needs.build.outputs.version }}
 
+    - name: Sync master to development
+      if: github.ref_name == 'master'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git fetch origin development master
+        git checkout development
+        git merge origin/master -m "chore: sync from master v${{ needs.build.outputs.version }} [skip ci]"
+        git push origin development
+
     - name: Summary
       run: |
         echo "========================================"
