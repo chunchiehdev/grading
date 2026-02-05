@@ -311,15 +311,6 @@ jobs:
         git tag -a v${{ needs.build.outputs.version }} -m "Release v${{ needs.build.outputs.version }}"
         git push origin v${{ needs.build.outputs.version }}
 
-    - name: Sync version back to development
-      if: github.ref_name == 'master' && needs.build.outputs.bump_type != 'none'
-      run: |
-        git fetch origin development
-        git checkout development
-        git merge origin/master -m "chore: sync version ${{ needs.build.outputs.version }} from master [skip ci]"
-        git push origin development
-        echo "✅ Synced version to development branch"
-
     - name: Summary
       run: |
         echo "========================================"
