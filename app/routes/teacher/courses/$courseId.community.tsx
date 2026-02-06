@@ -195,6 +195,7 @@ export default function TeacherCourseCommunity() {
         }
       : null,
     attachments: post.attachments as any,
+    likes: post.likes,
     previewComments: post.comments.map((c: any) => ({
       ...c,
       createdAt: c.createdAt.toISOString(),

@@ -183,6 +183,7 @@ export default function StudentCourseCommunity() {
         }
       : null,
     attachments: post.attachments as any,
+    likes: post.likes,
     previewComments: post.comments.map((c) => ({
       ...c,
       createdAt: c.createdAt.toISOString(),
