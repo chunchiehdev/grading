@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ThumbsUp, MessageCircle, Send, Pin, Calendar, FileText, Trash2, Edit } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Send, Pin, Calendar, FileText, Trash2, Edit, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
@@ -299,9 +299,11 @@ export function CoursePostCard({
         {post.attachments && post.attachments.length > 0 && (
           <div className="mb-3 space-y-2">
             {post.attachments.map((file) => (
-              <div
+              <a
                 key={file.fileId}
-                className="flex items-center gap-3 border border-[#E8E4DD] dark:border-[#393A3B] rounded-lg px-4 py-3 text-sm hover:bg-[#FAF8F5] dark:hover:bg-[#3A3B3C] transition-colors duration-200 cursor-pointer"
+                href={`/api/posts/${post.id}/attachments/${file.fileId}/download`}
+                download={file.fileName}
+                className="flex items-center gap-3 border border-[#E8E4DD] dark:border-[#393A3B] rounded-lg px-4 py-3 text-sm hover:bg-[#FAF8F5] dark:hover:bg-[#3A3B3C] transition-colors duration-200 cursor-pointer group"
               >
                 <div className="w-8 h-8 rounded bg-[#F0EDE8] dark:bg-[#3A3B3C] flex items-center justify-center flex-shrink-0">
                   <FileText className="h-4 w-4 text-[#9C9488] dark:text-[#E4E6EB]" />
@@ -310,7 +312,8 @@ export function CoursePostCard({
                 <span className="text-xs text-[#9C9488] dark:text-[#B0B3B8] flex-shrink-0">
                   {(file.fileSize / 1024).toFixed(1)} KB
                 </span>
-              </div>
+                <Download className="h-4 w-4 text-[#9C9488] dark:text-[#B0B3B8] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+              </a>
             ))}
           </div>
         )}
@@ -333,7 +336,7 @@ export function CoursePostCard({
           className="flex-1 flex items-center justify-center gap-2 py-3 text-[#9C9488] hover:bg-[#F0EDE8] dark:text-[#B0B3B8] dark:hover:bg-[#3A3B3C] transition-colors duration-200 cursor-pointer"
         >
           <MessageCircle className="h-4 w-4" />
-          <span className="text-sm font-medium">留言 {post.commentCount > 0 ? `(${post.commentCount})` : ''}</span>
+          <span className="text-sm font-medium">留言</span>
         </button>
 
         <button className="flex-1 flex items-center justify-center gap-2 py-3 text-[#9C9488] hover:bg-[#F0EDE8] dark:text-[#B0B3B8] dark:hover:bg-[#3A3B3C] transition-colors duration-200 cursor-pointer">

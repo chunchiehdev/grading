@@ -200,6 +200,7 @@ export default [
   route('/api/posts/:postId', './routes/api.posts.$postId.ts'),
   route('/api/posts/:postId/comments', './routes/api.posts.$postId.comments.ts'),
   route('/api/posts/:postId/like', './routes/api.posts.$postId.like.ts'),
+  route('/api/posts/:postId/attachments/:fileId/download', './routes/api.posts.$postId.attachments.$fileId.download.ts'),
   route('/api/comments/:commentId/grade', './routes/api.comments.$commentId.grade.ts'),
 
   // File proxy route (for serving MinIO files to browsers)
