@@ -1,8 +1,10 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
 import { useLoaderData, useActionData, Form, Link, useRouteError, isRouteErrorResponse } from 'react-router';
-import { Save, Trash2, Calendar, FileText, Users, ArrowLeft } from 'lucide-react';
+import { Save, Trash2, Calendar, FileText, Users, Clock, FileUp, File, Loader2, Image, Smile, Check, X } from 'lucide-react';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
+import { useState, useRef } from 'react';
+import { toast } from 'sonner';
 
 import { requireTeacher } from '@/services/auth.server';
 import {
@@ -17,6 +19,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+interface Attachment {
+  fileId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+}
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string; name: string };
@@ -25,6 +38,7 @@ interface LoaderData {
   formattedDueDate?: string;
   formattedCreatedAt: string;
   formattedUpdatedAt: string;
+  existingAttachments: Attachment[];
 }
 
 interface ActionData {
@@ -55,6 +69,37 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   const formattedCreatedAt = formatDateForDisplay(new Date(assignmentArea.createdAt));
   const formattedUpdatedAt = formatDateForDisplay(new Date(assignmentArea.updatedAt));
 
+  // Load existing attachments
+  let existingAttachments: Attachment[] = [];
+  if (assignmentArea.referenceFileIds) {
+    try {
+      const fileIds = JSON.parse(assignmentArea.referenceFileIds);
+      if (fileIds && fileIds.length > 0) {
+        const { db } = await import('@/lib/db.server');
+        const files = await db.uploadedFile.findMany({
+          where: {
+            id: { in: fileIds },
+            isDeleted: false,
+          },
+          select: {
+            id: true,
+            originalFileName: true,
+            fileSize: true,
+            mimeType: true,
+          },
+        });
+        existingAttachments = files.map((file) => ({
+          fileId: file.id,
+          fileName: file.originalFileName,
+          fileSize: file.fileSize,
+          mimeType: file.mimeType,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load existing attachments:', error);
+    }
+  }
+
   return {
     teacher,
     assignmentArea,
@@ -62,6 +107,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     formattedDueDate,
     formattedCreatedAt,
     formattedUpdatedAt,
+    existingAttachments,
   };
 }
 
@@ -90,6 +136,8 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       const description = formData.get('description') as string;
       const rubricId = formData.get('rubricId') as string;
       const dueDate = formData.get('dueDate') as string;
+      const referenceFileIds = formData.get('referenceFileIds') as string;
+      const customGradingPrompt = formData.get('customGradingPrompt') as string;
 
       if (!name || name.trim().length === 0) {
         return { success: false, error: 'Assignment name is required' };
@@ -108,11 +156,44 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 
       const updatedArea = await updateAssignmentArea(assignmentId, teacher.id, updateData);
 
-      if (updatedArea) {
-        return { success: true, action: 'update' };
-      } else {
+      if (!updatedArea) {
         return { success: false, error: 'Failed to update assignment area' };
       }
+
+      // Update reference files and custom grading prompt
+      const additionalUpdateData: any = {};
+
+      if (referenceFileIds && referenceFileIds.trim() !== '') {
+        try {
+          const fileIds = JSON.parse(referenceFileIds);
+          const validFileIds = fileIds.filter((id: any) => id && typeof id === 'string');
+          if (validFileIds.length > 0) {
+            additionalUpdateData.referenceFileIds = JSON.stringify(validFileIds);
+          } else {
+            additionalUpdateData.referenceFileIds = null;
+          }
+        } catch (error) {
+          console.error('Failed to parse referenceFileIds:', error);
+        }
+      } else {
+        additionalUpdateData.referenceFileIds = null;
+      }
+
+      if (customGradingPrompt && customGradingPrompt.trim() !== '') {
+        additionalUpdateData.customGradingPrompt = customGradingPrompt.trim();
+      } else {
+        additionalUpdateData.customGradingPrompt = null;
+      }
+
+      if (Object.keys(additionalUpdateData).length > 0) {
+        const { db } = await import('@/lib/db.server');
+        await db.assignmentArea.update({
+          where: { id: assignmentId },
+          data: additionalUpdateData,
+        });
+      }
+
+      return { success: true, action: 'update' };
     }
 
     return { success: false, error: 'Invalid action' };
@@ -126,210 +207,540 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 }
 
 export default function ManageAssignmentArea() {
-  const { teacher, assignmentArea, rubrics, formattedDueDate, formattedCreatedAt, formattedUpdatedAt } =
+  const { teacher, assignmentArea, rubrics, formattedDueDate, formattedCreatedAt, formattedUpdatedAt, existingAttachments } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
   const { t } = useTranslation(['course', 'common']);
+  
+  const [allowLateSubmissions, setAllowLateSubmissions] = useState(true);
+  const [assignTo, setAssignTo] = useState<'all' | 'specific'>('all');
+  const [selectedGroups, setSelectedGroups] = useState<string[]>(['groupA']);
+  
+  // Attachments state
+  const [attachments, setAttachments] = useState<Attachment[]>(existingAttachments);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  
+  // Custom grading prompt state
+  const [customGradingPrompt, setCustomGradingPrompt] = useState(assignmentArea.customGradingPrompt || '');
 
-  const isOverdue = assignmentArea.dueDate && new Date(assignmentArea.dueDate) < new Date();
-  const daysUntilDue = assignmentArea.dueDate
-    ? Math.ceil((new Date(assignmentArea.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-    : null;
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const handleFileUpload = async (files: FileList | null, isImage: boolean = false) => {
+    if (!files || files.length === 0) return;
+    
+    const file = files[0];
+    const allowedDocTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedTypes = isImage ? allowedImageTypes : allowedDocTypes;
+    
+    const docExtPattern = /\.(pdf|docx|txt)$/i;
+    const imageExtPattern = /\.(jpg|jpeg|png|gif|webp)$/i;
+    const extPattern = isImage ? imageExtPattern : docExtPattern;
+    
+    if (!allowedTypes.includes(file.type) && !file.name.match(extPattern)) {
+      toast.error(isImage ? '只支援 JPG、PNG、GIF、WebP 格式' : '只支援 PDF、DOCX、TXT 格式');
+      return;
+    }
+    
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('檔案大小不能超過 100MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+
+      const response = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || '上傳失敗');
+      }
+
+      setAttachments(prev => [...prev, {
+        fileId: result.data.fileId,
+        fileName: result.data.fileName,
+        fileSize: result.data.fileSize,
+        mimeType: file.type,
+      }]);
+      toast.success(`已上傳: ${file.name}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '上傳失敗');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (fileId: string) => {
+    setAttachments(prev => prev.filter(a => a.fileId !== fileId));
+    toast.success('已移除附件');
+  };
 
   return (
-    <div className="min-h-screen">
-      {/* Header - Architectural Sketch Style */}
-      <header className="border-b-2 border-[#2B2B2B] dark:border-gray-200">
-        <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-serif text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100">
-                {assignmentArea.name}
-              </h1>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                {t('course:assignment.manage.settings.description')}
-              </p>
-            </div>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b border-border">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-4 sm:py-6">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-lg sm:text-2xl font-semibold text-foreground truncate">{t('course:assignment.manage.editAssignment')}</h1>
             <Link
               to={`/teacher/courses/${assignmentArea.courseId}/assignments/${assignmentArea.id}/submissions`}
-              className="border-2 border-[#2B2B2B] px-4 py-2 text-sm font-medium text-[#2B2B2B] transition-colors hover:bg-[#D2691E] hover:text-white dark:border-gray-200 dark:text-gray-200 dark:hover:bg-[#E87D3E]"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-3 sm:px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors flex-shrink-0"
+              title={t('course:assignment.manage.viewSubmissions')}
             >
-              <Users className="mr-2 inline-block h-4 w-4" />
-              {t('course:assignment.manage.viewSubmissions')}
-            </Link>
-          </div>
-
-          {/* Stats bar */}
-          <div className="mt-6 flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
-            <div className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              <span>{assignmentArea._count.submissions} {t('course:assignment.manage.stats.submissions')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              <span>{assignmentArea.rubric.name}</span>
-            </div>
-            {assignmentArea.dueDate && (
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span>
-                  {new Date(assignmentArea.dueDate).toLocaleDateString('zh-TW', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                  {daysUntilDue !== null && daysUntilDue >= 0 && (
-                    <span className="ml-1">
-                      ({t('course:assignment.manage.stats.daysUntilDue', { count: daysUntilDue })})
-                    </span>
-                  )}
-                </span>
-              </div>
-            )}
+              <span className="hidden sm:inline">{t('course:assignment.manage.viewSubmissions')}</span>
+            </Link>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
-        {/* Settings Form */}
-        <div className="mb-16 border-2 border-[#2B2B2B] dark:border-gray-200">
-          <div className="border-b-2 border-[#2B2B2B] px-6 py-4 dark:border-gray-200">
-            <h2 className="font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-              {t('course:assignment.manage.settings.title')}
-            </h2>
-          </div>
+      <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
+        <Form method="post" className="space-y-6">
+          <input type="hidden" name="intent" value="update" />
 
-          <div className="p-6">
-            <Form id="update-assignment-form" method="post" className="space-y-6">
-              <input type="hidden" name="intent" value="update" />
+          {/* Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column */}
+            <div className="space-y-6">
+              {/* General Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">{t('course:assignment.manage.generalInfo')}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="name" className="text-sm font-medium mb-2 block">
+                      {t('course:assignment.manage.assignmentTitle')}
+                    </Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      defaultValue={assignmentArea.name}
+                      required
+                      className="h-10"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  {t('course:assignment.manage.settings.nameLabel')} <span className="text-[#D2691E]">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  name="name"
-                  required
-                  defaultValue={assignmentArea.name}
-                  className="border-2 border-[#2B2B2B] dark:border-gray-200"
-                />
-              </div>
+                  <div>
+                    <Label htmlFor="description" className="text-sm font-medium mb-2 block">
+                      {t('course:assignment.manage.instructions')}
+                    </Label>
+                    <div className="border border-border rounded-lg overflow-hidden">
+                      {/* Rich Text Toolbar */}
+                      <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/30">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Bold">
+                          <span className="font-bold text-sm">B</span>
+                        </button>
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Italic">
+                          <span className="italic text-sm">I</span>
+                        </button>
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Underline">
+                          <span className="underline text-sm">U</span>
+                        </button>
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Strikethrough">
+                          <span className="line-through text-sm">S</span>
+                        </button>
+                        <div className="w-px h-4 bg-border mx-1" />
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Code">
+                          <span className="font-mono text-sm">&lt;/&gt;</span>
+                        </button>
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Superscript">
+                          <span className="text-sm">x²</span>
+                        </button>
+                        <div className="w-px h-4 bg-border mx-1" />
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Bullet List">
+                          <span className="text-sm">•</span>
+                        </button>
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Numbered List">
+                          <span className="text-sm">1.</span>
+                        </button>
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Indent">
+                          <span className="text-sm">→</span>
+                        </button>
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Outdent">
+                          <span className="text-sm">←</span>
+                        </button>
+                        <div className="w-px h-4 bg-border mx-1" />
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Link">
+                          <span className="text-sm">🔗</span>
+                        </button>
+                      </div>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        rows={16}
+                        defaultValue={assignmentArea.description || ''}
+                        placeholder={t('course:assignment.manage.instructionsPlaceholder')}
+                        className="border-0 focus-visible:ring-0 resize-none"
+                      />
+                    </div>
+                  </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description" className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  {t('course:assignment.manage.settings.descriptionLabel')}
-                </Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  rows={20}
-                  defaultValue={assignmentArea.description || ''}
-                  placeholder={t('course:assignment.manage.settings.descriptionPlaceholder')}
-                  className="border-2 border-[#2B2B2B] font-serif dark:border-gray-200"
-                />
-              </div>
+                  {/* Attachments Section */}
+                  <div className="pt-4 border-t border-border">
+                    <div className="flex items-center justify-between px-3 py-2 border border-border rounded-lg hover:bg-muted/30 transition-colors">
+                      <span className="text-sm font-medium text-foreground">新增參考資料</span>
+                      <div className="flex items-center gap-1">
+                        {/* File Upload */}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,.docx,.txt"
+                          onChange={(e) => handleFileUpload(e.target.files, false)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading}
+                          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-muted transition-colors disabled:opacity-50"
+                          title="上傳檔案 (PDF/DOCX/TXT)"
+                        >
+                          {isUploading ? (
+                            <Loader2 className="w-5 h-5 text-[#6B9B6B] animate-spin" />
+                          ) : (
+                            <FileUp className="w-5 h-5 text-[#6B9B6B]" />
+                          )}
+                        </button>
 
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="rubricId" className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    {t('course:assignment.manage.settings.rubricLabel')} <span className="text-[#D2691E]">*</span>
-                  </Label>
-                  <Select name="rubricId" defaultValue={assignmentArea.rubricId} required>
-                    <SelectTrigger className="border-2 border-[#2B2B2B] dark:border-gray-200">
-                      <SelectValue placeholder={t('course:assignment.manage.settings.rubricPlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rubrics.map((rubric) => (
-                        <SelectItem key={rubric.id} value={rubric.id}>
-                          <div>
-                            <div className="font-medium">{rubric.name}</div>
-                            {rubric.description && (
-                              <div className="text-xs text-gray-600 dark:text-gray-400">{rubric.description}</div>
-                            )}
+                        {/* Image Upload */}
+                        <input
+                          ref={imageInputRef}
+                          type="file"
+                          className="hidden"
+                          accept=".jpg,.jpeg,.png,.gif,.webp"
+                          onChange={(e) => handleFileUpload(e.target.files, true)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => imageInputRef.current?.click()}
+                          disabled={isUploading}
+                          className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-muted transition-colors disabled:opacity-50"
+                          title="上傳圖片"
+                        >
+                          <Image className="w-5 h-5 text-[#5B8A8A]" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Uploaded Attachments Display */}
+                    {attachments.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {attachments.map((attachment) => (
+                          <div 
+                            key={attachment.fileId}
+                            className="flex items-center justify-between px-3 py-2 bg-muted/50 border border-border rounded-lg"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <File className="w-4 h-4 text-primary flex-shrink-0" />
+                              <span className="text-sm text-foreground truncate">{attachment.fileName}</span>
+                              <span className="text-xs text-muted-foreground flex-shrink-0">
+                                {formatFileSize(attachment.fileSize)}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeAttachment(attachment.fileId)}
+                              className="p-1 rounded hover:bg-destructive/10 transition-colors text-destructive"
+                              title="移除附件"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                        </SelectItem>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Hidden input for form submission */}
+                    <input 
+                      type="hidden" 
+                      name="referenceFileIds" 
+                      value={JSON.stringify(attachments.map(a => a.fileId))} 
+                    />
+                  </div>
+
+                  {/* Custom Grading Instructions */}
+                  <div className="pt-4 border-t border-border space-y-2">
+                    <Label htmlFor="customGradingPrompt" className="text-sm font-medium">
+                      AI 評分自訂指示
+                    </Label>
+                    <Textarea
+                      id="customGradingPrompt"
+                      name="customGradingPrompt"
+                      value={customGradingPrompt}
+                      onChange={(e) => setCustomGradingPrompt(e.target.value)}
+                      rows={4}
+                      placeholder="例如：重點檢查學生是否正確套用公式。注意單位換算和計算步驟的完整性。"
+                      className="resize-none text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      這些指示會在 AI 評分時作為額外的參考依據
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Submission & Timeline */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">{t('course:assignment.manage.submissionTimeline')}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="dueDate" className="text-sm font-medium mb-2 block">
+                        {t('course:assignment.manage.dueDate')}
+                      </Label>
+                      <DatePicker
+                        name="dueDate"
+                        defaultISOString={assignmentArea.dueDate ? new Date(assignmentArea.dueDate).toISOString() : undefined}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dueTime" className="text-sm font-medium mb-2 block">
+                        {t('course:assignment.manage.dueTime')}
+                      </Label>
+                      <Select name="dueTime" defaultValue="18:00">
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="00:00">12:00 AM</SelectItem>
+                          <SelectItem value="06:00">6:00 AM</SelectItem>
+                          <SelectItem value="12:00">12:00 PM</SelectItem>
+                          <SelectItem value="18:00">6:00 PM</SelectItem>
+                          <SelectItem value="23:59">11:59 PM</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="submissionType" className="text-sm font-medium mb-2 block">
+                      {t('course:assignment.manage.submissionType')}
+                    </Label>
+                    <Select name="submissionType" defaultValue="file-upload">
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="file-upload">{t('course:assignment.manage.submissionTypes.fileUploadTextEntry')}</SelectItem>
+                        <SelectItem value="file-only">{t('course:assignment.manage.submissionTypes.fileOnly')}</SelectItem>
+                        <SelectItem value="text-only">{t('course:assignment.manage.submissionTypes.textOnly')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2">
+                    <Label htmlFor="allowLate" className="text-sm font-medium">
+                      {t('course:assignment.manage.allowLateSubmissions')}
+                    </Label>
+                    <Switch
+                      id="allowLate"
+                      name="allowLate"
+                      checked={allowLateSubmissions}
+                      onCheckedChange={setAllowLateSubmissions}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="penalty" className="text-sm font-medium mb-2 block">
+                      {t('course:assignment.manage.penaltySubmissions')}
+                    </Label>
+                    <Select name="penalty" defaultValue="0">
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">{t('course:assignment.manage.penaltyOptions.none')}</SelectItem>
+                        <SelectItem value="5">{t('course:assignment.manage.penaltyOptions.five')}</SelectItem>
+                        <SelectItem value="10">{t('course:assignment.manage.penaltyOptions.ten')}</SelectItem>
+                        <SelectItem value="15">{t('course:assignment.manage.penaltyOptions.fifteen')}</SelectItem>
+                        <SelectItem value="20">{t('course:assignment.manage.penaltyOptions.twenty')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+              {/* Grading & Evaluation */}
+              <Card className="min-w-0">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">{t('course:assignment.manage.gradingEvaluation')}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 min-w-0">
+                  <div className="min-w-0">
+                    <div className="flex items-center justify-between mb-2 gap-2 min-w-0">
+                      <Label htmlFor="rubricId" className="text-sm font-medium flex-shrink-0">
+                        {t('course:assignment.manage.gradingRubric')}
+                      </Label>
+                      <a
+                        href="/teacher/rubrics/new"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline flex-shrink-0 whitespace-nowrap"
+                      >
+                        {t('course:assignment.manage.createNew')}
+                      </a>
+                    </div>
+                    <Select name="rubricId" defaultValue={assignmentArea.rubricId} required>
+                      <SelectTrigger className="h-10 w-full">
+                        <SelectValue placeholder={t('course:assignment.manage.selectRubric')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {rubrics.map((rubric) => (
+                          <SelectItem key={rubric.id} value={rubric.id}>
+                            {rubric.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="category" className="text-sm font-medium mb-2 block">
+                      {t('course:assignment.manage.gradingCategory')}
+                    </Label>
+                    <Select name="category" defaultValue="">
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder={t('course:assignment.manage.selectCategory')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="homework">{t('course:assignment.manage.categories.homework')}</SelectItem>
+                        <SelectItem value="quiz">{t('course:assignment.manage.categories.quiz')}</SelectItem>
+                        <SelectItem value="exam">{t('course:assignment.manage.categories.exam')}</SelectItem>
+                        <SelectItem value="project">{t('course:assignment.manage.categories.project')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Assignment Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">作業派發對象</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium mb-3 block">指派給</Label>
+                    <RadioGroup
+                      value={assignTo}
+                      onValueChange={(value) => setAssignTo(value as 'all' | 'specific')}
+                      className="space-y-3"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="all" id="all-students" />
+                        <Label htmlFor="all-students" className="font-normal cursor-pointer">
+                          {t('course:assignment.manage.allStudents')}
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="specific" id="specific-groups" />
+                        <Label htmlFor="specific-groups" className="font-normal cursor-pointer">
+                          {t('course:assignment.manage.specificGroups')}
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {assignTo === 'specific' && (
+                    <div className="space-y-2 pl-6 pt-2">
+                      {['groupA', 'groupB', 'groupC'].map((group) => (
+                        <div key={group} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={group}
+                            checked={selectedGroups.includes(group)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedGroups([...selectedGroups, group]);
+                              } else {
+                                setSelectedGroups(selectedGroups.filter((g) => g !== group));
+                              }
+                            }}
+                          />
+                          <Label htmlFor={group} className="font-normal cursor-pointer">
+                            {t(`course:assignment.manage.group${group.slice(-1).toUpperCase()}`)}
+                          </Label>
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                <div className="space-y-2">
-                  <Label htmlFor="dueDate" className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                    {t('course:assignment.manage.settings.dueDateLabel')}
-                  </Label>
-                  <DatePicker
-                    name="dueDate"
-                    defaultISOString={
-                      assignmentArea.dueDate ? new Date(assignmentArea.dueDate).toISOString() : undefined
-                    }
-                  />
-                </div>
-              </div>
-
-              {actionData?.error && (
-                <div className="border-2 border-[#D2691E] bg-[#D2691E]/5 p-4 dark:border-[#E87D3E]">
-                  <p className="text-sm text-[#D2691E] dark:text-[#E87D3E]">{actionData.error}</p>
-                </div>
-              )}
-
-              {actionData?.success && actionData.action === 'update' && (
-                <div className="border-2 border-[#2B2B2B] bg-[#2B2B2B]/5 p-4 dark:border-gray-200">
-                  <p className="text-sm text-[#2B2B2B] dark:text-gray-200">
-                    {t('course:assignment.manage.settings.updateSuccess')}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex flex-col-reverse gap-3 border-t-2 border-[#2B2B2B] pt-6 dark:border-gray-200 sm:flex-row sm:justify-end">
-                <Link
-                  to={`/teacher/courses/${assignmentArea.courseId}`}
-                  className="border-2 border-[#2B2B2B] px-6 py-2 text-center text-sm font-medium text-gray-600 transition-colors hover:text-[#2B2B2B] dark:border-gray-200 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <ArrowLeft className="mr-2 inline-block h-4 w-4" />
-                  {t('course:assignment.manage.settings.cancelButton')}
-                </Link>
-                <button
-                  type="submit"
-                  className="border-2 border-[#2B2B2B] bg-[#2B2B2B] px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#D2691E] hover:border-[#D2691E] dark:border-gray-200 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-[#E87D3E] dark:hover:border-[#E87D3E]"
-                >
-                  <Save className="mr-2 inline-block h-4 w-4" />
-                  {t('course:assignment.manage.settings.saveButton')}
-                </button>
-              </div>
-            </Form>
-          </div>
-        </div>
-
-        {/* Danger Zone */}
-        <div className="border-2 border-[#D2691E] dark:border-[#E87D3E]">
-          <div className="border-b-2 border-[#D2691E] px-6 py-4 dark:border-[#E87D3E]">
-            <h2 className="font-serif text-xl font-light text-[#D2691E] dark:text-[#E87D3E]">
-              {t('course:assignment.manage.settings.deleteButton')}
-            </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              {t('course:assignment.manage.settings.deleteWarning')}
-            </p>
+            </div>
           </div>
 
-          <div className="p-6">
+          {/* Feedback Messages */}
+          {actionData?.error && (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">
+              <p className="text-sm text-destructive font-medium">{actionData.error}</p>
+            </div>
+          )}
+
+          {actionData?.success && actionData.action === 'update' && (
+            <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4">
+              <p className="text-sm text-green-700 dark:text-green-400 font-medium">{t('course:assignment.manage.updateSuccess')}</p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between pt-4 border-t border-border gap-2">
             <Form method="post">
               <input type="hidden" name="intent" value="delete" />
               <button
                 type="submit"
-                className="border-2 border-[#D2691E] bg-[#D2691E] px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#D2691E]/90 dark:border-[#E87D3E] dark:bg-[#E87D3E]"
+                className="inline-flex items-center gap-2 text-sm font-medium text-destructive hover:text-destructive/80 px-2 sm:px-0"
+                title={t('course:assignment.manage.deleteAssignment')}
                 onClick={(e) => {
-                  if (!confirm(t('course:assignment.manage.settings.deleteConfirm'))) {
+                  if (!confirm(t('course:assignment.manage.deleteConfirm'))) {
                     e.preventDefault();
                   }
                 }}
               >
-                <Trash2 className="mr-2 inline-block h-4 w-4" />
-                {t('course:assignment.manage.settings.deleteButtonText')}
+                <Trash2 className="h-4 w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{t('course:assignment.manage.deleteAssignment')}</span>
               </button>
             </Form>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Link
+                to={`/teacher/courses/${assignmentArea.courseId}`}
+                className="inline-flex items-center justify-center rounded-lg border border-border w-10 h-10 sm:w-auto sm:h-auto sm:px-5 sm:py-2.5 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+                title={t('course:assignment.manage.cancel')}
+              >
+                <X className="h-5 w-5 sm:hidden" />
+                <span className="hidden sm:inline">{t('course:assignment.manage.cancel')}</span>
+              </Link>
+              <button
+                type="submit"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary w-10 h-10 sm:w-auto sm:h-auto sm:px-6 sm:py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                title={t('course:assignment.manage.saveChanges')}
+              >
+                <Check className="h-5 w-5 sm:hidden" />
+                <Save className="h-4 w-4 hidden sm:block flex-shrink-0" />
+                <span className="hidden sm:inline">{t('course:assignment.manage.saveChanges')}</span>
+              </button>
+            </div>
           </div>
-        </div>
+        </Form>
       </main>
     </div>
   );

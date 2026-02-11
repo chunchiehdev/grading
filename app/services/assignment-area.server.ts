@@ -9,10 +9,15 @@ export interface AssignmentAreaInfo {
   courseId: string;
   rubricId: string;
   dueDate: Date | null;
+  classId: string | null;
   createdAt: Date;
   updatedAt: Date;
   referenceFileIds?: string | null; // Feature 004: JSON string of file IDs
   customGradingPrompt?: string | null; // Feature 004: Custom instructions
+  class?: {
+    id: string;
+    name: string;
+  } | null;
   course?: {
     id: string;
     name: string;
@@ -166,6 +171,12 @@ export async function getAssignmentAreaById(
                 name: true,
               },
             },
+          },
+        },
+        class: {
+          select: {
+            id: true,
+            name: true,
           },
         },
         rubric: {

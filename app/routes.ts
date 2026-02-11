@@ -46,6 +46,10 @@ export default [
     route('courses/:courseId', './routes/teacher/courses/$courseId.tsx'),
     route('courses/:courseId/assignments/new', './routes/teacher/courses/$courseId/assignments/new.tsx'),
     route(
+      'courses/:courseId/assignments/:assignmentId',
+      './routes/teacher/courses/$courseId/assignments/$assignmentId.tsx'
+    ),
+    route(
       'courses/:courseId/assignments/:assignmentId/manage',
       './routes/teacher/courses/$courseId/assignments/$assignmentId.manage.tsx'
     ),

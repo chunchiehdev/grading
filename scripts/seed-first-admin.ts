@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { PrismaClient } from '../app/generated/prisma/client';
 const prisma = new PrismaClient();
 
-const ADMIN_EMAIL = process.env.FIRST_ADMIN_EMAIL || 'chunchiehdev@gmail.com';
+const ADMIN_EMAIL = process.env.FIRST_ADMIN_EMAIL || 'jack.j.kuo0817@gmail.com';
 const ADMIN_NAME = 'System Administrator';
 
 async function seedFirstAdmin() {

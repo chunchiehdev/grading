@@ -96,49 +96,49 @@ export default function RubricDetailRoute() {
   };
 
   return (
-    <div className="min-h-screen">
-      {/* Header - Architectural Sketch Style */}
-      <header className="border-b-2 border-[#2B2B2B] dark:border-gray-200">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Header - Modern Soft UI Style */}
+      <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-serif text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                 {rubric.name}
               </h1>
               {rubric.description && (
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{rubric.description}</p>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-3xl">{rubric.description}</p>
               )}
             </div>
             <Link
               to={`/teacher/rubrics/${rubric.id}/edit`}
-              className="border-2 border-[#2B2B2B] px-4 py-2 text-sm font-medium text-[#2B2B2B] transition-colors hover:bg-[#D2691E] hover:text-white dark:border-gray-200 dark:text-gray-200 dark:hover:bg-[#E87D3E]"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 sm:px-4 py-2 sm:py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-all hover:shadow-md flex-shrink-0"
             >
-              <Edit className="mr-2 inline-block h-4 w-4" />
-              {t('rubric:edit')}
+              <Edit className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('rubric:edit')}</span>
             </Link>
           </div>
 
           {/* Action buttons */}
-          <div className="mt-6 flex flex-wrap items-center gap-4 text-sm">
+          <div className="mt-6 flex flex-wrap items-center gap-3">
             <button
               onClick={handleShare}
-              className="text-gray-600 underline-offset-4 hover:text-[#2B2B2B] hover:underline dark:text-gray-400 dark:hover:text-gray-200"
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
-              <Share2 className="mr-1 inline-block h-4 w-4" />
+              <Share2 className="h-4 w-4" />
               {t('rubric:share')}
             </button>
             <button
               onClick={handleExport}
-              className="text-gray-600 underline-offset-4 hover:text-[#2B2B2B] hover:underline dark:text-gray-400 dark:hover:text-gray-200"
+              className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
-              <Download className="mr-1 inline-block h-4 w-4" />
+              <Download className="h-4 w-4" />
               {t('rubric:export')}
             </button>
             <Form method="post" className="inline">
               <input type="hidden" name="intent" value="delete" />
               <button
                 type="submit"
-                className="text-[#D2691E] underline-offset-4 hover:underline dark:text-[#E87D3E]"
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
                 onClick={(e) => {
                   e.preventDefault();
                   if (confirm(t('rubric:confirmDeleteRubric', { rubricName: rubric.name }))) {
@@ -146,7 +146,7 @@ export default function RubricDetailRoute() {
                   }
                 }}
               >
-                <Trash2 className="mr-1 inline-block h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
                 {t('common:delete')}
               </button>
             </Form>
@@ -155,35 +155,15 @@ export default function RubricDetailRoute() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Statistics - Sketch Cards */}
-        <div className="mb-12 grid grid-cols-2 gap-6">
-          <div className="border-2 border-[#2B2B2B] p-6 dark:border-gray-200">
-            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">
-              {t('rubric:totalCategories')}
-            </p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
-              {stats.totalCategories}
-            </p>
-          </div>
-          <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
-            <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">
-              {t('rubric:totalCriteria')}
-            </p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
-              {stats.totalCriteria}
-            </p>
-          </div>
-        </div>
-
         {/* Error notice */}
         {actionData?.error && (
-          <div className="mb-8 border-2 border-[#D2691E] bg-[#D2691E]/5 p-6 dark:border-[#E87D3E]">
+          <div className="mb-6 rounded-xl bg-destructive/10 border border-destructive/20 p-4">
             <div className="flex items-start gap-3">
               <div>
-                <div className="mb-1 font-medium text-[#D2691E] dark:text-[#E87D3E]">
+                <div className="mb-1 font-semibold text-destructive">
                   {t('rubric:cannotDeleteRubric')}
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{actionData.error}</p>
+                <p className="text-sm text-muted-foreground">{actionData.error}</p>
               </div>
             </div>
           </div>
@@ -191,83 +171,66 @@ export default function RubricDetailRoute() {
 
         {/* Categories and criteria */}
         {categories.length === 0 ? (
-          <div className="border-2 border-[#2B2B2B] px-6 py-16 text-center dark:border-gray-200">
-            <FileText className="mx-auto mb-4 h-12 w-12 text-gray-400 dark:text-gray-600" />
-            <h3 className="mb-2 font-serif text-lg font-light text-[#2B2B2B] dark:text-gray-100">
+          <div className="rounded-2xl bg-card p-8 sm:p-16 text-center shadow-sm border border-border/50">
+            <FileText className="mx-auto mb-4 h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground/50" />
+            <h3 className="mb-2 text-base sm:text-lg font-semibold text-foreground">
               {t('rubric:emptyState.noCriteriaTitle')}
             </h3>
-            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mb-6 text-sm text-muted-foreground max-w-md mx-auto">
               {t('rubric:emptyState.noCriteriaDescription')}
             </p>
             <Link
               to={`/teacher/rubrics/${rubric.id}/edit`}
-              className="inline-block border-2 border-[#2B2B2B] px-6 py-2 text-sm font-medium text-[#2B2B2B] transition-colors hover:bg-[#D2691E] hover:text-white dark:border-gray-200 dark:text-gray-200 dark:hover:bg-[#E87D3E]"
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 sm:px-6 py-2 sm:py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-all hover:shadow-md"
             >
-              <Edit className="mr-2 inline-block h-4 w-4" />
+              <Edit className="h-4 w-4" />
               {t('rubric:startEditing')}
             </Link>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {categories.map((category, categoryIndex) => (
-              <div key={category.id} className="border-2 border-[#2B2B2B] dark:border-gray-200">
+              <div key={category.id} className="rounded-2xl bg-card shadow-sm border border-border/50 overflow-hidden">
                 {/* Category header */}
-                <div className="border-b-2 border-[#2B2B2B] px-6 py-4 dark:border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="flex items-center gap-3 font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center border-2 border-[#2B2B2B] font-sans text-sm dark:border-gray-200">
-                        {categoryIndex + 1}
-                      </span>
-                      {category.name}
-                    </h3>
-                    <div className="flex gap-3 text-xs text-gray-600 dark:text-gray-400">
-                      <span>
-                        {category.criteria.length} {t('rubric:criteriaCount', { count: category.criteria.length })}
-                      </span>
-                      <span>·</span>
-                      <span>{t('rubric:maxScore', { score: category.criteria.length * 4 })}</span>
-                    </div>
-                  </div>
+                <div className="bg-muted/30 px-4 sm:px-6 py-3 sm:py-4 border-b border-border/50">
+                  <h3 className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl font-semibold text-foreground">
+                    <span className="text-primary text-base sm:text-lg font-bold flex-shrink-0">
+                      {categoryIndex + 1}.
+                    </span>
+                    <span className="truncate">{category.name}</span>
+                  </h3>
                 </div>
 
                 {/* Criteria list */}
                 {category.criteria.length === 0 ? (
-                  <div className="p-8 text-center text-gray-600 dark:text-gray-400">
+                  <div className="p-8 text-center text-muted-foreground">
                     {t('rubric:emptyState.categoryNoCriteria')}
                   </div>
                 ) : (
-                  <div>
+                  <div className="divide-y divide-border/50">
                     {category.criteria.map((criterion, criterionIndex) => (
-                      <div
-                        key={criterion.id}
-                        className={`p-6 ${
-                          criterionIndex < category.criteria.length - 1
-                            ? 'border-b border-[#2B2B2B] dark:border-gray-200'
-                            : ''
-                        }`}
-                      >
-                        <div className="mb-4 flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-serif text-base font-light text-[#2B2B2B] dark:text-gray-100">
-                              {categoryIndex + 1}.{criterionIndex + 1} {criterion.name}
-                            </h4>
-                            {criterion.description && (
-                              <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-                                {criterion.description}
-                              </p>
-                            )}
-                          </div>
-                          <span className="ml-4 flex-shrink-0 text-xs text-gray-600 dark:text-gray-400">
-                            {t('rubric:maxPoints', { points: 4 })}
-                          </span>
+                      <div key={criterion.id} className="p-4 sm:p-6 hover:bg-muted/20 transition-colors">
+                        <div className="mb-4">
+                          <h4 className="text-sm sm:text-base font-semibold text-foreground">
+                            <span className="text-muted-foreground font-normal text-xs sm:text-sm">
+                              {categoryIndex + 1}.{criterionIndex + 1}
+                            </span>
+                            {' '}
+                            {criterion.name}
+                          </h4>
+                          {criterion.description && (
+                            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                              {criterion.description}
+                            </p>
+                          )}
                         </div>
 
-                        {/* Grading levels - Architectural Sketch Style */}
+                        {/* Grading levels - Modern Card Style */}
                         <div className="mt-4">
-                          <h5 className="mb-3 text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                          <h5 className="mb-2 sm:mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             {t('rubric:gradingLevels')}
                           </h5>
-                          <div className="space-y-3">
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
                             {[4, 3, 2, 1].map((score) => {
                               const level = criterion.levels.find((l) => l.score === score);
                               const description = level?.description || '';
@@ -276,39 +239,37 @@ export default function RubricDetailRoute() {
                               return (
                                 <div
                                   key={score}
-                                  className={`flex gap-4 border-2 p-4 ${
+                                  className={`group rounded-lg sm:rounded-xl p-3 sm:p-4 transition-all ${
                                     isTopLevel
-                                      ? 'border-[#D2691E] bg-[#D2691E]/5 dark:border-[#E87D3E] dark:bg-[#E87D3E]/10'
-                                      : 'border-[#2B2B2B] dark:border-gray-200'
+                                      ? 'bg-[#D2691E]/10 dark:bg-[#E87D3E]/10 border-2 border-[#D2691E]/30 dark:border-[#E87D3E]/30 hover:border-[#D2691E]/50 dark:hover:border-[#E87D3E]/50 shadow-sm'
+                                      : 'bg-muted/50 border border-border/50 hover:border-border hover:bg-muted/70'
                                   }`}
                                 >
-                                  <div className="flex-shrink-0">
+                                  <div className="mb-1.5 sm:mb-2 flex items-center gap-1.5 sm:gap-2">
                                     <span
-                                      className={`inline-block px-2 py-1 font-serif text-lg font-light ${
+                                      className={`text-xl sm:text-2xl font-bold ${
                                         isTopLevel
                                           ? 'text-[#D2691E] dark:text-[#E87D3E]'
-                                          : 'text-[#2B2B2B] dark:text-gray-200'
+                                          : 'text-foreground/70'
                                       }`}
                                     >
                                       {score}
                                     </span>
-                                    <p className="mt-0.5 text-center text-xs text-gray-600 dark:text-gray-400">
+                                    <span className={`text-[10px] sm:text-xs font-medium ${
+                                      isTopLevel ? 'text-[#D2691E] dark:text-[#E87D3E]' : 'text-muted-foreground'
+                                    }`}>
                                       {t(`rubric:levelLabels.${score}`)}
-                                    </p>
+                                    </span>
                                   </div>
-                                  <div className="flex-1 pt-1">
+                                  <div>
                                     {description ? (
-                                      <p
-                                        className={`text-sm leading-relaxed ${
-                                          isTopLevel
-                                            ? 'text-gray-700 dark:text-gray-300'
-                                            : 'text-gray-600 dark:text-gray-400'
-                                        }`}
-                                      >
+                                      <p className={`text-[11px] sm:text-xs leading-relaxed line-clamp-4 sm:line-clamp-3 ${
+                                        isTopLevel ? 'text-foreground/80' : 'text-muted-foreground'
+                                      }`}>
                                         {description}
                                       </p>
                                     ) : (
-                                      <p className="text-sm italic text-gray-400 dark:text-gray-600">
+                                      <p className="text-[11px] sm:text-xs italic text-muted-foreground/50">
                                         {t('rubric:noLevelDescription')}
                                       </p>
                                     )}
@@ -338,19 +299,22 @@ export function ErrorBoundary() {
 
   if (isRouteErrorResponse(error) && error.status === 404) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center px-4">
-        <div className="space-y-6 text-center">
+      <div className="flex min-h-screen w-full items-center justify-center px-4 bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="text-center space-y-6 max-w-md">
           <div className="space-y-3">
-            <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted/50 mb-4">
+              <FileText className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h1 className="text-6xl font-bold text-foreground">
               404
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-muted-foreground text-lg">
               找不到此評分標準
             </p>
           </div>
           <Link
             to="/teacher/rubrics"
-            className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-all hover:shadow-md"
           >
             <Home className="h-4 w-4" />
             返回評分標準列表
@@ -362,19 +326,22 @@ export function ErrorBoundary() {
 
   // Handle other errors
   return (
-    <div className="flex min-h-screen w-full items-center justify-center px-4">
-      <div className="space-y-6 text-center">
+    <div className="flex min-h-screen w-full items-center justify-center px-4 bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="text-center space-y-6 max-w-md">
         <div className="space-y-3">
-          <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-destructive/10 mb-4">
+            <FileText className="w-10 h-10 text-destructive" />
+          </div>
+          <h1 className="text-4xl font-bold text-foreground">
             錯誤
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             載入評分標準時發生錯誤，請稍後再試
           </p>
         </div>
         <Link
           to="/teacher/rubrics"
-          className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-all hover:shadow-md"
         >
           <Home className="h-4 w-4" />
           返回評分標準列表

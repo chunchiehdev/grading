@@ -28,7 +28,7 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
   const activeRubrics = rubrics;
 
   return (
-    <div className="space-y-6 md:space-y-8 lg:space-y-10 xl:space-y-12">
+    <div className="space-y-6">
       {activeRubrics.length === 0 ? (
         /* Empty State */
         <div className="flex items-center justify-center min-h-[400px]">
@@ -54,17 +54,26 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
           </div>
         </div>
       ) : (
-        /* Rubrics Grid */
-        <div className="w-full">
-          <div className="mx-auto w-full max-w-[1200px] 2xl:max-w-[1800px] 3xl:max-w-[2400px]">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-6 place-content-start justify-items-stretch">
-              {activeRubrics.map((rubric) => {
+        <>
+          {/* Header with Create Button */}
+          <div className="flex justify-end mb-3">
+            <Button asChild variant="emphasis" className="rounded-full">
+              <Link to="/teacher/rubrics/new">
+                <Plus className="w-4 h-4 mr-2" />
+                {t('rubric:create')}
+              </Link>
+            </Button>
+          </div>
+
+          {/* Rubrics Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {activeRubrics.map((rubric) => {
             const totalMaxScore =
               rubric.criteria?.reduce((total: number, criterion: any) => total + criterion.maxScore, 0) || 100;
 
             return (
               <Link key={rubric.id} to={`/teacher/rubrics/${rubric.id}`} className="block">
-                <Card className="group hover:-translate-y-1 hover:bg-accent/5 transition-[transform,background-color] duration-200 border-2 h-full grid grid-rows-[1fr_auto_auto_auto]">
+                <Card className="group hover:-translate-y-1 hover:bg-accent/5 transition-[transform,background-color] duration-200 border-2 h-full grid grid-rows-[1fr_auto_auto]">
                   {/* Header - 可變高度但有最小高度 */}
                   <CardHeader className="p-4 sm:p-6 min-h-[140px] flex flex-col justify-start">
                     <div className="flex justify-between items-start">
@@ -135,29 +144,6 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                     </div>
                   </div>
 
-                  {/* Criteria Preview - 固定高度區域 */}
-                  <div className="px-4 sm:px-6 py-4 min-h-[120px] flex flex-col justify-start">
-                    {rubric.criteria && rubric.criteria.length > 0 ? (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-foreground">{t('rubric:criteriaPreview')}:</h4>
-                        <div className="space-y-1">
-                          {rubric.criteria.slice(0, 2).map((criterion: any, index: number) => (
-                            <div key={index} className="flex justify-between text-sm text-muted-foreground">
-                              <span className="truncate">{criterion.name}</span>
-                            </div>
-                          ))}
-                          {rubric.criteria.length > 2 && (
-                            <div className="text-xs text-muted-foreground text-center mt-2">
-                              +{rubric.criteria.length - 2} {t('rubric:moreCriteria')}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-muted-foreground text-center py-4">No criteria defined</div>
-                    )}
-                  </div>
-
                   {/* Meta Info - 固定高度區域 */}
                   <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                     <div className="flex items-center text-xs sm:text-sm text-muted-foreground bg-muted rounded-lg px-3 py-2">
@@ -168,10 +154,9 @@ export function TeacherRubricsContent({ data }: TeacherRubricsContentProps) {
                 </Card>
               </Link>
             );
-              })}
-            </div>
+          })}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
