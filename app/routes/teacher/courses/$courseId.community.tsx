@@ -1,10 +1,11 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { useLoaderData, useNavigate } from 'react-router';
+import { useLoaderData, useNavigate, useRevalidator } from 'react-router';
 import { requireTeacher } from '@/services/auth.server';
 import { getPosts } from '@/services/coursePost.server';
 import { db } from '@/lib/db.server';
-import { CommunitySidebar } from '@/components/course-community/CommunitySidebar';
-import { CourseInfoSidebar } from '@/components/course-community/CourseInfoSidebar';
+
+import { CommunitySidebar, CommunitySidebarMobileTrigger } from '@/components/course-community/CommunitySidebar';
+import { CourseInfoSidebar, CourseInfoMobileTrigger } from '@/components/course-community/CourseInfoSidebar';
 import { CommunityCover } from '@/components/course-community/CommunityCover';
 import { CourseCommunityFeed } from '@/components/course-community/CourseCommunityFeed';
 
@@ -23,6 +24,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   if (!course) {
     throw new Response('Course not found', { status: 404 });
+  }
+
+  // Generate proxy URL for cover image if exists
+  let coverImageUrl: string | null = null;
+  if (course.coverImage) {
+    // Use API proxy route instead of presigned URL for browser access
+    coverImageUrl = `/api/files/${encodeURIComponent(course.coverImage)}`;
   }
 
   // Get teacher's rubrics for the Create Post dialog
@@ -103,6 +111,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   return {
     teacher,
     course,
+    coverImageUrl,
     rubrics, // Changed from course.assignmentAreas
     posts: postsData,
     stats: {
@@ -116,8 +125,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export default function TeacherCourseCommunity() {
-  const { teacher, course, rubrics, posts, stats, memberAvatars } = useLoaderData<typeof loader>();
+  const { teacher, course, coverImageUrl, rubrics, posts, stats, memberAvatars } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const revalidator = useRevalidator();
 
   const handleLike = async (postId: string) => {
     try {
@@ -185,6 +195,7 @@ export default function TeacherCourseCommunity() {
         }
       : null,
     attachments: post.attachments as any,
+    likes: post.likes,
     previewComments: post.comments.map((c: any) => ({
       ...c,
       createdAt: c.createdAt.toISOString(),
@@ -200,9 +211,41 @@ export default function TeacherCourseCommunity() {
     allComments: undefined,
   }));
 
+  const handleCoverImageChange = async (file: File | Blob) => {
+    const formData = new FormData();
+    // If it's a Blob (from cropping), give it a filename
+    if (file instanceof Blob && !(file instanceof File)) {
+      formData.append('file', file, 'cover.jpg');
+    } else {
+      formData.append('file', file);
+    }
+
+    const response = await fetch(`/api/courses/${course.id}/cover`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload cover image');
+    }
+
+    // Revalidate loader data to show the new cover image
+    revalidator.revalidate();
+  };
+
+  const courseInfoProps = {
+    course: {
+      name: course.name,
+      description: course.description,
+      createdAt: course.createdAt.toISOString(),
+    },
+    stats,
+    isPrivate: true,
+  };
+
   return (
-    <div className="flex min-h-screen bg-white dark:bg-[#18191A]">
-      {/* Left Sidebar - Navigation */}
+    <div className="flex flex-col md:flex-row min-h-screen bg-white dark:bg-[#18191A]">
+      {/* Left Sidebar - Navigation (hidden on mobile) */}
       <CommunitySidebar courseId={course.id} courseName={course.name} isTeacher={true} currentPath="overview" />
 
       {/* Main Content Area */}
@@ -215,10 +258,23 @@ export default function TeacherCourseCommunity() {
           isPrivate={true}
           isTeacher={true}
           courseId={course.id}
+          coverImage={coverImageUrl}
+          onCoverImageChange={handleCoverImageChange}
         />
 
+        {/* Mobile Navigation Bar */}
+        <div className="flex items-center gap-2 p-3 border-b border-[#E8E4DD] dark:border-[#393A3B] md:hidden">
+          <CommunitySidebarMobileTrigger
+            courseId={course.id}
+            courseName={course.name}
+            isTeacher={true}
+            currentPath="overview"
+          />
+          <CourseInfoMobileTrigger {...courseInfoProps} />
+        </div>
+
         {/* Feed Content */}
-        <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
           <CourseCommunityFeed
             posts={postsForDisplay}
             currentUserId={teacher.id}
@@ -235,16 +291,8 @@ export default function TeacherCourseCommunity() {
         </div>
       </main>
 
-      {/* Right Sidebar - Course Info */}
-      <CourseInfoSidebar
-        course={{
-          name: course.name,
-          description: course.description,
-          createdAt: course.createdAt.toISOString(),
-        }}
-        stats={stats}
-        isPrivate={true}
-      />
+      {/* Right Sidebar - Course Info (hidden on mobile/tablet) */}
+      <CourseInfoSidebar {...courseInfoProps} />
     </div>
   );
 }

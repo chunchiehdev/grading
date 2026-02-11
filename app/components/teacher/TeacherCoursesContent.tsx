@@ -25,7 +25,7 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
   const { t } = useTranslation(['course', 'dashboard']);
 
   return (
-    <div className="space-y-6 md:space-y-8 lg:space-y-10 xl:space-y-12">
+    <div className="space-y-6">
       {courses.length === 0 ? (
         /* Empty State */
         <div className="flex items-center justify-center min-h-[400px]">
@@ -51,11 +51,20 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
           </div>
         </div>
       ) : (
-        /* Courses Grid */
-        <div className="w-full">
-          <div className="mx-auto w-full max-w-[1200px] 2xl:max-w-[1800px] 3xl:max-w-[2400px]">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-6 place-content-start justify-items-stretch">
-              {courses.map((course) => {
+        <>
+          {/* Header with Create Button */}
+          <div className="flex justify-end mb-3">
+            <Button asChild variant="emphasis" className="rounded-full">
+              <Link to="/teacher/courses/new">
+                <Plus className="w-4 h-4 mr-2" />
+                {t('course:new')}
+              </Link>
+            </Button>
+          </div>
+
+          {/* Courses Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {courses.map((course) => {
             const totalSubmissions =
               course.assignmentAreas?.reduce(
                 (total: number, area: any) => total + (area._count?.submissions || 0),
@@ -139,10 +148,9 @@ export function TeacherCoursesContent({ data }: TeacherCoursesContentProps) {
                 </Card>
               </Link>
             );
-              })}
-            </div>
+            })}
           </div>
-        </div>
+        </>
       )}
     </div>
   );

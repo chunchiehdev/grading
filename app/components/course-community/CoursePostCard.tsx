@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ThumbsUp, MessageCircle, Send, Pin, Calendar, FileText, Trash2, Edit } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Send, Pin, Calendar, FileText, Trash2, Edit, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatDistanceToNow } from 'date-fns';
 import { zhTW, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +17,14 @@ interface PostAuthor {
   email: string;
   picture: string;
   role: string;
+}
+
+interface PostLiker {
+  user: {
+    id: string;
+    name: string;
+    picture: string;
+  };
 }
 
 interface AssignmentArea {
@@ -73,6 +82,7 @@ interface Post {
     fileSize: number;
     mimeType: string;
   }> | null;
+  likes?: PostLiker[];
   previewComments?: Comment[];
 }
 
@@ -299,9 +309,11 @@ export function CoursePostCard({
         {post.attachments && post.attachments.length > 0 && (
           <div className="mb-3 space-y-2">
             {post.attachments.map((file) => (
-              <div
+              <a
                 key={file.fileId}
-                className="flex items-center gap-3 border border-[#E8E4DD] dark:border-[#393A3B] rounded-lg px-4 py-3 text-sm hover:bg-[#FAF8F5] dark:hover:bg-[#3A3B3C] transition-colors duration-200 cursor-pointer"
+                href={`/api/posts/${post.id}/attachments/${file.fileId}/download`}
+                download={file.fileName}
+                className="flex items-center gap-3 border border-[#E8E4DD] dark:border-[#393A3B] rounded-lg px-4 py-3 text-sm hover:bg-[#FAF8F5] dark:hover:bg-[#3A3B3C] transition-colors duration-200 cursor-pointer group"
               >
                 <div className="w-8 h-8 rounded bg-[#F0EDE8] dark:bg-[#3A3B3C] flex items-center justify-center flex-shrink-0">
                   <FileText className="h-4 w-4 text-[#9C9488] dark:text-[#E4E6EB]" />
@@ -310,11 +322,47 @@ export function CoursePostCard({
                 <span className="text-xs text-[#9C9488] dark:text-[#B0B3B8] flex-shrink-0">
                   {(file.fileSize / 1024).toFixed(1)} KB
                 </span>
-              </div>
+                <Download className="h-4 w-4 text-[#9C9488] dark:text-[#B0B3B8] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+              </a>
             ))}
           </div>
         )}
       </div>
+
+      {/* Likers Row */}
+      {post.likes && post.likes.length > 0 && (
+        <div className="px-5 pb-3 flex items-center gap-2">
+          <ThumbsUp className="h-4 w-4 text-[#5B8A8A] dark:text-[#7BA3A3] fill-current" />
+          <TooltipProvider delayDuration={200}>
+            <div className="flex items-center -space-x-2">
+              {post.likes.map((like, index) => (
+                <Tooltip key={like.user.id}>
+                  <TooltipTrigger asChild>
+                    <Avatar 
+                      className="h-6 w-6 border-2 border-[#FFFEFB] dark:border-[#242526] cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+                      style={{ zIndex: post.likes!.length - index }}
+                    >
+                      <img 
+                        src={like.user.picture} 
+                        alt={like.user.name} 
+                        className="h-full w-full object-cover"
+                      />
+                    </Avatar>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="bg-[#4A4036] dark:bg-[#E4E6EB] text-white dark:text-[#242526] text-xs px-2 py-1">
+                    {like.user.name}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </TooltipProvider>
+          {post.likeCount > post.likes.length && (
+            <span className="text-xs text-[#9C9488] dark:text-[#B0B3B8]">
+              +{post.likeCount - post.likes.length} 人
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Action Bar */}
       <div className="border-t border-[#E8E4DD] dark:border-[#393A3B] flex items-center">
@@ -325,7 +373,7 @@ export function CoursePostCard({
           }`}
         >
           <ThumbsUp className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
-          <span className="text-sm font-medium">讚 {post.likeCount > 0 ? `(${post.likeCount})` : ''}</span>
+          <span className="text-sm font-medium">讚 </span>
         </button>
 
         <button
@@ -333,7 +381,7 @@ export function CoursePostCard({
           className="flex-1 flex items-center justify-center gap-2 py-3 text-[#9C9488] hover:bg-[#F0EDE8] dark:text-[#B0B3B8] dark:hover:bg-[#3A3B3C] transition-colors duration-200 cursor-pointer"
         >
           <MessageCircle className="h-4 w-4" />
-          <span className="text-sm font-medium">留言 {post.commentCount > 0 ? `(${post.commentCount})` : ''}</span>
+          <span className="text-sm font-medium">留言</span>
         </button>
 
         <button className="flex-1 flex items-center justify-center gap-2 py-3 text-[#9C9488] hover:bg-[#F0EDE8] dark:text-[#B0B3B8] dark:hover:bg-[#3A3B3C] transition-colors duration-200 cursor-pointer">

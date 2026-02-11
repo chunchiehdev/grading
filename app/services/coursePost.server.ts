@@ -215,6 +215,19 @@ export async function getPosts(options: GetPostsOptions) {
               likes: true,
             },
           },
+          likes: {
+            take: 5, // Show up to 5 likers' avatars
+            orderBy: { createdAt: 'desc' },
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  picture: true,
+                },
+              },
+            },
+          },
         },
         orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
         take: limit,

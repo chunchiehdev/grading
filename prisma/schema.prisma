@@ -60,6 +60,7 @@ model Course {
   name        String  @db.VarChar(255)
   code        String? @db.VarChar(50) // Course code (e.g., "CS 201", "MATH 101")
   description String? @db.Text
+  coverImage  String? @db.VarChar(500) // Custom cover image URL for community page
   teacherId   String
   teacher     User    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 

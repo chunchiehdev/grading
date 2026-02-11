@@ -33,6 +33,13 @@ interface Post {
     fileSize: number;
     mimeType: string;
   }> | null;
+  likes?: Array<{
+    user: {
+      id: string;
+      name: string;
+      picture: string;
+    };
+  }>;
   previewComments?: Array<{
     id: string;
     content: string;

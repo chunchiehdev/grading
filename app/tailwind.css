@@ -10,11 +10,6 @@
     height: -webkit-fill-available;
   }
 
-  /* iOS 26 Safari: bottom fixed elements need safe area padding */
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  
   /* For elements that need to extend into safe area (full bleed) */
   .pb-safe-or-4 {
     padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
@@ -162,15 +157,8 @@
   }
     * {
       @apply border-border;
-      /*
-       * Scrollbar styling - appears naturally when needed, with custom appearance
-       * - scrollbar-gutter: stable (on html/body) prevents layout shift
-       * - scrollbar-width: thin makes it slimmer
-       * - scrollbar-color: matches theme colors
-       */
-      scrollbar-width: thin;
-      scrollbar-color: hsl(var(--border)) hsl(var(--background));
     }
+
     body {
       @apply bg-background text-foreground;
     }
@@ -180,6 +168,38 @@
       color: white !important;
     }
 }
+
+/* Global Webkit scrollbar - outside @layer for maximum specificity */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C5C0B8;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #5A5B5D;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9C9488;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #7A7B7D;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
 @keyframes float {
   0%, 100% { 
     transform: translateY(0px); 

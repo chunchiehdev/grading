@@ -327,11 +327,11 @@ export default function CourseDetail() {
             ) : (
               <div className="divide-y divide-border">
                 {course.assignmentAreas.map((area) => (
-                  <div key={area.id} className="px-6 py-4 hover:bg-muted transition-colors">
+                  <div key={area.id} className="px-6 py-4 hover:bg-muted/50 hover:rounded-lg transition-all">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <Link
-                          to={`/teacher/courses/${course.id}/assignments/${area.id}/manage`}
+                          to={`/teacher/courses/${course.id}/assignments/${area.id}`}
                           className="block hover:text-primary transition-colors"
                         >
                           <h3 className="text-lg font-medium text-foreground">{area.name}</h3>
@@ -358,18 +358,6 @@ export default function CourseDetail() {
                             </>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button asChild variant="ghost" size="sm" className="flex-1 sm:flex-none">
-                          <Link to={`/teacher/courses/${course.id}/assignments/${area.id}/submissions`}>
-                            {t('course:assignmentSection.viewSubmissions')}
-                          </Link>
-                        </Button>
-                        <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none">
-                          <Link to={`/teacher/courses/${course.id}/assignments/${area.id}/manage`}>
-                            {t('course:assignmentSection.manage')}
-                          </Link>
-                        </Button>
                       </div>
                     </div>
                   </div>

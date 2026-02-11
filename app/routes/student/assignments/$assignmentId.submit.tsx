@@ -13,14 +13,15 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Play, Check, FolderOpen, Loader2 } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Play, Check, FolderOpen, Loader2, Calendar, FileText, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { gsap } from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { useUploadStore } from '@/stores/uploadStore';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
-import { dbCriteriaToUICategories, calculateRubricStats } from '@/utils/rubric-transform';
+import { dbCriteriaToUICategories } from '@/utils/rubric-transform';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
@@ -144,6 +145,44 @@ export default function SubmitAssignment() {
 
   // Check if submission is past due date
   const isOverdue = assignment.dueDate ? new Date() > new Date(assignment.dueDate) : false;
+
+  // Rubric state - hoisted out of render IIFE for proper React hooks usage
+  const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(new Set());
+  const [selectedCriterion, setSelectedCriterion] = React.useState<{
+    name: string;
+    description: string;
+    levels: { score: number; description: string }[];
+    label: string; // e.g. "1.2"
+  } | null>(null);
+
+  const toggleCategory = React.useCallback((categoryId: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) {
+        next.delete(categoryId);
+      } else {
+        next.add(categoryId);
+      }
+      return next;
+    });
+  }, []);
+
+  // Parse rubric criteria once
+  const rubricCategories = React.useMemo(() => {
+    if (!assignment.rubric?.criteria) return [];
+    try {
+      let criteria: unknown[] = [];
+      if (typeof assignment.rubric.criteria === 'string') {
+        criteria = JSON.parse(assignment.rubric.criteria);
+      } else if (Array.isArray(assignment.rubric.criteria)) {
+        criteria = assignment.rubric.criteria as unknown[];
+      }
+      return dbCriteriaToUICategories(criteria as Parameters<typeof dbCriteriaToUICategories>[0]);
+    } catch (error) {
+      console.error('Failed to parse rubric criteria:', error);
+      return [];
+    }
+  }, [assignment.rubric?.criteria]);
 
 
 
@@ -651,381 +690,282 @@ export default function SubmitAssignment() {
       {/* Desktop: Split Panel Layout (lg and above) */}
       <div className="hidden lg:flex flex-row flex-1 overflow-hidden min-h-0">
         {/* Left Column: Assignment Cards - Scrollable */}
-        <div ref={leftPanelRef} className="w-full lg:w-1/2 overflow-y-auto border-r-0 lg:border-r hide-scrollbar">
-          <div className="space-y-8 p-4 sm:px-6 lg:px-8 py-8">
-            {/* Assignment Header Card */}
-            <div className="group relative border-2 border-[#2B2B2B] p-6 transition-all hover:shadow-md dark:border-gray-200">
-              <div className="pointer-events-none absolute inset-0 border-2 border-[#2B2B2B]/20 dark:border-gray-200/20" />
-              <div className="relative">
-                <h1 className="mb-3 font-serif text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100">
-                  {assignment.name}
-                </h1>
-                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <span>{assignment.course.name}</span>
-                  <span>·</span>
-                  <span>{t('assignment:submit.teacher', '授課教師')}:</span>
-                  <span>{assignment.course.teacher.name || assignment.course.teacher.email}</span>
-                </div>
+        <div ref={leftPanelRef} className="w-full lg:w-1/2 overflow-y-auto border-r-0 lg:border-r border-border hide-scrollbar">
+          <div className="space-y-6 p-4 sm:px-6 lg:px-8 py-8">
+            {/* Assignment Header Card - Bento Style */}
+            <div className="rounded-2xl bg-card border border-border p-6 hover:shadow-md transition-all duration-200">
+              <h1 className="mb-3 text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+                {assignment.name}
+              </h1>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <span className="font-medium">{assignment.course.name}</span>
+                <span>·</span>
+                <span>{assignment.course.teacher.name || assignment.course.teacher.email}</span>
               </div>
             </div>
 
-            {/* Assignment Description Card */}
+            {/* Assignment Description Card - Bento Style */}
             {assignment.description && (
-              <div className="group relative border-2 border-[#2B2B2B] p-6 transition-all hover:shadow-md dark:border-gray-200">
-                <div className="pointer-events-none absolute inset-0 border-2 border-[#2B2B2B]/20 dark:border-gray-200/20" />
-                <div className="relative">
-                  <h2 className="mb-4 font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-                    {t('assignment:submit.assignmentDescription', '作業說明')}
-                  </h2>
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{assignment.description}</p>
-                  </div>
+              <div className="rounded-2xl bg-card border border-border p-6 hover:shadow-md transition-all duration-200">
+                <h2 className="mb-4 text-lg font-semibold text-foreground">
+                  {t('assignment:submit.assignmentDescription')}
+                </h2>
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{assignment.description}</p>
                 </div>
               </div>
             )}
 
-            {/* Assignment Details Card */}
-            <div className="group relative border-2 border-[#2B2B2B] p-6 transition-all hover:shadow-md dark:border-gray-200">
-              <div className="pointer-events-none absolute inset-0 border-2 border-[#2B2B2B]/20 dark:border-gray-200/20" />
-              <div className="relative">
-                <h2 className="mb-4 font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-                  {t('assignment:submit.assignmentDetails', '作業資訊')}
+            {/* Due Date Card - Bento Style */}
+            {assignment.dueDate && (
+              <div className="rounded-2xl bg-card border border-border p-6 hover:shadow-md transition-all duration-200">
+                <h2 className="mb-4 text-lg font-semibold text-foreground">
+                  {t('assignment:submit.dueDate')}
                 </h2>
-                <div className="space-y-4">
-                  {/* Due Date */}
-                  {assignment.dueDate && (
-                    <div className="flex items-start gap-3">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        {t('assignment:submit.dueDate', '截止日期')}:
-                      </span>
-                      <span
-                        className={`text-sm ${
-                          isOverdue
-                            ? 'font-medium text-[#D2691E] dark:text-[#E87D3E]'
-                            : 'text-gray-700 dark:text-gray-300'
-                        }`}
-                      >
-                        {assignment.formattedDueDate}
-                        {isOverdue && ` (${t('assignment:submit.overdue', '已逾期')})`}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Rubric - Redesigned with Better UX */}
-                  {assignment.rubric && (() => {
-                    // Parse and transform criteria to categories
-                    let categories: any[] = [];
-                    try {
-                      let criteria: any[] = [];
-                      if (typeof assignment.rubric.criteria === 'string') {
-                        criteria = JSON.parse(assignment.rubric.criteria);
-                      } else if (Array.isArray(assignment.rubric.criteria)) {
-                        criteria = assignment.rubric.criteria as any[];
-                      }
-                      
-                      categories = dbCriteriaToUICategories(criteria);
-                    } catch (error) {
-                      console.error('Failed to parse rubric criteria:', error);
-                    }
-
-                    const stats = categories.length > 0 ? calculateRubricStats(categories) : { maxScore: 0 };
-                    const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(
-                      new Set() // All collapsed by default
-                    );
-
-                    const toggleCategory = (categoryId: string) => {
-                      setExpandedCategories(prev => {
-                        const next = new Set(prev);
-                        if (next.has(categoryId)) {
-                          next.delete(categoryId);
-                        } else {
-                          next.add(categoryId);
-                        }
-                        return next;
-                      });
-                    };
-
-                    return (
-                      <div className="space-y-4">
-                        {/* Rubric Header */}
-                        <div className="border-2 border-[#2B2B2B] p-4 dark:border-gray-200">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <div className="h-2 w-2 rotate-45 border border-[#E07A5F] dark:border-[#E87D3E]" />
-                                <h3 className="font-serif text-base font-light text-[#2B2B2B] dark:text-gray-100">
-                                  {assignment.rubric.name}
-                                </h3>
-                              </div>
-                              {assignment.rubric.description && (
-                                <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                                  {assignment.rubric.description}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex-shrink-0 border-2 border-[#E07A5F] px-4 py-2 dark:border-[#E87D3E]">
-                              <div className="text-center">
-                                <div className="font-serif text-2xl font-light text-[#E07A5F] dark:text-[#E87D3E]">
-                                  {stats.maxScore}
-                                </div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400">總分</div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Categories */}
-                        {categories.length > 0 ? (
-                          <div className="space-y-3">
-                            {categories.map((category: any, categoryIndex: number) => {
-                              const isExpanded = expandedCategories.has(category.id);
-                              const categoryScore = category.criteria.length * 4;
-
-                              return (
-                                <div
-                                  key={category.id}
-                                  className="group border-2 border-[#2B2B2B] transition-all hover:shadow-sm dark:border-gray-200"
-                                >
-                                  {/* Category Header - Clickable */}
-                                  <button
-                                    onClick={() => toggleCategory(category.id)}
-                                    className="w-full border-b-2 border-[#2B2B2B] bg-[#FAF9F6] p-4 text-left transition-colors hover:bg-[#F5F3EE] dark:border-gray-200 dark:bg-gray-900/30 dark:hover:bg-gray-900/50"
-                                  >
-                                    <div className="flex items-center justify-between gap-4">
-                                      <div className="flex items-center gap-3">
-                                        {/* Expand/Collapse Icon */}
-                                        <div className="flex-shrink-0">
-                                          <svg
-                                            className={`h-4 w-4 text-[#2B2B2B] transition-transform dark:text-gray-200 ${
-                                              isExpanded ? 'rotate-90' : ''
-                                            }`}
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                          >
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                          </svg>
-                                        </div>
-                                        
-                                        {/* Category Number Badge */}
-                                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center border-2 border-[#2B2B2B] dark:border-gray-200">
-                                          <span className="font-serif text-sm text-[#2B2B2B] dark:text-gray-200">
-                                            {categoryIndex + 1}
-                                          </span>
-                                        </div>
-                                        
-                                        {/* Category Name */}
-                                        <h4 className="font-serif text-base font-light text-[#2B2B2B] dark:text-gray-100">
-                                          {category.name}
-                                        </h4>
-                                      </div>
-                                      
-                                      {/* Category Score */}
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-500 dark:text-gray-500">
-                                          {category.criteria.length} 項標準
-                                        </span>
-                                        <div className="border-l-2 border-[#E07A5F] pl-3 dark:border-[#E87D3E]">
-                                          <span className="font-serif text-lg font-medium text-[#E07A5F] dark:text-[#E87D3E]">
-                                            {categoryScore}
-                                          </span>
-                                          <span className="ml-1 text-xs text-gray-600 dark:text-gray-400">分</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </button>
-
-                                  {/* Criteria List - Collapsible */}
-                                  {isExpanded && (
-                                    <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                                      {category.criteria.map((criterion: any, criterionIndex: number) => (
-                                        <div 
-                                          key={criterion.id} 
-                                          className="bg-white p-4 transition-colors hover:bg-gray-50 dark:bg-gray-950 dark:hover:bg-gray-900/50"
-                                        >
-                                          <div className="flex items-start gap-4">
-                                            {/* Criterion Number */}
-                                            <div className="flex-shrink-0 pt-0.5">
-                                              <span className="font-mono text-xs text-gray-500 dark:text-gray-500">
-                                                {categoryIndex + 1}.{criterionIndex + 1}
-                                              </span>
-                                            </div>
-                                            
-                                            {/* Criterion Content */}
-                                            <div className="flex-1 min-w-0">
-                                              <p className="text-sm font-medium text-[#2B2B2B] dark:text-gray-100">
-                                                {criterion.name}
-                                              </p>
-                                              {criterion.description && (
-                                                <p className="mt-1 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-                                                  {criterion.description}
-                                                </p>
-                                              )}
-                                            </div>
-                                            
-                                            {/* Criterion Score Badge */}
-                                            <div className="flex-shrink-0">
-                                              <div className="flex h-8 w-8 items-center justify-center border border-[#E07A5F]/30 bg-[#E07A5F]/5 dark:border-[#E87D3E]/30 dark:bg-[#E87D3E]/5">
-                                                <span className="font-serif text-xs font-medium text-[#E07A5F] dark:text-[#E87D3E]">
-                                                  4
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="border-2 border-[#2B2B2B] p-8 text-center dark:border-gray-200">
-                            <p className="text-sm italic text-gray-400">尚未設定評分項目</p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+                <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                  <span
+                    className={`text-base font-semibold ${
+                      isOverdue
+                        ? 'text-destructive'
+                        : 'text-foreground'
+                    }`}
+                  >
+                    {assignment.formattedDueDate}
+                    {isOverdue && ` (${t('assignment:submit.overdueLabel')})`}
+                  </span>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* File Upload Card */}
-            <div className="group relative border-2 border-[#2B2B2B] p-6 transition-all hover:shadow-md dark:border-gray-200">
-              <div className="pointer-events-none absolute inset-0 border-2 border-[#2B2B2B]/20 dark:border-gray-200/20" />
-              <div className="relative">
-                <h2 className="mb-4 font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-                  {t('assignment:submit.uploadWork', '上傳作業')}
-                </h2>
+            {/* Rubric Card - Bento Style */}
+            {assignment.rubric && (
+              <div className="rounded-2xl bg-card border border-border p-6 hover:shadow-md transition-all duration-200">
+                <div className="space-y-4">
+                  {/* Rubric Header */}
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground mb-1">
+                      {t('assignment:submit.rubricCriteria')}
+                    </h2>
+                    <h3 className="text-sm font-medium text-foreground">
+                      {assignment.rubric.name}
+                    </h3>
+                    {assignment.rubric.description && (
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                        {assignment.rubric.description}
+                      </p>
+                    )}
+                  </div>
 
-                {state.phase === 'upload' ? (
-                  <CompactFileUpload maxFiles={1} onUploadComplete={handleFileUpload} />
-                ) : (
-                  <div className="space-y-4">
-                    {/* Uploaded file display */}
-                    <div className="flex items-center gap-3 border-2 border-[#2B2B2B] p-4 dark:border-gray-200">
-                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center border border-[#2B2B2B] dark:border-gray-200">
-                        <span className="text-lg">📄</span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="truncate font-medium text-[#2B2B2B] dark:text-gray-100">{state.file?.name}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {Math.round((state.file?.size || 0) / 1024)} KB
-                        </p>
-                      </div>
+                  {/* Categories */}
+                  {rubricCategories.length > 0 ? (
+                    <div className="space-y-2">
+                      {rubricCategories.map((category, categoryIndex) => {
+                        const isExpanded = expandedCategories.has(category.id);
+
+                        return (
+                          <div
+                            key={category.id}
+                            className="rounded-xl bg-muted/30 border border-border overflow-hidden hover:shadow-sm transition-all duration-200"
+                          >
+                            {/* Category Header */}
+                            <button
+                              onClick={() => toggleCategory(category.id)}
+                              className="w-full bg-muted/50 p-4 text-left transition-colors hover:bg-muted"
+                            >
+                              <div className="flex items-center gap-3">
+                                <svg
+                                  className={`h-4 w-4 text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? 'rotate-90' : ''}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                <h4 className="text-sm font-medium text-foreground">
+                                  {category.name}
+                                </h4>
+                                <span className="text-xs text-muted-foreground ml-auto">
+                                  {category.criteria.length} {t('common:items', '項')}
+                                </span>
+                              </div>
+                            </button>
+
+                            {/* Criteria List */}
+                            {isExpanded && (
+                              <div className="divide-y divide-border bg-card">
+                                {category.criteria.map((criterion, criterionIndex) => (
+                                  <button
+                                    key={criterion.id}
+                                    className="w-full p-4 text-left transition-colors hover:bg-accent/50 group"
+                                    onClick={() => setSelectedCriterion({
+                                      name: criterion.name,
+                                      description: criterion.description,
+                                      levels: criterion.levels,
+                                      label: `${categoryIndex + 1}.${criterionIndex + 1}`,
+                                    })}
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-foreground">
+                                          {categoryIndex + 1}.{criterionIndex + 1} {criterion.name}
+                                        </p>
+                                        {criterion.description && (
+                                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground line-clamp-2">
+                                            {criterion.description}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
+                  ) : (
+                    <div className="rounded-xl border border-border p-8 text-center bg-muted/20">
+                      <p className="text-sm text-muted-foreground">{t('assignment:submit.noCriteriaSet')}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-                    {/* Actions */}
-                    <div className="space-y-3">
-                      {/* Direct Grading Switch */}
-                      {(state.phase === 'analyze' || state.phase === 'submit') && !state.loading && (
-                        <div className="flex items-center gap-2 border-2 border-[#2B2B2B] p-3 dark:border-gray-200">
-                          <Switch
-                            id="direct-grading-mode"
-                            checked={useDirectGrading}
-                            onCheckedChange={setUseDirectGrading}
-                          />
-                          <Label htmlFor="direct-grading-mode" className="cursor-pointer text-sm">
-                            {t('grading:directGradingMode', 'Direct Grading Mode (Faster)')}
-                          </Label>
-                        </div>
-                      )}
+            {/* File Upload Card - Bento Style */}
+            <div className="rounded-2xl bg-card border border-border p-6 hover:shadow-md transition-all duration-200">
+              <h2 className="mb-4 text-lg font-semibold text-foreground">
+                {t('assignment:submit.uploadWork')}
+              </h2>
 
-                      {/* Primary Actions Row */}
-                      <div className="flex items-center justify-center gap-6 py-2">
-                        {/* Reselect File - Folder (Neutral/White) */}
+              {state.phase === 'upload' ? (
+                <CompactFileUpload maxFiles={1} onUploadComplete={handleFileUpload} />
+              ) : (
+                <div className="space-y-4">
+                  {/* Uploaded file display */}
+                  <div className="flex items-center gap-4 rounded-xl bg-muted/50 border border-border p-4">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate font-medium text-foreground">{state.file?.name}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {Math.round((state.file?.size || 0) / 1024)} KB
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-3">
+                    {/* Direct Grading Switch */}
+                    {(state.phase === 'analyze' || state.phase === 'submit') && !state.loading && (
+                      <div className="flex items-center gap-3 rounded-xl bg-muted/30 border border-border p-4">
+                        <Switch
+                          id="direct-grading-mode"
+                          checked={useDirectGrading}
+                          onCheckedChange={setUseDirectGrading}
+                        />
+                        <Label htmlFor="direct-grading-mode" className="cursor-pointer text-sm text-foreground">
+                          {t('assignment:submit.quickGradingMode')}
+                        </Label>
+                      </div>
+                    )}
+
+                    {/* Primary Actions Row */}
+                    <div className="flex items-center justify-center gap-4 py-2">
+                      {/* Reselect File */}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon"
+                              onClick={handleResetFile}
+                              className="h-14 w-14 rounded-full bg-card border border-border shadow-md transition-all hover:shadow-lg hover:scale-105"
+                            >
+                              <FolderOpen className="h-6 w-6" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{t('assignment:submit.reselectFile')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      {/* Start Analysis */}
+                      {(state.phase === 'analyze' || state.phase === 'submit') && (
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
+                                onClick={startAnalysis}
+                                disabled={state.loading}
                                 size="icon"
-                                onClick={handleResetFile}
-                                className="h-14 w-14 rounded-full border-2 border-[#2B2B2B] bg-white text-[#2B2B2B] shadow-lg transition-transform hover:scale-110 hover:bg-gray-50 dark:border-gray-200 dark:bg-gray-800 dark:text-gray-200"
+                                className={`h-16 w-16 rounded-full shadow-lg transition-all hover:shadow-xl hover:scale-105 ${
+                                  state.loading 
+                                    ? 'bg-muted' 
+                                    : 'bg-primary hover:bg-primary/90'
+                                }`}
                               >
-                                <FolderOpen className="h-8 w-8" />
+                                {state.loading ? (
+                                  <Loader2 className="h-7 w-7 animate-spin" />
+                                ) : (
+                                  <Play className="h-7 w-7 ml-0.5 fill-current" />
+                                )}
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>{t('assignment:submit.reselectFile')}</p>
+                              <p>
+                                {state.loading
+                                  ? t('assignment:submit.grading')
+                                  : getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
+                                    ? t('assignment:submit.reGrade')
+                                    : t('assignment:submit.startGrading')}
+                              </p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
+                      )}
 
-                        {/* Start Analysis - Play (Theme Accent: Orange) */}
-                        {(state.phase === 'analyze' || state.phase === 'submit') && (
+                      {/* Submit Assignment */}
+                      {state.phase === 'submit' &&
+                        getSubmissionStatus().hasAnalysis &&
+                        getSubmissionStatus().hasNewAnalysis && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
-                                  onClick={startAnalysis}
-                                  disabled={state.loading}
+                                  onClick={submitFinal}
+                                  disabled={state.loading || getSubmissionStatus().isOverdue}
                                   size="icon"
-                                  className={`h-14 w-14 rounded-full border-0 text-white shadow-lg transition-transform hover:scale-110 ${
-                                    state.loading 
-                                      ? 'bg-gray-400' 
-                                      : 'bg-[#E07A5F] hover:bg-[#D2691E] dark:bg-[#E87D3E] dark:hover:bg-[#D2691E]'
-                                  }`}
+                                  className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all hover:shadow-xl hover:scale-105 disabled:opacity-50"
                                 >
-                                  {state.loading ? (
-                                    <Loader2 className="h-8 w-8 animate-spin" />
-                                  ) : (
-                                    <Play className="h-8 w-8 ml-1 fill-current" />
-                                  )}
+                                  <Check className="h-6 w-6 text-white" strokeWidth={3} />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>
-                                  {state.loading
-                                    ? '評分中...'
-                                    : getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
-                                      ? '重新評分'
-                                      : '進行評分'}
+                                  {getSubmissionStatus().isOverdue
+                                    ? t('assignment:submit.overdueCannotSubmit')
+                                    : t('assignment:submit.submitAssignment')}
                                 </p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         )}
-
-                        {/* Submit Assignment - Check (Theme Primary: Black/Dark) */}
-                        {state.phase === 'submit' &&
-                          getSubmissionStatus().hasAnalysis &&
-                          getSubmissionStatus().hasNewAnalysis && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    onClick={submitFinal}
-                                    disabled={state.loading || getSubmissionStatus().isOverdue}
-                                    size="icon"
-                                    className="h-14 w-14 rounded-full border-0 bg-[#2B2B2B] text-white shadow-lg transition-transform hover:scale-110 hover:bg-[#D2691E] dark:bg-white dark:text-black dark:hover:bg-[#E87D3E]"
-                                  >
-                                    <Check className="h-8 w-8" strokeWidth={3} />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>
-                                    {getSubmissionStatus().isOverdue
-                                      ? t('assignment:submit.overdueCannotSubmit')
-                                      : t('assignment:submit.submitAssignment')}
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                      </div>
                     </div>
-
-                    {/* Error Display */}
-                    {state.error && (
-                      <div className="border-2 border-[#D2691E] bg-[#D2691E]/5 p-4 dark:border-[#E87D3E]">
-                        <p className="text-sm font-medium text-[#D2691E] dark:text-[#E87D3E]">{state.error}</p>
-                      </div>
-                    )}
                   </div>
-                )}
-              </div>
+
+                  {/* Error Display */}
+                  {state.error && (
+                    <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4">
+                      <p className="text-sm font-medium text-destructive">{state.error}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1060,160 +1000,114 @@ export default function SubmitAssignment() {
 
       {/* Mobile: Tab Navigation (below lg) */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-col h-full">
-        <div className="border-b shrink-0 bg-background">
+        <div className="border-b border-border shrink-0 bg-background">
           <TabsList className="w-full h-12 bg-transparent border-0 rounded-none p-0 grid grid-cols-2">
-            <TabsTrigger value="info" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#E07A5F] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
-              資訊
+            <TabsTrigger value="info" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
+              {t('assignment:submit.info')}
             </TabsTrigger>
-            <TabsTrigger value="results" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#E07A5F] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
-              結果
+            <TabsTrigger value="results" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
+              {t('assignment:submit.results')}
             </TabsTrigger>
           </TabsList>
         </div>
         
         <TabsContent value="info" className="flex-1 overflow-y-auto m-0 p-4 space-y-4 min-h-0">
-          {/* Assignment Info Card - Combined */}
-          <div className="border-2 border-[#2B2B2B] p-4 space-y-4 dark:border-gray-200">
+          {/* Assignment Info Card - Combined - Bento Style */}
+          <div className="rounded-2xl bg-card border border-border p-5 space-y-4">
             {/* Header */}
             <div>
-              <h1 className="mb-2 font-serif text-xl font-light">{assignment.name}</h1>
-              <p className="text-xs text-gray-600 dark:text-gray-400">{assignment.course.name}</p>
+              <h1 className="mb-2 text-xl font-semibold text-foreground">{assignment.name}</h1>
+              <p className="text-sm text-muted-foreground">{assignment.course.name}</p>
             </div>
 
             {/* Description */}
             {assignment.description && (
-              <div className="border-t pt-4 border-gray-200 dark:border-gray-700">
-                <h2 className="mb-2 font-serif text-sm font-light text-gray-600 dark:text-gray-400">作業說明</h2>
-                <p className="text-sm whitespace-pre-wrap text-gray-700 dark:text-gray-300">{assignment.description}</p>
+              <div className="border-t border-border pt-4">
+                <h2 className="mb-2 text-sm font-semibold text-foreground">{t('assignment:submit.assignmentDescription')}</h2>
+                <p className="text-sm whitespace-pre-wrap text-muted-foreground leading-relaxed">{assignment.description}</p>
               </div>
             )}
 
             {/* Due Date */}
             {assignment.dueDate && (
-              <div className="border-t pt-4 border-gray-200 dark:border-gray-700">
+              <div className="border-t border-border pt-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-400">截止日期</span>
-                  <span className={`text-sm ${isOverdue ? 'font-medium text-[#D2691E] dark:text-[#E87D3E]' : 'text-gray-700 dark:text-gray-300'}`}>
+                  <span className="text-sm font-medium text-muted-foreground">{t('assignment:submit.dueDate')}</span>
+                  <span className={`text-sm font-medium ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
                     {assignment.formattedDueDate}
-                    {isOverdue && ' (已逾期)'}
+                    {isOverdue && ` (${t('assignment:submit.overdueLabel')})`}
                   </span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Rubric */}
-          {assignment.rubric && (() => {
-            let categories: any[] = [];
-            try {
-              let criteria: any[] = [];
-              if (typeof assignment.rubric.criteria === 'string') {
-                criteria = JSON.parse(assignment.rubric.criteria);
-              } else if (Array.isArray(assignment.rubric.criteria)) {
-                criteria = assignment.rubric.criteria as any[];
-              }
-              categories = dbCriteriaToUICategories(criteria);
-            } catch (error) {
-              console.error('Failed to parse rubric criteria:', error);
-            }
-
-            const stats = categories.length > 0 ? calculateRubricStats(categories) : { maxScore: 0 };
-            const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(new Set());
-
-            const toggleCategory = (categoryId: string) => {
-              setExpandedCategories(prev => {
-                const next = new Set(prev);
-                if (next.has(categoryId)) {
-                  next.delete(categoryId);
-                } else {
-                  next.add(categoryId);
-                }
-                return next;
-              });
-            };
-
-            return (
+          {/* Rubric Card - Bento Style */}
+          {assignment.rubric && (
+            <div className="rounded-2xl bg-card border border-border p-5">
               <div className="space-y-3">
                 {/* Rubric Header */}
-                <div className="border-2 border-[#2B2B2B] p-3 dark:border-gray-200">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-serif text-sm font-light text-[#2B2B2B] dark:text-gray-100 mb-1">
-                        {assignment.rubric.name}
-                      </h3>
-                      {assignment.rubric.description && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          {assignment.rubric.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0 border-2 border-[#E07A5F] px-3 py-1 dark:border-[#E87D3E]">
-                      <div className="text-center">
-                        <div className="font-serif text-xl font-light text-[#E07A5F] dark:text-[#E87D3E]">
-                          {stats.maxScore}
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-400">總分</div>
-                      </div>
-                    </div>
-                  </div>
+                <div>
+                  <h2 className="text-base font-semibold text-foreground mb-1">
+                    {t('assignment:submit.rubricCriteria')}
+                  </h2>
+                  <h3 className="text-sm font-medium text-foreground">
+                    {assignment.rubric.name}
+                  </h3>
+                  {assignment.rubric.description && (
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {assignment.rubric.description}
+                    </p>
+                  )}
                 </div>
 
                 {/* Categories */}
-                {categories.length > 0 ? (
+                {rubricCategories.length > 0 ? (
                   <div className="space-y-2">
-                    {categories.map((category: any, categoryIndex: number) => {
+                    {rubricCategories.map((category, categoryIndex) => {
                       const isExpanded = expandedCategories.has(category.id);
-                      const categoryScore = category.criteria.length * 4;
 
                       return (
-                        <div key={category.id} className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                        <div key={category.id} className="rounded-xl bg-card border border-border overflow-hidden">
                           <button
                             onClick={() => toggleCategory(category.id)}
-                            className="w-full border-b border-[#2B2B2B] bg-[#FAF9F6] p-3 text-left dark:border-gray-200 dark:bg-gray-900/30"
+                            className="w-full bg-muted/50 p-3 text-left hover:bg-muted transition-colors"
                           >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <svg className={`h-3 w-3 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                                <span className="font-serif text-xs font-medium text-[#2B2B2B] dark:text-gray-200">
-                                  {categoryIndex + 1}
-                                </span>
-                                <h4 className="font-serif text-sm font-light text-[#2B2B2B] dark:text-gray-100 truncate">
-                                  {category.name}
-                                </h4>
-                              </div>
-                              <div className="flex-shrink-0">
-                                <span className="font-serif text-sm font-medium text-[#E07A5F] dark:text-[#E87D3E]">
-                                  {categoryScore}分
-                                </span>
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <svg className={`h-3 w-3 flex-shrink-0 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <h4 className="text-sm font-medium text-foreground truncate">
+                                {category.name}
+                              </h4>
+                              <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
+                                {category.criteria.length} {t('common:items', '項')}
+                              </span>
                             </div>
                           </button>
 
                           {isExpanded && (
-                            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                              {category.criteria.map((criterion: any, criterionIndex: number) => (
-                                <div key={criterion.id} className="bg-white p-3 dark:bg-gray-950">
-                                  <div className="flex items-start gap-2">
-                                    <span className="font-mono text-xs text-gray-500 flex-shrink-0 pt-0.5">
-                                      {categoryIndex + 1}.{criterionIndex + 1}
-                                    </span>
+                            <div className="divide-y divide-border bg-card">
+                              {category.criteria.map((criterion, criterionIndex) => (
+                                <button
+                                  key={criterion.id}
+                                  className="w-full p-3 text-left transition-colors hover:bg-accent/50 active:bg-accent/70"
+                                  onClick={() => setSelectedCriterion({
+                                    name: criterion.name,
+                                    description: criterion.description,
+                                    levels: criterion.levels,
+                                    label: `${categoryIndex + 1}.${criterionIndex + 1}`,
+                                  })}
+                                >
+                                  <div className="flex items-center gap-2">
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium text-[#2B2B2B] dark:text-gray-100">
-                                        {criterion.name}
+                                      <p className="text-xs font-medium text-foreground">
+                                        {categoryIndex + 1}.{criterionIndex + 1} {criterion.name}
                                       </p>
-                                      {criterion.description && (
-                                        <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                                          {criterion.description}
-                                        </p>
-                                      )}
                                     </div>
-                                    <div className="flex-shrink-0">
-                                      <span className="text-xs font-medium text-[#E07A5F] dark:text-[#E87D3E]">4</span>
-                                    </div>
+                                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                                   </div>
-                                </div>
+                                </button>
                               ))}
                             </div>
                           )}
@@ -1222,31 +1116,39 @@ export default function SubmitAssignment() {
                     })}
                   </div>
                 ) : (
-                  <div className="border-2 border-[#2B2B2B] p-4 text-center dark:border-gray-200">
-                    <p className="text-xs italic text-gray-400">尚未設定評分項目</p>
+                  <div className="rounded-xl border border-border p-6 text-center bg-muted/20">
+                    <p className="text-sm text-muted-foreground">{t('assignment:submit.noCriteriaSet')}</p>
                   </div>
                 )}
               </div>
-            );
-          })()}
+            </div>
+          )}
 
-          {/* File Upload Section */}
-          <div className="border-2 border-[#2B2B2B] p-4 dark:border-gray-200">
-            <h2 className="mb-3 font-serif font-light">上傳作業</h2>
+          {/* File Upload Section - Bento Style */}
+          <div className="rounded-2xl bg-card border border-border p-5">
+            <h2 className="mb-4 text-base font-semibold text-foreground">{t('assignment:submit.uploadWork')}</h2>
             {state.phase === 'upload' ? (
               <CompactFileUpload maxFiles={1} onUploadComplete={handleFileUpload} />
             ) : (
               <div className="space-y-3">
                 {/* Uploaded file display */}
-                <div className="flex items-center gap-3 border border-[#2B2B2B] p-3 dark:border-gray-200">
-                  <span className="text-2xl">📄</span>
+                <div className="flex items-center gap-3 rounded-xl bg-muted/50 border border-border p-3">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium text-[#2B2B2B] dark:text-gray-100">{state.file?.name}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">{Math.round((state.file?.size || 0) / 1024)} KB</p>
+                    <p className="truncate text-sm font-medium text-foreground">{state.file?.name}</p>
+                    <p className="text-xs text-muted-foreground">{Math.round((state.file?.size || 0) / 1024)} KB</p>
                   </div>
                 </div>
                 
-                <Button variant="outline" onClick={handleResetFile} className="w-full border-2 border-[#2B2B2B] dark:border-gray-200">重新選擇</Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleResetFile} 
+                  className="w-full rounded-xl border border-border hover:bg-accent"
+                >
+                  {t('assignment:submit.reselect')}
+                </Button>
               </div>
             )}
           </div>
@@ -1254,14 +1156,14 @@ export default function SubmitAssignment() {
           {/* Action Buttons - Outside container */}
           {state.file && (
             <div className="space-y-3">
-              {/* AI Analysis Button - Bright accent color */}
+              {/* AI Analysis Button */}
               {(state.phase === 'analyze' || state.phase === 'submit') && (
                 <Button 
                   onClick={() => { startAnalysis(); setActiveTab('results'); }} 
                   disabled={state.loading} 
-                  className="w-full border-2 border-[#E07A5F] bg-[#E07A5F] py-3 font-medium text-white transition-colors hover:bg-[#D2691E] dark:border-[#E87D3E] dark:bg-[#E87D3E] dark:hover:bg-[#D2691E]"
+                  className="w-full rounded-full bg-primary py-3 font-medium text-primary-foreground hover:bg-primary/90 transition-all shadow-md hover:shadow-lg"
                 >
-                  {state.loading ? '評分中...' : '進行評分'}
+                  {state.loading ? t('assignment:submit.grading') : t('assignment:submit.startGrading')}
                 </Button>
               )}
               
@@ -1270,9 +1172,9 @@ export default function SubmitAssignment() {
                 <Button 
                   onClick={submitFinal} 
                   disabled={getSubmissionStatus().isOverdue} 
-                  className="w-full border-2 border-[#2B2B2B] bg-[#2B2B2B] py-3 font-medium text-white transition-colors hover:bg-[#D2691E] dark:border-gray-200 dark:bg-gray-200 dark:text-gray-900 dark:hover:bg-[#E87D3E]"
+                  className="w-full rounded-full bg-emerald-500 hover:bg-emerald-600 py-3 font-medium text-white transition-all shadow-md hover:shadow-lg disabled:opacity-50"
                 >
-                  {getSubmissionStatus().isOverdue ? '已逾期' : '提交作業'}
+                  {getSubmissionStatus().isOverdue ? t('assignment:submit.overdueLabel') : t('assignment:submit.submitWork')}
                 </Button>
               )}
             </div>
@@ -1303,6 +1205,61 @@ export default function SubmitAssignment() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Criterion Detail Sheet - shared by desktop & mobile */}
+      <Sheet open={!!selectedCriterion} onOpenChange={(open) => !open && setSelectedCriterion(null)}>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader className="text-left pb-4">
+            <SheetTitle className="text-base font-semibold">
+              {selectedCriterion?.label} {selectedCriterion?.name}
+            </SheetTitle>
+            {selectedCriterion?.description && (
+              <SheetDescription className="text-sm leading-relaxed">
+                {selectedCriterion.description}
+              </SheetDescription>
+            )}
+          </SheetHeader>
+
+          {/* Scoring Levels - Full width, single column, no truncation */}
+          <div className="space-y-3 pb-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('assignment:submit.scoringLevels')}
+            </h4>
+            {selectedCriterion?.levels && [4, 3, 2, 1].map((score) => {
+              const level = selectedCriterion.levels.find((l) => l.score === score);
+              const description = level?.description || '';
+              const isTopLevel = score === 4;
+
+              return (
+                <div
+                  key={score}
+                  className={`rounded-xl p-4 transition-all ${
+                    isTopLevel
+                      ? 'bg-primary/5 border-2 border-primary/20'
+                      : 'bg-muted/40 border border-border/50'
+                  }`}
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className={`text-xl font-bold ${isTopLevel ? 'text-primary' : 'text-foreground/60'}`}>
+                      {score}
+                    </span>
+                    <span className={`text-xs font-medium ${isTopLevel ? 'text-primary/80' : 'text-muted-foreground'}`}>
+                      {t(`rubric:levelLabels.${score}`, score === 4 ? '優秀' : score === 3 ? '良好' : score === 2 ? '及格' : '需改進')}
+                    </span>
+                  </div>
+                  {description ? (
+                    <p className={`text-sm leading-relaxed ${isTopLevel ? 'text-foreground/90' : 'text-muted-foreground'}`}>
+                      {description}
+                    </p>
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground/40">—</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

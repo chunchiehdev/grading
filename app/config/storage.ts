@@ -13,9 +13,8 @@ export const storageConfig = {
 
   bucket: process.env.MINIO_BUCKET || 'grading-files',
 
-  getFileUrl: (key: string) => {
-    return `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${process.env.MINIO_BUCKET || 'grading-files'}/${key}`;
-  },
+  // Generate API proxy URL for browser access (works in all environments)
+  getFileUrl: (key: string) => `/api/files/${encodeURIComponent(key)}`,
 
   signedUrlExpireTime: 900,
 };

@@ -3,12 +3,12 @@ import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { X, Send, Calendar, FileText, Sparkles, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Send, Calendar, FileText, Sparkles, Loader2, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { formatDistanceToNow } from 'date-fns';
 import { zhTW, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { toast } from 'sonner';
 
 interface PostAuthor {
@@ -140,6 +140,16 @@ export function PostDetailModal({
     adjustTextareaHeight();
   }, [newComment]);
 
+  // Re-adjust height when modal opens (content preserved but DOM recreated)
+  useLayoutEffect(() => {
+    if (open && newComment) {
+      // Small delay to ensure DOM is ready
+      requestAnimationFrame(() => {
+        adjustTextareaHeight();
+      });
+    }
+  }, [open]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || !onCommentSubmit) return;
@@ -187,11 +197,11 @@ export function PostDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent hideCloseButton className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col bg-[#FFFEFB] dark:bg-[#242526] border border-[#E8E4DD] dark:border-[#393A3B] shadow-lg p-0">
+      <DialogContent hideCloseButton className="w-[calc(100%-1rem)] sm:w-[calc(100%-2rem)] max-w-2xl h-[70vh] sm:h-[70vh] overflow-hidden flex flex-col bg-[#FFFEFB] dark:bg-[#242526] border border-[#E8E4DD] dark:border-[#393A3B] shadow-lg p-0 rounded-xl">
         <DialogHeader className="border-b border-[#E8E4DD] dark:border-[#393A3B] pb-4 pt-6 px-6">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg font-semibold text-[#4A4036] dark:text-[#E4E6EB]">
-              {post.author.name} 的貼文
+
             </DialogTitle>
             <button
               onClick={() => onOpenChange(false)}
@@ -265,9 +275,11 @@ export function PostDetailModal({
             {post.attachments && post.attachments.length > 0 && (
               <div className="space-y-2">
                 {post.attachments.map((file) => (
-                  <div
+                  <a
                     key={file.fileId}
-                    className="flex items-center gap-3 border border-[#E8E4DD] dark:border-[#393A3B] rounded-lg px-4 py-3 text-sm hover:bg-[#FAF8F5] dark:hover:bg-[#3A3B3C] transition-colors cursor-pointer"
+                    href={`/api/posts/${post.id}/attachments/${file.fileId}/download`}
+                    download={file.fileName}
+                    className="flex items-center gap-3 border border-[#E8E4DD] dark:border-[#393A3B] rounded-lg px-4 py-3 text-sm hover:bg-[#FAF8F5] dark:hover:bg-[#3A3B3C] transition-colors cursor-pointer group"
                   >
                     <div className="w-8 h-8 rounded bg-[#F0EDE8] dark:bg-[#3A3B3C] flex items-center justify-center flex-shrink-0">
                       <FileText className="h-4 w-4 text-[#9C9488] dark:text-[#E4E6EB]" />
@@ -278,7 +290,8 @@ export function PostDetailModal({
                     <span className="text-xs text-[#9C9488] flex-shrink-0">
                       {(file.fileSize / 1024).toFixed(1)} KB
                     </span>
-                  </div>
+                    <Download className="h-4 w-4 text-[#9C9488] dark:text-[#B0B3B8] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                  </a>
                 ))}
               </div>
             )}
@@ -286,11 +299,7 @@ export function PostDetailModal({
 
           {/* Comments Section */}
           <div className="border-t border-[#E8E4DD] dark:border-[#393A3B] pt-4 space-y-3">
-            <h4 className="font-semibold text-[#4A4036] dark:text-[#E4E6EB]">
-              {isAssignmentPost ? '學生反思 ' : '留言 '}
-              ({comments.length})
-            </h4>
-
+            
             {comments.length === 0 ? (
               <p className="text-center text-[#9C9488] dark:text-[#B0B3B8] py-8">
                 {isAssignmentPost ? '目前還沒有學生提交反思' : '目前還沒有留言'}
@@ -458,7 +467,7 @@ export function PostDetailModal({
             <Avatar className="h-9 w-9 flex-shrink-0">
               <img src={currentUserAvatar} alt={currentUserName} className="h-full w-full object-cover" />
             </Avatar>
-            <div className="flex-1 flex items-end gap-2 bg-[#F0EDE8] dark:bg-[#3A3B3C] rounded-2xl px-4 py-2">
+            <div className="flex-1 bg-[#F0EDE8] dark:bg-[#3A3B3C] rounded-2xl px-4 py-2">
               <Textarea
                 ref={commentTextareaRef}
                 value={newComment}
@@ -470,18 +479,20 @@ export function PostDetailModal({
                   }
                 }}
                 placeholder={isAssignmentPost ? "撰寫你的反思..." : "留個言吧..."}
-                className="flex-1 bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none text-sm text-[#4A4036] dark:text-[#E4E6EB] placeholder:text-[#9C9488] dark:placeholder:text-[#B0B3B8] p-0 min-h-[20px] max-h-[200px] overflow-y-auto"
+                className="w-full bg-transparent border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 resize-none text-sm text-[#4A4036] dark:text-[#E4E6EB] placeholder:text-[#9C9488] dark:placeholder:text-[#B0B3B8] p-0 min-h-[20px] max-h-[200px] overflow-y-auto"
                 disabled={isSubmitting}
                 style={{ height: 'auto' }}
               />
-              <Button
-                type="submit"
-                disabled={isSubmitting || !newComment.trim()}
-                size="sm"
-                className="cursor-pointer bg-transparent hover:bg-transparent text-[#5B8A8A] dark:text-[#7BA3A3] hover:text-[#4A7676] dark:hover:text-[#5B8A8A] p-0 h-auto disabled:opacity-30"
-              >
-                <Send className="h-5 w-5" />
-              </Button>
+              <div className="flex justify-end mt-2">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || !newComment.trim()}
+                  size="sm"
+                  className="cursor-pointer bg-transparent hover:bg-transparent text-[#5B8A8A] dark:text-[#7BA3A3] hover:text-[#4A7676] dark:hover:text-[#5B8A8A] p-0 h-auto disabled:opacity-30"
+                >
+                  <Send className="h-5 w-5" />
+                </Button>
+              </div>
             </div>
           </form>
         </div>

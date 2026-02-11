@@ -46,6 +46,10 @@ export default [
     route('courses/:courseId', './routes/teacher/courses/$courseId.tsx'),
     route('courses/:courseId/assignments/new', './routes/teacher/courses/$courseId/assignments/new.tsx'),
     route(
+      'courses/:courseId/assignments/:assignmentId',
+      './routes/teacher/courses/$courseId/assignments/$assignmentId.tsx'
+    ),
+    route(
       'courses/:courseId/assignments/:assignmentId/manage',
       './routes/teacher/courses/$courseId/assignments/$assignmentId.manage.tsx'
     ),
@@ -194,11 +198,17 @@ export default [
   route('/api/enrollments', './api/enrollments.ts'),
 
   // Course Community API routes
+  route('/api/courses/:courseId/cover', './routes/api/courses.$courseId.cover.ts'),
+  route('/api/courses/:courseId/cover-url', './routes/api/courses.$courseId.cover-url.ts'),
   route('/api/courses/:courseId/posts', './routes/api.courses.$courseId.posts.ts'),
   route('/api/posts/:postId', './routes/api.posts.$postId.ts'),
   route('/api/posts/:postId/comments', './routes/api.posts.$postId.comments.ts'),
   route('/api/posts/:postId/like', './routes/api.posts.$postId.like.ts'),
+  route('/api/posts/:postId/attachments/:fileId/download', './routes/api.posts.$postId.attachments.$fileId.download.ts'),
   route('/api/comments/:commentId/grade', './routes/api.comments.$commentId.grade.ts'),
+
+  // File proxy route (for serving MinIO files to browsers)
+  route('/api/files/:key', './routes/api/files.$key.ts'),
 
   route('/health', './routes/health.tsx'),
 
