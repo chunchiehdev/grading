@@ -5,6 +5,7 @@ resources:
   - ../../base
   - ingress.yaml
   - redis.yaml
+  - persistent-volumes.yaml
 
 namespace: grading-pdf-prod
 

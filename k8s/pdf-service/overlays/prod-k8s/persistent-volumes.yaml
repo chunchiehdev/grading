@@ -1,0 +1,23 @@
+---
+# Redis PV for pdf-service
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: redis-pv-pdf-prod
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-nvme4tb
+  local:
+    path: /mnt/nvme4tb/redis-pdf-prod
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - mars
