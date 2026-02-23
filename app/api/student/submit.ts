@@ -12,12 +12,19 @@ export async function action({ request }: { request: Request }) {
       const assignmentId = body.assignmentId ?? null;
       const fileToken = body.filePath ?? body.uploadedFileId ?? null;
       const sessionId = body.sessionId ?? null;
+      const chatMessages = body.chatMessages ?? [];
       if (!assignmentId || !fileToken) {
         return Response.json(createErrorResponse('assignmentId and filePath/uploadedFileId are required'), {
           status: 400,
         });
       }
-      const result = await createSubmissionAndLinkGradingResult(student.id, assignmentId, fileToken, sessionId);
+      const result = await createSubmissionAndLinkGradingResult(
+        student.id,
+        assignmentId,
+        fileToken,
+        sessionId,
+        chatMessages
+      );
       return Response.json({ success: true, ...result });
     } else {
       const formData = await request.formData();
@@ -25,12 +32,21 @@ export async function action({ request }: { request: Request }) {
       const sessionId = formData.get('sessionId') as string;
       const fileToken = (formData.get('filePath') as string) || (formData.get('uploadedFileId') as string) || null;
 
+      const chatMessagesData = formData.get('chatMessages');
+      const chatMessages = chatMessagesData ? JSON.parse(chatMessagesData as string) : [];
+
       if (!assignmentId || !fileToken) {
         return Response.json(createErrorResponse('assignmentId and filePath/uploadedFileId are required'), {
           status: 400,
         });
       }
-      const result = await createSubmissionAndLinkGradingResult(student.id, assignmentId, fileToken, sessionId);
+      const result = await createSubmissionAndLinkGradingResult(
+        student.id,
+        assignmentId,
+        fileToken,
+        sessionId,
+        chatMessages
+      );
       return Response.json({ success: true, ...result });
     }
   } catch (error) {

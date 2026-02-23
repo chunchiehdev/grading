@@ -5,7 +5,7 @@ import React, { useReducer, useEffect, useRef, useCallback } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/submission.server';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
-import { GradingCarousel, type SparringResponseData } from '@/components/grading/GradingCarousel';
+import { FeedbackChat } from '@/components/grading/FeedbackChat';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { ClientOnly } from '@/components/ui/client-only';
 import { Button } from '@/components/ui/button';
@@ -70,6 +70,7 @@ interface SubmissionState {
     thoughtSummary?: string;
     thinkingProcess?: string; // Feature 012
     gradingRationale?: string; // Feature 012
+    chatMessages?: any[];
   } | null;
   error: string | null;
   loading: boolean;
@@ -83,6 +84,7 @@ type Action =
   | { type: 'analysis_completed'; result: any; thoughtSummary?: string; thinkingProcess?: string; gradingRationale?: string }
   | { type: 'sparring_completed' }
   | { type: 'submission_completed'; sessionId: string }
+  | { type: 'chat_updated'; messages: any[] }
   | { type: 'error'; message: string }
   | { type: 'reset' }
   | { type: 'thought_update'; thought: string };
@@ -114,6 +116,15 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
     case 'submission_completed':
       // Store the submitted sessionId to prevent duplicate submissions
       return { ...state, phase: 'done', loading: false, lastSubmittedSessionId: action.sessionId };
+    case 'chat_updated':
+      if (!state.session) return state;
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          chatMessages: action.messages
+        }
+      };
     case 'error':
       return { ...state, error: action.message, loading: false };
     case 'reset':
@@ -233,6 +244,7 @@ export default function SubmitAssignment() {
             thoughtSummary: draftSubmission.thoughtSummary || undefined,
             thinkingProcess: draftSubmission.thinkingProcess || undefined,
             gradingRationale: draftSubmission.gradingRationale || undefined,
+            chatMessages: (draftSubmission.aiAnalysisResult as any)?._chatMessages || undefined,
           }
         : null,
     error: null,
@@ -244,6 +256,37 @@ export default function SubmitAssignment() {
         : null,
   });
 
+  // Debounced auto-save of chatMessages to draft (persist across page refresh)
+  const chatSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!state.session?.chatMessages || state.session.chatMessages.length <= 1) return;
+    if (!state.session?.result) return; // Don't save if no grading result yet
+
+    // Debounce: save 2 seconds after last message change
+    if (chatSaveTimerRef.current) clearTimeout(chatSaveTimerRef.current);
+    chatSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const aiResultWithChat = {
+          ...state.session!.result,
+          _chatMessages: state.session!.chatMessages,
+        };
+        await fetch(`/api/student/assignments/${assignment.id}/draft`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            aiAnalysisResult: aiResultWithChat,
+            lastState: 'completed',
+          }),
+        });
+      } catch (err) {
+        console.error('Failed to save chat messages to draft:', err);
+      }
+    }, 2000);
+
+    return () => {
+      if (chatSaveTimerRef.current) clearTimeout(chatSaveTimerRef.current);
+    };
+  }, [state.session?.chatMessages, state.session?.result, assignment.id]);
 
   // GSAP animations
   useGSAP(() => {
@@ -611,6 +654,7 @@ export default function SubmitAssignment() {
           assignmentId: assignment.id,
           uploadedFileId: state.file.id,
           sessionId: state.session.id,
+          chatMessages: state.session.chatMessages || []
         }),
       });
 
@@ -649,24 +693,7 @@ export default function SubmitAssignment() {
     clearFiles();
   };
 
-  // Handle sparring response - save to database
-  const handleSparringResponse = useCallback(async (data: SparringResponseData) => {
-    if (!state.session?.id) return;
-    
-    try {
-      await fetch(`/api/student/assignments/${assignment.id}/sparring-response`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: state.session.id,
-          ...data,
-        }),
-      });
-    } catch (err) {
-      console.error('Failed to save sparring response:', err);
-      // Non-critical, don't show error to user
-    }
-  }, [assignment.id, state.session?.id]);
+  // Removed handledSparringResponse locally since useChat sends via API directly
 
   // Compute current submission status for clear state identification
   const getSubmissionStatus = () => {
@@ -972,22 +999,30 @@ export default function SubmitAssignment() {
 
         {/* Right Column: AI Grading Results - Independent Scrolling */}
         <aside ref={rightPanelRef} className="w-full lg:w-1/2 overflow-y-auto bg-background hide-scrollbar">
-          <div className="p-4 sm:px-6 lg:px-8 py-8">
+          <div className="p-4 sm:px-6 lg:px-8 py-8 h-full flex flex-col">
             {state.session?.result ? (
-              <GradingCarousel
-                sparringQuestions={state.session.result.sparringQuestions}
-                savedResponses={state.session.result.sparringResponses}
-                onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
-                onSparringResponse={handleSparringResponse}
-                assignmentId={assignment.id}
-                sessionId={state.session.id}
-                result={state.session.result}
-                normalizedScore={state.session.result._normalizedScore}
-                thoughtSummary={state.session.thoughtSummary}
-                thinkingProcess={state.session.thinkingProcess}
-                gradingRationale={state.session.gradingRationale}
-                isLoading={state.loading}
-              />
+              state.session.result.sparringQuestions && state.session.result.sparringQuestions.length > 0 ? (
+                <FeedbackChat
+                  sparringQuestions={state.session.result.sparringQuestions}
+                  assignmentId={assignment.id}
+                  sessionId={state.session.id}
+                  result={state.session.result}
+                  studentName={student.name}
+                  studentPicture={student.picture}
+                  fileId={state.file?.id}
+                  initialMessages={state.session?.chatMessages}
+                  thinkingProcess={state.session?.thinkingProcess}
+                  gradingRationale={state.session?.gradingRationale}
+                  normalizedScore={state.session.result?.normalizedScore}
+                  onChatChange={(messages) => dispatch({ type: 'chat_updated', messages })}
+                  onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+                />
+              ) : (
+                <GradingResultDisplay
+                  isLoading={state.loading}
+                  thinkingProcess={state.session?.thinkingProcess}
+                />
+              )
             ) : (
               <GradingResultDisplay
                 isLoading={state.loading}
@@ -1181,22 +1216,30 @@ export default function SubmitAssignment() {
           )}
         </TabsContent>
 
-        <TabsContent value="results" className="flex-1 overflow-y-auto m-0 p-4 min-h-0">
+        <TabsContent value="results" className="flex-1 overflow-y-auto m-0 p-4 min-h-0 flex flex-col h-full">
           {state.session?.result ? (
-            <GradingCarousel
-              sparringQuestions={state.session.result.sparringQuestions}
-              savedResponses={state.session.result.sparringResponses}
-              onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
-              onSparringResponse={handleSparringResponse}
-              assignmentId={assignment.id}
-              sessionId={state.session.id}
-              result={state.session.result}
-              normalizedScore={state.session.result._normalizedScore}
-              thoughtSummary={state.session.thoughtSummary}
-              thinkingProcess={state.session.thinkingProcess}
-              gradingRationale={state.session.gradingRationale}
-              isLoading={state.loading}
-            />
+            state.session.result.sparringQuestions && state.session.result.sparringQuestions.length > 0 ? (
+              <FeedbackChat
+                sparringQuestions={state.session.result.sparringQuestions}
+                assignmentId={assignment.id}
+                sessionId={state.session.id}
+                result={state.session.result}
+                studentName={student.name}
+                studentPicture={student.picture}
+                fileId={state.file?.id}
+                initialMessages={state.session?.chatMessages}
+                thinkingProcess={state.session?.thinkingProcess}
+                gradingRationale={state.session?.gradingRationale}
+                normalizedScore={state.session.result?.normalizedScore}
+                onChatChange={(messages) => dispatch({ type: 'chat_updated', messages })}
+                onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+              />
+            ) : (
+              <GradingResultDisplay
+                isLoading={state.loading}
+                thinkingProcess={state.session?.thinkingProcess}
+              />
+            )
           ) : (
             <GradingResultDisplay
               isLoading={state.loading}

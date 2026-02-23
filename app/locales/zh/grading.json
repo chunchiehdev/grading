@@ -274,5 +274,17 @@
   "thinkingProcess": {
     "aiThinking": "AI 正在思考...",
     "viewProcess": "查看思考過程"
+  },
+  "chat": {
+    "thinking": "思考中...",
+    "placeholder": "回覆你的想法...",
+    "disclaimer": "AI 反思引導會協助你往下一個反思層級邁進",
+    "openingHi": "嗨！我剛讀完了你的作業。",
+    "openingNotice": "我注意到你寫了這句話：「{{quote}}」",
+    "scoreBar": "AI 預評分",
+    "showDetails": "查看詳情",
+    "hideDetails": "收合",
+    "roundsRemaining": "剩餘 {{remaining}} 輪",
+    "sparringComplete": "對練結束，正在準備評分結果..."
   }
 }

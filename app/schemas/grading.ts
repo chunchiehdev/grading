@@ -54,6 +54,7 @@ export const GradingResultDataSchema = z.object({
   overallFeedback: OverallFeedbackSchema,
   sparringQuestions: z.array(SparringQuestionSchema).optional(),
   sparringResponses: z.array(SparringResponseSchema).optional(),
+  chatHistory: z.array(z.any()).optional(),
 });
 
 // Context about what was used during grading (Feature 004)

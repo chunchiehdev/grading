@@ -122,7 +122,8 @@ export async function createSubmissionAndLinkGradingResult(
   studentId: string,
   assignmentAreaId: string,
   filePathOrId: string,
-  sessionId: string
+  sessionId: string,
+  chatMessages: any[] = []
 ): Promise<{ submissionId: string }> {
   // Import version management functions dynamically to avoid circular dependencies
   const { getLatestSubmissionVersion, createNewSubmissionVersion } = await import('./version-management.server');
@@ -318,6 +319,11 @@ export async function createSubmissionAndLinkGradingResult(
 
     if (gradingResult && gradingResult.result) {
       const aiAnalysisResult = parseGradingResult(gradingResult.result);
+      // Attach chat messages into the AI Analysis Result to preserve history in the DB
+      if (aiAnalysisResult && chatMessages.length > 0) {
+        (aiAnalysisResult as any).chatHistory = chatMessages;
+      }
+      
       const finalScore = aiAnalysisResult?.totalScore ? Math.round(aiAnalysisResult.totalScore) : null;
 
       // Get normalized score (100-point scale) from grading result

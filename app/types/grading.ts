@@ -73,6 +73,7 @@ export interface GradingResultData {
   overallFeedback: string | OverallFeedbackStructured;
   sparringQuestions?: SparringQuestion[];
   sparringResponses?: SparringResponseData[];
+  chatHistory?: any[];
 }
 
 // 學生對練回應資料結構

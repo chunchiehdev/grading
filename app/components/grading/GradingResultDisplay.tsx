@@ -4,6 +4,7 @@ import { EmptyGradingState } from './EmptyGradingState';
 import { CompactStructuredFeedback } from './StructuredFeedback';
 import { GradingResultData } from '@/types/grading';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -79,6 +80,7 @@ export function GradingResultDisplay({
     totalScore: result.totalScore || 0,
     maxScore: result.maxScore || 100,
     breakdown: result.breakdown || [],
+    chatHistory: result.chatHistory || [],
     overallFeedback: result.overallFeedback || t('result.noFeedback'),
   } : null;
 
@@ -158,6 +160,40 @@ export function GradingResultDisplay({
               <CompactStructuredFeedback feedback={safeResult.overallFeedback} />
             </div>
           </section>
+
+          {/* Chat History */}
+          {safeResult.chatHistory && safeResult.chatHistory.length > 0 && (
+            <section className="p-2 space-y-4">
+              <h3 className="text-sm font-medium border-b pb-2">{t('result.chatHistory', '對談紀錄')}</h3>
+              <div className="space-y-4">
+                {safeResult.chatHistory.map((msg: any, i: number) => (
+                  <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <Avatar className="h-8 w-8 shrink-0">
+                      {msg.role === 'user' ? (
+                        <>
+                          <AvatarFallback>U</AvatarFallback>
+                        </>
+                      ) : (
+                        <>
+                          <AvatarImage src="/images/kember-avatar.png" />
+                          <AvatarFallback className="bg-primary/10 text-primary">AI</AvatarFallback>
+                        </>
+                      )}
+                    </Avatar>
+                    <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                      <div className={`px-4 py-2.5 rounded-2xl text-sm ${
+                        msg.role === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                          : 'bg-muted/50 border border-border/50 text-foreground rounded-tl-sm'
+                      }`}>
+                        <Markdown>{msg.content}</Markdown>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Detailed criteria: direct stack */}
           <section>

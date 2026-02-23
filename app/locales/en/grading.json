@@ -274,5 +274,17 @@
   "thinkingProcess": {
     "aiThinking": "thinking...",
     "viewProcess": "Show thinking"
+  },
+  "chat": {
+    "thinking": "Thinking...",
+    "placeholder": "Share your thoughts...",
+    "disclaimer": "AI reflection guide helps you reach the next level of reflection",
+    "openingHi": "Hi! I just read your work.",
+    "openingNotice": "I noticed you wrote: \"{{quote}}\"",
+    "scoreBar": "AI Pre-score",
+    "showDetails": "Show details",
+    "hideDetails": "Collapse",
+    "roundsRemaining": "{{remaining}} rounds left",
+    "sparringComplete": "Sparring complete, preparing results..."
   }
 }
