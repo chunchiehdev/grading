@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "react-router build",
+    "generate": "prisma generate",
     "dev": "react-router dev",
     "dev:clean": "docker compose -f docker-compose.dev.yaml exec app rm -rf /app/node_modules/.vite && docker compose -f docker-compose.dev.yaml restart app",
     "dev:clean:full": "docker compose -f docker-compose.dev.yaml down && docker volume rm grading_app_node_modules 2>/dev/null || true && docker compose -f docker-compose.dev.yaml up -d",

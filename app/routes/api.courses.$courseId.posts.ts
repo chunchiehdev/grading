@@ -6,7 +6,7 @@ import {
   getPosts,
   canAccessCourse,
 } from '@/services/coursePost.server';
-import type { PostType } from '@/generated/prisma/client';
+import type { PostType } from '@/generated/prisma/client/client';
 
 // Validation schemas
 const CreatePostSchema = z.object({

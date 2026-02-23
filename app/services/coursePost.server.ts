@@ -1,5 +1,5 @@
 import { db } from '@/lib/db.server';
-import type { PostType, UserRole } from '@/generated/prisma/client';
+import type { PostType, UserRole } from '@/generated/prisma/client/client';
 
 // ============================================================================
 // Types

@@ -8,7 +8,7 @@ export {
   FileParseStatus,
   UserRole,
   SubmissionStatus,
-} from '../generated/prisma/client';
+} from '../generated/prisma/client/client';
 
 export type {
   User,
@@ -20,6 +20,6 @@ export type {
   GradingResult,
   AssignmentArea,
   Prisma,
-} from '../generated/prisma/client';
+} from '../generated/prisma/client/client';
 
 export { db } from '../lib/db.server';
