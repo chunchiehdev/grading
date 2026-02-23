@@ -10,7 +10,7 @@ data:
   POSTGRES_USER: "grading_admin"
   POSTGRES_DB: "grading_db"
   MINIO_ROOT_USER: "grading_admin"
-  PDF_PARSER_API_URL: "https://gradingpdf.grading.software"
+  PDF_PARSER_API_URL: "https://pdf.agenticgrader.com"
   PDF_PARSER_TIMEOUT_MS: "30000"
   PRISMA_LOG_LEVEL: "error"
   VLLM_BASE_URL: "https://earth-vllmapi.agenticgrader.com/v1"

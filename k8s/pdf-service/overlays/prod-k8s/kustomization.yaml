@@ -6,7 +6,7 @@ resources:
   - ingress.yaml
   - redis.yaml
 
-namespace: gradsystem-prod
+namespace: grading-pdf-prod
 
 
 images:

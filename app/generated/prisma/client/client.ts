@@ -259,7 +259,7 @@ const config: runtime.GetPrismaClientConfig = {
       "value": "prisma-client"
     },
     "output": {
-      "value": "/home/chunc/workspace/grading/app/generated/prisma/client",
+      "value": "/home/user/workspace/grading/app/generated/prisma/client",
       "fromEnvVar": null
     },
     "config": {
@@ -281,7 +281,7 @@ const config: runtime.GetPrismaClientConfig = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/home/chunc/workspace/grading/prisma/schema.prisma",
+    "sourceFilePath": "/home/user/workspace/grading/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativePath": "../../../../prisma",

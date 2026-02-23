@@ -14,10 +14,10 @@ spec:
   ingressClassName: nginx
   tls:
   - hosts:
-      - gradingpdf.grading.software
-    secretName: grading-pdf-tls
+      - pdf.agenticgrader.com
+    secretName: agenticgrader-pdf-prod-tls
   rules:
-  - host: gradingpdf.grading.software
+  - host: pdf.agenticgrader.com
     http:
       paths:
       - path: /

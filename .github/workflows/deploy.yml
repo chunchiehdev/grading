@@ -234,11 +234,15 @@ jobs:
           echo "NS=gradsystem-prod" >> $GITHUB_OUTPUT
           echo "JOB_NAME=db-migrate" >> $GITHUB_OUTPUT
           echo "BUCKET_JOB=createbuckets" >> $GITHUB_OUTPUT
+          echo "PDF_OVERLAY=k8s/pdf-service/overlays/prod-k8s" >> $GITHUB_OUTPUT
+          echo "PDF_NS=grading-pdf-prod" >> $GITHUB_OUTPUT
         else
           echo "OVERLAY=k8s/main-service/overlays/dev-k8s" >> $GITHUB_OUTPUT
           echo "NS=gradsystem-dev" >> $GITHUB_OUTPUT
           echo "JOB_NAME=db-migrate-dev" >> $GITHUB_OUTPUT
           echo "BUCKET_JOB=createbuckets-dev" >> $GITHUB_OUTPUT
+          echo "PDF_OVERLAY=k8s/pdf-service/overlays/dev-k8s" >> $GITHUB_OUTPUT
+          echo "PDF_NS=grading-pdf-dev" >> $GITHUB_OUTPUT
         fi
 
     - name: Generate secrets
@@ -285,6 +289,22 @@ jobs:
         echo "⏳ Waiting for Mars rollout..."
         kubectl rollout status deployment -n $NS -l app.kubernetes.io/name=gradsystem --timeout=300s
         echo "✅ Mars deployment complete!"
+
+    - name: Deploy pdf-service
+      env:
+        KUBECONFIG: ./kubeconfig_mars
+      run: |
+        PDF_OVERLAY="${{ steps.vars.outputs.PDF_OVERLAY }}"
+        PDF_NS="${{ steps.vars.outputs.PDF_NS }}"
+
+        kubectl apply -k $PDF_OVERLAY
+
+        echo "⏳ Waiting for pdf-service rollout..."
+        kubectl rollout status deployment -n $PDF_NS --timeout=300s || {
+          echo "⚠️  pdf-service rollout timed out"
+          kubectl get pods -n $PDF_NS
+        }
+        echo "✅ pdf-service deployment complete!"
 
     - name: Cleanup
       if: always()

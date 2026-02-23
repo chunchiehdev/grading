@@ -13,6 +13,7 @@ import { RubricPreview } from '@/components/rubrics/RubricPreview';
 import { AIRubricAssistant } from '@/components/rubrics/AIRubricAssistant';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ErrorPage } from '@/components/errors/ErrorPage';
+import { getKemberRubricTemplate } from '@/utils/kember-rubric-template';
 
 import type { UICategory, UICriterion, UIRubricData, Level } from '@/utils/rubric-transform';
 
@@ -276,6 +277,24 @@ export default function NewRubricRoute() {
     setShowAIAssistant(false);
   };
 
+  const handleApplyKemberTemplate = () => {
+    if (rubricData.categories.length > 0 || rubricData.name || rubricData.description) {
+      if (!confirm('這樣會覆蓋您目前編輯的內容，確定要套用 Kember 範本嗎？')) {
+        return;
+      }
+    }
+
+    const kemberRubric = getKemberRubricTemplate();
+    setRubricData(kemberRubric);
+
+    if (kemberRubric.categories.length > 0) {
+      setSelectedCategoryId(kemberRubric.categories[0].id);
+      if (kemberRubric.categories[0].criteria.length > 0) {
+        setSelectedCriterionId(kemberRubric.categories[0].criteria[0].id);
+      }
+    }
+  };
+
   // Draft recovery on mount
   useEffect(() => {
     // Only run on client side
@@ -366,7 +385,20 @@ export default function NewRubricRoute() {
             {t('rubric:header.newRubricTitle')}
           </h1>
         </div>
-        <p className="text-sm sm:text-base lg:text-lg text-muted-foreground mb-3">{t('rubric:newRubricSubtitle')}</p>
+        <p className="text-sm sm:text-base lg:text-lg text-muted-foreground mb-4">
+          您可以手動建立評分標準，或是直接點擊下方套用專業範本。
+        </p>
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleApplyKemberTemplate}
+            className="rounded-full shadow-sm hover:bg-primary/10 transition-colors"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            套用 Kember (2008) 批判性反思範本
+          </Button>
+        </div>
         {/* Clear draft button */}
         {(rubricData.name || rubricData.categories.length > 0) && (
           <Button
