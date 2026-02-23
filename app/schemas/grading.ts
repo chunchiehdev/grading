@@ -24,11 +24,20 @@ export const CriteriaBreakdownSchema = z.object({
   feedback: z.string(),
 });
 
-// Sparring question schema
+// Sparring question schema (allow clarification/extension for backward compat with agent output)
 export const SparringQuestionSchema = z.object({
   related_rubric_id: z.string(),
   target_quote: z.string(),
-  provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'warrant_probe', 'metacognitive', 'conceptual']),
+  provocation_strategy: z.enum([
+    'evidence_check',
+    'logic_gap',
+    'counter_argument',
+    'warrant_probe',
+    'metacognitive',
+    'conceptual',
+    'clarification', // legacy/agent variant
+    'extension',     // legacy/agent variant
+  ]),
   question: z.string(),
   ai_hidden_reasoning: z.string(),
 });

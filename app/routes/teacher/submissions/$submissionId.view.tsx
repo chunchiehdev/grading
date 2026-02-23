@@ -272,6 +272,8 @@ export default function TeacherSubmissionView() {
                 thinkingProcess={submission.grading.thinkingProcess}
                 thoughtSummary={submission.grading.thoughtSummary}
                 gradingRationale={submission.grading.gradingRationale}
+                studentName={submission.student.name}
+                studentPicture={submission.student.picture}
               />
             )}
 
@@ -378,6 +380,8 @@ export default function TeacherSubmissionView() {
                 thinkingProcess={submission.grading.thinkingProcess}
                 thoughtSummary={submission.grading.thoughtSummary}
                 gradingRationale={submission.grading.gradingRationale}
+                studentName={submission.student.name}
+                studentPicture={submission.student.picture}
               />
             )}
 

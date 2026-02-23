@@ -22,11 +22,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const { formatDateForDisplay } = await import('@/lib/date.server');
   const formattedUploadedAt = formatDateForDisplay(submission.uploadedAt);
 
-  return { student, submission: { ...submission, formattedUploadedAt } };
+  return {
+    student: { name: student.name, picture: student.picture },
+    submission: { ...submission, formattedUploadedAt },
+  };
 }
 
 export default function StudentSubmissionDetail() {
-  const { submission } = useLoaderData<typeof loader>();
+  const { student, submission } = useLoaderData<typeof loader>();
   const { t } = useTranslation(['submissions']);
   const a = submission.assignmentArea;
 
@@ -102,6 +105,8 @@ export default function StudentSubmissionDetail() {
                   normalizedScore={submission.normalizedScore}
                   thinkingProcess={submission.thinkingProcess}
                   gradingRationale={submission.gradingRationale}
+                  studentName={student.name}
+                  studentPicture={student.picture}
                 />
               ) : (
                 <div className="border-2 border-[#2B2B2B] p-12 text-center dark:border-gray-200">

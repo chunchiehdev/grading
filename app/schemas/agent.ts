@@ -169,6 +169,12 @@ export const GenerateFeedbackInputSchema = z.object({
       justification: z.string().optional().describe('【給教師看】簡短的給分理由'),
     })
   ),
+  overallFeedback: z.string().describe(`【必填】給學生看的整體回饋，2-4 句話。包含：
+1. 整體表現總評
+2. 最大的優點
+3. 最需改進的點
+4. 一句鼓勵語
+語氣溫暖，像班導師對學生說話。`),
   overallObservation: z.string(),
   messageToStudent: z.string().optional().describe('給學生的友善回饋，語氣溫暖'),
   topPriority: z.string().optional().describe('學生最需要改進的一件事'),
@@ -176,8 +182,8 @@ export const GenerateFeedbackInputSchema = z.object({
   strengths: z.array(z.string()).optional(),
   improvements: z.array(z.string()).optional(),
   // 對練問題（Sparring Questions）- 必填！
-  sparringQuestions: z.array(SparringQuestionSchema).min(1).describe(`
-    【必填】針對學生表現最差或最具爭議的點生成的 5 個對練問題。
+  sparringQuestions: z.array(SparringQuestionSchema).min(1).max(3).describe(`
+    【必填】針對學生表現最差或最具爭議的點生成 3 個對練問題。
     目的是引導學生反思，而非直接給答案。
     每個問題必須：
     1. 引用學生文章中的具體段落 (target_quote)

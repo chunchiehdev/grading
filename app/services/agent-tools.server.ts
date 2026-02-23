@@ -115,14 +115,19 @@ export const generateFeedbackTool = tool({
 
   ⚠️ **重要：以下欄位為必填！**
   
-  1. **reasoning** - 完整的評分推理過程：
+  1. **overallFeedback** - 給學生的整體回饋【必填！】：
+     - 2-4 句話，語氣溫暖像班導師
+     - 包含：整體表現、最大優點、最需改進點、鼓勵語
+     - 這直接顯示在評分結果頁面，不能為空
+
+  2. **reasoning** - 完整的評分推理過程：
      - 對每個評分項目的逐項分析
      - 引用學生原文作為證據（用「」標示）
      - 解釋為什麼給這個分數
      - 指出優點和可改進之處
   
-  2. **sparringQuestions** - 對練問題【必填！】：
-     - 至少生成 1 個挑戰性問題
+  3. **sparringQuestions** - 對練問題【必填！生成 3 個】：
+     - 生成 3 個挑戰性問題
      - 選擇學生表現最弱的評分維度
      - 必須包含：related_rubric_id, target_quote, provocation_strategy, question, ai_hidden_reasoning
      - 這是系統核心功能，缺少會導致錯誤
@@ -139,7 +144,7 @@ export const generateFeedbackTool = tool({
 
   inputSchema: GenerateFeedbackInputSchema,
 
-  execute: async ({ reasoning, criteriaScores, overallObservation, strengths, improvements, messageToStudent, topPriority, encouragement, sparringQuestions }) => {
+  execute: async ({ reasoning, criteriaScores, overallObservation, overallFeedback: directOverallFeedback, strengths, improvements, messageToStudent, topPriority, encouragement, sparringQuestions }) => {
     // Debug: Log sparringQuestions input from AI (CRITICAL DEBUG)
     logger.info(`🎯 [Agent Tool] generate_feedback called - sparringQuestions: ${sparringQuestions ? `YES (${sparringQuestions.length})` : 'NO/UNDEFINED'}`);
     if (sparringQuestions && sparringQuestions.length > 0) {
@@ -188,8 +193,8 @@ This is a mandatory requirement. Please retry and include the 'sparringQuestions
       };
     });
 
-    // 生成整體評語
-    let overallFeedback = messageToStudent || overallObservation;
+    // 生成整體評語：優先使用 LLM 直接生成的 overallFeedback
+    let overallFeedback = (directOverallFeedback || messageToStudent || overallObservation || '').trim();
 
     if (topPriority) {
       overallFeedback += `\n\n**優先改進：**\n${topPriority}`;
@@ -203,8 +208,8 @@ This is a mandatory requirement. Please retry and include the 'sparringQuestions
       overallFeedback += `\n\n**改進建議：**\n${improvements.map((i: any) => `- ${i}`).join('\n')}`;
     }
 
-    if (encouragement) {
-      overallFeedback += `\n\n${encouragement}`;
+    if (encouragement?.trim()) {
+      overallFeedback += `\n\n${encouragement.trim()}`;
     } else {
       // 根據得分提供鼓勵或建議 (Fallback)
       if (percentage >= 90) {
@@ -218,6 +223,10 @@ This is a mandatory requirement. Please retry and include the 'sparringQuestions
       }
     }
 
+    // Ultimate fallback: ensure overallFeedback is never empty
+    const finalOverallFeedback = overallFeedback.trim() ||
+      (percentage >= 70 ? '整體表現良好，仍有進步空間。' : '建議重新檢視作業要求，並針對評分標準逐項改進。');
+
     logger.debug('[Agent Tool] Feedback generated', {
       totalScore,
       maxScore,
@@ -230,7 +239,7 @@ This is a mandatory requirement. Please retry and include the 'sparringQuestions
     return {
       reasoning, // 保存評分推理過程
       breakdown,
-      overallFeedback: overallFeedback.trim(),
+      overallFeedback: finalOverallFeedback,
       totalScore,
       maxScore,
       percentage: Math.round(percentage),

@@ -514,11 +514,15 @@ export async function processGradingResult(
             }
           : null;
 
-      // Success - save result with context metadata and thought summary
-      // Note: We convert to plain objects for Prisma's JSON field compatibility
-      // (Prisma's InputJsonObject type requires flexibility for structured data)
-      // Also extract overallFeedback as string (handles both string and structured formats)
-      const overallFeedbackStr = extractOverallFeedback(gradingResponse.result) || '';
+      // Read overallFeedback directly — avoid extractOverallFeedback which validates the
+      // entire result object and fails when unrelated fields (e.g. sparringQuestions enum) are invalid
+      const rawFeedback = gradingResponse.result.overallFeedback;
+      const overallFeedbackStr: string =
+        typeof rawFeedback === 'string'
+          ? rawFeedback
+          : (rawFeedback && typeof rawFeedback === 'object' && 'summary' in rawFeedback
+              ? String((rawFeedback as Record<string, unknown>).summary ?? '')
+              : '');
 
       // 🔍 CRITICAL DEBUG: Check sparringQuestions BEFORE saving to DB
       logger.info(`🔍 [DB Save] gradingResponse.result.sparringQuestions: ${JSON.stringify(gradingResponse.result.sparringQuestions || 'UNDEFINED').substring(0, 300)}`);
@@ -604,7 +608,13 @@ export async function processGradingResult(
 
       // Include fallback result if provided (prevents null in database)
       if (gradingResponse.result) {
-        const overallFeedbackStr = extractOverallFeedback(gradingResponse.result) || '';
+        const fallbackRaw = gradingResponse.result.overallFeedback;
+        const overallFeedbackStr: string =
+          typeof fallbackRaw === 'string'
+            ? fallbackRaw
+            : (fallbackRaw && typeof fallbackRaw === 'object' && 'summary' in fallbackRaw
+                ? String((fallbackRaw as Record<string, unknown>).summary ?? '')
+                : '');
         updateData.result = {
           totalScore: gradingResponse.result.totalScore,
           maxScore: gradingResponse.result.maxScore,

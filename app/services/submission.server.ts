@@ -318,7 +318,13 @@ export async function createSubmissionAndLinkGradingResult(
     });
 
     if (gradingResult && gradingResult.result) {
-      const aiAnalysisResult = parseGradingResult(gradingResult.result);
+      let aiAnalysisResult = parseGradingResult(gradingResult.result);
+      // Fallback: if strict Zod validation fails (e.g. new enum values in sparringQuestions),
+      // use the raw DB value directly so we don't lose the entire result
+      if (!aiAnalysisResult && typeof gradingResult.result === 'object') {
+        logger.warn(`⚠️ parseGradingResult failed for result ${gradingResult.id}, using raw DB value as fallback`);
+        aiAnalysisResult = gradingResult.result as GradingResultData;
+      }
       // Attach chat messages into the AI Analysis Result to preserve history in the DB
       if (aiAnalysisResult && chatMessages.length > 0) {
         (aiAnalysisResult as any).chatHistory = chatMessages;

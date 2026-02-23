@@ -6,7 +6,7 @@ import { GradingResultData } from '@/types/grading';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { ChevronDown, Loader2, MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 
@@ -21,6 +21,8 @@ interface GradingResultDisplayProps {
   className?: string;
   onRetry?: () => void;
   isLoading?: boolean;
+  studentName?: string;
+  studentPicture?: string | null;
 }
 
 
@@ -63,6 +65,8 @@ export function GradingResultDisplay({
   className,
   onRetry,
   isLoading,
+  studentName,
+  studentPicture,
 }: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
 
@@ -161,39 +165,81 @@ export function GradingResultDisplay({
             </div>
           </section>
 
-          {/* Chat History */}
-          {safeResult.chatHistory && safeResult.chatHistory.length > 0 && (
-            <section className="p-2 space-y-4">
-              <h3 className="text-sm font-medium border-b pb-2">{t('result.chatHistory', '對談紀錄')}</h3>
-              <div className="space-y-4">
-                {safeResult.chatHistory.map((msg: any, i: number) => (
-                  <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <Avatar className="h-8 w-8 shrink-0">
-                      {msg.role === 'user' ? (
-                        <>
-                          <AvatarFallback>U</AvatarFallback>
-                        </>
-                      ) : (
-                        <>
-                          <AvatarImage src="/images/kember-avatar.png" />
-                          <AvatarFallback className="bg-primary/10 text-primary">AI</AvatarFallback>
-                        </>
-                      )}
-                    </Avatar>
-                    <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                      <div className={`px-4 py-2.5 rounded-2xl text-sm ${
-                        msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                          : 'bg-muted/50 border border-border/50 text-foreground rounded-tl-sm'
-                      }`}>
-                        <Markdown>{msg.content}</Markdown>
-                      </div>
+          {/* Chat History — collapsible, default closed */}
+          {safeResult.chatHistory && safeResult.chatHistory.length > 0 && (() => {
+            const TRIGGER_TEXT = '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。';
+            const filteredChat = safeResult.chatHistory.filter((msg: any) => {
+              const text = msg.content
+                || msg.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
+              return text && text !== TRIGGER_TEXT;
+            });
+            if (filteredChat.length === 0) return null;
+            const studentInitial = studentName?.[0]?.toUpperCase() || 'S';
+            const msgCount = filteredChat.length;
+            return (
+              <Collapsible defaultOpen={false} className="group/chat">
+                <CollapsibleTrigger asChild>
+                  <button className="w-full flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-muted/40 transition-colors">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <span>{t('result.chatHistory', '對談紀錄')}</span>
+
                     </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]/chat:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-3 pt-2 pb-1 px-1">
+                    {filteredChat.map((msg: any, i: number) => {
+                      const text = msg.content
+                        || msg.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
+                      const isUser = msg.role === 'user';
+                      return (
+                        <div key={i} className={cn('flex gap-2.5', isUser ? 'flex-row-reverse' : 'flex-row')}>
+                          <Avatar className={cn('h-7 w-7 shrink-0 mt-0.5', isUser ? 'ring-2 ring-primary/20' : 'ring-2 ring-[#E07A5F]/20')}>
+                            {isUser ? (
+                              <>
+                                {studentPicture && <AvatarImage src={studentPicture} alt={studentName || 'Student'} />}
+                                <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                                  {studentInitial}
+                                </AvatarFallback>
+                              </>
+                            ) : (
+                              <AvatarFallback className="bg-[#E07A5F]/10 p-1">
+                                <img src="/rubric.svg" alt="" className="h-full w-full" />
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                          <div className={cn('flex flex-col max-w-[80%]', isUser ? 'items-end' : 'items-start')}>
+                            {isUser && (
+                              <span className="text-[11px] text-muted-foreground/60 mb-1 px-1">
+                                {studentName || t('result.student', '學生')}
+                              </span>
+                            )}
+                            <div className={cn(
+                              'px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed',
+                              isUser
+                                ? 'bg-[hsl(var(--accent-emphasis))] text-[hsl(var(--accent-emphasis-foreground))] rounded-tr-sm'
+                                : 'bg-muted/60 border border-border/40 text-foreground rounded-tl-sm',
+                            )}>
+                              <div className={cn(
+                                'prose prose-sm max-w-none prose-p:my-1 prose-p:leading-relaxed',
+                                isUser
+                                  ? '[&_*]:text-[hsl(var(--accent-emphasis-foreground))]'
+                                  : 'dark:prose-invert',
+                              )}>
+                                <Markdown>{text}</Markdown>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })()}
 
           {/* Detailed criteria: direct stack */}
           <section>

@@ -126,14 +126,14 @@ function buildGradingSystemPrompt(ctx: GradingContext, isDirectMode: boolean = f
 
   // Core role definition with sparringQuestions requirement upfront
   const baseRole = isZh
-    ? `【重要】調用 generate_feedback 時，sparringQuestions 欄位為必填（至少 5 個問題）。
+    ? `【重要】調用 generate_feedback 時，sparringQuestions 欄位為必填（至少 3 個問題）。
 
 ---
 
 你是一位具有 15 年經驗的資深學科教師，專長於寫作教學與形成性評量。
 你熟悉 Rubric-Based Assessment、SOLO Taxonomy、Bloom's Taxonomy、Diagnostic Feedback 等教育評量方法。
 你的評分風格嚴謹但具建設性，重視 Evidence-Based Assessment（證據本位評量）。`
-    : `【IMPORTANT】When calling generate_feedback, sparringQuestions field is REQUIRED (minimum 5 questions).
+    : `【IMPORTANT】When calling generate_feedback, sparringQuestions field is REQUIRED (minimum 3 questions).
 
 ---
 
@@ -188,6 +188,13 @@ Prestructural（離題）→ Unistructural（單點）→ Multistructural（多�
 
 ## generate_feedback 欄位說明
 
+### overallFeedback【必填】
+給學生看的整體回饋，2-4 句話，語氣溫暖像班導師：
+- 整體表現總評
+- 最大優點
+- 最需改進點
+- 一句鼓勵
+
 ### reasoning（給教師）
 完整的專業評分推理，格式範例：
 \`\`\`
@@ -211,7 +218,7 @@ Revision Strategy：引用 Sherry Turkle「Alone Together」概念
 ### 整體摘要
 - overallObservation, strengths (2-3 個), improvements (2-3 個)
 
-### sparringQuestions【必填，5 個】
+### sparringQuestions【必填，3 個】
 針對學生作業生成「促進反思」的問題（非糾錯導向）：
 
 **設計原則**：
@@ -228,7 +235,7 @@ Revision Strategy：引用 Sherry Turkle「Alone Together」概念
 - 「conceptual」(L4): 概念辯證 — 『理想』對你來說意味著什麼？
 
 **限制**：
-- 至少 3 個問題必須是 L3+ 層級 (logic_gap / counter_argument / metacognitive / conceptual)
+- 至少 2 個問題必須是 L3+ 層級 (logic_gap / counter_argument / metacognitive / conceptual)
 - 避免只問「可以講具體一點嗎？」這類純澄清問題
 
 **provocation_strategy 選項**：evidence_check | logic_gap | counter_argument | warrant_probe | metacognitive | conceptual
@@ -264,7 +271,7 @@ Revision Strategy：引用 Sherry Turkle「Alone Together」概念
 
 1. **輸出思考**：閱讀作業，逐項對照 Rubric，引用原文
 2. **calculate_confidence**：說明初步分析與信心
-3. **generate_feedback**：提煉完整評分（含 5 個 sparringQuestions）
+3. **generate_feedback**：提煉完整評分（含 3 個 sparringQuestions）
 
 **重要**：必須先輸出文字再呼叫工具。直接呼叫工具是錯誤的。
 `;
@@ -754,8 +761,9 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
               feedback: c.analysis || c.justification || c.evidence || '無具體回饋',
             }));
             
-            // Build overallFeedback from multiple sources
-            let overallFeedback = args.messageToStudent || args.overallObservation || '';
+            // Build overallFeedback from multiple sources (must match agent-tools execute logic)
+            // Schema 必填是 overallFeedback，LLM 常只填它而沒填 messageToStudent/overallObservation
+            let overallFeedback = (args.overallFeedback || args.messageToStudent || args.overallObservation || '').trim();
             if (args.topPriority) {
               overallFeedback += `\n\n**優先改進：**\n${args.topPriority}`;
             }
@@ -765,17 +773,24 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
             if (args.improvements?.length > 0) {
               overallFeedback += `\n\n**改進建議：**\n${args.improvements.map((i: string) => `- ${i}`).join('\n')}`;
             }
-            if (args.encouragement) {
-              overallFeedback += `\n\n${args.encouragement}`;
+            if (args.encouragement?.trim()) {
+              overallFeedback += `\n\n${args.encouragement.trim()}`;
+            } else {
+              if (percentage >= 90) overallFeedback += '\n\n表現優異！繼續保持！';
+              else if (percentage >= 70) overallFeedback += '\n\n整體表現良好，仍有進步空間。';
+              else if (percentage >= 50) overallFeedback += '\n\n表現尚可，建議加強以下方面的學習。';
+              else overallFeedback += '\n\n建議重新檢視作業要求，並針對評分標準逐項改進。';
             }
-            
+            const finalOverallFeedback = overallFeedback.trim() ||
+              (percentage >= 70 ? '整體表現良好，仍有進步空間。' : '建議重新檢視作業要求，並針對評分標準逐項改進。');
+
             // Only set as fallback if we don't already have a result
             // tool-result will override this if it arrives
             if (!finalResult) {
               finalResult = {
                 reasoning: args.reasoning,
                 breakdown,
-                overallFeedback: overallFeedback.trim(),
+                overallFeedback: finalOverallFeedback,
                 totalScore,
                 maxScore,
                 percentage: Math.round(percentage),
@@ -914,13 +929,16 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       }));
     }
 
-    // Ensure overallFeedback exists
-    if (
-      finalResult &&
-      !finalResult.overallFeedback &&
-      (finalResult.messageToStudent || finalResult.overallObservation)
-    ) {
-      finalResult.overallFeedback = finalResult.messageToStudent || finalResult.overallObservation;
+    // Ensure overallFeedback is never empty (early_capture or tool-result can leave it blank)
+    if (finalResult && !(finalResult.overallFeedback && finalResult.overallFeedback.trim())) {
+      finalResult.overallFeedback =
+        finalResult.messageToStudent?.trim() ||
+        finalResult.overallObservation?.trim() ||
+        (finalResult.totalScore != null && finalResult.maxScore != null && finalResult.maxScore > 0
+          ? (finalResult.totalScore / finalResult.maxScore) >= 0.7
+            ? '整體表現良好，仍有進步空間。'
+            : '建議重新檢視作業要求，並針對評分標準逐項改進。'
+          : '評分已完成，請參閱各項目的回饋。');
     }
 
     logger.info('[Agent] Grading completed', {

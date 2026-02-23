@@ -36,13 +36,15 @@ export interface Rubric {
   criteria: RubricCriteria[];
 }
 
-export type ProvocationStrategy = 
-  | 'evidence_check'    // L2: 查證數據來源
-  | 'logic_gap'         // L3: 指出邏輯跳躍
-  | 'counter_argument'  // L3: 提供反方觀點
-  | 'warrant_probe'     // L2: 追問理由（取代 clarification）
-  | 'metacognitive'     // L3: 詢問寫作選擇
-  | 'conceptual';       // L4: 概念辯證（取代 extension）
+export type ProvocationStrategy =
+  | 'evidence_check'
+  | 'logic_gap'
+  | 'counter_argument'
+  | 'warrant_probe'
+  | 'metacognitive'
+  | 'conceptual'
+  | 'clarification'   // legacy/agent variant
+  | 'extension';     // legacy/agent variant
 
 export interface SparringQuestion {
   related_rubric_id: string;   // 對應的評分維度 ID (用於量化分析)
