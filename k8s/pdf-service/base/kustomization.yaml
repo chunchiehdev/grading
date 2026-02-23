@@ -6,6 +6,9 @@ resources:
   - deployment-worker.yaml
   - service.yaml
 
-commonLabels:
-  app.kubernetes.io/name: grading-pdf
-  app.kubernetes.io/component: pdf-service
+labels:
+  - pairs:
+      app.kubernetes.io/name: grading-pdf
+      app.kubernetes.io/component: pdf-service
+    includeSelectors: false
+    includeTemplates: true
