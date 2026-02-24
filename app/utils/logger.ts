@@ -1,18 +1,25 @@
 import pino from 'pino';
 
-/**
- * Configured Pino logger instance with environment-based settings
- *
- * Log levels (from lowest to highest):
- * - trace: 最詳細的追蹤資訊
- * - debug: 除錯資訊
- * - info: 一般資訊（預設）
- * - warn: 警告訊息
- * - error: 錯誤訊息
- * - fatal: 致命錯誤
- *
- */
-const logger = pino({
+type LogFn = {
+  <T extends object>(obj: T, msg?: string, ...args: unknown[]): void;
+  (msg: string, ...args: unknown[]): void;
+};
+
+export interface AppLogger {
+  level: string;
+  fatal: LogFn;
+  error: LogFn;
+  warn: LogFn;
+  info: LogFn;
+  debug: LogFn;
+  trace: LogFn;
+  silent: LogFn;
+  child(bindings: Record<string, unknown>): AppLogger;
+  isLevelEnabled(level: string): boolean;
+  flush(cb?: (err?: Error) => void): void;
+}
+
+const logger: AppLogger = pino({
   level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
   transport: {
     target: 'pino-pretty',
@@ -20,13 +27,9 @@ const logger = pino({
       colorize: true,
       translateTime: 'SYS:standard',
       ignore: 'pid,hostname',
-      singleLine: false, // Allow multi-line output for better readability
+      singleLine: false,
     },
   },
-});
+}) as unknown as AppLogger;
 
-/**
- * Default export of the configured logger instance
- * @module logger
- */
 export default logger;

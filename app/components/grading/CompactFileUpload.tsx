@@ -114,7 +114,7 @@ export const CompactFileUpload = ({
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         className={cn(
-          'border-2 border-dashed p-8 flex flex-col items-center justify-center gap-4 transition-colors',
+          'border-2 border-dashed p-4 sm:p-8 flex flex-col items-center justify-center gap-3 sm:gap-4 transition-colors',
           isDragging
             ? 'border-[#D2691E] bg-[#D2691E]/5 dark:border-[#E87D3E]'
             : isSuccess

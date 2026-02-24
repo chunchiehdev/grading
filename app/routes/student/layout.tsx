@@ -102,7 +102,7 @@ export default function StudentLayout() {
   );
 
   return (
-    <div>
+    <div className="h-full">
       {/* Loading indicator */}
       {isNavigating && (
         <div className="fixed top-0 left-0 right-0 z-50 h-1 bg-primary/20">
@@ -110,7 +110,7 @@ export default function StudentLayout() {
         </div>
       )}
 
-      <div className="w-[90%] sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto pt-6 md:pt-8 lg:pt-10 xl:pt-12 2xl:pt-16">
+      <div className="h-full w-full sm:w-[90%] lg:w-[85%] xl:w-[80%] mx-auto pt-0 sm:pt-6 md:pt-8 lg:pt-10 xl:pt-12 2xl:pt-16">
         <Outlet />
       </div>
     </div>

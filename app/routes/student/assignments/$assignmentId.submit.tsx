@@ -713,7 +713,7 @@ export default function SubmitAssignment() {
   };
 
   return (
-    <div ref={containerRef} className="h-full w-full flex flex-col">
+    <div ref={containerRef} className="w-full flex flex-col lg:h-full">
       {/* Desktop: Split Panel Layout (lg and above) */}
       <div className="hidden lg:flex flex-row flex-1 overflow-hidden min-h-0">
         {/* Left Column: Assignment Cards - Scrollable */}
@@ -1034,7 +1034,7 @@ export default function SubmitAssignment() {
       </div>
 
       {/* Mobile: Tab Navigation (below lg) */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-col h-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-col">
         <div className="border-b border-border shrink-0 bg-background">
           <TabsList className="w-full h-12 bg-transparent border-0 rounded-none p-0 grid grid-cols-2">
             <TabsTrigger value="info" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
@@ -1046,206 +1046,278 @@ export default function SubmitAssignment() {
           </TabsList>
         </div>
         
-        <TabsContent value="info" className="flex-1 overflow-y-auto m-0 p-4 space-y-4 min-h-0">
-          {/* Assignment Info Card - Combined - Bento Style */}
-          <div className="rounded-2xl bg-card border border-border p-5 space-y-4">
-            {/* Header */}
-            <div>
-              <h1 className="mb-2 text-xl font-semibold text-foreground">{assignment.name}</h1>
-              <p className="text-sm text-muted-foreground">{assignment.course.name}</p>
-            </div>
-
-            {/* Description */}
-            {assignment.description && (
-              <div className="border-t border-border pt-4">
-                <h2 className="mb-2 text-sm font-semibold text-foreground">{t('assignment:submit.assignmentDescription')}</h2>
-                <p className="text-sm whitespace-pre-wrap text-muted-foreground leading-relaxed">{assignment.description}</p>
-              </div>
-            )}
-
-            {/* Due Date */}
-            {assignment.dueDate && (
-              <div className="border-t border-border pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">{t('assignment:submit.dueDate')}</span>
-                  <span className={`text-sm font-medium ${isOverdue ? 'text-destructive' : 'text-foreground'}`}>
-                    {assignment.formattedDueDate}
-                    {isOverdue && ` (${t('assignment:submit.overdueLabel')})`}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Rubric Card - Bento Style */}
-          {assignment.rubric && (
-            <div className="rounded-2xl bg-card border border-border p-5">
-              <div className="space-y-3">
-                {/* Rubric Header */}
+        <TabsContent value="info" className="m-0">
+          <div className="flex flex-col min-h-[calc(100dvh-10rem)] px-4 py-2">
+            <div className="space-y-2 flex-1">
+              {/* Assignment Info Card */}
+              <div className="rounded-2xl bg-card border border-border p-4 space-y-3">
                 <div>
-                  <h2 className="text-base font-semibold text-foreground mb-1">
-                    {t('assignment:submit.rubricCriteria')}
-                  </h2>
-                  <h3 className="text-sm font-medium text-foreground">
-                    {assignment.rubric.name}
-                  </h3>
-                  {assignment.rubric.description && (
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {assignment.rubric.description}
-                    </p>
-                  )}
+                  <h1 className="mb-1 text-lg font-semibold text-foreground">{assignment.name}</h1>
+                  <p className="text-xs text-muted-foreground">{assignment.course.name}</p>
                 </div>
-
-                {/* Categories */}
-                {rubricCategories.length > 0 ? (
-                  <div className="space-y-2">
-                    {rubricCategories.map((category, categoryIndex) => {
-                      const isExpanded = expandedCategories.has(category.id);
-
-                      return (
-                        <div key={category.id} className="rounded-xl bg-card border border-border overflow-hidden">
-                          <button
-                            onClick={() => toggleCategory(category.id)}
-                            className="w-full bg-muted/50 p-3 text-left hover:bg-muted transition-colors"
-                          >
-                            <div className="flex items-center gap-2">
-                              <svg className={`h-3 w-3 flex-shrink-0 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                              <h4 className="text-sm font-medium text-foreground truncate">
-                                {category.name}
-                              </h4>
-                              <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
-                                {category.criteria.length} {t('common:items', '項')}
-                              </span>
-                            </div>
-                          </button>
-
-                          {isExpanded && (
-                            <div className="divide-y divide-border bg-card">
-                              {category.criteria.map((criterion, criterionIndex) => (
-                                <button
-                                  key={criterion.id}
-                                  className="w-full p-3 text-left transition-colors hover:bg-accent/50 active:bg-accent/70"
-                                  onClick={() => setSelectedCriterion({
-                                    name: criterion.name,
-                                    description: criterion.description,
-                                    levels: criterion.levels,
-                                    label: `${categoryIndex + 1}.${criterionIndex + 1}`,
-                                  })}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium text-foreground">
-                                        {categoryIndex + 1}.{criterionIndex + 1} {criterion.name}
-                                      </p>
-                                    </div>
-                                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                {assignment.description && (
+                  <div className="border-t border-border pt-3">
+                    <p className="text-sm whitespace-pre-wrap text-muted-foreground leading-relaxed line-clamp-4">{assignment.description}</p>
                   </div>
+                )}
+              </div>
+
+              {/* Due Date Card (mobile) */}
+              {assignment.dueDate && (
+                <div className="rounded-2xl bg-card border border-border p-4">
+                  <h2 className="mb-2 text-sm font-semibold text-foreground">
+                    {t('assignment:submit.dueDate')}
+                  </h2>
+                  <div className="flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {assignment.formattedDueDate}
+                      </span>
+                    </div>
+                    {isOverdue && (
+                      <span className="text-xs font-semibold text-destructive">
+                        {t('assignment:submit.overdueLabel')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Rubric Card */}
+              {assignment.rubric && (
+                <div className="rounded-2xl bg-card border border-border p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-sm font-semibold text-foreground">
+                        {t('assignment:submit.rubricCriteria')}
+                      </h2>
+                      <span className="text-xs text-muted-foreground">{assignment.rubric.name}</span>
+                    </div>
+                    {assignment.rubric.description && (
+                      <p className="text-xs leading-relaxed text-muted-foreground">
+                        {assignment.rubric.description}
+                      </p>
+                    )}
+                    {rubricCategories.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {rubricCategories.map((category, categoryIndex) => {
+                          const isExpanded = expandedCategories.has(category.id);
+                          return (
+                            <div key={category.id} className="rounded-lg bg-card border border-border overflow-hidden">
+                              <button
+                                onClick={() => toggleCategory(category.id)}
+                                className="w-full bg-muted/50 px-3 py-2 text-left hover:bg-muted transition-colors"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <svg className={`h-3 w-3 flex-shrink-0 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                  </svg>
+                                  <h4 className="text-xs font-medium text-foreground truncate">{category.name}</h4>
+                                  <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
+                                    {category.criteria.length} {t('common:items', '項')}
+                                  </span>
+                                </div>
+                              </button>
+                              {isExpanded && (
+                                <div className="divide-y divide-border bg-card">
+                                  {category.criteria.map((criterion, criterionIndex) => (
+                                    <button
+                                      key={criterion.id}
+                                      className="w-full px-3 py-2 text-left transition-colors hover:bg-accent/50 active:bg-accent/70"
+                                      onClick={() => setSelectedCriterion({
+                                        name: criterion.name,
+                                        description: criterion.description,
+                                        levels: criterion.levels,
+                                        label: `${categoryIndex + 1}.${criterionIndex + 1}`,
+                                      })}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs font-medium text-foreground">
+                                            {categoryIndex + 1}.{criterionIndex + 1} {criterion.name}
+                                          </p>
+                                        </div>
+                                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-border p-4 text-center bg-muted/20">
+                        <p className="text-sm text-muted-foreground">{t('assignment:submit.noCriteriaSet')}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* File Upload Card */}
+              <div className="rounded-2xl bg-card border border-border p-4">
+                <h2 className="mb-3 text-sm font-semibold text-foreground">{t('assignment:submit.uploadWork')}</h2>
+                {state.phase === 'upload' ? (
+                  <CompactFileUpload maxFiles={1} onUploadComplete={handleFileUpload} />
                 ) : (
-                  <div className="rounded-xl border border-border p-6 text-center bg-muted/20">
-                    <p className="text-sm text-muted-foreground">{t('assignment:submit.noCriteriaSet')}</p>
+                  <div className="space-y-4">
+                    {/* Uploaded file display */}
+                    <div className="flex items-center gap-3 rounded-xl bg-muted/50 border border-border p-3">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                        <FileText className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{state.file?.name}</p>
+                        <p className="text-xs text-muted-foreground">{Math.round((state.file?.size || 0) / 1024)} KB</p>
+                      </div>
+                    </div>
+
+                    {/* Direct Grading Switch */}
+                    {(state.phase === 'analyze' || state.phase === 'submit') && !state.loading && (
+                      <div className="flex items-center gap-3 rounded-xl bg-muted/30 border border-border p-3">
+                        <Switch
+                          id="mobile-direct-grading"
+                          checked={useDirectGrading}
+                          onCheckedChange={setUseDirectGrading}
+                        />
+                        <Label htmlFor="mobile-direct-grading" className="cursor-pointer text-sm text-foreground">
+                          {t('assignment:submit.quickGradingMode')}
+                        </Label>
+                      </div>
+                    )}
+
+                    {/* Error Display */}
+                    {state.error && (
+                      <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3">
+                        <p className="text-sm font-medium text-destructive">{state.error}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
-          )}
 
-          {/* File Upload Section - Bento Style */}
-          <div className="rounded-2xl bg-card border border-border p-5">
-            <h2 className="mb-4 text-base font-semibold text-foreground">{t('assignment:submit.uploadWork')}</h2>
-            {state.phase === 'upload' ? (
-              <CompactFileUpload maxFiles={1} onUploadComplete={handleFileUpload} />
-            ) : (
-              <div className="space-y-3">
-                {/* Uploaded file display */}
-                <div className="flex items-center gap-3 rounded-xl bg-muted/50 border border-border p-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                    <FileText className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">{state.file?.name}</p>
-                    <p className="text-xs text-muted-foreground">{Math.round((state.file?.size || 0) / 1024)} KB</p>
-                  </div>
-                </div>
-                
-                <Button 
-                  variant="outline" 
-                  onClick={handleResetFile} 
-                  className="w-full rounded-xl border border-border hover:bg-accent"
-                >
-                  {t('assignment:submit.reselect')}
-                </Button>
-              </div>
-            )}
-          </div>
-          
-          {/* Action Buttons - Outside container */}
-          {state.file && (
-            <div className="space-y-3">
-              {/* AI Analysis Button */}
+            {/* Primary Actions (mobile) */}
+            <div className="pt-3 pb-2 flex items-center justify-center gap-4">
+              {/* Reselect File */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      onClick={handleResetFile}
+                      className="h-12 w-12 rounded-full bg-card border border-border shadow-md transition-all hover:shadow-lg active:scale-95"
+                    >
+                      <FolderOpen className="h-5 w-5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{t('assignment:submit.reselectFile')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Start Analysis (Play) */}
               {(state.phase === 'analyze' || state.phase === 'submit') && (
-                <Button 
-                  onClick={() => { startAnalysis(); setActiveTab('results'); }} 
-                  disabled={state.loading} 
-                  className="w-full rounded-full bg-primary py-3 font-medium text-primary-foreground hover:bg-primary/90 transition-all shadow-md hover:shadow-lg"
-                >
-                  {state.loading ? t('assignment:submit.grading') : t('assignment:submit.startGrading')}
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => {
+                          startAnalysis();
+                          setActiveTab('results');
+                        }}
+                        disabled={state.loading}
+                        size="icon"
+                        className={`h-14 w-14 rounded-full shadow-lg transition-all active:scale-95 ${
+                          state.loading ? 'bg-muted' : 'bg-primary hover:bg-primary/90'
+                        }`}
+                      >
+                        {state.loading ? (
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                          <Play className="h-6 w-6 ml-0.5 fill-current" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>
+                        {state.loading
+                          ? t('assignment:submit.grading')
+                          : getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
+                            ? t('assignment:submit.reGrade')
+                            : t('assignment:submit.startGrading')}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
-              
-              {/* Submit Button */}
-              {state.phase === 'submit' && getSubmissionStatus().hasNewAnalysis && (
-                <Button 
-                  onClick={submitFinal} 
-                  disabled={getSubmissionStatus().isOverdue} 
-                  className="w-full rounded-full bg-emerald-500 hover:bg-emerald-600 py-3 font-medium text-white transition-all shadow-md hover:shadow-lg disabled:opacity-50"
-                >
-                  {getSubmissionStatus().isOverdue ? t('assignment:submit.overdueLabel') : t('assignment:submit.submitWork')}
-                </Button>
-              )}
+
+              {/* Submit Assignment (Check) */}
+              {state.phase === 'submit' &&
+                getSubmissionStatus().hasAnalysis &&
+                getSubmissionStatus().hasNewAnalysis && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={submitFinal}
+                          disabled={state.loading || getSubmissionStatus().isOverdue}
+                          size="icon"
+                          className="h-12 w-12 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          <Check className="h-5 w-5 text-white" strokeWidth={3} />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {getSubmissionStatus().isOverdue
+                            ? t('assignment:submit.overdueCannotSubmit')
+                            : t('assignment:submit.submitAssignment')}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
             </div>
-          )}
+          </div>
         </TabsContent>
 
-        <TabsContent value="results" className="flex-1 overflow-y-auto m-0 p-4 min-h-0 flex flex-col h-full">
-          {state.session?.result ? (
-            state.session.result.sparringQuestions && state.session.result.sparringQuestions.length > 0 ? (
-              <FeedbackChat
-                sparringQuestions={state.session.result.sparringQuestions}
-                assignmentId={assignment.id}
-                sessionId={state.session.id}
-                result={state.session.result}
-                studentName={student.name}
-                studentPicture={student.picture}
-                fileId={state.file?.id}
-                initialMessages={state.session?.chatMessages}
-                thinkingProcess={state.session?.thinkingProcess}
-                gradingRationale={state.session?.gradingRationale}
-                normalizedScore={state.session.result?.normalizedScore}
-                onChatChange={(messages) => dispatch({ type: 'chat_updated', messages })}
-                onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
-              />
+        <TabsContent value="results" className="overflow-y-auto m-0 p-4">
+          <div className="flex flex-col h-full">
+            {state.session?.result ? (
+              state.session.result.sparringQuestions && state.session.result.sparringQuestions.length > 0 ? (
+                <FeedbackChat
+                  sparringQuestions={state.session.result.sparringQuestions}
+                  assignmentId={assignment.id}
+                  sessionId={state.session.id}
+                  result={state.session.result}
+                  studentName={student.name}
+                  studentPicture={student.picture}
+                  fileId={state.file?.id}
+                  initialMessages={state.session?.chatMessages}
+                  thinkingProcess={state.session?.thinkingProcess}
+                  gradingRationale={state.session?.gradingRationale}
+                  normalizedScore={state.session.result?.normalizedScore}
+                  onChatChange={(messages) => dispatch({ type: 'chat_updated', messages })}
+                  onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+                />
+              ) : (
+                <GradingResultDisplay
+                  isLoading={state.loading}
+                  thinkingProcess={state.session?.thinkingProcess}
+                />
+              )
             ) : (
               <GradingResultDisplay
                 isLoading={state.loading}
                 thinkingProcess={state.session?.thinkingProcess}
               />
-            )
-          ) : (
-            <GradingResultDisplay
-              isLoading={state.loading}
-              thinkingProcess={state.session?.thinkingProcess}
-            />
-          )}
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
