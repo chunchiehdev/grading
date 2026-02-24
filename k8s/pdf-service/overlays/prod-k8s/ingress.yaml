@@ -4,14 +4,13 @@ metadata:
   name: grading-pdf-ingress
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    nginx.ingress.kubernetes.io/proxy-body-size: "0"
-    nginx.ingress.kubernetes.io/proxy-buffering: "off"
-    nginx.ingress.kubernetes.io/proxy-request-buffering: "off"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
-
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/responseforwarding.flushinterval: "1ms"
+    traefik.ingress.kubernetes.io/buffering.maxrequestbodybytes: "0"
+    traefik.ingress.kubernetes.io/buffering.memrequestbodybytes: "0"
+    traefik.ingress.kubernetes.io/request-timeout: "600s"
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   tls:
   - hosts:
       - pdf.agenticgrader.com
