@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react';
 import { useChat } from '@ai-sdk/react';
 import { TextStreamChatTransport } from 'ai';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,12 @@ function getKemberLevel(score: number, maxScore: number) {
   return { level: 1, label: 'L1', desc: '習慣性行動', colorClass: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' };
 }
 
+export interface SparringState {
+  activeQuestionIndex: number;
+  completedQuestionIndices: number[];
+  phase: 'chat' | 'summary';
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────
 interface FeedbackChatProps {
   sparringQuestions: SparringQuestion[]; // Direction 1: all questions, not just [0]
@@ -45,6 +51,8 @@ interface FeedbackChatProps {
   maxRounds?: number;
   onChatChange?: (messages: any[]) => void;
   onSparringComplete?: () => void;
+  initialSparringState?: SparringState;
+  onSparringStateChange?: (state: SparringState) => void;
 }
 
 export function FeedbackChat({
@@ -62,16 +70,22 @@ export function FeedbackChat({
   maxRounds = 5,
   onChatChange,
   onSparringComplete,
+  initialSparringState,
+  onSparringStateChange,
 }: FeedbackChatProps) {
   const { t } = useTranslation(['grading', 'common']);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [input, setInput] = useState('');
   const hasSentOpening = useRef(false);
 
   // ── Direction 1: Multi-question management ─────────────────────────────
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [completedQuestions, setCompletedQuestions] = useState<Set<number>>(new Set());
+  const [activeIdx, setActiveIdx] = useState(
+    initialSparringState?.activeQuestionIndex ?? 0
+  );
+  const [completedQuestions, setCompletedQuestions] = useState<Set<number>>(
+    () => new Set(initialSparringState?.completedQuestionIndices ?? [])
+  );
   // Per-question conversation memory: { 0: messages[], 1: messages[], … }
   const [conversationsMap, setConversationsMap] = useState<Record<number, any[]>>({});
 
@@ -80,8 +94,15 @@ export function FeedbackChat({
   const [revisionDraft, setRevisionDraft] = useState('');
 
   // ── Direction 4: Growth summary ────────────────────────────────────────
-  const [chatPhase, setChatPhase] = useState<'chat' | 'summary'>('chat');
+  const [chatPhase, setChatPhase] = useState<'chat' | 'summary'>(
+    initialSparringState?.phase ?? 'chat'
+  );
   const sparringCompleteFired = useRef(false);
+
+  // 控制是否已經正式開始對練（避免一載入頁面就打第一發給 Gemini）
+  const [hasStarted, setHasStarted] = useState<boolean>(
+    () => !!(initialMessages && initialMessages.length > 0) || !!initialSparringState
+  );
 
   // Sheet detail (criteria / thinking process)
   const [selectedDetail, setSelectedDetail] = useState<{
@@ -193,6 +214,17 @@ export function FeedbackChat({
     }
   }, [isCurrentQuestionComplete, activeIdx, completedQuestions]);
 
+  // Persist sparring progress (for draft restore)
+  useEffect(() => {
+    if (!onSparringStateChange) return;
+    const completed = Array.from(completedQuestions.values()).sort((a, b) => a - b);
+    onSparringStateChange({
+      activeQuestionIndex: activeIdx,
+      completedQuestionIndices: completed,
+      phase: chatPhase,
+    });
+  }, [activeIdx, completedQuestions, chatPhase, onSparringStateChange]);
+
   // ── Direction 1: Switch question ───────────────────────────────────────
   const handleSwitchQuestion = useCallback(
     (idx: number) => {
@@ -208,8 +240,9 @@ export function FeedbackChat({
     [activeIdx, messages, conversationsMap, setMessages]
   );
 
-  // Initialize opening
+  // Initialize opening - 僅在 hasStarted 為 true 時才會送出第一個 trigger
   useEffect(() => {
+    if (!hasStarted) return;
     if (messages.length === 0 && !hasSentOpening.current) {
       if (initialMessages && initialMessages.length > 0 && activeIdx === 0) {
         setMessages(initialMessages as any);
@@ -221,7 +254,7 @@ export function FeedbackChat({
         });
       }
     }
-  }, [messages.length, setMessages, sendMessage, initialMessages, activeIdx]);
+  }, [hasStarted, messages.length, setMessages, sendMessage, initialMessages, activeIdx]);
 
   const prevMessagesRef = useRef<string>('');
   useEffect(() => {
@@ -235,9 +268,26 @@ export function FeedbackChat({
     }
   }, [messages, onChatChange]);
 
-  useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 100);
+  // Auto-resize input textarea (like community comment box)
+  const adjustInputHeight = useCallback(() => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    }
   }, []);
+
+  useEffect(() => {
+    adjustInputHeight();
+  }, [input, adjustInputHeight]);
+
+  useLayoutEffect(() => {
+    // 保證初次 render 時高度正確，且游標在輸入框
+    requestAnimationFrame(() => {
+      adjustInputHeight();
+      inputRef.current?.focus();
+    });
+  }, [adjustInputHeight]);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -557,6 +607,46 @@ export function FeedbackChat({
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  // Pre-Start Screen: Wait for user to click "開始對練"
+  // ═══════════════════════════════════════════════════════════════════════
+  if (!hasStarted) {
+    return (
+      <div className="h-full flex flex-col">
+        {scoreCollapsible}
+
+        <div className="flex-1 flex items-center justify-center px-4 sm:px-6">
+          <div className="max-w-md w-full text-center space-y-4">
+            <div className="flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <BrainCircuit className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-base sm:text-lg font-semibold text-foreground">
+                {t('grading:chat.startSparring.title', '開始反思對練')}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                {t(
+                  'grading:chat.startSparring.description',
+                  '接下來 AI 會根據你的作業和老師的評分標準，提出 1–3 個問題，陪你一起把想法想深一點。準備好了再開始就好。'
+                )}
+              </p>
+            </div>
+            <div className="pt-2">
+              <Button
+                onClick={() => setHasStarted(true)}
+                className="rounded-full px-6 sm:px-8"
+              >
+                {t('grading:chat.startSparring.button', '開始對練')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
   // Main Chat Screen
   // ═══════════════════════════════════════════════════════════════════════
   return (
@@ -721,22 +811,33 @@ export function FeedbackChat({
                 )}
               >
                 <div className="flex-1 min-w-0">
-                  <input
+                  <Textarea
                     ref={inputRef}
-                    type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!input.trim() || isLoading || isCurrentQuestionComplete) return;
+                        sendMessage({ text: input.trim() });
+                        setInput('');
+                      }
+                    }}
                     placeholder={t('grading:chat.placeholder')}
                     className={cn(
-                      'w-full bg-transparent px-4 py-3 text-sm sm:text-base placeholder:text-muted-foreground/60',
-                      'focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50'
+                      'w-full bg-transparent border-0 shadow-none resize-none',
+                      'px-4 py-2 text-sm sm:text-base text-foreground placeholder:text-muted-foreground',
+                      'focus-visible:ring-0 focus-visible:ring-offset-0',
+                      'min-h-[20px] max-h-[200px] overflow-y-auto',
+                      'disabled:cursor-not-allowed disabled:opacity-50'
                     )}
                     disabled={isLoading}
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
                     spellCheck="false"
-                    style={{ fontSize: '16px' }}
+                    rows={1}
+                    style={{ fontSize: '16px', height: 'auto' }}
                   />
                 </div>
                 <Button

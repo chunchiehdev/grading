@@ -5,7 +5,7 @@ import React, { useReducer, useEffect, useRef, useCallback } from 'react';
 import { requireStudent } from '@/services/auth.server';
 import { getAssignmentAreaForSubmission, getDraftSubmission } from '@/services/submission.server';
 import { CompactFileUpload } from '@/components/grading/CompactFileUpload';
-import { FeedbackChat } from '@/components/grading/FeedbackChat';
+import { FeedbackChat, type SparringState } from '@/components/grading/FeedbackChat';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { ClientOnly } from '@/components/ui/client-only';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
   if (!assignmentId) throw new Response('Assignment not found', { status: 404 });
 
+  const url = new URL(request.url);
+  const isResubmit = url.searchParams.get('resubmit') === '1';
+
   const assignment = await getAssignmentAreaForSubmission(assignmentId, student.id, true);
   if (!assignment) throw new Response('Assignment not found', { status: 404 });
 
@@ -36,18 +39,24 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   if (assignment.submissions && assignment.submissions.length > 0) {
     const latestSubmission = assignment.submissions[0];
 
-    // Redirect if submission is GRADED (regardless of teacher feedback)
-    // This prevents students from overwriting teacher-assigned scores
-    if (latestSubmission.status === 'GRADED') {
-      // Already graded - redirect to view only, no resubmission allowed
-      throw new Response(null, {
-        status: 302,
-        headers: { Location: `/student/submissions/${latestSubmission.id}` },
-      });
+    // 預設：任何非 DRAFT 紀錄都先帶去「繳交紀錄」頁
+    if (!isResubmit) {
+      if (latestSubmission.status !== 'DRAFT') {
+        throw new Response(null, {
+          status: 302,
+          headers: { Location: `/student/submissions/${latestSubmission.id}` },
+        });
+      }
+    } else {
+      // resubmit 模式：只允許非 GRADED 的重新進入提交流程
+      if (latestSubmission.status === 'GRADED') {
+        throw new Response(null, {
+          status: 302,
+          headers: { Location: `/student/submissions/${latestSubmission.id}` },
+        });
+      }
+      // SUBMITTED / ANALYZED 會繼續往下，讓學生重新上傳 + 重新評分
     }
-
-    // For SUBMITTED or ANALYZED status - allow resubmission
-    // The existing submission will be updated with new file/analysis
   }
 
   // Check for existing draft/submission to restore state
@@ -178,6 +187,12 @@ export default function SubmitAssignment() {
     });
   }, []);
 
+  // Persisted sparring progress (which questions are done / active / phase)
+  const [sparringState, setSparringState] = React.useState<SparringState | undefined>(() => {
+    const raw = (draftSubmission?.aiAnalysisResult as any)?._sparringState;
+    return raw || undefined;
+  });
+
   // Parse rubric criteria once
   const rubricCategories = React.useMemo(() => {
     if (!assignment.rubric?.criteria) return [];
@@ -269,6 +284,7 @@ export default function SubmitAssignment() {
         const aiResultWithChat = {
           ...state.session!.result,
           _chatMessages: state.session!.chatMessages,
+          _sparringState: sparringState,
         };
         await fetch(`/api/student/assignments/${assignment.id}/draft`, {
           method: 'POST',
@@ -286,7 +302,7 @@ export default function SubmitAssignment() {
     return () => {
       if (chatSaveTimerRef.current) clearTimeout(chatSaveTimerRef.current);
     };
-  }, [state.session?.chatMessages, state.session?.result, assignment.id]);
+  }, [state.session?.chatMessages, state.session?.result, assignment.id, sparringState]);
 
   // GSAP animations
   useGSAP(() => {
@@ -712,6 +728,38 @@ export default function SubmitAssignment() {
     };
   };
 
+  // Require at least one real student reply before allowing submit
+  const hasStudentSparringReply = React.useMemo(() => {
+    const sparringQuestions = state.session?.result?.sparringQuestions;
+    const chatMessages = state.session?.chatMessages;
+
+    // If沒有 sparring 題目，本來就不需要互動，直接允許送出
+    if (!sparringQuestions || sparringQuestions.length === 0) return true;
+    if (!chatMessages || chatMessages.length === 0) return false;
+
+    const TRIGGER_TEXT =
+      '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。';
+
+    const extractText = (message: any) => {
+      if (typeof message.content === 'string') return message.content;
+      if (Array.isArray(message.parts)) {
+        return message.parts
+          .filter((p: any) => p.type === 'text')
+          .map((p: any) => p.text)
+          .join('');
+      }
+      return '';
+    };
+
+    return chatMessages.some((m: any) => {
+      if (m.role !== 'user') return false;
+      const text = extractText(m).trim();
+      if (!text) return false;
+      // 排除系統自動丟給後端啟動對話的 trigger 文案
+      return text !== TRIGGER_TEXT;
+    });
+  }, [state.session?.result?.sparringQuestions, state.session?.chatMessages]);
+
   return (
     <div ref={containerRef} className="w-full flex flex-col lg:h-full">
       {/* Desktop: Split Panel Layout (lg and above) */}
@@ -965,7 +1013,11 @@ export default function SubmitAssignment() {
                               <TooltipTrigger asChild>
                                 <Button
                                   onClick={submitFinal}
-                                  disabled={state.loading || getSubmissionStatus().isOverdue}
+                                  disabled={
+                                    state.loading ||
+                                    getSubmissionStatus().isOverdue ||
+                                    !hasStudentSparringReply
+                                  }
                                   size="icon"
                                   className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all hover:shadow-xl hover:scale-105 disabled:opacity-50"
                                 >
@@ -1016,6 +1068,8 @@ export default function SubmitAssignment() {
                   normalizedScore={state.session.result?.normalizedScore}
                   onChatChange={(messages) => dispatch({ type: 'chat_updated', messages })}
                   onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+                  initialSparringState={sparringState}
+                  onSparringStateChange={setSparringState}
                 />
               ) : (
                 <GradingResultDisplay
@@ -1265,7 +1319,11 @@ export default function SubmitAssignment() {
                       <TooltipTrigger asChild>
                         <Button
                           onClick={submitFinal}
-                          disabled={state.loading || getSubmissionStatus().isOverdue}
+                          disabled={
+                            state.loading ||
+                            getSubmissionStatus().isOverdue ||
+                            !hasStudentSparringReply
+                          }
                           size="icon"
                           className="h-12 w-12 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all active:scale-95 disabled:opacity-50"
                         >
@@ -1304,6 +1362,8 @@ export default function SubmitAssignment() {
                   normalizedScore={state.session.result?.normalizedScore}
                   onChatChange={(messages) => dispatch({ type: 'chat_updated', messages })}
                   onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+                  initialSparringState={sparringState}
+                  onSparringStateChange={setSparringState}
                 />
               ) : (
                 <GradingResultDisplay

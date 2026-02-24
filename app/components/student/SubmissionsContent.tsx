@@ -5,7 +5,9 @@ import type { StudentInfo } from '@/types/student';
 
 interface Submission {
   id: string;
-  uploadedAt: Date | null;
+  uploadedAt: Date | string | null;
+  status?: 'DRAFT' | 'SUBMITTED' | 'ANALYZED' | 'GRADED';
+  assignmentAreaId?: string;
   assignmentArea?: {
     name: string;
     course?: {
@@ -104,6 +106,19 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
                     >
                       查看歷史
                     </button>
+                    {/* Resubmit Button (only for non-graded submissions) */}
+                    {s.assignmentAreaId &&
+                      (s.status === 'SUBMITTED' || s.status === 'ANALYZED') && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/student/assignments/${s.assignmentAreaId}/submit?resubmit=1`);
+                          }}
+                          className="text-xs px-2 py-1 border border-primary/40 text-primary rounded hover:bg-primary/10 transition-colors"
+                        >
+                          重新提交
+                        </button>
+                      )}
                   </div>
                 </div>
               </div>

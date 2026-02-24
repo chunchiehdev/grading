@@ -517,12 +517,32 @@ export async function processGradingResult(
       // Read overallFeedback directly — avoid extractOverallFeedback which validates the
       // entire result object and fails when unrelated fields (e.g. sparringQuestions enum) are invalid
       const rawFeedback = gradingResponse.result.overallFeedback;
-      const overallFeedbackStr: string =
+      let overallFeedbackStr: string =
         typeof rawFeedback === 'string'
           ? rawFeedback
           : (rawFeedback && typeof rawFeedback === 'object' && 'summary' in rawFeedback
               ? String((rawFeedback as Record<string, unknown>).summary ?? '')
               : '');
+
+      // Final safeguard: ensure overallFeedback is never empty
+      // Agent / AI SDK 應該都會填，但如果模型回傳空字串，這裡用 breakdown 自動組一個整體回饋
+      if (!overallFeedbackStr.trim()) {
+        const breakdown = gradingResponse.result.breakdown || [];
+
+        if (Array.isArray(breakdown) && breakdown.length > 0) {
+          overallFeedbackStr = breakdown
+            .map((item: any, idx: number) => {
+              const name = item.name || `項目 ${idx + 1}`;
+              const fb = item.feedback || '';
+              return fb ? `${idx + 1}. ${name}：${fb}` : `${idx + 1}. ${name}`;
+            })
+            .join('\n\n');
+        }
+
+        if (!overallFeedbackStr.trim()) {
+          overallFeedbackStr = '評分已完成，請參考各個評分項目的具體回饋進行修正與精進。';
+        }
+      }
 
       // 🔍 CRITICAL DEBUG: Check sparringQuestions BEFORE saving to DB
       logger.info(`🔍 [DB Save] gradingResponse.result.sparringQuestions: ${JSON.stringify(gradingResponse.result.sparringQuestions || 'UNDEFINED').substring(0, 300)}`);
