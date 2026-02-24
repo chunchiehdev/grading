@@ -127,6 +127,7 @@ export async function getStudentCourseDetail(
           where: {
             studentId,
             status: { not: 'DRAFT' },
+            isLatest: true, // Only show latest version of each submission
           },
         },
       },

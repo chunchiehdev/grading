@@ -41,7 +41,18 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // 預設：任何非 DRAFT 紀錄都先帶去「繳交紀錄」頁
     if (!isResubmit) {
+      // Before redirecting, check if there's an in-progress DRAFT version
+      // If a DRAFT exists (e.g., resubmit was started but not finished), 
+      // auto-redirect to resubmit mode instead of the old submission page
       if (latestSubmission.status !== 'DRAFT') {
+        const draftCheck = await getDraftSubmission(assignmentId, student.id);
+        if (draftCheck && draftCheck.status === 'DRAFT') {
+          // Student has an in-progress draft - redirect to resubmit mode
+          throw new Response(null, {
+            status: 302,
+            headers: { Location: `/student/assignments/${assignmentId}/submit?resubmit=1` },
+          });
+        }
         throw new Response(null, {
           status: 302,
           headers: { Location: `/student/submissions/${latestSubmission.id}` },
@@ -79,7 +90,8 @@ interface SubmissionState {
     thoughtSummary?: string;
     thinkingProcess?: string; // Feature 012
     gradingRationale?: string; // Feature 012
-    chatMessages?: any[];
+    /** Per-question conversation map: { [questionIdx]: messages[] } */
+    chatMessagesMap?: Record<number, any[]>;
   } | null;
   error: string | null;
   loading: boolean;
@@ -93,7 +105,7 @@ type Action =
   | { type: 'analysis_completed'; result: any; thoughtSummary?: string; thinkingProcess?: string; gradingRationale?: string }
   | { type: 'sparring_completed' }
   | { type: 'submission_completed'; sessionId: string }
-  | { type: 'chat_updated'; messages: any[] }
+  | { type: 'chat_updated'; conversationsMap: Record<number, any[]> }
   | { type: 'error'; message: string }
   | { type: 'reset' }
   | { type: 'thought_update'; thought: string };
@@ -131,7 +143,7 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
         ...state,
         session: {
           ...state.session,
-          chatMessages: action.messages
+          chatMessagesMap: action.conversationsMap
         }
       };
     case 'error':
@@ -236,12 +248,15 @@ export default function SubmitAssignment() {
   // Single state machine - "good taste" principle
   const [state, dispatch] = useReducer(submissionReducer, {
     // Determine phase based on draft state
+    // Distinguish sparring from submit: if sparringState exists and phase is 'chat', it's sparring
     phase:
       draftSubmission?.lastState === 'completed'
-        ? 'submit'
-        : draftSubmission?.fileMetadata
-          ? 'analyze' // Has file, ready to analyze
-          : 'upload', // No file, show upload
+        ? ((draftSubmission?.aiAnalysisResult as any)?._sparringState?.phase === 'chat' ? 'sparring' : 'submit')
+        : draftSubmission?.lastState === 'sparring'
+          ? 'sparring'
+          : draftSubmission?.fileMetadata
+            ? 'analyze' // Has file, ready to analyze
+            : 'upload', // No file, show upload
     file: draftSubmission?.fileMetadata
       ? {
           id: draftSubmission.fileMetadata.fileId,
@@ -259,11 +274,11 @@ export default function SubmitAssignment() {
             thoughtSummary: draftSubmission.thoughtSummary || undefined,
             thinkingProcess: draftSubmission.thinkingProcess || undefined,
             gradingRationale: draftSubmission.gradingRationale || undefined,
-            chatMessages: (draftSubmission.aiAnalysisResult as any)?._chatMessages || undefined,
+            chatMessagesMap: (draftSubmission.aiAnalysisResult as any)?._chatMessagesMap || undefined,
           }
         : null,
     error: null,
-    loading: !!draftSubmission?.sessionId && draftSubmission?.lastState !== 'completed',
+    loading: !!draftSubmission?.sessionId && draftSubmission?.lastState !== 'completed' && draftSubmission?.lastState !== 'sparring',
     // If status is SUBMITTED/ANALYZED/GRADED, this sessionId has been submitted
     lastSubmittedSessionId:
       draftSubmission?.status && draftSubmission.status !== 'DRAFT'
@@ -271,28 +286,54 @@ export default function SubmitAssignment() {
         : null,
   });
 
-  // Debounced auto-save of chatMessages to draft (persist across page refresh)
+  // Debounced auto-save of chatMessagesMap to draft (persist across page refresh)
   const chatSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Build the save payload (shared between debounce and beforeunload)
+  const buildChatSavePayload = useCallback(() => {
+    if (!state.session?.chatMessagesMap || Object.keys(state.session.chatMessagesMap).length === 0) return null;
+    if (!state.session?.result) return null;
+
+    // Check if there's at least one real message across all conversations
+    const hasRealMessages = Object.values(state.session.chatMessagesMap).some(
+      (msgs) => msgs && msgs.length > 1
+    );
+    if (!hasRealMessages) return null;
+
+    const aiResultWithChat = {
+      ...state.session.result,
+      _chatMessagesMap: state.session.chatMessagesMap,
+      _sparringState: sparringState,
+    };
+    return {
+      // CRITICAL: Include fileMetadata + sessionId so saveDraftSubmission can create
+      // a new DRAFT version if the existing submission is SUBMITTED/ANALYZED.
+      // Without these, saveDraftSubmission silently returns null for non-DRAFT submissions.
+      ...(state.file ? {
+        fileMetadata: {
+          fileId: state.file.id,
+          fileName: state.file.name,
+          fileSize: state.file.size,
+        },
+      } : {}),
+      sessionId: state.session.id || undefined,
+      aiAnalysisResult: aiResultWithChat,
+      lastState: state.phase === 'sparring' ? 'sparring' : 'completed',
+    };
+  }, [state.session?.chatMessagesMap, state.session?.result, state.phase, state.file, state.session?.id, sparringState]);
+
   useEffect(() => {
-    if (!state.session?.chatMessages || state.session.chatMessages.length <= 1) return;
-    if (!state.session?.result) return; // Don't save if no grading result yet
+    const payload = buildChatSavePayload();
+    if (!payload) return;
 
     // Debounce: save 2 seconds after last message change
     if (chatSaveTimerRef.current) clearTimeout(chatSaveTimerRef.current);
     chatSaveTimerRef.current = setTimeout(async () => {
       try {
-        const aiResultWithChat = {
-          ...state.session!.result,
-          _chatMessages: state.session!.chatMessages,
-          _sparringState: sparringState,
-        };
         await fetch(`/api/student/assignments/${assignment.id}/draft`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            aiAnalysisResult: aiResultWithChat,
-            lastState: 'completed',
-          }),
+          body: JSON.stringify(payload),
         });
       } catch (err) {
         console.error('Failed to save chat messages to draft:', err);
@@ -302,7 +343,45 @@ export default function SubmitAssignment() {
     return () => {
       if (chatSaveTimerRef.current) clearTimeout(chatSaveTimerRef.current);
     };
-  }, [state.session?.chatMessages, state.session?.result, assignment.id, sparringState]);
+  }, [state.session?.chatMessagesMap, state.session?.result, assignment.id, sparringState, state.phase, buildChatSavePayload]);
+
+  // beforeunload: flush pending saves immediately via sendBeacon to prevent data loss
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Cancel the debounce timer since we're saving immediately
+      if (chatSaveTimerRef.current) {
+        clearTimeout(chatSaveTimerRef.current);
+        chatSaveTimerRef.current = null;
+      }
+
+      const payload = buildChatSavePayload();
+      if (!payload) return;
+
+      // Use sendBeacon for reliable delivery during page unload
+      const blob = new Blob(
+        [JSON.stringify(payload)],
+        { type: 'application/json' }
+      );
+      navigator.sendBeacon(
+        `/api/student/assignments/${assignment.id}/draft`,
+        blob
+      );
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [assignment.id, buildChatSavePayload]);
+
+  // Auto-transition from 'sparring' → 'submit' when all questions are completed
+  // Previously triggered by a manual button in FeedbackChat; now driven by sparringState
+  useEffect(() => {
+    if (
+      state.phase === 'sparring' &&
+      sparringState?.phase === 'summary'
+    ) {
+      dispatch({ type: 'sparring_completed' });
+    }
+  }, [state.phase, sparringState?.phase]);
 
   // GSAP animations
   useGSAP(() => {
@@ -663,6 +742,20 @@ export default function SubmitAssignment() {
     }
 
     try {
+      // Flatten all conversations into a single array for final submission storage
+      const allMessages: any[] = [];
+      if (state.session.chatMessagesMap) {
+        const sortedKeys = Object.keys(state.session.chatMessagesMap)
+          .map(Number)
+          .sort((a, b) => a - b);
+        for (const key of sortedKeys) {
+          const msgs = state.session.chatMessagesMap[key];
+          if (msgs && msgs.length > 0) {
+            allMessages.push(...msgs);
+          }
+        }
+      }
+
       const res = await fetch('/api/student/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -670,7 +763,7 @@ export default function SubmitAssignment() {
           assignmentId: assignment.id,
           uploadedFileId: state.file.id,
           sessionId: state.session.id,
-          chatMessages: state.session.chatMessages || []
+          chatMessages: allMessages
         }),
       });
 
@@ -731,11 +824,11 @@ export default function SubmitAssignment() {
   // Require at least one real student reply before allowing submit
   const hasStudentSparringReply = React.useMemo(() => {
     const sparringQuestions = state.session?.result?.sparringQuestions;
-    const chatMessages = state.session?.chatMessages;
+    const chatMessagesMap = state.session?.chatMessagesMap;
 
     // If沒有 sparring 題目，本來就不需要互動，直接允許送出
     if (!sparringQuestions || sparringQuestions.length === 0) return true;
-    if (!chatMessages || chatMessages.length === 0) return false;
+    if (!chatMessagesMap || Object.keys(chatMessagesMap).length === 0) return false;
 
     const TRIGGER_TEXT =
       '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。';
@@ -751,14 +844,17 @@ export default function SubmitAssignment() {
       return '';
     };
 
-    return chatMessages.some((m: any) => {
-      if (m.role !== 'user') return false;
-      const text = extractText(m).trim();
-      if (!text) return false;
-      // 排除系統自動丟給後端啟動對話的 trigger 文案
-      return text !== TRIGGER_TEXT;
-    });
-  }, [state.session?.result?.sparringQuestions, state.session?.chatMessages]);
+    // Check ALL conversations across all questions for at least one real student reply
+    return Object.values(chatMessagesMap).some((messages: any[]) =>
+      messages.some((m: any) => {
+        if (m.role !== 'user') return false;
+        const text = extractText(m).trim();
+        if (!text) return false;
+        // 排除系統自動丟給後端啟動對話的 trigger 文案
+        return text !== TRIGGER_TEXT;
+      })
+    );
+  }, [state.session?.result?.sparringQuestions, state.session?.chatMessagesMap]);
 
   return (
     <div ref={containerRef} className="w-full flex flex-col lg:h-full">
@@ -1062,11 +1158,11 @@ export default function SubmitAssignment() {
                   studentName={student.name}
                   studentPicture={student.picture}
                   fileId={state.file?.id}
-                  initialMessages={state.session?.chatMessages}
+                  initialConversationsMap={state.session?.chatMessagesMap}
                   thinkingProcess={state.session?.thinkingProcess}
                   gradingRationale={state.session?.gradingRationale}
                   normalizedScore={state.session.result?.normalizedScore}
-                  onChatChange={(messages) => dispatch({ type: 'chat_updated', messages })}
+                  onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
                   onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
                   initialSparringState={sparringState}
                   onSparringStateChange={setSparringState}
@@ -1356,11 +1452,11 @@ export default function SubmitAssignment() {
                   studentName={student.name}
                   studentPicture={student.picture}
                   fileId={state.file?.id}
-                  initialMessages={state.session?.chatMessages}
+                  initialConversationsMap={state.session?.chatMessagesMap}
                   thinkingProcess={state.session?.thinkingProcess}
                   gradingRationale={state.session?.gradingRationale}
                   normalizedScore={state.session.result?.normalizedScore}
-                  onChatChange={(messages) => dispatch({ type: 'chat_updated', messages })}
+                  onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
                   onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
                   initialSparringState={sparringState}
                   onSparringStateChange={setSparringState}

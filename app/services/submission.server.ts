@@ -458,6 +458,7 @@ export async function getStudentAssignments(studentId: string, courseId?: string
           where: {
             studentId,
             status: { not: 'DRAFT' }, // Exclude draft submissions
+            isLatest: true, // Only show latest version
           },
           select: {
             id: true,
@@ -586,6 +587,7 @@ export async function getAssignmentAreaForSubmission(
                 where: {
                   studentId,
                   status: { not: 'DRAFT' },
+                  isLatest: true, // Only show latest version
                 },
                 select: {
                   id: true,
@@ -696,6 +698,7 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
       where: {
         studentId,
         status: { not: 'DRAFT' }, // Exclude draft submissions from dashboard
+        isLatest: true, // Only show latest version
         isDeleted: false, // Exclude deleted submissions
       },
       include: {
@@ -903,7 +906,7 @@ export interface DraftSubmissionData {
   thoughtSummary?: string | null;
   thinkingProcess?: string | null;
   gradingRationale?: string | null;
-  lastState?: 'idle' | 'ready' | 'grading' | 'completed' | 'error';
+  lastState?: 'idle' | 'ready' | 'grading' | 'completed' | 'sparring' | 'error';
 }
 
 export interface DraftSubmissionInfo extends DraftSubmissionData {

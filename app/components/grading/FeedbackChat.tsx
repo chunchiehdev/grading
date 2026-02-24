@@ -44,12 +44,14 @@ interface FeedbackChatProps {
   studentName?: string;
   studentPicture?: string | null;
   fileId?: string;
-  initialMessages?: any[];
+  /** Per-question conversation map: { [questionIdx]: messages[] } */
+  initialConversationsMap?: Record<number, any[]>;
   thinkingProcess?: string | null;
   gradingRationale?: string | null;
   normalizedScore?: number | null;
   maxRounds?: number;
-  onChatChange?: (messages: any[]) => void;
+  /** Emits the FULL conversations map (all questions) whenever messages change */
+  onChatChange?: (conversationsMap: Record<number, any[]>) => void;
   onSparringComplete?: () => void;
   initialSparringState?: SparringState;
   onSparringStateChange?: (state: SparringState) => void;
@@ -63,7 +65,7 @@ export function FeedbackChat({
   studentName,
   studentPicture,
   fileId,
-  initialMessages,
+  initialConversationsMap,
   thinkingProcess,
   gradingRationale,
   normalizedScore,
@@ -87,7 +89,14 @@ export function FeedbackChat({
     () => new Set(initialSparringState?.completedQuestionIndices ?? [])
   );
   // Per-question conversation memory: { 0: messages[], 1: messages[], … }
-  const [conversationsMap, setConversationsMap] = useState<Record<number, any[]>>({});
+  // Initialize from persisted data (excluding activeIdx which will be loaded via setMessages)
+  const [conversationsMap, setConversationsMap] = useState<Record<number, any[]>>(() => {
+    if (!initialConversationsMap) return {};
+    // Store all saved conversations EXCEPT the active question's
+    // (the active question's messages will be loaded via setMessages in the init effect)
+    const { [initialSparringState?.activeQuestionIndex ?? 0]: _, ...rest } = initialConversationsMap;
+    return rest;
+  });
 
   // ── Direction 3: Revision box ──────────────────────────────────────────
   const [showRevisionBox, setShowRevisionBox] = useState(false);
@@ -101,7 +110,7 @@ export function FeedbackChat({
 
   // 控制是否已經正式開始對練（避免一載入頁面就打第一發給 Gemini）
   const [hasStarted, setHasStarted] = useState<boolean>(
-    () => !!(initialMessages && initialMessages.length > 0) || !!initialSparringState
+    () => !!(initialConversationsMap && Object.keys(initialConversationsMap).length > 0) || !!initialSparringState
   );
 
   // Sheet detail (criteria / thinking process)
@@ -229,23 +238,27 @@ export function FeedbackChat({
   const handleSwitchQuestion = useCallback(
     (idx: number) => {
       if (idx === activeIdx) return;
+      // Save current question's messages before switching
       setConversationsMap((prev) => ({ ...prev, [activeIdx]: messages }));
-      const saved = conversationsMap[idx] ?? [];
+      // Restore from conversationsMap first, then from persisted data
+      const saved = conversationsMap[idx] ?? initialConversationsMap?.[idx] ?? [];
       setMessages(saved as any);
       hasSentOpening.current = saved.length > 0;
       setActiveIdx(idx);
       setShowRevisionBox(false);
       setRevisionDraft('');
     },
-    [activeIdx, messages, conversationsMap, setMessages]
+    [activeIdx, messages, conversationsMap, initialConversationsMap, setMessages]
   );
 
   // Initialize opening - 僅在 hasStarted 為 true 時才會送出第一個 trigger
   useEffect(() => {
     if (!hasStarted) return;
     if (messages.length === 0 && !hasSentOpening.current) {
-      if (initialMessages && initialMessages.length > 0 && activeIdx === 0) {
-        setMessages(initialMessages as any);
+      // Restore from persisted data for the CURRENT activeIdx (works for any question, not just 0)
+      const savedForActive = initialConversationsMap?.[activeIdx];
+      if (savedForActive && savedForActive.length > 0) {
+        setMessages(savedForActive as any);
         hasSentOpening.current = true;
       } else {
         hasSentOpening.current = true;
@@ -254,7 +267,7 @@ export function FeedbackChat({
         });
       }
     }
-  }, [hasStarted, messages.length, setMessages, sendMessage, initialMessages, activeIdx]);
+  }, [hasStarted, messages.length, setMessages, sendMessage, initialConversationsMap, activeIdx]);
 
   const prevMessagesRef = useRef<string>('');
   useEffect(() => {
@@ -263,10 +276,12 @@ export function FeedbackChat({
       const str = JSON.stringify(messages);
       if (prevMessagesRef.current !== str) {
         prevMessagesRef.current = str;
-        onChatChange(messages);
+        // Emit the FULL conversations map: merge conversationsMap + current active question
+        const fullMap: Record<number, any[]> = { ...conversationsMap, [activeIdx]: messages };
+        onChatChange(fullMap);
       }
     }
-  }, [messages, onChatChange]);
+  }, [messages, onChatChange, conversationsMap, activeIdx]);
 
   // Auto-resize input textarea (like community comment box)
   const adjustInputHeight = useCallback(() => {
@@ -572,12 +587,7 @@ export function FeedbackChat({
             );
           })}
 
-          <div className="rounded-xl bg-primary/5 border border-primary/20 p-4 space-y-1">
-            <p className="text-xs font-semibold text-primary uppercase tracking-wider">下一步建議</p>
-            <p className="text-sm text-foreground leading-relaxed">
-              試著在修改作業時，針對剛才討論到的每個維度加入更具體的「為什麼」——說明這個經驗如何改變了你的想法，這是從 L2 邁向 L3 的關鍵。
-            </p>
-          </div>
+          
 
           {sparringQuestions.some((_, idx) => !completedQuestions.has(idx) && idx !== activeIdx) && (
             <button
@@ -589,19 +599,6 @@ export function FeedbackChat({
           )}
         </div>
 
-        <div className="flex-shrink-0 border-t border-border bg-background p-4">
-          <Button
-            onClick={() => {
-              if (!sparringCompleteFired.current) {
-                sparringCompleteFired.current = true;
-                onSparringComplete?.();
-              }
-            }}
-            className="w-full rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium shadow-md"
-          >
-            {t('grading:chat.finishSparring', '完成對練，準備提交作業')}
-          </Button>
-        </div>
       </div>
     );
   }
@@ -862,16 +859,7 @@ export function FeedbackChat({
                     defaultValue: `剩餘 ${maxRounds - userRoundCount} 輪`,
                   })}
                 </p>
-                {/* Direction 3: Revision toggle */}
-                {!showRevisionBox && visibleMessages.length >= 2 && (
-                  <button
-                    onClick={() => setShowRevisionBox(true)}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Pencil className="h-3 w-3" />
-                    試著改改看
-                  </button>
-                )}
+                
               </div>
             </div>
           </div>
