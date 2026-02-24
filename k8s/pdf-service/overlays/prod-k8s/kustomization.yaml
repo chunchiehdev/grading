@@ -103,7 +103,7 @@ configMapGenerator:
   - name: grading-pdf-config-prod
     behavior: create
     literals:
-      - REDIS_URL=redis://redis-prod:6379/0
+      - REDIS_URL=redis://redis:6379/0
       - APP_MODE=production
       - LOG_LEVEL=info
       - WORKER_CONCURRENCY=4
