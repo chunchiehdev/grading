@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Send, ChevronDown, ChevronRight, BrainCircuit, Pencil, CheckCircle2, Trophy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { type SparringQuestion } from '@/types/grading';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getKemberRubricTemplate } from '@/utils/kember-rubric-template';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -62,8 +61,6 @@ export function FeedbackChat({
   assignmentId,
   sessionId,
   result,
-  studentName,
-  studentPicture,
   fileId,
   initialConversationsMap,
   thinkingProcess,
@@ -652,7 +649,7 @@ export function FeedbackChat({
   
       {/* Messages */}
       <div className="flex-1 overflow-y-auto min-h-0 w-full">
-        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 min-h-full flex flex-col">
+        <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 min-h-full flex flex-col">
           <div className="space-y-6 py-6 flex-1">
             {visibleMessages.map((m: any) => (
               <div
@@ -660,16 +657,8 @@ export function FeedbackChat({
                 className={`flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {m.role === 'user' ? (
-                  <div className="flex gap-3 max-w-[80%] flex-row-reverse">
-                    <div className="flex-shrink-0 mt-1">
-                      <Avatar className="h-8 w-8 border">
-                        <AvatarImage src={studentPicture || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                          {studentName ? studentName.slice(0, 2).toUpperCase() : 'ME'}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                    <div className="text-sm whitespace-pre-wrap break-words px-4 py-3 rounded-2xl rounded-tr-none bg-primary text-primary-foreground">
+                  <div className="max-w-[88%] sm:max-w-[82%]">
+                    <div className="text-sm whitespace-pre-wrap break-words px-4 py-3 rounded-2xl rounded-br-md bg-primary text-primary-foreground shadow-sm">
                       {(m as any).content ||
                         m.parts
                           ?.filter((p: any) => p.type === 'text')
@@ -679,8 +668,8 @@ export function FeedbackChat({
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full space-y-2">
-                    <div className="text-sm text-foreground leading-relaxed pl-9">
+                  <div className="w-full max-w-[96%] sm:max-w-[92%] space-y-2">
+                    <div className="px-1 py-1 text-sm text-foreground leading-relaxed">
                       <div className="prose prose-sm dark:prose-invert max-w-none">
                         <Markdown>
                           {(m as any).content ||
@@ -701,7 +690,7 @@ export function FeedbackChat({
               (visibleMessages.length === 0 ||
                 visibleMessages[visibleMessages.length - 1]?.role === 'user') && (
                 <div className="flex w-full justify-start">
-                  <div className="flex items-center gap-2 pl-9">
+                  <div className="flex items-center gap-2 px-1 py-1">
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">{t('grading:chat.thinking')}</span>
                   </div>
@@ -784,7 +773,7 @@ export function FeedbackChat({
             }}
           />
           <div className="bg-background pb-4">
-            <div className="mx-auto max-w-3xl px-4 sm:px-6 py-3">
+            <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-3">
               <form
                 onSubmit={handleSubmit}
                 className={cn(

@@ -861,7 +861,7 @@ export default function SubmitAssignment() {
       {/* Desktop: Split Panel Layout (lg and above) */}
       <div className="hidden lg:flex flex-row flex-1 overflow-hidden min-h-0">
         {/* Left Column: Assignment Cards - Scrollable */}
-        <div ref={leftPanelRef} className="w-full lg:w-1/2 overflow-y-auto border-r-0 lg:border-r border-border hide-scrollbar">
+        <div ref={leftPanelRef} className="w-full lg:w-5/12 overflow-y-auto border-r-0 lg:border-r border-border hide-scrollbar">
           <div className="space-y-6 p-4 sm:px-6 lg:px-8 py-8">
             {/* Assignment Header Card - Bento Style */}
             <div className="rounded-2xl bg-card border border-border p-6 hover:shadow-md transition-all duration-200">
@@ -893,18 +893,45 @@ export default function SubmitAssignment() {
                 <h2 className="mb-4 text-lg font-semibold text-foreground">
                   {t('assignment:submit.dueDate')}
                 </h2>
-                <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
-                  <Calendar className="h-5 w-5 text-muted-foreground" />
-                  <span
-                    className={`text-base font-semibold ${
-                      isOverdue
-                        ? 'text-destructive'
-                        : 'text-foreground'
-                    }`}
-                  >
-                    {assignment.formattedDueDate}
-                    {isOverdue && ` (${t('assignment:submit.overdueLabel')})`}
-                  </span>
+                <div
+                  className={`rounded-xl border p-4 ${
+                    isOverdue
+                      ? 'border-destructive/30 bg-destructive/5'
+                      : 'border-border bg-muted/30'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div
+                        className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg ${
+                          isOverdue ? 'bg-destructive/10' : 'bg-primary/10'
+                        }`}
+                      >
+                        <Calendar
+                          className={`h-4 w-4 ${isOverdue ? 'text-destructive' : 'text-primary'}`}
+                        />
+                      </div>
+
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          {t('assignment:submit.dueDate')}
+                        </p>
+                        <p
+                          className={`mt-1 text-base font-semibold leading-tight ${
+                            isOverdue ? 'text-destructive' : 'text-foreground'
+                          }`}
+                        >
+                          {assignment.formattedDueDate}
+                        </p>
+                      </div>
+                    </div>
+
+                    {isOverdue && (
+                      <span className="inline-flex flex-shrink-0 items-center rounded-full bg-destructive/15 px-2.5 py-1 text-xs font-semibold text-destructive">
+                        {t('assignment:submit.overdueLabel')}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1146,7 +1173,7 @@ export default function SubmitAssignment() {
         </div>
 
         {/* Right Column: AI Grading Results - Independent Scrolling */}
-        <aside ref={rightPanelRef} className="w-full lg:w-1/2 overflow-y-auto bg-background hide-scrollbar">
+        <aside ref={rightPanelRef} className="w-full lg:w-7/12 overflow-y-auto bg-background hide-scrollbar">
           <div className="p-4 sm:px-6 lg:px-8 py-8 h-full flex flex-col">
             {state.session?.result ? (
               state.session.result.sparringQuestions && state.session.result.sparringQuestions.length > 0 ? (
