@@ -1,4 +1,5 @@
- /.cache
+secret-dumps/*
+/.cache
 /build
 .env
 .secrets.env
