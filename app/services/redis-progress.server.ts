@@ -48,7 +48,7 @@ export class RedisProgressService {
           `(${progress.uploadedBytes || 0}/${progress.totalBytes || 0} bytes)`
       );
     } catch (error) {
-      logger.error(`❌ Failed to update Redis progress for ${uploadId}/${filename}:`, error);
+      logger.error({ err: error }, `❌ Failed to update Redis progress for ${uploadId}/${filename}:`);
       throw error;
     }
   }
@@ -67,7 +67,7 @@ export class RedisProgressService {
         try {
           progress[filename] = JSON.parse(value);
         } catch (parseError) {
-          logger.warn(`Failed to parse progress data for ${filename}:`, parseError);
+          logger.warn({ err: parseError }, `Failed to parse progress data for ${filename}:`);
           // Return safe fallback data
           progress[filename] = {
             status: 'error',
@@ -79,7 +79,7 @@ export class RedisProgressService {
 
       return progress;
     } catch (error) {
-      logger.error(`❌ Failed to get Redis progress for ${uploadId}:`, error);
+      logger.error({ err: error }, `❌ Failed to get Redis progress for ${uploadId}:`);
       return {}; // Safe fallback
     }
   }
@@ -114,7 +114,7 @@ export class RedisProgressService {
 
       logger.info(`🎯 Redis upload session initialized: ${uploadId} (${files.length} files)`);
     } catch (error) {
-      logger.error(`❌ Failed to initialize Redis upload session ${uploadId}:`, error);
+      logger.error({ err: error }, `❌ Failed to initialize Redis upload session ${uploadId}:`);
       throw error;
     }
   }
@@ -139,7 +139,7 @@ export class RedisProgressService {
         startTime: Date.now(), // For calculating speed
       });
     } catch (error) {
-      logger.error(`❌ Failed to update bytes progress for ${uploadId}/${filename}:`, error);
+      logger.error({ err: error }, `❌ Failed to update bytes progress for ${uploadId}/${filename}:`);
     }
   }
 
@@ -160,7 +160,7 @@ export class RedisProgressService {
         ...(fileId && { fileId }),
       });
     } catch (error) {
-      logger.error(`❌ Failed to complete file ${uploadId}/${filename}:`, error);
+      logger.error({ err: error }, `❌ Failed to complete file ${uploadId}/${filename}:`);
     }
   }
 
@@ -180,7 +180,7 @@ export class RedisProgressService {
         error,
       });
     } catch (err) {
-      logger.error(`❌ Failed to mark file as failed ${uploadId}/${filename}:`, err);
+      logger.error({ err: err }, `❌ Failed to mark file as failed ${uploadId}/${filename}:`);
     }
   }
 
@@ -193,7 +193,7 @@ export class RedisProgressService {
       await redis.del(key);
       logger.info(`🧹 Cleaned up Redis upload session: ${uploadId}`);
     } catch (error) {
-      logger.warn(`⚠️ Failed to cleanup upload session ${uploadId}:`, error);
+      logger.warn({ err: error }, `⚠️ Failed to cleanup upload session ${uploadId}:`);
     }
   }
 
@@ -228,7 +228,7 @@ export class RedisProgressService {
         overallProgress,
       };
     } catch (error) {
-      logger.error(`❌ Failed to get upload stats for ${uploadId}:`, error);
+      logger.error({ err: error }, `❌ Failed to get upload stats for ${uploadId}:`);
       return {
         totalFiles: 0,
         completedFiles: 0,

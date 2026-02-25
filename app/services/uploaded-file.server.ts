@@ -64,7 +64,7 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
     try {
       buffer = Buffer.from(await file.arrayBuffer());
     } catch (error) {
-      logger.error('Failed to read file data:', error);
+      logger.error({ err: error }, 'Failed to read file data:');
       return {
         success: false,
         error: '無法讀取文件數據，請檢查文件是否損壞',
@@ -80,14 +80,14 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
     } catch (error) {
       const storageError = error as StorageError;
 
-      logger.error('Storage upload failed:', {
+      logger.error({
         error: storageError.message,
         type: storageError.type,
         retryable: storageError.retryable,
         fileName: file.name,
         fileSize: file.size,
         userId,
-      });
+      }, 'Storage upload failed:');
 
       // Map storage error types to user-friendly messages
       let errorType: UploadFileResult['errorType'] = 'storage';
@@ -144,7 +144,7 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
         },
       });
     } catch (error) {
-      logger.error('Database record creation failed:', error);
+      logger.error({ err: error }, 'Database record creation failed:');
 
       // Try to clean up the uploaded file from storage
       try {
@@ -152,7 +152,7 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
         await deleteFromStorage(fileKey);
         logger.info(`Cleaned up orphaned file from storage: ${fileKey}`);
       } catch (cleanupError) {
-        logger.error(`Failed to cleanup orphaned file ${fileKey}:`, cleanupError);
+        logger.error({ err: cleanupError }, `Failed to cleanup orphaned file ${fileKey}:`);
       }
 
       return {
@@ -195,7 +195,7 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
     } else {
       // Mark as completed for unsupported formats (we'll just use the file as-is)
       updateFileParseStatus(uploadedFile.id, FileParseStatus.COMPLETED, 'File uploaded successfully').catch((error) => {
-        logger.error(`Failed to update parse status for ${uploadedFile.id}:`, error);
+        logger.error({ err: error }, `Failed to update parse status for ${uploadedFile.id}:`);
       });
     }
 
@@ -208,13 +208,13 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
     };
   } catch (error) {
     const duration = Date.now() - startTime;
-    logger.error('Unexpected error during file upload:', {
+    logger.error({
       error: error instanceof Error ? error.message : error,
       userId: request.userId,
       fileName: request.file?.name,
       fileSize: request.file?.size,
       duration,
-    });
+    }, 'Unexpected error during file upload:');
 
     return {
       success: false,
@@ -246,7 +246,7 @@ export async function updateFileParseStatus(
 
     return { success: true };
   } catch (error) {
-    logger.error('Failed to update file parse status:', error);
+    logger.error({ err: error }, 'Failed to update file parse status:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update parse status',
@@ -291,7 +291,7 @@ export async function getUserFiles(
 
     return { files, total };
   } catch (error) {
-    logger.error('Failed to get user files:', error);
+    logger.error({ err: error }, 'Failed to get user files:');
     return {
       files: [],
       total: 0,
@@ -352,7 +352,7 @@ export async function getFile(
 
     return { error: 'File not found' };
   } catch (error) {
-    logger.error('Failed to get file:', error);
+    logger.error({ err: error }, 'Failed to get file:');
     return {
       error: error instanceof Error ? error.message : 'Failed to get file',
     };
@@ -408,7 +408,7 @@ export async function deleteFile(
       return { success: true, deletionType: 'hard' };
     }
   } catch (error) {
-    logger.error('Failed to delete file:', error);
+    logger.error({ err: error }, 'Failed to delete file:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to delete file',
@@ -447,7 +447,7 @@ export async function restoreFile(fileId: string, userId: string): Promise<{ suc
 
     return { success: true };
   } catch (error) {
-    logger.error('Failed to restore file:', error);
+    logger.error({ err: error }, 'Failed to restore file:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to restore file',
@@ -471,7 +471,7 @@ export async function getReadyFiles(userId: string): Promise<{ files: UploadedFi
 
     return { files };
   } catch (error) {
-    logger.error('Failed to get ready files:', error);
+    logger.error({ err: error }, 'Failed to get ready files:');
     return {
       files: [],
       error: error instanceof Error ? error.message : 'Failed to get ready files',
@@ -511,7 +511,7 @@ export async function cleanupExpiredFiles(): Promise<{ deletedCount: number; err
 
     return { deletedCount: deleteResult.count };
   } catch (error) {
-    logger.error('Failed to cleanup expired files:', error);
+    logger.error({ err: error }, 'Failed to cleanup expired files:');
     return {
       deletedCount: 0,
       error: error instanceof Error ? error.message : 'Failed to cleanup files',

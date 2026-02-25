@@ -52,7 +52,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       data: chatData,
     });
   } catch (error) {
-    logger.error('Failed to get chat:', error);
+    logger.error({ err: error }, 'Failed to get chat:');
     return Response.json({ success: false, error: '獲取聊天記錄失敗' }, { status: 500 });
   }
 }

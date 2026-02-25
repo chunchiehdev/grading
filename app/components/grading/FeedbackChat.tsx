@@ -21,12 +21,12 @@ const TRIGGER_TEXT = '請根據你在 system prompt 中看到的學生作業跟 
 function getKemberLevel(score: number, maxScore: number) {
   const pct = maxScore > 0 ? score / maxScore : 0;
   if (pct >= 0.8)
-    return { level: 4, label: 'L4', desc: '批判性反思', colorClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' };
+    return { level: 4, label: 'L4', desc: '批判性反思', colorClass: 'border border-primary/30 bg-primary/10 text-primary' };
   if (pct >= 0.6)
-    return { level: 3, label: 'L3', desc: '建設性反思', colorClass: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' };
+    return { level: 3, label: 'L3', desc: '建設性反思', colorClass: 'border border-accent-foreground/20 bg-accent text-accent-foreground' };
   if (pct >= 0.4)
-    return { level: 2, label: 'L2', desc: '理解反思', colorClass: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' };
-  return { level: 1, label: 'L1', desc: '習慣性行動', colorClass: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' };
+    return { level: 2, label: 'L2', desc: '理解反思', colorClass: 'border border-muted-foreground/20 bg-muted text-muted-foreground' };
+  return { level: 1, label: 'L1', desc: '習慣性行動', colorClass: 'border border-destructive/30 bg-destructive/10 text-destructive' };
 }
 
 export interface SparringState {
@@ -366,7 +366,7 @@ export function FeedbackChat({
               >
                 {result.totalScore}/{result.maxScore}
               </span>
-              <span className="text-sm text-muted-foreground">{t('grading:chat.scoreBar')}</span>
+              
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{t('grading:chat.showDetails')}</span>
@@ -649,21 +649,7 @@ export function FeedbackChat({
   return (
     <div className="h-full flex flex-col">
       {scoreCollapsible}
-
-      {/* Direction 2: Active question context + Kember badge */}
-      <div className="flex-shrink-0 px-4 sm:px-6 py-2 bg-muted/20 border-b border-border/50">
-        <div className="flex items-start gap-2">
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed flex-1 min-w-0 italic">
-            「{activeQuestion.target_quote}」
-          </p>
-          {activeKemberLevel && (
-            <Badge className={cn('flex-shrink-0 text-xs', activeKemberLevel.colorClass)}>
-              {activeKemberLevel.label} {activeKemberLevel.desc}
-            </Badge>
-          )}
-        </div>
-      </div>
-
+  
       {/* Messages */}
       <div className="flex-1 overflow-y-auto min-h-0 w-full">
         <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 min-h-full flex flex-col">

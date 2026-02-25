@@ -22,20 +22,20 @@ export class ProtectedAIService {
       return await breaker.execute(operation);
     } catch (error) {
       if (error instanceof CircuitBreakerError) {
-        logger.error('OpenAI service unavailable due to circuit breaker', {
+        logger.error({
           operationName,
           state: error.state,
-        });
+        }, 'OpenAI service unavailable due to circuit breaker');
 
         // 提供降級策略
         throw new AIServiceUnavailableError('AI 服務暫時無法使用，請稍後重試', 'openai', error.state);
       }
 
       // 記錄 AI 服務錯誤
-      logger.error('OpenAI service error', {
+      logger.error({
         operationName,
         error: error instanceof Error ? error.message : String(error),
-      });
+      }, 'OpenAI service error');
 
       throw error;
     }
@@ -55,18 +55,18 @@ export class ProtectedAIService {
       return await breaker.execute(operation);
     } catch (error) {
       if (error instanceof CircuitBreakerError) {
-        logger.error('Google AI service unavailable due to circuit breaker', {
+        logger.error({
           operationName,
           state: error.state,
-        });
+        }, 'Google AI service unavailable due to circuit breaker');
 
         throw new AIServiceUnavailableError('AI 服務暫時無法使用，請稍後重試', 'google-ai', error.state);
       }
 
-      logger.error('Google AI service error', {
+      logger.error({
         operationName,
         error: error instanceof Error ? error.message : String(error),
-      });
+      }, 'Google AI service error');
 
       throw error;
     }
@@ -84,20 +84,20 @@ export class ProtectedAIService {
     try {
       return await this.callGoogleAI(primaryOperation, `${operationName}-primary`);
     } catch (primaryError) {
-      logger.warn('Primary AI service failed, trying fallback', {
+      logger.warn({
         operationName,
         primaryError: primaryError instanceof Error ? primaryError.message : String(primaryError),
-      });
+      }, 'Primary AI service failed, trying fallback');
 
       // 主要服務失敗，嘗試備援服務
       try {
         return await this.callOpenAI(fallbackOperation, `${operationName}-fallback`);
       } catch (fallbackError) {
-        logger.error('Both AI services failed', {
+        logger.error({
           operationName,
           primaryError: primaryError instanceof Error ? primaryError.message : String(primaryError),
           fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
-        });
+        }, 'Both AI services failed');
 
         // 如果都是熔斷錯誤，返回服務不可用
         if (primaryError instanceof AIServiceUnavailableError && fallbackError instanceof AIServiceUnavailableError) {
@@ -123,11 +123,11 @@ export class ProtectedAIService {
   ): Promise<(T | Error)[]> {
     const { concurrency = 3, retryAttempts = 2, operationName = 'batch-ai-call' } = options;
 
-    logger.info('Starting batch AI operations', {
+    logger.info({
       totalOperations: operations.length,
       concurrency,
       operationName,
-    });
+    }, 'Starting batch AI operations');
 
     const results: (T | Error)[] = [];
 
@@ -145,12 +145,12 @@ export class ProtectedAIService {
             );
           } catch (error) {
             if (attempt === retryAttempts) {
-              logger.error('Batch operation failed after all attempts', {
+              logger.error({
                 operationName,
                 itemIndex: i + index,
                 attempts: attempt + 1,
                 error: error instanceof Error ? error.message : String(error),
-              });
+              }, 'Batch operation failed after all attempts');
               return error instanceof Error ? error : new Error(String(error));
             }
 
@@ -176,13 +176,13 @@ export class ProtectedAIService {
     const successCount = results.filter((r) => !(r instanceof Error)).length;
     const failureCount = results.length - successCount;
 
-    logger.info('Batch AI operations completed', {
+    logger.info({
       operationName,
       totalOperations: operations.length,
       successCount,
       failureCount,
       successRate: `${((successCount / results.length) * 100).toFixed(1)}%`,
-    });
+    }, 'Batch AI operations completed');
 
     return results;
   }

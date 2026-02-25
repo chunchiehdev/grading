@@ -86,11 +86,11 @@ export const calculateConfidenceTool = tool({
       reason += `。問題：${issues.join('、')}`;
     }
 
-    logger.debug('[Agent Tool] Confidence calculated', {
+    logger.debug({
       confidenceScore,
       shouldReview,
       factors: { rubricCoverage, evidenceQuality, criteriaAmbiguity },
-    });
+    }, '[Agent Tool] Confidence calculated');
 
     return {
       confidenceScore,
@@ -156,7 +156,7 @@ export const generateFeedbackTool = tool({
 You MUST provide at least 1 challenging "sparring question" based on your grading.
 This is a mandatory requirement. Please retry and include the 'sparringQuestions' array.`;
       
-      logger.warn('[Agent Tool] Validation Failed: Missing sparringQuestions', { errorMsg });
+      logger.warn({ errorMsg }, '[Agent Tool] Validation Failed: Missing sparringQuestions');
       throw new Error(errorMsg);
     }
     
@@ -226,14 +226,14 @@ This is a mandatory requirement. Please retry and include the 'sparringQuestions
     const finalOverallFeedback = overallFeedback.trim() ||
       (percentage >= 70 ? '整體表現良好，仍有進步空間。' : '建議重新檢視作業要求，並針對評分標準逐項改進。');
 
-    logger.debug('[Agent Tool] Feedback generated', {
+    logger.debug({
       totalScore,
       maxScore,
       percentage: percentage.toFixed(1),
       hasReasoning: !!reasoning,
       reasoningLength: reasoning?.length || 0,
       sparringQuestionsCount: sparringQuestions?.length || 0,
-    });
+    }, '[Agent Tool] Feedback generated');
 
     return {
       reasoning, // 保存評分推理過程
@@ -339,11 +339,11 @@ export const createAgentTools = (context: {
         .sort((a: any, b: any) => b.relevanceScore - a.relevanceScore)
         .slice(0, topK);
 
-      logger.debug('[Agent Tool] Reference search completed', {
+      logger.debug({
         query,
         totalDocuments: referenceDocuments.length,
         foundMatches: results.length,
-      });
+      }, '[Agent Tool] Reference search completed');
 
       return {
         foundReferences: results,
@@ -437,11 +437,11 @@ export const createAgentTools = (context: {
           recommendation = `發現 ${similarities.length} 份高相似度作業（≥${(threshold * 100).toFixed(0)}%），建議人工確認是否為抄襲`;
         }
 
-        logger.info('[Agent Tool] Similarity check completed', {
+        logger.info({
           assignmentAreaId,
           checked: historicalSubmissions.length,
           suspicious: similarities.length,
-        });
+        }, '[Agent Tool] Similarity check completed');
 
         return {
           hasSuspiciousSimilarity,
@@ -450,7 +450,7 @@ export const createAgentTools = (context: {
           checked: historicalSubmissions.length,
         };
       } catch (error) {
-        logger.error('[Agent Tool] Similarity check failed', { error });
+        logger.error({ error }, '[Agent Tool] Similarity check failed');
         return {
           hasSuspiciousSimilarity: false,
           matches: [],
@@ -514,12 +514,12 @@ Use Markdown formatting for clarity.`)
             })
           );
           
-          logger.info('[Agent ThinkAloud] Streaming analysis via tool', {
+          logger.info({
             analysisLength: analysis.length,
             sessionId: context.sessionId
-          });
+          }, '[Agent ThinkAloud] Streaming analysis via tool');
         } catch (error) {
-          logger.error('[Agent ThinkAloud] Failed to publish analysis', error);
+          logger.error({ err: error }, '[Agent ThinkAloud] Failed to publish analysis');
         }
       }
 
@@ -563,12 +563,12 @@ Use Markdown formatting for clarity.`)
             })
           );
           
-          logger.info('[Agent Think] Streaming thinking via tool', {
+          logger.info({
             thoughtLength: thought.length,
             sessionId: context.sessionId
-          });
+          }, '[Agent Think] Streaming thinking via tool');
         } catch (error) {
-          logger.error('[Agent Think] Failed to publish thinking', error);
+          logger.error({ err: error }, '[Agent Think] Failed to publish thinking');
         }
       }
 

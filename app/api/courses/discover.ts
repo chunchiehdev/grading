@@ -78,7 +78,7 @@ export async function loader({ request }: { request: Request }) {
       )
     );
   } catch (error) {
-    logger.error('Error in course discovery:', error);
+    logger.error({ err: error }, 'Error in course discovery:');
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to fetch courses',

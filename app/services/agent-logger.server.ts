@@ -58,17 +58,17 @@ export async function saveAgentExecution(
       data: logRecords,
     });
 
-    logger.info('[Agent Logger] Execution saved to database', {
+    logger.info({
       resultId,
       stepsCount: steps.length,
       logsCreated: logRecords.length,
       requiresReview,
-    });
+    }, '[Agent Logger] Execution saved to database');
   } catch (error) {
-    logger.error('[Agent Logger] Failed to save execution', {
+    logger.error({
       resultId,
       error: error instanceof Error ? error.message : String(error),
-    });
+    }, '[Agent Logger] Failed to save execution');
     // Don't throw - logging failure shouldn't break grading
   }
 }

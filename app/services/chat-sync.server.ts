@@ -18,7 +18,7 @@ export class ChatSyncService {
       const data = await redis.get(key);
       return data ? JSON.parse(data) : null;
     } catch (error) {
-      logger.error('Failed to get user chat state:', error);
+      logger.error({ err: error }, 'Failed to get user chat state:');
       return null;
     }
   }
@@ -49,7 +49,7 @@ export class ChatSyncService {
         })
       );
     } catch (error) {
-      logger.error('Failed to update user chat state:', error);
+      logger.error({ err: error }, 'Failed to update user chat state:');
       throw error;
     }
   }
@@ -69,7 +69,7 @@ export class ChatSyncService {
           const event = JSON.parse(message);
           callback(event);
         } catch (error) {
-          logger.error('Failed to parse sync event:', error);
+          logger.error({ err: error }, 'Failed to parse sync event:');
         }
       }
     });
@@ -89,7 +89,7 @@ export class ChatSyncService {
       const state = await this.getUserChatState(userId);
       return state?.recentChats || [];
     } catch (error) {
-      logger.error('Failed to get user recent chats:', error);
+      logger.error({ err: error }, 'Failed to get user recent chats:');
       return [];
     }
   }
@@ -105,7 +105,7 @@ export class ChatSyncService {
         recentChats: chatIds.slice(0, 10), // 只保留最近 10 個
       });
     } catch (error) {
-      logger.error('Failed to update user recent chats:', error);
+      logger.error({ err: error }, 'Failed to update user recent chats:');
       throw error;
     }
   }
@@ -128,7 +128,7 @@ export class ChatSyncService {
 
       logger.info(`Processed ${keys.length} user chat state keys for cleanup`);
     } catch (error) {
-      logger.error('Failed to cleanup expired states:', error);
+      logger.error({ err: error }, 'Failed to cleanup expired states:');
     }
   }
 }

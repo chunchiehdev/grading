@@ -39,7 +39,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     return Response.json({ success: true, coverImage: presignedUrl });
   } catch (error) {
-    logger.error('Failed to get cover image URL:', error);
+    logger.error({ err: error }, 'Failed to get cover image URL:');
     return Response.json({ success: false, error: 'Failed to get cover image' }, { status: 500 });
   }
 }

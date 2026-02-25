@@ -129,7 +129,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     return Response.json(result);
   } catch (error) {
-    logger.error('[Analytics API] Error fetching insights', error);
+    logger.error({ err: error }, '[Analytics API] Error fetching insights');
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Failed to fetch insights',

@@ -43,7 +43,7 @@ export function initGradingWorker() {
         logger.info(`  [BullMQ] Completed job ${job.id} for result ${resultId}`);
         return result;
       } catch (error) {
-        logger.error(`❌ [BullMQ] Failed job ${job.id}:`, error);
+        logger.error({ err: error }, `❌ [BullMQ] Failed job ${job.id}:`);
         throw error;
       }
     },

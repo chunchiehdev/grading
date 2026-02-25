@@ -22,7 +22,7 @@ const globalStartup = globalThis as GlobalWithStartupPromise;
 
 if (!globalStartup[STARTUP_PROMISE_KEY]) {
   globalStartup[STARTUP_PROMISE_KEY] = StartupService.initialize().catch((error) => {
-    logger.error('Startup initialization failed:', error);
+    logger.error({ err: error }, 'Startup initialization failed:');
   });
 }
 
@@ -40,7 +40,7 @@ export default async function handleRequest(
     await startupPromise;
   } catch (e) {
     // Do not fail the request if optional services fail to init
-    logger.error('StartupService initialize error (continuing):', e);
+    logger.error({ err: e }, 'StartupService initialize error (continuing):');
   }
 
   const i18nInstance = await i18nServer(request, routerContext);

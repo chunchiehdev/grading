@@ -2,7 +2,7 @@ import { db } from '@/lib/db.server';
 import type { CourseInfo } from './course.server';
 
 export interface CoursePageData {
-  course: CourseInfo & {
+  course: Omit<CourseInfo, 'assignmentAreas'> & {
     assignmentAreas?: Array<{
       id: string;
       name: string;

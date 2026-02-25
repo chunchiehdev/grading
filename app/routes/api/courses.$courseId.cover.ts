@@ -58,13 +58,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // Upload to MinIO/S3
-    logger.info(`Uploading cover image for course ${courseId}`, {
+    logger.info({
       courseId,
       teacherId: teacher.id,
       fileSize: file.size,
       mimeType: file.type,
       storageKey,
-    });
+    }, `Uploading cover image for course ${courseId}`);
 
     const uploadResult = await uploadToStorage(buffer, storageKey, file.type);
 
@@ -79,7 +79,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         logger.info(`Deleted old cover image: ${course.coverImage}`);
       } catch (error) {
         // Log but don't fail the request if old image deletion fails
-        logger.warn(`Failed to delete old cover image: ${course.coverImage}`, { error });
+        logger.warn({ error }, `Failed to delete old cover image: ${course.coverImage}`);
       }
     }
 
@@ -89,11 +89,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
       data: { coverImage: storageKey },
     });
 
-    logger.info(`Cover image updated for course ${courseId}`, { storageKey });
+    logger.info({ storageKey }, `Cover image updated for course ${courseId}`);
 
     return Response.json({ success: true, coverImage: storageKey });
   } catch (error) {
-    logger.error('Failed to upload cover image:', error);
+    logger.error({ err: error }, 'Failed to upload cover image:');
     return Response.json({ success: false, error: 'Failed to upload cover image' }, { status: 500 });
   }
 }

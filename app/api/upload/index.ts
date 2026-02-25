@@ -28,10 +28,10 @@ export async function action({ request }: { request: Request }) {
     // Get user authentication
     userId = await getUserId(request);
     if (!userId) {
-      logger.warn('Upload attempt without authentication', {
+      logger.warn({
         userAgent: request.headers.get('user-agent'),
         ip: request.headers.get('x-forwarded-for') || 'unknown',
-      });
+      }, 'Upload attempt without authentication');
 
       return Response.json(createErrorResponse('用戶未認證', ApiErrorCode.UNAUTHORIZED), { status: 401 });
     }
@@ -41,23 +41,23 @@ export async function action({ request }: { request: Request }) {
     const files = formData.getAll('files') as File[];
 
     if (!uploadId) {
-      logger.warn('Upload attempt without uploadId', { userId });
+      logger.warn({ userId }, 'Upload attempt without uploadId');
       return Response.json(createErrorResponse('Missing uploadId', ApiErrorCode.VALIDATION_ERROR), { status: 400 });
     }
 
     if (!files || files.length === 0) {
-      logger.warn('Upload attempt without files', { userId, uploadId });
+      logger.warn({ userId, uploadId }, 'Upload attempt without files');
       return Response.json(createErrorResponse('No files provided', ApiErrorCode.VALIDATION_ERROR), { status: 400 });
     }
 
-    logger.info(`🚀 Processing ${files.length} files for user ${userId}, uploadId: ${uploadId}`, {
+    logger.info({
       userId,
       uploadId,
       fileCount: files.length,
       fileSizes: files.map((f) => f.size),
       fileTypes: files.map((f) => f.type),
       totalSize: files.reduce((sum, f) => sum + f.size, 0),
-    });
+    }, `🚀 Processing ${files.length} files for user ${userId}, uploadId: ${uploadId}`);
 
     const fileResults = await Promise.all(
       files.map(async (file, index) => {
@@ -69,13 +69,13 @@ export async function action({ request }: { request: Request }) {
             progress: 0,
           });
 
-          logger.info(`📤 Starting upload for file ${index + 1}/${files.length}: ${file.name}`, {
+          logger.info({
             userId,
             uploadId,
             fileName: file.name,
             fileSize: file.size,
             mimeType: file.type,
-          });
+          }, `📤 Starting upload for file ${index + 1}/${files.length}: ${file.name}`);
 
           // Upload using the new service
           const result = await uploadFile({
@@ -94,14 +94,14 @@ export async function action({ request }: { request: Request }) {
           });
 
           const fileDuration = Date.now() - fileStartTime;
-          logger.info(`  File uploaded successfully: ${file.name} -> ${result.fileId}`, {
+          logger.info({
             userId,
             uploadId,
             fileName: file.name,
             fileId: result.fileId,
             duration: fileDuration,
             fileSize: file.size,
-          });
+          }, `  File uploaded successfully: ${file.name} -> ${result.fileId}`);
 
           return {
             fileId: result.fileId,
@@ -113,7 +113,7 @@ export async function action({ request }: { request: Request }) {
         } catch (error) {
           const fileDuration = Date.now() - fileStartTime;
 
-          logger.error(`❌ Upload failed for ${file.name}:`, {
+          logger.error({
             error: error instanceof Error ? error.message : error,
             userId,
             uploadId,
@@ -123,7 +123,7 @@ export async function action({ request }: { request: Request }) {
             duration: fileDuration,
             errorType: typeof error,
             stack: error instanceof Error ? error.stack : undefined,
-          });
+          }, `❌ Upload failed for ${file.name}:`);
 
           // Enhanced error handling with detailed progress update
           const errorMessage = error instanceof Error ? error.message : '上傳失敗';
@@ -148,7 +148,7 @@ export async function action({ request }: { request: Request }) {
     const totalDuration = Date.now() - startTime;
 
     // Log completion status with detailed metrics
-    logger.info(`Upload completed for ${uploadId}: ${successfulUploads.length}/${files.length} successful`, {
+    logger.info({
       userId,
       uploadId,
       totalFiles: files.length,
@@ -157,7 +157,7 @@ export async function action({ request }: { request: Request }) {
       totalDuration,
       avgFileSize: files.reduce((sum, f) => sum + f.size, 0) / files.length,
       failedFileNames: failedUploads.map((f) => f.fileName),
-    });
+    }, `Upload completed for ${uploadId}: ${successfulUploads.length}/${files.length} successful`);
 
     return Response.json(
       createSuccessResponse({
@@ -173,7 +173,7 @@ export async function action({ request }: { request: Request }) {
   } catch (error) {
     const totalDuration = Date.now() - startTime;
 
-    logger.error('Upload API error:', {
+    logger.error({
       error: error instanceof Error ? error.message : error,
       userId,
       uploadId,
@@ -181,7 +181,7 @@ export async function action({ request }: { request: Request }) {
       errorType: typeof error,
       stack: error instanceof Error ? error.stack : undefined,
       userAgent: request.headers.get('user-agent'),
-    });
+    }, 'Upload API error:');
 
     return Response.json(
       createErrorResponse(error instanceof Error ? error.message : '上傳過程中發生錯誤', ApiErrorCode.INTERNAL_ERROR),

@@ -86,7 +86,7 @@ export async function createSubmission(
       },
     });
 
-    logger.info('  Created submission:', submission.id, 'for student:', studentId);
+    logger.info({ submissionId: submission.id, studentId }, '  Created submission');
 
     // Send submission notification to teacher via WebSocket
     try {
@@ -343,7 +343,7 @@ export async function createSubmissionAndLinkGradingResult(
         if (parseResult.success) {
           usedContext = parseResult.data;
         } else {
-          logger.warn(`⚠️ Invalid usedContext format in grading result ${gradingResult.id}:`, parseResult.error);
+          logger.warn({ err: parseResult.error }, `⚠️ Invalid usedContext format in grading result ${gradingResult.id}:`);
         }
       }
 
@@ -376,7 +376,7 @@ export async function createSubmissionAndLinkGradingResult(
       }
     }
   } catch (error) {
-    logger.error(`Error linking AI analysis for submission ${submission.id}:`, error);
+    logger.error({ err: error }, `Error linking AI analysis for submission ${submission.id}:`);
   }
 
   return { submissionId: submission.id };
@@ -983,7 +983,7 @@ export async function getDraftSubmission(
               };
             }
           } catch (e) {
-            logger.warn('Could not resolve file metadata for submission:', e);
+            logger.warn({ err: e }, 'Could not resolve file metadata for submission:');
           }
         }
       }

@@ -32,7 +32,7 @@ export async function publishAssignmentCreatedNotification(
     };
   }
 ): Promise<void> {
-  logger.info('🔍 查找課程學生 - courseId:', assignment.courseId);
+  logger.info({ data: assignment.courseId }, '🔍 查找課程學生 - courseId:');
 
   const courseStudents = await db.enrollment.findMany({
     where: { class: { courseId: assignment.courseId } },
@@ -40,12 +40,11 @@ export async function publishAssignmentCreatedNotification(
   });
 
   logger.info(
-    '📋 課程學生名單:',
-    courseStudents.map((e: EnrollmentWithStudent) => ({
+    { data: courseStudents.map((e: EnrollmentWithStudent) => ({
       studentId: e.studentId,
       studentName: e.student.name,
       studentEmail: e.student.email,
-    }))
+    })) }, '📋 課程學生名單:'
   );
 
   if (courseStudents.length === 0) {
@@ -54,7 +53,7 @@ export async function publishAssignmentCreatedNotification(
   }
 
   const studentIds = courseStudents.map((enrollment: EnrollmentWithStudent) => enrollment.studentId);
-  logger.info('📤 將發送通知給學生IDs:', studentIds);
+  logger.info({ data: studentIds }, '📤 將發送通知給學生IDs:');
 
   const notifications: NotificationData[] = courseStudents.map((enrollment: EnrollmentWithStudent) => ({
     type: 'ASSIGNMENT_CREATED',
@@ -96,7 +95,7 @@ export async function publishSubmissionCreatedNotification(submissionData: {
   teacherId: string;
   submittedAt: Date;
 }): Promise<void> {
-  logger.info('📤 Publishing submission notification for teacher:', submissionData.teacherId);
+  logger.info({ data: submissionData.teacherId }, '📤 Publishing submission notification for teacher:');
 
   // Create notification record in database
   let notificationId: string | null = null;
@@ -118,9 +117,9 @@ export async function publishSubmissionCreatedNotification(submissionData: {
       },
     });
     notificationId = notification.id;
-    logger.info('  Created notification record in database:', notificationId);
+    logger.info({ data: notificationId }, '  Created notification record in database:');
   } catch (error) {
-    logger.error('⚠️ Failed to create notification record:', error);
+    logger.error({ err: error }, '⚠️ Failed to create notification record:');
   }
 
   // Publish WebSocket event with notification ID

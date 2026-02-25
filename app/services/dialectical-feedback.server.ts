@@ -10,10 +10,16 @@
  */
 
 import { generateText, type LanguageModelUsage } from 'ai';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import logger from '@/utils/logger';
-import { getKeyHealthTracker } from './gemini-key-health.server';
 import type { SparringQuestion } from '@/types/grading';
+
+const VLLM_CONFIG = {
+  baseURL: process.env.VLLM_BASE_URL || '',
+  modelName: process.env.VLLM_MODEL_NAME || '',
+  apiKey: process.env.VLLM_API_KEY || '',
+  timeoutMs: 1500,
+};
 
 // ============================================================================
 // TYPES
@@ -37,7 +43,7 @@ export interface DialecticalFeedbackResult {
   success: boolean;
   feedback?: string;
   error?: string;
-  provider?: 'gemini' | 'fallback';
+  provider?: 'vllm' | 'fallback';
   usage?: LanguageModelUsage;
 }
 
@@ -237,6 +243,7 @@ export async function generateDialecticalFeedback(
   params: DialecticalFeedbackParams
 ): Promise<DialecticalFeedbackResult> {
   const { sparringQuestion, studentResponse } = params;
+  const prompt = generateDialecticalPrompt(params);
 
   // 如果學生回應太短或明顯是垃圾輸入，給予通用回饋
   if (!studentResponse || studentResponse.trim().length < 5) {
@@ -261,15 +268,8 @@ export async function generateDialecticalFeedback(
     };
   }
 
-  // 獲取 API Key
-  const healthTracker = getKeyHealthTracker();
-  const availableKeyIds = ['1'];
-  if (process.env.GEMINI_API_KEY2) availableKeyIds.push('2');
-  if (process.env.GEMINI_API_KEY3) availableKeyIds.push('3');
-
-  const selectedKeyId = await healthTracker.selectBestKey(availableKeyIds);
-  if (!selectedKeyId) {
-    logger.warn('[DialecticalFeedback] All API keys throttled, using fallback');
+  if (!VLLM_CONFIG.baseURL || !VLLM_CONFIG.modelName) {
+    logger.warn('[DialecticalFeedback] Missing VLLM_BASE_URL or VLLM_MODEL_NAME, using fallback');
     return {
       success: true,
       feedback: sparringQuestion.ai_hidden_reasoning,
@@ -277,34 +277,47 @@ export async function generateDialecticalFeedback(
     };
   }
 
-  const keyMap: Record<string, string | undefined> = {
-    '1': process.env.GEMINI_API_KEY,
-    '2': process.env.GEMINI_API_KEY2,
-    '3': process.env.GEMINI_API_KEY3,
-  };
-
-  const apiKey = keyMap[selectedKeyId];
-  if (!apiKey) {
-    return {
-      success: false,
-      error: `Gemini API key ${selectedKeyId} not found`,
-    };
-  }
-
-  const geminiProvider = createGoogleGenerativeAI({ apiKey });
   const startTime = Date.now();
 
   try {
-    logger.info('[DialecticalFeedback] Generating feedback', {
-      keyId: selectedKeyId,
-      questionStrategy: sparringQuestion.provocation_strategy,
-      responseLength: studentResponse.length,
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), VLLM_CONFIG.timeoutMs);
+
+    const healthResponse = await fetch(`${VLLM_CONFIG.baseURL}/models`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${VLLM_CONFIG.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
     });
 
-    const prompt = generateDialecticalPrompt(params);
+    clearTimeout(timeoutId);
+
+    if (!healthResponse.ok) {
+      logger.warn({
+        status: healthResponse.status,
+      }, '[DialecticalFeedback] vLLM health check failed, using fallback');
+      return {
+        success: true,
+        feedback: sparringQuestion.ai_hidden_reasoning,
+        provider: 'fallback',
+      };
+    }
+
+    const openai = createOpenAI({
+      baseURL: VLLM_CONFIG.baseURL,
+      apiKey: VLLM_CONFIG.apiKey,
+    });
+
+    logger.info({
+      model: VLLM_CONFIG.modelName,
+      questionStrategy: sparringQuestion.provocation_strategy,
+      responseLength: studentResponse.length,
+    }, '[DialecticalFeedback] Generating feedback via vLLM');
 
     const result = await generateText({
-      model: geminiProvider('gemini-2.5-flash'),
+      model: openai.chat(VLLM_CONFIG.modelName),
       prompt,
       temperature: 0.7, 
       maxOutputTokens: 8192,
@@ -312,33 +325,26 @@ export async function generateDialecticalFeedback(
 
     const responseTimeMs = Date.now() - startTime;
 
-    // 記錄成功
-    await healthTracker.recordSuccess(selectedKeyId, responseTimeMs);
-
-    logger.info('[DialecticalFeedback] Success', {
-      keyId: selectedKeyId,
+    logger.info({
+      model: VLLM_CONFIG.modelName,
       responseTimeMs,
       outputLength: result.text.length,
       usage: result.usage,
-    });
+    }, '[DialecticalFeedback] Success via vLLM');
 
     return {
       success: true,
       feedback: result.text.trim(),
-      provider: 'gemini',
+      provider: 'vllm',
       usage: result.usage,
     };
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;
 
-    // 記錄失敗
-    await healthTracker.recordFailure(selectedKeyId, 'other', String(error));
-
-    logger.error('[DialecticalFeedback] Failed, using fallback', {
-      keyId: selectedKeyId,
+    logger.error({
       responseTimeMs,
       error: error instanceof Error ? error.message : String(error),
-    });
+    }, '[DialecticalFeedback] vLLM failed, using fallback');
 
     // Fallback: 顯示原本的 AI 推理
     return {

@@ -26,7 +26,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       return new Response('Forbidden: Admin access required', { status: 403 });
     }
 
-    logger.info('[Analytics API] Fetching overview stats', { userId });
+    logger.info({ userId }, '[Analytics API] Fetching overview stats');
 
     // Query statistics
     const [
@@ -83,11 +83,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       periodEnd: null,
     };
 
-    logger.info('[Analytics API] Overview stats retrieved', result);
+    logger.info({ data: result }, '[Analytics API] Overview stats retrieved');
 
     return Response.json(result);
   } catch (error) {
-    logger.error('[Analytics API] Error fetching overview', error);
+    logger.error({ err: error }, '[Analytics API] Error fetching overview');
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Failed to fetch analytics',

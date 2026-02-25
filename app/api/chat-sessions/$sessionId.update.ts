@@ -46,11 +46,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const { title, status } = validationResult.data;
 
-    logger.info('[Chat Session Update API] Updating session', {
+    logger.info({
       sessionId,
       userId: userId.substring(0, 8),
       updates: { title, status },
-    });
+    }, '[Chat Session Update API] Updating session');
 
     // Verify session ownership
     const existingSession = await db.agentChatSession.findUnique({
@@ -82,16 +82,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
     });
 
-    logger.info('[Chat Session Update API] Session updated successfully', {
+    logger.info({
       sessionId,
-    });
+    }, '[Chat Session Update API] Session updated successfully');
 
     return Response.json({
       success: true,
       session: updatedSession,
     });
   } catch (error) {
-    logger.error('[Chat Session Update API] Error updating session', error);
+    logger.error({ err: error }, '[Chat Session Update API] Error updating session');
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Failed to update session',

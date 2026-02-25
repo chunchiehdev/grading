@@ -103,7 +103,7 @@ export async function action({ request }: { request: Request }) {
           },
         });
       } catch (error) {
-        logger.error('Failed to parse referenceFileIds:', error);
+        logger.error({ err: error }, 'Failed to parse referenceFileIds:');
       }
     }
 
@@ -124,7 +124,7 @@ export async function action({ request }: { request: Request }) {
       })
     );
   } catch (error) {
-    logger.error('Error creating assignment:', error);
+    logger.error({ err: error }, 'Error creating assignment:');
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to create assignment',
@@ -156,7 +156,7 @@ export async function loader({ request }: { request: Request }) {
 
     return Response.json(createSuccessResponse({ assignments }));
   } catch (error) {
-    logger.error('Error listing assignments:', error);
+    logger.error({ err: error }, 'Error listing assignments:');
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to list assignments',

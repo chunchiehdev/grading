@@ -48,11 +48,11 @@ export async function createGradingSession(
 
     // Check for duplicate rubric IDs
     const uniqueRubricIds = [...new Set(rubricIds)];
-    logger.info(`Validating rubrics for user ${userId}:`, {
+    logger.info({
       requestedRubricIds: rubricIds,
       uniqueRubricIds,
       hasDuplicates: rubricIds.length !== uniqueRubricIds.length,
-    });
+    }, `Validating rubrics for user ${userId}:`);
 
     // Validate files exist and belong to user
     const files = await db.uploadedFile.findMany({
@@ -66,7 +66,7 @@ export async function createGradingSession(
     if (files.length !== fileIds.length) {
       const foundFileIds = files.map((f) => f.id);
       const missingFileIds = fileIds.filter((id) => !foundFileIds.includes(id));
-      logger.error(`Missing files for user ${userId}:`, { missingFileIds, foundFileIds });
+      logger.error({ missingFileIds, foundFileIds }, `Missing files for user ${userId}:`);
       return { success: false, error: 'Some files not found or not ready for grading' };
     }
 
@@ -78,11 +78,11 @@ export async function createGradingSession(
       },
     });
 
-    logger.info(`Found rubrics for user ${userId}:`, {
+    logger.info({
       foundRubrics: rubrics.map((r) => ({ id: r.id, name: r.name, isActive: r.isActive })),
       requestedCount: uniqueRubricIds.length,
       foundCount: rubrics.length,
-    });
+    }, `Found rubrics for user ${userId}:`);
 
     if (rubrics.length !== uniqueRubricIds.length) {
       const foundRubricIds = rubrics.map((r) => r.id);
@@ -94,11 +94,11 @@ export async function createGradingSession(
         select: { id: true, userId: true, isActive: true, name: true },
       });
 
-      logger.error(`Missing rubrics for user ${userId}:`, {
+      logger.error({
         missingRubricIds,
         foundRubricIds,
         allMatchingRubrics,
-      });
+      }, `Missing rubrics for user ${userId}:`);
 
       return {
         success: false,
@@ -144,7 +144,7 @@ export async function createGradingSession(
       sessionId: result.session.id,
     };
   } catch (error) {
-    logger.error('Failed to create grading session:', error);
+    logger.error({ err: error }, 'Failed to create grading session:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create grading session',
@@ -190,7 +190,7 @@ export async function getGradingSession(
 
     return { session: session as GradingSessionWithResults };
   } catch (error) {
-    logger.error('Failed to get grading session:', error);
+    logger.error({ err: error }, 'Failed to get grading session:');
     return {
       error: error instanceof Error ? error.message : 'Failed to get grading session',
     };
@@ -240,7 +240,7 @@ export async function listGradingSessions(
       total,
     };
   } catch (error) {
-    logger.error('Failed to list grading sessions:', error);
+    logger.error({ err: error }, 'Failed to list grading sessions:');
     return {
       sessions: [],
       total: 0,
@@ -294,7 +294,7 @@ export async function listAllGradingSessions(
       total,
     };
   } catch (error) {
-    logger.error('Failed to list all grading sessions:', error);
+    logger.error({ err: error }, 'Failed to list all grading sessions:');
     return {
       sessions: [],
       total: 0,
@@ -345,7 +345,7 @@ export async function getAnyGradingSession(
 
     return { session: session as GradingSessionWithResults };
   } catch (error) {
-    logger.error('Failed to get any grading session:', error);
+    logger.error({ err: error }, 'Failed to get any grading session:');
     return {
       error: error instanceof Error ? error.message : 'Failed to get grading session',
     };
@@ -402,7 +402,7 @@ export async function updateGradingSessionProgress(
 
     return { success: true };
   } catch (error) {
-    logger.error('Failed to update grading session progress:', error);
+    logger.error({ err: error }, 'Failed to update grading session progress:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update progress',
@@ -429,7 +429,7 @@ export async function startGradingSession(
     // Check AI access permission before starting grading
     const aiAccess = await checkAIAccess(userId);
     if (!aiAccess.allowed) {
-      logger.warn('[GradingSession] AI access denied', { userId, sessionId, reason: aiAccess.reason });
+      logger.warn({ userId, sessionId, reason: aiAccess.reason }, '[GradingSession] AI access denied');
       return {
         success: false,
         error: aiAccess.reason || 'AI 功能尚未開啟。請聯繫管理員啟用您的 AI 存取權限。',
@@ -485,7 +485,7 @@ export async function startGradingSession(
 
     return { success: true };
   } catch (error) {
-    logger.error('Failed to start grading session:', error);
+    logger.error({ err: error }, 'Failed to start grading session:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to start grading',
@@ -513,7 +513,7 @@ export async function cancelGradingSession(
 
     return { success: true };
   } catch (error) {
-    logger.error('Failed to cancel grading session:', error);
+    logger.error({ err: error }, 'Failed to cancel grading session:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to cancel grading session',

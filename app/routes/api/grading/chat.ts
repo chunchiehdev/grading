@@ -1,12 +1,35 @@
 import { type ActionFunctionArgs } from 'react-router';
 import { streamText } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import logger from '@/utils/logger';
 import { getKeyHealthTracker } from '@/services/gemini-key-health.server';
 import { db } from '@/lib/db.server';
 
-// Configure the Vercel AI SDK Google provider
-const createProvider = (apiKey: string) => createGoogleGenerativeAI({ apiKey });
+const VLLM_CONFIG = {
+  baseURL: process.env.VLLM_BASE_URL || '',
+  modelName: process.env.VLLM_MODEL_NAME || '',
+  apiKey: process.env.VLLM_API_KEY || '',
+  timeoutMs: 1500,
+};
+
+function parseEnvInt(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isNaN(parsed)) return fallback;
+  if (parsed < min) return min;
+  if (parsed > max) return max;
+  return parsed;
+}
+
+const CHAT_CONTENT_LIMITS = {
+  studentMaxChars: parseEnvInt('CHAT_STUDENT_CONTENT_MAX_CHARS', 3000, 500, 30000),
+  referenceMaxCharsPerFile: parseEnvInt('CHAT_REFERENCE_CONTENT_MAX_CHARS', 5000, 500, 50000),
+  referenceMaxFiles: parseEnvInt('CHAT_REFERENCE_FILES_MAX_COUNT', 5, 1, 30),
+  referenceTotalMaxChars: parseEnvInt('CHAT_TOTAL_REFERENCE_MAX_CHARS', 15000, 1000, 100000),
+};
 
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== 'POST') {
@@ -54,28 +77,87 @@ export async function action({ request }: ActionFunctionArgs) {
       return { role: msg.role, content: String(msg.content || '') };
     });
 
-    // 取得健康的 API Key
-    const healthTracker = getKeyHealthTracker();
-    const availableKeyIds = ['1'];
-    if (process.env.GEMINI_API_KEY2) availableKeyIds.push('2');
-    if (process.env.GEMINI_API_KEY3) availableKeyIds.push('3');
+    let model: ReturnType<ReturnType<typeof createOpenAI>['chat']> | ReturnType<ReturnType<typeof createGoogleGenerativeAI>> | null = null;
+    let provider: 'vllm' | 'gemini' = 'vllm';
+    let selectedKeyId: string | null = null;
+    let selectedModelName = VLLM_CONFIG.modelName;
 
-    const selectedKeyId = await healthTracker.selectBestKey(availableKeyIds);
-    if (!selectedKeyId) {
-      throw new Error('All Gemini API keys are currently throttled or unavailable');
-    }
+    const selectGeminiModel = async () => {
+      const healthTracker = getKeyHealthTracker();
+      const availableKeyIds = ['1'];
+      if (process.env.GEMINI_API_KEY2) availableKeyIds.push('2');
+      if (process.env.GEMINI_API_KEY3) availableKeyIds.push('3');
 
-    const keyMap: Record<string, string | undefined> = {
-      '1': process.env.GEMINI_API_KEY,
-      '2': process.env.GEMINI_API_KEY2,
-      '3': process.env.GEMINI_API_KEY3,
+      const keyId = await healthTracker.selectBestKey(availableKeyIds);
+      if (!keyId) {
+        throw new Error('vLLM unavailable and all Gemini API keys are currently throttled or unavailable');
+      }
+
+      const keyMap: Record<string, string | undefined> = {
+        '1': process.env.GEMINI_API_KEY,
+        '2': process.env.GEMINI_API_KEY2,
+        '3': process.env.GEMINI_API_KEY3,
+      };
+
+      const apiKey = keyMap[keyId];
+      if (!apiKey) {
+        throw new Error(`Gemini API key ${keyId} is missing`);
+      }
+
+      const google = createGoogleGenerativeAI({ apiKey });
+      provider = 'gemini';
+      selectedKeyId = keyId;
+      selectedModelName = 'gemini-2.5-flash';
+      model = google('gemini-2.5-flash');
     };
 
-    const apiKey = keyMap[selectedKeyId];
-    if (!apiKey) throw new Error('Selected API key is missing');
-    
-    const google = createProvider(apiKey);
-    const model = google('gemini-2.5-flash');
+    if (VLLM_CONFIG.baseURL && VLLM_CONFIG.modelName) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), VLLM_CONFIG.timeoutMs);
+        const healthResponse = await fetch(`${VLLM_CONFIG.baseURL}/models`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${VLLM_CONFIG.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        if (healthResponse.ok) {
+          const openai = createOpenAI({
+            baseURL: VLLM_CONFIG.baseURL,
+            apiKey: VLLM_CONFIG.apiKey,
+          });
+          model = openai.chat(VLLM_CONFIG.modelName);
+          provider = 'vllm';
+        } else {
+          logger.warn(
+            {
+              status: healthResponse.status,
+            },
+            '[Chat API] vLLM health check failed, fallback to Gemini',
+          );
+          await selectGeminiModel();
+        }
+      } catch (error) {
+        logger.warn(
+          {
+            error: error instanceof Error ? error.message : String(error),
+          },
+          '[Chat API] vLLM unavailable, fallback to Gemini',
+        );
+        await selectGeminiModel();
+      }
+    } else {
+      logger.warn('[Chat API] Missing VLLM_BASE_URL or VLLM_MODEL_NAME, using Gemini fallback');
+      await selectGeminiModel();
+    }
+
+    if (!model) {
+      throw new Error('No available model provider for chat');
+    }
 
     // 提取背景與等級資訊
     const rubricCriterionName = context?.rubricCriterionName || '批判性反思';
@@ -113,8 +195,14 @@ export async function action({ request }: ActionFunctionArgs) {
 【最初提問】：${context.sparringQuestion.question}
 ` : '';
 
+    logger.info({
+      studentMaxChars: CHAT_CONTENT_LIMITS.studentMaxChars,
+      referenceMaxCharsPerFile: CHAT_CONTENT_LIMITS.referenceMaxCharsPerFile,
+      referenceMaxFiles: CHAT_CONTENT_LIMITS.referenceMaxFiles,
+      referenceTotalMaxChars: CHAT_CONTENT_LIMITS.referenceTotalMaxChars,
+    }, '[Chat API] Using chat content limits');
+
     // 取得學生完整作業內容（透過 fileId 查 UploadedFile.parsedContent）
-    const MAX_CONTENT_LENGTH = 3000;
     let studentContentSection = '';
     if (context?.fileId) {
       try {
@@ -123,19 +211,22 @@ export async function action({ request }: ActionFunctionArgs) {
           select: { parsedContent: true },
         });
         if (uploadedFile?.parsedContent) {
-          const truncated = uploadedFile.parsedContent.length > MAX_CONTENT_LENGTH;
+          const truncated = uploadedFile.parsedContent.length > CHAT_CONTENT_LIMITS.studentMaxChars;
           const content = truncated
-            ? uploadedFile.parsedContent.substring(0, MAX_CONTENT_LENGTH) + '\n...（內容已截取）'
+            ? uploadedFile.parsedContent.substring(0, CHAT_CONTENT_LIMITS.studentMaxChars) + '\n...（內容已截取）'
             : uploadedFile.parsedContent;
           studentContentSection = `\n【學生完整作業內容】\n${content}\n`;
-          logger.info('[Chat API] Loaded student content', {
-            fileId: context.fileId,
-            contentLength: uploadedFile.parsedContent.length,
-            truncated,
-          });
+          logger.info(
+            {
+              fileId: context.fileId,
+              contentLength: uploadedFile.parsedContent.length,
+              truncated,
+            },
+            '[Chat API] Loaded student content',
+          );
         }
       } catch (err) {
-        logger.warn('[Chat API] Failed to load student content', { fileId: context.fileId, error: String(err) });
+        logger.warn({ fileId: context.fileId, error: String(err) }, '[Chat API] Failed to load student content');
       }
     }
 
@@ -171,29 +262,61 @@ export async function action({ request }: ActionFunctionArgs) {
                   where: { id: { in: refFileIds } },
                   select: { fileName: true, parsedContent: true },
                 });
-                const refContents = refFiles
+                const limitedRefFiles = refFiles
                   .filter(f => f.parsedContent)
+                  .slice(0, CHAT_CONTENT_LIMITS.referenceMaxFiles);
+
+                let totalReferenceChars = 0;
+                let truncatedByTotalCount = 0;
+                const refContents = limitedRefFiles
                   .map(f => {
-                    const content = f.parsedContent!.length > 5000
-                      ? f.parsedContent!.substring(0, 5000) + '\n...（參考資料已截取）'
-                      : f.parsedContent!;
+                    const raw = f.parsedContent!;
+                    const remainingBudget = CHAT_CONTENT_LIMITS.referenceTotalMaxChars - totalReferenceChars;
+
+                    if (remainingBudget <= 0) {
+                      truncatedByTotalCount += 1;
+                      return null;
+                    }
+
+                    const perFileBudget = Math.min(
+                      CHAT_CONTENT_LIMITS.referenceMaxCharsPerFile,
+                      remainingBudget,
+                    );
+                    const truncated = raw.length > perFileBudget;
+                    const content = truncated
+                      ? raw.substring(0, perFileBudget) + '\n...（參考資料已截取）'
+                      : raw;
+
+                    totalReferenceChars += content.length;
                     return `[${f.fileName}]\n${content}`;
-                  });
+                  })
+                  .filter((v): v is string => Boolean(v));
                 if (refContents.length > 0) {
                   referenceSection = `\n【參考資料】\n${refContents.join('\n\n---\n\n')}\n`;
-                  logger.info('[Chat API] Loaded reference materials', {
-                    assignmentId: context.assignmentId,
-                    refCount: refContents.length,
-                  });
+                  logger.info(
+                    {
+                      assignmentId: context.assignmentId,
+                      totalReferenceFiles: refFileIds.length,
+                      loadedReferenceFiles: limitedRefFiles.length,
+                      refCount: refContents.length,
+                      truncatedByFileLimit: Math.max(0, refFileIds.length - limitedRefFiles.length),
+                      truncatedByTotalLimit: truncatedByTotalCount,
+                      totalReferenceChars,
+                    },
+                    '[Chat API] Loaded reference materials',
+                  );
                 }
               }
             } catch (parseErr) {
-              logger.warn('[Chat API] Failed to parse referenceFileIds', { error: String(parseErr) });
+              logger.warn({ error: String(parseErr) }, '[Chat API] Failed to parse referenceFileIds');
             }
           }
         }
       } catch (err) {
-        logger.warn('[Chat API] Failed to load assignment context', { assignmentId: context.assignmentId, error: String(err) });
+        logger.warn(
+          { assignmentId: context.assignmentId, error: String(err) },
+          '[Chat API] Failed to load assignment context',
+        );
       }
     }
 
@@ -254,7 +377,7 @@ ${kemberLevelHint}
     logger.info('[Chat API] ===== FULL PAYLOAD TO MODEL =====');
     logger.info('[Chat API] SYSTEM PROMPT:\n' + systemPrompt);
     logger.info('[Chat API] MESSAGES (' + messages.length + ' 條):\n' + JSON.stringify(messages, null, 2));
-    logger.info('[Chat API] MODEL: gemini-2.5-flash | temperature: 0.7 | maxOutputTokens: 1024');
+    logger.info(`[Chat API] MODEL: ${selectedModelName} | provider: ${provider} | temperature: 0.7 | maxOutputTokens: 2048`);
     logger.info('[Chat API] ===============================');
 
     // 啟動串流
@@ -265,17 +388,25 @@ ${kemberLevelHint}
       temperature: 0.7,
       maxOutputTokens: 2048,
       onFinish: async (completion) => {
-        logger.info('[Chat API] Stream finished', { 
-            usage: completion.usage, 
-            keyId: selectedKeyId
-        });
-        await healthTracker.recordSuccess(selectedKeyId, 100);
+        logger.info(
+          {
+            usage: completion.usage,
+            model: selectedModelName,
+            provider,
+            keyId: selectedKeyId,
+          },
+          '[Chat API] Stream finished',
+        );
+        if (provider === 'gemini' && selectedKeyId) {
+          const healthTracker = getKeyHealthTracker();
+          await healthTracker.recordSuccess(selectedKeyId, 100);
+        }
       }
     });
 
     return result.toTextStreamResponse();
   } catch (error) {
-    logger.error('Chat endpoint error', error);
+    logger.error({ error: String(error) }, 'Chat endpoint error');
     return new Response(JSON.stringify({ error: String(error) }), { 
       status: 500, 
       headers: { 'Content-Type': 'application/json' }

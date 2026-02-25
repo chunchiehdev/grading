@@ -115,11 +115,11 @@ async function formatWithGemini(rawThought: string, language: 'zh' | 'en'): Prom
   const startTime = Date.now();
 
   try {
-    logger.info('Formatting thought summary with Gemini', {
+    logger.info({
       keyId: selectedKeyId,
       inputLength: rawThought.length,
       language,
-    });
+    }, 'Formatting thought summary with Gemini');
 
     const prompt = generateFormattingPrompt(rawThought, language);
 
@@ -134,12 +134,12 @@ async function formatWithGemini(rawThought: string, language: 'zh' | 'en'): Prom
     // 記錄成功
     await healthTracker.recordSuccess(selectedKeyId, responseTimeMs);
 
-    logger.info('Gemini formatting succeeded', {
+    logger.info({
       keyId: selectedKeyId,
       responseTimeMs,
       inputLength: rawThought.length,
       outputLength: result.text.length,
-    });
+    }, 'Gemini formatting succeeded');
 
     return {
       success: true,
@@ -152,11 +152,11 @@ async function formatWithGemini(rawThought: string, language: 'zh' | 'en'): Prom
     // 記錄失敗
     await healthTracker.recordFailure(selectedKeyId, 'other', String(error));
 
-    logger.error('Gemini formatting failed', {
+    logger.error({
       keyId: selectedKeyId,
       responseTimeMs,
       error: error instanceof Error ? error.message : String(error),
-    });
+    }, 'Gemini formatting failed');
 
     return {
       success: false,
@@ -181,10 +181,10 @@ async function formatWithOpenAI(rawThought: string, language: 'zh' | 'en'): Prom
   const startTime = Date.now();
 
   try {
-    logger.info('Formatting thought summary with OpenAI', {
+    logger.info({
       inputLength: rawThought.length,
       language,
-    });
+    }, 'Formatting thought summary with OpenAI');
 
     const prompt = generateFormattingPrompt(rawThought, language);
 
@@ -196,11 +196,11 @@ async function formatWithOpenAI(rawThought: string, language: 'zh' | 'en'): Prom
 
     const responseTimeMs = Date.now() - startTime;
 
-    logger.info('OpenAI formatting succeeded', {
+    logger.info({
       responseTimeMs,
       inputLength: rawThought.length,
       outputLength: result.text.length,
-    });
+    }, 'OpenAI formatting succeeded');
 
     return {
       success: true,
@@ -210,10 +210,10 @@ async function formatWithOpenAI(rawThought: string, language: 'zh' | 'en'): Prom
   } catch (error) {
     const responseTimeMs = Date.now() - startTime;
 
-    logger.error('OpenAI formatting failed', {
+    logger.error({
       responseTimeMs,
       error: error instanceof Error ? error.message : String(error),
-    });
+    }, 'OpenAI formatting failed');
 
     return {
       success: false,

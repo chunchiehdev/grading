@@ -37,11 +37,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Authenticate user
     userId = await getUserId(request);
     if (!userId) {
-      logger.warn('Report download attempt without authentication', {
+      logger.warn({
         url: request.url,
         userAgent: request.headers.get('user-agent'),
         ip: request.headers.get('x-forwarded-for') || 'unknown',
-      });
+      }, 'Report download attempt without authentication');
 
       return Response.json(createErrorResponse('用戶未認證', ApiErrorCode.UNAUTHORIZED), {
         status: 401,
@@ -61,11 +61,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Security: Verify the storage key is in the user's reports folder
     const expectedPrefix = `reports/${userId}/`;
     if (!storageKey.startsWith(expectedPrefix)) {
-      logger.warn('Unauthorized report download attempt', {
+      logger.warn({
         userId,
         requestedKey: storageKey,
         expectedPrefix,
-      });
+      }, 'Unauthorized report download attempt');
 
       return Response.json(createErrorResponse('無權訪問此報告', ApiErrorCode.FORBIDDEN), {
         status: 403,
@@ -110,14 +110,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
         headers.set('Content-Length', chunkSize.toString());
 
         const duration = Date.now() - startTime;
-        logger.info(`Report range streamed successfully: ${storageKey} (${start}-${end}/${fileStream.contentLength}) in ${duration}ms`, {
+        logger.info({
           userId,
           fileName,
           fileSize: fileStream.contentLength,
           rangeStart: start,
           rangeEnd: end,
           chunkSize,
-        });
+        }, `Report range streamed successfully: ${storageKey} (${start}-${end}/${fileStream.contentLength}) in ${duration}ms`);
 
         const webStream = createReadableStreamFromReadable(fileStream.stream);
         return new Response(webStream, {
@@ -129,12 +129,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Regular full file stream
     const duration = Date.now() - startTime;
-    logger.info(`Report streamed successfully: ${storageKey} (${fileStream.contentLength} bytes) in ${duration}ms`, {
+    logger.info({
       userId,
       fileName,
       fileSize: fileStream.contentLength,
       contentType: fileStream.contentType,
-    });
+    }, `Report streamed successfully: ${storageKey} (${fileStream.contentLength} bytes) in ${duration}ms`);
 
     const webStream = createReadableStreamFromReadable(fileStream.stream);
     return new Response(webStream, {
@@ -144,13 +144,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   } catch (error) {
     const duration = Date.now() - startTime;
 
-    logger.error('Report download error:', {
+    logger.error({
       error: error instanceof Error ? error.message : error,
       userId,
       duration,
       errorType: typeof error,
       stack: error instanceof Error ? error.stack : undefined,
-    });
+    }, 'Report download error:');
 
     // Handle storage-specific errors
     if (error && typeof error === 'object' && 'type' in error) {

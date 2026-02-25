@@ -22,10 +22,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       return new Response('Session ID required', { status: 400 });
     }
 
-    logger.info('[Chat Session Detail API] Fetching session', {
+    logger.info({
       sessionId,
       userId: userId.substring(0, 8),
-    });
+    }, '[Chat Session Detail API] Fetching session');
 
     // Query session with ownership verification
     const session = await db.agentChatSession.findUnique({
@@ -52,11 +52,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     }
 
     if (session.userId !== userId) {
-      logger.warn('[Chat Session Detail API] Unauthorized access attempt', {
+      logger.warn({
         sessionId,
         requestingUser: userId.substring(0, 8),
         sessionOwner: session.userId.substring(0, 8),
-      });
+      }, '[Chat Session Detail API] Unauthorized access attempt');
       return new Response('Forbidden', { status: 403 });
     }
 
@@ -91,14 +91,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       messages,
     };
 
-    logger.info('[Chat Session Detail API] Session retrieved', {
+    logger.info({
       sessionId,
       messageCount: messages.length,
-    });
+    }, '[Chat Session Detail API] Session retrieved');
 
     return Response.json(result);
   } catch (error) {
-    logger.error('[Chat Session Detail API] Error fetching session', error);
+    logger.error({ err: error }, '[Chat Session Detail API] Error fetching session');
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Failed to fetch session',

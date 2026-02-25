@@ -158,7 +158,7 @@ export async function getDiscoverableCourses(options?: {
     );
     return result;
   } catch (error) {
-    logger.error('Error fetching discoverable courses:', { error, options });
+    logger.error({ error, options }, 'Error fetching discoverable courses:');
     throw new Error('Failed to fetch discoverable courses. Please try again later.');
   }
 }
@@ -195,7 +195,7 @@ export async function getStudentEnrolledCourseIds(studentId: string) {
     logger.debug(`Loaded enrolled courses for student: ${studentId}, count=${courseIds.size}`);
     return courseIds;
   } catch (error) {
-    logger.error('Error fetching student enrolled courses:', { error, studentId });
+    logger.error({ error, studentId }, 'Error fetching student enrolled courses:');
     throw new Error('Failed to fetch your enrolled courses. Please try again.');
   }
 }
@@ -304,10 +304,10 @@ export async function createEnrollment(studentId: string, classId: string) {
     };
   } catch (error) {
     if (error instanceof Error) {
-      logger.error(`Enrollment creation failed: ${error.message}`, { studentId, classId });
+      logger.error({ studentId, classId }, `Enrollment creation failed: ${error.message}`);
       throw error;
     }
-    logger.error('Unexpected error creating enrollment:', { error, studentId, classId });
+    logger.error({ error, studentId, classId }, 'Unexpected error creating enrollment:');
     throw new Error('Failed to enroll. Please try again or contact support.');
   }
 }
@@ -340,7 +340,7 @@ export async function isStudentEnrolledInClass(studentId: string, classId: strin
     logger.debug(`Enrollment check: studentId=${studentId}, classId=${classId}, enrolled=${!!enrollment}`);
     return !!enrollment;
   } catch (error) {
-    logger.error('Error checking student enrollment:', { error, studentId, classId });
+    logger.error({ error, studentId, classId }, 'Error checking student enrollment:');
     return false;
   }
 }
@@ -368,7 +368,7 @@ export async function getClassEnrollmentCount(classId: string): Promise<number> 
     logger.debug(`Enrollment count for class ${classId}: ${count}`);
     return count;
   } catch (error) {
-    logger.error('Error getting enrollment count:', { error, classId });
+    logger.error({ error, classId }, 'Error getting enrollment count:');
     throw new Error('Failed to get enrollment count. Please try again.');
   }
 }

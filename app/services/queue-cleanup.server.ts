@@ -191,7 +191,7 @@ export async function getCleanupPreview(): Promise<CleanupPreview> {
 
     return preview;
   } catch (error) {
-    logger.error('[Queue Cleanup] Error getting preview:', error);
+    logger.error({ err: error }, '[Queue Cleanup] Error getting preview:');
     throw error;
   } finally {
     await queue.close();

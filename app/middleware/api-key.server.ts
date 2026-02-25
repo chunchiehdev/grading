@@ -41,11 +41,11 @@ export function validateApiKey(request: Request): boolean {
 
   // Direct string comparison (API keys should be random enough)
   const isValid = apiKey === expectedApiKey;
-  logger.debug('API Key validation', {
+  logger.debug({
     provided: apiKey.substring(0, 8) + '...',
     expected: expectedApiKey.substring(0, 8) + '...',
     isValid,
-  });
+  }, 'API Key validation');
 
   return isValid;
 }

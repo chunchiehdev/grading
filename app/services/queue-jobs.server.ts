@@ -144,7 +144,7 @@ export async function getActiveJobsDetails(): Promise<JobDetail[]> {
 
     return jobDetails;
   } catch (error) {
-    logger.error('[Queue Jobs] Error getting job details:', error);
+    logger.error({ err: error }, '[Queue Jobs] Error getting job details:');
     throw error;
   } finally {
     await queue.close();

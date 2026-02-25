@@ -74,7 +74,7 @@ export async function action({ request }: { request: Request }) {
       return Response.json(createErrorResponse(errorMessage, ApiErrorCode.VALIDATION_ERROR), { status: 409 });
     }
 
-    logger.error('Enrollment error:', error);
+    logger.error({ err: error }, 'Enrollment error:');
     return Response.json(createErrorResponse('Failed to create enrollment', ApiErrorCode.INTERNAL_ERROR), {
       status: 500,
     });

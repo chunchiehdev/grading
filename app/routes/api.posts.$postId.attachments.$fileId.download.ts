@@ -71,12 +71,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     // Check user has access to the course
     const hasAccess = await canAccessCourse(user.id, post.courseId);
     if (!hasAccess) {
-      logger.warn('Unauthorized attachment download attempt', {
+      logger.warn({
         userId: user.id,
         postId,
         fileId,
         courseId: post.courseId,
-      });
+      }, 'Unauthorized attachment download attempt');
       return Response.json(
         createErrorResponse('無權訪問此課程附件', ApiErrorCode.FORBIDDEN),
         { status: 403 }
@@ -106,20 +106,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     });
 
     if (!uploadedFile) {
-      logger.error('Attachment file record not found in database', {
+      logger.error({
         fileId,
         postId,
-      });
+      }, 'Attachment file record not found in database');
       return Response.json(
         createErrorResponse('附件文件記錄不存在', ApiErrorCode.NOT_FOUND),
         { status: 404 }
       );
     }
 
-    logger.info(`Post attachment download: ${fileId} by user ${user.id}`, {
+    logger.info({
       postId,
       fileName: attachment.fileName,
-    });
+    }, `Post attachment download: ${fileId} by user ${user.id}`);
 
     // Stream file from storage
     const fileStream = await streamFromStorage(uploadedFile.fileKey);
@@ -149,11 +149,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // Stream full file (range requests not supported for now)
     const duration = Date.now() - startTime;
-    logger.info(`Post attachment streamed: ${fileId} (${fileStream.contentLength} bytes) in ${duration}ms`, {
+    logger.info({
       userId: user.id,
       postId,
       fileName: attachment.fileName,
-    });
+    }, `Post attachment streamed: ${fileId} (${fileStream.contentLength} bytes) in ${duration}ms`);
 
     const webStream = createReadableStreamFromReadable(fileStream.stream);
     return new Response(webStream, {
@@ -163,12 +163,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   } catch (error) {
     const duration = Date.now() - startTime;
 
-    logger.error('Post attachment download error:', {
+    logger.error({
       error: error instanceof Error ? error.message : error,
       postId: params.postId,
       fileId: params.fileId,
       duration,
-    });
+    }, 'Post attachment download error:');
 
     // Handle storage-specific errors
     if (error && typeof error === 'object' && 'type' in error) {

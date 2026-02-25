@@ -17,7 +17,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     return data({ success: true });
   } catch (error) {
-    logger.error('Failed to parse log request', error);
+    logger.error({ err: error }, 'Failed to parse log request');
     return data({ error: 'Invalid Request' }, { status: 400 });
   }
 };

@@ -18,7 +18,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     // Check AI access permission
     const aiAccess = await checkAIAccess(student.id);
     if (!aiAccess.allowed) {
-      logger.warn('[SparringResponse] AI access denied', { studentId: student.id, reason: aiAccess.reason });
+      logger.warn({ studentId: student.id, reason: aiAccess.reason }, '[SparringResponse] AI access denied');
       return data({ error: aiAccess.reason || 'AI access denied' }, { status: 403 });
     }
 
@@ -120,15 +120,15 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               maxScore: matchedCriterion.maxScore,
               levels: matchedCriterion.levels,
             };
-            logger.debug('[SparringResponse] Found rubric criterion', {
+            logger.debug({
               criterionId: matchedCriterion.id,
               criterionName: matchedCriterion.name,
               hasLevels: !!matchedCriterion.levels,
-            });
+            }, '[SparringResponse] Found rubric criterion');
           }
         }
       } catch (rubricError) {
-        logger.warn('[SparringResponse] Failed to fetch rubric criterion', rubricError);
+        logger.warn({ err: rubricError }, '[SparringResponse] Failed to fetch rubric criterion');
         // Continue without rubric criterion - it's optional
       }
 
@@ -173,19 +173,19 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
               }
               logger.debug(`[SparringResponse] Updated tokens for session ${targetSessionId}: +${feedbackResult.usage.totalTokens}`);
             } catch (tokenError) {
-              logger.error('[SparringResponse] Failed to update token usage', tokenError);
+              logger.error({ err: tokenError }, '[SparringResponse] Failed to update token usage');
             }
           }
         }
 
-        logger.info(`[SparringResponse] Generated dialectical feedback`, {
+        logger.info({
           submissionId: submission.id,
           questionIndex,
           provider: feedbackResult.provider,
           feedbackLength: dialecticalFeedback?.length || 0,
-        });
+        }, `[SparringResponse] Generated dialectical feedback`);
       } catch (error) {
-        logger.error('[SparringResponse] Failed to generate dialectical feedback', error);
+        logger.error({ err: error }, '[SparringResponse] Failed to generate dialectical feedback');
         // Fallback: 使用原本的 AI 推理
         dialecticalFeedback = (sparringQuestion as SparringQuestion).ai_hidden_reasoning;
       }
@@ -221,13 +221,13 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         },
       });
 
-      logger.info(`[SparringResponse] Saved response for question ${questionIndex}`, {
+      logger.info({
         submissionId: submission.id,
         questionId,
         strategy,
         responseLength: response.length,
         hasDialecticalFeedback: !!dialecticalFeedback,
-      });
+      }, `[SparringResponse] Saved response for question ${questionIndex}`);
 
       return data({ 
         success: true,
@@ -257,18 +257,18 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
         },
       });
 
-      logger.info(`[SparringResponse] Saved student decision for question ${questionIndex}`, {
+      logger.info({
         submissionId: submission.id,
         questionIndex,
         studentDecision,
-      });
+      }, `[SparringResponse] Saved student decision for question ${questionIndex}`);
 
       return data({ success: true });
     }
 
     return data({ error: 'Invalid request: missing response or decision' }, { status: 400 });
   } catch (error) {
-    logger.error('Failed to save sparring response', error);
+    logger.error({ err: error }, 'Failed to save sparring response');
     return data({ error: 'Failed to save response' }, { status: 500 });
   }
 };

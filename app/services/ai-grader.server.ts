@@ -43,9 +43,9 @@ export class AIGrader {
   async grade(request: GradingRequest, userLanguage: 'zh' | 'en' = 'zh'): Promise<GradingResponse> {
     const useRotation = canUseRotation();
 
-    logger.info(`🎯 Starting AI grading for: ${request.fileName}`, {
+    logger.info({
       rotationEnabled: useRotation,
-    });
+    }, `🎯 Starting AI grading for: ${request.fileName}`);
 
     let geminiError: string | null = null;
     let openaiError: string | null = null;

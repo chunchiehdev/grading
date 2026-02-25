@@ -161,7 +161,7 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
   const selectedKeyId = await healthTracker.selectBestKey(availableKeyIds);
 
   if (!selectedKeyId) {
-    logger.error('All Gemini keys are throttled', { userId, resultId });
+    logger.error({ userId, resultId }, 'All Gemini keys are throttled');
     return {
       success: false,
       error: 'All Gemini API keys are currently throttled. Please try again later.',
@@ -200,11 +200,11 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
          });
       }
     } catch (error) {
-       logger.warn('Failed to use Gemini Context Caching, falling back to standard prompt', {
+       logger.warn({
          userId,
          resultId,
          error: String(error)
-       });
+       }, 'Failed to use Gemini Context Caching, falling back to standard prompt');
        // Fallthrough to standard execution
     }
   }
@@ -213,12 +213,12 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
   const startTime = Date.now();
 
   try {
-    logger.info('Grading with Gemini (AI SDK)', {
+    logger.info({
       userId,
       resultId,
       keyId: selectedKeyId,
       model: 'gemini-2.5-flash',
-    });
+    }, 'Grading with Gemini (AI SDK)');
 
     // Enable Gemini thinking/reasoning mode
     // Docs: https://ai.google.dev/gemini-api/docs/thinking
@@ -247,7 +247,7 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
     const reasoningLength = result.reasoning?.length || 0;
     const hasReasoning = !!result.reasoning;
 
-    logger.info('Gemini grading succeeded', {
+    logger.info({
       userId,
       resultId,
       keyId: selectedKeyId,
@@ -255,17 +255,17 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
       usage: result.usage,
       hasReasoning,
       reasoningLength,
-    });
+    }, 'Gemini grading succeeded');
 
     // Log actual reasoning content if available
     let formattedThoughtSummary: string | undefined;
 
     if (result.reasoning) {
-      logger.debug('[AI SDK Reasoning]', {
+      logger.debug({
         resultId,
         reasoning: result.reasoning.substring(0, 500), // First 500 chars
         fullLength: result.reasoning.length,
-      });
+      }, '[AI SDK Reasoning]');
 
       // Format the thought summary to make it student-friendly
       const formatResult = await formatThoughtSummary({
@@ -282,10 +282,10 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
         logger.warn(`⚠️ [AI SDK] Thought formatting failed, using raw: ${formatResult.error}`);
       }
     } else {
-      logger.warn('[AI SDK] No reasoning returned - thinkingConfig may not be working', {
+      logger.warn({
         resultId,
         providerOptions: 'google.thinkingConfig set',
-      });
+      }, '[AI SDK] No reasoning returned - thinkingConfig may not be working');
     }
 
     return {
@@ -312,14 +312,14 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
 
     // Handle NoObjectGeneratedError specifically
     if (NoObjectGeneratedError.isInstance(error)) {
-      logger.error('Gemini failed to generate valid object', {
+      logger.error({
         userId,
         resultId,
         keyId: selectedKeyId,
         rawOutput: error.text,
         cause: error.cause,
         usage: error.usage,
-      });
+      }, 'Gemini failed to generate valid object');
 
       return {
         success: false,
@@ -331,14 +331,14 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
       };
     }
 
-    logger.error('Gemini grading failed', {
+    logger.error({
       userId,
       resultId,
       keyId: selectedKeyId,
       errorType,
       responseTimeMs,
       error: error instanceof Error ? error.message : String(error),
-    });
+    }, 'Gemini grading failed');
 
     return {
       success: false,
@@ -372,13 +372,13 @@ async function gradeWithGeminiCached(params: {
   try {
     const client = new GoogleGenAI({ apiKey });
     
-    logger.info('Grading with Gemini (Cached)', {
+    logger.info({
       userId,
       resultId,
       keyId,
       cacheName,
       model,
-    });
+    }, 'Grading with Gemini (Cached)');
 
     // Use JSON schema for structured output
     // We can't easily convert Zod to JSON Schema here without a lib, 
@@ -451,12 +451,12 @@ async function gradeWithGeminiCached(params: {
         totalTokens: response.usageMetadata.totalTokenCount || 0,
     } : { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
-    logger.info('Gemini cached grading succeeded', {
+    logger.info({
         userId,
         resultId,
         cacheName,
         usage,
-    });
+    }, 'Gemini cached grading succeeded');
     
     return {
         success: true,
@@ -477,7 +477,7 @@ async function gradeWithGeminiCached(params: {
     const errorType = classifyGeminiError(error);
     await healthTracker.recordFailure(keyId, errorType, String(error));
     
-    logger.error('Gemini cached grading failed', {
+    logger.error({
         userId,
         resultId,
         keyId,
@@ -485,7 +485,7 @@ async function gradeWithGeminiCached(params: {
         message: (error as any).message,
         status: (error as any).status,
         errorDetails: JSON.stringify(error)
-    });
+    }, 'Gemini cached grading failed');
     console.error('Gemini Cached Grading Error:', error);
 
     return {
@@ -516,11 +516,11 @@ export async function gradeWithOpenAI(params: GradingParams): Promise<GradingRes
   const startTime = Date.now();
 
   try {
-    logger.info('Grading with OpenAI (AI SDK)', {
+    logger.info({
       userId,
       resultId,
       model: 'gpt-4o-mini',
-    });
+    }, 'Grading with OpenAI (AI SDK)');
 
     const result = await generateObject({
       model: openaiProvider('gpt-4o-mini'),
@@ -532,13 +532,13 @@ export async function gradeWithOpenAI(params: GradingParams): Promise<GradingRes
 
     const responseTimeMs = Date.now() - startTime;
 
-    logger.info('OpenAI grading succeeded', {
+    logger.info({
       userId,
       resultId,
       responseTimeMs,
       usage: result.usage,
       hasReasoning: !!result.reasoning,
-    });
+    }, 'OpenAI grading succeeded');
 
     // Format thought summary if available
     let formattedThoughtSummary: string | undefined;
@@ -577,13 +577,13 @@ export async function gradeWithOpenAI(params: GradingParams): Promise<GradingRes
     const responseTimeMs = Date.now() - startTime;
 
     if (NoObjectGeneratedError.isInstance(error)) {
-      logger.error('OpenAI failed to generate valid object', {
+      logger.error({
         userId,
         resultId,
         rawOutput: error.text,
         cause: error.cause,
         usage: error.usage,
-      });
+      }, 'OpenAI failed to generate valid object');
 
       return {
         success: false,
@@ -594,12 +594,12 @@ export async function gradeWithOpenAI(params: GradingParams): Promise<GradingRes
       };
     }
 
-    logger.error('OpenAI grading failed', {
+    logger.error({
       userId,
       resultId,
       responseTimeMs,
       error: error instanceof Error ? error.message : String(error),
-    });
+    }, 'OpenAI grading failed');
 
     return {
       success: false,

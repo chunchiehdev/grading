@@ -285,7 +285,7 @@ class GradingLogger {
         error: error instanceof Error ? error.message : error,
         timestamp: new Date().toISOString(),
       });
-      logger.error(`❌ Error in ${step} for session ${sessionId}:`, error);
+      logger.error({ err: error }, `❌ Error in ${step} for session ${sessionId}:`);
     }
   }
 
@@ -316,7 +316,7 @@ class GradingLogger {
       // 清除內存中的日誌
       this.sessionLogs.delete(sessionId);
     } catch (error) {
-      logger.error(`❌ Failed to save grading log for session ${sessionId}:`, error);
+      logger.error({ err: error }, `❌ Failed to save grading log for session ${sessionId}:`);
     }
   }
 
@@ -333,7 +333,7 @@ class GradingLogger {
         .reverse()
         .slice(0, limit);
     } catch (error) {
-      logger.error('Failed to read log files:', error);
+      logger.error({ err: error }, 'Failed to read log files:');
       return [];
     }
   }
@@ -353,7 +353,7 @@ class GradingLogger {
       const content = fs.readFileSync(filePath, 'utf-8');
       return JSON.parse(content);
     } catch (error) {
-      logger.error(`Failed to read log file ${fileName}:`, error);
+      logger.error({ err: error }, `Failed to read log file ${fileName}:`);
       return null;
     }
   }
@@ -380,7 +380,7 @@ class GradingLogger {
         }
       });
     } catch (error) {
-      logger.error('Failed to cleanup old logs:', error);
+      logger.error({ err: error }, 'Failed to cleanup old logs:');
     }
   }
 }

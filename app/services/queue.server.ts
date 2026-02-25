@@ -105,7 +105,7 @@ export async function getQueueStatus() {
       isRateLimited: delayed > 0,
     };
   } catch (error) {
-    logger.error('[BullMQ] Failed to get queue status:', error);
+    logger.error({ err: error }, '[BullMQ] Failed to get queue status:');
     return {
       waiting: 0,
       active: 0,

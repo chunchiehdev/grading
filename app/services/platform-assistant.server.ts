@@ -70,7 +70,7 @@ export type ModelProvider = 'gemini' | 'local' | 'auto';
 async function selectResilientModel(sessionId: string, preferredProvider: ModelProvider = 'auto'): Promise<{ model: LanguageModel; provider: string }> {
   // 0. Check User Preference - specific overrides
   if (preferredProvider === 'gemini') {
-    logger.info('[Model Factory] Using Gemini (User Preference)', { sessionId });
+    logger.info({ sessionId }, '[Model Factory] Using Gemini (User Preference)');
     return { 
       model: gemini('gemini-2.5-flash'), 
       provider: 'Gemini' 
@@ -83,7 +83,7 @@ async function selectResilientModel(sessionId: string, preferredProvider: ModelP
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), VLLM_CONFIG.timeoutMs);
     
-    logger.debug('[Model Factory] Checking vLLM health...', { url: VLLM_CONFIG.baseURL });
+    logger.debug({ url: VLLM_CONFIG.baseURL }, '[Model Factory] Checking vLLM health...');
 
     // Use a lightweight call to check availability (list models)
     const response = await fetch(`${VLLM_CONFIG.baseURL}/models`, {
@@ -98,10 +98,10 @@ async function selectResilientModel(sessionId: string, preferredProvider: ModelP
     clearTimeout(timeoutId);
 
     if (response.ok) {
-      logger.info('[Model Factory] vLLM is HEALTHY. Using local model.', { 
+      logger.info({ 
         latency: Date.now() - start,
         model: VLLM_CONFIG.modelName 
-      });
+      }, '[Model Factory] vLLM is HEALTHY. Using local model.');
 
       const openai = createOpenAI({
         baseURL: VLLM_CONFIG.baseURL,
@@ -118,35 +118,35 @@ async function selectResilientModel(sessionId: string, preferredProvider: ModelP
       // This ensures OpenAI JSON tool calls instead of Qwen XML tags
       // See: docs/vllm-server-config.md for details
       
-      logger.info('[Model Factory] Using vLLM with OpenAI-compatible endpoint', {
+      logger.info({
         model: VLLM_CONFIG.modelName,
         baseURL: VLLM_CONFIG.baseURL,
         endpoint: '/v1/chat/completions (forced via openai.chat())',
         note: 'Ensure vLLM is configured with --tool-call-parser hermes'
-      });
+      }, '[Model Factory] Using vLLM with OpenAI-compatible endpoint');
 
       return { 
         model: openai.chat(VLLM_CONFIG.modelName), 
         provider: 'vLLM' 
       };
     } else {
-      logger.warn('[Model Factory] vLLM returned error status', { status: response.status });
+      logger.warn({ status: response.status }, '[Model Factory] vLLM returned error status');
     }
   } catch (error) {
-    logger.warn('[Model Factory] vLLM unreachable (Circuit Open)', { 
+    logger.warn({ 
       error: error instanceof Error ? error.message : String(error),
       latency: Date.now() - start
-    });
+    }, '[Model Factory] vLLM unreachable (Circuit Open)');
   }
 
     // 2. Fallback / Limit Logic
     if (preferredProvider === 'local') {
-       logger.error('[Model Factory] vLLM unreachable but required by user preference', { sessionId });
+       logger.error({ sessionId }, '[Model Factory] vLLM unreachable but required by user preference');
        throw new Error('Local model is unreachable. Please check your connection or switch to Auto/Gemini mode.');
     }
 
   // 3. Fallback to Gemini (Auto mode or default)
-  logger.info('[Model Factory] Falling back to Gemini 2.5 Flash', { sessionId });
+  logger.info({ sessionId }, '[Model Factory] Falling back to Gemini 2.5 Flash');
   return { 
     model: gemini('gemini-2.5-flash'), 
     provider: 'Gemini' 
@@ -764,20 +764,20 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
     callOptionsSchema: teacherCallOptionsSchema,
     // Explicitly set toolChoice to 'auto' to ensure vLLM receives the correct signal
     prepareStep: async ({ stepNumber, steps, messages, model }) => {
-      logger.debug('[Platform Assistant] Teacher prepareStep', {
+      logger.debug({
         stepNumber,
         messageCount: messages.length,
         previousStepCount: steps.length,
-      });
+      }, '[Platform Assistant] Teacher prepareStep');
 
       // Context Management - Keep conversation within token limits
       if (messages.length > 25) {
-        logger.info('[Platform Assistant] Teacher pruning messages', {
+        logger.info({
           stepNumber,
           beforeCount: messages.length,
           afterCount: 13,
           reason: 'Token optimization - keeping system + recent messages',
-        });
+        }, '[Platform Assistant] Teacher pruning messages');
 
         // Force language reminder even when pruning
         return {
@@ -799,11 +799,11 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
         const toolsUsed = lastStep.toolCalls?.map(c => c.toolName) || [];
         
         if (toolsUsed.length > 0) {
-          logger.info('[Platform Assistant] Teacher Step Thinking', {
+          logger.info({
             stepNumber: steps.length - 1,
             toolsUsed,
             timestamp: Date.now(),
-          });
+          }, '[Platform Assistant] Teacher Step Thinking');
         }
       }
       
@@ -1183,20 +1183,20 @@ Combine these tools to answer questions.
     stopWhen: stepCountIs(15),
     callOptionsSchema: studentCallOptionsSchema,
     prepareStep: async ({ stepNumber, steps, messages, model }) => {
-      logger.debug('[Platform Assistant] Student prepareStep', {
+      logger.debug({
         stepNumber,
         messageCount: messages.length,
         previousStepCount: steps.length,
-      });
+      }, '[Platform Assistant] Student prepareStep');
 
       // Context Management - Keep conversation within token limits
       if (messages.length > 25) {
-        logger.info('[Platform Assistant] Student pruning messages', {
+        logger.info({
           stepNumber,
           beforeCount: messages.length,
           afterCount: 13,
           reason: 'Token optimization - keeping system + recent messages',
-        });
+        }, '[Platform Assistant] Student pruning messages');
 
         return {
           messages: [
@@ -1217,11 +1217,11 @@ Combine these tools to answer questions.
         const toolsUsed = lastStep.toolCalls?.map(c => c.toolName) || [];
         
         if (toolsUsed.length > 0) {
-          logger.info('[Platform Assistant] Student Step Thinking', {
+          logger.info({
             stepNumber: steps.length - 1,
             toolsUsed,
             timestamp: Date.now(),
-          });
+          }, '[Platform Assistant] Student Step Thinking');
         }
       }
       
@@ -1269,26 +1269,26 @@ export async function streamWithPlatformAssistant(
 ) {
   const sessionId = `${userRole}_${userId}_${Date.now()}`;
   
-  logger.info('[Platform Assistant] Initializing agent stream', {
+  logger.info({
     userRole,
     messageCount: messages.length,
     userId: userId ? '***' : undefined,
     hasCallOptions: !!callOptions,
     sessionId,
-  });
+  }, '[Platform Assistant] Initializing agent stream');
 
   try {
     // 0. Check AI Access Permission
     const access = await checkAIAccess(userId);
     if (!access.allowed) {
-      logger.warn('[Platform Assistant] AI access denied', { userId, reason: access.reason });
+      logger.warn({ userId, reason: access.reason }, '[Platform Assistant] AI access denied');
       throw new AIAccessDeniedError(access.reason || 'AI access denied');
     }
 
     // 1. Select Model (Circuit Breaker)
     const { model, provider } = await selectResilientModel(sessionId, preferredProvider);
     
-    logger.info('[Platform Assistant] Model selected', { sessionId, provider });
+    logger.info({ sessionId, provider }, '[Platform Assistant] Model selected');
 
     // 2. Create agent with role-specific configuration and selected model
     const agent = createPlatformAssistant(userRole, userId, model);
@@ -1299,20 +1299,20 @@ export async function streamWithPlatformAssistant(
     // 1. Convert UIMessages to ModelMessages
     // 2. Stream with agent
     // 3. Convert back to UIMessageStreamResponse
-    logger.info('[Platform Assistant] Using manual convertToModelMessages -> agent.stream() flow', { 
+    logger.info({ 
       hasOptions: !!callOptions,
       sessionId,
       messagesCount: messages?.length || 0,
-    });
+    }, '[Platform Assistant] Using manual convertToModelMessages -> agent.stream() flow');
     
     try {
       // 1. Convert UIMessages to ModelMessages explicitly
       const modelMessages = await convertToModelMessages(messages as any[]);
       
-      logger.debug('[Platform Assistant] Converted to ModelMessages', {
+      logger.debug({
         count: modelMessages.length,
         firstRole: modelMessages[0]?.role,
-      });
+      }, '[Platform Assistant] Converted to ModelMessages');
 
       // 2. Stream the agent with ModelMessages
       const streamResult = await agent.stream({
@@ -1320,7 +1320,7 @@ export async function streamWithPlatformAssistant(
         options: callOptions || undefined,
       } as any);
 
-      logger.info('[Platform Assistant] Agent stream created successfully', { sessionId });
+      logger.info({ sessionId }, '[Platform Assistant] Agent stream created successfully');
 
       // Handle onFinish callback if provided
       if (onFinish) {
@@ -1336,7 +1336,7 @@ export async function streamWithPlatformAssistant(
                 totalTokens: resultUsage.totalTokens || 0,
               };
             } catch (usageError) {
-              logger.warn('[Platform Assistant] Could not retrieve token usage', { sessionId });
+              logger.warn({ sessionId }, '[Platform Assistant] Could not retrieve token usage');
             }
             
             await onFinish({ 
@@ -1345,7 +1345,7 @@ export async function streamWithPlatformAssistant(
               provider 
             });
           } catch (err) {
-            logger.error('[Platform Assistant] Failed to process onFinish', err);
+            logger.error({ err: err }, '[Platform Assistant] Failed to process onFinish');
           }
         });
       }
@@ -1353,7 +1353,7 @@ export async function streamWithPlatformAssistant(
       // Return the stream response - agent streams should use toUIMessageStreamResponse for useChat compatibility
       const response = streamResult.toUIMessageStreamResponse();
       
-      logger.info('[Platform Assistant] Stream response created successfully', { sessionId });
+      logger.info({ sessionId }, '[Platform Assistant] Stream response created successfully');
       
       return response;
       
@@ -1384,23 +1384,23 @@ export async function streamWithPlatformAssistant(
         errorDetails.errorKeys = Object.keys(streamError);
       }
 
-      logger.error('[Platform Assistant] Stream failed - DETAILED ERROR', errorDetails);
+      logger.error({ err: errorDetails }, '[Platform Assistant] Stream failed - DETAILED ERROR');
       
       // Also log as string for easy reading
-      logger.error('[Platform Assistant] Stream failed - STRING', {
+      logger.error({
         sessionId,
         errorString: JSON.stringify(streamError, null, 2),
-      });
+      }, '[Platform Assistant] Stream failed - STRING');
       
       throw streamError;
     }
   } catch (error) {
-    logger.error('[Platform Assistant] Fatal error in streamWithGradingAgent', {
+    logger.error({
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       userRole,
       sessionId,
-    });
+    }, '[Platform Assistant] Fatal error in streamWithGradingAgent');
     throw error;
   }
 }

@@ -125,20 +125,23 @@ export async function createAssignmentArea(
       },
     });
 
-    logger.info('  Created assignment area:', assignmentArea.name, 'for course:', courseId);
+    logger.info(
+      { assignmentAreaName: assignmentArea.name, courseId },
+      '  Created assignment area',
+    );
 
     // 發布作業通知事件
     try {
       await publishAssignmentCreatedNotification(assignmentArea);
-      logger.info('  Assignment notification published for:', assignmentArea.name);
+      logger.info({ data: assignmentArea.name }, '  Assignment notification published for:');
     } catch (notificationError) {
-      logger.error('⚠️ Failed to publish assignment notification:', notificationError);
+      logger.error({ err: notificationError }, '⚠️ Failed to publish assignment notification:');
       // 不阻斷作業建立流程，僅記錄錯誤
     }
 
     return assignmentArea;
   } catch (error) {
-    logger.error('❌ Error creating assignment area:', error);
+    logger.error({ err: error }, '❌ Error creating assignment area:');
     throw error;
   }
 }
@@ -196,7 +199,7 @@ export async function getAssignmentAreaById(
 
     return assignmentArea;
   } catch (error) {
-    logger.error('❌ Error fetching assignment area:', error);
+    logger.error({ err: error }, '❌ Error fetching assignment area:');
     return null;
   }
 }
@@ -242,7 +245,7 @@ export async function listAssignmentAreas(courseId: string, teacherId: string): 
 
     return assignmentAreas;
   } catch (error) {
-    logger.error('❌ Error fetching assignment areas:', error);
+    logger.error({ err: error }, '❌ Error fetching assignment areas:');
     return [];
   }
 }
@@ -315,10 +318,10 @@ export async function updateAssignmentArea(
       },
     });
 
-    logger.info('  Updated assignment area:', updatedArea.name);
+    logger.info({ data: updatedArea.name }, '  Updated assignment area:');
     return updatedArea;
   } catch (error) {
-    logger.error('❌ Error updating assignment area:', error);
+    logger.error({ err: error }, '❌ Error updating assignment area:');
     throw error;
   }
 }
@@ -356,10 +359,10 @@ export async function deleteAssignmentArea(assignmentId: string, teacherId: stri
       });
     });
 
-    logger.info('  Deleted assignment area and all related data:', assignmentId);
+    logger.info({ data: assignmentId }, '  Deleted assignment area and all related data:');
     return true;
   } catch (error) {
-    logger.error('❌ Error deleting assignment area:', error);
+    logger.error({ err: error }, '❌ Error deleting assignment area:');
     return false;
   }
 }
@@ -420,7 +423,7 @@ export async function getTeacherAssignmentStats(teacherId: string) {
       recentAreas,
     };
   } catch (error) {
-    logger.error('❌ Error fetching teacher assignment stats:', error);
+    logger.error({ err: error }, '❌ Error fetching teacher assignment stats:');
     return {
       totalAssignmentAreas: 0,
       totalSubmissions: 0,
@@ -457,7 +460,7 @@ export async function loadReferenceDocuments(
     try {
       fileIds = JSON.parse(assignmentArea.referenceFileIds);
     } catch (error) {
-      logger.error('❌ Failed to parse referenceFileIds:', error);
+      logger.error({ err: error }, '❌ Failed to parse referenceFileIds:');
       return [];
     }
 
@@ -504,7 +507,7 @@ export async function loadReferenceDocuments(
         };
       });
   } catch (error) {
-    logger.error('❌ Error loading reference documents:', error);
+    logger.error({ err: error }, '❌ Error loading reference documents:');
     return [];
   }
 }
@@ -524,7 +527,7 @@ export async function getCustomGradingInstructions(assignmentAreaId: string): Pr
 
     return assignmentArea?.customGradingPrompt || null;
   } catch (error) {
-    logger.error('❌ Error fetching custom grading instructions:', error);
+    logger.error({ err: error }, '❌ Error fetching custom grading instructions:');
     return null;
   }
 }
@@ -578,7 +581,7 @@ export async function validateReferenceFiles(fileIds: string[]): Promise<{ valid
 
     return { validIds, errors };
   } catch (error) {
-    logger.error('❌ Error validating reference files:', error);
+    logger.error({ err: error }, '❌ Error validating reference files:');
     return { validIds: [], errors: ['Failed to validate reference files'] };
   }
 }

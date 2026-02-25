@@ -22,11 +22,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
 
-    logger.info('[Chat Sessions API] Fetching sessions list', {
+    logger.info({
       userId: userId.substring(0, 8),
       page,
       limit,
-    });
+    }, '[Chat Sessions API] Fetching sessions list');
 
     // Query sessions with message count
     const [sessions, total] = await Promise.all([
@@ -75,14 +75,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       hasMore: total > page * limit,
     };
 
-    logger.info('[Chat Sessions API] Sessions retrieved', {
+    logger.info({
       count: sessions.length,
       total,
-    });
+    }, '[Chat Sessions API] Sessions retrieved');
 
     return Response.json(result);
   } catch (error) {
-    logger.error('[Chat Sessions API] Error fetching sessions', error);
+    logger.error({ err: error }, '[Chat Sessions API] Error fetching sessions');
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Failed to fetch sessions',

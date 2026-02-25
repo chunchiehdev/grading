@@ -50,14 +50,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     
     if (assignmentAreaId) where.assignmentAreaId = assignmentAreaId;
 
-    logger.info('[Analytics API] Fetching grading sessions', {
+    logger.info({
       page,
       limit,
       requiresReview,
       minConfidence,
       maxConfidence,
       assignmentAreaId,
-    });
+    }, '[Analytics API] Fetching grading sessions');
 
     // Query sessions
     const [sessions, total] = await Promise.all([
@@ -99,14 +99,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       hasMore: total > page * limit,
     };
 
-    logger.info('[Analytics API] Grading sessions retrieved', {
+    logger.info({
       count: sessions.length,
       total,
-    });
+    }, '[Analytics API] Grading sessions retrieved');
 
     return Response.json(result);
   } catch (error) {
-    logger.error('[Analytics API] Error fetching grading sessions', error);
+    logger.error({ err: error }, '[Analytics API] Error fetching grading sessions');
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Failed to fetch grading sessions',

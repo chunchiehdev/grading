@@ -53,7 +53,7 @@ export class MonitoringService {
 
       return systemMetrics;
     } catch (error) {
-      logger.error('Failed to collect system metrics:', error);
+      logger.error({ err: error }, 'Failed to collect system metrics:');
       throw error;
     }
   }
@@ -91,7 +91,7 @@ export class MonitoringService {
         slowQueries: 0, // 需要實際監控實現
       };
     } catch (error) {
-      logger.error('Failed to collect database metrics:', error);
+      logger.error({ err: error }, 'Failed to collect database metrics:');
       return {
         activeConnections: 0,
         totalUsers: 0,
@@ -138,7 +138,7 @@ export class MonitoringService {
         commandsProcessed: parseInt(statsData.total_commands_processed || '0'),
       };
     } catch (error) {
-      logger.error('Failed to collect Redis metrics:', error);
+      logger.error({ err: error }, 'Failed to collect Redis metrics:');
       return {
         memoryUsage: 0,
         maxMemory: 0,
@@ -167,7 +167,7 @@ export class MonitoringService {
         averageResponseTime: 0, // 需要額外實現響應時間追蹤
       };
     } catch (error) {
-      logger.error('Failed to collect AI service metrics:', error);
+      logger.error({ err: error }, 'Failed to collect AI service metrics:');
       return {
         systemHealth: { healthy: false, totalBreakers: 0, healthyBreakers: 0, details: [] },
         serviceStats: [],
@@ -234,7 +234,7 @@ export class MonitoringService {
         websocketConnections: Math.floor(Math.random() * 50) + 10, // 模擬值
       };
     } catch (error) {
-      logger.error('Failed to collect chat metrics:', error);
+      logger.error({ err: error }, 'Failed to collect chat metrics:');
       return {
         activeUsers: 0,
         messagesLastHour: 0,
@@ -298,7 +298,7 @@ export class MonitoringService {
       await redis.ltrim(listKey, 0, 288); // 保留最近12小時的指標 (5分鐘間隔)
       await redis.expire(listKey, 86400);
     } catch (error) {
-      logger.error('Failed to store metrics:', error);
+      logger.error({ err: error }, 'Failed to store metrics:');
     }
   }
 
@@ -352,7 +352,7 @@ export class MonitoringService {
     // 儲存警告
     if (alerts.length > 0) {
       await this.storeAlerts(alerts);
-      logger.warn('System alerts detected', { alertCount: alerts.length, alerts });
+      logger.warn({ alertCount: alerts.length, alerts }, 'System alerts detected');
     }
   }
 
@@ -373,7 +373,7 @@ export class MonitoringService {
         })
       );
     } catch (error) {
-      logger.error('Failed to store alerts:', error);
+      logger.error({ err: error }, 'Failed to store alerts:');
     }
   }
 
@@ -393,7 +393,7 @@ export class MonitoringService {
         .map((data) => JSON.parse(data!))
         .sort((a, b) => a.timestamp - b.timestamp);
     } catch (error) {
-      logger.error('Failed to get metrics history:', error);
+      logger.error({ err: error }, 'Failed to get metrics history:');
       return [];
     }
   }
@@ -419,7 +419,7 @@ export class MonitoringService {
         },
       };
     } catch (error) {
-      logger.error('Failed to get system status summary:', error);
+      logger.error({ err: error }, 'Failed to get system status summary:');
       return {
         timestamp: Date.now(),
         healthy: false,
@@ -441,13 +441,13 @@ export class MonitoringService {
    */
   static startMetricsCollection(intervalMs: number = 300000): void {
     // 5分鐘間隔
-    logger.info('Starting metrics collection', { intervalMs });
+    logger.info({ intervalMs }, 'Starting metrics collection');
 
     const collectMetrics = async () => {
       try {
         await this.collectSystemMetrics();
       } catch (error) {
-        logger.error('Metrics collection failed:', error);
+        logger.error({ err: error }, 'Metrics collection failed:');
       }
     };
 

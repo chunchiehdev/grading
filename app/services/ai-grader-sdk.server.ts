@@ -109,14 +109,14 @@ export type GradeWithAIResult = GradeWithAISuccess | GradeWithAIFailure;
 export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithAIResult> {
   const { prompt, userId, resultId, temperature, skipFallback = false, language = 'zh', contextHash, contextContent, userPrompt } = params;
 
-  logger.info('Starting AI grading', {
+  logger.info({
     userId,
     resultId,
     promptLength: prompt.length,
     language,
     contextHash,
     contextContent: !!contextContent, // Log presence only
-  });
+  }, 'Starting AI grading');
 
   // Step 1: Try Gemini (with KeyHealthTracker)
   const geminiResult = await gradeWithGemini({
@@ -131,30 +131,30 @@ export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithA
   });
 
   if (geminiResult.success) {
-    logger.info('Grading completed successfully with Gemini', {
+    logger.info({
       userId,
       resultId,
       provider: 'gemini',
       keyId: geminiResult.keyId,
       responseTimeMs: geminiResult.responseTimeMs,
-    });
+    }, 'Grading completed successfully with Gemini');
 
     return geminiResult;
   }
 
   // Gemini failed
-  logger.warn('Gemini grading failed, preparing fallback', {
+  logger.warn({
     userId,
     resultId,
     error: geminiResult.error,
-  });
+  }, 'Gemini grading failed, preparing fallback');
 
   // Check if fallback is disabled
   if (skipFallback) {
-    logger.error('Gemini failed and fallback is disabled', {
+    logger.error({
       userId,
       resultId,
-    });
+    }, 'Gemini failed and fallback is disabled');
 
     return {
       success: false,
@@ -164,7 +164,7 @@ export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithA
   }
 
   // Step 2: Fallback to OpenAI
-  logger.info('Falling back to OpenAI', { userId, resultId });
+  logger.info({ userId, resultId }, 'Falling back to OpenAI');
 
   const openaiResult = await gradeWithOpenAI({
     prompt,
@@ -175,23 +175,23 @@ export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithA
   });
 
   if (openaiResult.success) {
-    logger.info('Grading completed successfully with OpenAI (fallback)', {
+    logger.info({
       userId,
       resultId,
       provider: 'openai',
       responseTimeMs: openaiResult.responseTimeMs,
-    });
+    }, 'Grading completed successfully with OpenAI (fallback)');
 
     return openaiResult;
   }
 
   // Both providers failed
-  logger.error('Both Gemini and OpenAI failed', {
+  logger.error({
     userId,
     resultId,
     geminiError: geminiResult.error,
     openaiError: openaiResult.error,
-  });
+  }, 'Both Gemini and OpenAI failed');
 
   return {
     success: false,

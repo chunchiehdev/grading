@@ -151,7 +151,7 @@ async function callGeminiForRubric(prompt: string): Promise<string> {
         }
       : { error };
 
-    logger.error('Gemini API detailed error:', errorDetails);
+    logger.error({ err: errorDetails }, 'Gemini API detailed error:');
 
     throw error;
   }
@@ -203,7 +203,7 @@ async function callOpenAIForRubric(prompt: string): Promise<string> {
 
     return text;
   } catch (error) {
-    logger.error('OpenAI API error:', error);
+    logger.error({ err: error }, 'OpenAI API error:');
     throw error;
   }
 }
@@ -218,26 +218,26 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
   // 建構專業的 prompt
   const prompt = createRubricPrompt(message, conversationHistory, context);
 
-  logger.info('Generating rubric with AI', {
+  logger.info({
     messageLength: message.length,
     hasContext: !!context,
     historyLength: conversationHistory.length,
-  });
+  }, 'Generating rubric with AI');
 
   // 先測試 Gemini API 連接性
   const connectionTest = await testGeminiConnection();
   if (!connectionTest.success) {
-    logger.warn('Gemini API connection test failed', { error: connectionTest.error });
+    logger.warn({ error: connectionTest.error }, 'Gemini API connection test failed');
     // 直接跳到 OpenAI 備用方案
     try {
       const response = await callOpenAIForRubric(prompt);
       logger.info('Successfully generated rubric with OpenAI (Gemini connection failed)');
       return response;
     } catch (openaiError) {
-      logger.error('Both AI services failed', {
+      logger.error({
         geminiError: connectionTest.error,
         openaiError,
-      });
+      }, 'Both AI services failed');
       throw new Error('AI 服務暫時不可用，請稍後再試');
     }
   }
@@ -249,9 +249,9 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
     return response;
   } catch (geminiError: unknown) {
     const errorMsg = geminiError instanceof Error ? geminiError.message : 'Unknown error';
-    logger.warn('Gemini API failed, trying OpenAI fallback', {
+    logger.warn({
       error: errorMsg,
-    });
+    }, 'Gemini API failed, trying OpenAI fallback');
 
     // 使用 OpenAI 作為備用方案
     try {
@@ -259,7 +259,7 @@ export async function generateRubricResponse(request: RubricGenerationRequest): 
       logger.info('Successfully generated rubric with OpenAI fallback');
       return response;
     } catch (openaiError) {
-      logger.error('Both AI services failed', { geminiError, openaiError });
+      logger.error({ geminiError, openaiError }, 'Both AI services failed');
 
       // 兩個 AI 服務都失敗時，拋出錯誤讓上層處理
       throw new Error('AI 服務暫時不可用，請稍後再試');

@@ -66,7 +66,7 @@ export class StartupService {
       state.initializationInProgress = false;
       logger.info('System initialization completed successfully');
     } catch (error) {
-      logger.error('System initialization failed:', error);
+      logger.error({ err: error }, 'System initialization failed:');
       state.initializationInProgress = false;
       // 不拋出錯誤，允許應用程式繼續運行
       state.initialized = true; // 標記為已初始化以避免重複嘗試
@@ -87,12 +87,12 @@ export class StartupService {
 
       // 獲取初始狀態
       const initialHealth = ProtectedAIService.getAIServicesHealth();
-      logger.info('Circuit Breakers initialized', {
+      logger.info({
         totalBreakers: initialHealth.totalBreakers,
         healthyBreakers: initialHealth.healthyBreakers,
-      });
+      }, 'Circuit Breakers initialized');
     } catch (error) {
-      logger.error('Failed to initialize Circuit Breakers:', error);
+      logger.error({ err: error }, 'Failed to initialize Circuit Breakers:');
       // 非關鍵錯誤，Circuit Breakers 可以運行時初始化
     }
   }
@@ -112,7 +112,7 @@ export class StartupService {
 
       logger.info('Monitoring service started');
     } catch (error) {
-      logger.error('Failed to start monitoring service:', error);
+      logger.error({ err: error }, 'Failed to start monitoring service:');
       // 監控是非關鍵服務，不影響主要功能
     }
   }
@@ -147,7 +147,7 @@ export class StartupService {
         logger.info('  Graceful shutdown completed successfully');
         process.exit(0);
       } catch (error) {
-        logger.error('❌ Error during graceful shutdown:', error);
+        logger.error({ err: error }, '❌ Error during graceful shutdown:');
         process.exit(1);
       }
     };
@@ -158,11 +158,11 @@ export class StartupService {
 
     // 處理未捕獲的異常
     process.on('unhandledRejection', (reason, promise) => {
-      logger.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+      logger.error({ reason, promise }, '❌ Unhandled Rejection');
     });
 
     process.on('uncaughtException', (error) => {
-      logger.error('❌ Uncaught Exception:', error);
+      logger.error({ err: error }, '❌ Uncaught Exception:');
       process.exit(1);
     });
 

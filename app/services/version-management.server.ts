@@ -95,7 +95,7 @@ export async function getLatestSubmissionVersion(
 
     return latestSubmission;
   } catch (error) {
-    logger.error('❌ Error fetching latest submission version:', error);
+    logger.error({ err: error }, '❌ Error fetching latest submission version:');
     return null;
   }
 }
@@ -147,7 +147,7 @@ export async function getSubmissionHistory(
 
     return submissions;
   } catch (error) {
-    logger.error('❌ Error fetching submission history:', error);
+    logger.error({ err: error }, '❌ Error fetching submission history:');
     return [];
   }
 }
@@ -197,7 +197,7 @@ export async function getSubmissionByVersion(
 
     return submission;
   } catch (error) {
-    logger.error('❌ Error fetching submission by version:', error);
+    logger.error({ err: error }, '❌ Error fetching submission by version:');
     return null;
   }
 }
@@ -216,7 +216,7 @@ export async function getVersionCount(assignmentAreaId: string, studentId: strin
 
     return count;
   } catch (error) {
-    logger.error('❌ Error counting submission versions:', error);
+    logger.error({ err: error }, '❌ Error counting submission versions:');
     return 0;
   }
 }
@@ -292,7 +292,7 @@ export async function createNewSubmissionVersion(
     logger.info(`✅ Created submission version ${nextVersionNumber} for student ${studentId}`);
     return result;
   } catch (error) {
-    logger.error('❌ Error creating new submission version:', error);
+    logger.error({ err: error }, '❌ Error creating new submission version:');
     throw error;
   }
 }
@@ -442,7 +442,7 @@ export async function compareSubmissionVersions(
       grading,
     };
   } catch (error) {
-    logger.error('❌ Error comparing submission versions:', error);
+    logger.error({ err: error }, '❌ Error comparing submission versions:');
     return null;
   }
 }

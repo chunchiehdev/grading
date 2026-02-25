@@ -27,10 +27,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return new Response('Session ID required', { status: 400 });
     }
 
-    logger.info('[Chat Session Delete API] Deleting session', {
+    logger.info({
       sessionId,
       userId: userId.substring(0, 8),
-    });
+    }, '[Chat Session Delete API] Deleting session');
 
     // Verify session exists and belongs to user
     const session = await db.agentChatSession.findUnique({
@@ -43,11 +43,11 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     if (session.userId !== userId) {
-      logger.warn('[Chat Session Delete API] Unauthorized deletion attempt', {
+      logger.warn({
         sessionId,
         requestingUser: userId.substring(0, 8),
         sessionOwner: session.userId.substring(0, 8),
-      });
+      }, '[Chat Session Delete API] Unauthorized deletion attempt');
       return new Response('Forbidden', { status: 403 });
     }
 
@@ -65,13 +65,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
     });
 
-    logger.info('[Chat Session Delete API] Session deleted successfully', {
+    logger.info({
       sessionId,
-    });
+    }, '[Chat Session Delete API] Session deleted successfully');
 
     return Response.json({ success: true });
   } catch (error) {
-    logger.error('[Chat Session Delete API] Error deleting session', error);
+    logger.error({ err: error }, '[Chat Session Delete API] Error deleting session');
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Failed to delete session',

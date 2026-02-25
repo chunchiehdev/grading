@@ -10,11 +10,11 @@ async function generateRubricWithAI(message: string, conversationHistory: any[] 
     // 導入真正的 AI 服務
     const { generateRubricResponse } = await import('@/services/ai-rubric.server');
 
-    logger.info('調用 AI 服務生成評分標準', {
+    logger.info({
       message: message.substring(0, 100) + '...',
       hasHistory: conversationHistory.length > 0,
       hasContext: !!context,
-    });
+    }, '調用 AI 服務生成評分標準');
 
     // 調用真正的 AI 服務（Gemini 或 OpenAI）
     const response = await generateRubricResponse({
@@ -26,7 +26,7 @@ async function generateRubricWithAI(message: string, conversationHistory: any[] 
     logger.info('AI 服務回應成功');
     return response;
   } catch (error) {
-    logger.error('AI 服務調用失敗:', error);
+    logger.error({ err: error }, 'AI 服務調用失敗:');
 
     // 當 AI 服務不可用時的友善回應
     return createFallbackResponse(message, error);
@@ -70,7 +70,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
     return Response.json({ response });
   } catch (error) {
-    logger.error('AI API Error:', error);
+    logger.error({ err: error }, 'AI API Error:');
     return Response.json({ error: '生成評分標準時發生錯誤，請稍後再試' }, { status: 500 });
   }
 }

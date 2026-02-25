@@ -122,10 +122,10 @@ export async function enrollStudentInClass(studentId: string, classId: string): 
       },
     });
 
-    logger.info('  Student enrolled:', studentId, 'in class:', classId);
+    logger.info({ studentId, classId }, '  Student enrolled');
     return enrollment;
   } catch (error) {
-    logger.error('❌ Error enrolling student in class:', error);
+    logger.error({ err: error }, '❌ Error enrolling student in class:');
     throw error;
   }
 }
@@ -149,7 +149,7 @@ export async function isStudentEnrolledInClass(studentId: string, classId: strin
 
     return !!enrollment;
   } catch (error) {
-    logger.error('❌ Error checking class enrollment:', error);
+    logger.error({ err: error }, '❌ Error checking class enrollment:');
     return false;
   }
 }
@@ -208,7 +208,7 @@ export async function getClassEnrollments(classId: string, teacherId: string): P
 
     return enrollments;
   } catch (error) {
-    logger.error('❌ Error fetching class enrollments:', error);
+    logger.error({ err: error }, '❌ Error fetching class enrollments:');
     throw error;
   }
 }
@@ -251,10 +251,10 @@ export async function unenrollStudentFromClass(
       },
     });
 
-    logger.info('  Student unenrolled:', studentId, 'from class:', classId);
+    logger.info({ studentId, classId }, '  Student unenrolled');
     return !!result;
   } catch (error) {
-    logger.error('❌ Error unenrolling student from class:', error);
+    logger.error({ err: error }, '❌ Error unenrolling student from class:');
     return false;
   }
 }
@@ -316,7 +316,7 @@ export async function getStudentEnrolledCourses(studentId: string) {
 
     return Array.from(courseMap.values());
   } catch (error) {
-    logger.error('❌ Error fetching student enrolled courses:', error);
+    logger.error({ err: error }, '❌ Error fetching student enrolled courses:');
     return [];
   }
 }
@@ -375,7 +375,7 @@ export async function getCourseEnrollments(courseId: string, teacherId: string) 
       })),
     }));
   } catch (error) {
-    logger.error('❌ Error fetching course enrollments:', error);
+    logger.error({ err: error }, '❌ Error fetching course enrollments:');
     throw error;
   }
 }
@@ -428,7 +428,7 @@ export async function getCourseStudents(courseId: string, teacherId: string) {
 
     return enrollments;
   } catch (error) {
-    logger.error('❌ Error fetching course students:', error);
+    logger.error({ err: error }, '❌ Error fetching course students:');
     throw error;
   }
 }
@@ -475,7 +475,7 @@ export async function unenrollStudent(studentId: string, courseId: string, teach
     logger.info(`  Removed student ${studentId} from ${result.count} class(es) in course ${courseId}`);
     return result.count > 0;
   } catch (error) {
-    logger.error('❌ Error removing student from course:', error);
+    logger.error({ err: error }, '❌ Error removing student from course:');
     return false;
   }
 }
@@ -547,7 +547,7 @@ export async function getCourseEnrollmentStats(courseId: string, teacherId: stri
       })),
     };
   } catch (error) {
-    logger.error('❌ Error fetching enrollment stats:', error);
+    logger.error({ err: error }, '❌ Error fetching enrollment stats:');
     return {
       totalEnrollments: 0,
       recentEnrollments: [],

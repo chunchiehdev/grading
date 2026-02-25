@@ -35,10 +35,10 @@ export async function createCourse(teacherId: string, courseData: CreateCourseDa
       },
     });
 
-    logger.info('  Created course:', course.name, 'for teacher:', teacherId);
+    logger.info({ courseName: course.name, teacherId }, '  Created course');
     return course;
   } catch (error) {
-    logger.error('❌ Error creating course:', error);
+    logger.error({ err: error }, '❌ Error creating course:');
     throw new Error('Failed to create course');
   }
 }
@@ -75,7 +75,7 @@ export async function getTeacherCourses(teacherId: string): Promise<CourseInfo[]
 
     return courses;
   } catch (error) {
-    logger.error('❌ Error fetching teacher courses:', error);
+    logger.error({ err: error }, '❌ Error fetching teacher courses:');
     return [];
   }
 }
@@ -116,7 +116,7 @@ export async function getCourseById(courseId: string, teacherId: string): Promis
 
     return course;
   } catch (error) {
-    logger.error('❌ Error fetching course:', error);
+    logger.error({ err: error }, '❌ Error fetching course:');
     return null;
   }
 }
@@ -156,7 +156,7 @@ export async function updateCourse(
     // Return updated course
     return getCourseById(courseId, teacherId);
   } catch (error) {
-    logger.error('❌ Error updating course:', error);
+    logger.error({ err: error }, '❌ Error updating course:');
     return null;
   }
 }
@@ -178,12 +178,12 @@ export async function deleteCourse(courseId: string, teacherId: string): Promise
 
     const success = result.count > 0;
     if (success) {
-      logger.info('Deleted course:', courseId);
+      logger.info({ data: courseId }, 'Deleted course:');
     }
 
     return success;
   } catch (error) {
-    logger.error('Error deleting course:', error);
+    logger.error({ err: error }, 'Error deleting course:');
     return false;
   }
 }
@@ -334,7 +334,7 @@ export async function searchCourses(query: string, userId: string): Promise<Cour
 
     return formatCourseResults(results);
   } catch (error) {
-    logger.error('Course search error:', error);
+    logger.error({ err: error }, 'Course search error:');
     throw new Error('Search failed. Please try again.');
   }
 }

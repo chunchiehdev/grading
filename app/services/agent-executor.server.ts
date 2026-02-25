@@ -104,14 +104,14 @@ async function optimizeRubricWithLLM(
       },
     });
 
-    logger.info('[Agent] Rubric optimized', {
+    logger.info({
       originalCount: rawCriteria.length,
       optimizedCount: optimizedCriteria.length,
-    });
+    }, '[Agent] Rubric optimized');
 
     return optimizedCriteria;
   } catch (error) {
-    logger.warn('[Agent] Rubric optimization failed, using original', error);
+    logger.warn({ err: error }, '[Agent] Rubric optimization failed, using original');
     return rawCriteria;
   }
 }
@@ -341,7 +341,7 @@ function createStopCondition(maxSteps: number) {
 
     // Safety: stop if max steps reached
     if (params.steps.length >= maxSteps) {
-      logger.warn('[Agent] Stop: max steps reached', { steps: params.steps.length });
+      logger.warn({ steps: params.steps.length }, '[Agent] Stop: max steps reached');
       return true;
     }
 
@@ -395,11 +395,11 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
   let selectedKeyId: string | null = null;
 
   try {
-    logger.info('[Agent] Starting autonomous grading (ToolLoopAgent)', {
+    logger.info({
       resultId: params.resultId,
       rubricName: params.rubricName,
       hasAssignmentTitle: !!params.assignmentTitle,
-    });
+    }, '[Agent] Starting autonomous grading (ToolLoopAgent)');
 
     // 1. Setup Model (Google Generative AI)
     let model: any;
@@ -427,7 +427,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     try {
       effectiveCriteria = await optimizeRubricWithLLM(model, params.rubricName, params.criteria);
     } catch (e) {
-      logger.warn('[Agent] Rubric optimization failed, using original', e);
+      logger.warn({ err: e }, '[Agent] Rubric optimization failed, using original');
     }
 
     // 3. Build Context
@@ -485,7 +485,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
          const googleMetadata = providerMetadata?.google as any;
          if (googleMetadata?.thoughts) {
            directThinking = googleMetadata.thoughts as string;
-           logger.info('[Agent] Captured Direct Mode Thinking', { length: directThinking.length });
+           logger.info({ length: directThinking.length }, '[Agent] Captured Direct Mode Thinking');
          }
  
          // Stream thinking to Redis (Bridge format)
@@ -555,7 +555,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
            executionTimeMs: Date.now() - startTime,
          };
        } catch (error) {
-         logger.error('[Agent] Direct grading failed', error);
+         logger.error({ err: error }, '[Agent] Direct grading failed');
          throw error;
        }
     }
@@ -579,10 +579,10 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     ${params.content}
     `;
 
-    logger.info('[Agent] Executing ToolLoopAgent', {
+    logger.info({
       contentLength: params.content.length,
       hasTitle: !!params.assignmentTitle,
-    });
+    }, '[Agent] Executing ToolLoopAgent');
 
     let stepCounter = 0;
     let confidenceCalled = false;
@@ -613,13 +613,13 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         const hasConfidence = completedToolNames.has('calculate_confidence');
         const hasFeedback = completedToolNames.has('generate_feedback');
         
-        logger.info(`[Agent] prepareStep ${stepCounter}`, { 
+        logger.info({ 
           agentStepsCount: agentSteps?.length || 0,
           hasThinkAloud, 
           hasConfidence, 
           hasFeedback,
           completedTools: Array.from(completedToolNames)
-        });
+        }, `[Agent] prepareStep ${stepCounter}`);
         
         // STEP 0: If feedback already generated, we're done - no more steps needed
         if (hasFeedback) {
@@ -704,14 +704,14 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         const currentStep = steps.length > 0 ? steps[steps.length - 1] : null;
         const toolName = currentStep?.toolName || 'unknown';
         
-        logger.info(`[Agent] 📊 Step ${steps.length} Token Usage (${toolName})`, {
+        logger.info({
           stepNumber: steps.length,
           toolName,
           promptTokens: usage.promptTokens,
           completionTokens: usage.completionTokens,
           stepTotal: stepTokens,
           cumulativeTotal: totalTokens,
-        });
+        }, `[Agent] 📊 Step ${steps.length} Token Usage (${toolName})`);
       }
     
       // 1. Handle Text (Thinking)
@@ -801,11 +801,11 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
               };
               feedbackCalled = true;
               
-              logger.info('[Agent] 🟢 Early Capture complete', {
+              logger.info({
                 totalScore,
                 maxScore,
                 sparringQuestionsCount: args.sparringQuestions?.length || 0,
-              });
+              }, '[Agent] 🟢 Early Capture complete');
             }
           }
         }
@@ -890,16 +890,16 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
             feedbackCalled = true;
             finalResult = toolResult;
 
-            logger.info('[Agent] generate_feedback completed successfully', {
+            logger.info({
               hasSparringQuestions: true,
               sparringQuestionsCount: typedResult.sparringQuestions.length,
               resultKeys: Object.keys(toolResult || {}),
               source: 'tool_result',
-            });
+            }, '[Agent] generate_feedback completed successfully');
           } else {
-             logger.warn('[Agent] generate_feedback failed validation (missing sparringQuestions or error)', { 
+             logger.warn({ 
                toolResult: typeof toolResult === 'string' ? toolResult.substring(0, 100) : 'object' 
-             });
+             }, '[Agent] generate_feedback failed validation (missing sparringQuestions or error)');
              // Do NOT set feedbackCalled = true, so the loop will retry
           }
         }
@@ -941,7 +941,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           : '評分已完成，請參閱各項目的回饋。');
     }
 
-    logger.info('[Agent] Grading completed', {
+    logger.info({
       totalSteps: steps.length,
       totalScore: finalResult?.totalScore,
       maxScore: finalResult?.maxScore,
@@ -951,7 +951,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         total: totalTokens,
       },
       executionTimeMs,
-    });
+    }, '[Agent] Grading completed');
 
     // Stream to Redis (Bridge format) with telemetry for thesis research
     if (params.sessionId) {
@@ -985,7 +985,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       executionTimeMs,
     };
   } catch (error) {
-    logger.error('[Agent] Grading failed', error);
+    logger.error({ err: error }, '[Agent] Grading failed');
 
     // Stream to Redis (Bridge format)
     if (params.sessionId) {

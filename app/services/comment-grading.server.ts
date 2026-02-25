@@ -147,7 +147,7 @@ export async function gradeComment(
             logger.warn(`⚠️ Attachment ${att.fileName} not yet parsed`);
           }
         } catch (err) {
-          logger.warn(`⚠️ Failed to fetch attachment ${att.fileId}:`, err);
+          logger.warn({ err: err }, `⚠️ Failed to fetch attachment ${att.fileId}:`);
         }
       }
       
@@ -275,11 +275,11 @@ export async function gradeComment(
       });
     }
 
-    logger.info(`✅ [Comment Grading] Completed for comment ${commentId}`, {
+    logger.info({
       normalizedScore,
       duration,
       tokens: gradingResponse.metadata?.tokens,
-    });
+    }, `✅ [Comment Grading] Completed for comment ${commentId}`);
 
     return {
       success: true,
@@ -301,7 +301,7 @@ export async function gradeComment(
       },
     };
   } catch (error) {
-    logger.error(`❌ [Comment Grading] Failed for comment ${commentId}:`, error);
+    logger.error({ err: error }, `❌ [Comment Grading] Failed for comment ${commentId}:`);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Comment grading failed',

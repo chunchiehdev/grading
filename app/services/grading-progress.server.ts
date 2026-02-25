@@ -82,10 +82,10 @@ class GradingProgressStore {
         result: result.status === 'COMPLETED' ? result.result : undefined,
       };
 
-      logger.debug(`Found progress for ${gradingId}:`, progressData);
+      logger.debug({ data: progressData }, `Found progress for ${gradingId}:`);
       return progressData;
     } catch (error) {
-      logger.error(`Error fetching progress for ${gradingId}:`, error);
+      logger.error({ err: error }, `Error fetching progress for ${gradingId}:`);
       return null;
     }
   }
@@ -133,10 +133,10 @@ class GradingProgressStore {
 
       // Log completion
       if (progress.phase === 'completed' || progress.phase === 'error') {
-        logger.info(`Final progress state for ${gradingId}:`, progress);
+        logger.info({ data: progress }, `Final progress state for ${gradingId}:`);
       }
     } catch (error) {
-      logger.error(`Error saving progress for ${gradingId}:`, error);
+      logger.error({ err: error }, `Error saving progress for ${gradingId}:`);
     }
   }
 }
@@ -167,7 +167,7 @@ export const GradingProgressService = {
    * @returns {Promise<void>}
    */
   updateProgress: async (gradingId: string, progress: Partial<GradingProgress>): Promise<void> => {
-    logger.debug(`Updating progress for ${gradingId}:`, progress);
+    logger.debug({ data: progress }, `Updating progress for ${gradingId}:`);
     const currentProgress = await GradingProgressStore.getProgress(gradingId);
 
     if (!currentProgress) {

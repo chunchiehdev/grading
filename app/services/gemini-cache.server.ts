@@ -32,7 +32,7 @@ export class GeminiCacheManager {
     // 1. Check Redis for existing cache
     const cachedName = await redis.get(redisKey);
     if (cachedName) {
-      logger.debug('Gemini cache hit (Redis)', { keyId, contentHash, cacheName: cachedName });
+      logger.debug({ keyId, contentHash, cacheName: cachedName }, 'Gemini cache hit (Redis)');
       return cachedName;
     }
 
@@ -40,7 +40,7 @@ export class GeminiCacheManager {
     try {
       const client = new GoogleGenAI({ apiKey });
       
-      logger.info('Creating new Gemini Context Cache', { keyId, model, contentHash });
+      logger.info({ keyId, model, contentHash }, 'Creating new Gemini Context Cache');
       
       const createConfig: any = {
         model, 
@@ -71,17 +71,17 @@ export class GeminiCacheManager {
       // Expire 1 minute before Gemini expires to avoid valid-in-redis but invalid-in-gemini race condition
       await redis.set(redisKey, cacheName, 'EX', CACHE_TTL_SECONDS - 60); 
       
-      logger.info('Created Gemini Context Cache successfully', { keyId, contentHash, cacheName });
+      logger.info({ keyId, contentHash, cacheName }, 'Created Gemini Context Cache successfully');
       return cacheName;
       
     } catch (error: any) {
-      logger.error('Failed to create Gemini cache', { 
+      logger.error({ 
         keyId, 
         message: error.message,
         status: error.status,
         statusText: error.statusText,
         errorDetails: JSON.stringify(error),
-      });
+      }, 'Failed to create Gemini cache');
       console.error('Gemini Cache Creation Error:', error); // Force stderr output
       return null;
     }

@@ -38,11 +38,11 @@ const RUBRIC_SYSTEM_PROMPT = `你是一個專業的教育評估專家，專門�
  */
 export async function action({ request }: ActionFunctionArgs) {
   try {
-    logger.info('Rubric chat endpoint called', {
+    logger.info({
       method: request.method,
       url: request.url,
       contentType: request.headers.get('content-type'),
-    });
+    }, 'Rubric chat endpoint called');
 
     // 1. Authentication
     const userId = await getUserId(request);
@@ -51,20 +51,20 @@ export async function action({ request }: ActionFunctionArgs) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    logger.info('User authenticated', { userId });
+    logger.info({ userId }, 'User authenticated');
 
     // 2. Parse request body - submit() sends the data as JSON body
     let body: any;
     try {
       body = await request.json();
-      logger.info('Request body parsed', {
+      logger.info({
         bodyKeys: body ? Object.keys(body) : [],
         bodyType: typeof body,
-      });
+      }, 'Request body parsed');
     } catch (parseError) {
-      logger.error('Failed to parse request body:', {
+      logger.error({
         error: parseError instanceof Error ? parseError.message : String(parseError),
-      });
+      }, 'Failed to parse request body:');
       return Response.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
@@ -79,20 +79,20 @@ export async function action({ request }: ActionFunctionArgs) {
     console.log('Messages full:', JSON.stringify(messages));
 
     if (!messages || !Array.isArray(messages)) {
-      logger.error('Invalid messages format', {
+      logger.error({
         userId,
         hasMessages: !!messages,
         messageType: typeof messages,
         messagesValue: messages,
-      });
+      }, 'Invalid messages format');
       return Response.json({ error: 'Invalid request: messages array required' }, { status: 400 });
     }
 
-    logger.info('Rubric object stream request received', {
+    logger.info({
       userId,
       messageCount: messages.length,
       firstMessage: messages[0],
-    });
+    }, 'Rubric object stream request received');
 
     // 4. Get API key
     const apiKey = process.env.GEMINI_API_KEY;
@@ -101,7 +101,7 @@ export async function action({ request }: ActionFunctionArgs) {
       return Response.json({ error: 'AI service not configured' }, { status: 500 });
     }
 
-    logger.info('API key present, converting messages', { messageCount: messages.length });
+    logger.info({ messageCount: messages.length }, 'API key present, converting messages');
 
     // 5. Convert messages to AI SDK format
     let coreMessages: any;
@@ -117,16 +117,16 @@ export async function action({ request }: ActionFunctionArgs) {
       });
       
       console.log('Mapped messages:', JSON.stringify(coreMessages));
-      logger.info('Messages mapped successfully', {
+      logger.info({
         mappedMessageCount: coreMessages.length,
-      });
+      }, 'Messages mapped successfully');
     } catch (convertError) {
       console.error('Message mapping error:', convertError);
-      logger.error('Failed to map messages', {
+      logger.error({
         error: convertError instanceof Error ? convertError.message : String(convertError),
         stack: convertError instanceof Error ? convertError.stack : undefined,
         messagesSample: JSON.stringify(messages.slice(0, 1)),
-      });
+      }, 'Failed to map messages');
       throw convertError;
     }
 
@@ -135,12 +135,12 @@ export async function action({ request }: ActionFunctionArgs) {
     const googleProvider = createGoogleGenerativeAI({ apiKey });
 
     // 7. Stream object using messages (for multi-turn conversation)
-    logger.info('Calling streamObject', {
+    logger.info({
       model: 'gemini-2.0-flash',
       schemaFields: Object.keys(UIRubricDataSchema.shape || {}),
       messagesCount: coreMessages.length,
       temperature: 0.7,
-    });
+    }, 'Calling streamObject');
 
     const result = streamObject({
       model: googleProvider('gemini-2.0-flash'),
@@ -150,12 +150,12 @@ export async function action({ request }: ActionFunctionArgs) {
       temperature: 0.7,
       maxOutputTokens: 4096,
       onFinish: ({ object, usage }) => {
-        logger.info('Rubric object stream finished', {
+        logger.info({
           userId,
           tokens: usage.totalTokens,
           hasRubric: !!object,
           objectKeys: object ? Object.keys(object) : null,
-        });
+        }, 'Rubric object stream finished');
       },
     });
 
@@ -170,21 +170,21 @@ export async function action({ request }: ActionFunctionArgs) {
     console.error('Error string:', String(error));
     console.error('Error JSON:', JSON.stringify(error, null, 2));
     
-    logger.error('Rubric object stream error:', {
+    logger.error({
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       errorType: error?.constructor?.name,
       errorString: String(error),
-    });
+    }, 'Rubric object stream error:');
 
     // Log more detailed error info
     if (error instanceof Error) {
-      logger.error('Error details:', {
+      logger.error({
         name: error.name,
         message: error.message,
         cause: (error as any).cause,
         stack: error.stack,
-      });
+      }, 'Error details:');
     }
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

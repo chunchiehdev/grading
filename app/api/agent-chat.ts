@@ -75,13 +75,13 @@ export async function action({ request }: ActionFunctionArgs) {
       }
     }
 
-    logger.info('[Agent Chat API] Processing chat request', {
+    logger.info({
       userId,
       userRole,
       messageLength: newMessage.length,
       modelProviderPreference: modelProvider,
       requestedSessionId,
-    });
+    }, '[Agent Chat API] Processing chat request');
 
     // Load message history for context (if continuing session)
     let messageHistory: UIMessage[] = [];
@@ -107,11 +107,11 @@ export async function action({ request }: ActionFunctionArgs) {
 
           if (!existingSession) {
             // 🔒 SECURITY: Return 403 instead of silently creating new session
-            logger.warn('[Agent Chat API] Unauthorized session access attempt', {
+            logger.warn({
               requestedSessionId: sessionId,
               userId: userId?.substring(0, 8),
               ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
-            });
+            }, '[Agent Chat API] Unauthorized session access attempt');
             return new Response(
               JSON.stringify({ error: 'Session not found or unauthorized' }),
               {
@@ -144,11 +144,11 @@ export async function action({ request }: ActionFunctionArgs) {
           
           // 🛑 BLOCK if token limit exceeded (prevent further API calls)
           if (currentSessionTokens >= TOKEN_LIMIT_THRESHOLD) {
-            logger.warn('[Agent Chat API] Token limit exceeded - blocking request', {
+            logger.warn({
               sessionId,
               currentTokens: currentSessionTokens,
               threshold: TOKEN_LIMIT_THRESHOLD,
-            });
+            }, '[Agent Chat API] Token limit exceeded - blocking request');
             return new Response(
               JSON.stringify({ 
                 error: 'Token limit exceeded',
@@ -176,10 +176,10 @@ export async function action({ request }: ActionFunctionArgs) {
             }
           });
           
-          logger.info('[Agent Chat API] Continuing existing session', { 
+          logger.info({ 
             sessionId, 
             historyLength: messageHistory.length 
-          });
+          }, '[Agent Chat API] Continuing existing session');
         }
 
         // 2. Create new session if needed (first message)
@@ -198,7 +198,7 @@ export async function action({ request }: ActionFunctionArgs) {
           });
           
           sessionId = session.id;
-          logger.info('[Agent Chat API] Created new session', { sessionId, modelProvider });
+          logger.info({ sessionId, modelProvider }, '[Agent Chat API] Created new session');
         }
         
         // 3. Save the NEW user message to database
@@ -211,7 +211,7 @@ export async function action({ request }: ActionFunctionArgs) {
           },
         });
       } catch (error) {
-        logger.error('[Agent Chat API] Failed to manage session', error);
+        logger.error({ err: error }, '[Agent Chat API] Failed to manage session');
         // Don't continue without proper session tracking for authenticated users
         return new Response(
           JSON.stringify({ error: 'Database error' }),
@@ -234,19 +234,19 @@ export async function action({ request }: ActionFunctionArgs) {
     ];
 
     // createAgentUIStreamResponse expects UIMessages directly (not ModelMessages)
-    logger.debug('[Agent Chat API] Using messages for agent', {
+    logger.debug({
       messageCount: messages.length,
-    });
+    }, '[Agent Chat API] Using messages for agent');
 
     // Create streaming agent response (using V3 with Agent class)
     const finalUserRole = userRole || 'STUDENT';
     
-    logger.info('[Agent Chat API] Creating agent stream', {
+    logger.info({
       userRole: finalUserRole,
       hasUserId: !!userId,
       sessionId,
       modelProvider,
-    });
+    }, '[Agent Chat API] Creating agent stream');
     
     try {
       const response = await streamWithPlatformAssistant(
@@ -276,11 +276,11 @@ export async function action({ request }: ActionFunctionArgs) {
 
               // 2. Update Session Status to IDLE (not COMPLETED - can be continued)
               const finalProvider = provider || modelProvider;
-              logger.info('[Agent Chat API] Updating session on finish', { 
+              logger.info({ 
                 sessionId, 
                 tokens: usage?.totalTokens || 0,
                 provider: finalProvider 
-              });
+              }, '[Agent Chat API] Updating session on finish');
 
               await db.agentChatSession.update({
                 where: { id: sessionId },
@@ -294,7 +294,7 @@ export async function action({ request }: ActionFunctionArgs) {
               });
               
             } catch (err) {
-              logger.error('[Agent Chat API] Failed to save message and update session', err);
+              logger.error({ err: err }, '[Agent Chat API] Failed to save message and update session');
             }
           }
         },
@@ -315,10 +315,10 @@ export async function action({ request }: ActionFunctionArgs) {
         }
       }
 
-      logger.info('[Agent Chat API] Agent response created successfully', {
+      logger.info({
         sessionTokens: currentSessionTokens,
         tokenLimitThreshold: TOKEN_LIMIT_THRESHOLD,
-      });
+      }, '[Agent Chat API] Agent response created successfully');
       return response;
     } catch (streamError) {
       // Update session status to ERROR
@@ -333,20 +333,20 @@ export async function action({ request }: ActionFunctionArgs) {
             },
           });
         } catch (err) {
-          logger.error('[Agent Chat API] Failed to update session status to ERROR', err);
+          logger.error({ err: err }, '[Agent Chat API] Failed to update session status to ERROR');
         }
       }
       
-      logger.error('[Agent Chat API] Error creating stream', {
+      logger.error({
         error: streamError instanceof Error ? streamError.message : String(streamError),
         stack: streamError instanceof Error ? streamError.stack : undefined,
-      });
+      }, '[Agent Chat API] Error creating stream');
       throw streamError;
     }
   } catch (error) {
-    logger.error('[Agent Chat API] Error processing chat', {
+    logger.error({
       error: error instanceof Error ? error.message : String(error),
-    });
+    }, '[Agent Chat API] Error processing chat');
 
     return new Response(
       JSON.stringify({

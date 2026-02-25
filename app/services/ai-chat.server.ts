@@ -64,7 +64,7 @@ async function testGeminiConnection(): Promise<{ success: boolean; error?: strin
       return { success: false, error: 'GEMINI_API_KEY not configured' };
     }
 
-    logger.debug('Testing Gemini connection with API key:', apiKey.substring(0, 10) + '...');
+    logger.debug({ data: apiKey.substring(0, 10) + '...' }, 'Testing Gemini connection with API key:');
 
     const ai = new GoogleGenAI({ apiKey });
 
@@ -102,14 +102,14 @@ async function callGeminiForChat(prompt: string): Promise<string> {
     throw new Error('Gemini API key not configured');
   }
 
-  logger.debug('Calling Gemini API with key:', apiKey.substring(0, 10) + '...');
+  logger.debug({ data: apiKey.substring(0, 10) + '...' }, 'Calling Gemini API with key:');
   const ai = new GoogleGenAI({ apiKey });
 
   try {
-    logger.debug('Sending request to Gemini API...', {
+    logger.debug({
       model: 'gemini-2.0-flash',
       promptLength: prompt.length,
-    });
+    }, 'Sending request to Gemini API...');
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.0-flash',
@@ -136,7 +136,7 @@ async function callGeminiForChat(prompt: string): Promise<string> {
         }
       : { error };
 
-    logger.error('Gemini API chat error:', errorDetails);
+    logger.error({ err: errorDetails }, 'Gemini API chat error:');
     throw error;
   }
 }
@@ -177,7 +177,7 @@ async function callOpenAIForChat(prompt: string): Promise<string> {
 
     return text;
   } catch (error) {
-    logger.error('OpenAI API chat error:', error);
+    logger.error({ err: error }, 'OpenAI API chat error:');
     throw error;
   }
 }
@@ -192,26 +192,26 @@ export async function generateChatResponse(request: ChatAIRequest): Promise<stri
   // 建構專業的 prompt
   const prompt = createChatPrompt(message, conversationHistory, context);
 
-  logger.info('Generating chat response with AI', {
+  logger.info({
     messageLength: message.length,
     hasContext: !!context,
     historyLength: conversationHistory.length,
-  });
+  }, 'Generating chat response with AI');
 
   // 先測試 Gemini API 連接性
   const connectionTest = await testGeminiConnection();
   if (!connectionTest.success) {
-    logger.warn('Gemini API connection test failed', { error: connectionTest.error });
+    logger.warn({ error: connectionTest.error }, 'Gemini API connection test failed');
     // 直接跳到 OpenAI 備用方案
     try {
       const response = await callOpenAIForChat(prompt);
       logger.info('Successfully generated chat response with OpenAI (Gemini connection failed)');
       return response;
     } catch (openaiError) {
-      logger.error('Both AI services failed for chat', {
+      logger.error({
         geminiError: connectionTest.error,
         openaiError,
-      });
+      }, 'Both AI services failed for chat');
       throw new Error('AI 服務暫時不可用，請稍後再試');
     }
   }
@@ -223,9 +223,9 @@ export async function generateChatResponse(request: ChatAIRequest): Promise<stri
     return response;
   } catch (geminiError: unknown) {
     const errorMsg = geminiError instanceof Error ? geminiError.message : 'Unknown error';
-    logger.warn('Gemini API failed for chat, trying OpenAI fallback', {
+    logger.warn({
       error: errorMsg,
-    });
+    }, 'Gemini API failed for chat, trying OpenAI fallback');
 
     // 使用 OpenAI 作為備用方案
     try {
@@ -233,7 +233,7 @@ export async function generateChatResponse(request: ChatAIRequest): Promise<stri
       logger.info('Successfully generated chat response with OpenAI fallback');
       return response;
     } catch (openaiError) {
-      logger.error('Both AI services failed for chat', { geminiError, openaiError });
+      logger.error({ geminiError, openaiError }, 'Both AI services failed for chat');
 
       // 兩個 AI 服務都失敗時，拋出錯誤讓上層處理
       throw new Error('AI 服務暫時不可用，請稍後再試');

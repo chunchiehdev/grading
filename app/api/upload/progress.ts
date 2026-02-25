@@ -49,7 +49,7 @@ export async function loader({ request }: { request: Request }) {
               // Continue streaming every 500ms
               setTimeout(sendProgress, 500);
             } catch (error) {
-              logger.error('Progress SSE error:', error);
+              logger.error({ err: error }, 'Progress SSE error:');
               controller.error(error);
             }
           };
@@ -79,7 +79,7 @@ export async function loader({ request }: { request: Request }) {
       );
     }
   } catch (error) {
-    logger.error('Progress API error:', error);
+    logger.error({ err: error }, 'Progress API error:');
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to get progress',

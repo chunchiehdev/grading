@@ -59,16 +59,16 @@ async function closeServicesInternal(): Promise<void> {
   const tasks: Promise<unknown>[] = [];
 
   if (worker) {
-    tasks.push(worker.close().catch((error) => logger.error('[BullMQ] Error closing worker:', error)));
+    tasks.push(worker.close().catch((error) => logger.error({ err: error }, '[BullMQ] Error closing worker:')));
   }
 
   if (queue) {
-    tasks.push(queue.close().catch((error) => logger.error('[BullMQ] Error closing queue:', error)));
+    tasks.push(queue.close().catch((error) => logger.error({ err: error }, '[BullMQ] Error closing queue:')));
   }
 
   if (events) {
     tasks.push(
-      events.close().catch((error) => logger.error('[BullMQ] Error closing queue events:', error))
+      events.close().catch((error) => logger.error({ err: error }, '[BullMQ] Error closing queue events:'))
     );
   }
 
@@ -95,7 +95,7 @@ async function initializeBullMQ(): Promise<void> {
       try {
         await state.disposePromise;
       } catch (error) {
-        logger.warn('[BullMQ] Previous dispose encountered an error:', error);
+        logger.warn({ err: error }, '[BullMQ] Previous dispose encountered an error:');
       } finally {
         state.disposePromise = undefined;
       }
@@ -141,7 +141,7 @@ async function initializeBullMQ(): Promise<void> {
             logger.info(`  [BullMQ] Completed job ${job.id} for result ${resultId}`);
             return result;
           } catch (error) {
-            logger.error(`❌ [BullMQ] Failed job ${job.id} (attempt ${job.attemptsMade + 1}):`, error);
+            logger.error({ err: error }, `❌ [BullMQ] Failed job ${job.id} (attempt ${job.attemptsMade + 1}):`);
 
             const errorMessage = error instanceof Error ? error.message : String(error);
 
@@ -171,7 +171,7 @@ async function initializeBullMQ(): Promise<void> {
       });
 
       events.on('error', (err) => {
-        logger.error('💥 [BullMQ] Queue events error:', err);
+        logger.error({ err: err }, '💥 [BullMQ] Queue events error:');
       });
 
       state.events = events;
@@ -179,7 +179,7 @@ async function initializeBullMQ(): Promise<void> {
       logger.info('[BullMQ] Grading queue and worker initialized successfully');
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error('[BullMQ] Failed to initialize grading services:', err);
+      logger.error({ err: err }, '[BullMQ] Failed to initialize grading services:');
       state.initializationError = err;
       state.queue = undefined;
       state.worker = undefined;
@@ -214,7 +214,7 @@ export async function addGradingJobs(jobs: GradingJob[]): Promise<{
     const message = state.initializationError
       ? `BullMQ initialization failed: ${state.initializationError.message}`
       : 'Grading queue is not initialized';
-    logger.error('[BullMQ] Failed to add jobs:', message);
+    logger.error({ err: message }, '[BullMQ] Failed to add jobs:');
     return {
       success: false,
       addedCount: 0,
@@ -234,7 +234,7 @@ export async function addGradingJobs(jobs: GradingJob[]): Promise<{
 
     return { success: true, addedCount: addedJobs.length };
   } catch (error) {
-    logger.error('[BullMQ] Failed to add jobs:', error);
+    logger.error({ err: error }, '[BullMQ] Failed to add jobs:');
     return {
       success: false,
       addedCount: 0,
@@ -269,7 +269,7 @@ export async function getQueueStatus() {
   if (!queue || !worker) {
     const errorMessage = 'Grading queue/worker is not initialized';
     console.error('[BullMQ] ❌ Queue status error:', { message: errorMessage });
-    logger.error('[BullMQ] Failed to get queue status:', errorMessage);
+    logger.error({ err: errorMessage }, '[BullMQ] Failed to get queue status:');
     return {
       waiting: 0,
       active: 0,
@@ -328,7 +328,7 @@ export async function getQueueStatus() {
       stack: errorStack,
     });
 
-    logger.error('[BullMQ] Failed to get queue status:', errorMessage);
+    logger.error({ err: errorMessage }, '[BullMQ] Failed to get queue status:');
 
     return {
       waiting: 0,
@@ -352,7 +352,7 @@ export async function closeGradingServices() {
 
   state.disposePromise = closeServicesInternal()
     .catch((error) => {
-      logger.error('[BullMQ] Error closing grading services:', error);
+      logger.error({ err: error }, '[BullMQ] Error closing grading services:');
     })
     .finally(() => {
       state.disposePromise = undefined;

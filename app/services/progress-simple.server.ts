@@ -34,7 +34,7 @@ export const SimpleProgressService = {
 
       logger.info(`📊 Progress updated for result ${resultId}: ${progress}%`);
     } catch (error) {
-      logger.error(`❌ Failed to update progress for result ${resultId}:`, error);
+      logger.error({ err: error }, `❌ Failed to update progress for result ${resultId}:`);
     }
   },
 
@@ -72,7 +72,7 @@ export const SimpleProgressService = {
 
       return { overall, results };
     } catch (error) {
-      logger.error(`❌ Failed to get session progress for ${sessionId}:`, error);
+      logger.error({ err: error }, `❌ Failed to get session progress for ${sessionId}:`);
       return { overall: 0, results: [] };
     }
   },
@@ -114,7 +114,7 @@ export const SimpleProgressService = {
 
       logger.info(`🎯 Session ${sessionId} updated: ${overall}% ${sessionStatus}`);
     } catch (error) {
-      logger.error(`❌ Failed to update session progress for ${sessionId}:`, error);
+      logger.error({ err: error }, `❌ Failed to update session progress for ${sessionId}:`);
     }
   },
 

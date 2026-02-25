@@ -202,7 +202,7 @@ export async function processGradingResult(
         );
       } catch (error) {
         // Graceful degradation - log error but continue with grading
-        logger.warn(`⚠️ Failed to load context for assignment ${result.assignmentAreaId}:`, error);
+        logger.warn({ err: error }, `⚠️ Failed to load context for assignment ${result.assignmentAreaId}:`);
         // Log context loading failure
         gradingLogger.addError(sessionId, 'Context loading', error instanceof Error ? error.message : String(error));
       }
@@ -228,11 +228,11 @@ export async function processGradingResult(
       assignmentDescription: result.assignmentArea?.description || undefined,
     };
 
-    logger.info(`📝 [Grading Engine] Prepared grading request for assignment: "${gradingRequest.assignmentTitle}"`, {
+    logger.info({
       hasAssignmentArea: !!result.assignmentArea,
       assignmentTitle: gradingRequest.assignmentTitle,
       assignmentDescriptionLength: gradingRequest.assignmentDescription?.length || 0,
-    });
+    }, `📝 [Grading Engine] Prepared grading request for assignment: "${gradingRequest.assignmentTitle}"`);
 
     // Generate and log the prompt (for research traceability)
     const splitPrompt = GeminiPrompts.generateSplitGradingPrompt(gradingRequest);
@@ -253,7 +253,7 @@ export async function processGradingResult(
       const { executeGradingAgent } = await import('./agent-executor.server');
       const { saveAgentExecution } = await import('./agent-logger.server');
 
-      logger.info('🤖 Starting Agent-based grading', { resultId });
+      logger.info({ resultId }, '🤖 Starting Agent-based grading');
 
       const agentResult = await executeGradingAgent({
         submissionId: result.uploadedFile.id,
@@ -313,10 +313,10 @@ export async function processGradingResult(
 
         // Convert to standard format with null safety
         if (!agentResult.data.breakdown || !Array.isArray(agentResult.data.breakdown)) {
-          logger.error('❌ [Grading Engine] Invalid breakdown structure', {
+          logger.error({
             resultId,
             breakdown: agentResult.data.breakdown,
-          });
+          }, '❌ [Grading Engine] Invalid breakdown structure');
           throw new Error('Agent returned invalid breakdown structure (not an array)');
         }
 
@@ -407,27 +407,27 @@ export async function processGradingResult(
           },
         };
 
-        logger.info(`  Agent grading succeeded`, {
+        logger.info({
           resultId,
           confidence: agentResult.confidenceScore,
           requiresReview: agentResult.requiresReview,
           steps: agentResult.steps.length,
-        });
+        }, `  Agent grading succeeded`);
 
         // If requires review, send notification to teacher
         if (agentResult.requiresReview) {
-          logger.warn(`⚠️ Low confidence grading - requires human review`, {
+          logger.warn({
             resultId,
             confidence: agentResult.confidenceScore,
-          });
+          }, `⚠️ Low confidence grading - requires human review`);
           // TODO: Send WebSocket notification to teacher
         }
       } else {
         // Agent failed, fallback to AI SDK or Legacy
-        logger.error(`❌ Agent grading failed, falling back`, {
+        logger.error({
           resultId,
           error: agentResult.error,
-        });
+        }, `❌ Agent grading failed, falling back`);
         gradingResponse = {
           success: false,
           error: agentResult.error || 'Agent grading failed',
@@ -580,13 +580,13 @@ export async function processGradingResult(
 
       logger.info(`💾 Saved thoughtSummary (${gradingResponse.thoughtSummary?.length || 0} chars) to DB`);
       // 🆕 Debug: Log sparringQuestions saved to DB
-      logger.info(`🎯 [Grading Engine] sparringQuestions saved to DB:`, {
+      logger.info({
         resultId,
         sparringQuestionsCount: gradingResponse.result.sparringQuestions?.length || 0,
         sparringQuestionsPreview: gradingResponse.result.sparringQuestions 
           ? JSON.stringify(gradingResponse.result.sparringQuestions).substring(0, 200)
           : 'empty',
-      });
+      }, `🎯 [Grading Engine] sparringQuestions saved to DB:`);
 
       // Log grading success
       gradingLogger.addResult(
@@ -660,7 +660,7 @@ export async function processGradingResult(
       return { success: false, error: gradingResponse.error };
     }
   } catch (error) {
-    logger.error(`💥 Fatal error processing grading result ${resultId}:`, error);
+    logger.error({ err: error }, `💥 Fatal error processing grading result ${resultId}:`);
 
     // Log fatal error
     gradingLogger.addError(
@@ -681,7 +681,7 @@ export async function processGradingResult(
         },
       });
     } catch (updateError) {
-      logger.error(`Failed to update result status for ${resultId}:`, updateError);
+      logger.error({ err: updateError }, `Failed to update result status for ${resultId}:`);
     }
 
     // Finalize and save log
@@ -735,7 +735,7 @@ export async function processGradingSession(sessionId: string): Promise<{ succes
     logger.info(`  Queued ${jobs.length} grading jobs for session ${sessionId}`);
     return { success: true };
   } catch (error) {
-    logger.error(`❌ Failed to queue grading session ${sessionId}:`, error);
+    logger.error({ err: error }, `❌ Failed to queue grading session ${sessionId}:`);
     return { success: false, error: error instanceof Error ? error.message : 'Session queuing failed' };
   }
 }
@@ -778,7 +778,7 @@ export async function processAllPendingGrading(): Promise<{ processed: number; f
 
     logger.info(`  Processed ${processed} results, ${failed} failed`);
   } catch (error) {
-    logger.error('❌ Failed to process pending grading:', error);
+    logger.error({ err: error }, '❌ Failed to process pending grading:');
   }
 
   return { processed, failed };
@@ -821,7 +821,7 @@ export async function retryFailedGrading(
 
     return { success: true, retriedCount };
   } catch (error) {
-    logger.error('❌ Failed to retry failed grading:', error);
+    logger.error({ err: error }, '❌ Failed to retry failed grading:');
     return {
       success: false,
       retriedCount: 0,

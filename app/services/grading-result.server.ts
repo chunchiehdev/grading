@@ -47,14 +47,14 @@ export async function updateGradingResult(
     return { success: true };
   } catch (error) {
     if (error instanceof Error && error.message.includes('Zod validation')) {
-      logger.warn(`Invalid grading data for result ${resultId}:`, error.message);
+      logger.warn({ err: error.message }, `Invalid grading data for result ${resultId}:`);
       return {
         success: false,
         error: `Invalid grading data: ${error instanceof Error ? error.message : 'Unknown validation error'}`,
       };
     }
 
-    logger.error('Failed to update grading result:', error);
+    logger.error({ err: error }, 'Failed to update grading result:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update grading result',
@@ -83,7 +83,7 @@ export async function failGradingResult(
 
     return { success: true };
   } catch (error) {
-    logger.error('Failed to mark grading result as failed:', error);
+    logger.error({ err: error }, 'Failed to mark grading result as failed:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update grading result',
@@ -106,7 +106,7 @@ export async function startGradingResult(resultId: string): Promise<{ success: b
 
     return { success: true };
   } catch (error) {
-    logger.error('Failed to start grading result:', error);
+    logger.error({ err: error }, 'Failed to start grading result:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to start grading result',
@@ -131,7 +131,7 @@ export async function updateGradingProgress(
 
     return { success: true };
   } catch (error) {
-    logger.error('Failed to update grading progress:', error);
+    logger.error({ err: error }, 'Failed to update grading progress:');
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update progress',
@@ -165,7 +165,7 @@ export async function getGradingResult(
     // Prisma infers the correct type from include: { uploadedFile, rubric }
     return { result: result as GradingResultWithDetails };
   } catch (error) {
-    logger.error('Failed to get grading result:', error);
+    logger.error({ err: error }, 'Failed to get grading result:');
     return {
       error: error instanceof Error ? error.message : 'Failed to get grading result',
     };
@@ -194,7 +194,7 @@ export async function getSessionGradingResults(
 
     return { results };
   } catch (error) {
-    logger.error('Failed to get session grading results:', error);
+    logger.error({ err: error }, 'Failed to get session grading results:');
     return {
       results: [],
       error: error instanceof Error ? error.message : 'Failed to get grading results',
@@ -227,7 +227,7 @@ export async function getGradingResultsByStatus(
 
     return { results };
   } catch (error) {
-    logger.error('Failed to get grading results by status:', error);
+    logger.error({ err: error }, 'Failed to get grading results by status:');
     return {
       results: [],
       error: error instanceof Error ? error.message : 'Failed to get grading results',
@@ -302,7 +302,7 @@ export async function getGradingStatistics(
       },
     };
   } catch (error) {
-    logger.error('Failed to get grading statistics:', error);
+    logger.error({ err: error }, 'Failed to get grading statistics:');
     return {
       error: error instanceof Error ? error.message : 'Failed to get statistics',
     };

@@ -30,14 +30,14 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
 
-    logger.info('New chat created', { chatId: chat.id, userId: user.id });
+    logger.info({ chatId: chat.id, userId: user.id }, 'New chat created');
 
     return Response.json({
       success: true,
       data: { chatId: chat.id },
     });
   } catch (error) {
-    logger.error('Failed to create chat:', error);
+    logger.error({ err: error }, 'Failed to create chat:');
     return Response.json({ success: false, error: '建立聊天失敗' }, { status: 500 });
   }
 }
@@ -78,7 +78,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       data: chatList,
     });
   } catch (error) {
-    logger.error('Failed to get chats:', error);
+    logger.error({ err: error }, 'Failed to get chats:');
     return Response.json({ success: false, error: '獲取聊天清單失敗' }, { status: 500 });
   }
 }

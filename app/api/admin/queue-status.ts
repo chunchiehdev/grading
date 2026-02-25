@@ -17,11 +17,11 @@ export async function loader({ request }: { request: Request }) {
     
     logger.info('[Queue Status API] Fetching queue status...');
     const status = await getQueueStatus();
-    logger.info('[Queue Status API] Status retrieved:', { status });
+    logger.info({ status }, '[Queue Status API] Status retrieved:');
 
     // Check if getQueueStatus returned an error
     if ('error' in status && status.error) {
-      logger.error('[Queue Status API] Queue status has error:', { error: status.error });
+      logger.error({ error: status.error }, '[Queue Status API] Queue status has error:');
       return Response.json(
         createErrorResponse(
           status.error,
@@ -56,10 +56,10 @@ export async function loader({ request }: { request: Request }) {
       })
     );
   } catch (error) {
-    logger.error('[Queue Status API] Exception in loader:', { 
+    logger.error({ 
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined
-    });
+    }, '[Queue Status API] Exception in loader:');
     
     return Response.json(
       createErrorResponse(

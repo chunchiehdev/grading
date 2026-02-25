@@ -30,7 +30,7 @@ export async function initializeGradingWorker(): Promise<void> {
     logger.info('[Worker Init] Worker initialization complete');
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    logger.error('[Worker Init] Failed to initialize worker:', errMsg);
+    logger.error({ err: errMsg }, '[Worker Init] Failed to initialize worker:');
 
     // Non-fatal: Allow app to continue even if worker fails to start
     // This enables the app to serve requests while worker issues are debugged

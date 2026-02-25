@@ -62,7 +62,7 @@ export class CircuitBreaker {
       state: CircuitState.CLOSED,
     };
 
-    logger.info(`Circuit breaker initialized: ${name}`, { config: this.config });
+    logger.info({ config: this.config }, `Circuit breaker initialized: ${name}`);
   }
 
   /**
@@ -71,11 +71,11 @@ export class CircuitBreaker {
   async execute<T>(operation: () => Promise<T>): Promise<T> {
     if (!this.canExecute()) {
       const error = new CircuitBreakerError(`Circuit breaker ${this.name} is ${this.stats.state}`, this.stats.state);
-      logger.warn('Circuit breaker blocked request', {
+      logger.warn({
         name: this.name,
         state: this.stats.state,
         stats: this.getStats(),
-      });
+      }, 'Circuit breaker blocked request');
       throw error;
     }
 
@@ -136,11 +136,11 @@ export class CircuitBreaker {
       }
     }
 
-    logger.debug(`Circuit breaker ${this.name} - successful call`, {
+    logger.debug({
       duration,
       state: this.stats.state,
       consecutiveFailures: this.stats.consecutiveFailures,
-    });
+    }, `Circuit breaker ${this.name} - successful call`);
   }
 
   /**
@@ -151,12 +151,12 @@ export class CircuitBreaker {
     this.stats.consecutiveFailures++;
     this.stats.lastFailureTime = Date.now();
 
-    logger.warn(`Circuit breaker ${this.name} - failed call`, {
+    logger.warn({
       duration,
       error: error.message,
       consecutiveFailures: this.stats.consecutiveFailures,
       state: this.stats.state,
-    });
+    }, `Circuit breaker ${this.name} - failed call`);
 
     if (this.stats.state === CircuitState.HALF_OPEN) {
       // 半開狀態下失敗，直接回到開啟狀態
@@ -174,11 +174,11 @@ export class CircuitBreaker {
     this.stats.state = CircuitState.OPEN;
     this.nextAttempt = Date.now() + this.config.recoveryTimeout;
 
-    logger.error(`Circuit breaker ${this.name} TRIPPED - service unavailable`, {
+    logger.error({
       consecutiveFailures: this.stats.consecutiveFailures,
       nextAttempt: new Date(this.nextAttempt).toISOString(),
       stats: this.getStats(),
-    });
+    }, `Circuit breaker ${this.name} TRIPPED - service unavailable`);
   }
 
   /**

@@ -63,10 +63,10 @@ class RotatingGeminiService {
     // Initialize health tracking for all keys
     this.initializeHealthTracking();
 
-    logger.info(`🔄 Rotating Gemini service initialized with ${this.clients.length} API keys`, {
+    logger.info({
       model: this.model,
       keyCount: this.clients.length,
-    });
+    }, `🔄 Rotating Gemini service initialized with ${this.clients.length} API keys`);
   }
 
   /**
@@ -92,7 +92,7 @@ class RotatingGeminiService {
       }
       logger.info('  Initialized health tracking for all Gemini keys');
     } catch (error) {
-      logger.error('Failed to initialize health tracking', { error });
+      logger.error({ error }, 'Failed to initialize health tracking');
     }
   }
 
@@ -211,9 +211,9 @@ class RotatingGeminiService {
     const attemptedKeys: string[] = [];
 
     try {
-      logger.info(`🎯 Grading ${request.fileName} with Rotating Gemini`, {
+      logger.info({
         totalKeys: this.clients.length,
-      });
+      }, `🎯 Grading ${request.fileName} with Rotating Gemini`);
 
       // Prepare request data (same for all attempts)
       const prompt = GeminiPrompts.generateTextGradingPrompt(request);
@@ -232,9 +232,9 @@ class RotatingGeminiService {
         if (!selectedKeyId) {
           // All keys throttled - wait with exponential backoff then retry
           const waitMs = Math.min(Math.pow(2, Math.floor(attempt / 3)) * 1000, this.maxWaitMs);
-          logger.warn(`⏳ All keys throttled, waiting ${waitMs}ms before retry ${attempt + 1}`, {
+          logger.warn({
             attemptedKeys,
-          });
+          }, `⏳ All keys throttled, waiting ${waitMs}ms before retry ${attempt + 1}`);
           await new Promise((r) => setTimeout(r, waitMs));
           continue; // Retry with same attempt
         }
@@ -275,12 +275,12 @@ class RotatingGeminiService {
           // Record success metrics
           await this.healthTracker.recordSuccess(selectedKeyId, keyDuration);
 
-          logger.info(`  Gemini grading completed with key ${selectedKeyId}`, {
+          logger.info({
             duration: totalDuration,
             keyUsed: selectedKeyId,
             attempts: attempt + 1,
             tokens: outputTokens,
-          });
+          }, `  Gemini grading completed with key ${selectedKeyId}`);
 
           return {
             success: true,
@@ -299,10 +299,10 @@ class RotatingGeminiService {
           const errorMessage = keyError instanceof Error ? keyError.message : 'Unknown error';
           const errorType = this.detectErrorType(errorMessage);
 
-          logger.warn(`⚠️ Key ${selectedKeyId} failed (attempt ${attempt + 1})`, {
+          logger.warn({
             errorType,
             errorMessage,
-          });
+          }, `⚠️ Key ${selectedKeyId} failed (attempt ${attempt + 1})`);
 
           // Record failure and throttle if needed
           await this.healthTracker.recordFailure(selectedKeyId, errorType, errorMessage);
@@ -320,12 +320,12 @@ class RotatingGeminiService {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-      logger.error(`❌ Rotating Gemini exhausted all attempts (SHOULD NEVER HAPPEN)`, {
+      logger.error({
         attemptedKeys,
         error: errorMessage,
         duration,
         maxAttempts: this.maxAttempts,
-      });
+      }, `❌ Rotating Gemini exhausted all attempts (SHOULD NEVER HAPPEN)`);
 
       // This should never execute with maxAttempts=999
       throw new Error(`Critical: Gemini rotation failed after ${this.maxAttempts} attempts: ${errorMessage}`);

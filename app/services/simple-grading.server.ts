@@ -37,7 +37,7 @@ export async function addGradingJobs(jobs: SimpleGradingJob[]): Promise<{
 
     return { success: true, addedCount: jobs.length };
   } catch (error) {
-    logger.error('Failed to add jobs to simple queue:', error);
+    logger.error({ err: error }, 'Failed to add jobs to simple queue:');
     return {
       success: false,
       addedCount: 0,
@@ -120,7 +120,7 @@ async function processQueue() {
       // Update session progress after each job
       await updateGradingSessionProgress(job.sessionId, job.userId);
     } catch (error) {
-      logger.error(`💥 Error processing job for result ${job.resultId}:`, error);
+      logger.error({ err: error }, `💥 Error processing job for result ${job.resultId}:`);
 
       // Check if the error indicates service overload
       const errorMessage = error instanceof Error ? error.message : String(error);

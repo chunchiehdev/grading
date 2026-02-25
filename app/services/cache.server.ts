@@ -33,9 +33,9 @@ export class ChatCacheService {
       });
 
       await redis.setex(key, this.CACHE_TTL.CHAT_LIST, data);
-      logger.debug('Chat list cached for user:', userId);
+      logger.debug({ data: userId }, 'Chat list cached for user:');
     } catch (error) {
-      logger.error('Failed to cache chat list:', error);
+      logger.error({ err: error }, 'Failed to cache chat list:');
     }
   }
 
@@ -50,10 +50,10 @@ export class ChatCacheService {
       if (!cached) return null;
 
       const parsed = JSON.parse(cached);
-      logger.debug('Chat list cache hit for user:', userId);
+      logger.debug({ data: userId }, 'Chat list cache hit for user:');
       return parsed.data;
     } catch (error) {
-      logger.error('Failed to get cached chat list:', error);
+      logger.error({ err: error }, 'Failed to get cached chat list:');
       return null;
     }
   }
@@ -71,9 +71,9 @@ export class ChatCacheService {
       });
 
       await redis.setex(key, this.CACHE_TTL.CHAT_MESSAGES, data);
-      logger.debug('Chat messages cached:', chatId);
+      logger.debug({ data: chatId }, 'Chat messages cached:');
     } catch (error) {
-      logger.error('Failed to cache chat messages:', error);
+      logger.error({ err: error }, 'Failed to cache chat messages:');
     }
   }
 
@@ -88,10 +88,10 @@ export class ChatCacheService {
       if (!cached) return null;
 
       const parsed = JSON.parse(cached);
-      logger.debug('Chat messages cache hit:', chatId);
+      logger.debug({ data: chatId }, 'Chat messages cache hit:');
       return parsed.data;
     } catch (error) {
-      logger.error('Failed to get cached chat messages:', error);
+      logger.error({ err: error }, 'Failed to get cached chat messages:');
       return null;
     }
   }
@@ -104,9 +104,9 @@ export class ChatCacheService {
       const keys = [`${this.CHAT_MESSAGES_PREFIX}${chatId}`, `${this.CHAT_LIST_PREFIX}${userId}`];
 
       await redis.del(...keys);
-      logger.debug('Cache invalidated for chat:', chatId);
+      logger.debug({ data: chatId }, 'Cache invalidated for chat:');
     } catch (error) {
-      logger.error('Failed to invalidate cache:', error);
+      logger.error({ err: error }, 'Failed to invalidate cache:');
     }
   }
 
@@ -133,7 +133,7 @@ export class ChatCacheService {
         })
       );
     } catch (error) {
-      logger.error('Failed to set user online status:', error);
+      logger.error({ err: error }, 'Failed to set user online status:');
     }
   }
 
@@ -146,7 +146,7 @@ export class ChatCacheService {
       const result = await redis.get(key);
       return result === '1';
     } catch (error) {
-      logger.error('Failed to get user online status:', error);
+      logger.error({ err: error }, 'Failed to get user online status:');
       return false;
     }
   }
@@ -168,7 +168,7 @@ export class ChatCacheService {
 
       return statusMap;
     } catch (error) {
-      logger.error('Failed to get batch user online status:', error);
+      logger.error({ err: error }, 'Failed to get batch user online status:');
       return {};
     }
   }
@@ -186,9 +186,9 @@ export class ChatCacheService {
       });
 
       await redis.setex(key, this.CACHE_TTL.AI_RESPONSE, data);
-      logger.debug('AI response cached:', questionHash);
+      logger.debug({ data: questionHash }, 'AI response cached:');
     } catch (error) {
-      logger.error('Failed to cache AI response:', error);
+      logger.error({ err: error }, 'Failed to cache AI response:');
     }
   }
 
@@ -203,10 +203,10 @@ export class ChatCacheService {
       if (!cached) return null;
 
       const parsed = JSON.parse(cached);
-      logger.debug('AI response cache hit:', questionHash);
+      logger.debug({ data: questionHash }, 'AI response cache hit:');
       return parsed.response;
     } catch (error) {
-      logger.error('Failed to get cached AI response:', error);
+      logger.error({ err: error }, 'Failed to get cached AI response:');
       return null;
     }
   }
@@ -231,7 +231,7 @@ export class ChatCacheService {
 
       logger.info('Cache warmup completed');
     } catch (error) {
-      logger.error('Cache warmup failed:', error);
+      logger.error({ err: error }, 'Cache warmup failed:');
     }
   }
 
@@ -249,7 +249,7 @@ export class ChatCacheService {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      logger.error('Failed to get cache stats:', error);
+      logger.error({ err: error }, 'Failed to get cache stats:');
       return null;
     }
   }
@@ -275,7 +275,7 @@ export class ChatCacheService {
 
       logger.info('All cache cleared');
     } catch (error) {
-      logger.error('Failed to clear cache:', error);
+      logger.error({ err: error }, 'Failed to clear cache:');
     }
   }
 }

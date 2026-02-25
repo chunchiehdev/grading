@@ -40,14 +40,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     if (role) where.userRole = role;
     if (status) where.status = status;
 
-    logger.info('[Analytics API] Fetching chat sessions', {
+    logger.info({
       page,
       limit,
       role,
       status,
       sortBy,
       sortOrder,
-    });
+    }, '[Analytics API] Fetching chat sessions');
 
     // Query sessions
     const [sessions, total] = await Promise.all([
@@ -91,14 +91,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
       hasMore: total > page * limit,
     };
 
-    logger.info('[Analytics API] Chat sessions retrieved', {
+    logger.info({
       count: sessions.length,
       total,
-    });
+    }, '[Analytics API] Chat sessions retrieved');
 
     return Response.json(result);
   } catch (error) {
-    logger.error('[Analytics API] Error fetching chat sessions', error);
+    logger.error({ err: error }, '[Analytics API] Error fetching chat sessions');
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Failed to fetch sessions',

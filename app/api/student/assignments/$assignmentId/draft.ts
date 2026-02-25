@@ -24,7 +24,7 @@ export async function loader({ request, params }: { request: Request; params: an
       data: draftSubmission,
     });
   } catch (error) {
-    logger.error('Failed to get draft submission:', error);
+    logger.error({ err: error }, 'Failed to get draft submission:');
     return Response.json(createErrorResponse('Failed to get draft submission'), { status: 500 });
   }
 }
@@ -60,12 +60,12 @@ export async function action({ request, params }: { request: Request; params: an
           await db.submission.delete({
             where: { id: submission.id },
           });
-          logger.info('Deleted draft submission:', submission.id);
+          logger.info({ data: submission.id }, 'Deleted draft submission:');
         }
 
         return Response.json({ success: true });
       } catch (error) {
-        logger.error('Failed to delete draft submission:', error);
+        logger.error({ err: error }, 'Failed to delete draft submission:');
         return Response.json(createErrorResponse('Failed to delete draft submission'), { status: 500 });
       }
     }
@@ -85,14 +85,14 @@ export async function action({ request, params }: { request: Request; params: an
         try {
           body.fileMetadata = JSON.parse(body.fileMetadata);
         } catch (e) {
-          logger.warn('Could not parse fileMetadata JSON:', e);
+          logger.warn({ err: e }, 'Could not parse fileMetadata JSON:');
         }
       }
       if (body.aiAnalysisResult && typeof body.aiAnalysisResult === 'string') {
         try {
           body.aiAnalysisResult = JSON.parse(body.aiAnalysisResult);
         } catch (e) {
-          logger.warn('Could not parse aiAnalysisResult JSON:', e);
+          logger.warn({ err: e }, 'Could not parse aiAnalysisResult JSON:');
         }
       }
     }
@@ -120,7 +120,7 @@ export async function action({ request, params }: { request: Request; params: an
       data: savedDraft,
     });
   } catch (error) {
-    logger.error('Failed to save draft submission:', error);
+    logger.error({ err: error }, 'Failed to save draft submission:');
     return Response.json(createErrorResponse('Failed to save draft submission'), { status: 500 });
   }
 }

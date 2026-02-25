@@ -164,6 +164,26 @@ spec:
             configMapKeyRef:
               name: gradsystem-config
               key: AGENT_CONFIDENCE_THRESHOLD
+        - name: CHAT_STUDENT_CONTENT_MAX_CHARS
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: CHAT_STUDENT_CONTENT_MAX_CHARS
+        - name: CHAT_REFERENCE_CONTENT_MAX_CHARS
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: CHAT_REFERENCE_CONTENT_MAX_CHARS
+        - name: CHAT_REFERENCE_FILES_MAX_COUNT
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: CHAT_REFERENCE_FILES_MAX_COUNT
+        - name: CHAT_TOTAL_REFERENCE_MAX_CHARS
+          valueFrom:
+            configMapKeyRef:
+              name: gradsystem-config
+              key: CHAT_TOTAL_REFERENCE_MAX_CHARS
         - name: INTERNAL_API_KEY
           valueFrom:
             secretKeyRef:

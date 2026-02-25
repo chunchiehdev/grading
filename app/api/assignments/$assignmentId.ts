@@ -72,7 +72,7 @@ export async function loader({ request, params }: { request: Request; params: Ro
           });
         }
       } catch (error) {
-        logger.error('Failed to parse referenceFileIds:', error);
+        logger.error({ err: error }, 'Failed to parse referenceFileIds:');
       }
     }
 
@@ -83,7 +83,7 @@ export async function loader({ request, params }: { request: Request; params: Ro
       })
     );
   } catch (error) {
-    logger.error('Error fetching assignment:', error);
+    logger.error({ err: error }, 'Error fetching assignment:');
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to fetch assignment',
@@ -217,7 +217,7 @@ export async function action({ request, params }: { request: Request; params: Ro
           },
         });
       } catch (error) {
-        logger.error('Failed to parse referenceFileIds:', error);
+        logger.error({ err: error }, 'Failed to parse referenceFileIds:');
       }
     }
 
@@ -229,7 +229,7 @@ export async function action({ request, params }: { request: Request; params: Ro
       })
     );
   } catch (error) {
-    logger.error('Error updating assignment:', error);
+    logger.error({ err: error }, 'Error updating assignment:');
     return Response.json(
       createErrorResponse(
         error instanceof Error ? error.message : 'Failed to update assignment',

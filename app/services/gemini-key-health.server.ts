@@ -75,7 +75,7 @@ export class KeyHealthTracker {
       await redis.hset(key, initialData);
       await redis.expire(key, this.KEY_TTL_SECONDS);
 
-      logger.info('Initialized Gemini key health', { keyId });
+      logger.info({ keyId }, 'Initialized Gemini key health');
     }
   }
 
@@ -198,12 +198,12 @@ export class KeyHealthTracker {
       const availableKeys = metrics.filter((m) => !m.isThrottled);
 
       if (availableKeys.length === 0) {
-        logger.error('All Gemini keys are throttled', {
+        logger.error({
           keys: metrics.map((m) => ({
             keyId: m.keyId,
             throttledUntil: new Date(m.throttledUntil).toISOString(),
           })),
-        });
+        }, 'All Gemini keys are throttled');
         return null;
       }
 
@@ -212,12 +212,12 @@ export class KeyHealthTracker {
 
       const selectedKey = availableKeys[0].keyId;
 
-      logger.info('Selected Gemini API key', {
+      logger.info({
         keyId: selectedKey,
         healthScore: availableKeys[0].healthScore.toFixed(3),
         successRate: availableKeys[0].successRate.toFixed(3),
         availableCount: availableKeys.length,
-      });
+      }, 'Selected Gemini API key');
 
       return selectedKey;
     } finally {
@@ -253,7 +253,7 @@ export class KeyHealthTracker {
       this.KEY_TTL_SECONDS.toString()
     );
 
-    logger.debug('Recorded Gemini API success', { keyId, responseTimeMs });
+    logger.debug({ keyId, responseTimeMs }, 'Recorded Gemini API success');
   }
 
   /**
@@ -312,21 +312,21 @@ export class KeyHealthTracker {
         this.KEY_TTL_SECONDS.toString()
       );
 
-      logger.warn('Gemini API key throttled', {
+      logger.warn({
         keyId,
         errorType,
         errorMessage,
         consecutiveFailures,
         cooldownMs,
         throttledUntil: new Date(throttleUntil).toISOString(),
-      });
+      }, 'Gemini API key throttled');
     } else {
       // Just record failure without throttling
       await redis.hincrby(key, 'failureCount', 1);
       await redis.hset(key, 'lastUsedAt', now);
       await redis.expire(key, this.KEY_TTL_SECONDS);
 
-      logger.debug('Recorded Gemini API failure', { keyId, errorType, errorMessage });
+      logger.debug({ keyId, errorType, errorMessage }, 'Recorded Gemini API failure');
     }
   }
 
@@ -340,11 +340,11 @@ export class KeyHealthTracker {
     await redis.hset(key, 'throttledUntil', throttledUntil);
     await redis.expire(key, this.KEY_TTL_SECONDS);
 
-    logger.info('Manually throttled Gemini key', {
+    logger.info({
       keyId,
       durationMs,
       throttledUntil: new Date(throttledUntil).toISOString(),
-    });
+    }, 'Manually throttled Gemini key');
   }
 
   /**
@@ -354,7 +354,7 @@ export class KeyHealthTracker {
     const key = this.getHealthKey(keyId);
     await redis.hset(key, 'throttledUntil', 0);
 
-    logger.info('Cleared throttle for Gemini key', { keyId });
+    logger.info({ keyId }, 'Cleared throttle for Gemini key');
   }
 
   /**
@@ -365,7 +365,7 @@ export class KeyHealthTracker {
     await redis.del(key);
     await this.initializeKey(keyId);
 
-    logger.info('Reset Gemini key health', { keyId });
+    logger.info({ keyId }, 'Reset Gemini key health');
   }
 
   /**

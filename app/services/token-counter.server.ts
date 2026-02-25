@@ -48,12 +48,12 @@ export function checkTokenLimit(
   const exceededBy = tokens - MAX_INPUT_TOKENS;
   
   if (exceededBy > 0) {
-    logger.warn(`❌ Token limit exceeded in ${context}`, {
+    logger.warn({
       tokens,
       limit: MAX_INPUT_TOKENS,
       exceededBy,
       percentage: ((tokens / MAX_INPUT_TOKENS) * 100).toFixed(1) + '%',
-    });
+    }, `❌ Token limit exceeded in ${context}`);
     
     return {
       allowed: false,
@@ -64,11 +64,11 @@ export function checkTokenLimit(
     };
   }
   
-  logger.info(`✅ Token check passed for ${context}`, {
+  logger.info({
     tokens,
     limit: MAX_INPUT_TOKENS,
     utilization: ((tokens / MAX_INPUT_TOKENS) * 100).toFixed(1) + '%',
-  });
+  }, `✅ Token check passed for ${context}`);
   
   return {
     allowed: true,

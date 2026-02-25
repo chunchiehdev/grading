@@ -101,12 +101,12 @@ async function retryWithBackoff<T>(
       lastError = error;
       const storageError = createStorageError(error, operationName);
 
-      logger.warn(`${operationName} attempt ${attempt}/${maxRetries} failed:`, {
+      logger.warn({
         error: storageError.message,
         type: storageError.type,
         retryable: storageError.retryable,
         statusCode: storageError.statusCode,
-      });
+      }, `${operationName} attempt ${attempt}/${maxRetries} failed:`);
 
       // Don't retry if error is not retryable or this is the last attempt
       if (!storageError.retryable || attempt === maxRetries) {

@@ -35,11 +35,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     // Authenticate user
     userId = await getUserId(request);
     if (!userId) {
-      logger.warn('File download attempt without authentication', {
+      logger.warn({
         fileId: params.fileId,
         userAgent: request.headers.get('user-agent'),
         ip: request.headers.get('x-forwarded-for') || 'unknown',
-      });
+      }, 'File download attempt without authentication');
 
       return Response.json(createErrorResponse('用戶未認證', ApiErrorCode.UNAUTHORIZED), {
         status: 401,
@@ -57,20 +57,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const { file, error } = await getFile(fileId, userId);
 
     if (error || !file) {
-      logger.warn(`File not found or access denied: ${fileId}`, {
+      logger.warn({
         userId,
         error,
-      });
+      }, `File not found or access denied: ${fileId}`);
 
       return Response.json(createErrorResponse('文件不存在或無權訪問', ApiErrorCode.NOT_FOUND), { status: 404 });
     }
 
     // Check if file is soft-deleted
     if (file.isDeleted) {
-      logger.warn(`Attempt to access deleted file: ${fileId}`, {
+      logger.warn({
         userId,
         fileName: file.fileName,
-      });
+      }, `Attempt to access deleted file: ${fileId}`);
 
       return Response.json(createErrorResponse('文件已被刪除', ApiErrorCode.NOT_FOUND), {
         status: 404,
@@ -107,14 +107,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         headers.set('Content-Length', chunkSize.toString());
 
         const duration = Date.now() - startTime;
-        logger.info(`File range streamed successfully: ${fileId} (${start}-${end}/${file.fileSize}) in ${duration}ms`, {
+        logger.info({
           userId,
           fileName: file.fileName,
           fileSize: file.fileSize,
           rangeStart: start,
           rangeEnd: end,
           chunkSize,
-        });
+        }, `File range streamed successfully: ${fileId} (${start}-${end}/${file.fileSize}) in ${duration}ms`);
 
         // Convert Node Readable -> Web ReadableStream
         const webStream = createReadableStreamFromReadable(fileStream.stream);
@@ -127,12 +127,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     // Regular full file stream
     const duration = Date.now() - startTime;
-    logger.info(`File streamed successfully: ${fileId} (${file.fileSize} bytes) in ${duration}ms`, {
+    logger.info({
       userId,
       fileName: file.fileName,
       fileSize: file.fileSize,
       mimeType: file.mimeType,
-    });
+    }, `File streamed successfully: ${fileId} (${file.fileSize} bytes) in ${duration}ms`);
 
     // Convert Node Readable -> Web ReadableStream
     const webStream = createReadableStreamFromReadable(fileStream.stream);
@@ -143,14 +143,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   } catch (error) {
     const duration = Date.now() - startTime;
 
-    logger.error('File download error:', {
+    logger.error({
       error: error instanceof Error ? error.message : error,
       fileId: params.fileId,
       userId,
       duration,
       errorType: typeof error,
       stack: error instanceof Error ? error.stack : undefined,
-    });
+    }, 'File download error:');
 
     // Handle storage-specific errors
     if (error && typeof error === 'object' && 'type' in error) {
