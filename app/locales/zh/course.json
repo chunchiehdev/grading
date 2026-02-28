@@ -90,11 +90,22 @@
       "rubricLabel": "評分標準",
       "rubricPlaceholder": "選擇評分標準",
       "dueDateLabel": "截止日期（選填）",
+      "classTargetLabel": "目標班次",
+      "classTargetAll": "所有班次（此課程的所有班次都可以看到此作業）",
+      "classTargetSpecific": "指定班次",
+      "classSelectionLabel": "選擇班次",
+      "classSelectionPlaceholder": "選擇要派發作業的班次",
+      "classSelectionHelp": "只有選定班次的學生可以看到並提交此作業",
+      "aiKnowledgeBaseLabel": "AI 評分知識庫",
+      "aiKnowledgeBaseDescription": "上傳參考資料（如課程講義、標準答案）讓 AI 根據這些內容評分",
       "createButton": "建立作業",
       "backToCourse": "返回課程",
       "cancel": "取消",
       "noRubrics": "沒有可用的評分標準。",
-      "createRubricFirst": "請先建立一個"
+      "createRubricFirst": "請先建立一個",
+      "errors": {
+        "createFailed": "建立作業失敗，請稍後再試。"
+      }
     },
     "manage": {
       "pageTitle": "{{assignmentName}}",

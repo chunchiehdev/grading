@@ -1,6 +1,15 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, redirect } from 'react-router';
-import { useLoaderData, useActionData, Form, Await, Link, useRouteError, isRouteErrorResponse } from 'react-router';
-import { Suspense, useState } from 'react';
+import {
+  useLoaderData,
+  useActionData,
+  Form,
+  Await,
+  Link,
+  useRouteError,
+  isRouteErrorResponse,
+  useFetcher,
+} from 'react-router';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 
 import { requireTeacher } from '@/services/auth.server';
 import { getCourseById, type CourseInfo } from '@/services/course.server';
@@ -25,8 +34,19 @@ import { parseDateOnlyToUTCDate } from '@/lib/date';
 interface LoaderData {
   teacher: Promise<{ id: string; email: string; role: string; name: string }>;
   course: CourseInfo;
-  rubrics: any[];
+  rubrics: RubricOption[];
   classes: ClassInfo[];
+}
+
+interface RubricOption {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+interface RubricListResponse {
+  success: boolean;
+  rubrics: RubricOption[];
 }
 
 interface ActionData {
@@ -72,7 +92,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
   const formData = await request.formData();
 
   if (!courseId) {
-    return { success: false, error: 'Course ID is required' };
+    return { success: false, error: 'course:assignment.manage.errors.missingIds' };
   }
 
   const name = formData.get('name') as string;
@@ -86,11 +106,11 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 
   // Basic validation
   if (!name || name.trim().length === 0) {
-    return { success: false, error: 'Assignment name is required' };
+    return { success: false, error: 'course:assignment.manage.errors.nameRequired' };
   }
 
   if (!rubricId) {
-    return { success: false, error: 'Please select a rubric' };
+    return { success: false, error: 'course:assignment.manage.errors.rubricRequired' };
   }
 
   try {
@@ -138,7 +158,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
     console.error('Error creating assignment area:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to create assignment. Please try again.',
+      error: error instanceof Error ? error.message : 'course:assignment.area.errors.createFailed',
     };
   }
 }
@@ -229,6 +249,44 @@ function AssignmentForm({
   const [classTarget, setClassTarget] = useState<'all' | 'specific'>('all');
   const [referenceFileIds, setReferenceFileIds] = useState<string[]>([]);
   const [customGradingPrompt, setCustomGradingPrompt] = useState<string>('');
+  const [availableRubrics, setAvailableRubrics] = useState<RubricOption[]>(rubrics);
+  const rubricFetcher = useFetcher<RubricListResponse>();
+  const actionErrorMessage = actionData?.error
+    ? actionData.error.startsWith('course:')
+      ? t(actionData.error)
+      : actionData.error
+    : null;
+
+  const refreshRubrics = useCallback(() => {
+    rubricFetcher.load('/api/rubrics');
+  }, [rubricFetcher]);
+
+  useEffect(() => {
+    setAvailableRubrics(rubrics);
+  }, [rubrics]);
+
+  useEffect(() => {
+    if (!rubricFetcher.data?.success) return;
+    const activeRubrics = rubricFetcher.data.rubrics.filter((rubric) => rubric.isActive);
+    setAvailableRubrics(activeRubrics);
+  }, [rubricFetcher.data]);
+
+  useEffect(() => {
+    const onFocus = () => refreshRubrics();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshRubrics();
+      }
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [refreshRubrics]);
 
   return (
     <FormPageLayout
@@ -238,7 +296,7 @@ function AssignmentForm({
       <Form method="post" className="space-y-6 lg:space-y-8 xl:space-y-10">
         {actionData?.error && (
           <Alert variant="destructive" className="rounded-2xl lg:text-base">
-            <AlertDescription>{actionData.error}</AlertDescription>
+            <AlertDescription>{actionErrorMessage}</AlertDescription>
           </Alert>
         )}
 
@@ -271,19 +329,21 @@ function AssignmentForm({
 
           {/* Class Target Selection */}
           <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
-            <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">目標班次</Label>
+            <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+              {t('course:assignment.area.classTargetLabel')}
+            </Label>
             <input type="hidden" name="classTarget" value={classTarget} />
             <RadioGroup value={classTarget} onValueChange={(value) => setClassTarget(value as 'all' | 'specific')}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="all" id="all-classes" />
                 <Label htmlFor="all-classes" className="font-normal cursor-pointer">
-                  所有班次（此課程的所有班次都可以看到此作業）
+                  {t('course:assignment.area.classTargetAll')}
                 </Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="specific" id="specific-class" />
                 <Label htmlFor="specific-class" className="font-normal cursor-pointer">
-                  指定班次
+                  {t('course:assignment.area.classTargetSpecific')}
                 </Label>
               </div>
             </RadioGroup>
@@ -291,11 +351,11 @@ function AssignmentForm({
             {classTarget === 'specific' && (
               <div className="mt-3 space-y-2">
                 <Label htmlFor="classId" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
-                  選擇班次 <span className="text-destructive">*</span>
+                  {t('course:assignment.area.classSelectionLabel')} <span className="text-destructive">*</span>
                 </Label>
                 <Select name="classId" required={classTarget === 'specific'}>
                   <SelectTrigger className="rounded-xl h-11 sm:h-12 lg:h-14 xl:h-16 text-base lg:text-lg xl:text-xl">
-                    <SelectValue placeholder="選擇要派發作業的班次" />
+                    <SelectValue placeholder={t('course:assignment.area.classSelectionPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {classes.map((cls) => (
@@ -305,7 +365,7 @@ function AssignmentForm({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-muted-foreground">只有選定班次的學生可以看到並提交此作業</p>
+                <p className="text-sm text-muted-foreground">{t('course:assignment.area.classSelectionHelp')}</p>
               </div>
             )}
           </div>
@@ -319,7 +379,7 @@ function AssignmentForm({
                 <SelectValue placeholder={t('course:assignment.area.rubricPlaceholder')} />
               </SelectTrigger>
               <SelectContent className="bg-popover border-border">
-                {rubrics.length === 0 ? (
+                {availableRubrics.length === 0 ? (
                   <div className="p-2 text-sm text-muted-foreground">
                     {t('course:assignment.area.noRubrics')}{' '}
                     <Link to="/teacher/rubrics/new" className="text-primary hover:underline">
@@ -328,7 +388,7 @@ function AssignmentForm({
                     .
                   </div>
                 ) : (
-                  rubrics.map((rubric) => (
+                  availableRubrics.map((rubric) => (
                     <SelectItem key={rubric.id} value={rubric.id}>
                       <div>
                         <div className="font-medium">{rubric.name}</div>
@@ -350,9 +410,11 @@ function AssignmentForm({
           {/* AI Grading Context - Reference Files */}
           <div className="space-y-2 lg:space-y-3 pt-4 border-t border-border">
             <div className="space-y-1">
-              <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">AI 評分知識庫</Label>
+              <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+                {t('course:assignment.area.aiKnowledgeBaseLabel')}
+              </Label>
               <p className="text-sm text-muted-foreground">
-                上傳參考資料（如課程講義、標準答案）讓 AI 根據這些內容評分
+                {t('course:assignment.area.aiKnowledgeBaseDescription')}
               </p>
             </div>
             <ReferenceFileUpload value={referenceFileIds} onChange={setReferenceFileIds} maxFiles={5} />
@@ -365,7 +427,7 @@ function AssignmentForm({
               value={customGradingPrompt}
               onChange={setCustomGradingPrompt}
               maxLength={5000}
-              placeholder="例如：重點檢查學生是否正確套用公式。注意單位換算和計算步驟的完整性。"
+              placeholder={t('course:assignment.manage.customPrompt.placeholder')}
             />
             <input type="hidden" name="customGradingPrompt" value={customGradingPrompt} />
           </div>
@@ -375,7 +437,7 @@ function AssignmentForm({
           cancelTo={`/teacher/courses/${course.id}`}
           submitText={t('course:assignment.area.createButton')}
           cancelText={t('course:assignment.area.cancel')}
-          isDisabled={rubrics.length === 0}
+          isDisabled={availableRubrics.length === 0}
         />
       </Form>
     </FormPageLayout>

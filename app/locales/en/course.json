@@ -90,11 +90,22 @@
       "rubricLabel": "Grading Rubric",
       "rubricPlaceholder": "Select a rubric for grading",
       "dueDateLabel": "Due Date (Optional)",
+      "classTargetLabel": "Target Classes",
+      "classTargetAll": "All classes (students in all classes of this course can see this assignment)",
+      "classTargetSpecific": "Specific class",
+      "classSelectionLabel": "Select class",
+      "classSelectionPlaceholder": "Choose the class to assign this assignment to",
+      "classSelectionHelp": "Only students in the selected class can view and submit this assignment",
+      "aiKnowledgeBaseLabel": "AI Grading Knowledge Base",
+      "aiKnowledgeBaseDescription": "Upload reference materials (e.g., lecture notes, answer keys) for AI grading context",
       "createButton": "Create Assignment",
       "backToCourse": "Back to Course",
       "cancel": "Cancel",
       "noRubrics": "No rubrics available.",
-      "createRubricFirst": "Create one first"
+      "createRubricFirst": "Create one first",
+      "errors": {
+        "createFailed": "Failed to create assignment. Please try again later."
+      }
     },
     "manage": {
       "pageTitle": "{{assignmentName}}",
