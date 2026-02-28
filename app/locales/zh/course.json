@@ -533,6 +533,7 @@
     "instructor": "授課教師",
     "capacity": "人數上限",
     "enrollmentSuccess": "成功加入 {{courseName}}！",
+    "goToMyCourses": "前往我的課程",
     "enrollmentError": "加入失敗，請重新嘗試。",
     "duplicateEnrollment": "您已經加入此時段",
     "classAtCapacity": "此時段已滿員，請嘗試其他時段。",

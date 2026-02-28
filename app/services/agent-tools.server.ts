@@ -270,7 +270,15 @@ export const createAgentTools = (context: {
   currentContent: string;
   assignmentType?: string;
   sessionId?: string;
+  userLanguage?: string;
 }) => {
+  const isZh = (context.userLanguage || 'zh-TW').startsWith('zh');
+
+  const hasCjk = (text: string): boolean => /[\u3400-\u9FFF\uF900-\uFAFF]/.test(text);
+  const countCjk = (text: string): number => (text.match(/[\u3400-\u9FFF\uF900-\uFAFF]/g) || []).length;
+  const countAlpha = (text: string): number => (text.match(/[A-Za-z]/g) || []).length;
+  const countVisibleLetters = (text: string): number => (text.match(/[A-Za-z\u3400-\u9FFF\uF900-\uFAFF]/g) || []).length;
+
   const searchReferenceTool = tool({
     description: `搜尋參考文件中與學生作業相關的內容。
 
@@ -463,8 +471,31 @@ export const createAgentTools = (context: {
 
   // Tool: Think Aloud - Hattie & Timperley Framework
   const thinkAloudTool = tool({
-    description: `Analyze the submission using Hattie & Timperley's "Three Questions" framework.
+    description: isZh
+      ? `請使用 Hattie & Timperley「三個問題（Three Questions）」框架分析作業。
+    這必須是評分流程的第一步。
+    
+    【語言規範】思考過程必須使用繁體中文（可保留必要專有名詞），不可輸出英文整句。
+    
+    **格式**：請使用 Markdown 並清楚分段：
+    
+    ## Feed Up（學習目標）
+    說明本作業的學習目標與評量期待。
+    
+    ## Feed Back（目前表現）
+    依據學生原文證據，評估目前表現。
+    
+    ## Feed Forward（下一步）
+    提出可執行的改進方向。
+    
+    ## Strategy（評分策略）
+    根據以上分析，定義接下來的評分策略。
+    
+    你的分析會即時串流給使用者。`
+      : `Analyze the submission using Hattie & Timperley's "Three Questions" framework.
     This MUST be the first step in your grading process.
+
+    [Language Rule] The full thinking process must be in English. Do not output Chinese sentences (except unavoidable proper nouns or direct quotes).
     
     **FORMAT**: Use Markdown formatting with clear sections:
     
@@ -483,7 +514,25 @@ export const createAgentTools = (context: {
     Your analysis will be streamed live to the user.`,
 
     inputSchema: z.object({
-      analysis: z.string().describe(`Complete structured analysis using the Hattie & Timperley framework. 
+      analysis: z.string().describe(isZh
+        ? `請用繁體中文完成結構化分析（可保留必要專有名詞），使用 Hattie & Timperley 框架。
+
+請使用以下格式：
+
+## Feed Up（學習目標）
+[本作業的學習目標是什麼？]
+
+## Feed Back（目前表現）
+[學生目前表現如何？請引用具體原文證據]
+
+## Feed Forward（下一步）
+[下一步可執行的改進是什麼？]
+
+## Strategy（評分策略）
+[你的評分策略]
+
+請使用 Markdown 讓內容清楚可讀。`
+        : `Complete structured analysis using the Hattie & Timperley framework in English.
 
 Use this format:
 
@@ -503,6 +552,23 @@ Use Markdown formatting for clarity.`)
     }),
 
     execute: async ({ analysis }: { analysis: string }) => {
+      const cjkCount = countCjk(analysis);
+      const alphaCount = countAlpha(analysis);
+      const visibleCount = countVisibleLetters(analysis);
+      const cjkRatio = visibleCount > 0 ? cjkCount / visibleCount : 0;
+      const alphaRatio = visibleCount > 0 ? alphaCount / visibleCount : 0;
+
+      if (isZh) {
+        if (!hasCjk(analysis)) {
+          throw new Error('LANGUAGE_MISMATCH: think_aloud must be Traditional Chinese when UI language is zh.');
+        }
+        if (visibleCount >= 60 && cjkRatio < 0.5) {
+          throw new Error('LANGUAGE_MISMATCH: think_aloud must be predominantly Traditional Chinese when UI language is zh.');
+        }
+      } else if (visibleCount >= 60 && (cjkRatio > 0.2 || alphaRatio < 0.5)) {
+        throw new Error('LANGUAGE_MISMATCH: think_aloud must be English when UI language is non-zh.');
+      }
+
       // Stream thinking to frontend via Redis (same as thinkTool)
       if (context.sessionId && analysis) {
         try {
@@ -525,7 +591,9 @@ Use Markdown formatting for clarity.`)
 
       return {
         acknowledged: true,
-        message: 'Framework analysis recorded. Proceed to calculate confidence and generate feedback.'
+        message: isZh
+          ? '框架分析已記錄。請繼續計算信心度並生成最終回饋。'
+          : 'Framework analysis recorded. Proceed to calculate confidence and generate feedback.'
       };
     },
   });
@@ -552,6 +620,23 @@ Use Markdown formatting for clarity.`)
     }),
 
     execute: async ({ thought }: { thought: string }) => {
+      const cjkCount = countCjk(thought);
+      const alphaCount = countAlpha(thought);
+      const visibleCount = countVisibleLetters(thought);
+      const cjkRatio = visibleCount > 0 ? cjkCount / visibleCount : 0;
+      const alphaRatio = visibleCount > 0 ? alphaCount / visibleCount : 0;
+
+      if (isZh) {
+        if (!hasCjk(thought)) {
+          throw new Error('LANGUAGE_MISMATCH: think must be Traditional Chinese when UI language is zh.');
+        }
+        if (visibleCount >= 60 && cjkRatio < 0.5) {
+          throw new Error('LANGUAGE_MISMATCH: think must be predominantly Traditional Chinese when UI language is zh.');
+        }
+      } else if (visibleCount >= 60 && (cjkRatio > 0.2 || alphaRatio < 0.5)) {
+        throw new Error('LANGUAGE_MISMATCH: think must be English when UI language is non-zh.');
+      }
+
       // Stream thinking to frontend via Redis
       if (context.sessionId && thought) {
         try {
@@ -574,7 +659,9 @@ Use Markdown formatting for clarity.`)
 
       return {
         acknowledged: true,
-        message: 'Thinking process recorded. Proceed to calculate confidence and generate feedback.'
+        message: isZh
+          ? '思考過程已記錄。請繼續計算信心度並生成最終回饋。'
+          : 'Thinking process recorded. Proceed to calculate confidence and generate feedback.'
       };
     },
   });

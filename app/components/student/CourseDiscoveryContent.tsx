@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,11 +25,41 @@ export function CourseDiscoveryContent({
 }: CourseDiscoveryContentProps & { viewMode?: 'grid' | 'list'; onViewModeChange?: (mode: 'grid' | 'list') => void }) {
   const { t } = useTranslation(['course']);
   const [enrollingClassId, setEnrollingClassId] = useState<string | null>(null);
-  const [locallyEnrolled, setLocallyEnrolled] = useState<Set<string>>(new Set());
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
 
-  // 合併從 props 來的 enrolledCourseIds 和本地新增的
-  const enrolledClasses = new Set([...enrolledCourseIds, ...locallyEnrolled]);
+  const effectiveEnrolledCourseIds = enrolledCourseIds;
+
+  const getCourseByClassId = (classId: string) => courses.find((course) => course.classes.some((cls) => cls.id === classId));
+
+  const getFirstAvailableClass = (courseClasses: CourseDiscoveryContentProps['courses'][number]['classes']) => {
+    return courseClasses.find((cls) => {
+      const capacityPercent = cls.capacity ? (cls.enrollmentCount / cls.capacity) * 100 : 0;
+      return !(cls.isFull || capacityPercent >= 100);
+    });
+  };
+
+  const getEnrollmentErrorMessage = (message?: string): string => {
+    if (!message) {
+      return t('course:discovery.enrollmentError');
+    }
+
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes('already enrolled') || normalized.includes('unique constraint failed')) {
+      return t('course:discovery.duplicateEnrollment');
+    }
+
+    if (normalized.includes('full') || normalized.includes('capacity')) {
+      return t('course:discovery.classAtCapacity');
+    }
+
+    if (normalized.includes('no longer available') || normalized.includes('inactive') || normalized.includes('not found')) {
+      return t('course:discovery.courseInactive');
+    }
+
+    return message;
+  };
 
   // Toggle course expansion
   const toggleCourse = (courseId: string) => {
@@ -44,32 +75,32 @@ export function CourseDiscoveryContent({
   };
 
   // Handle enrollment
-  const handleEnroll = async (classId: string, courseName: string) => {
+  const handleEnroll = async (classId: string) => {
     setEnrollingClassId(classId);
     try {
+      const course = getCourseByClassId(classId);
+      if (!course) {
+        toast.error(t('course:discovery.enrollmentError'));
+        return;
+      }
+
       const response = await fetch('/api/enrollments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           classId,
-          courseId: courses.find((c) => c.classes.some((cl) => cl.id === classId))?.id,
+          courseId: course.id,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error?.message || t('course:discovery.enrollmentError'));
+        toast.error(getEnrollmentErrorMessage(data.error?.message));
         return;
       }
 
-      // Update local enrolled set
-      const courseId = courses.find((c) => c.classes.some((cl) => cl.id === classId))?.id;
-      if (courseId) {
-        setLocallyEnrolled(prev => new Set([...prev, courseId]));
-      }
-
-      toast.success(t('course:discovery.enrollmentSuccess', { courseName }));
+      navigate('/student/courses');
     } catch (error) {
       toast.error(t('course:discovery.enrollmentError'));
       console.error('Enrollment error:', error);
@@ -184,7 +215,7 @@ export function CourseDiscoveryContent({
                                 {/* Schedule and Room Info */}
                                 {cls.schedule && (
                                   <div className="space-y-1 text-xs text-muted-foreground">
-                                    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
                                       <Clock className="h-3 w-3" />
                                       <span>{cls.schedule.weekday}</span>
                                     </div>
@@ -228,21 +259,33 @@ export function CourseDiscoveryContent({
                   </TooltipProvider>
 
                   {/* Enroll Button */}
+                  {(() => {
+                    const firstAvailableClass = getFirstAvailableClass(course.classes);
+                    const isFullyBooked = !firstAvailableClass;
+                    const isEnrolled = effectiveEnrolledCourseIds.has(course.id);
+                    const isLoading = !!firstAvailableClass && enrollingClassId === firstAvailableClass.id;
+
+                    return (
                   <Button
                     size="sm"
                     className="w-full mt-2"
-                    disabled={enrolledClasses.has(course.id) || enrollingClassId === course.id}
+                    disabled={isEnrolled || isFullyBooked || isLoading}
                     onClick={() => {
-                      const firstClass = course.classes[0];
-                      if (firstClass) handleEnroll(firstClass.id, course.name);
+                      if (firstAvailableClass) {
+                        handleEnroll(firstAvailableClass.id);
+                      }
                     }}
-                    variant={enrolledClasses.has(course.id) ? 'outline' : 'emphasis'}
+                    variant={isEnrolled || isFullyBooked ? 'outline' : 'emphasis'}
                   >
-                    {enrollingClassId === course.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {enrolledClasses.has(course.id)
+                    {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {isEnrolled
                       ? t('course:discovery.enrolled')
-                      : t('course:discovery.enroll')}
+                      : isFullyBooked
+                        ? t('course:discovery.classFull')
+                        : t('course:discovery.enroll')}
                   </Button>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             ))}
@@ -300,12 +343,12 @@ export function CourseDiscoveryContent({
                             )}
                           </div>
                           <div className="text-xs text-muted-foreground">{course.teacher.name}</div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span>{course.classes.length} {t('course:discovery.class')}</span>
-                            {enrolledClasses.has(course.id) && (
-                              <Badge variant="outline" className="text-xs">
-                                {t('course:discovery.enrolled')}
-                              </Badge>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{course.classes.length} {t('course:discovery.class')}</span>
+                            {effectiveEnrolledCourseIds.has(course.id) && (
+                                <Badge variant="outline" className="text-xs">
+                                  {t('course:discovery.enrolled')}
+                                </Badge>
                             )}
                           </div>
                         </div>
@@ -367,16 +410,16 @@ export function CourseDiscoveryContent({
                                 {/* Enroll Button */}
                                 <Button
                                   size="sm"
-                                  disabled={enrolledClasses.has(course.id) || isFull || enrollingClassId === cls.id}
-                                  onClick={() => handleEnroll(cls.id, course.name)}
-                                  variant={enrolledClasses.has(course.id) || isFull ? 'outline' : 'emphasis'}
+                                  disabled={effectiveEnrolledCourseIds.has(course.id) || isFull || enrollingClassId === cls.id}
+                                  onClick={() => handleEnroll(cls.id)}
+                                  variant={effectiveEnrolledCourseIds.has(course.id) || isFull ? 'outline' : 'emphasis'}
                                   className="w-full"
                                 >
                                   {enrollingClassId === cls.id && (
                                     <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
                                   )}
                                   <span className="text-xs">
-                                    {enrolledClasses.has(course.id)
+                                    {effectiveEnrolledCourseIds.has(course.id)
                                       ? t('course:discovery.enrolled')
                                       : isFull
                                         ? t('course:discovery.classFull')
@@ -462,15 +505,15 @@ export function CourseDiscoveryContent({
                       <div className="col-span-2 text-right">
                         <Button
                           size="sm"
-                          disabled={enrolledClasses.has(course.id) || isFull || enrollingClassId === cls.id}
-                          onClick={() => handleEnroll(cls.id, course.name)}
-                          variant={enrolledClasses.has(course.id) || isFull ? 'outline' : 'emphasis'}
+                          disabled={effectiveEnrolledCourseIds.has(course.id) || isFull || enrollingClassId === cls.id}
+                          onClick={() => handleEnroll(cls.id)}
+                          variant={effectiveEnrolledCourseIds.has(course.id) || isFull ? 'outline' : 'emphasis'}
                         >
                           {enrollingClassId === cls.id && (
                             <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
                           )}
                           <span className="text-xs">
-                            {enrolledClasses.has(course.id)
+                            {effectiveEnrolledCourseIds.has(course.id)
                               ? t('course:discovery.enrolled')
                               : isFull
                                 ? t('course:discovery.classFull')

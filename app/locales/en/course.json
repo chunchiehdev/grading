@@ -520,6 +520,7 @@
     "instructor": "Instructor",
     "capacity": "Capacity",
     "enrollmentSuccess": "Successfully enrolled in {{courseName}}!",
+    "goToMyCourses": "Go to my courses",
     "enrollmentError": "Failed to enroll. Please try again.",
     "duplicateEnrollment": "You are already enrolled in this class",
     "classAtCapacity": "This class is currently full. Please try another section.",

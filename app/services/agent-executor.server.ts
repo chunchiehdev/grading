@@ -204,10 +204,14 @@ Input: ${JSON.stringify(rawCriteria, null, 2)}
 function buildGradingSystemPrompt(ctx: GradingContext, isDirectMode: boolean = false): string {
   const lang = ctx.userLanguage || 'zh-TW';
   const isZh = lang.startsWith('zh');
+  const languageRule = isZh
+    ? `【語言規範】所有對外可見文字（含思考過程、reasoning、messageToStudent、analysis、sparringQuestions.question）必須使用繁體中文。除專有名詞外，避免英文句子。`
+    : `[Language Rule] All user-visible text (including thinking process, reasoning, messageToStudent, analysis, and sparringQuestions.question) must be in English. Avoid Chinese sentences except unavoidable proper nouns or quotes.`;
 
   // Core role definition with sparringQuestions requirement upfront
   const baseRole = isZh
     ? `【重要】調用 generate_feedback 時，sparringQuestions 欄位為必填（至少 3 個問題）。
+${languageRule}
 
 ---
 
@@ -215,6 +219,7 @@ function buildGradingSystemPrompt(ctx: GradingContext, isDirectMode: boolean = f
 你熟悉 Rubric-Based Assessment、SOLO Taxonomy、Bloom's Taxonomy、Diagnostic Feedback 等教育評量方法。
 你的評分風格嚴謹但具建設性，重視 Evidence-Based Assessment（證據本位評量）。`
     : `【IMPORTANT】When calling generate_feedback, sparringQuestions field is REQUIRED (minimum 3 questions).
+${languageRule}
 
 ---
 
@@ -767,6 +772,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       currentContent: params.content,
       assignmentType: params.assignmentType,
       sessionId: params.sessionId,
+      userLanguage: params.userLanguage,
     });
 
     // 5. Execute Agent (ToolLoopAgent)
