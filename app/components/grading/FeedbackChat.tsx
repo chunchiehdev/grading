@@ -14,18 +14,49 @@ import { Markdown } from '@/components/ui/markdown';
 import { Textarea } from '@/components/ui/textarea';
 
 const TRIGGER_MSG_ID = '__sparring_trigger__';
-const TRIGGER_TEXT = '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。';
+
+interface UiChatPart {
+  type?: string;
+  text?: string;
+}
+
+interface UiChatMessage {
+  id?: string;
+  role?: string;
+  content?: string;
+  parts?: UiChatPart[];
+}
+
+function getMessageText(message: UiChatMessage): string {
+  if (message.content) return message.content;
+  if (!message.parts || message.parts.length === 0) return '';
+
+  return message.parts
+    .filter((part) => part.type === 'text' && typeof part.text === 'string')
+    .map((part) => part.text)
+    .join('');
+}
+
+function normalizeChatTypography(text: string): string {
+  return text
+    .replace(/[\u2018\u2019\u2032]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2212]/g, '-')
+    .replace(/\u2026/g, '...')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\u200B/g, '');
+}
 
 // ── Direction 2: Kember Level from score ratio ────────────────────────────
 function getKemberLevel(score: number, maxScore: number) {
   const pct = maxScore > 0 ? score / maxScore : 0;
   if (pct >= 0.8)
-    return { level: 4, label: 'L4', desc: '批判性反思', colorClass: 'border border-primary/30 bg-primary/10 text-primary' };
+    return { level: 4, label: 'L4', descKey: 'grading:chat.kember.level4', colorClass: 'border border-primary/30 bg-primary/10 text-primary' };
   if (pct >= 0.6)
-    return { level: 3, label: 'L3', desc: '建設性反思', colorClass: 'border border-accent-foreground/20 bg-accent text-accent-foreground' };
+    return { level: 3, label: 'L3', descKey: 'grading:chat.kember.level3', colorClass: 'border border-accent-foreground/20 bg-accent text-accent-foreground' };
   if (pct >= 0.4)
-    return { level: 2, label: 'L2', desc: '理解反思', colorClass: 'border border-muted-foreground/20 bg-muted text-muted-foreground' };
-  return { level: 1, label: 'L1', desc: '習慣性行動', colorClass: 'border border-destructive/30 bg-destructive/10 text-destructive' };
+    return { level: 2, label: 'L2', descKey: 'grading:chat.kember.level2', colorClass: 'border border-muted-foreground/20 bg-muted text-muted-foreground' };
+  return { level: 1, label: 'L1', descKey: 'grading:chat.kember.level1', colorClass: 'border border-destructive/30 bg-destructive/10 text-destructive' };
 }
 
 export interface SparringState {
@@ -72,7 +103,9 @@ export function FeedbackChat({
   initialSparringState,
   onSparringStateChange,
 }: FeedbackChatProps) {
-  const { t } = useTranslation(['grading', 'common']);
+  const { t, i18n } = useTranslation(['grading', 'common']);
+  const uiLanguage = i18n.language.startsWith('zh') ? 'zh' : 'en';
+  const triggerText = t('grading:chat.triggerText');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [input, setInput] = useState('');
@@ -147,7 +180,7 @@ export function FeedbackChat({
       b.name === activeQuestion.related_rubric_id
   );
 
-  const kemberTemplate = getKemberRubricTemplate();
+  const kemberTemplate = getKemberRubricTemplate(uiLanguage);
   let defaultCriterionContext = null;
   if (kemberTemplate.categories[0]?.criteria[0]) {
     defaultCriterionContext = {
@@ -176,6 +209,7 @@ export function FeedbackChat({
       fileId,
       assignmentId,
       gradingSessionId: sessionId,
+      language: uiLanguage,
     }),
     [
       rubricCriterionName,
@@ -186,6 +220,7 @@ export function FeedbackChat({
       fileId,
       assignmentId,
       sessionId,
+      uiLanguage,
     ]
   );
 
@@ -260,11 +295,11 @@ export function FeedbackChat({
       } else {
         hasSentOpening.current = true;
         sendMessage({
-          text: TRIGGER_TEXT,
+          text: triggerText,
         });
       }
     }
-  }, [hasStarted, messages.length, setMessages, sendMessage, initialConversationsMap, activeIdx]);
+  }, [hasStarted, messages.length, setMessages, sendMessage, initialConversationsMap, activeIdx, triggerText]);
 
   const prevMessagesRef = useRef<string>('');
   useEffect(() => {
@@ -314,13 +349,16 @@ export function FeedbackChat({
   // ── Direction 3: Submit revision as a chat message ─────────────────────
   const handleSubmitRevision = useCallback(() => {
     if (!revisionDraft.trim() || isLoading) return;
-    const original = activeQuestion.target_quote;
+        const original = activeQuestion.target_quote;
     sendMessage({
-      text: `我嘗試修改了這段，原句是「${original}」，我改成：「${revisionDraft.trim()}」——你覺得這樣有改善嗎？`,
+      text: t('grading:chat.revision.submissionMessage', {
+        original,
+        revised: revisionDraft.trim(),
+      }),
     });
     setRevisionDraft('');
     setShowRevisionBox(false);
-  }, [revisionDraft, isLoading, activeQuestion.target_quote, sendMessage]);
+  }, [revisionDraft, isLoading, activeQuestion.target_quote, sendMessage, t]);
 
   // ── Direction 4: Finish sparring → show summary ────────────────────────
   const handleFinishSparring = useCallback(() => {
@@ -331,17 +369,12 @@ export function FeedbackChat({
     () =>
       messages.filter((m) => {
         if (m.id === TRIGGER_MSG_ID) return false;
-        const content =
-          (m as any).content ||
-          m.parts
-            ?.filter((p: any) => p.type === 'text')
-            .map((p: any) => p.text)
-            .join('') ||
-          '';
-        if (content === TRIGGER_TEXT) return false;
+        const content = normalizeChatTypography(getMessageText(m as UiChatMessage)).trim();
+        if (!content) return false;
+        if (content === normalizeChatTypography(triggerText)) return false;
         return true;
       }),
-    [messages]
+    [messages, triggerText]
   );
 
   // ── Shared: score collapsible ──────────────────────────────────────────
@@ -388,7 +421,7 @@ export function FeedbackChat({
                     onClick={() =>
                       setSelectedDetail({
                         type: 'thinking',
-                        title: t('grading:thinkingProcess.viewProcess', '思考過程'),
+                        title: t('grading:thinkingProcess.viewProcess'),
                         content: thinkingProcess || gradingRationale || '',
                       })
                     }
@@ -397,7 +430,7 @@ export function FeedbackChat({
                     <BrainCircuit className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground">
-                        {t('grading:thinkingProcess.viewProcess', '思考過程')}
+                        {t('grading:thinkingProcess.viewProcess')}
                       </p>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity" />
@@ -493,7 +526,7 @@ export function FeedbackChat({
             <div className="pb-6 space-y-2">
               {selectedDetail.type === 'criterion' && (
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t('grading:result.feedback', '評語')}
+                   {t('grading:result.feedback')}
                 </h4>
               )}
               <div className="text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
@@ -512,23 +545,7 @@ export function FeedbackChat({
   if (chatPhase === 'summary') {
     return (
       <div className="h-full flex flex-col">
-        {result && (
-          <div className="flex-shrink-0 border-b border-border px-4 sm:px-6 py-3 flex items-center gap-3">
-            <span
-              className={cn(
-                'text-lg font-bold tabular-nums',
-                (normalizedScore ?? 0) >= 80
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : (normalizedScore ?? 0) >= 60
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-red-600 dark:text-red-400'
-              )}
-            >
-              {result.totalScore}/{result.maxScore}
-            </span>
-            <span className="text-sm text-muted-foreground">{t('grading:chat.scoreBar')}</span>
-          </div>
-        )}
+        {scoreCollapsible}
 
         <div className="flex-1 overflow-y-auto p-4 sm:px-6 space-y-4">
           <div className="flex items-center gap-3 pt-4">
@@ -536,8 +553,8 @@ export function FeedbackChat({
               <Trophy className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-foreground">對練完成！你的成長摘要</h2>
-              <p className="text-xs text-muted-foreground">根據剛才的對話整理你的反思進展</p>
+               <h2 className="text-base font-semibold text-foreground">{t('grading:chat.summary.title')}</h2>
+               <p className="text-xs text-muted-foreground">{t('grading:chat.summary.subtitle')}</p>
             </div>
           </div>
 
@@ -564,11 +581,11 @@ export function FeedbackChat({
                     <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30 flex-shrink-0" />
                   )}
                   <span className="text-sm font-medium text-foreground flex-1 min-w-0 truncate">
-                    {breakdownItem?.name || q.related_rubric_id || `問題 ${idx + 1}`}
+                    {breakdownItem?.name || q.related_rubric_id || t('grading:chat.summary.questionFallback', { index: idx + 1 })}
                   </span>
                   {kLevel && (
                     <Badge className={cn('flex-shrink-0 text-xs', kLevel.colorClass)}>
-                      {kLevel.label} {kLevel.desc}
+                      {kLevel.label} {t(kLevel.descKey)}
                     </Badge>
                   )}
                 </div>
@@ -578,7 +595,7 @@ export function FeedbackChat({
                   </p>
                 )}
                 {!isDiscussed && (
-                  <p className="text-xs text-muted-foreground pl-6">未討論（可返回繼續）</p>
+                  <p className="text-xs text-muted-foreground pl-6">{t('grading:chat.summary.notDiscussed')}</p>
                 )}
               </div>
             );
@@ -591,7 +608,7 @@ export function FeedbackChat({
               onClick={() => setChatPhase('chat')}
               className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
             >
-              ← 返回繼續討論其他問題
+              {t('grading:chat.summary.returnToChat')}
             </button>
           )}
         </div>
@@ -617,13 +634,10 @@ export function FeedbackChat({
             </div>
             <div className="space-y-2">
               <h2 className="text-base sm:text-lg font-semibold text-foreground">
-                {t('grading:chat.startSparring.title', '開始反思對練')}
+                 {t('grading:chat.startSparring.title')}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                {t(
-                  'grading:chat.startSparring.description',
-                  '接下來 AI 會根據你的作業和老師的評分標準，提出 1–3 個問題，陪你一起把想法想深一點。準備好了再開始就好。'
-                )}
+                 {t('grading:chat.startSparring.description')}
               </p>
             </div>
             <div className="pt-2">
@@ -631,7 +645,7 @@ export function FeedbackChat({
                 onClick={() => setHasStarted(true)}
                 className="rounded-full px-6 sm:px-8"
               >
-                {t('grading:chat.startSparring.button', '開始對練')}
+                 {t('grading:chat.startSparring.button')}
               </Button>
             </div>
           </div>
@@ -651,40 +665,33 @@ export function FeedbackChat({
       <div className="flex-1 overflow-y-auto min-h-0 w-full">
         <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 min-h-full flex flex-col">
           <div className="space-y-6 py-6 flex-1">
-            {visibleMessages.map((m: any) => (
-              <div
-                key={m.id}
-                className={`flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {m.role === 'user' ? (
-                  <div className="max-w-[88%] sm:max-w-[82%]">
-                    <div className="text-sm whitespace-pre-wrap break-words px-4 py-3 rounded-2xl rounded-br-md bg-primary text-primary-foreground shadow-sm">
-                      {(m as any).content ||
-                        m.parts
-                          ?.filter((p: any) => p.type === 'text')
-                          .map((p: any) => p.text)
-                          .join('') ||
-                        ''}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-full max-w-[96%] sm:max-w-[92%] space-y-2">
-                    <div className="px-1 py-1 text-sm text-foreground leading-relaxed">
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <Markdown>
-                          {(m as any).content ||
-                            m.parts
-                              ?.filter((p: any) => p.type === 'text')
-                              .map((p: any) => p.text)
-                              .join('') ||
-                            ''}
-                        </Markdown>
+            {visibleMessages.map((m: any) => {
+              const parsedMessage = m as UiChatMessage;
+              const messageText = normalizeChatTypography(getMessageText(parsedMessage));
+
+              return (
+                <div
+                  key={m.id}
+                  className={`flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {m.role === 'user' ? (
+                    <div className="max-w-[88%] sm:max-w-[82%]">
+                      <div className="text-sm whitespace-pre-wrap break-words px-4 py-3 rounded-2xl rounded-br-md bg-primary text-primary-foreground shadow-sm">
+                        {messageText}
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  ) : (
+                    <div className="w-full max-w-[96%] sm:max-w-[92%] space-y-2">
+                      <div className="px-1 py-1 text-sm text-foreground leading-relaxed">
+                        <div className="prose prose-sm dark:prose-invert max-w-none [&_*]:font-sans [&_p]:leading-relaxed">
+                          <Markdown>{messageText}</Markdown>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {isLoading &&
               (visibleMessages.length === 0 ||
@@ -701,7 +708,7 @@ export function FeedbackChat({
             {isCurrentQuestionComplete && !isLoading && (
               <div className="flex w-full justify-center py-2">
                 <div className="flex flex-col items-center gap-3 w-full max-w-xs">
-                  <p className="text-xs text-muted-foreground text-center">這個問題已討論完畢</p>
+                  <p className="text-xs text-muted-foreground text-center">{t('grading:chat.currentQuestionCompleted')}</p>
                   <div className="flex gap-2 w-full">
                     {activeIdx < sparringQuestions.length - 1 && (
                       <Button
@@ -710,7 +717,7 @@ export function FeedbackChat({
                         className="flex-1 rounded-full text-xs"
                         onClick={() => handleSwitchQuestion(activeIdx + 1)}
                       >
-                        下一個問題 →
+                        {t('grading:chat.nextQuestion')}
                       </Button>
                     )}
                     <Button
@@ -719,7 +726,7 @@ export function FeedbackChat({
                       onClick={handleFinishSparring}
                     >
                       <Trophy className="h-3 w-3 mr-1" />
-                      完成對練
+                      {t('grading:chat.finishSparring')}
                     </Button>
                   </div>
                 </div>
@@ -735,21 +742,21 @@ export function FeedbackChat({
       {showRevisionBox && (
         <div className="flex-shrink-0 border-t border-border bg-muted/20 px-4 sm:px-6 py-3 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-foreground">試著修改這段文字</p>
+            <p className="text-xs font-medium text-foreground">{t('grading:chat.revision.title')}</p>
             <button
               onClick={() => setShowRevisionBox(false)}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
-              取消
+               {t('common:cancel')}
             </button>
           </div>
           <p className="text-xs text-muted-foreground italic">
-            原文：「{activeQuestion.target_quote}」
+            {t('grading:chat.revision.originalText', { quote: activeQuestion.target_quote })}
           </p>
           <Textarea
             value={revisionDraft}
             onChange={(e) => setRevisionDraft(e.target.value)}
-            placeholder="輸入你修改後的版本..."
+            placeholder={t('grading:chat.revision.placeholder')}
             className="text-sm min-h-[80px] resize-none rounded-xl border-border bg-background"
           />
           <Button
@@ -758,7 +765,7 @@ export function FeedbackChat({
             onClick={handleSubmitRevision}
             className="w-full rounded-full text-xs"
           >
-            送出修改，請 AI 給我回饋
+            {t('grading:chat.revision.submit')}
           </Button>
         </div>
       )}
@@ -829,10 +836,9 @@ export function FeedbackChat({
               <div className="mt-2 flex items-center justify-between px-1">
                 <p className="text-xs text-muted-foreground">
                   {t('grading:chat.disclaimer')} ·{' '}
-                  {t('grading:chat.roundsRemaining', {
-                    remaining: maxRounds - userRoundCount,
-                    defaultValue: `剩餘 ${maxRounds - userRoundCount} 輪`,
-                  })}
+                    {t('grading:chat.roundsRemaining', {
+                     remaining: maxRounds - userRoundCount,
+                   })}
                 </p>
                 
               </div>

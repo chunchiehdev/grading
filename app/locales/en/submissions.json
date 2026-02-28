@@ -87,6 +87,11 @@
     "submissionInfo": {
       "submitted": "Submitted",
       "score": "Score"
+    },
+    "labels": {
+      "unknownStudent": "Unknown Student",
+      "noEmail": "No email",
+      "viewDetails": "View details"
     }
   }
 }

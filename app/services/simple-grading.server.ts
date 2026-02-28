@@ -90,7 +90,7 @@ async function processQueue() {
     try {
       logger.info(`🏃 Processing grading job for result ${job.resultId} (${jobQueue.length} remaining)`);
 
-      const result = await processGradingResult(job.resultId, job.userId, job.sessionId, job.userLanguage || 'zh');
+      const result = await processGradingResult(job.resultId, job.userId, job.sessionId, job.userLanguage || 'en');
 
       if (result.success) {
         logger.info(`  Completed grading job for result ${job.resultId}`);

@@ -50,7 +50,7 @@ export const action = async ({ request }: { request: Request }) => {
 
     if (!validationResult.success) {
       console.error('Validation failed:', validationResult.error);
-      return Response.json({ error: 'Validation failed' });
+      return Response.json({ error: 'rubric:messages.validationFailed' });
     }
 
     const { name, description, categoriesJson } = validationResult.data;
@@ -59,7 +59,7 @@ export const action = async ({ request }: { request: Request }) => {
     const userId = await getUserId(request);
 
     if (!userId) {
-      return Response.json({ error: 'User not authenticated' });
+      return Response.json({ error: 'common:errors.401.message' });
     }
 
     const { createRubric } = await import('@/services/rubric.server');
@@ -74,21 +74,21 @@ export const action = async ({ request }: { request: Request }) => {
 
     if (!result.success) {
       console.error('Create rubric failed:', result.error);
-      return Response.json({ error: result.error || 'Failed to create rubric' });
+      return Response.json({ error: result.error || 'rubric:messages.createFailed' });
     }
 
     return redirect('/teacher/rubrics');
   } catch (error) {
     console.error('Action error:', error);
     return Response.json({
-      error: error instanceof Error ? error.message : 'Error processing request',
+      error: error instanceof Error ? error.message : 'rubric:messages.processingFailed',
     });
   }
 };
 
 // Main Component
 export default function NewRubricRoute() {
-  const { t } = useTranslation(['rubric', 'common']);
+  const { t, i18n } = useTranslation(['rubric', 'common']);
   const actionData = useActionData<{ error?: string }>();
 
   const [rubricData, setRubricData] = useState<UIRubricData>({
@@ -105,7 +105,11 @@ export default function NewRubricRoute() {
 
   // Computed values
   const selectedCategory = rubricData.categories.find((c) => c.id === selectedCategoryId);
-  const totalCriteria = rubricData.categories.reduce((acc, cat) => acc + cat.criteria.length, 0);
+  const actionErrorMessage = actionData?.error
+    ? i18n.exists(actionData.error)
+      ? t(actionData.error)
+      : actionData.error
+    : null;
 
   const canSave = () => {
     return rubricData.name.trim() && rubricData.description.trim() && rubricData.categories.length > 0;
@@ -279,12 +283,12 @@ export default function NewRubricRoute() {
 
   const handleApplyKemberTemplate = () => {
     if (rubricData.categories.length > 0 || rubricData.name || rubricData.description) {
-      if (!confirm('這樣會覆蓋您目前編輯的內容，確定要套用 Kember 範本嗎？')) {
+      if (!confirm(t('rubric:kember.confirmOverwrite'))) {
         return;
       }
     }
 
-    const kemberRubric = getKemberRubricTemplate();
+    const kemberRubric = getKemberRubricTemplate(i18n.language.startsWith('zh') ? 'zh' : 'en');
     setRubricData(kemberRubric);
 
     if (kemberRubric.categories.length > 0) {
@@ -305,11 +309,7 @@ export default function NewRubricRoute() {
       try {
         const draft = JSON.parse(savedDraft);
         // Check if user wants to restore
-        const shouldRestore = window.confirm(
-          t('rubric:draftRecovery.message', {
-            defaultValue: 'Unsaved draft found. Would you like to restore it?',
-          })
-        );
+        const shouldRestore = window.confirm(t('rubric:draftRecovery.message'));
 
         if (shouldRestore) {
           setRubricData(draft);
@@ -362,7 +362,7 @@ export default function NewRubricRoute() {
 
   // Handle clear draft
   const handleClearDraft = () => {
-    if (window.confirm(t('rubric:draftRecovery.clearConfirm', { defaultValue: 'Clear draft?' }))) {
+    if (window.confirm(t('rubric:draftRecovery.clearConfirm'))) {
       localStorage.removeItem('rubric-draft');
       setRubricData({ name: '', description: '', categories: [] });
       setSelectedCategoryId(null);
@@ -386,7 +386,7 @@ export default function NewRubricRoute() {
           </h1>
         </div>
         <p className="text-sm sm:text-base lg:text-lg text-muted-foreground mb-4">
-          您可以手動建立評分標準，或是直接點擊下方套用專業範本。
+          {t('rubric:newPage.subtitle')}
         </p>
         <div className="flex items-center justify-center gap-3 mb-4">
           <Button
@@ -396,7 +396,7 @@ export default function NewRubricRoute() {
             className="rounded-full shadow-sm hover:bg-primary/10 transition-colors"
           >
             <Sparkles className="w-4 h-4 mr-2" />
-            套用 Kember (2008) 批判性反思範本
+            {t('rubric:kember.applyButton')}
           </Button>
         </div>
         {/* Clear draft button */}
@@ -408,7 +408,7 @@ export default function NewRubricRoute() {
             onClick={handleClearDraft}
             className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
           >
-            {t('rubric:draftRecovery.clearButton', { defaultValue: 'Clear draft' })}
+            {t('rubric:draftRecovery.clearButton')}
           </Button>
         )}
       </div>
@@ -551,7 +551,7 @@ export default function NewRubricRoute() {
           style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
         >
           <div className="font-medium">{t('rubric:messages.saveError')}</div>
-          <div className="text-sm opacity-90 mt-1">{actionData.error}</div>
+          <div className="text-sm opacity-90 mt-1">{actionErrorMessage}</div>
         </div>
       )}
 

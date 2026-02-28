@@ -205,7 +205,7 @@ class RotatingGeminiService {
    */
   async gradeDocument(
     request: GeminiGradingRequest,
-    userLanguage: 'zh' | 'en' = 'zh'
+    userLanguage: 'zh' | 'en' = 'en'
   ): Promise<GeminiGradingResponse> {
     const startTime = Date.now();
     const attemptedKeys: string[] = [];

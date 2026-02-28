@@ -6,7 +6,7 @@ import logger from '@/utils/logger';
  * 集中管理所有評分相關的提示詞和系統指令
  */
 export class GeminiPrompts {
-  static generateSystemInstruction(language: 'zh' | 'en' = 'zh'): string {
+  static generateSystemInstruction(language: 'zh' | 'en' = 'en'): string {
 
     // Linus Principle: 一個 system instruction 應該清晰、簡潔、不重複
     // 由 JSON Schema 和 User Prompt 負責細節
@@ -72,26 +72,31 @@ export class GeminiPrompts {
       rubricName,
       referenceDocuments,
       customInstructions,
-      language = 'zh',
+      language = 'en',
       assignmentTitle,
       assignmentDescription,
     } = request;
+    const isZh = language === 'zh';
     const maxScore = criteria.reduce((sum, c) => sum + (c.maxScore || 0), 0);
-    const criteriaDescription = this.formatCriteriaDescription(criteria);
+    const criteriaDescription = this.formatCriteriaDescription(criteria, language);
 
     // Feature 004: Format reference documents and custom instructions
     const referenceSection = referenceDocuments ? this.formatReferenceDocuments(referenceDocuments) : '';
     const instructionsSection = customInstructions ? this.formatCustomInstructions(customInstructions) : '';
     
     // Format Assignment Info
-    const assignmentSection = assignmentTitle 
-      ? `## 作業資訊\n標題：${assignmentTitle}\n說明：${assignmentDescription || '無'}\n` 
+    const assignmentSection = assignmentTitle
+      ? isZh
+        ? `## 作業資訊\n標題：${assignmentTitle}\n說明：${assignmentDescription || '無'}\n`
+        : `## Assignment Info\nTitle: ${assignmentTitle}\nDescription: ${assignmentDescription || 'N/A'}\n`
       : '';
 
     const systemInstruction = this.generateSystemInstruction(language);
 
     // Static Content (Cacheable)
-    const cachedContent = this.dedent(`
+    const cachedContent = this.dedent(
+      isZh
+        ? `
             **標準**：${rubricName}
             **滿分**：${maxScore} 分
 
@@ -103,19 +108,42 @@ export class GeminiPrompts {
             ${criteriaDescription}
 
             ${instructionsSection}
-            
-            ${referenceSection ? '如提供參考文件，請判斷答案的正確性和完整度。' : ''}
-            
-            ## 輸出格式
-            ${this.getSimpleOutputFormat(maxScore)}
 
-            **語言**：${language === 'zh' ? '繁體中文' : 'English'}
-    `);
+            ${referenceSection ? '如提供參考文件，請判斷答案的正確性和完整度。' : ''}
+
+            ## 輸出格式
+            ${this.getSimpleOutputFormat(language)}
+
+            **語言**：繁體中文
+          `
+        : `
+            **Rubric**: ${rubricName}
+            **Max Score**: ${maxScore}
+
+            ${assignmentSection}
+
+            ${referenceSection}
+
+            ## Grading Criteria
+            ${criteriaDescription}
+
+            ${instructionsSection}
+
+            ${referenceSection ? 'If reference documents are provided, evaluate correctness and completeness against them.' : ''}
+
+            ## Output Format
+            ${this.getSimpleOutputFormat(language)}
+
+            **Language**: English
+          `
+    );
 
     // Dynamic Content (Per Student)
-    const userPrompt = this.dedent(`
+    const userPrompt = this.dedent(
+      isZh
+        ? `
             **檔案**：${fileName}
-            
+
             ## 要評分的內容
             ${content}
 
@@ -124,7 +152,20 @@ export class GeminiPrompts {
             根據上述標準和參考資料評分此內容。
 
             **特別注意**：請優先檢查內容是否離題。若學生內容與「作業說明」或「參考文件」的主題無關（例如：回答了錯誤的題目），即使寫得很好，也**必須給予 0 分**，並在評語中說明「離題」。
-    `);
+          `
+        : `
+            **File**: ${fileName}
+
+            ## Submission Content
+            ${content}
+
+            ## Grading Task
+
+            Evaluate this content based on the rubric and reference materials above.
+
+            **Important**: Check off-topic relevance first. If the content does not address the assignment instructions or reference-document topic (for example, answering a different prompt), you **must assign 0** even if the writing quality is high, and explicitly explain that it is off-topic.
+          `
+    );
 
     return {
       systemInstruction,
@@ -183,20 +224,33 @@ export class GeminiPrompts {
     `);
   }
 
-  private static formatCriteriaDescription(criteria: any[]): string {
+  private static formatCriteriaDescription(criteria: any[], language: 'zh' | 'en' = 'en'): string {
+    const isZh = language === 'zh';
     const criteriaList = criteria
       .map((criterion, index) => {
         const levelsText = criterion.levels
-          ? criterion.levels.map((level: any) => `${level.score}分 - ${level.description}`).join('；')
+          ? criterion.levels
+              .map((level: any) =>
+                isZh ? `${level.score}分 - ${level.description}` : `${level.score} points - ${level.description}`
+              )
+              .join(isZh ? '；' : '; ')
           : '';
 
         return this.dedent(
-          `
+          isZh
+            ? `
                 ${index + 1}. **${criterion.name}** (${criterion.maxScore || 0} 分)
                    ID: "${criterion.id}" ← 請在 JSON 中使用此 ID
                    名稱: "${criterion.name}" ← 請在 JSON 的 name 欄位中使用此名稱
                    說明：${criterion.description || '無說明'}
                    ${levelsText ? `評分等級：${levelsText}` : ''}
+            `
+            : `
+                ${index + 1}. **${criterion.name}** (${criterion.maxScore || 0} points)
+                   ID: "${criterion.id}" ← Use this exact ID in JSON
+                   Name: "${criterion.name}" ← Use this exact name in JSON.name
+                   Description: ${criterion.description || 'No description'}
+                   ${levelsText ? `Scoring levels: ${levelsText}` : ''}
             `
         ).trim();
       })
@@ -204,12 +258,17 @@ export class GeminiPrompts {
 
     const criteriaIds = criteria.map((c) => `"${c.id}"`).join(', ');
 
-    return `${criteriaList}
+    return isZh
+      ? `${criteriaList}
 
-**重要：** 在 JSON 回應中，"criteriaId" 必須完全匹配上述 ID：${criteriaIds}`;
+**重要：** 在 JSON 回應中，"criteriaId" 必須完全匹配上述 ID：${criteriaIds}`
+      : `${criteriaList}
+
+**Important:** In the JSON response, "criteriaId" must exactly match one of these IDs: ${criteriaIds}`;
   }
 
-  private static formatCategorizedCriteriaDescription(categories: any[]): string {
+  private static formatCategorizedCriteriaDescription(categories: any[], language: 'zh' | 'en' = 'en'): string {
+    const isZh = language === 'zh';
     const allCriteriaIds: string[] = [];
 
     const categoriesList = categories
@@ -222,25 +281,43 @@ export class GeminiPrompts {
             allCriteriaIds.push(criterion.id);
 
             const levelsText = criterion.levels
-              ? criterion.levels.map((level: any) => `${level.score}分 - ${level.description}`).join('；')
+              ? criterion.levels
+                  .map((level: any) =>
+                    isZh ? `${level.score}分 - ${level.description}` : `${level.score} points - ${level.description}`
+                  )
+                  .join(isZh ? '；' : '; ')
               : '';
 
             return this.dedent(
-              `
+              isZh
+                ? `
                     ${criterionNumber} **${criterion.name}** (${criterion.maxScore || 0} 分)
                        ID: "${criterion.id}" ← 請在 JSON 中使用此 ID
                        名稱: "${criterion.name}" ← 請在 JSON 的 name 欄位中使用此名稱
                        說明：${criterion.description || '無說明'}
                        ${levelsText ? `評分等級：${levelsText}` : ''}
                 `
+                : `
+                    ${criterionNumber} **${criterion.name}** (${criterion.maxScore || 0} points)
+                       ID: "${criterion.id}" ← Use this exact ID in JSON
+                       Name: "${criterion.name}" ← Use this exact name in JSON.name
+                       Description: ${criterion.description || 'No description'}
+                       ${levelsText ? `Scoring levels: ${levelsText}` : ''}
+                `
             ).trim();
           })
           .join('\n\n   ');
 
         return this.dedent(
-          `
+          isZh
+            ? `
                 ### ${categoryNumber}. ${category.name} 類別
                 
+                ${criteriaList}
+            `
+            : `
+                ### ${categoryNumber}. ${category.name} Category
+
                 ${criteriaList}
             `
         ).trim();
@@ -249,19 +326,26 @@ export class GeminiPrompts {
 
     const criteriaIds = allCriteriaIds.map((id) => `"${id}"`).join(', ');
 
-    return `${categoriesList}
+    return isZh
+      ? `${categoriesList}
 
 **重要：** 在 JSON 回應中，"criteriaId" 必須完全匹配上述 ID：${criteriaIds}
 
-**評分要求：** 請按照類別結構理解評分標準的邏輯分組，這將有助於提供更有組織性的評分分析。`;
+**評分要求：** 請按照類別結構理解評分標準的邏輯分組，這將有助於提供更有組織性的評分分析。`
+      : `${categoriesList}
+
+**Important:** In the JSON response, "criteriaId" must exactly match one of these IDs: ${criteriaIds}
+
+**Scoring requirement:** Follow the category structure so your analysis stays well-organized.`;
   }
 
 
-  private static getSimpleOutputFormat(_maxScore: number): string {
+  private static getSimpleOutputFormat(language: 'zh' | 'en' = 'en'): string {
     // Linus Principle: Single Responsibility
     // The JSON Schema in gemini-simple.server.ts enforces structure (minItems, maxItems, required fields)
     // This prompt only guides content quality, not structure
-    return this.dedent(`
+    return this.dedent(language === 'zh'
+      ? `
             ## 輸出要求
 
             提供詳細的 JSON 格式評分反饋。每個評分項目必須包含：
@@ -299,6 +383,45 @@ export class GeminiPrompts {
             - 回應為有效的 JSON，可直接解析
             - 為每個評分項目提供詳細 feedback
             - 每個 breakdown 項目都包含完整的 criteriaId、name、score、feedback 四個欄位
+        `
+      : `
+            ## Output Requirements
+
+            Provide detailed grading feedback in valid JSON format. Each scoring item must include:
+
+            **JSON Structure Requirements:**
+            - Every item in the breakdown array must include: criteriaId, name, score, feedback
+            - Ensure the name field exactly matches the rubric criterion name above
+
+            **Feedback Content Requirements:**
+
+            1. **Evidence and analysis** (roughly 150-200 words)
+               - Cite 2-3 specific quotes from student text using quotation marks
+               - Explain how each quote relates to the rubric
+
+            2. **Strength explanation** (roughly 100-150 words)
+               - Clearly identify what is done particularly well
+               - Explain why that performance is strong
+
+            3. **Improvement suggestions** (roughly 100-150 words)
+               - Identify specific weak areas
+               - Provide 1-2 actionable next steps
+
+            4. **Scoring rationale** (roughly 50-100 words)
+               - Summarize overall performance for the criterion
+               - Explain why this score is appropriate
+
+            5. **Sparring Questions**
+               - Focus on the 1-2 weakest or most debatable criteria
+               - Ask one challenging question that prompts reflection
+               - Do not provide the direct answer; point out logic gaps or evidence weaknesses
+               - Prefer strategies like evidence_check, logic_gap, counter_argument
+
+            **Ensure the following:**
+            - All strings use double quotes
+            - Response is valid JSON and directly parseable
+            - Provide detailed feedback for every criterion
+            - Every breakdown item includes criteriaId, name, score, and feedback
         `);
   }
 

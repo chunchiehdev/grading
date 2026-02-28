@@ -47,7 +47,9 @@
     "details": "Details",
     "submitted": "Submitted",
     "awaitingGrading": "Awaiting Grading",
-    "noDueDate": "No Due Date"
+    "noDueDate": "No Due Date",
+    "wholeCourse": "Whole Course",
+    "outOf100": "/ 100"
   },
   "status": {
     "graded": "Graded",
@@ -125,7 +127,6 @@
     "info": "Info",
     "results": "Results",
     "quickGradingMode": "Quick Grading Mode",
-    "reselectFile": "Reselect File",
     "grading": "Grading...",
     "startGrading": "Start Grading",
     "reGrade": "Re-grade",

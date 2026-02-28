@@ -24,7 +24,7 @@ export const CompactFileUpload = ({
   acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt'],
   onUploadComplete,
 }: FileUploadProps) => {
-  const { t } = useTranslation('grading');
+  const { t, i18n } = useTranslation('grading');
   const [isDragging, setIsDragging] = useState(false);
 
   const {
@@ -78,12 +78,11 @@ export const CompactFileUpload = ({
         await uploadFiles(newFiles);
       } catch (err: any) {
         const errorMsg = err?.message || t('grading:fileUpload.errors.uploadFailed');
-        // Check if error message is an i18n key (starts with namespace)
-        const displayMsg = errorMsg.includes(':') ? t(errorMsg) : errorMsg;
+        const displayMsg = typeof errorMsg === 'string' && i18n.exists(errorMsg) ? t(errorMsg) : errorMsg;
         toast.error(displayMsg);
       }
     },
-    [uploadFiles, maxFiles, validateFile, t]
+    [uploadFiles, maxFiles, validateFile, t, i18n]
   );
 
   const handleDrop = useCallback(

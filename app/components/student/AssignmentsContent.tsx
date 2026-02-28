@@ -58,7 +58,7 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
               )}
               {!assignment.class && (
                 <span className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
-                  全課程
+                  {t('assignmentCard.wholeCourse')}
                 </span>
               )}
             </div>
@@ -69,7 +69,7 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
                 <span className="text-base sm:text-lg font-semibold text-accent-foreground">
                   {submission?.finalScore.toFixed(1)}
                 </span>
-                <span className="text-xs sm:text-sm text-muted-foreground">/ 100</span>
+                <span className="text-xs sm:text-sm text-muted-foreground">{t('assignmentCard.outOf100')}</span>
               </div>
             ) : hasSubmission ? (
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2 min-w-0">

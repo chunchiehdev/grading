@@ -422,7 +422,7 @@ export async function updateGradingSessionProgress(
 export async function startGradingSession(
   sessionId: string,
   userId: string,
-  userLanguage: 'zh' | 'en' = 'zh',
+  userLanguage: 'zh' | 'en' = 'en',
   useDirectGrading: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   try {

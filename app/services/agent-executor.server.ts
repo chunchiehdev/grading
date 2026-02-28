@@ -54,6 +54,72 @@ interface GradingContext {
   userLanguage?: string;
 }
 
+interface GradingLocaleText {
+  noSpecificFeedback: string;
+  priorityLabel: string;
+  strengthsLabel: string;
+  improvementsLabel: string;
+  encouragementExcellent: string;
+  encouragementGood: string;
+  encouragementFair: string;
+  encouragementNeedsWork: string;
+  defaultOverallGood: string;
+  defaultOverallNeedsWork: string;
+  gradingCompletedFallback: string;
+  totalScorePrefix: string;
+  fallbackInterrupted: string;
+  unableToAnalyze: string;
+  pleaseResubmit: string;
+  gradingInterrupted: string;
+  analysisInterrupted: string;
+}
+
+function getGradingLocaleText(userLanguage?: string): GradingLocaleText {
+  const isZh = (userLanguage || 'zh-TW').startsWith('zh');
+
+  if (isZh) {
+    return {
+      noSpecificFeedback: '無具體回饋',
+      priorityLabel: '優先改進',
+      strengthsLabel: '優點',
+      improvementsLabel: '改進建議',
+      encouragementExcellent: '表現優異！繼續保持！',
+      encouragementGood: '整體表現良好，仍有進步空間。',
+      encouragementFair: '表現尚可，建議加強以下方面的學習。',
+      encouragementNeedsWork: '建議重新檢視作業要求，並針對評分標準逐項改進。',
+      defaultOverallGood: '整體表現良好，仍有進步空間。',
+      defaultOverallNeedsWork: '建議重新檢視作業要求，並針對評分標準逐項改進。',
+      gradingCompletedFallback: '評分已完成，請參閱各項目的回饋。',
+      totalScorePrefix: '總分',
+      fallbackInterrupted: '評分過程未正常完成（3-Step Process Interrupted）。請重新嘗試。',
+      unableToAnalyze: '無法分析',
+      pleaseResubmit: '請重新提交',
+      gradingInterrupted: '評分中斷',
+      analysisInterrupted: '評分中斷',
+    };
+  }
+
+  return {
+    noSpecificFeedback: 'No specific feedback provided',
+    priorityLabel: 'Top Priority',
+    strengthsLabel: 'Strengths',
+    improvementsLabel: 'Suggestions for Improvement',
+    encouragementExcellent: 'Excellent work. Keep it up!',
+    encouragementGood: 'Overall performance is good, with room to improve.',
+    encouragementFair: 'The work is acceptable, but targeted improvement is recommended.',
+    encouragementNeedsWork: 'Please review the assignment requirements and improve each rubric area step by step.',
+    defaultOverallGood: 'Overall performance is good, with room to improve.',
+    defaultOverallNeedsWork: 'Please review the assignment requirements and improve each rubric area step by step.',
+    gradingCompletedFallback: 'Grading is complete. Please review the feedback for each criterion.',
+    totalScorePrefix: 'Total Score',
+    fallbackInterrupted: 'Grading did not complete successfully (3-Step Process Interrupted). Please try again.',
+    unableToAnalyze: 'Unable to analyze',
+    pleaseResubmit: 'Please resubmit',
+    gradingInterrupted: 'Grading interrupted',
+    analysisInterrupted: 'Grading interrupted',
+  };
+}
+
 // ============================================================================
 // HELPER: Optimize Rubric with LLM
 // ============================================================================
@@ -61,11 +127,14 @@ interface GradingContext {
 async function optimizeRubricWithLLM(
   model: any,
   rubricName: string,
-  rawCriteria: ParsedCriterion[]
+  rawCriteria: ParsedCriterion[],
+  userLanguage?: string
 ): Promise<ParsedCriterion[]> {
   logger.info('[Agent] Optimizing rubric...');
+  const isZh = (userLanguage || 'zh-TW').startsWith('zh');
 
-  const prompt = `
+  const prompt = isZh
+    ? `
 你是一位專業的教育評量專家。優化以下評分標準，使其對 AI 評分助教更具體、客觀且可執行。
 
 原始評分標準名稱：${rubricName}
@@ -76,6 +145,18 @@ async function optimizeRubricWithLLM(
 3. 優化等級：更具體區分不同分數段的差異
 
 輸入：${JSON.stringify(rawCriteria, null, 2)}
+`
+    : `
+You are an expert in educational assessment. Improve the following rubric to make it more specific, objective, and actionable for AI grading assistants.
+
+Original rubric name: ${rubricName}
+
+Requirements:
+1. Preserve ID, name, and max score.
+2. Expand descriptions with concrete observable indicators and expected evidence.
+3. Refine scoring levels to better differentiate performance bands.
+
+Input: ${JSON.stringify(rawCriteria, null, 2)}
 `;
 
   try {
@@ -142,16 +223,25 @@ You are proficient in Rubric-Based Assessment, SOLO Taxonomy, Bloom's Taxonomy, 
 Your grading style is rigorous yet constructive, emphasizing evidence-based assessment.`;
 
   const assignmentInfo = ctx.assignmentTitle
-    ? `
+    ? isZh
+      ? `
 ## 作業資訊
 - 標題：${ctx.assignmentTitle}
 - 說明：${ctx.assignmentDescription || '無'}
 - 檔案：${ctx.fileName}
 `
-    : `## 檔案：${ctx.fileName}`;
+      : `
+## Assignment Info
+- Title: ${ctx.assignmentTitle}
+- Description: ${ctx.assignmentDescription || 'N/A'}
+- File: ${ctx.fileName}
+`
+    : isZh
+      ? `## 檔案：${ctx.fileName}`
+      : `## File: ${ctx.fileName}`;
 
-  // Simplified rubric info (removed duplicate SOLO definitions since mentioned in baseRole)
-  const rubricInfo = `
+  const rubricInfo = isZh
+    ? `
 ## 評分標準 (Rubric)：${ctx.rubricName}
 ${ctx.criteria.map((c, i) => `${i + 1}. **${c.name}** (${c.maxScore}分): ${c.description}`).join('\n')}
 
@@ -172,12 +262,36 @@ Prestructural（離題）→ Unistructural（單點）→ Multistructural（多�
 
 ### 證據運用
 - **Specificity（具體性）**
-- **Elaboration（闘述深度）**
+- **Elaboration（闡述深度）**
 - **Evidence-Claim Alignment（證據-論點對應）**
+`
+    : `
+## Rubric: ${ctx.rubricName}
+${ctx.criteria.map((c, i) => `${i + 1}. **${c.name}** (${c.maxScore} points): ${c.description}`).join('\n')}
+
+## Assessment Dimensions
+
+### Structure
+- **Cohesion**: use of connectors and references
+- **Coherence**: paragraph logic and flow
+- **Discourse Markers**: transitions and signposting
+
+### Language Use
+- **Syntactic Complexity**: sentence variety and control
+- **Lexical Diversity**: precision and richness of vocabulary
+- **Mechanics**: punctuation and formatting
+
+### Depth of Understanding (SOLO Taxonomy)
+Prestructural -> Unistructural -> Multistructural -> Relational -> Extended Abstract
+
+### Use of Evidence
+- **Specificity**
+- **Elaboration**
+- **Evidence-Claim Alignment**
 `;
 
-  // Consolidated core instructions (merged assessment principles + generate_feedback fields)
-  const coreInstructions = `
+  const coreInstructions = isZh
+    ? `
 ## 評量原則
 
 1. **Evidence-Based Scoring**：引用原文證據（用「」標示），每個分數需 Justification
@@ -247,10 +361,58 @@ Revision Strategy：引用 Sherry Turkle「Alone Together」概念
 | reasoning, justification | 教師 | 專業術語 |
 | messageToStudent, analysis | 學生 | 口語化、像老師說話 |
 | sparringQuestions.question | 學生 | 挑戰但友善 |
+`
+    : `
+## Assessment Principles
+
+1. **Evidence-Based Scoring**: cite original text evidence and justify each score.
+2. **Criterion-Referenced**: score against rubric criteria; reserve full marks for truly exemplary work.
+3. **Diagnostic Feedback**: include error analysis and a practical revision strategy.
+4. **Authentic Context**: this is a real student submission. Grade directly.
+5. **Concise**: avoid repetition and keep feedback precise.
+
+## generate_feedback Fields
+
+### overallFeedback [REQUIRED]
+Provide 2-4 warm mentor-like sentences covering overall performance, major strength, priority improvement, and encouragement.
+
+### reasoning (teacher-facing)
+Provide professional grading rationale with evidence and revision strategy.
+
+### student-facing fields
+- **messageToStudent**: warm and supportive
+- **topPriority**: one highest-priority improvement
+- **encouragement**: one genuinely positive point
+
+### criteriaScores (each criterion)
+- criteriaId, name, score, maxScore
+- evidence: key quote (max 50 words)
+- analysis: student-friendly recommendation
+- justification: teacher-facing scoring rationale
+
+### overall summary
+- overallObservation, strengths (2-3), improvements (2-3)
+
+### sparringQuestions [REQUIRED, 3 items]
+Create reflection-promoting questions (not just correction prompts).
+
+**Constraints**:
+- At least 2 questions must be L3+ (logic_gap / counter_argument / metacognitive / conceptual)
+- Avoid shallow clarification-only prompts
+
+**provocation_strategy options**: evidence_check | logic_gap | counter_argument | warrant_probe | metacognitive | conceptual
+
+## Tone Matrix
+
+| Field | Audience | Tone |
+|-----|-----|-----|
+| reasoning, justification | Teacher | Professional |
+| messageToStudent, analysis | Student | Conversational and supportive |
+| sparringQuestions.question | Student | Challenging but friendly |
 `;
 
-  // Simplified workflow (merged toolGuidance + mandatoryThinkingInstruction)
-  const workflowInstructions = `
+  const workflowInstructions = isZh
+    ? `
 ## 評分流程（ReAct 模式）
 
 ### 核心原則：Think First, Act Later
@@ -274,15 +436,33 @@ Revision Strategy：引用 Sherry Turkle「Alone Together」概念
 3. **generate_feedback**：提煉完整評分（含 3 個 sparringQuestions）
 
 **重要**：必須先輸出文字再呼叫工具。直接呼叫工具是錯誤的。
+`
+    : `
+## Grading Workflow (ReAct)
+
+1. Output plain-text analysis first.
+2. Call tools after analysis.
+
+Do not put JSON in plain-text thinking output.
+Execution order: think -> calculate_confidence -> generate_feedback.
 `;
 
-  const relevanceCheck = `
+  const relevanceCheck = isZh
+    ? `
 ## 任務相關性檢查
 
 如果判定為離題回應（Off-Topic）：
 1. reasoning 使用：「此回應為 Prestructural Level - 完全離題」
 2. 所有評分項目給 0 分
 3. 說明 Task Alignment 問題
+`
+    : `
+## Off-topic Check
+
+If the submission is off-topic:
+1. Use reasoning: "This response is Prestructural level and off-topic."
+2. Assign 0 to all rubric criteria.
+3. Explain the task-alignment issue.
 `;
 
   if (isDirectMode) {
@@ -296,8 +476,13 @@ Revision Strategy：引用 Sherry Turkle「Alone Together」概念
 // FALLBACK: Build result from steps when generate_feedback wasn't called
 // ============================================================================
 
-function buildFallbackResultFromSteps(steps: AgentStep[], criteria: ParsedCriterion[]): any | null {
+function buildFallbackResultFromSteps(
+  steps: AgentStep[],
+  criteria: ParsedCriterion[],
+  userLanguage?: string
+): any | null {
   logger.warn('[Agent Fallback] 3-Step Process interrupted. No intermediate scores available.');
+  const localeText = getGradingLocaleText(userLanguage);
 
   // In the new 3-step process, scores are only generated in the final step.
   // If we are here, it means generate_feedback was not called or failed.
@@ -305,16 +490,16 @@ function buildFallbackResultFromSteps(steps: AgentStep[], criteria: ParsedCriter
   return {
     totalScore: 0,
     maxScore: criteria.reduce((sum, c) => sum + c.maxScore, 0),
-    overallFeedback: '評分過程未正常完成（3-Step Process Interrupted）。請重新嘗試。',
-    strengths: ['無法分析'],
-    improvements: ['請重新提交'],
+    overallFeedback: localeText.fallbackInterrupted,
+    strengths: [localeText.unableToAnalyze],
+    improvements: [localeText.pleaseResubmit],
     criteriaScores: criteria.map((c) => ({
       criteriaId: c.criteriaId,
       name: c.name,
       score: 0,
       maxScore: c.maxScore,
-      evidence: '評分中斷',
-      analysis: '評分中斷',
+      evidence: localeText.gradingInterrupted,
+      analysis: localeText.analysisInterrupted,
       justification: 'Process interrupted before generate_feedback',
     })),
     reasoning: 'The agent failed to complete the grading process.',
@@ -354,34 +539,34 @@ function createStopCondition(maxSteps: number) {
 // ============================================================================
 
 const DirectGradingSchema = z.object({
-  reasoning: z.string().describe('完整的評分推理過程，包含對每個項目的分析'),
-  messageToStudent: z.string().describe('給學生的友善回饋，語氣溫暖'),
-  topPriority: z.string().describe('學生最需要改進的一件事'),
-  encouragement: z.string().describe('給學生的鼓勵'),
+  reasoning: z.string().describe('Complete grading rationale with criterion-level analysis'),
+  messageToStudent: z.string().describe('Student-facing feedback in a warm and supportive tone'),
+  topPriority: z.string().describe('The single highest-priority improvement for the student'),
+  encouragement: z.string().describe('A short encouraging message for the student'),
   criteriaScores: z.array(
     z.object({
       criteriaId: z.string(),
       name: z.string(),
-      score: z.number().describe('分數'),
+      score: z.number().describe('Score value'),
       maxScore: z.number(),
-      evidence: z.string().describe('原文證據'),
-      analysis: z.string().optional().describe('給學生的建議'),
-      justification: z.string().optional().describe('給教師的理由'),
+      evidence: z.string().describe('Direct evidence quote from the submission'),
+      analysis: z.string().optional().describe('Student-facing suggestion'),
+      justification: z.string().optional().describe('Teacher-facing scoring justification'),
     })
   ),
-  overallObservation: z.string().describe('整體觀察'),
-  strengths: z.array(z.string()).optional().describe('優點列表'),
-  improvements: z.array(z.string()).optional().describe('改進建議列表'),
+  overallObservation: z.string().describe('Overall observation'),
+  strengths: z.array(z.string()).optional().describe('List of strengths'),
+  improvements: z.array(z.string()).optional().describe('List of improvement suggestions'),
   // Sparring Questions for Productive Friction - REQUIRED!
   sparringQuestions: z.array(
     z.object({
-      related_rubric_id: z.string().describe('對應的評分維度 ID'),
-      target_quote: z.string().describe('學生文章中的具體引文'),
-      provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'warrant_probe', 'metacognitive', 'conceptual']).describe('反思策略：L2 (warrant_probe, evidence_check) 或 L3+ (logic_gap, counter_argument, metacognitive, conceptual)'),
-      question: z.string().describe('促進反思的問題'),
-      ai_hidden_reasoning: z.string().describe('AI 的隱藏推理'),
+      related_rubric_id: z.string().describe('Related rubric criterion ID'),
+      target_quote: z.string().describe('Specific quote from the student submission'),
+      provocation_strategy: z.enum(['evidence_check', 'logic_gap', 'counter_argument', 'warrant_probe', 'metacognitive', 'conceptual']).describe('Reflection strategy: L2 (warrant_probe, evidence_check) or L3+ (logic_gap, counter_argument, metacognitive, conceptual)'),
+      question: z.string().describe('Reflection-promoting question for the student'),
+      ai_hidden_reasoning: z.string().describe('Internal reasoning for question design'),
     })
-  ).min(1).describe('【必填】針對學生作業生成促進反思的對練問題（至少 3 個 L3+ 層級）'),
+  ).min(1).describe('[Required] Reflection sparring questions for the student (minimum 3, with L3+ depth)'),
 });
 
 // ============================================================================
@@ -393,6 +578,8 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
   const steps: AgentStep[] = [];
   const healthTracker = getKeyHealthTracker();
   let selectedKeyId: string | null = null;
+  const isZh = (params.userLanguage || 'zh-TW').startsWith('zh');
+  const localeText = getGradingLocaleText(params.userLanguage);
 
   try {
     logger.info({
@@ -425,7 +612,12 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     // 2. Optimize Rubric
     let effectiveCriteria = params.criteria;
     try {
-      effectiveCriteria = await optimizeRubricWithLLM(model, params.rubricName, params.criteria);
+      effectiveCriteria = await optimizeRubricWithLLM(
+        model,
+        params.rubricName,
+        params.criteria,
+        params.userLanguage
+      );
     } catch (e) {
       logger.warn({ err: e }, '[Agent] Rubric optimization failed, using original');
     }
@@ -447,14 +639,23 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     if (params.useDirectGrading) {
        logger.info('[Agent] Executing Direct Grading Mode (Manual Branch)');
        const systemPrompt = buildGradingSystemPrompt(ctx, true);
-       const userMessage = `請評分以下學生作業：
- 
+       const userMessage = isZh
+         ? `請評分以下學生作業：
+
      ${params.assignmentTitle ? `【作業標題】${params.assignmentTitle}` : ''}
      ${params.assignmentDescription ? `【作業說明】${params.assignmentDescription}` : ''}
      【學生作業內容】
      ${params.content}
- 
-     請直接輸出評分結果 JSON。`;
+
+     請直接輸出評分結果 JSON。`
+         : `Please grade the following student submission:
+
+     ${params.assignmentTitle ? `[Assignment Title] ${params.assignmentTitle}` : ''}
+     ${params.assignmentDescription ? `[Assignment Description] ${params.assignmentDescription}` : ''}
+     [Student Submission]
+     ${params.content}
+
+     Please output the grading result in JSON directly.`;
  
        try {
          const { object: result, usage, providerMetadata } = await generateObject({
@@ -570,12 +771,21 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
     // 5. Execute Agent (ToolLoopAgent)
     
-    const userMessage = `請評分以下學生作業：
+    const userMessage = isZh
+      ? `請評分以下學生作業：
 
     ${params.assignmentTitle ? `【作業標題】${params.assignmentTitle}` : ''}
     ${params.assignmentDescription ? `【作業說明】${params.assignmentDescription}` : ''}
     【學生作業內容】
     （注意：這是真實學生的提交，請直接評分，不要假設它是範例）
+    ${params.content}
+    `
+      : `Please grade the following student submission:
+
+    ${params.assignmentTitle ? `[Assignment Title] ${params.assignmentTitle}` : ''}
+    ${params.assignmentDescription ? `[Assignment Description] ${params.assignmentDescription}` : ''}
+    [Student Submission]
+    (Note: This is a real student submission. Grade directly and do not treat it as a hypothetical sample.)
     ${params.content}
     `;
 
@@ -758,31 +968,31 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
               criteriaId: c.criteriaId,
               name: c.name,
               score: c.score,
-              feedback: c.analysis || c.justification || c.evidence || '無具體回饋',
+              feedback: c.analysis || c.justification || c.evidence || localeText.noSpecificFeedback,
             }));
             
             // Build overallFeedback from multiple sources (must match agent-tools execute logic)
             // Schema 必填是 overallFeedback，LLM 常只填它而沒填 messageToStudent/overallObservation
             let overallFeedback = (args.overallFeedback || args.messageToStudent || args.overallObservation || '').trim();
             if (args.topPriority) {
-              overallFeedback += `\n\n**優先改進：**\n${args.topPriority}`;
+              overallFeedback += `\n\n**${localeText.priorityLabel}:**\n${args.topPriority}`;
             }
             if (args.strengths?.length > 0) {
-              overallFeedback += `\n\n**優點：**\n${args.strengths.map((s: string) => `- ${s}`).join('\n')}`;
+              overallFeedback += `\n\n**${localeText.strengthsLabel}:**\n${args.strengths.map((s: string) => `- ${s}`).join('\n')}`;
             }
             if (args.improvements?.length > 0) {
-              overallFeedback += `\n\n**改進建議：**\n${args.improvements.map((i: string) => `- ${i}`).join('\n')}`;
+              overallFeedback += `\n\n**${localeText.improvementsLabel}:**\n${args.improvements.map((i: string) => `- ${i}`).join('\n')}`;
             }
             if (args.encouragement?.trim()) {
               overallFeedback += `\n\n${args.encouragement.trim()}`;
             } else {
-              if (percentage >= 90) overallFeedback += '\n\n表現優異！繼續保持！';
-              else if (percentage >= 70) overallFeedback += '\n\n整體表現良好，仍有進步空間。';
-              else if (percentage >= 50) overallFeedback += '\n\n表現尚可，建議加強以下方面的學習。';
-              else overallFeedback += '\n\n建議重新檢視作業要求，並針對評分標準逐項改進。';
+              if (percentage >= 90) overallFeedback += `\n\n${localeText.encouragementExcellent}`;
+              else if (percentage >= 70) overallFeedback += `\n\n${localeText.encouragementGood}`;
+              else if (percentage >= 50) overallFeedback += `\n\n${localeText.encouragementFair}`;
+              else overallFeedback += `\n\n${localeText.encouragementNeedsWork}`;
             }
             const finalOverallFeedback = overallFeedback.trim() ||
-              (percentage >= 70 ? '整體表現良好，仍有進步空間。' : '建議重新檢視作業要求，並針對評分標準逐項改進。');
+              (percentage >= 70 ? localeText.defaultOverallGood : localeText.defaultOverallNeedsWork);
 
             // Only set as fallback if we don't already have a result
             // tool-result will override this if it arrives
@@ -794,7 +1004,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
                 totalScore,
                 maxScore,
                 percentage: Math.round(percentage),
-                summary: `總分：${totalScore}/${maxScore} (${percentage.toFixed(1)}%)`,
+                summary: `${localeText.totalScorePrefix}: ${totalScore}/${maxScore} (${percentage.toFixed(1)}%)`,
                 sparringQuestions: args.sparringQuestions || [],
                 // Mark as early capture for debugging
                 _source: 'early_capture',
@@ -908,7 +1118,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
     if (!finalResult) {
       logger.warn('[Agent] ❌ No result captured (neither tool-result nor early-capture), building fallback...');
-      finalResult = buildFallbackResultFromSteps(steps, params.criteria);
+      finalResult = buildFallbackResultFromSteps(steps, params.criteria, params.userLanguage);
     } else if (finalResult._source === 'early_capture') {
       logger.info('[Agent] ⚠️ Using early capture result (tool-result was not received)');
     } else {
@@ -936,9 +1146,9 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         finalResult.overallObservation?.trim() ||
         (finalResult.totalScore != null && finalResult.maxScore != null && finalResult.maxScore > 0
           ? (finalResult.totalScore / finalResult.maxScore) >= 0.7
-            ? '整體表現良好，仍有進步空間。'
-            : '建議重新檢視作業要求，並針對評分標準逐項改進。'
-          : '評分已完成，請參閱各項目的回饋。');
+            ? localeText.defaultOverallGood
+            : localeText.defaultOverallNeedsWork
+          : localeText.gradingCompletedFallback);
     }
 
     logger.info({

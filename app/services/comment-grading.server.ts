@@ -49,7 +49,7 @@ export async function gradeComment(
   }
 ): Promise<GradeCommentResult> {
   const startTime = Date.now();
-  const userLanguage = options?.userLanguage || 'zh';
+  const userLanguage = options?.userLanguage || 'en';
 
   try {
     logger.info(`📝 [Comment Grading] Starting grading for comment ${commentId}`);

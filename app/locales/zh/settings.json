@@ -23,5 +23,33 @@
     "totalAssignments": "總作業數",
     "coursesList": "我的課程",
     "noCourses": "尚未建立任何課程"
+  },
+  "aiModel": {
+    "title": "AI 模型設定",
+    "description": "選擇評分與對話輔助時要使用的 AI 模型提供者。",
+    "providers": {
+      "auto": {
+        "label": "韌性模式（自動）",
+        "description": "優先使用本地模型；不可用時自動切換 Gemini。"
+      },
+      "local": {
+        "label": "本地模型（vLLM）",
+        "description": "強制使用本地模型，隱私優先。"
+      },
+      "gemini": {
+        "label": "Gemini 2.5 Flash",
+        "description": "強制使用 Google 雲端模型，快速且穩定。"
+      }
+    },
+    "actions": {
+      "saving": "儲存中...",
+      "savePreferences": "儲存偏好設定"
+    },
+    "messages": {
+      "saveSuccess": "AI 模型偏好已成功儲存"
+    },
+    "errors": {
+      "invalidProvider": "無效的模型提供者"
+    }
   }
 }

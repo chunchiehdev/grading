@@ -211,7 +211,7 @@ class GradingLogger {
     sessionId: string,
     prompt: string,
     estimatedTokens: number,
-    language: string = 'zh'
+    language: string = 'en'
   ): void {
     const log = this.sessionLogs.get(sessionId);
     if (log) {

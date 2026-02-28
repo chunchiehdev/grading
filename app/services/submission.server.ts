@@ -507,7 +507,7 @@ export async function listSubmissionsByAssignment(assignmentId: string, teacherI
     const submissions = await db.submission.findMany({
       where: {
         assignmentAreaId: assignmentId,
-        isLatest: true, // Only show latest versions
+        status: { not: 'DRAFT' }, // Only include actual submissions
         isDeleted: false, // Exclude deleted submissions
       },
       include: {
@@ -536,10 +536,19 @@ export async function listSubmissionsByAssignment(assignmentId: string, teacherI
           },
         },
       },
-      orderBy: { uploadedAt: 'desc' },
+      orderBy: [{ uploadedAt: 'desc' }, { version: 'desc' }],
     });
 
-    return submissions;
+    // Keep the latest non-draft submission per student.
+    // This avoids empty teacher lists when the absolute latest version is a DRAFT.
+    const latestByStudent = new Map<string, SubmissionInfo>();
+    for (const submission of submissions) {
+      if (!latestByStudent.has(submission.studentId)) {
+        latestByStudent.set(submission.studentId, submission);
+      }
+    }
+
+    return Array.from(latestByStudent.values());
   } catch (error) {
     console.error('❌ Error fetching assignment submissions:', error);
     return [];
@@ -656,8 +665,7 @@ export async function getStudentSubmissions(studentId: string): Promise<Submissi
     const submissions = await db.submission.findMany({
       where: {
         studentId,
-        status: { not: 'DRAFT' }, // Exclude draft submissions from dashboard
-        isLatest: true, // Only show latest versions
+        status: { not: 'DRAFT' }, // Only include actual submissions
         isDeleted: false, // Exclude deleted submissions
       },
       include: {
@@ -677,10 +685,19 @@ export async function getStudentSubmissions(studentId: string): Promise<Submissi
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ uploadedAt: 'desc' }, { version: 'desc' }],
     });
 
-    return submissions;
+    // Keep the latest non-draft submission per assignment area.
+    // This avoids empty lists when latest version is a DRAFT resubmission.
+    const latestByAssignment = new Map<string, SubmissionInfo>();
+    for (const submission of submissions) {
+      if (!latestByAssignment.has(submission.assignmentAreaId)) {
+        latestByAssignment.set(submission.assignmentAreaId, submission);
+      }
+    }
+
+    return Array.from(latestByAssignment.values());
   } catch (error) {
     console.error('❌ Error fetching student submissions:', error);
     return [];
@@ -697,8 +714,7 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
     const submissions = await db.submission.findMany({
       where: {
         studentId,
-        status: { not: 'DRAFT' }, // Exclude draft submissions from dashboard
-        isLatest: true, // Only show latest version
+        status: { not: 'DRAFT' }, // Only include actual submissions
         isDeleted: false, // Exclude deleted submissions
       },
       include: {
@@ -718,9 +734,18 @@ export async function getSubmissionsByStudentId(studentId: string): Promise<Subm
           },
         },
       },
-      orderBy: { uploadedAt: 'desc' },
+      orderBy: [{ uploadedAt: 'desc' }, { version: 'desc' }],
     });
-    return submissions;
+
+    // Keep the latest non-draft submission per assignment area.
+    const latestByAssignment = new Map<string, SubmissionInfo>();
+    for (const submission of submissions) {
+      if (!latestByAssignment.has(submission.assignmentAreaId)) {
+        latestByAssignment.set(submission.assignmentAreaId, submission);
+      }
+    }
+
+    return Array.from(latestByAssignment.values());
   } catch (error) {
     console.error('❌ Error fetching submissions by student:', error);
     return [];
@@ -1230,7 +1255,6 @@ export async function getRecentSubmissionsForTeacher(teacherId: string, limit?: 
           },
         },
         status: { not: 'DRAFT' }, // Exclude draft submissions - students haven't submitted yet
-        isLatest: true, // Only show latest versions
         isDeleted: false, // Exclude deleted submissions
       },
       include: {
@@ -1258,11 +1282,21 @@ export async function getRecentSubmissionsForTeacher(teacherId: string, limit?: 
           },
         },
       },
-      orderBy: { uploadedAt: 'desc' },
-      ...(limit ? { take: limit } : {}),
+      orderBy: [{ uploadedAt: 'desc' }, { version: 'desc' }],
     });
 
-    return submissions;
+    // Keep only the latest non-draft submission per (student, assignment).
+    // This prevents empty dashboard results when the absolute latest version is a DRAFT.
+    const latestByStudentAssignment = new Map<string, SubmissionInfo>();
+    for (const submission of submissions) {
+      const key = `${submission.studentId}:${submission.assignmentAreaId}`;
+      if (!latestByStudentAssignment.has(key)) {
+        latestByStudentAssignment.set(key, submission);
+      }
+    }
+
+    const dedupedSubmissions = Array.from(latestByStudentAssignment.values());
+    return limit ? dedupedSubmissions.slice(0, limit) : dedupedSubmissions;
   } catch (error) {
     console.error('❌ Error fetching recent submissions for teacher:', error);
     return [];

@@ -24,10 +24,11 @@ export async function processGradingResult(
   resultId: string,
   _userId: string,
   sessionId: string,
-  userLanguage: 'zh' | 'en' = 'zh',
+  userLanguage: 'zh' | 'en' = 'en',
   useDirectGrading: boolean = false
 ): Promise<{ success: boolean; error?: string }> {
   const startTime = Date.now();
+  const isZh = userLanguage === 'zh';
   const gradingLogger = getGradingLogger();
   gradingLogger.initializeSessionLog(sessionId, resultId);
 
@@ -374,13 +375,17 @@ export async function processGradingResult(
         
         let confidenceHeader = '';
         if (confidenceInfo?.confidenceScore !== undefined) {
-          confidenceHeader = `**評分信心度：${(confidenceInfo.confidenceScore * 100).toFixed(0)}%**\n${confidenceInfo.reason || ''}\n\n`;
+          confidenceHeader = isZh
+            ? `**評分信心度：${(confidenceInfo.confidenceScore * 100).toFixed(0)}%**\n${confidenceInfo.reason || ''}\n\n`
+            : `**Grading Confidence: ${(confidenceInfo.confidenceScore * 100).toFixed(0)}%**\n${confidenceInfo.reason || ''}\n\n`;
           gradingRationale = confidenceHeader + gradingRationale;
         }
 
         // thoughtSummary should ONLY contain confidence info, not the full thinking process
         // This prevents duplication when displaying thinkingProcess and thoughtSummary together
-        thoughtSummary = confidenceHeader.trim() || `評分已完成。總分：${totalScore}/${maxScore}`;
+        thoughtSummary = confidenceHeader.trim() || (isZh
+          ? `評分已完成。總分：${totalScore}/${maxScore}`
+          : `Grading complete. Total score: ${totalScore}/${maxScore}`);
 
 
         gradingResponse = {
@@ -532,15 +537,17 @@ export async function processGradingResult(
         if (Array.isArray(breakdown) && breakdown.length > 0) {
           overallFeedbackStr = breakdown
             .map((item: any, idx: number) => {
-              const name = item.name || `項目 ${idx + 1}`;
+              const name = item.name || (isZh ? `項目 ${idx + 1}` : `Item ${idx + 1}`);
               const fb = item.feedback || '';
-              return fb ? `${idx + 1}. ${name}：${fb}` : `${idx + 1}. ${name}`;
+              return fb ? `${idx + 1}. ${name}${isZh ? '：' : ': '} ${fb}` : `${idx + 1}. ${name}`;
             })
             .join('\n\n');
         }
 
         if (!overallFeedbackStr.trim()) {
-          overallFeedbackStr = '評分已完成，請參考各個評分項目的具體回饋進行修正與精進。';
+          overallFeedbackStr = isZh
+            ? '評分已完成，請參考各個評分項目的具體回饋進行修正與精進。'
+            : 'Grading is complete. Please review each criterion feedback and revise accordingly.';
         }
       }
 
@@ -723,7 +730,7 @@ export async function processGradingSession(sessionId: string): Promise<{ succes
         resultId: result.id,
         userId: result.gradingSession.userId,
         sessionId: result.gradingSessionId,
-        userLanguage: 'zh' as const, // Default to 'zh' for now, could be dynamic
+        userLanguage: 'en' as const,
       },
       opts: {
         jobId: `grade-${result.id}`, // Prevent duplicate jobs for same result
@@ -763,7 +770,7 @@ export async function processAllPendingGrading(): Promise<{ processed: number; f
         result.id,
         result.gradingSession.userId,
         result.gradingSessionId,
-        'zh'
+        'en'
       );
 
       if (processResult.success) {

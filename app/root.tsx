@@ -258,7 +258,7 @@ function Document({ children }: { children: React.ReactNode }) {
       </head>
       <body className="bg-background h-full w-full font-sans antialiased">
         {children}
-        <Toaster richColors />
+        <Toaster />
         <ScrollRestoration />
         <Scripts />
       </body>

@@ -46,3 +46,20 @@ export function formatRelativeDate(date: Date | string): string {
     return 'Unknown';
   }
 }
+
+export function parseDateOnlyToUTCDate(value: string | null | undefined): Date | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    const fallback = new Date(trimmed);
+    return Number.isNaN(fallback.getTime()) ? undefined : fallback;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+}

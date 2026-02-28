@@ -52,7 +52,7 @@ export interface DialecticalFeedbackResult {
 // ============================================================================
 
 function generateDialecticalPrompt(params: DialecticalFeedbackParams): string {
-  const { sparringQuestion, studentResponse, rubricCriterionName, rubricCriterion, fullAssignmentContent, language = 'zh' } = params;
+  const { sparringQuestion, studentResponse, rubricCriterionName, rubricCriterion, fullAssignmentContent, language = 'en' } = params;
 
   // 組合完整的評分標準說明
   const rubricContextSection = rubricCriterion ? `

@@ -107,7 +107,7 @@ export type GradeWithAIResult = GradeWithAISuccess | GradeWithAIFailure;
  * @returns Grading result with success/failure status
  */
 export async function gradeWithAI(params: GradeWithAIParams): Promise<GradeWithAIResult> {
-  const { prompt, userId, resultId, temperature, skipFallback = false, language = 'zh', contextHash, contextContent, userPrompt } = params;
+  const { prompt, userId, resultId, temperature, skipFallback = false, language = 'en', contextHash, contextContent, userPrompt } = params;
 
   logger.info({
     userId,

@@ -105,7 +105,7 @@ class SimpleGeminiService {
   /**
    * Grade a document - simple and direct
    */
-  async gradeDocument(request: GeminiGradingRequest, userLanguage: 'zh' | 'en' = 'zh'): Promise<GeminiGradingResponse> {
+  async gradeDocument(request: GeminiGradingRequest, userLanguage: 'zh' | 'en' = 'en'): Promise<GeminiGradingResponse> {
     const startTime = Date.now();
 
     try {

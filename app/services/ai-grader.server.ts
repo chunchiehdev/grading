@@ -40,7 +40,7 @@ export class AIGrader {
    * 2. If only 1 Gemini key configured → Use SimpleGeminiService (1x capacity)
    * 3. If Gemini fails → Fallback to OpenAI
    */
-  async grade(request: GradingRequest, userLanguage: 'zh' | 'en' = 'zh'): Promise<GradingResponse> {
+  async grade(request: GradingRequest, userLanguage: 'zh' | 'en' = 'en'): Promise<GradingResponse> {
     const useRotation = canUseRotation();
 
     logger.info({

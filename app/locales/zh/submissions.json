@@ -87,6 +87,11 @@
     "submissionInfo": {
       "submitted": "提交於",
       "score": "分數"
+    },
+    "labels": {
+      "unknownStudent": "未知學生",
+      "noEmail": "無電子郵件",
+      "viewDetails": "查看詳情"
     }
   }
 }

@@ -107,6 +107,9 @@
   "messages": {
     "saveSuccess": "Rubric saved successfully",
     "saveError": "Error saving rubric",
+    "validationFailed": "Validation failed. Please check required fields.",
+    "createFailed": "Failed to create rubric. Please try again later.",
+    "processingFailed": "Error processing request. Please try again later.",
     "deleteSuccess": "Rubric deleted successfully",
     "deleteError": "Error deleting rubric",
     "deleteConfirm": "Are you sure you want to delete this rubric? This action cannot be undone.",
@@ -203,5 +206,12 @@
     "message": "Unsaved draft found. Would you like to restore it?",
     "clearButton": "Clear draft",
     "clearConfirm": "Clear draft?"
+  },
+  "newPage": {
+    "subtitle": "You can build a rubric manually, or apply a professional template below in one click."
+  },
+  "kember": {
+    "applyButton": "Apply Kember (2008) Critical Reflection Template",
+    "confirmOverwrite": "This will overwrite your current edits. Are you sure you want to apply the Kember template?"
   }
 }

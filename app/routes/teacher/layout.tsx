@@ -81,7 +81,7 @@ export default function TeacherLayout() {
     () => {
       // Refetch notifications immediately on reconnection
       fetchNotifications();
-      console.log('[Teacher WebSocket] Reconnected - notifications refetched');
+      
     },
     [fetchNotifications]
   );

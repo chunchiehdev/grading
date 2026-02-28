@@ -3,7 +3,7 @@ import { useLoaderData, useActionData, Form, Link, useRouteError, isRouteErrorRe
 import { Save, Trash2, Calendar, FileText, Users, Clock, FileUp, File, Loader2, Image, Smile, Check, X } from 'lucide-react';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { requireTeacher } from '@/services/auth.server';
@@ -23,6 +23,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { parseDateOnlyToUTCDate } from '@/lib/date';
 
 interface Attachment {
   fileId: string;
@@ -118,7 +119,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
   const intent = formData.get('intent') as string;
 
   if (!courseId || !assignmentId) {
-    return { success: false, error: 'Course ID and Assignment ID are required' };
+    return { success: false, error: 'course:assignment.manage.errors.missingIds' };
   }
 
   try {
@@ -127,7 +128,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       if (success) {
         throw redirect(`/teacher/courses/${courseId}`);
       } else {
-        return { success: false, error: 'Failed to delete assignment area' };
+        return { success: false, error: 'course:assignment.manage.errors.deleteFailed' };
       }
     }
 
@@ -140,24 +141,24 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       const customGradingPrompt = formData.get('customGradingPrompt') as string;
 
       if (!name || name.trim().length === 0) {
-        return { success: false, error: 'Assignment name is required' };
+        return { success: false, error: 'course:assignment.manage.errors.nameRequired' };
       }
 
       if (!rubricId) {
-        return { success: false, error: 'Please select a rubric' };
+        return { success: false, error: 'course:assignment.manage.errors.rubricRequired' };
       }
 
       const updateData: UpdateAssignmentAreaData = {
         name: name.trim(),
         description: description?.trim() || undefined,
         rubricId,
-        dueDate: dueDate ? new Date(dueDate) : undefined,
+        dueDate: parseDateOnlyToUTCDate(dueDate),
       };
 
       const updatedArea = await updateAssignmentArea(assignmentId, teacher.id, updateData);
 
       if (!updatedArea) {
-        return { success: false, error: 'Failed to update assignment area' };
+        return { success: false, error: 'course:assignment.manage.errors.updateFailed' };
       }
 
       // Update reference files and custom grading prompt
@@ -196,12 +197,12 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       return { success: true, action: 'update' };
     }
 
-    return { success: false, error: 'Invalid action' };
+    return { success: false, error: 'course:assignment.manage.errors.invalidAction' };
   } catch (error) {
     console.error('Error in assignment area action:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An error occurred',
+      error: error instanceof Error ? error.message : 'course:assignment.manage.errors.generic',
     };
   }
 }
@@ -210,7 +211,7 @@ export default function ManageAssignmentArea() {
   const { teacher, assignmentArea, rubrics, formattedDueDate, formattedCreatedAt, formattedUpdatedAt, existingAttachments } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
-  const { t } = useTranslation(['course', 'common']);
+  const { t, i18n } = useTranslation(['course', 'common']);
   
   const [allowLateSubmissions, setAllowLateSubmissions] = useState(true);
   const [assignTo, setAssignTo] = useState<'all' | 'specific'>('all');
@@ -224,6 +225,28 @@ export default function ManageAssignmentArea() {
   
   // Custom grading prompt state
   const [customGradingPrompt, setCustomGradingPrompt] = useState(assignmentArea.customGradingPrompt || '');
+  const lastActionToastRef = useRef<string | null>(null);
+
+  const resolveMessage = (message?: string): string => {
+    if (!message) return '';
+    return i18n.exists(message) ? t(message) : message;
+  };
+
+  useEffect(() => {
+    if (!actionData) return;
+    const toastKey = `${actionData.action || 'none'}:${actionData.success ? '1' : '0'}:${actionData.error || ''}`;
+    if (lastActionToastRef.current === toastKey) return;
+    lastActionToastRef.current = toastKey;
+
+    if (actionData.success && actionData.action === 'update') {
+      toast.success(t('course:assignment.manage.updateSuccess'));
+      return;
+    }
+
+    if (actionData.error) {
+      toast.error(resolveMessage(actionData.error));
+    }
+  }, [actionData, t, i18n]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -243,12 +266,18 @@ export default function ManageAssignmentArea() {
     const extPattern = isImage ? imageExtPattern : docExtPattern;
     
     if (!allowedTypes.includes(file.type) && !file.name.match(extPattern)) {
-      toast.error(isImage ? '只支援 JPG、PNG、GIF、WebP 格式' : '只支援 PDF、DOCX、TXT 格式');
+      toast.error(
+        t(
+          isImage
+            ? 'course:assignment.manage.attachments.imageTypeNotSupported'
+            : 'course:assignment.manage.attachments.docTypeNotSupported'
+        )
+      );
       return;
     }
     
     if (file.size > 100 * 1024 * 1024) {
-      toast.error('檔案大小不能超過 100MB');
+      toast.error(t('course:assignment.manage.attachments.fileTooLarge'));
       return;
     }
 
@@ -265,7 +294,7 @@ export default function ManageAssignmentArea() {
       const result = await response.json();
 
       if (!result.success) {
-        throw new Error(result.error || '上傳失敗');
+        throw new Error(result.error || 'course:assignment.manage.attachments.uploadFailed');
       }
 
       setAttachments(prev => [...prev, {
@@ -274,9 +303,9 @@ export default function ManageAssignmentArea() {
         fileSize: result.data.fileSize,
         mimeType: file.type,
       }]);
-      toast.success(`已上傳: ${file.name}`);
+      toast.success(t('course:assignment.manage.attachments.uploaded', { fileName: file.name }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '上傳失敗');
+      toast.error(resolveMessage(err instanceof Error ? err.message : 'course:assignment.manage.attachments.uploadFailed'));
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -286,7 +315,7 @@ export default function ManageAssignmentArea() {
 
   const removeAttachment = (fileId: string) => {
     setAttachments(prev => prev.filter(a => a.fileId !== fileId));
-    toast.success('已移除附件');
+    toast.success(t('course:assignment.manage.attachments.removed'));
   };
 
   return (
@@ -309,6 +338,10 @@ export default function ManageAssignmentArea() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
+        <Form id="delete-assignment-form" method="post" className="hidden">
+          <input type="hidden" name="intent" value="delete" />
+        </Form>
+
         <Form method="post" className="space-y-6">
           <input type="hidden" name="intent" value="update" />
 
@@ -342,40 +375,40 @@ export default function ManageAssignmentArea() {
                     <div className="border border-border rounded-lg overflow-hidden">
                       {/* Rich Text Toolbar */}
                       <div className="flex items-center gap-1 px-3 py-2 border-b border-border bg-muted/30">
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Bold">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.bold')}>
                           <span className="font-bold text-sm">B</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Italic">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.italic')}>
                           <span className="italic text-sm">I</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Underline">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.underline')}>
                           <span className="underline text-sm">U</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Strikethrough">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.strikethrough')}>
                           <span className="line-through text-sm">S</span>
                         </button>
                         <div className="w-px h-4 bg-border mx-1" />
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Code">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.code')}>
                           <span className="font-mono text-sm">&lt;/&gt;</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Superscript">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.superscript')}>
                           <span className="text-sm">x²</span>
                         </button>
                         <div className="w-px h-4 bg-border mx-1" />
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Bullet List">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.bulletList')}>
                           <span className="text-sm">•</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Numbered List">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.numberedList')}>
                           <span className="text-sm">1.</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Indent">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.indent')}>
                           <span className="text-sm">→</span>
                         </button>
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Outdent">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.outdent')}>
                           <span className="text-sm">←</span>
                         </button>
                         <div className="w-px h-4 bg-border mx-1" />
-                        <button type="button" className="p-1.5 hover:bg-accent rounded" title="Link">
+                        <button type="button" className="p-1.5 hover:bg-accent rounded" title={t('course:assignment.manage.editor.link')}>
                           <span className="text-sm">🔗</span>
                         </button>
                       </div>
@@ -393,7 +426,7 @@ export default function ManageAssignmentArea() {
                   {/* Attachments Section */}
                   <div className="pt-4 border-t border-border">
                     <div className="flex items-center justify-between px-3 py-2 border border-border rounded-lg hover:bg-muted/30 transition-colors">
-                      <span className="text-sm font-medium text-foreground">新增參考資料</span>
+                      <span className="text-sm font-medium text-foreground">{t('course:assignment.manage.attachments.addReference')}</span>
                       <div className="flex items-center gap-1">
                         {/* File Upload */}
                         <input
@@ -408,7 +441,7 @@ export default function ManageAssignmentArea() {
                           onClick={() => fileInputRef.current?.click()}
                           disabled={isUploading}
                           className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-muted transition-colors disabled:opacity-50"
-                          title="上傳檔案 (PDF/DOCX/TXT)"
+                          title={t('course:assignment.manage.attachments.uploadFileTitle')}
                         >
                           {isUploading ? (
                             <Loader2 className="w-5 h-5 text-[#6B9B6B] animate-spin" />
@@ -430,7 +463,7 @@ export default function ManageAssignmentArea() {
                           onClick={() => imageInputRef.current?.click()}
                           disabled={isUploading}
                           className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-muted transition-colors disabled:opacity-50"
-                          title="上傳圖片"
+                          title={t('course:assignment.manage.attachments.uploadImageTitle')}
                         >
                           <Image className="w-5 h-5 text-[#5B8A8A]" />
                         </button>
@@ -456,7 +489,7 @@ export default function ManageAssignmentArea() {
                               type="button"
                               onClick={() => removeAttachment(attachment.fileId)}
                               className="p-1 rounded hover:bg-destructive/10 transition-colors text-destructive"
-                              title="移除附件"
+                              title={t('course:assignment.manage.attachments.removeTitle')}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -476,7 +509,7 @@ export default function ManageAssignmentArea() {
                   {/* Custom Grading Instructions */}
                   <div className="pt-4 border-t border-border space-y-2">
                     <Label htmlFor="customGradingPrompt" className="text-sm font-medium">
-                      AI 評分自訂指示
+                      {t('course:assignment.manage.customPrompt.title')}
                     </Label>
                     <Textarea
                       id="customGradingPrompt"
@@ -484,11 +517,11 @@ export default function ManageAssignmentArea() {
                       value={customGradingPrompt}
                       onChange={(e) => setCustomGradingPrompt(e.target.value)}
                       rows={4}
-                      placeholder="例如：重點檢查學生是否正確套用公式。注意單位換算和計算步驟的完整性。"
+                      placeholder={t('course:assignment.manage.customPrompt.placeholder')}
                       className="resize-none text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      這些指示會在 AI 評分時作為額外的參考依據
+                      {t('course:assignment.manage.customPrompt.helpText')}
                     </p>
                   </div>
                 </CardContent>
@@ -548,6 +581,7 @@ export default function ManageAssignmentArea() {
                     </Select>
                   </div>
 
+                  {/* This feature is not implemented.*/}
                   <div className="flex items-center justify-between py-2">
                     <Label htmlFor="allowLate" className="text-sm font-medium">
                       {t('course:assignment.manage.allowLateSubmissions')}
@@ -635,11 +669,11 @@ export default function ManageAssignmentArea() {
               {/* Assignment Distribution */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-semibold">作業派發對象</CardTitle>
+                  <CardTitle className="text-lg font-semibold">{t('course:assignment.manage.distribution.title')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium mb-3 block">指派給</Label>
+                    <Label className="text-sm font-medium mb-3 block">{t('course:assignment.manage.distribution.assignTo')}</Label>
                     <RadioGroup
                       value={assignTo}
                       onValueChange={(value) => setAssignTo(value as 'all' | 'specific')}
@@ -688,37 +722,23 @@ export default function ManageAssignmentArea() {
             </div>
           </div>
 
-          {/* Feedback Messages */}
-          {actionData?.error && (
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">
-              <p className="text-sm text-destructive font-medium">{actionData.error}</p>
-            </div>
-          )}
-
-          {actionData?.success && actionData.action === 'update' && (
-            <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4">
-              <p className="text-sm text-green-700 dark:text-green-400 font-medium">{t('course:assignment.manage.updateSuccess')}</p>
-            </div>
-          )}
-
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-4 border-t border-border gap-2">
-            <Form method="post">
-              <input type="hidden" name="intent" value="delete" />
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 text-sm font-medium text-destructive hover:text-destructive/80 px-2 sm:px-0"
-                title={t('course:assignment.manage.deleteAssignment')}
-                onClick={(e) => {
-                  if (!confirm(t('course:assignment.manage.deleteConfirm'))) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                <Trash2 className="h-4 w-4 flex-shrink-0" />
-                <span className="hidden sm:inline">{t('course:assignment.manage.deleteAssignment')}</span>
-              </button>
-            </Form>
+            <button
+              type="submit"
+              form="delete-assignment-form"
+              formNoValidate
+              className="inline-flex items-center gap-2 text-sm font-medium text-destructive hover:text-destructive/80 px-2 sm:px-0"
+              title={t('course:assignment.manage.deleteAssignment')}
+              onClick={(e) => {
+                if (!confirm(t('course:assignment.manage.deleteConfirm'))) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 flex-shrink-0" />
+              <span className="hidden sm:inline">{t('course:assignment.manage.deleteAssignment')}</span>
+            </button>
 
             <div className="flex items-center gap-2 sm:gap-3">
               <Link

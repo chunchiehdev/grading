@@ -153,7 +153,7 @@ function hasMultipleGeminiKeys(): boolean {
  * Grade with Gemini using AI SDK and KeyHealthTracker
  */
 export async function gradeWithGemini(params: GradingParams): Promise<GradingResult> {
-  const { prompt, userId, resultId, temperature = 0.3, language = 'zh', contextHash, contextContent, userPrompt } = params;
+  const { prompt, userId, resultId, temperature = 0.3, language = 'en', contextHash, contextContent, userPrompt } = params;
   const healthTracker = getKeyHealthTracker();
 
   // Select best key using KeyHealthTracker
@@ -270,7 +270,7 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
       // Format the thought summary to make it student-friendly
       const formatResult = await formatThoughtSummary({
         rawThought: result.reasoning,
-        language: language || 'zh',
+        language: language || 'en',
       });
 
       if (formatResult.success && formatResult.formattedThought) {
@@ -501,7 +501,7 @@ async function gradeWithGeminiCached(params: {
  * Grade with OpenAI using AI SDK (fallback provider)
  */
 export async function gradeWithOpenAI(params: GradingParams): Promise<GradingResult> {
-  const { prompt, userId, resultId, temperature = 0.1, language = 'zh' } = params;
+  const { prompt, userId, resultId, temperature = 0.1, language = 'en' } = params;
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {

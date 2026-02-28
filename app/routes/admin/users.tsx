@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouteError, isRouteErrorResponse, useFetcher } from 'react-router';
 import type { Route } from './+types/users';
 import { requireAdmin } from '@/services/auth.server';
@@ -90,7 +90,7 @@ export default function AdminUsersPage() {
   };
 
   // Initial fetch and get current user
-  useState(() => {
+  useEffect(() => {
     fetchUsers(sortBy, sortOrder);
     // Get current user ID from auth check
     fetch('/api/auth/check')
@@ -99,7 +99,7 @@ export default function AdminUsersPage() {
         if (data.userId) setCurrentUserId(data.userId);
       })
       .catch(() => {});
-  });
+  }, []);
 
   // Handle sort change
   const handleSort = (field: SortField) => {
@@ -259,8 +259,151 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        {/* Table - Hand-drawn borders */}
-        <div className="overflow-x-auto">
+        {/* Mobile Sort Controls */}
+        <div className="mb-6 grid grid-cols-2 gap-3 md:hidden">
+          <Select
+            value={sortBy}
+            onValueChange={(value) => {
+              handleSort(value as SortField);
+            }}
+          >
+            <SelectTrigger className="border-2 border-[#2B2B2B]">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="createdAt">Registered</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="role">Role</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={sortOrder}
+            onValueChange={(value) => {
+              setSortOrder(value as SortOrder);
+              fetchUsers(sortBy, value as SortOrder);
+            }}
+          >
+            <SelectTrigger className="border-2 border-[#2B2B2B]">
+              <SelectValue placeholder="Order" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="desc">Newest first</SelectItem>
+              <SelectItem value="asc">Oldest first</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="space-y-4 md:hidden">
+          {data.users.map((user) => (
+            <article key={user.id} className="border-2 border-[#2B2B2B] p-4 dark:border-gray-200">
+              <div className="flex items-start gap-3">
+                <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                  <AvatarImage src={user.picture} alt={user.name} />
+                  <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-serif text-lg font-light text-[#2B2B2B] dark:text-gray-100">{user.name}</p>
+                  <p className="mt-0.5 truncate text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">Registered: {formatDate(user.createdAt)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3 border-t border-[#2B2B2B] pt-3 dark:border-gray-200">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Role</span>
+                  {editingRoleUserId === user.id ? (
+                    <Select
+                      value={selectedRole || user.role}
+                      onValueChange={(value) => setSelectedRole(value as 'STUDENT' | 'TEACHER' | 'ADMIN')}
+                    >
+                      <SelectTrigger className="h-11 w-36 border-2 border-[#2B2B2B] dark:border-gray-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="STUDENT">Student</SelectItem>
+                        <SelectItem value="TEACHER">Teacher</SelectItem>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={user.id === currentUserId}
+                      className={`min-h-[44px] border-2 px-3 text-xs font-medium uppercase tracking-wider transition-all ${
+                        user.id === currentUserId
+                          ? 'cursor-not-allowed border-[#2B2B2B] text-[#2B2B2B]/40 dark:border-gray-200 dark:text-gray-200/40'
+                          : 'cursor-pointer border-[#2B2B2B] text-[#2B2B2B] hover:border-[#D2691E] hover:bg-[#D2691E]/5 hover:text-[#D2691E] dark:border-gray-200 dark:text-gray-200 dark:hover:border-[#E87D3E] dark:hover:bg-[#E87D3E]/10 dark:hover:text-[#E87D3E]'
+                      }`}
+                      onClick={() => {
+                        if (user.id !== currentUserId) {
+                          setEditingRoleUserId(user.id);
+                          setSelectedRole(user.role);
+                        }
+                      }}
+                    >
+                      {user.role}
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">AI Access</span>
+                  {user.role === 'ADMIN' ? (
+                    <span className="text-sm text-gray-500 dark:text-gray-500">Always enabled</span>
+                  ) : (
+                    <Switch
+                      checked={user.aiEnabled}
+                      onCheckedChange={(checked) => handleAIToggle(user.id, checked)}
+                      className="data-[state=checked]:bg-[#D2691E] dark:data-[state=checked]:bg-[#E87D3E]"
+                    />
+                  )}
+                </div>
+
+                {editingRoleUserId === user.id ? (
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleRoleUpdate(user.id, selectedRole || user.role)}
+                      className="min-h-[44px] flex-1 border-2 border-[#2B2B2B] px-4 text-sm font-medium text-[#2B2B2B] hover:border-[#D2691E] hover:text-[#D2691E] dark:border-gray-200 dark:text-gray-200 dark:hover:border-[#E87D3E] dark:hover:text-[#E87D3E]"
+                    >
+                      Save Role
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingRoleUserId(null);
+                        setSelectedRole(null);
+                      }}
+                      className="min-h-[44px] flex-1 border-2 border-gray-400 px-4 text-sm font-medium text-gray-600 hover:border-[#2B2B2B] hover:text-[#2B2B2B] dark:border-gray-500 dark:text-gray-300 dark:hover:border-gray-200 dark:hover:text-gray-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDeleteUserId(user.id)}
+                    disabled={user.id === currentUserId}
+                    className={`min-h-[44px] w-full border-2 px-4 text-sm font-medium transition-colors ${
+                      user.id === currentUserId
+                        ? 'cursor-not-allowed border-gray-300 text-gray-400 dark:border-gray-700 dark:text-gray-600'
+                        : 'border-[#D2691E] text-[#D2691E] hover:bg-[#D2691E]/10 dark:border-[#E87D3E] dark:text-[#E87D3E] dark:hover:bg-[#E87D3E]/10'
+                    }`}
+                  >
+                    {user.id === currentUserId ? 'Current user' : 'Delete user'}
+                  </button>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {/* Desktop Table - Hand-drawn borders */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full border-2 border-[#2B2B2B] dark:border-gray-200">
             <thead>
               <tr className="border-b-2 border-[#2B2B2B] dark:border-gray-200">

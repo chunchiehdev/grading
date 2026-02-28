@@ -18,6 +18,54 @@ export interface UploadFileResult {
   retryable?: boolean;
 }
 
+function mapPdfParsingErrorToI18nKey(errorMessage: string): {
+  key: 'grading:fileUpload.errors.tokenLimitExceeded' | 'grading:fileUpload.errors.parsingFailed' | 'grading:fileUpload.errors.parserServiceUnavailable';
+  errorType: UploadFileResult['errorType'];
+  retryable: boolean;
+} {
+  const normalizedMessage = errorMessage.toLowerCase();
+
+  const isTokenLimitError =
+    (normalizedMessage.includes('token') && normalizedMessage.includes('limit')) ||
+    normalizedMessage.includes('content too large');
+
+  if (isTokenLimitError) {
+    return {
+      key: 'grading:fileUpload.errors.tokenLimitExceeded',
+      errorType: 'quota',
+      retryable: false,
+    };
+  }
+
+  const isParserServiceUnavailable =
+    normalizedMessage.includes('eproto') ||
+    normalizedMessage.includes('econnrefused') ||
+    normalizedMessage.includes('enotfound') ||
+    normalizedMessage.includes('eai_again') ||
+    normalizedMessage.includes('etimedout') ||
+    normalizedMessage.includes('econnreset') ||
+    normalizedMessage.includes('ssl') ||
+    normalizedMessage.includes('tls') ||
+    normalizedMessage.includes('request to ') ||
+    normalizedMessage.includes('failed to reach pdf parser') ||
+    normalizedMessage.includes('pdf parser api error: 5') ||
+    normalizedMessage.includes('aborterror');
+
+  if (isParserServiceUnavailable) {
+    return {
+      key: 'grading:fileUpload.errors.parserServiceUnavailable',
+      errorType: 'network',
+      retryable: true,
+    };
+  }
+
+  return {
+    key: 'grading:fileUpload.errors.parsingFailed',
+    errorType: 'network',
+    retryable: true,
+  };
+}
+
 /**
  * Uploads a file and creates a database record with comprehensive error handling
  */
@@ -176,20 +224,14 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
       } catch (error) {
         // triggerPdfParsing already updated DB status to FAILED. Return failure to client.
         const errorMessage = error instanceof Error ? error.message : '解析過程發生錯誤';
-        
-        // Check if it's a token limit error
-        const isTokenLimitError = errorMessage.includes('token') && errorMessage.includes('limit');
-        
+        const mappedError = mapPdfParsingErrorToI18nKey(errorMessage);
+
         return {
           success: false,
           // Return i18n key for frontend to translate
-          error: isTokenLimitError 
-            ? 'grading:fileUpload.errors.tokenLimitExceeded'
-            : errorMessage.includes('Content too large')
-            ? 'grading:fileUpload.errors.tokenLimitExceeded'
-            : errorMessage,
-          errorType: isTokenLimitError ? 'quota' : 'network',
-          retryable: !isTokenLimitError, // Token limit errors are not retryable
+          error: mappedError.key,
+          errorType: mappedError.errorType,
+          retryable: mappedError.retryable,
         };
       }
     } else {

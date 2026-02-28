@@ -106,6 +106,40 @@
       "assignmentTitle": "Assignment Title",
       "instructions": "Instructions",
       "instructionsPlaceholder": "Enter assignment instructions...",
+      "editor": {
+        "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline",
+        "strikethrough": "Strikethrough",
+        "code": "Code",
+        "superscript": "Superscript",
+        "bulletList": "Bullet List",
+        "numberedList": "Numbered List",
+        "indent": "Indent",
+        "outdent": "Outdent",
+        "link": "Link"
+      },
+      "attachments": {
+        "addReference": "Add reference materials",
+        "uploadFileTitle": "Upload file (PDF/DOCX/TXT)",
+        "uploadImageTitle": "Upload image",
+        "removeTitle": "Remove attachment",
+        "docTypeNotSupported": "Only PDF, DOCX, and TXT are supported",
+        "imageTypeNotSupported": "Only JPG, PNG, GIF, and WebP are supported",
+        "fileTooLarge": "File size must be under 100MB",
+        "uploadFailed": "Upload failed",
+        "uploaded": "Uploaded: {{fileName}}",
+        "removed": "Attachment removed"
+      },
+      "customPrompt": {
+        "title": "Custom AI Grading Instructions",
+        "placeholder": "Example: Focus on whether students correctly apply formulas. Pay attention to unit conversion and completeness of calculation steps.",
+        "helpText": "These instructions are used as additional context during AI grading"
+      },
+      "distribution": {
+        "title": "Assignment Distribution",
+        "assignTo": "Assign to"
+      },
       "submissionTimeline": "Submission & Timeline",
       "dueDate": "Due Date",
       "dueTime": "Time",
@@ -155,6 +189,15 @@
       "cancel": "Cancel",
       "saveChanges": "Save Changes",
       "updateSuccess": "Assignment updated successfully",
+      "errors": {
+        "missingIds": "Course ID and assignment ID are required",
+        "deleteFailed": "Failed to delete assignment area",
+        "nameRequired": "Assignment name is required",
+        "rubricRequired": "Please select a grading rubric",
+        "updateFailed": "Failed to update assignment area",
+        "invalidAction": "Invalid action",
+        "generic": "Something went wrong. Please try again later"
+      },
       "stats": {
         "submissions": "Submissions",
         "status": "Status",

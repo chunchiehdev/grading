@@ -47,7 +47,9 @@
     "details": "詳細資訊",
     "submitted": "已繳交",
     "awaitingGrading": "等待評分",
-    "noDueDate": "無截止日期"
+    "noDueDate": "無截止日期",
+    "wholeCourse": "全課程",
+    "outOf100": "/ 100"
   },
   "status": {
     "graded": "已評分",
@@ -126,7 +128,6 @@
     "info": "資訊",
     "results": "結果",
     "quickGradingMode": "快速評分模式",
-    "reselectFile": "重新選擇檔案",
     "grading": "評分中...",
     "startGrading": "開始評分",
     "reGrade": "重新評分",

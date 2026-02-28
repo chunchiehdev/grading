@@ -123,7 +123,7 @@ export async function action({ request }: { request: Request }) {
             duration: fileDuration,
             errorType: typeof error,
             stack: error instanceof Error ? error.stack : undefined,
-          }, `❌ Upload failed for ${file.name}:`);
+          }, `❌ Upload failed cfor ${file.name}:`);
 
           // Enhanced error handling with detailed progress update
           const errorMessage = error instanceof Error ? error.message : '上傳失敗';

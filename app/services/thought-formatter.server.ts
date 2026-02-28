@@ -37,7 +37,7 @@ interface FormatThoughtResult {
  * 格式化思考過程 - 使用 Gemini，失敗時 fallback 到 OpenAI
  */
 export async function formatThoughtSummary(params: FormatThoughtParams): Promise<FormatThoughtResult> {
-  const { rawThought, language = 'zh' } = params;
+  const { rawThought, language = 'en' } = params;
 
   // 如果原始內容太短或為空，直接返回
   if (!rawThought || rawThought.trim().length < 50) {

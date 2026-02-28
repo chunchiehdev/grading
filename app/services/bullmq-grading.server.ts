@@ -130,7 +130,7 @@ async function initializeBullMQ(): Promise<void> {
           );
 
           try {
-            const result = await processGradingResult(resultId, userId, sessionId, userLanguage || 'zh');
+            const result = await processGradingResult(resultId, userId, sessionId, userLanguage || 'en');
 
             if (!result.success) {
               throw new Error(result.error || 'Grading failed');

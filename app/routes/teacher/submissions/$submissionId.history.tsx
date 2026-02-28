@@ -13,10 +13,24 @@ import { getSubmissionHistory } from '@/services/version-management.server';
 import { db } from '@/types/database';
 import { VersionTimeline, type VersionTimelineItem } from '@/components/submission/VersionTimeline';
 import { Button } from '@/components/ui/button';
-import { User, Home } from 'lucide-react';
+import { Home } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useTranslation } from 'react-i18next';
 
-export async function loader({ request, params }: LoaderFunctionArgs) {
+interface HistoryLoaderData {
+  submissions: any[];
+  studentInfo: {
+    id: string;
+    name: string;
+    email: string;
+    picture: string;
+  };
+  assignmentName: string;
+  courseName: string;
+  totalVersions: number;
+}
+
+export async function loader({ request, params }: LoaderFunctionArgs): Promise<HistoryLoaderData> {
   const teacher = await requireTeacher(request);
   const { submissionId } = params;
 
@@ -36,7 +50,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         studentId: true,
         student: {
           select: {
+            id: true,
             name: true,
+            email: true,
+            picture: true,
           },
         },
       },
@@ -49,7 +66,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     // Get all versions for this assignment and student
     const history = await getSubmissionHistory(submission.assignmentAreaId, submission.studentId);
 
-    const studentName = submission.student?.name || '學生';
+    const studentInfo = {
+      id: submission.student?.id || '',
+      name: submission.student?.name || '學生',
+      email: submission.student?.email || '',
+      picture: submission.student?.picture || '',
+    };
     const assignmentName = history[0]?.assignmentArea?.name || '作業';
     const courseName = history[0]?.assignmentArea?.course?.name || '課程';
 
@@ -64,7 +86,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       return statusMap[status] || status;
     }
 
-    return Response.json({
+    return {
       submissions: history.map((sub: any) => ({
         id: sub.id,
         version: sub.version,
@@ -79,11 +101,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         assignmentArea: sub.assignmentArea,
         student: sub.student,
       })),
-      studentName,
+      studentInfo,
       assignmentName,
       courseName,
       totalVersions: history.length,
-    });
+    };
   } catch (error) {
     console.error('Error loading submission history:', error);
     throw error;
@@ -91,7 +113,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export default function TeacherSubmissionHistory() {
-  const { submissions, studentName, assignmentName, courseName, totalVersions } = useLoaderData<typeof loader>();
+  const { submissions, studentInfo, assignmentName, courseName, totalVersions } = useLoaderData<HistoryLoaderData>();
   const navigate = useNavigate();
 
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
@@ -127,30 +149,35 @@ export default function TeacherSubmissionHistory() {
     normalizedScore: sub.normalizedScore,
   }));
 
+  const studentDisplayName = studentInfo?.name || '學生';
+  const studentInitial = studentDisplayName.charAt(0).toUpperCase();
+
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="border-b border-[#2B2B2B]/30 p-8 dark:border-gray-200/30">
+      <div className="border-b border-border p-6 sm:p-8">
         <div className="mx-auto max-w-4xl">
           {/* Student Info Card */}
-          <div className="mb-8 border border-[#2B2B2B]/40 p-5 transition-all hover:border-[#2B2B2B]/60 hover:shadow-sm dark:border-gray-200/30 dark:hover:border-gray-200/50">
+          <div className="mb-6 rounded-xl border border-border bg-card p-4 sm:p-5">
             <div className="flex items-center gap-4">
-              <div className="flex h-11 w-11 items-center justify-center border border-dashed border-[#2B2B2B] dark:border-gray-200">
-                <User className="h-5 w-5 text-[#2B2B2B] dark:text-gray-200" />
-              </div>
-              <div>
-                <h2 className="font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-                  {studentName}
+              <Avatar className="h-12 w-12 border border-border">
+                <AvatarImage src={studentInfo?.picture || undefined} alt={studentDisplayName} />
+                <AvatarFallback className="bg-muted text-foreground">{studentInitial}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <h2 className="truncate text-lg font-semibold text-foreground sm:text-xl">
+                  {studentDisplayName}
                 </h2>
-                <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400">學生繳交記錄</p>
+                <p className="mt-0.5 truncate text-sm text-muted-foreground">{studentInfo?.email || '無電子郵件'}</p>
+                <p className="mt-1 text-xs text-muted-foreground">學生繳交記錄</p>
               </div>
             </div>
           </div>
 
-          <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {assignmentName}
           </h1>
-          <p className="mt-3 text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             {courseName} • 共 {totalVersions} 個版本
           </p>
         </div>

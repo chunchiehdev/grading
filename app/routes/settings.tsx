@@ -29,7 +29,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
   if (cookieHeader) {
     const match = cookieHeader.match(/ai-model-provider=(gemini|local|auto)/);
     if (match) {
-      modelProvider = match[1] as any;
+      modelProvider = match[1] as 'gemini' | 'local' | 'auto';
     }
   }
   
@@ -41,7 +41,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const modelProvider = formData.get('modelProvider') as string;
   
   if (!['gemini', 'local', 'auto'].includes(modelProvider)) {
-    return new Response(JSON.stringify({ error: 'Invalid provider' }), { 
+    return new Response(JSON.stringify({ error: 'settings:aiModel.errors.invalidProvider' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -61,22 +61,27 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function Settings() {
   const { user, modelProvider } = useLoaderData<typeof loader>();
-  const { t } = useTranslation(['settings', 'common']);
+  const { t, i18n } = useTranslation(['settings', 'common']);
   const navigation = useNavigation();
   const actionData = useActionData<{ success?: boolean; error?: string }>();
   const isSaving = navigation.state === 'submitting';
 
+  const resolveMessage = (message?: string) => {
+    if (!message) return '';
+    return i18n.exists(message) ? t(message) : message;
+  };
+
   useEffect(() => {
     if (actionData?.success) {
       toast.success(t('common:success'), {
-        description: 'AI model preference saved successfully.',
+        description: t('settings:aiModel.messages.saveSuccess'),
       });
     } else if (actionData?.error) {
       toast.error(t('common:error'), {
-        description: actionData.error,
+        description: resolveMessage(actionData.error),
       });
     }
-  }, [actionData, t]);
+  }, [actionData, t, i18n]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -115,10 +120,10 @@ export default function Settings() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <SettingsIcon className="w-5 h-5 text-primary" />
-            <CardTitle>AI Model Configuration</CardTitle>
+            <CardTitle>{t('settings:aiModel.title')}</CardTitle>
           </div>
           <CardDescription>
-            Choose which AI model provider to use for grading and chat assistance.
+            {t('settings:aiModel.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -134,8 +139,8 @@ export default function Settings() {
                 >
                   <Zap className="mb-3 h-6 w-6" />
                   <div className="text-center space-y-1">
-                    <div className="font-semibold">Resilient (Auto)</div>
-                    <div className="text-xs text-muted-foreground">Prioritizes Local, falls back to Gemini if unavailable.</div>
+                    <div className="font-semibold">{t('settings:aiModel.providers.auto.label')}</div>
+                    <div className="text-xs text-muted-foreground">{t('settings:aiModel.providers.auto.description')}</div>
                   </div>
                 </Label>
               </div>
@@ -149,8 +154,8 @@ export default function Settings() {
                 >
                   <Cpu className="mb-3 h-6 w-6" />
                   <div className="text-center space-y-1">
-                    <div className="font-semibold">Local (vLLM)</div>
-                    <div className="text-xs text-muted-foreground">Force use of local model. Privacy focused.</div>
+                    <div className="font-semibold">{t('settings:aiModel.providers.local.label')}</div>
+                    <div className="text-xs text-muted-foreground">{t('settings:aiModel.providers.local.description')}</div>
                   </div>
                 </Label>
               </div>
@@ -164,8 +169,8 @@ export default function Settings() {
                 >
                   <Cloud className="mb-3 h-6 w-6" />
                   <div className="text-center space-y-1">
-                    <div className="font-semibold">Gemini 2.5 Flash</div>
-                    <div className="text-xs text-muted-foreground">Force use of Google's cloud model. Fast & reliable.</div>
+                    <div className="font-semibold">{t('settings:aiModel.providers.gemini.label')}</div>
+                    <div className="text-xs text-muted-foreground">{t('settings:aiModel.providers.gemini.description')}</div>
                   </div>
                 </Label>
               </div>
@@ -174,7 +179,7 @@ export default function Settings() {
 
             <div className="flex justify-end">
               <Button type="submit" disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Preferences'}
+                {isSaving ? t('settings:aiModel.actions.saving') : t('settings:aiModel.actions.savePreferences')}
               </Button>
             </div>
           </Form>

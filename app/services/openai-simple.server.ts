@@ -24,7 +24,7 @@ class SimpleOpenAIService {
   /**
    * Grade a document - simple and direct
    */
-  async gradeDocument(request: OpenAIGradingRequest, userLanguage: 'zh' | 'en' = 'zh'): Promise<OpenAIGradingResponse> {
+  async gradeDocument(request: OpenAIGradingRequest, userLanguage: 'zh' | 'en' = 'en'): Promise<OpenAIGradingResponse> {
     const startTime = Date.now();
 
     try {

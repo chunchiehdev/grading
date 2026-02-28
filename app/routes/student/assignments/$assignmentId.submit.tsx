@@ -830,8 +830,10 @@ export default function SubmitAssignment() {
     if (!sparringQuestions || sparringQuestions.length === 0) return true;
     if (!chatMessagesMap || Object.keys(chatMessagesMap).length === 0) return false;
 
-    const TRIGGER_TEXT =
-      '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。';
+    const triggerTexts = new Set([
+      '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。',
+      'Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.',
+    ]);
 
     const extractText = (message: any) => {
       if (typeof message.content === 'string') return message.content;
@@ -851,7 +853,7 @@ export default function SubmitAssignment() {
         const text = extractText(m).trim();
         if (!text) return false;
         // 排除系統自動丟給後端啟動對話的 trigger 文案
-        return text !== TRIGGER_TEXT;
+        return !triggerTexts.has(text);
       })
     );
   }, [state.session?.result?.sparringQuestions, state.session?.chatMessagesMap]);
@@ -1081,7 +1083,7 @@ export default function SubmitAssignment() {
                             <Button
                               size="icon"
                               onClick={handleResetFile}
-                              className="h-14 w-14 rounded-full bg-card border border-border shadow-md transition-all hover:shadow-lg hover:scale-105"
+                              className="h-14 w-14 rounded-full bg-card text-foreground border border-border shadow-md transition-all hover:bg-accent hover:shadow-lg hover:scale-105"
                             >
                               <FolderOpen className="h-6 w-6" />
                             </Button>
@@ -1386,7 +1388,7 @@ export default function SubmitAssignment() {
                     <Button
                       size="icon"
                       onClick={handleResetFile}
-                      className="h-12 w-12 rounded-full bg-card border border-border shadow-md transition-all hover:shadow-lg active:scale-95"
+                      className="h-12 w-12 rounded-full bg-card text-foreground border border-border shadow-md transition-all hover:bg-accent hover:shadow-lg active:scale-95"
                     >
                       <FolderOpen className="h-5 w-5" />
                     </Button>

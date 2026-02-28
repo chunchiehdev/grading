@@ -20,6 +20,7 @@ import { ReferenceFileUpload } from '@/components/grading/ReferenceFileUpload';
 import { CustomInstructionsField } from '@/components/teacher/CustomInstructionsField';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
+import { parseDateOnlyToUTCDate } from '@/lib/date';
 
 interface LoaderData {
   teacher: Promise<{ id: string; email: string; role: string; name: string }>;
@@ -97,7 +98,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       name: name.trim(),
       description: description?.trim() || undefined,
       rubricId,
-      dueDate: dueDate ? new Date(dueDate) : undefined,
+      dueDate: parseDateOnlyToUTCDate(dueDate),
       classId: classTarget === 'specific' ? classId : null,
     };
 

@@ -25,6 +25,17 @@ interface GradingResultDisplayProps {
   studentPicture?: string | null;
 }
 
+interface ChatMessagePart {
+  type?: string;
+  text?: string;
+}
+
+interface ChatMessage {
+  role?: string;
+  content?: string;
+  parts?: ChatMessagePart[];
+}
+
 
 // Removed ScoreCard; score info will be integrated in a simple header.
 
@@ -69,6 +80,10 @@ export function GradingResultDisplay({
   studentPicture,
 }: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
+  const systemTriggerText = t(
+    'result.chatSystemTriggerText',
+    '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。'
+  );
 
   // 1. Streaming/Thinking Area (Always visible if there is content or loading)
   // Use thinkingProcess if available.
@@ -109,7 +124,7 @@ export function GradingResultDisplay({
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                 {isLoading ? (
                   <span className="flex items-center gap-1 text-[#E07A5F] animate-pulse">
-                    <span>正在思考</span>
+                    <span>{t('thinkingProcess.thinking', '正在思考')}</span>
                     <span className="flex gap-[2px] pt-[6px]">
                       <span className="w-1 h-1 bg-current rounded-full animate-dot" />
                       <span className="w-1 h-1 bg-current rounded-full animate-dot" style={{ animationDelay: '150ms' }} />
@@ -154,7 +169,7 @@ export function GradingResultDisplay({
           {/* Compact score header - 100-point scale */}
           <div className="p-2 flex items-center gap-3 h-10">
             <span className="text-2xl font-semibold leading-none">{displayScore.toFixed(1)}</span>
-            <span className="text-sm text-muted-foreground">/ 100</span>
+            <span className="text-sm text-muted-foreground">{t('result.outOfScore', { max: 100, defaultValue: '/ {{max}}' })}</span>
           </div>
 
           {/* Overall Feedback (compact) */}
@@ -167,15 +182,17 @@ export function GradingResultDisplay({
 
           {/* Chat History — collapsible, default closed */}
           {safeResult.chatHistory && safeResult.chatHistory.length > 0 && (() => {
-            const TRIGGER_TEXT = '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。';
-            const filteredChat = safeResult.chatHistory.filter((msg: any) => {
+            const triggerTexts = new Set([
+              systemTriggerText,
+              '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。',
+            ]);
+            const filteredChat = safeResult.chatHistory.filter((msg: ChatMessage) => {
               const text = msg.content
-                || msg.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
-              return text && text !== TRIGGER_TEXT;
+                || msg.parts?.filter((p: ChatMessagePart) => p.type === 'text').map((p: ChatMessagePart) => p.text).join('') || '';
+              return text && !triggerTexts.has(text);
             });
             if (filteredChat.length === 0) return null;
-            const studentInitial = studentName?.[0]?.toUpperCase() || 'S';
-            const msgCount = filteredChat.length;
+            const studentInitial = studentName?.[0]?.toUpperCase() || t('result.defaultStudentInitial', 'S');
             return (
               <Collapsible defaultOpen={false} className="group/chat">
                 <CollapsibleTrigger asChild>
@@ -190,16 +207,16 @@ export function GradingResultDisplay({
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="space-y-3 pt-2 pb-1 px-1">
-                    {filteredChat.map((msg: any, i: number) => {
+                    {filteredChat.map((msg: ChatMessage, i: number) => {
                       const text = msg.content
-                        || msg.parts?.filter((p: any) => p.type === 'text').map((p: any) => p.text).join('') || '';
+                        || msg.parts?.filter((p: ChatMessagePart) => p.type === 'text').map((p: ChatMessagePart) => p.text).join('') || '';
                       const isUser = msg.role === 'user';
                       return (
                         <div key={i} className={cn('flex gap-2.5', isUser ? 'flex-row-reverse' : 'flex-row')}>
                           <Avatar className={cn('h-7 w-7 shrink-0 mt-0.5', isUser ? 'ring-2 ring-primary/20' : 'ring-2 ring-[#E07A5F]/20')}>
                             {isUser ? (
                               <>
-                                {studentPicture && <AvatarImage src={studentPicture} alt={studentName || 'Student'} />}
+                                {studentPicture && <AvatarImage src={studentPicture} alt={studentName || t('result.studentAlt', 'Student')} />}
                                 <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
                                   {studentInitial}
                                 </AvatarFallback>

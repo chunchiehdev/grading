@@ -23,5 +23,33 @@
     "totalAssignments": "Total Assignments",
     "coursesList": "My Courses",
     "noCourses": "No courses created yet"
+  },
+  "aiModel": {
+    "title": "AI Model Configuration",
+    "description": "Choose which AI model provider to use for grading and chat assistance.",
+    "providers": {
+      "auto": {
+        "label": "Resilient (Auto)",
+        "description": "Prioritizes Local, falls back to Gemini if unavailable."
+      },
+      "local": {
+        "label": "Local (vLLM)",
+        "description": "Force use of local model. Privacy focused."
+      },
+      "gemini": {
+        "label": "Gemini 2.5 Flash",
+        "description": "Force use of Google's cloud model. Fast and reliable."
+      }
+    },
+    "actions": {
+      "saving": "Saving...",
+      "savePreferences": "Save Preferences"
+    },
+    "messages": {
+      "saveSuccess": "AI model preference saved successfully."
+    },
+    "errors": {
+      "invalidProvider": "Invalid provider"
+    }
   }
 }

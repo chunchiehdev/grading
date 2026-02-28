@@ -50,9 +50,16 @@
     "criteriaItem": "Criteria {{index}}",
     "scorePoints": "{{score}} points",
     "overallFeedback": "Overall Feedback",
+    "feedback": "Feedback",
     "criteriaDetails": "Criteria Details",
     "noCriteria": "No detailed criteria",
-    "noFeedback": "No additional feedback"
+    "noFeedback": "No additional feedback",
+    "outOfScore": "/ {{max}}",
+    "chatHistory": "Chat History",
+    "student": "Student",
+    "studentAlt": "Student",
+    "defaultStudentInitial": "S",
+    "chatSystemTriggerText": "Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way."
   },
   "resultCard": {
     "noResults": "No grading results",
@@ -164,6 +171,8 @@
       "unsupportedFileType": "Unsupported file type: {{fileExt}}",
       "tooManyFiles": "Maximum {{maxFiles}} files allowed",
       "uploadFailed": "Upload failed",
+      "parsingFailed": "File parsing failed. Please upload a different file or try again later.",
+      "parserServiceUnavailable": "Document parsing service is temporarily unavailable. Please try again later.",
       "tokenLimitExceeded": "Content too long and exceeds processing limits. Please upload a smaller file or reduce content."
     }
   },
@@ -273,18 +282,48 @@
   "aiThinkingProcess": "Thinking Process",
   "thinkingProcess": {
     "aiThinking": "thinking...",
-    "viewProcess": "Show thinking"
+    "viewProcess": "Show thinking",
+    "thinking": "Thinking"
   },
   "chat": {
     "thinking": "Thinking...",
     "placeholder": "Share your thoughts...",
     "disclaimer": "AI reflection guide helps you reach the next level of reflection",
+    "triggerText": "Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.",
     "openingHi": "Hi! I just read your work.",
     "openingNotice": "I noticed you wrote: \"{{quote}}\"",
     "scoreBar": "AI Pre-score",
     "showDetails": "Show details",
     "hideDetails": "Collapse",
     "roundsRemaining": "{{remaining}} rounds left",
-    "sparringComplete": "Sparring complete, preparing results..."
+    "sparringComplete": "Sparring complete, preparing results...",
+    "currentQuestionCompleted": "This question is complete",
+    "nextQuestion": "Next question ->",
+    "finishSparring": "Finish sparring",
+    "startSparring": {
+      "title": "Start Reflection Sparring",
+      "description": "Next, AI will ask 1-3 questions based on your submission and the teacher's rubric to help deepen your reflection. Start whenever you're ready.",
+      "button": "Start Sparring"
+    },
+    "summary": {
+      "title": "Sparring complete! Your growth summary",
+      "subtitle": "Your reflection progress based on this conversation",
+      "questionFallback": "Question {{index}}",
+      "notDiscussed": "Not discussed yet (you can go back and continue)",
+      "returnToChat": "<- Go back to continue other questions"
+    },
+    "revision": {
+      "title": "Try revising this passage",
+      "originalText": "Original: \"{{quote}}\"",
+      "placeholder": "Type your revised version...",
+      "submit": "Submit revision for AI feedback",
+      "submissionMessage": "I tried revising this sentence. The original was \"{{original}}\", and I changed it to: \"{{revised}}\". Do you think this is an improvement?"
+    },
+    "kember": {
+      "level1": "Habitual action",
+      "level2": "Understanding reflection",
+      "level3": "Constructive reflection",
+      "level4": "Critical reflection"
+    }
   }
 }

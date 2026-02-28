@@ -130,12 +130,12 @@ export default function StudentSubmissionHistory() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <div className="border-b border-[#2B2B2B]/30 p-8 dark:border-gray-200/30">
+      <div className="border-b border-border p-6 sm:p-8">
         <div className="mx-auto max-w-4xl">
-          <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             {assignmentName}
           </h1>
-          <p className="mt-3 text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             {courseName} • 共 {totalVersions} 個版本
           </p>
         </div>

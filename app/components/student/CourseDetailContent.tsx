@@ -1,12 +1,9 @@
 import {
   ChevronRight,
-  FileText,
   CheckCircle2,
   Clock,
   AlertTriangle,
-  Calendar,
   BookOpen,
-  User,
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router';
@@ -35,18 +32,18 @@ interface CourseHeaderProps {
 
 function CourseHeader({ course, stats }: CourseHeaderProps) {
   const { t } = useTranslation('course');
-  const completionRate = stats && stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+  void stats;
 
   return (
-    <div className="pb-8">
+    <div className="pb-6 sm:pb-8">
       {/* Course Info with Community Button */}
-      <div className="flex items-start gap-6 mb-6">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-3xl font-bold text-foreground tracking-tight leading-tight mb-2">
+      <div className="mb-5 flex flex-col gap-4 sm:mb-6 sm:flex-row sm:items-start sm:gap-6">
+        <div className="min-w-0 flex-1">
+          <h1 className="mb-2 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
             {course.name}
           </h1>
           {course.description && (
-            <p className="text-base text-muted-foreground leading-relaxed">
+            <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
               {course.description}
             </p>
           )}
@@ -57,19 +54,19 @@ function CourseHeader({ course, stats }: CourseHeaderProps) {
           asChild
           variant="ghost"
           size="icon-2xl"
-          className="flex-shrink-0"
+          className="h-11 w-11 flex-shrink-0 self-start sm:h-12 sm:w-12"
           title={t('community.title', '社群')}
         >
           <Link to={`/student/courses/${course.id}/community`}>
-            <Users />
+            <Users className="h-5 w-5" />
           </Link>
         </Button>
       </div>
-      
-      <Separator className="my-6" />
-      
+
+      <Separator className="my-5 sm:my-6" />
+
       {/* Teacher Info with Avatar */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-muted-foreground">{t('detail.teacher', '授課教師')}:</span>
         <Avatar className="h-6 w-6">
           <AvatarImage src={course.teacher.picture || '/default-avatar.png'} alt={course.teacher.name} referrerPolicy="no-referrer" />
@@ -163,10 +160,10 @@ function AssignmentCard({ assignment, studentId, status }: AssignmentCardProps) 
   return (
     <Link to={`/student/assignments/${assignment.id}/submit`} className="block group">
       <div className={cn(
-        'relative h-full p-6 rounded-2xl border transition-all duration-200',
+        'relative h-full rounded-xl border p-4 transition-all duration-200 sm:rounded-2xl sm:p-6',
         cardStyles[status],
         status === 'completed' ? 'border-emerald-200/50 dark:border-emerald-900/30' : 'border-border',
-        'hover:shadow-md hover:-translate-y-0.5'
+        'hover:shadow-md motion-safe:hover:-translate-y-0.5'
       )}>
         
         {/* Icon - Top left */}
@@ -175,8 +172,8 @@ function AssignmentCard({ assignment, studentId, status }: AssignmentCardProps) 
         </div>
 
         {/* Title */}
-        <h3 className={cn(
-          'text-lg font-semibold mb-2 leading-snug',
+          <h3 className={cn(
+          'mb-2 text-base font-semibold leading-snug sm:text-lg',
           status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'
         )}>
           {assignment.name}
@@ -204,7 +201,7 @@ function AssignmentCard({ assignment, studentId, status }: AssignmentCardProps) 
         <div className="flex items-end justify-between mt-auto pt-4">
           {hasScore ? (
             <div>
-              <div className="text-3xl font-bold text-foreground tabular-nums">{submission.finalScore}</div>
+              <div className="text-2xl font-bold tabular-nums text-foreground sm:text-3xl">{submission.finalScore}</div>
               <div className="text-xs text-muted-foreground uppercase tracking-wide">/ 100</div>
             </div>
           ) : (
@@ -231,9 +228,9 @@ interface SectionHeaderProps {
 
 function SectionHeader({ title, count }: SectionHeaderProps) {
   return (
-    <div className="mb-6">
-      <h2 className="text-2xl font-bold text-foreground inline-block">{title}</h2>
-      <span className="text-2xl font-light text-muted-foreground ml-3">({count})</span>
+    <div className="mb-4 sm:mb-6">
+      <h2 className="inline-block text-xl font-bold text-foreground sm:text-2xl">{title}</h2>
+      <span className="ml-2 text-xl font-light text-muted-foreground sm:ml-3 sm:text-2xl">({count})</span>
     </div>
   );
 }
@@ -289,21 +286,21 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
   const hasAssignments = assignments.length > 0;
 
   return (
-    <div className="min-h-screen">
+    <div className="mx-auto min-h-screen w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
       {/* Header - No bar, just content */}
       <CourseHeader course={course} stats={hasAssignments ? stats : undefined} />
 
       {hasAssignments ? (
         /* Assignment Grid - Generous spacing */
-        <div className="pb-16">
+        <div className="pb-12 sm:pb-16">
           {/* Urgent / Due Soon Section */}
           {groupedAssignments.urgent.length > 0 && (
-            <div className="mb-16">
+            <div className="mb-10 sm:mb-16">
               <SectionHeader
                 title={t('assignment:status.needsAttention', '需要注意')}
                 count={groupedAssignments.urgent.length}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {groupedAssignments.urgent.map((assignment) => (
                   <AssignmentCard key={assignment.id} assignment={assignment} studentId={student.id} status="urgent" />
                 ))}
@@ -313,12 +310,12 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
 
           {/* Pending Section */}
           {groupedAssignments.pending.length > 0 && (
-            <div className="mb-16">
+            <div className="mb-10 sm:mb-16">
               <SectionHeader
                 title={t('assignment:status.later', '稍後')}
                 count={groupedAssignments.pending.length}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {groupedAssignments.pending.map((assignment) => (
                   <AssignmentCard key={assignment.id} assignment={assignment} studentId={student.id} status="pending" />
                 ))}
@@ -333,7 +330,7 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
                 title={t('assignment:status.completed', '已完成')}
                 count={groupedAssignments.completed.length}
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {groupedAssignments.completed.map((assignment) => (
                   <AssignmentCard key={assignment.id} assignment={assignment} studentId={student.id} status="completed" />
                 ))}

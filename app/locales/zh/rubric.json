@@ -94,6 +94,9 @@
   "messages": {
     "saveSuccess": "評分標準已成功儲存",
     "saveError": "儲存評分標準時發生錯誤",
+    "validationFailed": "資料驗證失敗，請檢查欄位內容",
+    "createFailed": "建立評分標準失敗，請稍後再試",
+    "processingFailed": "處理請求時發生錯誤，請稍後再試",
     "deleteSuccess": "評分標準已成功刪除",
     "deleteError": "刪除評分標準時發生錯誤",
     "deleteConfirm": "確定要刪除此評分標準嗎？此操作無法復原。",
@@ -190,5 +193,12 @@
     "message": "找到未保存的草稿。是否要恢復？",
     "clearButton": "清除草稿",
     "clearConfirm": "清除草稿？"
+  },
+  "newPage": {
+    "subtitle": "您可以手動建立評分標準，或是直接點擊下方套用專業範本。"
+  },
+  "kember": {
+    "applyButton": "套用 Kember (2008) 批判性反思範本",
+    "confirmOverwrite": "這樣會覆蓋您目前編輯的內容，確定要套用 Kember 範本嗎？"
   }
 }
