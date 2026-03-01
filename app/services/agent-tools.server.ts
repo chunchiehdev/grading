@@ -11,7 +11,6 @@ import {
   CheckSimilarityInputSchema,
   CalculateConfidenceInputSchema,
   GenerateFeedbackInputSchema,
-  ThinkAloudInputSchema,
 } from '@/schemas/agent';
 import type {
   ReferenceSearchResult,
@@ -25,13 +24,100 @@ import logger from '@/utils/logger';
 
 // Tools moved to createAgentTools factory
 
+interface AgentLocaleText {
+  confidenceExtremelyHigh: string;
+  confidenceGood: string;
+  confidenceMedium: string;
+  confidenceLow: string;
+  issueCoverage: string;
+  issueEvidence: string;
+  issueAmbiguity: string;
+  issuePrefix: string;
+  noSpecificFeedback: string;
+  priorityLabel: string;
+  strengthsLabel: string;
+  improvementsLabel: string;
+  encouragementExcellent: string;
+  encouragementGood: string;
+  encouragementFair: string;
+  encouragementNeedsWork: string;
+  defaultOverallGood: string;
+  defaultOverallNeedsWork: string;
+  totalScorePrefix: string;
+  missingSparringQuestionsError: string;
+  similarityNoIssue: string;
+  similarityDetected: string;
+}
+
+function getAgentLocaleText(userLanguage?: string): AgentLocaleText {
+  const isZh = (userLanguage || 'zh-TW').startsWith('zh');
+
+  if (isZh) {
+    return {
+      confidenceExtremelyHigh: '信心度極高，評分證據充分且標準明確',
+      confidenceGood: '信心度良好，評分基本可靠',
+      confidenceMedium: '信心度中等，建議人工審核以確保準確性',
+      confidenceLow: '信心度偏低，強烈建議人工審核',
+      issueCoverage: '部分評分標準未完全涵蓋',
+      issueEvidence: '證據品質不夠充分',
+      issueAmbiguity: '評分標準存在模糊性',
+      issuePrefix: '。問題：',
+      noSpecificFeedback: '無具體回饋',
+      priorityLabel: '優先改進',
+      strengthsLabel: '優點',
+      improvementsLabel: '改進建議',
+      encouragementExcellent: '表現優異！繼續保持！',
+      encouragementGood: '整體表現良好，仍有進步空間。',
+      encouragementFair: '表現尚可，建議加強以下方面的學習。',
+      encouragementNeedsWork: '建議重新檢視作業要求，並針對評分標準逐項改進。',
+      defaultOverallGood: '整體表現良好，仍有進步空間。',
+      defaultOverallNeedsWork: '建議重新檢視作業要求，並針對評分標準逐項改進。',
+      totalScorePrefix: '總分',
+      missingSparringQuestionsError: `MISSING REQUIRED FIELD: sparringQuestions.
+You MUST provide at least 1 challenging "sparring question" based on your grading.
+This is a mandatory requirement. Please retry and include the 'sparringQuestions' array.`,
+      similarityNoIssue: '未發現異常相似',
+      similarityDetected: '發現 {{count}} 份高相似度作業（≥{{threshold}}%），建議人工確認是否為抄襲',
+    };
+  }
+
+  return {
+    confidenceExtremelyHigh: 'Confidence is very high; evidence is sufficient and rubric alignment is clear.',
+    confidenceGood: 'Confidence is good; the grading result is generally reliable.',
+    confidenceMedium: 'Confidence is moderate; human review is recommended for accuracy.',
+    confidenceLow: 'Confidence is low; human review is strongly recommended.',
+    issueCoverage: 'Some rubric criteria were not fully covered',
+    issueEvidence: 'Evidence quality is not strong enough',
+    issueAmbiguity: 'Rubric criteria contain ambiguity',
+    issuePrefix: '. Issues: ',
+    noSpecificFeedback: 'No specific feedback provided',
+    priorityLabel: 'Top Priority',
+    strengthsLabel: 'Strengths',
+    improvementsLabel: 'Suggestions for Improvement',
+    encouragementExcellent: 'Excellent work. Keep it up!',
+    encouragementGood: 'Overall performance is good, with room to improve.',
+    encouragementFair: 'The work is acceptable, but targeted improvement is recommended.',
+    encouragementNeedsWork: 'Please review the assignment requirements and improve each rubric area step by step.',
+    defaultOverallGood: 'Overall performance is good, with room to improve.',
+    defaultOverallNeedsWork: 'Please review the assignment requirements and improve each rubric area step by step.',
+    totalScorePrefix: 'Total Score',
+    missingSparringQuestionsError: `MISSING REQUIRED FIELD: sparringQuestions.
+You MUST provide at least 1 challenging "sparring question" based on your grading.
+This is a mandatory requirement. Please retry and include the 'sparringQuestions' array.`,
+    similarityNoIssue: 'No unusual similarity detected',
+    similarityDetected: 'Detected {{count}} high-similarity submissions (≥{{threshold}}%). Manual plagiarism review is recommended.',
+  };
+}
+
 
 /**
  * Tool 5: Calculate Confidence
  * 計算評分的信心度分數
  */
-export const calculateConfidenceTool = tool({
-  description: `計算 AI 對評分結果的信心度。
+function createCalculateConfidenceTool(isZh: boolean, localeText: AgentLocaleText) {
+  return tool({
+    description: isZh
+      ? `計算 AI 對評分結果的信心度。
 
   此工具會：
   1. 評估 rubric 覆蓋率（是否所有標準都有評到）
@@ -40,80 +126,93 @@ export const calculateConfidenceTool = tool({
   4. 綜合計算 0-1 的信心度分數
   5. 決定是否需要人工審核（< 0.7）
 
-  使用時機：評分完成後，評估結果的可靠性。`,
+  使用時機：評分完成後，評估結果的可靠性。`
+      : `Calculate confidence for the grading result.
 
-  inputSchema: CalculateConfidenceInputSchema,
+  This tool will:
+  1. Evaluate rubric coverage
+  2. Evaluate evidence quality (high/medium/low)
+  3. Evaluate rubric ambiguity
+  4. Compute a weighted confidence score between 0 and 1
+  5. Determine whether human review is needed (< 0.7)
 
-  execute: async ({
-    rubricCoverage,
-    evidenceQuality,
-    criteriaAmbiguity,
-  }: any): Promise<ConfidenceScore> => {
-    // 證據品質分數
-    const evidenceScore = ({
-      high: 1.0,
-      medium: 0.7,
-      low: 0.4,
-    } as Record<string, number>)[evidenceQuality as string];
+  Use this after grading to assess reliability.`,
 
-    // 綜合信心度計算（加權平均）
-    const confidenceScore =
-      rubricCoverage * 0.4 + // 40% 權重
-      evidenceScore * 0.4 + // 40% 權重
-      (1 - criteriaAmbiguity) * 0.2; // 20% 權重
+    inputSchema: CalculateConfidenceInputSchema,
 
-    const shouldReview = confidenceScore < 0.7;
+    execute: async ({
+      rubricCoverage,
+      evidenceQuality,
+      criteriaAmbiguity,
+    }: {
+      rubricCoverage: number;
+      evidenceQuality: 'high' | 'medium' | 'low';
+      criteriaAmbiguity: number;
+    }): Promise<ConfidenceScore> => {
+      const evidenceScore = ({
+        high: 1.0,
+        medium: 0.7,
+        low: 0.4,
+      } as Record<'high' | 'medium' | 'low', number>)[evidenceQuality];
 
-    // 生成建議
-    let reason = '';
-    if (confidenceScore >= 0.85) {
-      reason = '信心度極高，評分證據充分且標準明確';
-    } else if (confidenceScore >= 0.7) {
-      reason = '信心度良好，評分基本可靠';
-    } else if (confidenceScore >= 0.5) {
-      reason = '信心度中等，建議人工審核以確保準確性';
-    } else {
-      reason = '信心度偏低，強烈建議人工審核';
-    }
+      const confidenceScore =
+        rubricCoverage * 0.4 +
+        evidenceScore * 0.4 +
+        (1 - criteriaAmbiguity) * 0.2;
 
-    // 補充具體原因
-    const issues: string[] = [];
-    if (rubricCoverage < 0.9) issues.push('部分評分標準未完全涵蓋');
-    if (evidenceQuality !== 'high') issues.push('證據品質不夠充分');
-    if (criteriaAmbiguity > 0.3) issues.push('評分標準存在模糊性');
+      const shouldReview = confidenceScore < 0.7;
 
-    if (issues.length > 0) {
-      reason += `。問題：${issues.join('、')}`;
-    }
+      let reason = '';
+      if (confidenceScore >= 0.85) {
+        reason = localeText.confidenceExtremelyHigh;
+      } else if (confidenceScore >= 0.7) {
+        reason = localeText.confidenceGood;
+      } else if (confidenceScore >= 0.5) {
+        reason = localeText.confidenceMedium;
+      } else {
+        reason = localeText.confidenceLow;
+      }
 
-    logger.debug({
-      confidenceScore,
-      shouldReview,
-      factors: { rubricCoverage, evidenceQuality, criteriaAmbiguity },
-    }, '[Agent Tool] Confidence calculated');
+      const issues: string[] = [];
+      if (rubricCoverage < 0.9) issues.push(localeText.issueCoverage);
+      if (evidenceQuality !== 'high') issues.push(localeText.issueEvidence);
+      if (criteriaAmbiguity > 0.3) issues.push(localeText.issueAmbiguity);
 
-    return {
-      confidenceScore,
-      shouldReview,
-      reason,
-      factors: {
-        rubricCoverage,
-        evidenceQuality,
-        criteriaAmbiguity,
-      },
-    };
-  },
-});
+      if (issues.length > 0) {
+        reason += `${localeText.issuePrefix}${issues.join(isZh ? '、' : '; ')}`;
+      }
+
+      logger.debug({
+        confidenceScore,
+        shouldReview,
+        factors: { rubricCoverage, evidenceQuality, criteriaAmbiguity },
+      }, '[Agent Tool] Confidence calculated');
+
+      return {
+        confidenceScore,
+        shouldReview,
+        reason,
+        factors: {
+          rubricCoverage,
+          evidenceQuality,
+          criteriaAmbiguity,
+        },
+      };
+    },
+  });
+}
 
 /**
  * Tool 6: Generate Feedback
  * 生成結構化的評分反饋
  */
-export const generateFeedbackTool = tool({
-  description: `根據各項評分標準的分數和證據，生成結構化的評分反饋。
+function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) {
+  return tool({
+    description: isZh
+      ? `根據各項評分標準的分數和證據，生成結構化的評分反饋。
 
   ⚠️ **重要：以下欄位為必填！**
-  
+
   1. **overallFeedback** - 給學生的整體回饋【必填！】：
      - 2-4 句話，語氣溫暖像班導師
      - 包含：整體表現、最大優點、最需改進點、鼓勵語
@@ -124,13 +223,13 @@ export const generateFeedbackTool = tool({
      - 引用學生原文作為證據（用「」標示）
      - 解釋為什麼給這個分數
      - 指出優點和可改進之處
-  
+
   3. **sparringQuestions** - 對練問題【必填！生成 3 個】：
      - 生成 3 個挑戰性問題
      - 選擇學生表現最弱的評分維度
      - 必須包含：related_rubric_id, target_quote, provocation_strategy, question, ai_hidden_reasoning
      - 這是系統核心功能，缺少會導致錯誤
-  
+
   此工具會：
   1. 保存你的評分推理過程
   2. 彙總各項評分標準的分數
@@ -139,115 +238,137 @@ export const generateFeedbackTool = tool({
   5. 計算總分
   6. 生成對練問題供學生反思
 
-  使用時機：完成所有評分標準的評分後，生成最終結果。`,
+  使用時機：完成所有評分標準的評分後，生成最終結果。`
+      : `Generate structured grading feedback from rubric scores and evidence.
 
-  inputSchema: GenerateFeedbackInputSchema,
+  ⚠️ **Required fields**
+  1. **overallFeedback** (required): 2-4 warm, student-facing sentences
+  2. **reasoning**: detailed teacher-facing grading rationale
+  3. **sparringQuestions** (required): 3 reflective challenge questions
 
-  execute: async ({ reasoning, criteriaScores, overallObservation, overallFeedback: directOverallFeedback, strengths, improvements, messageToStudent, topPriority, encouragement, sparringQuestions }) => {
-    // Debug: Log sparringQuestions input from AI (CRITICAL DEBUG)
-    logger.info(`🎯 [Agent Tool] generate_feedback called - sparringQuestions: ${sparringQuestions ? `YES (${sparringQuestions.length})` : 'NO/UNDEFINED'}`);
-    if (sparringQuestions && sparringQuestions.length > 0) {
-      logger.info(`🎯 [Agent Tool] sparringQuestions[0]: ${JSON.stringify(sparringQuestions[0]).substring(0, 300)}`);
-    }
+  Use this tool after all rubric-level judgments are complete.`,
 
-    // 🔴 Validation Failure Check: Enforce sparringQuestions
-    if (!sparringQuestions || sparringQuestions.length === 0) {
-      const errorMsg = `MISSING REQUIRED FIELD: sparringQuestions.
-You MUST provide at least 1 challenging "sparring question" based on your grading.
-This is a mandatory requirement. Please retry and include the 'sparringQuestions' array.`;
-      
-      logger.warn({ errorMsg }, '[Agent Tool] Validation Failed: Missing sparringQuestions');
-      throw new Error(errorMsg);
-    }
-    
-    // 計算總分
-    const totalScore = criteriaScores.reduce((sum: number, c: any) => sum + c.score, 0);
-    const maxScore = criteriaScores.reduce((sum: number, c: any) => sum + c.maxScore, 0);
-    const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+    inputSchema: GenerateFeedbackInputSchema,
 
-    // 生成各項反饋 - 優先使用 analysis/justification，fallback 到 evidence
-    const breakdown = criteriaScores.map((c: any) => {
-      // 組合有意義的回饋：分析 > 理由 > 證據引用
-      let feedback = '';
-      
-      if (c.analysis) {
-        feedback = c.analysis;
-      } else if (c.justification) {
-        feedback = c.justification;
+    execute: async ({
+      reasoning,
+      criteriaScores,
+      overallObservation,
+      overallFeedback: directOverallFeedback,
+      strengths,
+      improvements,
+      messageToStudent,
+      topPriority,
+      encouragement,
+      sparringQuestions,
+    }) => {
+      logger.info(`🎯 [Agent Tool] generate_feedback called - sparringQuestions: ${sparringQuestions ? `YES (${sparringQuestions.length})` : 'NO/UNDEFINED'}`);
+      if (sparringQuestions && sparringQuestions.length > 0) {
+        logger.info(`🎯 [Agent Tool] sparringQuestions[0]: ${JSON.stringify(sparringQuestions[0]).substring(0, 300)}`);
       }
-      
-      // 如果有證據且有分析，把證據作為補充
-      if (c.evidence && feedback) {
-        feedback += `\n\n**引用原文：**\n「${c.evidence}」`;
-      } else if (c.evidence && !feedback) {
-        // 如果只有證據，至少顯示它
-        feedback = `「${c.evidence}」`;
+
+      if (!sparringQuestions || sparringQuestions.length === 0) {
+        const errorMsg = localeText.missingSparringQuestionsError;
+        logger.warn({ errorMsg }, '[Agent Tool] Validation Failed: Missing sparringQuestions');
+        throw new Error(errorMsg);
       }
-      
-      return {
-        criteriaId: c.criteriaId,
-        name: c.name,
-        score: c.score,
-        feedback: feedback || '無具體回饋',
-      };
-    });
 
-    // 生成整體評語：優先使用 LLM 直接生成的 overallFeedback
-    let overallFeedback = (directOverallFeedback || messageToStudent || overallObservation || '').trim();
+      const totalScore = criteriaScores.reduce((sum: number, c: { score: number }) => sum + c.score, 0);
+      const maxScore = criteriaScores.reduce((sum: number, c: { maxScore: number }) => sum + c.maxScore, 0);
+      const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
 
-    if (topPriority) {
-      overallFeedback += `\n\n**優先改進：**\n${topPriority}`;
-    }
+      const breakdown = criteriaScores.map((c) => {
+        let feedback = '';
 
-    if (strengths && strengths.length > 0) {
-      overallFeedback += `\n\n**優點：**\n${strengths.map((s: any) => `- ${s}`).join('\n')}`;
-    }
+        if (c.analysis) {
+          feedback = c.analysis;
+        } else if (c.justification) {
+          feedback = c.justification;
+        }
 
-    if (improvements && improvements.length > 0) {
-      overallFeedback += `\n\n**改進建議：**\n${improvements.map((i: any) => `- ${i}`).join('\n')}`;
-    }
+        if (c.evidence && feedback) {
+          feedback += isZh ? `\n\n**引用原文：**\n「${c.evidence}」` : `\n\n**Evidence Quote:**\n"${c.evidence}"`;
+        } else if (c.evidence && !feedback) {
+          feedback = isZh ? `「${c.evidence}」` : `"${c.evidence}"`;
+        }
 
-    if (encouragement?.trim()) {
-      overallFeedback += `\n\n${encouragement.trim()}`;
-    } else {
-      // 根據得分提供鼓勵或建議 (Fallback)
-      if (percentage >= 90) {
-        overallFeedback += '\n\n表現優異！繼續保持！';
+        return {
+          criteriaId: c.criteriaId,
+          name: c.name,
+          score: c.score,
+          feedback: feedback || localeText.noSpecificFeedback,
+        };
+      });
+
+      let overallFeedback = (directOverallFeedback || messageToStudent || overallObservation || '').trim();
+
+      if (topPriority) {
+        overallFeedback += `\n\n**${localeText.priorityLabel}:**\n${topPriority}`;
+      }
+
+      if (strengths && strengths.length > 0) {
+        overallFeedback += `\n\n**${localeText.strengthsLabel}:**\n${strengths.map((s: string) => `- ${s}`).join('\n')}`;
+      }
+
+      if (improvements && improvements.length > 0) {
+        overallFeedback += `\n\n**${localeText.improvementsLabel}:**\n${improvements.map((i: string) => `- ${i}`).join('\n')}`;
+      }
+
+      if (encouragement?.trim()) {
+        overallFeedback += `\n\n${encouragement.trim()}`;
+      } else if (percentage >= 90) {
+        overallFeedback += `\n\n${localeText.encouragementExcellent}`;
       } else if (percentage >= 70) {
-        overallFeedback += '\n\n整體表現良好，仍有進步空間。';
+        overallFeedback += `\n\n${localeText.encouragementGood}`;
       } else if (percentage >= 50) {
-        overallFeedback += '\n\n表現尚可，建議加強以下方面的學習。';
+        overallFeedback += `\n\n${localeText.encouragementFair}`;
       } else {
-        overallFeedback += '\n\n建議重新檢視作業要求，並針對評分標準逐項改進。';
+        overallFeedback += `\n\n${localeText.encouragementNeedsWork}`;
       }
-    }
 
-    // Ultimate fallback: ensure overallFeedback is never empty
-    const finalOverallFeedback = overallFeedback.trim() ||
-      (percentage >= 70 ? '整體表現良好，仍有進步空間。' : '建議重新檢視作業要求，並針對評分標準逐項改進。');
+      const finalOverallFeedback =
+        overallFeedback.trim() || (percentage >= 70 ? localeText.defaultOverallGood : localeText.defaultOverallNeedsWork);
 
-    logger.debug({
-      totalScore,
-      maxScore,
-      percentage: percentage.toFixed(1),
-      hasReasoning: !!reasoning,
-      reasoningLength: reasoning?.length || 0,
-      sparringQuestionsCount: sparringQuestions?.length || 0,
-    }, '[Agent Tool] Feedback generated');
+      const combinedVisibleText = [
+        finalOverallFeedback,
+        ...breakdown.map((item) => item.feedback || ''),
+      ].join('\n');
+      const cjkCount = (combinedVisibleText.match(/[\u3400-\u9FFF\uF900-\uFAFF]/g) || []).length;
+      const alphaCount = (combinedVisibleText.match(/[A-Za-z]/g) || []).length;
+      const visibleCount = cjkCount + alphaCount;
+      const cjkRatio = visibleCount > 0 ? cjkCount / visibleCount : 0;
+      const alphaRatio = visibleCount > 0 ? alphaCount / visibleCount : 0;
 
-    return {
-      reasoning, // 保存評分推理過程
-      breakdown,
-      overallFeedback: finalOverallFeedback,
-      totalScore,
-      maxScore,
-      percentage: Math.round(percentage),
-      summary: `總分：${totalScore}/${maxScore} (${percentage.toFixed(1)}%)`,
-      // 新增：對練問題（Sparring Questions）
-      sparringQuestions: sparringQuestions || [],
-    };
-  },
-});
+      if (isZh) {
+        if (visibleCount >= 80 && cjkRatio < 0.4) {
+          throw new Error('LANGUAGE_MISMATCH: feedback fields must be predominantly Traditional Chinese when UI language is zh.');
+        }
+      } else if (visibleCount >= 80 && (cjkRatio > 0.15 || alphaRatio < 0.5)) {
+        throw new Error('LANGUAGE_MISMATCH: feedback fields must be English when UI language is non-zh.');
+      }
+
+      logger.debug({
+        totalScore,
+        maxScore,
+        percentage: percentage.toFixed(1),
+        hasReasoning: !!reasoning,
+        reasoningLength: reasoning?.length || 0,
+        sparringQuestionsCount: sparringQuestions?.length || 0,
+      }, '[Agent Tool] Feedback generated');
+
+      return {
+        reasoning,
+        breakdown,
+        overallFeedback: finalOverallFeedback,
+        totalScore,
+        maxScore,
+        percentage: Math.round(percentage),
+        summary: `${localeText.totalScorePrefix}: ${totalScore}/${maxScore} (${percentage.toFixed(1)}%)`,
+        sparringQuestions: sparringQuestions || [],
+      };
+    },
+  });
+}
 
 /**
  * Tool: Evaluate Subtrait (Phase 1) - DEPRECATED/REMOVED
@@ -273,6 +394,7 @@ export const createAgentTools = (context: {
   userLanguage?: string;
 }) => {
   const isZh = (context.userLanguage || 'zh-TW').startsWith('zh');
+  const localeText = getAgentLocaleText(context.userLanguage);
 
   const hasCjk = (text: string): boolean => /[\u3400-\u9FFF\uF900-\uFAFF]/.test(text);
   const countCjk = (text: string): number => (text.match(/[\u3400-\u9FFF\uF900-\uFAFF]/g) || []).length;
@@ -440,9 +562,11 @@ export const createAgentTools = (context: {
 
         const hasSuspiciousSimilarity = similarities.length > 0;
 
-        let recommendation = '未發現異常相似';
+        let recommendation = localeText.similarityNoIssue;
         if (similarities.length > 0) {
-          recommendation = `發現 ${similarities.length} 份高相似度作業（≥${(threshold * 100).toFixed(0)}%），建議人工確認是否為抄襲`;
+          recommendation = localeText.similarityDetected
+            .replace('{{count}}', String(similarities.length))
+            .replace('{{threshold}}', (threshold * 100).toFixed(0));
         }
 
         logger.info({
@@ -462,7 +586,7 @@ export const createAgentTools = (context: {
         return {
           hasSuspiciousSimilarity: false,
           matches: [],
-          recommendation: '相似度檢查失敗',
+          recommendation: isZh ? '相似度檢查失敗' : 'Similarity check failed',
           checked: 0,
         };
       }
@@ -671,8 +795,8 @@ Use Markdown formatting for clarity.`)
     think_aloud: thinkAloudTool,  // Testing Hattie & Timperley framework
     search_reference: searchReferenceTool,
     check_similarity: checkSimilarityTool,
-    calculate_confidence: calculateConfidenceTool,
-    generate_feedback: generateFeedbackTool,
+    calculate_confidence: createCalculateConfidenceTool(isZh, localeText),
+    generate_feedback: createGenerateFeedbackTool(isZh, localeText),
     // evaluate_subtrait: evaluateSubtraitTool, // Removed for efficiency
     // match_to_level: matchToLevelTool, // Removed for efficiency
   };

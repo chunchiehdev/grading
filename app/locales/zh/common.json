@@ -150,6 +150,18 @@
     }
   },
   "returnHome": "返回網站首頁",
+  "clipboard": {
+    "copyFailed": "複製失敗"
+  },
+  "share": {
+    "notSupported": "此裝置不支援分享功能"
+  },
+  "adminUsers": {
+    "toasts": {
+      "updateRoleFailed": "更新角色失敗",
+      "updateAIAccessFailed": "更新 AI 權限失敗"
+    }
+  },
   "roles": {
     "student": "學生",
     "teacher": "教師",

@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Admin User Management Page
@@ -59,6 +60,7 @@ type SortField = 'createdAt' | 'name' | 'role';
 type SortOrder = 'asc' | 'desc';
 
 export default function AdminUsersPage() {
+  const { t } = useTranslation('common');
   const [sortBy, setSortBy] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [data, setData] = useState<UsersData | null>(null);
@@ -145,7 +147,7 @@ export default function AdminUsersPage() {
       // Refresh users
       fetchUsers(sortBy, sortOrder);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update role');
+      toast.error(err instanceof Error ? err.message : t('adminUsers.toasts.updateRoleFailed'));
     }
   };
 
@@ -168,7 +170,7 @@ export default function AdminUsersPage() {
       // Refresh users
       fetchUsers(sortBy, sortOrder);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update AI access');
+      toast.error(err instanceof Error ? err.message : t('adminUsers.toasts.updateAIAccessFailed'));
     }
   };
 

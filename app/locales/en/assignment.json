@@ -109,6 +109,7 @@
       "parsingFailed": "File parsing failed. Please upload a different file or try again later.",
       "parsingTimeout": "Parsing is taking longer than expected. Please try again shortly.",
       "failedToStartGrading": "Failed to start grading",
+      "aiAccessDisabled": "AI access is not enabled yet. Please contact an administrator.",
       "noFileUploaded": "No file uploaded.",
       "failedToSubmit": "Failed to submit assignment"
     },

@@ -44,6 +44,40 @@ function getMessageContent(msg: UIMessage): string {
   return '';
 }
 
+function extractAgentErrorMessage(raw: string, translate?: (key: string) => string): string {
+  const cleaned = raw.replace(/^Error:\s*/i, '').trim();
+
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(cleaned) as {
+        code?: string;
+        error?: string | { message?: string };
+        message?: string;
+      };
+      if (parsed.code === 'AI_ACCESS_DISABLED' && translate) {
+        return translate('error.aiAccessDisabled');
+      }
+      if (typeof parsed.error === 'string') {
+        return extractAgentErrorMessage(parsed.error, translate);
+      }
+      if (parsed.error && typeof parsed.error.message === 'string') {
+        return extractAgentErrorMessage(parsed.error.message, translate);
+      }
+      if (typeof parsed.message === 'string') {
+        return extractAgentErrorMessage(parsed.message, translate);
+      }
+    } catch {
+      return cleaned;
+    }
+  }
+
+  if (translate && (cleaned.includes('AI 功能尚未開啟') || cleaned.includes('AI access is not enabled'))) {
+    return translate('error.aiAccessDisabled');
+  }
+
+  return cleaned;
+}
+
 /**
  * Group message parts by steps
  */
@@ -165,7 +199,7 @@ export function AgentChatContent() {
     transport,
     onError: (error) => {
       console.error('Agent chat error:', error);
-      toast.error(t('error.sendFailed', '發送訊息失敗，請稍後再試'));
+      toast.error(extractAgentErrorMessage(error.message || t('error.sendFailed'), t));
     },
   });
 
@@ -184,9 +218,9 @@ export function AgentChatContent() {
           if (!res.ok) {
             hasLoadedSessionRef.current = null;
             if (res.status === 404) {
-              toast.error('對話不存在');
+              toast.error(t('error.sessionNotFound'));
             } else if (res.status === 403) {
-              toast.error('您沒有權限訪問此對話');
+              toast.error(t('error.sessionForbidden'));
             }
             return;
           }
@@ -209,7 +243,7 @@ export function AgentChatContent() {
         .catch((e) => {
           hasLoadedSessionRef.current = null;
           console.error('Failed to load session', e);
-          toast.error('載入對話失敗');
+          toast.error(t('error.loadSessionFailed'));
         })
         .finally(() => {
           setIsLoadingHistory(false);
@@ -279,7 +313,7 @@ export function AgentChatContent() {
             <div className="flex-1 flex items-center justify-center py-8">
               <div className="max-w-2xl w-full space-y-6 sm:space-y-8 text-center">
               <div className="space-y-3">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium leading-[1.25] pb-1 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
                   {t('welcome.title', { name: user?.name || user?.email?.split('@')[0] || 'there' })}
                 </h1>
                 <p className="text-sm sm:text-base text-muted-foreground">
@@ -313,7 +347,7 @@ export function AgentChatContent() {
             )}
             {error && (
               <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                <p className="text-sm text-destructive">{t('error.prefix')} {error.message}</p>
+                <p className="text-sm text-destructive">{t('error.prefix')} {extractAgentErrorMessage(error.message, t)}</p>
               </div>
             )}
             <div ref={messagesEndRef} />

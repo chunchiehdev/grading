@@ -657,6 +657,54 @@ export default function SubmitAssignment() {
     return false;
   };
 
+  const normalizeErrorMessage = (value: unknown, fallback: string): string => {
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/^Error:\s*/i, '').trim();
+
+      if (cleaned.includes('AI 功能尚未開啟') || cleaned.includes('AI access is not enabled')) {
+        return t('assignment:submit.errors.aiAccessDisabled');
+      }
+
+      if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(cleaned) as { error?: string | { message?: string }; message?: string };
+          if (typeof parsed.error === 'string') {
+            return normalizeErrorMessage(parsed.error, fallback);
+          }
+          if (parsed.error && typeof parsed.error.message === 'string') {
+            return normalizeErrorMessage(parsed.error.message, fallback);
+          }
+          if (typeof parsed.message === 'string') {
+            return normalizeErrorMessage(parsed.message, fallback);
+          }
+        } catch {
+          return cleaned || fallback;
+        }
+      }
+
+      return cleaned || fallback;
+    }
+
+    if (value && typeof value === 'object') {
+      const payload = value as { message?: string; error?: string | { message?: string } };
+      if (typeof payload.message === 'string') {
+        return normalizeErrorMessage(payload.message, fallback);
+      }
+      if (typeof payload.error === 'string') {
+        return normalizeErrorMessage(payload.error, fallback);
+      }
+      if (payload.error && typeof payload.error.message === 'string') {
+        return normalizeErrorMessage(payload.error.message, fallback);
+      }
+    }
+
+    return fallback;
+  };
+
+  const getApiErrorMessage = (payload: { error?: unknown }, fallback: string): string => {
+    return normalizeErrorMessage(payload.error, fallback);
+  };
+
   const startAnalysis = async () => {
     if (!state.file?.id || !assignment.rubric?.id) {
       dispatch({ type: 'error', message: t('assignment:submit.errors.noFileOrRubric') });
@@ -680,11 +728,9 @@ export default function SubmitAssignment() {
       const sessionRes = await fetch('/api/grading/session', { method: 'POST', body: form });
       const sessionData = await sessionRes.json();
       if (!sessionData.success) {
-        // API returns error as object: { message: string, code?: string }
-        const errorMessage = typeof sessionData.error === 'string' 
-          ? sessionData.error 
-          : sessionData.error?.message || 'Failed to create session';
-        throw new Error(errorMessage);
+        throw new Error(
+          getApiErrorMessage(sessionData, t('assignment:submit.errors.failedToStartGrading'))
+        );
       }
 
       dispatch({ type: 'analysis_started', sessionId: sessionData.data.sessionId });
@@ -699,11 +745,9 @@ export default function SubmitAssignment() {
       });
       const startData = await startRes.json();
       if (!startData.success) {
-        // API returns error as object: { message: string, code?: string }
-        const errorMessage = typeof startData.error === 'string' 
-          ? startData.error 
-          : startData.error?.message || 'Failed to start grading';
-        throw new Error(errorMessage);
+        throw new Error(
+          getApiErrorMessage(startData, t('assignment:submit.errors.failedToStartGrading'))
+        );
       }
 
       // Only save draft with sessionId AFTER grading successfully started
@@ -730,7 +774,7 @@ export default function SubmitAssignment() {
     } catch (err) {
       dispatch({
         type: 'error',
-        message: err instanceof Error ? err.message : t('assignment:submit.errors.failedToStartGrading'),
+        message: normalizeErrorMessage(err instanceof Error ? err.message : err, t('assignment:submit.errors.failedToStartGrading')),
       });
     }
   };
@@ -772,12 +816,14 @@ export default function SubmitAssignment() {
         dispatch({ type: 'submission_completed', sessionId: state.session.id });
         navigate(`/student/submissions/${data.submissionId}`);
       } else {
-        throw new Error(data.error);
+        throw new Error(
+          getApiErrorMessage(data, t('assignment:submit.errors.failedToSubmit'))
+        );
       }
     } catch (err) {
       dispatch({
         type: 'error',
-        message: err instanceof Error ? err.message : t('assignment:submit.errors.failedToSubmit'),
+        message: normalizeErrorMessage(err instanceof Error ? err.message : err, t('assignment:submit.errors.failedToSubmit')),
       });
     }
   };

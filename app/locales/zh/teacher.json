@@ -44,5 +44,9 @@
     "view": "查看",
     "download": "下載",
     "edit": "編輯"
+  },
+  "submissionView": {
+    "deleteSuccess": "提交已成功刪除",
+    "deleteFailed": "刪除失敗，請稍後再試"
   }
 }

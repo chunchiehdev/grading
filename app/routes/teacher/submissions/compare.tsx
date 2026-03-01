@@ -54,8 +54,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       throw new Response('Failed to compare versions', { status: 500 });
     }
 
-    const studentName = comparison.versionA.submission.student?.name || '學生';
-    const assignmentName = comparison.versionA.submission.assignmentArea?.name || '作業';
+    const studentName = comparison.versionA.submission.student?.name || '';
+    const assignmentName = comparison.versionA.submission.assignmentArea?.name || '';
 
     return Response.json({
       comparison,
@@ -71,6 +71,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function TeacherVersionCompare() {
   const { comparison, studentName, assignmentName } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const { t } = useTranslation(['submissions']);
+
+  const studentDisplayName = studentName || t('submissions:historyPage.fallback.student');
+  const assignmentDisplayName = assignmentName || t('submissions:historyPage.fallback.assignment');
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] dark:bg-gray-950">
@@ -82,7 +86,7 @@ export default function TeacherVersionCompare() {
             className="mb-4 inline-flex items-center gap-2 text-sm text-gray-600 transition-colors hover:text-[#E07A5F] dark:text-gray-400 dark:hover:text-[#E87D3E]"
           >
             <ArrowLeft className="h-4 w-4" />
-            返回歷史記錄
+            {t('submissions:historyCompare.backToHistory')}
           </button>
 
           {/* Student Info Card */}
@@ -93,17 +97,17 @@ export default function TeacherVersionCompare() {
               </div>
               <div>
                 <h2 className="font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-                  {studentName}
+                  {studentDisplayName}
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">學生版本比較</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{t('submissions:historyCompare.studentComparison')}</p>
               </div>
             </div>
           </div>
 
           <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
-            {assignmentName}
+            {assignmentDisplayName}
           </h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">版本比較分析</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">{t('submissions:historyCompare.analysisTitle')}</p>
         </div>
       </div>
 
@@ -129,7 +133,7 @@ export function ErrorBoundary() {
               400
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              缺少版本參數，請返回重新選擇
+              {t('common:errors.400.missingVersionParams')}
             </p>
           </div>
           <Link
@@ -137,7 +141,7 @@ export function ErrorBoundary() {
             className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
           >
             <Home className="h-4 w-4" />
-            返回首頁
+            {t('common:returnHome')}
           </Link>
         </div>
       </div>
@@ -153,7 +157,7 @@ export function ErrorBoundary() {
               404
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              找不到提交版本，可能已被刪除或不存在
+              {t('common:errors.404.submissionVersion')}
             </p>
           </div>
           <Link
@@ -161,7 +165,7 @@ export function ErrorBoundary() {
             className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
           >
             <Home className="h-4 w-4" />
-            返回首頁
+            {t('common:returnHome')}
           </Link>
         </div>
       </div>
@@ -177,7 +181,7 @@ export function ErrorBoundary() {
               403
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              您沒有權限比較這些版本
+              {t('common:errors.403.compareVersions')}
             </p>
           </div>
           <Link
@@ -185,7 +189,7 @@ export function ErrorBoundary() {
             className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
           >
             <Home className="h-4 w-4" />
-            返回首頁
+            {t('common:returnHome')}
           </Link>
         </div>
       </div>
@@ -201,7 +205,7 @@ export function ErrorBoundary() {
               500
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              版本比較失敗，請稍後再試
+              {t('common:errors.500.compareVersions')}
             </p>
           </div>
           <Link
@@ -209,7 +213,7 @@ export function ErrorBoundary() {
             className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
           >
             <Home className="h-4 w-4" />
-            返回首頁
+            {t('common:returnHome')}
           </Link>
         </div>
       </div>
@@ -222,10 +226,10 @@ export function ErrorBoundary() {
       <div className="space-y-6 text-center">
         <div className="space-y-3">
           <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
-            錯誤
+            {t('common:errors.generic.title')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            載入比較結果時發生錯誤，請稍後再試
+            {t('common:errors.generic.comparison')}
           </p>
         </div>
         <Link
@@ -233,7 +237,7 @@ export function ErrorBoundary() {
           className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
         >
           <Home className="h-4 w-4" />
-          返回首頁
+          {t('common:returnHome')}
         </Link>
       </div>
     </div>

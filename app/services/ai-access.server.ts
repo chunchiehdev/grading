@@ -10,6 +10,7 @@ import logger from '@/utils/logger';
 
 export interface AIAccessResult {
   allowed: boolean;
+  reasonCode?: 'USER_ID_MISSING' | 'USER_NOT_FOUND' | 'AI_ACCESS_DISABLED' | 'ACCESS_CHECK_FAILED';
   reason?: string;
 }
 
@@ -21,7 +22,7 @@ export interface AIAccessResult {
  */
 export async function checkAIAccess(userId: string | undefined): Promise<AIAccessResult> {
   if (!userId) {
-    return { allowed: false, reason: 'User ID not provided' };
+    return { allowed: false, reasonCode: 'USER_ID_MISSING', reason: 'User ID not provided' };
   }
 
   try {
@@ -31,7 +32,7 @@ export async function checkAIAccess(userId: string | undefined): Promise<AIAcces
     });
 
     if (!user) {
-      return { allowed: false, reason: 'User not found' };
+      return { allowed: false, reasonCode: 'USER_NOT_FOUND', reason: 'User not found' };
     }
 
     // ADMIN always has AI access
@@ -44,6 +45,7 @@ export async function checkAIAccess(userId: string | undefined): Promise<AIAcces
       logger.info({ userId, role: user.role }, '[AIAccess] Access denied - not enabled by admin');
       return {
         allowed: false,
+        reasonCode: 'AI_ACCESS_DISABLED',
         reason: 'AI 功能尚未開啟。請聯繫管理員啟用您的 AI 存取權限。',
       };
     }
@@ -51,7 +53,7 @@ export async function checkAIAccess(userId: string | undefined): Promise<AIAcces
     return { allowed: true };
   } catch (error) {
     logger.error({ userId, error }, '[AIAccess] Error checking access');
-    return { allowed: false, reason: 'Error checking AI access' };
+    return { allowed: false, reasonCode: 'ACCESS_CHECK_FAILED', reason: 'Error checking AI access' };
   }
 }
 

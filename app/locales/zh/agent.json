@@ -31,7 +31,15 @@
   },
   "error": {
     "title": "錯誤：",
-    "prefix": "錯誤："
+    "prefix": "錯誤：",
+    "sendFailed": "發送訊息失敗，請稍後再試",
+    "sessionNotFound": "找不到對話",
+    "sessionForbidden": "您沒有權限訪問此對話",
+    "loadSessionFailed": "載入對話失敗",
+    "aiAccessDisabled": "AI 功能尚未開啟。請聯繫管理員啟用您的 AI 存取權限。",
+    "loadListFailed": "無法載入對話列表",
+    "updateFailed": "更新失敗",
+    "deleteFailed": "刪除失敗"
   },
   "step": {
     "label": "步驟 {{number}}",

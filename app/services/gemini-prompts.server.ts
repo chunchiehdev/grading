@@ -1,4 +1,4 @@
-import type { GeminiGradingRequest, GeminiFileGradingRequest } from '@/types/gemini';
+import type { GeminiGradingRequest } from '@/types/gemini';
 import logger from '@/utils/logger';
 
 /**
@@ -81,8 +81,12 @@ export class GeminiPrompts {
     const criteriaDescription = this.formatCriteriaDescription(criteria, language);
 
     // Feature 004: Format reference documents and custom instructions
-    const referenceSection = referenceDocuments ? this.formatReferenceDocuments(referenceDocuments) : '';
-    const instructionsSection = customInstructions ? this.formatCustomInstructions(customInstructions) : '';
+    const referenceSection = referenceDocuments
+      ? this.formatReferenceDocuments(referenceDocuments, language)
+      : '';
+    const instructionsSection = customInstructions
+      ? this.formatCustomInstructions(customInstructions, language)
+      : '';
     
     // Format Assignment Info
     const assignmentSection = assignmentTitle
@@ -176,24 +180,41 @@ export class GeminiPrompts {
 
   // Feature 004: Format reference documents for AI prompt
   static formatReferenceDocuments(
-    documents: Array<{ fileId: string; fileName: string; content: string; wasTruncated: boolean }>
+    documents: Array<{ fileId: string; fileName: string; content: string; wasTruncated: boolean }>,
+    language: 'zh' | 'en' = 'en'
   ): string {
     if (!documents || documents.length === 0) {
       return '';
     }
 
+    const isZh = language === 'zh';
     const documentSections = documents
       .map((doc, index) => {
-        const truncationNote = doc.wasTruncated ? '\n\n[注意：此文件內容已截斷至8000字元]' : '';
-        return this.dedent(`
+        const truncationNote = doc.wasTruncated
+          ? isZh
+            ? '\n\n[注意：此文件內容已截斷至8000字元]'
+            : '\n\n[Note: This file was truncated to 8000 characters]'
+          : '';
+
+        return this.dedent(
+          isZh
+            ? `
           ### 參考文件 ${index + 1}: ${doc.fileName}
 
           ${doc.content}${truncationNote}
-        `);
+        `
+            : `
+          ### Reference Document ${index + 1}: ${doc.fileName}
+
+          ${doc.content}${truncationNote}
+        `
+        );
       })
       .join('\n\n');
 
-    return this.dedent(`
+    return this.dedent(
+      isZh
+        ? `
       ## 參考知識庫 (Reference Knowledge Base)
 
       以下是與此作業相關的參考資料，請在評分時參考這些內容來判斷學生答案的正確性和完整性：
@@ -205,23 +226,48 @@ export class GeminiPrompts {
       - 識別學生理解的正確與錯誤之處
       - 判斷答案的完整度（是否涵蓋關鍵概念）
       - 在反饋中明確指出與參考資料的對應關係
-    `);
+    `
+        : `
+      ## Reference Knowledge Base
+
+      The following materials are relevant references for this assignment. Use them to evaluate correctness and completeness of the student's response:
+
+      ${documentSections}
+
+      **Guidelines:**
+      - Compare the student's answer against the reference content
+      - Identify correct understanding and misconceptions
+      - Evaluate completeness (coverage of key concepts)
+      - Clearly explain links between feedback and reference evidence
+    `
+    );
   }
 
   // Feature 004: Format custom grading instructions for AI prompt
-  static formatCustomInstructions(instructions: string): string {
+  static formatCustomInstructions(instructions: string, language: 'zh' | 'en' = 'en'): string {
     if (!instructions || instructions.trim() === '') {
       return '';
     }
 
-    return this.dedent(`
+    return this.dedent(
+      language === 'zh'
+        ? `
       ## 特殊評分指示 (Special Grading Instructions)
 
       **教師特別要求：**
       ${instructions}
 
       **重要：** 請在評分時特別注意上述指示，這些是針對此作業的特定要求。
-    `);
+    `
+        : `
+      ## Special Grading Instructions
+
+      **Teacher Requirements:**
+      ${instructions}
+
+      **Important:** Pay special attention to the instructions above. These are assignment-specific requirements.
+    `
+    );
   }
 
   private static formatCriteriaDescription(criteria: any[], language: 'zh' | 'en' = 'en'): string {

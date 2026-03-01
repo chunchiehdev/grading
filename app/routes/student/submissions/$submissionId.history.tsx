@@ -9,6 +9,7 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse } from 'react-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { requireStudent } from '@/services/auth.server';
 import { getSubmissionHistory } from '@/services/version-management.server';
 import { db } from '@/types/database';
@@ -49,19 +50,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     // Get all versions for this assignment
     const history = await getSubmissionHistory(submission.assignmentAreaId, student.id);
 
-    const assignmentName = history[0]?.assignmentArea?.name || '作業';
-    const courseName = history[0]?.assignmentArea?.course?.name || '課程';
-
-    // Helper function for status text
-    function getStatusText(status: string) {
-      const statusMap: Record<string, string> = {
-        SUBMITTED: '已提交',
-        ANALYZED: '分析完成',
-        GRADED: '已評分',
-        DRAFT: '草稿',
-      };
-      return statusMap[status] || status;
-    }
+    const assignmentName = history[0]?.assignmentArea?.name || '';
+    const courseName = history[0]?.assignmentArea?.course?.name || '';
 
     return Response.json({
       submissions: history.map((sub: any) => ({
@@ -72,7 +62,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         submittedAtFormatted: formatRelativeTime(new Date(sub.uploadedAt)),
         submittedAtFull: formatDateForDisplay(new Date(sub.uploadedAt)),
         status: sub.status,
-        statusText: getStatusText(sub.status),
+        statusText: sub.status,
         finalScore: sub.finalScore,
         normalizedScore: sub.normalizedScore,
         assignmentArea: sub.assignmentArea,
@@ -90,6 +80,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 export default function StudentSubmissionHistory() {
   const { submissions, assignmentName, courseName, totalVersions } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  const { t } = useTranslation(['submissions']);
 
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
 
@@ -133,10 +124,11 @@ export default function StudentSubmissionHistory() {
       <div className="border-b border-border p-6 sm:p-8">
         <div className="mx-auto max-w-4xl">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            {assignmentName}
+            {assignmentName || t('submissions:historyPage.fallback.assignment')}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            {courseName} • 共 {totalVersions} 個版本
+            {courseName || t('submissions:historyPage.fallback.course')} •{' '}
+            {t('submissions:historyPage.totalVersions', { count: totalVersions })}
           </p>
         </div>
       </div>
@@ -158,17 +150,17 @@ export default function StudentSubmissionHistory() {
               <div className="flex items-center justify-between gap-6">
                 <div>
                   <h3 className="font-serif text-lg font-light text-[#2B2B2B] dark:text-gray-100">
-                    準備比較版本
+                    {t('submissions:historyPage.compare.readyTitle')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    已選擇 2 個版本進行比較
+                    {t('submissions:historyPage.compare.selectedHint')}
                   </p>
                 </div>
                 <Button
                   onClick={handleStartComparison}
                   className="border border-[#E07A5F] bg-[#E07A5F] px-6 py-3 font-sans text-sm text-white shadow-sm transition-all hover:bg-[#E07A5F]/90 hover:shadow-md dark:border-[#E87D3E] dark:bg-[#E87D3E]"
                 >
-                  開始比較
+                  {t('submissions:historyPage.compare.start')}
                 </Button>
               </div>
             </div>

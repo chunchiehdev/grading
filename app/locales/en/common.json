@@ -150,6 +150,18 @@
     }
   },
   "returnHome": "Return to website",
+  "clipboard": {
+    "copyFailed": "Failed to copy"
+  },
+  "share": {
+    "notSupported": "Share is not supported on this device"
+  },
+  "adminUsers": {
+    "toasts": {
+      "updateRoleFailed": "Failed to update role",
+      "updateAIAccessFailed": "Failed to update AI access"
+    }
+  },
   "roles": {
     "student": "Student",
     "teacher": "Teacher",

@@ -93,5 +93,55 @@
       "noEmail": "無電子郵件",
       "viewDetails": "查看詳情"
     }
+  },
+  "historyPage": {
+    "totalVersions": "共 {{count}} 個版本",
+    "fallback": {
+      "assignment": "作業",
+      "course": "課程",
+      "student": "學生"
+    },
+    "teacher": {
+      "studentRecord": "學生繳交記錄"
+    },
+    "compare": {
+      "readyTitle": "準備比較版本",
+      "selectedHint": "已選擇 2 個版本進行比較",
+      "start": "開始比較"
+    },
+    "timeline": {
+      "ariaLabel": "提交版本歷史",
+      "versionAriaLabel": "版本 {{version}}",
+      "latest": "最新",
+      "scoreAriaLabel": "分數 {{score}} 分",
+      "points": "分",
+      "viewDetails": "查看詳情",
+      "viewDetailAriaLabel": "查看版本 {{version}} 詳情",
+      "selectCompare": "選擇比較",
+      "selected": "已選擇",
+      "selectAriaLabel": "選擇版本 {{version}} 進行比較",
+      "deselectAriaLabel": "取消選擇版本 {{version}} 的比較"
+    }
+  },
+  "historyCompare": {
+    "backToHistory": "返回歷史記錄",
+    "studentComparison": "學生版本比較",
+    "analysisTitle": "版本比較分析",
+    "comparison": {
+      "title": "版本比較",
+      "oldVersion": "舊版本",
+      "newVersion": "新版本",
+      "timeDiff": "時間差：{{value}}",
+      "fileUpdated": "文件已更新",
+      "teacherScoreChange": "教師評分變化",
+      "oldScore": "舊評分",
+      "newScore": "新評分",
+      "aiAnalysisCompare": "AI 分析比較",
+      "overallScoreChange": "總分變化",
+      "pointsValue": "{{value}} 分",
+      "oldScoreLabel": "舊分數：",
+      "newScoreLabel": "新分數：",
+      "noSignificantChange": "這兩個版本之間沒有顯著的評分變化"
+    }
   }
 }

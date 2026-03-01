@@ -35,7 +35,7 @@ export function InvitationDisplay({
       toast.success(t('copied', { ns: 'common' }));
       setTimeout(() => setCopiedCode(false), 1500);
     } catch (err) {
-      toast.error('Failed to copy');
+      toast.error(t('clipboard.copyFailed', { ns: 'common' }));
       console.error('Failed to copy: ', err);
     }
   };
@@ -52,7 +52,7 @@ export function InvitationDisplay({
         // User cancelled share
       }
     } else {
-      toast.info('Share not supported on this device');
+      toast.info(t('share.notSupported', { ns: 'common' }));
     }
   };
 
@@ -61,7 +61,7 @@ export function InvitationDisplay({
       await navigator.clipboard.writeText(invitationUrl);
       toast.success(t('copied', { ns: 'common' }));
     } catch (err) {
-      toast.error('Failed to copy');
+      toast.error(t('clipboard.copyFailed', { ns: 'common' }));
       console.error('Failed to copy: ', err);
     }
   };

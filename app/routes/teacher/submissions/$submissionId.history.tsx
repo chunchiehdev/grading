@@ -68,23 +68,12 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<H
 
     const studentInfo = {
       id: submission.student?.id || '',
-      name: submission.student?.name || '學生',
+      name: submission.student?.name || '',
       email: submission.student?.email || '',
       picture: submission.student?.picture || '',
     };
-    const assignmentName = history[0]?.assignmentArea?.name || '作業';
-    const courseName = history[0]?.assignmentArea?.course?.name || '課程';
-
-    // Helper function for status text
-    function getStatusText(status: string) {
-      const statusMap: Record<string, string> = {
-        SUBMITTED: '已提交',
-        ANALYZED: '分析完成',
-        GRADED: '已評分',
-        DRAFT: '草稿',
-      };
-      return statusMap[status] || status;
-    }
+    const assignmentName = history[0]?.assignmentArea?.name || '';
+    const courseName = history[0]?.assignmentArea?.course?.name || '';
 
     return {
       submissions: history.map((sub: any) => ({
@@ -95,7 +84,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<H
         submittedAtFormatted: formatRelativeTime(new Date(sub.uploadedAt)),
         submittedAtFull: formatDateForDisplay(new Date(sub.uploadedAt)),
         status: sub.status,
-        statusText: getStatusText(sub.status),
+        statusText: sub.status,
         finalScore: sub.finalScore,
         normalizedScore: sub.normalizedScore,
         assignmentArea: sub.assignmentArea,
@@ -115,6 +104,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<H
 export default function TeacherSubmissionHistory() {
   const { submissions, studentInfo, assignmentName, courseName, totalVersions } = useLoaderData<HistoryLoaderData>();
   const navigate = useNavigate();
+  const { t } = useTranslation(['submissions']);
 
   const [selectedForComparison, setSelectedForComparison] = useState<string[]>([]);
 
@@ -149,7 +139,7 @@ export default function TeacherSubmissionHistory() {
     normalizedScore: sub.normalizedScore,
   }));
 
-  const studentDisplayName = studentInfo?.name || '學生';
+  const studentDisplayName = studentInfo?.name || t('submissions:historyPage.fallback.student');
   const studentInitial = studentDisplayName.charAt(0).toUpperCase();
 
   return (
@@ -168,17 +158,20 @@ export default function TeacherSubmissionHistory() {
                 <h2 className="truncate text-lg font-semibold text-foreground sm:text-xl">
                   {studentDisplayName}
                 </h2>
-                <p className="mt-0.5 truncate text-sm text-muted-foreground">{studentInfo?.email || '無電子郵件'}</p>
-                <p className="mt-1 text-xs text-muted-foreground">學生繳交記錄</p>
+                <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                  {studentInfo?.email || t('submissions:teacher.labels.noEmail')}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{t('submissions:historyPage.teacher.studentRecord')}</p>
               </div>
             </div>
           </div>
 
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            {assignmentName}
+            {assignmentName || t('submissions:historyPage.fallback.assignment')}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            {courseName} • 共 {totalVersions} 個版本
+            {courseName || t('submissions:historyPage.fallback.course')} •{' '}
+            {t('submissions:historyPage.totalVersions', { count: totalVersions })}
           </p>
         </div>
       </div>
@@ -200,17 +193,17 @@ export default function TeacherSubmissionHistory() {
               <div className="flex items-center justify-between gap-6">
                 <div>
                   <h3 className="font-serif text-lg font-light text-[#2B2B2B] dark:text-gray-100">
-                    準備比較版本
+                    {t('submissions:historyPage.compare.readyTitle')}
                   </h3>
                   <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    已選擇 2 個版本進行比較
+                    {t('submissions:historyPage.compare.selectedHint')}
                   </p>
                 </div>
                 <Button
                   onClick={handleStartComparison}
                   className="border border-[#E07A5F] bg-[#E07A5F] px-6 py-3 font-sans text-sm text-white shadow-sm transition-all hover:bg-[#E07A5F]/90 hover:shadow-md dark:border-[#E87D3E] dark:bg-[#E87D3E]"
                 >
-                  開始比較
+                  {t('submissions:historyPage.compare.start')}
                 </Button>
               </div>
             </div>
@@ -235,7 +228,7 @@ export function ErrorBoundary() {
               404
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              找不到此提交記錄或歷史版本不存在
+              {t('common:errors.404.submissionHistory')}
             </p>
           </div>
           <Link
@@ -243,7 +236,7 @@ export function ErrorBoundary() {
             className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
           >
             <Home className="h-4 w-4" />
-            返回首頁
+            {t('common:returnHome')}
           </Link>
         </div>
       </div>
@@ -255,19 +248,19 @@ export function ErrorBoundary() {
     <div className="flex min-h-screen w-full items-center justify-center px-4">
       <div className="space-y-6 text-center">
         <div className="space-y-3">
-          <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
-            錯誤
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            載入提交歷史時發生錯誤，請稍後再試
-          </p>
+            <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
+              {t('common:errors.generic.title')}
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              {t('common:errors.generic.submissionHistory')}
+            </p>
         </div>
         <Link
           to="/teacher"
           className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
         >
           <Home className="h-4 w-4" />
-          返回首頁
+          {t('common:returnHome')}
         </Link>
       </div>
     </div>

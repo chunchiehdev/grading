@@ -11,6 +11,7 @@
 
 import React from 'react';
 import { Link } from 'react-router';
+import { useTranslation } from 'react-i18next';
 
 export interface VersionTimelineItem {
   id: string;
@@ -20,7 +21,7 @@ export interface VersionTimelineItem {
   submittedAtFormatted: string; // Pre-formatted relative time
   submittedAtFull: string; // Pre-formatted full datetime  
   status: string;
-  statusText: string; // Pre-formatted status text
+  statusText?: string; // Pre-formatted status text
   finalScore?: number | null;
   normalizedScore?: number | null;
 }
@@ -38,8 +39,10 @@ export function VersionTimeline({
   selectedForComparison = [],
   viewDetailUrl,
 }: VersionTimelineProps) {
+  const { t } = useTranslation(['submissions']);
+
   return (
-    <div className="w-full" role="list" aria-label="提交版本歷史">
+    <div className="w-full" role="list" aria-label={t('submissions:historyPage.timeline.ariaLabel')}>
       {/* Timeline Container */}
       <div className="relative">
         {/* Vertical Timeline Line - subtle charcoal */}
@@ -59,7 +62,7 @@ export function VersionTimeline({
                 key={version.id}
                 className="relative flex gap-6"
                 role="listitem"
-                aria-label={`版本 ${version.version}`}
+                aria-label={t('submissions:historyPage.timeline.versionAriaLabel', { version: version.version })}
               >
                 {/* Timeline Marker - Simple Circle */}
                 <div className="relative flex flex-col items-center">
@@ -102,7 +105,7 @@ export function VersionTimeline({
                             </h3>
                             {version.isLatest && (
                               <span className="text-xs uppercase tracking-wider text-[#E07A5F] dark:text-[#E87D3E]">
-                                最新
+                                {t('submissions:historyPage.timeline.latest')}
                               </span>
                             )}
                           </div>
@@ -121,12 +124,12 @@ export function VersionTimeline({
                         {version.finalScore !== null && version.finalScore !== undefined && (
                           <div 
                             className="inline-flex items-baseline gap-1 border border-[#E07A5F]/40 px-3 py-1 dark:border-[#E87D3E]/40"
-                            aria-label={`分數 ${version.finalScore} 分`}
+                            aria-label={t('submissions:historyPage.timeline.scoreAriaLabel', { score: version.finalScore })}
                           >
                             <span className="font-serif text-xl font-light text-[#E07A5F] dark:text-[#E87D3E]">
                               {version.finalScore}
                             </span>
-                            <span className="text-xs text-[#2B2B2B]/60 dark:text-gray-200/60">分</span>
+                            <span className="text-xs text-[#2B2B2B]/60 dark:text-gray-200/60">{t('submissions:historyPage.timeline.points')}</span>
                           </div>
                         )}
                       </div>
@@ -138,9 +141,9 @@ export function VersionTimeline({
                           <Link
                             to={viewDetailUrl(version.id)}
                             className="inline-flex items-center border border-[#2B2B2B]/40 bg-white px-4 py-1.5 text-sm transition-all hover:border-[#2B2B2B] hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200/40 dark:bg-gray-900 dark:text-gray-200 dark:hover:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-gray-950"
-                            aria-label={`查看版本 ${version.version} 詳情`}
+                            aria-label={t('submissions:historyPage.timeline.viewDetailAriaLabel', { version: version.version })}
                           >
-                            查看詳情
+                            {t('submissions:historyPage.timeline.viewDetails')}
                           </Link>
                         )}
 
@@ -153,10 +156,16 @@ export function VersionTimeline({
                                 ? 'border-[#E07A5F] bg-[#E07A5F] text-white dark:border-[#E87D3E] dark:bg-[#E87D3E]'
                                 : 'border-dashed border-[#E07A5F]/40 bg-white text-[#E07A5F] hover:border-[#E07A5F] hover:border-solid dark:border-[#E87D3E]/40 dark:bg-gray-900 dark:text-[#E87D3E] dark:hover:border-[#E87D3E]'
                             }`}
-                            aria-label={`${isSelected ? '取消選擇' : '選擇'}版本 ${version.version} 進行比較`}
+                            aria-label={
+                              isSelected
+                                ? t('submissions:historyPage.timeline.deselectAriaLabel', { version: version.version })
+                                : t('submissions:historyPage.timeline.selectAriaLabel', { version: version.version })
+                            }
                             aria-pressed={isSelected}
                           >
-                            {isSelected ? '已選擇' : '選擇比較'}
+                            {isSelected
+                              ? t('submissions:historyPage.timeline.selected')
+                              : t('submissions:historyPage.timeline.selectCompare')}
                           </button>
                         )}
                       </div>

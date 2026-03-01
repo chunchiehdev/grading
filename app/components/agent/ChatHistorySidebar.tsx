@@ -23,6 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface ChatSession {
   id: string;
@@ -47,6 +48,7 @@ export function ChatHistorySidebar({
   className,
   hideHeader = false,
 }: ChatHistorySidebarProps) {
+  const { t } = useTranslation('agent');
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -68,7 +70,7 @@ export function ChatHistorySidebar({
       }
     } catch (error) {
       console.error('Failed to fetch sessions', error);
-      toast.error('無法載入對話列表');
+      toast.error(t('error.loadListFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -93,11 +95,11 @@ export function ChatHistorySidebar({
         ));
         toast.success('已更新標題');
       } else {
-        toast.error('更新失敗');
+        toast.error(t('error.updateFailed'));
       }
     } catch (error) {
       console.error('Failed to update title', error);
-      toast.error('更新失敗');
+      toast.error(t('error.updateFailed'));
     } finally {
       setEditingId(null);
     }
@@ -121,11 +123,11 @@ export function ChatHistorySidebar({
         }
       } else {
         const data = await res.json();
-        toast.error(data.error || '刪除失敗');
+        toast.error(data.error || t('error.deleteFailed'));
       }
     } catch (error) {
       console.error('Failed to delete session', error);
-      toast.error('刪除失敗');
+      toast.error(t('error.deleteFailed'));
     } finally {
       setDeleteDialogOpen(false);
       setSessionToDelete(null);

@@ -44,5 +44,9 @@
     "view": "View",
     "download": "Download",
     "edit": "Edit"
+  },
+  "submissionView": {
+    "deleteSuccess": "Submission deleted successfully",
+    "deleteFailed": "Delete failed, please try again later"
   }
 }

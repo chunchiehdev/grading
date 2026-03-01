@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X, Loader2, FileUp, File, Trash2, MessageCircle, Megaphone, ClipboardList, ClipboardCheck, Image, Smile } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 interface CreatePostDialogProps {
   open: boolean;
@@ -38,6 +39,7 @@ function PostTypeIcon({ type, className }: { type: string; className?: string })
 }
 
 export function CreatePostDialog({ open, onOpenChange, courseId, userName, userAvatar, rubrics = [] }: CreatePostDialogProps) {
+  const { t } = useTranslation('course');
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -84,12 +86,16 @@ export function CreatePostDialog({ open, onOpenChange, courseId, userName, userA
     const extPattern = isImage ? imageExtPattern : docExtPattern;
     
     if (!allowedTypes.includes(file.type) && !file.name.match(extPattern)) {
-      toast.error(isImage ? '只支援 JPG、PNG、GIF、WebP 格式' : '只支援 PDF、DOCX、TXT 格式');
+      toast.error(
+        isImage
+          ? t('assignment.manage.attachments.imageTypeNotSupported')
+          : t('assignment.manage.attachments.docTypeNotSupported')
+      );
       return;
     }
     
     if (file.size > 100 * 1024 * 1024) {
-      toast.error('檔案大小不能超過 100MB');
+      toast.error(t('assignment.manage.attachments.fileTooLarge'));
       return;
     }
 
@@ -106,7 +112,7 @@ export function CreatePostDialog({ open, onOpenChange, courseId, userName, userA
       const result = await response.json();
 
       if (!result.success) {
-        throw new Error(result.error || '上傳失敗');
+        throw new Error(result.error || t('assignment.manage.attachments.uploadFailed'));
       }
 
       setAttachments(prev => [...prev, {
@@ -117,7 +123,7 @@ export function CreatePostDialog({ open, onOpenChange, courseId, userName, userA
       }]);
       toast.success(`已上傳: ${file.name}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : '上傳失敗');
+      toast.error(err instanceof Error ? err.message : t('assignment.manage.attachments.uploadFailed'));
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

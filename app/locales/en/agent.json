@@ -31,7 +31,15 @@
   },
   "error": {
     "title": "Error:",
-    "prefix": "Error:"
+    "prefix": "Error:",
+    "sendFailed": "Failed to send message. Please try again.",
+    "sessionNotFound": "Chat session not found",
+    "sessionForbidden": "You do not have permission to access this chat",
+    "loadSessionFailed": "Failed to load chat session",
+    "aiAccessDisabled": "AI access is not enabled yet. Please contact an administrator.",
+    "loadListFailed": "Unable to load chat list",
+    "updateFailed": "Update failed",
+    "deleteFailed": "Delete failed"
   },
   "step": {
     "label": "Step {{number}}",

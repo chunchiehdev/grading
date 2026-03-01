@@ -430,9 +430,20 @@ export async function startGradingSession(
     const aiAccess = await checkAIAccess(userId);
     if (!aiAccess.allowed) {
       logger.warn({ userId, sessionId, reason: aiAccess.reason }, '[GradingSession] AI access denied');
+
+      const defaultDeniedMessage =
+        userLanguage === 'zh'
+          ? 'AI 功能尚未開啟。請聯繫管理員啟用您的 AI 存取權限。'
+          : 'AI access is not enabled yet. Please contact an administrator to enable your AI access.';
+
+      const localizedReason =
+        aiAccess.reasonCode === 'AI_ACCESS_DISABLED'
+          ? defaultDeniedMessage
+          : (aiAccess.reason || defaultDeniedMessage);
+
       return {
         success: false,
-        error: aiAccess.reason || 'AI 功能尚未開啟。請聯繫管理員啟用您的 AI 存取權限。',
+        error: localizedReason,
       };
     }
 

@@ -110,6 +110,7 @@
       "parsingFailed": "檔案解析失敗。請上傳不同的檔案或稍後再試。",
       "parsingTimeout": "解析時間超出預期。請稍後再試。",
       "failedToStartGrading": "無法開始批改",
+      "aiAccessDisabled": "AI 功能尚未開啟。請聯繫管理員啟用您的 AI 存取權限。",
       "noFileUploaded": "沒有上傳檔案。",
       "failedToSubmit": "提交失敗"
     },

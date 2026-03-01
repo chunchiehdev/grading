@@ -48,6 +48,40 @@ function getMessageContent(msg: UIMessage): string {
   return '';
 }
 
+function extractAgentErrorMessage(raw: string, translate?: (key: string) => string): string {
+  const cleaned = raw.replace(/^Error:\s*/i, '').trim();
+
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(cleaned) as {
+        code?: string;
+        error?: string | { message?: string };
+        message?: string;
+      };
+      if (parsed.code === 'AI_ACCESS_DISABLED' && translate) {
+        return translate('error.aiAccessDisabled');
+      }
+      if (typeof parsed.error === 'string') {
+        return extractAgentErrorMessage(parsed.error, translate);
+      }
+      if (parsed.error && typeof parsed.error.message === 'string') {
+        return extractAgentErrorMessage(parsed.error.message, translate);
+      }
+      if (typeof parsed.message === 'string') {
+        return extractAgentErrorMessage(parsed.message, translate);
+      }
+    } catch {
+      return cleaned;
+    }
+  }
+
+  if (translate && (cleaned.includes('AI 功能尚未開啟') || cleaned.includes('AI access is not enabled'))) {
+    return translate('error.aiAccessDisabled');
+  }
+
+  return cleaned;
+}
+
 /**
  * Group message parts by steps
  */
@@ -195,9 +229,8 @@ export function AgentChatBoxWithSteps() {
     transport,
     onError: (error) => {
       console.error('Agent chat error:', error);
-      toast.error(t('error.sendFailed', '發送訊息失敗，請稍後再試'));
+      toast.error(extractAgentErrorMessage(error.message || t('error.sendFailed'), t));
     },
-    // ✅ 不需要 onFinish 導航，URL 已經在 fetch 中更新
   });
 
   // Load session history when sessionId changes
@@ -217,10 +250,10 @@ export function AgentChatBoxWithSteps() {
           if (!res.ok) {
             hasLoadedSessionRef.current = null; // 允許重試
             if (res.status === 404) {
-              toast.error('對話不存在');
+              toast.error(t('error.sessionNotFound'));
               navigate('/agent-playground', { replace: true });
             } else if (res.status === 403) {
-              toast.error('您沒有權限訪問此對話');
+              toast.error(t('error.sessionForbidden'));
               navigate('/agent-playground', { replace: true });
             } else {
               throw new Error('Failed to load session');
@@ -248,7 +281,7 @@ export function AgentChatBoxWithSteps() {
         .catch((e) => {
           hasLoadedSessionRef.current = null; // 允許重試
           console.error('Failed to load session', e);
-          toast.error('載入對話失敗');
+          toast.error(t('error.loadSessionFailed'));
         })
         .finally(() => {
           setIsLoadingHistory(false);
@@ -373,7 +406,7 @@ export function AgentChatBoxWithSteps() {
 
             {error && (
               <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                <p className="text-sm text-destructive">{t('error.prefix')} {error.message}</p>
+                <p className="text-sm text-destructive">{t('error.prefix')} {extractAgentErrorMessage(error.message, t)}</p>
               </div>
             )}
 

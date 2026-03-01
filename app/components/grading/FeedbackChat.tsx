@@ -411,7 +411,9 @@ export function FeedbackChat({
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                   {t('grading:result.overallFeedback')}
                 </p>
-                <p className="text-sm text-foreground leading-relaxed">{result.overallFeedback}</p>
+                <div className="text-sm text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                  <Markdown>{result.overallFeedback}</Markdown>
+                </div>
               </div>
             )}
             {(thinkingProcess || gradingRationale) && (
@@ -590,9 +592,9 @@ export function FeedbackChat({
                   )}
                 </div>
                 {isDiscussed && breakdownItem && (
-                  <p className="text-xs text-muted-foreground leading-relaxed pl-6 line-clamp-3">
-                    {breakdownItem.feedback}
-                  </p>
+                  <div className="text-xs text-muted-foreground leading-relaxed pl-6 line-clamp-3 prose prose-sm dark:prose-invert max-w-none">
+                    <Markdown>{breakdownItem.feedback}</Markdown>
+                  </div>
                 )}
                 {!isDiscussed && (
                   <p className="text-xs text-muted-foreground pl-6">{t('grading:chat.summary.notDiscussed')}</p>

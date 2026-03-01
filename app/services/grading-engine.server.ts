@@ -8,7 +8,6 @@ import { GeminiPrompts } from './gemini-prompts.server';
 import logger from '@/utils/logger';
 import {
   parseRubricCriteria,
-  parseRubricCriteriaWithDefault,
   flattenCategoriesToCriteria,
   type DbCriterion,
 } from '@/schemas/rubric-data';
@@ -221,6 +220,7 @@ export async function processGradingResult(
       criteria: criteria,
       fileName: result.uploadedFile.originalFileName,
       rubricName: result.rubric.name,
+      language: userLanguage,
 
       // options field
       ...(referenceDocuments.length > 0 && { referenceDocuments }),

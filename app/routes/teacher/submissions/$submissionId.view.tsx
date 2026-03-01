@@ -162,17 +162,17 @@ export default function TeacherSubmissionView() {
       const data = await response.json();
       
       if (data.success) {
-        toast.success('提交已成功刪除');
+        toast.success(t('teacher:submissionView.deleteSuccess'));
         // Navigate back to assignment submissions list
         navigate(submission.navigation.backUrl);
       } else {
-        toast.error(data.error || '刪除失敗，請稍後再試');
+        toast.error(data.error || t('teacher:submissionView.deleteFailed'));
         setIsDeleting(false);
         setIsDeleteDialogOpen(false);
       }
     } catch (error) {
       console.error('Error deleting submission:', error);
-      toast.error('刪除失敗，請稍後再試');
+      toast.error(t('teacher:submissionView.deleteFailed'));
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
     }

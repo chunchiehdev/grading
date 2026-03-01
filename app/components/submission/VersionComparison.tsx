@@ -6,9 +6,8 @@
  */
 
 import React from 'react';
-import { formatDistanceToNow } from 'date-fns';
-import { zhTW } from 'date-fns/locale';
 import { ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface VersionComparisonData {
   versionA: {
@@ -47,6 +46,7 @@ interface VersionComparisonProps {
 
 export function VersionComparison({ comparison }: VersionComparisonProps) {
   const { versionA, versionB, differences, aiAnalysis, grading } = comparison;
+  const { t } = useTranslation(['submissions']);
 
   const renderScoreChange = (change: number) => {
     if (change > 0) {
@@ -78,7 +78,7 @@ export function VersionComparison({ comparison }: VersionComparisonProps) {
       {/* Comparison Header */}
       <div className="border-2 border-[#2B2B2B] bg-[#FAF9F6] p-6 dark:border-gray-200 dark:bg-gray-950">
         <h2 className="mb-4 font-serif text-2xl font-light text-[#2B2B2B] dark:text-gray-100">
-          版本比較
+          {t('submissions:historyCompare.comparison.title')}
         </h2>
 
         <div className="flex items-center justify-center gap-4">
@@ -86,7 +86,7 @@ export function VersionComparison({ comparison }: VersionComparisonProps) {
             <div className="mb-2 font-serif text-3xl font-light text-[#E07A5F] dark:text-[#E87D3E]">
               v{versionA.version}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">舊版本</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">{t('submissions:historyCompare.comparison.oldVersion')}</div>
           </div>
 
           <ArrowRight className="h-6 w-6 text-gray-400" />
@@ -95,14 +95,14 @@ export function VersionComparison({ comparison }: VersionComparisonProps) {
             <div className="mb-2 font-serif text-3xl font-light text-[#E07A5F] dark:text-[#E87D3E]">
               v{versionB.version}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">新版本</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">{t('submissions:historyCompare.comparison.newVersion')}</div>
           </div>
         </div>
 
         <div className="mt-6 space-y-2 text-center text-sm text-gray-600 dark:text-gray-400">
-          <p>時間差：{differences.timeDiff}</p>
+          <p>{t('submissions:historyCompare.comparison.timeDiff', { value: differences.timeDiff })}</p>
           {differences.fileChanged && (
-            <p className="text-[#E07A5F] dark:text-[#E87D3E]">文件已更新</p>
+            <p className="text-[#E07A5F] dark:text-[#E87D3E]">{t('submissions:historyCompare.comparison.fileUpdated')}</p>
           )}
         </div>
       </div>
@@ -111,12 +111,12 @@ export function VersionComparison({ comparison }: VersionComparisonProps) {
       {grading && (grading.oldScore !== undefined || grading.newScore !== undefined) && (
         <div className="border-2 border-[#2B2B2B] bg-[#FAF9F6] p-6 dark:border-gray-200 dark:bg-gray-950">
           <h3 className="mb-4 font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-            教師評分變化
+            {t('submissions:historyCompare.comparison.teacherScoreChange')}
           </h3>
 
           <div className="grid grid-cols-3 gap-4">
             <div className="border-2 border-[#2B2B2B] p-4 dark:border-gray-200">
-              <div className="text-sm text-gray-600 dark:text-gray-400">舊評分</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('submissions:historyCompare.comparison.oldScore')}</div>
               <div className="mt-2 font-serif text-2xl text-[#2B2B2B] dark:text-gray-100">
                 {grading.oldScore ?? '-'}
               </div>
@@ -127,7 +127,7 @@ export function VersionComparison({ comparison }: VersionComparisonProps) {
             </div>
 
             <div className="border-2 border-[#E07A5F] p-4 dark:border-[#E87D3E]">
-              <div className="text-sm text-gray-600 dark:text-gray-400">新評分</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">{t('submissions:historyCompare.comparison.newScore')}</div>
               <div className="mt-2 font-serif text-2xl text-[#E07A5F] dark:text-[#E87D3E]">
                 {grading.newScore ?? '-'}
               </div>
@@ -140,20 +140,20 @@ export function VersionComparison({ comparison }: VersionComparisonProps) {
       {aiAnalysis && aiAnalysis.scoreChanges.length > 0 && (
         <div className="border-2 border-[#2B2B2B] bg-[#FAF9F6] p-6 dark:border-gray-200 dark:bg-gray-950">
           <h3 className="mb-4 font-serif text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-            AI 分析比較
+            {t('submissions:historyCompare.comparison.aiAnalysisCompare')}
           </h3>
 
           {/* Overall Change */}
           <div className="mb-6 border-2 border-dashed border-[#E07A5F] p-4 dark:border-[#E87D3E]">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                總分變化
+                {t('submissions:historyCompare.comparison.overallScoreChange')}
               </span>
               <div className="flex items-center gap-2">
                 {renderScoreChange(aiAnalysis.overallChange)}
                 <span className="font-serif text-lg text-[#E07A5F] dark:text-[#E87D3E]">
                   {aiAnalysis.overallChange > 0 ? '+' : ''}
-                  {aiAnalysis.overallChange} 分
+                  {t('submissions:historyCompare.comparison.pointsValue', { value: aiAnalysis.overallChange })}
                 </span>
               </div>
             </div>
@@ -172,7 +172,7 @@ export function VersionComparison({ comparison }: VersionComparisonProps) {
 
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-600 dark:text-gray-400">舊分數：</span>
+                    <span className="text-gray-600 dark:text-gray-400">{t('submissions:historyCompare.comparison.oldScoreLabel')}</span>
                     <span className="ml-2 font-serif text-base text-gray-800 dark:text-gray-200">
                       {change.oldScore}
                     </span>
@@ -183,7 +183,7 @@ export function VersionComparison({ comparison }: VersionComparisonProps) {
                   </div>
 
                   <div>
-                    <span className="text-gray-600 dark:text-gray-400">新分數：</span>
+                    <span className="text-gray-600 dark:text-gray-400">{t('submissions:historyCompare.comparison.newScoreLabel')}</span>
                     <span className="ml-2 font-serif text-base text-[#E07A5F] dark:text-[#E87D3E]">
                       {change.newScore}
                     </span>
@@ -199,7 +199,7 @@ export function VersionComparison({ comparison }: VersionComparisonProps) {
       {!aiAnalysis && !grading && (
         <div className="border-2 border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
           <p className="text-gray-600 dark:text-gray-400">
-            這兩個版本之間沒有顯著的評分變化
+            {t('submissions:historyCompare.comparison.noSignificantChange')}
           </p>
         </div>
       )}

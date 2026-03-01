@@ -7,6 +7,7 @@
 
 import type { ActionFunctionArgs } from 'react-router';
 import { streamWithPlatformAssistant } from '@/services/platform-assistant.server';
+import { AIAccessDeniedError } from '@/services/ai-access.server';
 import { getUserId } from '@/services/auth.server';
 import { type UIMessage } from 'ai';
 import logger from '@/utils/logger';
@@ -347,6 +348,19 @@ export async function action({ request }: ActionFunctionArgs) {
     logger.error({
       error: error instanceof Error ? error.message : String(error),
     }, '[Agent Chat API] Error processing chat');
+
+    if (error instanceof AIAccessDeniedError) {
+      return new Response(
+        JSON.stringify({
+          error: error.message,
+          code: 'AI_ACCESS_DISABLED',
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
 
     return new Response(
       JSON.stringify({

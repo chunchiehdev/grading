@@ -93,5 +93,55 @@
       "noEmail": "No email",
       "viewDetails": "View details"
     }
+  },
+  "historyPage": {
+    "totalVersions": "{{count}} versions",
+    "fallback": {
+      "assignment": "Assignment",
+      "course": "Course",
+      "student": "Student"
+    },
+    "teacher": {
+      "studentRecord": "Student submission history"
+    },
+    "compare": {
+      "readyTitle": "Ready to compare versions",
+      "selectedHint": "2 versions selected for comparison",
+      "start": "Start comparison"
+    },
+    "timeline": {
+      "ariaLabel": "Submission version history",
+      "versionAriaLabel": "Version {{version}}",
+      "latest": "Latest",
+      "scoreAriaLabel": "Score {{score}} points",
+      "points": "pts",
+      "viewDetails": "View details",
+      "viewDetailAriaLabel": "View version {{version}} details",
+      "selectCompare": "Select to compare",
+      "selected": "Selected",
+      "selectAriaLabel": "Select version {{version}} for comparison",
+      "deselectAriaLabel": "Deselect version {{version}} from comparison"
+    }
+  },
+  "historyCompare": {
+    "backToHistory": "Back to history",
+    "studentComparison": "Student version comparison",
+    "analysisTitle": "Version comparison analysis",
+    "comparison": {
+      "title": "Version Comparison",
+      "oldVersion": "Old version",
+      "newVersion": "New version",
+      "timeDiff": "Time difference: {{value}}",
+      "fileUpdated": "File updated",
+      "teacherScoreChange": "Teacher score changes",
+      "oldScore": "Old score",
+      "newScore": "New score",
+      "aiAnalysisCompare": "AI analysis comparison",
+      "overallScoreChange": "Overall score change",
+      "pointsValue": "{{value}} pts",
+      "oldScoreLabel": "Old score:",
+      "newScoreLabel": "New score:",
+      "noSignificantChange": "No significant grading changes between these versions"
+    }
   }
 }
