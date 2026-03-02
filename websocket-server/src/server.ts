@@ -69,6 +69,13 @@ io.on('connection', (socket) => {
 
 // Health check endpoint
 httpServer.on('request', (req, res) => {
+  const url = req.url ?? '';
+
+  // Let Socket.IO / Engine.IO own its transport endpoint.
+  if (url.startsWith('/socket.io')) {
+    return;
+  }
+
   if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(
@@ -79,6 +86,10 @@ httpServer.on('request', (req, res) => {
         connections: io.engine.clientsCount,
       })
     );
+    return;
+  }
+
+  if (res.headersSent || res.writableEnded) {
     return;
   }
 
