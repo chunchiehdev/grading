@@ -9,6 +9,7 @@ spec:
   selector:
     app.kubernetes.io/name: websocket
     app.kubernetes.io/component: websocket-server
+    ws-role: websocket
   ports:
   - name: websocket
     port: 3001

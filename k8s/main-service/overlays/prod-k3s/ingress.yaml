@@ -20,6 +20,13 @@ spec:
   - host: snapshot.agenticgrader.com
     http:
       paths:
+      - path: /socket.io
+        pathType: Prefix
+        backend:
+          service:
+            name: websocket-service
+            port:
+              number: 3001
       - path: /
         pathType: Prefix
         backend:
