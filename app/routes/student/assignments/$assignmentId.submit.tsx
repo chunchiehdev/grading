@@ -1426,92 +1426,94 @@ export default function SubmitAssignment() {
             </div>
 
             {/* Primary Actions (mobile) */}
-            <div className="pt-3 pb-2 flex items-center justify-center gap-4">
-              {/* Reselect File */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="icon"
-                      onClick={handleResetFile}
-                      className="h-12 w-12 rounded-full bg-card text-foreground border border-border shadow-md transition-all hover:bg-accent hover:shadow-lg active:scale-95"
-                    >
-                      <FolderOpen className="h-5 w-5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{t('assignment:submit.reselectFile')}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              {/* Start Analysis (Play) */}
-              {(state.phase === 'analyze' || state.phase === 'submit') && (
+            {state.phase !== 'upload' && (
+              <div className="pt-3 pb-2 flex items-center justify-center gap-4">
+                {/* Reselect File */}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        onClick={() => {
-                          startAnalysis();
-                          setActiveTab('results');
-                        }}
-                        disabled={state.loading}
                         size="icon"
-                        className={`h-14 w-14 rounded-full shadow-lg transition-all active:scale-95 ${
-                          state.loading ? 'bg-muted' : 'bg-primary hover:bg-primary/90'
-                        }`}
+                        onClick={handleResetFile}
+                        className="h-12 w-12 rounded-full bg-card text-foreground border border-border shadow-md transition-all hover:bg-accent hover:shadow-lg active:scale-95"
                       >
-                        {state.loading ? (
-                          <Loader2 className="h-6 w-6 animate-spin" />
-                        ) : (
-                          <Play className="h-6 w-6 ml-0.5 fill-current" />
-                        )}
+                        <FolderOpen className="h-5 w-5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>
-                        {state.loading
-                          ? t('assignment:submit.grading')
-                          : getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
-                            ? t('assignment:submit.reGrade')
-                            : t('assignment:submit.startGrading')}
-                      </p>
+                      <p>{t('assignment:submit.reselectFile')}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-              )}
 
-              {/* Submit Assignment (Check) */}
-              {state.phase === 'submit' &&
-                getSubmissionStatus().hasAnalysis &&
-                getSubmissionStatus().hasNewAnalysis && (
+                {/* Start Analysis (Play) */}
+                {(state.phase === 'analyze' || state.phase === 'submit') && (
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          onClick={submitFinal}
-                          disabled={
-                            state.loading ||
-                            getSubmissionStatus().isOverdue ||
-                            !hasStudentSparringReply
-                          }
+                          onClick={() => {
+                            startAnalysis();
+                            setActiveTab('results');
+                          }}
+                          disabled={state.loading}
                           size="icon"
-                          className="h-12 w-12 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                          className={`h-14 w-14 rounded-full shadow-lg transition-all active:scale-95 ${
+                            state.loading ? 'bg-muted' : 'bg-primary hover:bg-primary/90'
+                          }`}
                         >
-                          <Check className="h-5 w-5 text-white" strokeWidth={3} />
+                          {state.loading ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                          ) : (
+                            <Play className="h-6 w-6 ml-0.5 fill-current" />
+                          )}
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>
-                          {getSubmissionStatus().isOverdue
-                            ? t('assignment:submit.overdueCannotSubmit')
-                            : t('assignment:submit.submitAssignment')}
+                          {state.loading
+                            ? t('assignment:submit.grading')
+                            : getSubmissionStatus().isSubmitted && !getSubmissionStatus().hasNewAnalysis
+                              ? t('assignment:submit.reGrade')
+                              : t('assignment:submit.startGrading')}
                         </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 )}
-            </div>
+
+                {/* Submit Assignment (Check) */}
+                {state.phase === 'submit' &&
+                  getSubmissionStatus().hasAnalysis &&
+                  getSubmissionStatus().hasNewAnalysis && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={submitFinal}
+                            disabled={
+                              state.loading ||
+                              getSubmissionStatus().isOverdue ||
+                              !hasStudentSparringReply
+                            }
+                            size="icon"
+                            className="h-12 w-12 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            <Check className="h-5 w-5 text-white" strokeWidth={3} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>
+                            {getSubmissionStatus().isOverdue
+                              ? t('assignment:submit.overdueCannotSubmit')
+                              : t('assignment:submit.submitAssignment')}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+              </div>
+            )}
           </div>
         </TabsContent>
 

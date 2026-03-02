@@ -9,7 +9,7 @@ import { CheckCheck, FileText, Bell } from 'lucide-react';
 import { useMemo } from 'react';
 
 export function StudentNotificationCenter() {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation('navigation');
   const navigate = useNavigate();
   const notifications = useNotificationStore((state) => state.notifications);
   const unreadCount = useNotificationStore((state) => state.unreadCount);
@@ -45,7 +45,7 @@ export function StudentNotificationCenter() {
         <div className="w-12 h-12 mx-auto mb-2 animate-pulse">
           <Bell className="w-full h-full text-muted-foreground/30" />
         </div>
-        <p className="text-sm text-muted-foreground">載入中...</p>
+        <p className="text-sm text-muted-foreground">{t('notificationsLoading')}</p>
       </div>
     );
   }
@@ -55,7 +55,7 @@ export function StudentNotificationCenter() {
     return (
       <div className="px-3 py-8 text-center">
         <Bell className="w-12 h-12 mx-auto text-muted-foreground/30 mb-2" />
-        <p className="text-sm text-muted-foreground">目前沒有新通知</p>
+        <p className="text-sm text-muted-foreground">{t('notificationsEmpty')}</p>
       </div>
     );
   }
@@ -63,38 +63,44 @@ export function StudentNotificationCenter() {
   return (
     <div className="w-full">
       {/* Header with Mark All Read */}
-      <div className="flex items-center justify-between px-3 py-2 border-b">
-        <div className="text-sm font-semibold">通知</div>
+      <div className="flex items-center justify-between gap-3 border-b bg-muted/20 px-4 py-3">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold">{t('notifications')}</div>
+          <div className="text-xs text-muted-foreground">{unreadCount > 99 ? '99+' : unreadCount}</div>
+        </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={handleMarkAllAsRead}
-          className="h-8 text-xs"
+          className="h-8 shrink-0 text-xs"
+          disabled={unreadCount === 0}
         >
           <CheckCheck className="w-3 h-3 mr-1" />
-          全部標記為已讀
+          {t('markAllRead')}
         </Button>
       </div>
 
-      <ScrollArea className="h-[400px]">
-        <div className="divide-y">
+      <ScrollArea className="h-[min(70vh,32rem)]">
+        <div className="space-y-2 p-2">
           {recentNotifications.map((notification) => (
             <button
               key={notification.id}
               onClick={() => handleNotificationClick(notification.id, notification.link)}
-              className={`w-full px-4 py-3 text-left hover:bg-accent transition-colors flex flex-col gap-1 ${
-                !notification.isRead ? 'bg-blue-50/50 dark:bg-blue-950/20' : ''
+              className={`w-full min-h-[6.5rem] rounded-lg border px-4 py-3 text-left transition-colors hover:bg-accent/70 ${
+                !notification.isRead ? 'border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20' : 'border-transparent'
               }`}
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-3.5">
                 {!notification.isRead && (
-                  <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-500" />
+                  <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
                 )}
                 <div className="flex-1 min-w-0 space-y-1">
-                  <p className={`text-sm ${!notification.isRead ? 'font-semibold' : 'font-medium'} text-foreground`}>
+                  <p
+                    className={`line-clamp-2 break-words text-sm ${!notification.isRead ? 'font-semibold' : 'font-medium'} text-foreground`}
+                  >
                     {notification.title}
                   </p>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
+                  <p className="line-clamp-2 break-words text-sm text-muted-foreground">
                     {notification.message}
                   </p>
                   <p className="text-xs text-muted-foreground/60">

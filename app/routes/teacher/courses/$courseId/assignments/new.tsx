@@ -409,14 +409,9 @@ function AssignmentForm({
 
           {/* AI Grading Context - Reference Files */}
           <div className="space-y-2 lg:space-y-3 pt-4 border-t border-border">
-            <div className="space-y-1">
-              <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
-                {t('course:assignment.area.aiKnowledgeBaseLabel')}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {t('course:assignment.area.aiKnowledgeBaseDescription')}
-              </p>
-            </div>
+            <Label className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+              {t('course:assignment.area.aiKnowledgeBaseLabel')}
+            </Label>
             <ReferenceFileUpload value={referenceFileIds} onChange={setReferenceFileIds} maxFiles={5} />
             <input type="hidden" name="referenceFileIds" value={JSON.stringify(referenceFileIds)} />
           </div>
@@ -428,6 +423,8 @@ function AssignmentForm({
               onChange={setCustomGradingPrompt}
               maxLength={5000}
               placeholder={t('course:assignment.manage.customPrompt.placeholder')}
+              showDescription={false}
+              showTips={false}
             />
             <input type="hidden" name="customGradingPrompt" value={customGradingPrompt} />
           </div>

@@ -185,7 +185,12 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80 p-0">
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={8}
+                  collisionPadding={12}
+                  className="w-[clamp(18rem,92vw,36rem)] max-w-[calc(100vw-1rem)] p-0"
+                >
                   <NotificationCenter />
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -205,7 +210,12 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72 p-0">
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                collisionPadding={12}
+                className="w-[clamp(16rem,88vw,24rem)] max-w-[calc(100vw-1rem)] p-0"
+              >
                 {/* User Info - Centered like Google */}
                 <div className="flex flex-col items-center gap-3 px-6 py-6">
                   {user.picture ? (
@@ -245,7 +255,7 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                     <Button 
                       asChild 
                       variant="secondary" 
-                      className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                      className="h-auto min-h-[4.75rem] py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
                     >
                       <Link to="/admin">
                         <UserIcon className="w-5 h-5" />
@@ -256,7 +266,7 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                   
                   <Button 
                     variant="secondary" 
-                    className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                    className="h-auto min-h-[4.75rem] py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
                     onClick={handleLogout}
                   >
                     <LogOut className="w-5 h-5" />
@@ -268,7 +278,33 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
           </div>
 
           {/* Right Section - Mobile: User Avatar Only */}
-          <div className="flex md:hidden items-center gap-2">
+          <div className="flex md:hidden items-center gap-3">
+            {isTeacher && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="relative px-2" aria-label={safeT('notifications', 'Notifications')}>
+                    <Bell className="h-5 w-5" />
+                    {unreadCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  sideOffset={8}
+                  collisionPadding={12}
+                  className="w-[clamp(18rem,92vw,36rem)] max-w-[calc(100vw-1rem)] p-0"
+                >
+                  <NotificationCenter />
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             {/* User Avatar with Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -287,7 +323,12 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72 p-0">
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                collisionPadding={12}
+                className="w-[clamp(16rem,88vw,24rem)] max-w-[calc(100vw-1rem)] p-0"
+              >
                 {/* User Info - Centered like Google */}
                 <div className="flex flex-col items-center gap-3 px-6 py-6">
                   {user.picture ? (
@@ -325,7 +366,7 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                 <div className="px-4 pb-3 grid grid-cols-2 gap-3">
                   <Button 
                     variant="secondary" 
-                    className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                    className="h-auto min-h-[4.75rem] py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
                     onClick={(e) => {
                       e.preventDefault();
                       setTheme(theme === 'light' ? 'dark' : 'light');
@@ -340,7 +381,7 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                   
                   <Button 
                     variant="secondary" 
-                    className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                    className="h-auto min-h-[4.75rem] py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
                     onClick={(e) => {
                       e.preventDefault();
                       toggleLanguage();
@@ -357,7 +398,7 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                     <Button 
                       asChild 
                       variant="secondary" 
-                      className="h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
+                      className="h-auto min-h-[4.75rem] py-3 px-4 flex flex-col items-center gap-2 rounded-xl"
                     >
                       <Link to="/admin">
                         <UserIcon className="w-5 h-5" />
@@ -369,7 +410,7 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                   <Button 
                     variant="secondary" 
                     className={cn(
-                      "h-auto py-3 px-4 flex flex-col items-center gap-2 rounded-xl",
+                      "h-auto min-h-[4.75rem] py-3 px-4 flex flex-col items-center gap-2 rounded-xl",
                       user.role === 'ADMIN' ? "" : "col-span-2"
                     )}
                     onClick={handleLogout}
@@ -386,4 +427,3 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
     </>
   );
 }
-

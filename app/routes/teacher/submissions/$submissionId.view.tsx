@@ -335,12 +335,18 @@ export default function TeacherSubmissionView() {
 
       {/* Mobile: Tab Navigation (below lg) */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-col flex-1 overflow-hidden">
-        <div className="border-b shrink-0 bg-background">
+        <div className="shrink-0 bg-background">
           <TabsList className="w-full h-12 bg-transparent border-0 rounded-none p-0 grid grid-cols-2">
-            <TabsTrigger value="pdf" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#E07A5F] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
+            <TabsTrigger
+              value="pdf"
+              className="rounded-none border-0 text-xs sm:text-sm text-muted-foreground data-[state=active]:text-[#E07A5F] data-[state=active]:font-semibold data-[state=active]:bg-[#E07A5F]/15 data-[state=active]:shadow-none"
+            >
               PDF
             </TabsTrigger>
-            <TabsTrigger value="grading" className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#E07A5F] data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
+            <TabsTrigger
+              value="grading"
+              className="rounded-none border-0 text-xs sm:text-sm text-muted-foreground data-[state=active]:text-[#E07A5F] data-[state=active]:font-semibold data-[state=active]:bg-[#E07A5F]/15 data-[state=active]:shadow-none"
+            >
               評分結果
             </TabsTrigger>
           </TabsList>

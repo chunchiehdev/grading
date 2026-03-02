@@ -35,5 +35,11 @@
   "commit": "提交",
   "production": "正式環境",
   "development": "開發環境",
-  "manageAccount": "管理帳號"
+  "manageAccount": "管理帳號",
+  "notificationsLoading": "載入通知中...",
+  "notificationsEmpty": "目前沒有新通知",
+  "markAllRead": "全部標記為已讀",
+  "submissionReceived": "{{studentName}} 已提交作業",
+  "pendingReview": "待批改",
+  "graded": "已批改"
 }

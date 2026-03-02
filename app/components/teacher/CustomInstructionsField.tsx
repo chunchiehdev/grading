@@ -14,6 +14,8 @@ interface CustomInstructionsFieldProps {
   maxLength?: number;
   disabled?: boolean;
   placeholder?: string;
+  showDescription?: boolean;
+  showTips?: boolean;
 }
 
 export function CustomInstructionsField({
@@ -22,6 +24,8 @@ export function CustomInstructionsField({
   maxLength = 5000,
   disabled = false,
   placeholder,
+  showDescription = true,
+  showTips = true,
 }: CustomInstructionsFieldProps) {
   const { t } = useTranslation('grading');
   const [charCount, setCharCount] = useState(value.length);
@@ -61,7 +65,7 @@ export function CustomInstructionsField({
         </span>
       </div>
 
-      <p className="text-sm text-muted-foreground">{t('customInstructionsDescription')}</p>
+      {showDescription && <p className="text-sm text-muted-foreground">{t('customInstructionsDescription')}</p>}
 
       <textarea
         id="custom-grading-instructions"
@@ -93,10 +97,12 @@ export function CustomInstructionsField({
 
       {isAtLimit && <p className="text-sm text-destructive font-semibold">{t('charLimitReached')}</p>}
 
-      <div className="text-xs text-muted-foreground space-y-1">
-        <p>💡 {t('instructionsTip1')}</p>
-        <p>💡 {t('instructionsTip2')}</p>
-      </div>
+      {showTips && (
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>💡 {t('instructionsTip1')}</p>
+          <p>💡 {t('instructionsTip2')}</p>
+        </div>
+      )}
     </div>
   );
 }

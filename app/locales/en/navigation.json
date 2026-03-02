@@ -35,5 +35,11 @@
   "commit": "Commit",
   "production": "Production",
   "development": "Development",
-  "manageAccount": "Manage Account"
+  "manageAccount": "Manage Account",
+  "notificationsLoading": "Loading notifications...",
+  "notificationsEmpty": "No notifications yet",
+  "markAllRead": "Mark all as read",
+  "submissionReceived": "{{studentName}} submitted an assignment",
+  "pendingReview": "Pending",
+  "graded": "Graded"
 }

@@ -306,7 +306,7 @@ function ClientPdfViewer({
   return (
     <div className="w-full h-full flex flex-col">
       {!isFullScreen && (
-        <div className="flex items-center justify-between border-b px-2 py-1 shrink-0">
+        <div className="flex items-center justify-between px-2 py-1 shrink-0">
           <button
             type="button"
             onClick={() => setIsSidebarOpen((v) => !v)}
