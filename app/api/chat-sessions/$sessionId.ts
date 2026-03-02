@@ -43,6 +43,18 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             totalTokens: true,
           },
         },
+        stepLogs: {
+          orderBy: { timestamp: 'asc' },
+          select: {
+            stepNumber: true,
+            toolName: true,
+            toolInput: true,
+            toolOutput: true,
+            reasoning: true,
+            durationMs: true,
+            timestamp: true,
+          },
+        },
       },
     });
 
@@ -89,6 +101,36 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         totalDuration: session.totalDuration,
       },
       messages,
+      progressEvents: session.stepLogs.map((log) => {
+        const normalizedRole = session.userRole === 'TEACHER' ? 'TEACHER' : 'STUDENT';
+        const input = (log.toolInput || {}) as Record<string, unknown>;
+        const output = (log.toolOutput || {}) as Record<string, unknown>;
+        const phase = (output.phase || input.phase || 'step_started') as
+          | 'step_started'
+          | 'step_completed'
+          | 'tool_started'
+          | 'tool_completed'
+          | 'tool_failed'
+          | 'agent_completed'
+          | 'agent_error';
+
+        return {
+          sessionId,
+          userId,
+          userRole: normalizedRole,
+          phase,
+          title: (output.title || input.title || log.toolName || 'Progress') as string,
+          stepNumber: log.stepNumber >= 0 ? log.stepNumber : undefined,
+          toolName: log.toolName || undefined,
+          thinking: log.reasoning || undefined,
+          action: (input.action as string | undefined) || undefined,
+          expectedOutcome: (input.expectedOutcome as string | undefined) || undefined,
+          inputSummary: (input.inputSummary as string | undefined) || undefined,
+          outputSummary: (output.outputSummary as string | undefined) || undefined,
+          durationMs: log.durationMs || undefined,
+          ts: (output.ts as number | undefined) || log.timestamp.getTime(),
+        };
+      }),
     };
 
     logger.info({

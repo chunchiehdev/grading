@@ -39,6 +39,7 @@ export interface WebSocketEvents {
   // 通知事件
   'assignment-notification': (notification: AssignmentNotification) => void;
   'submission-notification': (notification: SubmissionNotification) => void;
+  'assistant-progress': (event: AssistantProgressEvent) => void;
 
   // 系統事件
   'api-redirect': (data: { message: string; endpoint: string; method: string }) => void;
@@ -67,6 +68,30 @@ export interface SubmissionNotification {
   studentName: string;
   submittedAt: string;
   timestamp: string;
+}
+
+export interface AssistantProgressEvent {
+  sessionId: string;
+  userId: string;
+  userRole: 'TEACHER' | 'STUDENT';
+  phase:
+    | 'step_started'
+    | 'step_completed'
+    | 'tool_started'
+    | 'tool_completed'
+    | 'tool_failed'
+    | 'agent_completed'
+    | 'agent_error';
+  title: string;
+  stepNumber?: number;
+  toolName?: string;
+  thinking?: string;
+  action?: string;
+  expectedOutcome?: string;
+  inputSummary?: string;
+  outputSummary?: string;
+  durationMs?: number;
+  ts: number;
 }
 
 export interface WebSocketEmitEvents {

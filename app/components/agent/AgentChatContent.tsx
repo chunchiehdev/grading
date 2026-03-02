@@ -11,10 +11,7 @@ import { DefaultChatTransport, type UIMessage } from 'ai';
 import {
   Send,
   Loader2,
-  CheckCircle,
-  AlertCircle,
   AlertTriangle,
-  Clock,
   ChevronDown,
   ExternalLink,
   Link2,
@@ -27,6 +24,8 @@ import { useLoaderData, useParams } from 'react-router';
 import type { User as UserType } from '@/root';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { useWebSocketEvent } from '@/lib/websocket';
+import type { AssistantProgressEvent } from '@/lib/websocket/types';
 
 /**
  * Extract text content from UIMessage parts
@@ -84,44 +83,39 @@ function extractAgentErrorMessage(raw: string, translate?: (key: string) => stri
 interface Step {
   stepNumber: number;
   textParts: any[];
-  toolInvocations: any[];
   sources: any[];
 }
 
 function groupPartsBySteps(parts: any[]): Step[] {
   const steps: Step[] = [];
-  let currentStep: Step = { stepNumber: 0, textParts: [], toolInvocations: [], sources: [] };
+  let currentStep: Step = { stepNumber: 0, textParts: [], sources: [] };
 
   for (const part of parts) {
     if (part.type === 'step-start') {
-      if (currentStep.textParts.length > 0 || currentStep.toolInvocations.length > 0 || currentStep.sources.length > 0) {
+      if (currentStep.textParts.length > 0 || currentStep.sources.length > 0) {
         steps.push(currentStep);
       }
       currentStep = {
         stepNumber: steps.length,
         textParts: [],
-        toolInvocations: [],
         sources: [],
       };
     } else if (part.type === 'text') {
       currentStep.textParts.push(part);
-    } else if (part.type?.includes('tool') || part.type === 'dynamic-tool') {
-      currentStep.toolInvocations.push(part);
     } else if (part.type === 'source-url') {
       currentStep.sources.push(part);
     }
   }
 
-  if (currentStep.textParts.length > 0 || currentStep.toolInvocations.length > 0 || currentStep.sources.length > 0) {
+  if (currentStep.textParts.length > 0 || currentStep.sources.length > 0) {
     steps.push(currentStep);
   }
 
   if (steps.length === 0 && parts.length > 0) {
     const textParts = parts.filter((p) => p.type === 'text');
-    const toolInvocations = parts.filter((p) => p.type?.includes('tool') || p.type === 'dynamic-tool');
     const sources = parts.filter((p) => p.type === 'source-url');
-    if (textParts.length > 0 || toolInvocations.length > 0 || sources.length > 0) {
-      steps.push({ stepNumber: 0, textParts, toolInvocations, sources });
+    if (textParts.length > 0 || sources.length > 0) {
+      steps.push({ stepNumber: 0, textParts, sources });
     }
   }
   return steps;
@@ -133,6 +127,7 @@ export function AgentChatContent() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [tokenLimitExceeded, setTokenLimitExceeded] = useState(false);
   const [tokenLimitWarning, setTokenLimitWarning] = useState(false);
+  const [liveProgress, setLiveProgress] = useState<AssistantProgressEvent[]>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -147,8 +142,20 @@ export function AgentChatContent() {
     currentSessionIdRef.current = sessionId;
   }, [sessionId]);
 
+  useEffect(() => {
+    setLiveProgress([]);
+  }, [sessionId]);
+
   const { user } = useLoaderData() as { user: UserType | null };
   const { t } = useTranslation('agent');
+
+  useWebSocketEvent('assistant-progress', (event) => {
+    if (!currentSessionIdRef.current || event.sessionId !== currentSessionIdRef.current) {
+      return;
+    }
+
+    setLiveProgress((prev) => [...prev.slice(-29), event]);
+  });
 
   const transport = useMemo(() => new DefaultChatTransport({
     api: '/api/agent-chat',
@@ -226,6 +233,7 @@ export function AgentChatContent() {
           }
           const data = await res.json();
           setMessages(data.messages);
+          setLiveProgress((data.progressEvents as AssistantProgressEvent[] | undefined) || []);
           setShowWelcome(false);
           
           const totalTokens = data.session?.totalTokens || 0;
@@ -251,6 +259,7 @@ export function AgentChatContent() {
     } else {
       hasLoadedSessionRef.current = null;
       setMessages([]);
+      setLiveProgress([]);
       setShowWelcome(true);
     }
   }, [sessionId, setMessages]);
@@ -275,6 +284,7 @@ export function AgentChatContent() {
       sendMessage({ text: input.trim() });
       setInput('');
       setShowWelcome(false);
+      setLiveProgress([]);
     },
     [input, status, sendMessage]
   );
@@ -292,6 +302,14 @@ export function AgentChatContent() {
 
   const isLoading = status === 'submitted' || status === 'streaming';
   const isInputDisabled = isLoading || tokenLimitExceeded;
+  const lastAssistantMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'assistant') {
+        return messages[i].id;
+      }
+    }
+    return null;
+  }, [messages]);
 
   return (
     <div className="h-full flex flex-col">
@@ -337,7 +355,14 @@ export function AgentChatContent() {
         {messages.length > 0 && (
           <div className="space-y-6 py-8">
             {messages.map((message) => (
-              <MessageBubbleWithSteps key={message.id} message={message} user={user} />
+              <MessageBubbleWithSteps
+                key={message.id}
+                message={message}
+                user={user}
+                showThinkingDetails={message.id === lastAssistantMessageId && liveProgress.length > 0}
+                progressEvents={liveProgress}
+                isLoading={isLoading}
+              />
             ))}
             {isLoading && (
               <div className="flex items-center gap-2 text-muted-foreground">
@@ -474,10 +499,212 @@ export function AgentChatContent() {
   );
 }
 
+function LiveThinkingDetails({
+  events,
+  isLoading,
+}: {
+  events: AssistantProgressEvent[];
+  isLoading: boolean;
+}) {
+  const { t, i18n } = useTranslation('agent');
+  const isZh = i18n.language.startsWith('zh');
+  const phaseText: Record<AssistantProgressEvent['phase'], string> = {
+    step_started: isZh ? '開始分析問題' : 'Analyzing request',
+    step_completed: isZh ? '完成這一步分析' : 'Analysis step completed',
+    tool_started: isZh ? '開始執行工具' : 'Running tool',
+    tool_completed: isZh ? '工具執行完成' : 'Tool completed',
+    tool_failed: isZh ? '工具執行失敗' : 'Tool failed',
+    agent_completed: isZh ? '已完成回覆' : 'Response completed',
+    agent_error: isZh ? '回覆失敗' : 'Response failed',
+  };
+
+  const replaceQueryToken = (text: string): string => {
+    const queryNames: Record<string, string> = isZh
+      ? {
+          pending_assignments: '待完成作業',
+          student_assignments: '作業清單',
+          student_courses: '已修課程',
+          student_submissions: '繳交紀錄',
+          my_submission_detail: '提交詳情',
+          assignment_detail_student: '作業詳情',
+          teacher_courses: '授課課程',
+          course_students: '課程學生名單',
+          course_assignments: '課程作業',
+          assignment_submissions: '作業繳交狀態',
+        }
+      : {
+          pending_assignments: 'pending assignments',
+          student_assignments: 'assignment list',
+          student_courses: 'enrolled courses',
+          student_submissions: 'submission history',
+          my_submission_detail: 'submission details',
+          assignment_detail_student: 'assignment details',
+          teacher_courses: 'teaching courses',
+          course_students: 'course roster',
+          course_assignments: 'course assignments',
+          assignment_submissions: 'assignment submissions',
+        };
+
+    return Object.entries(queryNames).reduce(
+      (acc, [key, value]) => acc.replace(new RegExp(key, 'g'), value),
+      text
+    );
+  };
+
+  const normalizeOutputSummary = (summary: string): string => {
+    if (!summary) return summary;
+    if (summary.startsWith('Response length') || summary.startsWith('回覆長度')) {
+      return '';
+    }
+    if (summary.startsWith('Object result') || summary.startsWith('回傳物件')) {
+      return isZh ? '已取得查詢結果，正在整理重點。' : 'Data retrieved successfully and being summarized.';
+    }
+    if (summary.startsWith('Array result') || summary.startsWith('回傳陣列')) {
+      return isZh ? '已取得多筆資料，正在整理重點。' : 'Multiple records were retrieved and summarized.';
+    }
+    return replaceQueryToken(summary);
+  };
+
+  const sanitizeNarrativeLine = (line: string): string => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      return '';
+    }
+
+    const withoutPrefix = trimmed
+      .replace(/^答案[:：]\s*/u, '')
+      .replace(/^answer[:：]\s*/iu, '')
+      .replace(/^最終答案[:：]\s*/u, '');
+
+    return withoutPrefix.trim();
+  };
+
+  const getNarrative = (event: AssistantProgressEvent): string[] => {
+    const lines: string[] = [];
+
+    if (event.thinking) {
+      lines.push(replaceQueryToken(event.thinking));
+    }
+    if (event.action) {
+      lines.push(replaceQueryToken(event.action));
+    }
+    if (event.expectedOutcome) {
+      lines.push(replaceQueryToken(event.expectedOutcome));
+    }
+    if (event.outputSummary) {
+      const normalized = normalizeOutputSummary(event.outputSummary);
+      if (normalized) {
+        lines.push(normalized);
+      }
+    }
+
+    if (lines.length === 0) {
+      if (event.phase === 'step_started') {
+        lines.push(isZh ? '正在整理上下文並規劃下一步。' : 'Reviewing context and planning the next step.');
+      } else if (event.phase === 'step_completed') {
+        lines.push(isZh ? '這一步已完成，準備進入下一步。' : 'This step is done, preparing the next one.');
+      } else if (event.phase === 'tool_started') {
+        if (event.toolName === 'think') {
+          lines.push(isZh ? '正在進行推理檢查。' : 'Running a reasoning checkpoint.');
+        }
+      } else if (event.phase === 'tool_completed') {
+        lines.push(isZh ? '工具已回傳資料，準備整合答案。' : 'Tool returned data, preparing final synthesis.');
+      } else if (event.phase === 'tool_failed') {
+        lines.push(isZh ? '工具執行失敗，正在嘗試處理錯誤。' : 'Tool execution failed, handling the error path.');
+      } else if (event.phase === 'agent_completed') {
+        lines.push(isZh ? '答案已完成產生。' : 'Final response has been produced.');
+      } else {
+        lines.push(isZh ? '執行過程發生錯誤。' : 'An error occurred during execution.');
+      }
+    }
+
+    return lines.map(sanitizeNarrativeLine).filter(Boolean);
+  };
+
+  const visibleEvents = events.filter((event) => {
+    const isGenericStart =
+      event.title === '助手開始處理你的請求' || event.title === 'Assistant started processing your request';
+    const isGenericDone =
+      event.phase === 'agent_completed' &&
+      (event.outputSummary === '回覆已完成。' || event.outputSummary === 'Response is ready.');
+
+    if (isGenericStart || isGenericDone) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return (
+    <Collapsible open={isLoading ? true : undefined} defaultOpen={isLoading} className="group">
+      <CollapsibleTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="flex items-center gap-2 px-3 py-1.5 h-auto text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+          <span>{t('status.viewThinkingProcess', '查看思考過程')}</span>
+        </Button>
+      </CollapsibleTrigger>
+
+      <CollapsibleContent>
+        <div className="py-2 pl-4">
+          <div className="relative pl-4 border-l-2 border-border/50">
+            <div className="space-y-2">
+              {visibleEvents.map((event, index) => {
+                const titleClass =
+                  event.phase === 'tool_failed' || event.phase === 'agent_error'
+                    ? 'text-destructive'
+                    : 'text-foreground';
+
+                const narrativeLines = getNarrative(event);
+
+                return (
+                  <div key={`${event.ts}-${index}`} className="rounded-md border border-border/40 bg-background/80 p-2 text-xs">
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className={cn('font-medium', titleClass)}>{replaceQueryToken(event.title || phaseText[event.phase])}</span>
+                    </div>
+                    {narrativeLines.length > 0 && (
+                      <div className="space-y-1 text-muted-foreground">
+                        {narrativeLines.map((line, lineIndex) => (
+                          <p key={`${event.ts}-${index}-line-${lineIndex}`}>{line}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {isLoading && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>{t('status.thinking', '思考中...')}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 /**
  * Message Bubble with Steps
  */
-function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: UserType | null }) {
+function MessageBubbleWithSteps({
+  message,
+  user,
+  showThinkingDetails,
+  progressEvents,
+  isLoading,
+}: {
+  message: UIMessage;
+  user: UserType | null;
+  showThinkingDetails?: boolean;
+  progressEvents?: AssistantProgressEvent[];
+  isLoading?: boolean;
+}) {
   const isUser = message.role === 'user';
   const messageContent = getMessageContent(message);
 
@@ -496,52 +723,13 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
     );
   }
 
-  const { t } = useTranslation('agent');
-
-  const hasAnyTools = steps.some(s => s.toolInvocations.length > 0);
   const finalResponseStep = steps[steps.length - 1];
-  
-  const isThinking = steps.some(s => 
-    s.toolInvocations.some((tool: any) => {
-      const state = tool.state || 'unknown';
-      return state === 'input-streaming' || state === 'input-available' || state === 'unknown';
-    })
-  );
+  const hasThinkEvents = (progressEvents || []).some((event) => event.toolName === 'think');
 
   return (
     <div className="w-full space-y-4">
-      {/* Thinking Process - Collapsible */}
-      {hasAnyTools && (
-        <Collapsible 
-          open={isThinking ? true : undefined}
-          defaultOpen={isThinking}
-          className="group"
-        >
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="flex items-center gap-2 px-3 py-1.5 h-auto text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
-              <span>{isThinking ? t('status.thinking', 'AI 思考中...') : t('status.viewThinkingProcess', '查看思考過程')}</span>
-            </Button>
-          </CollapsibleTrigger>
-          
-          <CollapsibleContent>
-            <div className="py-2 pl-4">
-              <div className="relative pl-4 border-l-2 border-border/50">
-                <div className="space-y-1.5">
-                  {steps.flatMap(step => 
-                    step.toolInvocations.map((tool: any, idx: number) => (
-                      <ThinkingAction key={`${step.stepNumber}-${idx}`} tool={tool} />
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+      {showThinkingDetails && progressEvents && progressEvents.length > 0 && hasThinkEvents && (
+        <LiveThinkingDetails events={progressEvents} isLoading={!!isLoading} />
       )}
 
       {/* Final Response */}
@@ -559,58 +747,6 @@ function MessageBubbleWithSteps({ message, user }: { message: UIMessage; user: U
       )}
     </div>
   );
-}
-
-/**
- * Thinking Action Component
- */
-function ThinkingAction({ tool }: { tool: any }) {
-  const { t } = useTranslation('agent');
-  
-  const toolName = tool.toolName || extractToolName(tool.type);
-  const state = tool.state || 'unknown';
-  const errorText = tool.errorText;
-
-  const toolNarrations: Record<string, string> = {
-    database_query: t('toolNarration.databaseQuery', '正在查詢資料...'),
-    generate_report: t('toolNarration.generateReport', '正在生成報告...'),
-    calculator: t('toolNarration.calculator', '正在計算...'),
-    code_explainer: t('toolNarration.codeExplainer', '正在分析程式碼...'),
-    web_search: t('toolNarration.webSearch', '正在搜尋相關資訊...'),
-    google_search: t('toolNarration.googleSearch', '正在搜尋 Google...'),
-  };
-
-  const displayName = toolNarrations[toolName] || toolName.replace(/_/g, ' ');
-
-  const getStatusIndicator = () => {
-    if (errorText) {
-      return <AlertCircle className="h-3 w-3 text-destructive" />;
-    }
-    if (state === 'output-available') {
-      return <CheckCircle className="h-3 w-3 text-green-500" />;
-    }
-    if (state === 'input-streaming' || state === 'input-available') {
-      return <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />;
-    }
-    return <Clock className="h-3 w-3 text-muted-foreground" />;
-  };
-
-  return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground py-0.5">
-      {getStatusIndicator()}
-      <span>{displayName}</span>
-      {errorText && (
-        <span className="text-destructive">({errorText})</span>
-      )}
-    </div>
-  );
-}
-
-function extractToolName(type: string): string {
-  if (type?.startsWith('tool-')) {
-    return type.substring(5);
-  }
-  return type || 'unknown';
 }
 
 function getDomainFromUrl(url: string): string {

@@ -175,6 +175,12 @@ export class WebSocketClient {
       this.emit('submission-notification', notification);
     });
 
+    // Assistant progress timeline
+    this.socket.on('assistant-progress', (event) => {
+      console.debug('[WebSocket] Received assistant progress:', event);
+      this.emit('assistant-progress', event);
+    });
+
     // API redirect (deprecated feature warning)
     this.socket.on('api-redirect', (data) => {
       console.warn('[WebSocket] Deprecated API usage:', data);

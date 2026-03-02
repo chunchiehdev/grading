@@ -36,6 +36,30 @@ export interface SubmissionNotificationEvent {
   submittedAt: string;
 }
 
+export interface AssistantProgressEvent {
+  sessionId: string;
+  userId: string;
+  userRole: 'TEACHER' | 'STUDENT';
+  phase:
+    | 'step_started'
+    | 'step_completed'
+    | 'tool_started'
+    | 'tool_completed'
+    | 'tool_failed'
+    | 'agent_completed'
+    | 'agent_error';
+  title: string;
+  stepNumber?: number;
+  toolName?: string;
+  thinking?: string;
+  action?: string;
+  expectedOutcome?: string;
+  inputSummary?: string;
+  outputSummary?: string;
+  durationMs?: number;
+  ts: number;
+}
+
 /**
  * WebSocket 事件處理器
  * 只負責監聽 Redis 事件並廣播，不處理業務邏輯
@@ -54,7 +78,7 @@ export class WebSocketEventHandler {
    */
   async start(): Promise<void> {
     // 訂閱事件
-    await this.subscriber.subscribe('chat:events', 'notifications:assignment', 'notifications:submission');
+    await this.subscriber.subscribe('chat:events', 'notifications:assignment', 'notifications:submission', 'assistant:progress');
 
     this.subscriber.on('message', async (channel, message) => {
       try {
@@ -67,6 +91,9 @@ export class WebSocketEventHandler {
         } else if (channel === 'notifications:submission') {
           const event: SubmissionNotificationEvent = JSON.parse(message);
           await this.handleSubmissionNotification(event);
+        } else if (channel === 'assistant:progress') {
+          const event: AssistantProgressEvent = JSON.parse(message);
+          await this.handleAssistantProgress(event);
         }
       } catch (error) {
         logger.error(`Failed to handle ${channel} event: ${error}`);
@@ -247,6 +274,18 @@ export class WebSocketEventHandler {
       }
     } catch (error) {
       logger.error(`[WS EventHandler] ❌ Failed to handle submission notification: ${error}`);
+    }
+  }
+
+  /**
+   * 處理 Assistant 進度事件
+   */
+  private async handleAssistantProgress(event: AssistantProgressEvent): Promise<void> {
+    try {
+      const roomName = `user:${event.userId}`;
+      this.io.to(roomName).emit('assistant-progress', event);
+    } catch (error) {
+      logger.error(`[WS EventHandler] Failed to handle assistant progress event: ${error}`);
     }
   }
 

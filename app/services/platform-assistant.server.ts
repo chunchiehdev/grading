@@ -13,12 +13,231 @@ import { z } from 'zod';
 import { tool } from 'ai';
 import logger from '@/utils/logger';
 import { checkAIAccess, AIAccessDeniedError } from '@/services/ai-access.server';
+import { redis } from '@/lib/redis';
+import { db } from '@/lib/db.server';
 
 interface TokenUsage {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
   [key: string]: any;
+}
+
+export type AssistantProgressPhase =
+  | 'step_started'
+  | 'step_completed'
+  | 'tool_started'
+  | 'tool_completed'
+  | 'tool_failed'
+  | 'agent_completed'
+  | 'agent_error';
+
+export interface AssistantProgressEvent {
+  sessionId: string;
+  userId: string;
+  userRole: 'TEACHER' | 'STUDENT';
+  phase: AssistantProgressPhase;
+  title: string;
+  stepNumber?: number;
+  toolName?: string;
+  thinking?: string;
+  action?: string;
+  expectedOutcome?: string;
+  inputSummary?: string;
+  outputSummary?: string;
+  durationMs?: number;
+  ts: number;
+}
+
+export type AssistantUiLanguage = 'zh' | 'en';
+
+type ProgressReporter = (event: Omit<AssistantProgressEvent, 'sessionId' | 'userId' | 'userRole' | 'ts'>) => void;
+
+interface ProgressLocaleText {
+  isEnglish: boolean;
+  noData: string;
+  noParams: string;
+  languageReminder: string;
+  agentCompletedTitle: string;
+  agentCompletedSummary: (textLength: number, totalTokens: number) => string;
+  agentFailedTitle: string;
+  agentInitFailedTitle: string;
+}
+
+function getProgressLocaleText(language: AssistantUiLanguage): ProgressLocaleText {
+  if (language === 'en') {
+    return {
+      isEnglish: true,
+      noData: 'No data',
+      noParams: 'No params',
+      languageReminder: 'IMPORTANT: You must output strictly in English. Do not use Chinese.',
+      agentCompletedTitle: 'Assistant completed this response',
+      agentCompletedSummary: () => 'Response is ready.',
+      agentFailedTitle: 'Assistant execution failed',
+      agentInitFailedTitle: 'Assistant initialization failed',
+    };
+  }
+
+  return {
+    isEnglish: false,
+    noData: '無資料',
+    noParams: '無參數',
+    languageReminder: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.',
+    agentCompletedTitle: '助手已完成本次回覆',
+    agentCompletedSummary: () => '回覆已完成。',
+    agentFailedTitle: '助手執行失敗',
+    agentInitFailedTitle: '助手初始化失敗',
+  };
+}
+
+function toCompactJson(value: unknown, maxLength: number = 220): string {
+  try {
+    const raw = JSON.stringify(value);
+    if (raw.length <= maxLength) {
+      return raw;
+    }
+    return `${raw.slice(0, maxLength)}...`;
+  } catch {
+    return String(value);
+  }
+}
+
+function summarizeUnknownData(data: unknown, localeText: ProgressLocaleText): string {
+  if (data === null || data === undefined) {
+    return localeText.noData;
+  }
+
+  if (Array.isArray(data)) {
+    return localeText.isEnglish ? `Array result with ${data.length} items` : `回傳陣列，共 ${data.length} 筆`;
+  }
+
+  if (typeof data === 'object') {
+    const record = data as Record<string, unknown>;
+    const keys = Object.keys(record);
+    const countHints = keys
+      .filter((key) => Array.isArray(record[key]))
+      .map((key) => `${key}:${(record[key] as unknown[]).length}`);
+
+    if (countHints.length > 0) {
+      return localeText.isEnglish
+        ? `Object result (${keys.slice(0, 5).join(', ')}), key counts: ${countHints.slice(0, 3).join(' / ')}`
+        : `回傳物件(${keys.slice(0, 5).join(', ')})，重點數量 ${countHints.slice(0, 3).join(' / ')}`;
+    }
+
+    return localeText.isEnglish
+      ? `Object fields: ${keys.slice(0, 6).join(', ') || 'none'}`
+      : `回傳物件欄位：${keys.slice(0, 6).join(', ') || '無'}`;
+  }
+
+  return String(data);
+}
+
+function summarizeParams(params: Record<string, unknown> | undefined, localeText: ProgressLocaleText): string {
+  if (!params || Object.keys(params).length === 0) {
+    return localeText.noParams;
+  }
+  return toCompactJson(params, 180);
+}
+
+function stripProcessLeakage(text: string): string {
+  if (!text) return text;
+
+  const leakagePattern = /(think\s*tool|think\s*\(|think\s*參數|內部\s*prompt|internal\s*prompt|流程規則|process rules)/i;
+  const lines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !leakagePattern.test(line));
+
+  return lines.join('\n').trim();
+}
+
+function getQueryDisplayName(queryType: string, isEnglish: boolean): string {
+  const names: Record<string, { en: string; zh: string }> = {
+    pending_assignments: { en: 'pending assignments', zh: '待完成作業' },
+    student_assignments: { en: 'assignment list', zh: '作業清單' },
+    student_courses: { en: 'enrolled courses', zh: '已修課程' },
+    student_submissions: { en: 'submission history', zh: '繳交紀錄' },
+    my_submission_detail: { en: 'submission details', zh: '提交詳情' },
+    assignment_detail_student: { en: 'assignment details', zh: '作業詳情' },
+    teacher_courses: { en: 'teaching courses', zh: '授課課程' },
+    course_students: { en: 'course roster', zh: '課程學生名單' },
+    course_assignments: { en: 'course assignments', zh: '課程作業' },
+    assignment_submissions: { en: 'assignment submissions', zh: '作業繳交狀態' },
+    student_submission_detail_teacher: { en: 'student submission details', zh: '學生提交詳情' },
+    grading_statistics: { en: 'grading statistics', zh: '評分統計' },
+  };
+
+  const preset = names[queryType];
+  if (preset) {
+    return isEnglish ? preset.en : preset.zh;
+  }
+
+  const fallback = queryType.replace(/_/g, ' ');
+  return isEnglish ? fallback : fallback;
+}
+
+function createProgressReporter(
+  sessionId: string,
+  userId: string,
+  userRole: 'TEACHER' | 'STUDENT'
+): ProgressReporter {
+  return (event) => {
+    const payload: AssistantProgressEvent = {
+      ...event,
+      sessionId,
+      userId,
+      userRole,
+      ts: Date.now(),
+    };
+
+    void db.agentChatStepLog
+      .create({
+        data: {
+          sessionId,
+          stepNumber: payload.stepNumber ?? -1,
+          toolName: payload.toolName,
+          toolInput: {
+            phase: payload.phase,
+            title: payload.title,
+            action: payload.action,
+            expectedOutcome: payload.expectedOutcome,
+            inputSummary: payload.inputSummary,
+          },
+          toolOutput: {
+            phase: payload.phase,
+            title: payload.title,
+            outputSummary: payload.outputSummary,
+            durationMs: payload.durationMs,
+            ts: payload.ts,
+          },
+          reasoning: payload.thinking,
+          durationMs: payload.durationMs,
+          timestamp: new Date(payload.ts),
+        },
+      })
+      .catch((error) => {
+        logger.warn(
+          {
+            sessionId,
+            phase: event.phase,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          '[Platform Assistant] Failed to persist assistant progress event'
+        );
+      });
+
+    void redis.publish('assistant:progress', JSON.stringify(payload)).catch((error) => {
+      logger.warn(
+        {
+          sessionId,
+          phase: event.phase,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        '[Platform Assistant] Failed to publish assistant progress event'
+      );
+    });
+  };
 }
 import {
   executeDatabaseQuery,
@@ -154,52 +373,6 @@ async function selectResilientModel(sessionId: string, preferredProvider: ModelP
 }
 
 /**
- * ============================================================================
- * STEP THINKING LOG (for UI transparency)
- * ============================================================================
- */
-
-/**
- * Step Thinking Log - Track model's thinking process for UI display
- */
-interface StepThinking {
-  stepNumber: number;
-  thinkingDescription: string;      // 我現在想...
-  plannedAction: string;            // 所以我要做...
-  expectedOutcome: string;          // 我預期會得到...
-  toolsUsed: string[];              // 實際調用的工具
-  result?: string;                  // 實際結果摘要
-  timestamp: number;
-}
-
-const stepThinkingLog: Map<string, StepThinking[]> = new Map(); // sessionId -> steps
-
-/**
- * Query Type Enum (All) - synchronized with QueryType from database-query.server.ts
- * Using 'satisfies' ensures TS error if QueryType diverges
- */
-const queryTypeEnum = z.enum([
-  'user_profile',
-  'user_statistics',
-  'student_courses',
-  'teacher_courses',
-  'course_students',
-  'student_assignments',
-  'assignment_submissions',
-  'student_submissions',
-  'submission_detail',
-  'grading_statistics',
-  'course_detail',
-  'course_assignments',
-  'assignment_detail',
-  'student_submission_detail_teacher',
-  'assignment_detail_student',
-  'my_submission_detail',
-  'pending_assignments',
-  'enrolled_course_detail',
-]) satisfies z.ZodType<QueryType>;
-
-/**
  * Teacher Query Type Enum - restricted to teacher-only queries
  */
 const teacherQueryTypeEnum = z.enum([
@@ -238,6 +411,18 @@ interface DatabaseQueryResponse {
   queryType?: QueryType;
   data?: unknown;
   error?: string;
+}
+
+interface ThinkToolResponse {
+  ok: true;
+  title: string;
+  thought: string;
+}
+
+interface ThinkingEnforcementState {
+  sawDataToolCall: boolean;
+  sawThinkSinceDataTool: boolean;
+  lastDataSummary?: string;
 }
 
 /**
@@ -286,7 +471,12 @@ type StudentCallOptions = z.infer<typeof studentCallOptionsSchema>;
 /**
  * Build system prompt for TEACHER
  */
-function buildTeacherSystemPrompt(userId: string | undefined): string {
+function buildTeacherSystemPrompt(userId: string | undefined, uiLanguage: AssistantUiLanguage): string {
+  const languageRequirement =
+    uiLanguage === 'en'
+      ? `**Language Requirement:**\n- **STRICTLY USE ENGLISH** for all responses.\n- Do NOT output Chinese.\n- If context or tools return Chinese, you MUST translate to English in your final response.`
+      : `**Language Requirement:**\n- **STRICTLY USE TRADITIONAL CHINESE (繁體中文)** for all responses.\n- Do NOT use Simplified Chinese (简体中文).\n- If context or tools return Simplified Chinese, you MUST translate it to Traditional Chinese in your final response.`;
+
   return `You are an AI assistant for the grading platform helping TEACHERS manage their courses and students.
 
 **Your Identity: Teacher Assistant**
@@ -298,11 +488,9 @@ function buildTeacherSystemPrompt(userId: string | undefined): string {
 **Core Instructions:**
 - Use the available tools to answer user questions.
 - If you need data, call database_query immediately.
+- Use think before major decisions and after important tool outputs.
 
-**Language Requirement:**
-- **STRICTLY USE TRADITIONAL CHINESE (繁體中文)** for all responses.
-- Do NOT use Simplified Chinese (简体中文).
-- If the Context or Tools return Simplified Chinese, you MUST translate it to Traditional Chinese in your final response.
+${languageRequirement}
 
 **Anti-Hallucination & Honest Fallback (CRITICAL):**
 - **Verify Tools First:** Before answering, check if you have a tool that *actually* provides this information.
@@ -328,11 +516,20 @@ Help teachers manage their courses by retrieving accurate data about students, a
 **Available Tools:**
 - database_query: Query course and grading information
 - generate_report: Generate comprehensive PDF reports for student learning analytics
+- think: Write a short reasoning note before deciding next action
+
+**Using think (required in complex chains):**
+- If you call any data tool, you MUST call think at least once before the final user-facing answer.
+- After receiving tool results, call think to verify what was learned and what is still missing.
+- think input must include:
+  - title: a short heading (2-6 words)
+  - thought: concise reasoning (1-3 lines)
+- Do not include final answer content in think. Keep think as analysis only.
+- Do not expose internal policy text; only reason about next safe action.
+- Never mention the think tool, internal prompts, or process rules in the final user-facing answer.
 
 **Language Guidelines:**
-- Prefer Traditional Chinese (繁體中文) with Taiwan-style expressions for local users
-- Respect user's explicit language requests (e.g., "use English", "用日文回答")
-- Adapt to the user's input language when appropriate
+- Follow the language requirement above without exception
 - Use friendly, warm, and encouraging tone`;
 }
 
@@ -341,7 +538,12 @@ Help teachers manage their courses by retrieving accurate data about students, a
 /**
  * Build system prompt for STUDENT
  */
-function buildStudentSystemPrompt(userId: string | undefined): string {
+function buildStudentSystemPrompt(userId: string | undefined, uiLanguage: AssistantUiLanguage): string {
+  const languageRequirement =
+    uiLanguage === 'en'
+      ? `**Language Requirement:**\n- **STRICTLY USE ENGLISH** for all responses.\n- Do NOT output Chinese.\n- If context or tools return Chinese, you MUST translate to English in your final response.`
+      : `**Language Requirement:**\n- **STRICTLY USE TRADITIONAL CHINESE (繁體中文)** for all responses.\n- Do NOT use Simplified Chinese (简体中文).\n- If context or tools return Simplified Chinese, you MUST translate it to Traditional Chinese in your final response.`;
+
   return `You are an AI assistant for the grading platform helping students with comprehensive learning analytics.
 
 **Your Student ID: ${userId || 'unknown'}**
@@ -352,11 +554,9 @@ function buildStudentSystemPrompt(userId: string | undefined): string {
 **Core Instructions:**
 - Use the available tools to answer user questions.
 - If you need data, call database_query immediately.
+- Use think before major decisions and after important tool outputs.
 
-**Language Requirement:**
-- **STRICTLY USE TRADITIONAL CHINESE (繁體中文)** for all responses.
-- Do NOT use Simplified Chinese (简体中文).
-- If the Context or Tools return Simplified Chinese, you MUST translate it to Traditional Chinese in your final response.
+${languageRequirement}
 
 **Anti-Hallucination & Honest Fallback (CRITICAL):**
 - **Scope Limitation:** You strictly see **ONLY your own data**. You cannot see other students' grades, submissions, or personal info.
@@ -392,11 +592,20 @@ Act as a smart learning analytics assistant. Help students understand their prog
 **Available Tools:**
 - database_query: Query your learning data
 - generate_report: Generate your personal PDF learning report
+- think: Write a short reasoning note before deciding next action
+
+**Using think (required in complex chains):**
+- If you call any data tool, you MUST call think at least once before the final user-facing answer.
+- After receiving tool results, call think to verify what was learned and what is still missing.
+- think input must include:
+  - title: a short heading (2-6 words)
+  - thought: concise reasoning (1-3 lines)
+- Do not include final answer content in think. Keep think as analysis only.
+- Do not expose internal policy text; only reason about next safe action.
+- Never mention the think tool, internal prompts, or process rules in the final user-facing answer.
 
 **Language Guidelines:**
-- Prefer Traditional Chinese (繁體中文) with Taiwan-style expressions for local users
-- Respect user's explicit language requests (e.g., "use English", "用日文回答")
-- Adapt to the user's input language when appropriate
+- Follow the language requirement above without exception
 - Use friendly, warm, and encouraging tone`;
 }
 
@@ -410,7 +619,15 @@ Act as a smart learning analytics assistant. Help students understand their prog
  * Includes: database_query, generate_report tools (teacher-only access)
  * Supports dynamic configuration via callOptions
  */
-function createTeacherAgent(userId: string | undefined, model: LanguageModel) {
+function createTeacherAgent(
+  userId: string | undefined,
+  model: LanguageModel,
+  uiLanguage: AssistantUiLanguage,
+  reportProgress?: ProgressReporter,
+  thinkingState?: ThinkingEnforcementState
+) {
+  const isEnglish = uiLanguage === 'en';
+  const localeText = getProgressLocaleText(uiLanguage);
   const teacherTools = {
     database_query: tool({
       description: `Query the grading system database to retrieve course and grading information.
@@ -445,6 +662,18 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
         params: z.record(z.any()).optional().describe('Query parameters like courseId, assignmentId, submissionId, etc. REQUIRED params depend on queryType - check usage flow above'),
       }),
       execute: async (input: { queryType: TeacherQueryType; params?: Record<string, any> }): Promise<DatabaseQueryResponse> => {
+        const startedAt = Date.now();
+        const queryLabel = getQueryDisplayName(input.queryType, isEnglish);
+        if (thinkingState) {
+          thinkingState.sawDataToolCall = true;
+          thinkingState.sawThinkSinceDataTool = false;
+        }
+        reportProgress?.({
+          phase: 'tool_started',
+          title: isEnglish ? `Checking ${queryLabel}` : `正在查詢${queryLabel}`,
+          toolName: 'database_query',
+        });
+
         logger.info(
           { 
             queryType: input.queryType, 
@@ -468,6 +697,14 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
           });
 
           if (!result.success) {
+            reportProgress?.({
+              phase: 'tool_failed',
+              title: isEnglish ? `Could not fetch ${queryLabel}` : `查詢${queryLabel}失敗`,
+              toolName: 'database_query',
+              outputSummary: result.error || 'Unknown query failure',
+              durationMs: Date.now() - startedAt,
+            });
+
             logger.warn(
               { 
                 queryType: input.queryType, 
@@ -482,12 +719,33 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
             };
           }
 
+          const outputSummary = summarizeUnknownData(result.data, localeText);
+          if (thinkingState) {
+            thinkingState.lastDataSummary = outputSummary;
+          }
+
+          reportProgress?.({
+            phase: 'tool_completed',
+            title: isEnglish ? `${queryLabel} data is ready` : `${queryLabel}資料已取得`,
+            toolName: 'database_query',
+            outputSummary,
+            durationMs: Date.now() - startedAt,
+          });
+
           return {
             success: true,
             queryType: input.queryType as QueryType,
             data: result.data,
           };
         } catch (error) {
+          reportProgress?.({
+            phase: 'tool_failed',
+            title: isEnglish ? `Error while fetching ${queryLabel}` : `查詢${queryLabel}時發生錯誤`,
+            toolName: 'database_query',
+            outputSummary: error instanceof Error ? error.message : 'Unknown error',
+            durationMs: Date.now() - startedAt,
+          });
+
           logger.error(
             { queryType: input.queryType, error: error instanceof Error ? error.message : String(error) },
             '[Platform Assistant] Teacher database_query failed'
@@ -497,6 +755,33 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
             error: error instanceof Error ? error.message : 'Unknown error',
           };
         }
+      },
+    }),
+    think: tool({
+      description:
+        'Use this tool as a scratchpad to reason about tool outputs and next actions. It does not fetch or mutate data.',
+      inputSchema: z.object({
+        title: z.string().min(3).max(80).describe('Short heading for this reasoning checkpoint.'),
+        thought: z.string().min(1).describe('Concise reasoning note about what was learned and what to do next.'),
+      }),
+      execute: async (input: { title: string; thought: string }): Promise<ThinkToolResponse> => {
+        const title = input.title.trim();
+        const thought = input.thought.trim();
+        if (thinkingState) {
+          thinkingState.sawThinkSinceDataTool = true;
+        }
+        reportProgress?.({
+          phase: 'step_started',
+          title,
+          toolName: 'think',
+          thinking: thought,
+        });
+
+        return {
+          ok: true,
+          title,
+          thought,
+        };
       },
     }),
     generate_report: tool({
@@ -518,6 +803,20 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
         includeCharts: z.boolean().default(true).describe('Whether to include visualizations/charts'),
       }),
       execute: async (input: { studentId: string; includeCharts?: boolean }): Promise<ReportGenerationResponse> => {
+        const startedAt = Date.now();
+        reportProgress?.({
+          phase: 'tool_started',
+          title: isEnglish ? 'Start generating student learning report' : '開始生成學習報告',
+          toolName: 'generate_report',
+          thinking: isEnglish ? 'Need to combine student data, analysis, charts, and PDF.' : '需要整合學生資料、分析、圖表與 PDF。',
+          action: isEnglish ? 'Query data -> generate charts -> render PDF -> upload' : '依序查詢資料 -> 生成圖表 -> 產生 PDF -> 上傳',
+          expectedOutcome: isEnglish ? 'Get a downloadable report link' : '得到可下載的報告連結',
+          inputSummary: summarizeParams({
+            studentId: input.studentId,
+            includeCharts: input.includeCharts ?? true,
+          }, localeText),
+        });
+
         logger.info(
           { studentId: input.studentId, includeCharts: input.includeCharts },
           '[Platform Assistant] Generate report tool called'
@@ -535,6 +834,14 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
 
           // Check if queries were successful
           if (!userProfile.success || !studentCourses.success) {
+            reportProgress?.({
+              phase: 'tool_failed',
+              title: isEnglish ? 'Report generation stopped: missing required data' : '報告生成中止：資料查詢不足',
+              toolName: 'generate_report',
+              outputSummary: isEnglish ? 'Unable to fetch required student data' : '無法取得必要學生資料',
+              durationMs: Date.now() - startedAt,
+            });
+
             return {
               success: false,
               error: 'Failed to query student data from database',
@@ -558,6 +865,15 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
           let chartConfigs: ChartConfiguration[] = [];
 
           if (input.includeCharts && submissionsData?.submissions && submissionsData.submissions.length > 0) {
+            reportProgress?.({
+              phase: 'step_started',
+              title: isEnglish ? 'Report step: building chart configs' : '報告步驟：建立圖表配置',
+              toolName: 'generate_report',
+              outputSummary: isEnglish
+                ? `Processing ${submissionsData.submissions.length} submissions`
+                : `將處理 ${submissionsData.submissions.length} 筆 submission`,
+            });
+
             // Use Gemini to extract chart data from submissions
             const { object: chartData } = await generateObject({
               model: gemini('gemini-2.5-flash'),
@@ -673,6 +989,13 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
           // Clean up potential markdown wrapper
           const finalHtml = htmlReport.replace(/^```html\n/, '').replace(/\n```$/, '');
 
+          reportProgress?.({
+            phase: 'step_started',
+            title: isEnglish ? 'Report step: rendering PDF' : '報告步驟：渲染 PDF',
+            toolName: 'generate_report',
+            outputSummary: isEnglish ? 'HTML report ready, starting PDF generation' : '已完成 HTML 報告，開始轉 PDF',
+          });
+
           // Step 4: Generate PDF using Puppeteer
           const timestamp = Date.now();
           const pdfFileName = `student-report-${input.studentId}-${timestamp}.pdf`;
@@ -715,6 +1038,16 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
 
           await uploadToStorage(pdfBuffer, storageKey, 'application/pdf');
 
+          reportProgress?.({
+            phase: 'tool_completed',
+            title: isEnglish ? 'Report generation completed' : '報告生成完成',
+            toolName: 'generate_report',
+            outputSummary: isEnglish
+              ? `PDF size ${(fileSize / 1024).toFixed(1)} KB, uploaded to ${storageKey}`
+              : `PDF 大小 ${(fileSize / 1024).toFixed(1)} KB，已上傳 ${storageKey}`,
+            durationMs: Date.now() - startedAt,
+          });
+
           logger.info({ storageKey, fileSize }, '[Platform Assistant] PDF uploaded to storage');
 
           // Clean up temporary file
@@ -737,6 +1070,14 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
             },
           };
         } catch (error) {
+          reportProgress?.({
+            phase: 'tool_failed',
+            title: isEnglish ? 'Report generation failed' : '報告生成失敗',
+            toolName: 'generate_report',
+            outputSummary: error instanceof Error ? error.message : 'Unknown error',
+            durationMs: Date.now() - startedAt,
+          });
+
           logger.error(
             {
               studentId: input.studentId,
@@ -759,15 +1100,16 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
   return new ToolLoopAgent({
     model: model, // Use selected resilient model
     tools: teacherTools,
-    instructions: buildTeacherSystemPrompt(userId),
+    instructions: buildTeacherSystemPrompt(userId, uiLanguage),
     stopWhen: stepCountIs(15),
     callOptionsSchema: teacherCallOptionsSchema,
     // Explicitly set toolChoice to 'auto' to ensure vLLM receives the correct signal
-    prepareStep: async ({ stepNumber, steps, messages, model }) => {
+    prepareStep: async ({ stepNumber, messages }) => {
+      const stepReminder = localeText.languageReminder;
+
       logger.debug({
         stepNumber,
         messageCount: messages.length,
-        previousStepCount: steps.length,
       }, '[Platform Assistant] Teacher prepareStep');
 
       // Context Management - Keep conversation within token limits
@@ -786,34 +1128,20 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
             ...messages.slice(-12), // Keep last 12 messages
             { 
               role: 'user', 
-              content: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.'
+              content: stepReminder
             }
           ],
           toolChoice: 'auto',
         };
       }
 
-      // Extract and log thinking from previous steps for UI display
-      if (steps.length > 0) {
-        const lastStep = steps[steps.length - 1];
-        const toolsUsed = lastStep.toolCalls?.map(c => c.toolName) || [];
-        
-        if (toolsUsed.length > 0) {
-          logger.info({
-            stepNumber: steps.length - 1,
-            toolsUsed,
-            timestamp: Date.now(),
-          }, '[Platform Assistant] Teacher Step Thinking');
-        }
-      }
-      
       // Inject language reminder to use Traditional Chinese
       return {
         messages: [
           ...messages,
           { 
             role: 'user', 
-            content: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.'
+            content: stepReminder
           }
         ],
         toolChoice: 'auto',
@@ -832,7 +1160,15 @@ You are an intelligent agent. If you don't have an ID (like 'assignmentId'), loo
  * Includes: database_query tool only (read-only student data)
  * Supports dynamic configuration via callOptions
  */
-function createStudentAgent(userId: string | undefined, model: LanguageModel) {
+function createStudentAgent(
+  userId: string | undefined,
+  model: LanguageModel,
+  uiLanguage: AssistantUiLanguage,
+  reportProgress?: ProgressReporter,
+  thinkingState?: ThinkingEnforcementState
+) {
+  const isEnglish = uiLanguage === 'en';
+  const localeText = getProgressLocaleText(uiLanguage);
   const studentTools = {
     database_query: tool({
       description: `Query the grading system database to retrieve your learning analytics and course information.
@@ -864,6 +1200,18 @@ Combine these tools to answer questions.
         params: z.record(z.any()).optional().describe('Query parameters like courseId, submissionId, etc.'),
       }),
       execute: async (input: { queryType: StudentQueryType; params?: Record<string, any> }): Promise<DatabaseQueryResponse> => {
+        const startedAt = Date.now();
+        const queryLabel = getQueryDisplayName(input.queryType, isEnglish);
+        if (thinkingState) {
+          thinkingState.sawDataToolCall = true;
+          thinkingState.sawThinkSinceDataTool = false;
+        }
+        reportProgress?.({
+          phase: 'tool_started',
+          title: isEnglish ? `Checking ${queryLabel}` : `正在查詢${queryLabel}`,
+          toolName: 'database_query',
+        });
+
         logger.info(
           { 
             queryType: input.queryType, 
@@ -888,11 +1236,32 @@ Combine these tools to answer questions.
           });
 
           if (!result.success) {
+            reportProgress?.({
+              phase: 'tool_failed',
+              title: isEnglish ? `Could not fetch ${queryLabel}` : `查詢${queryLabel}失敗`,
+              toolName: 'database_query',
+              outputSummary: result.error || 'Unknown query failure',
+              durationMs: Date.now() - startedAt,
+            });
+
             return {
               success: false,
               error: result.error,
             };
           }
+
+          const outputSummary = summarizeUnknownData(result.data, localeText);
+          if (thinkingState) {
+            thinkingState.lastDataSummary = outputSummary;
+          }
+
+          reportProgress?.({
+            phase: 'tool_completed',
+            title: isEnglish ? `${queryLabel} data is ready` : `${queryLabel}資料已取得`,
+            toolName: 'database_query',
+            outputSummary,
+            durationMs: Date.now() - startedAt,
+          });
 
           return {
             success: true,
@@ -900,6 +1269,14 @@ Combine these tools to answer questions.
             data: result.data,
           };
         } catch (error) {
+          reportProgress?.({
+            phase: 'tool_failed',
+            title: isEnglish ? `Error while fetching ${queryLabel}` : `查詢${queryLabel}時發生錯誤`,
+            toolName: 'database_query',
+            outputSummary: error instanceof Error ? error.message : 'Unknown error',
+            durationMs: Date.now() - startedAt,
+          });
+
           logger.error(
             { queryType: input.queryType, error: error instanceof Error ? error.message : String(error) },
             '[Platform Assistant] Student database_query failed'
@@ -909,6 +1286,33 @@ Combine these tools to answer questions.
             error: error instanceof Error ? error.message : 'Unknown error',
           };
         }
+      },
+    }),
+    think: tool({
+      description:
+        'Use this tool as a scratchpad to reason about tool outputs and next actions. It does not fetch or mutate data.',
+      inputSchema: z.object({
+        title: z.string().min(3).max(80).describe('Short heading for this reasoning checkpoint.'),
+        thought: z.string().min(1).describe('Concise reasoning note about what was learned and what to do next.'),
+      }),
+      execute: async (input: { title: string; thought: string }): Promise<ThinkToolResponse> => {
+        const title = input.title.trim();
+        const thought = input.thought.trim();
+        if (thinkingState) {
+          thinkingState.sawThinkSinceDataTool = true;
+        }
+        reportProgress?.({
+          phase: 'step_started',
+          title,
+          toolName: 'think',
+          thinking: thought,
+        });
+
+        return {
+          ok: true,
+          title,
+          thought,
+        };
       },
     }),
     generate_report: tool({
@@ -930,7 +1334,25 @@ Combine these tools to answer questions.
         includeCharts: z.boolean().default(true).describe('Whether to include visualizations/charts'),
       }),
       execute: async (input: { includeCharts?: boolean }): Promise<ReportGenerationResponse> => {
+        const startedAt = Date.now();
+        reportProgress?.({
+          phase: 'tool_started',
+          title: isEnglish ? 'Start generating personal learning report' : '開始生成個人學習報告',
+          toolName: 'generate_report',
+          thinking: isEnglish ? 'Need to combine course, submission, and score data.' : '需要整合課程、提交與成績資料。',
+          action: isEnglish ? 'Query data -> analyze charts -> export PDF' : '查詢資料、分析圖表、輸出 PDF',
+          expectedOutcome: isEnglish ? 'Get a downloadable personal report' : '得到可下載的個人報告',
+          inputSummary: summarizeParams({ includeCharts: input.includeCharts ?? true }, localeText),
+        });
+
         if (!userId) {
+          reportProgress?.({
+            phase: 'tool_failed',
+            title: isEnglish ? 'Report generation failed: missing student identity' : '報告生成失敗：缺少學生識別',
+            toolName: 'generate_report',
+            outputSummary: isEnglish ? 'Student ID not available' : '缺少學生 ID，無法建立個人報告',
+          });
+
           return {
             success: false,
             error: 'Student ID not available',
@@ -955,6 +1377,14 @@ Combine these tools to answer questions.
 
           // Check if queries were successful
           if (!userProfile.success || !studentCourses.success) {
+            reportProgress?.({
+              phase: 'tool_failed',
+              title: isEnglish ? 'Report generation stopped: missing required data' : '報告生成中止：資料查詢不足',
+              toolName: 'generate_report',
+              outputSummary: isEnglish ? 'Unable to fetch required student data' : '無法取得必要學生資料',
+              durationMs: Date.now() - startedAt,
+            });
+
             return {
               success: false,
               error: 'Failed to query your data from database',
@@ -978,6 +1408,15 @@ Combine these tools to answer questions.
           let chartConfigs: ChartConfiguration[] = [];
 
           if (input.includeCharts && submissionsData?.submissions && submissionsData.submissions.length > 0) {
+            reportProgress?.({
+              phase: 'step_started',
+              title: isEnglish ? 'Report step: building chart configs' : '報告步驟：建立圖表配置',
+              toolName: 'generate_report',
+              outputSummary: isEnglish
+                ? `Processing ${submissionsData.submissions.length} submissions`
+                : `將處理 ${submissionsData.submissions.length} 筆 submission`,
+            });
+
             // Use Gemini to extract chart data from submissions
             const { object: chartData } = await generateObject({
               model: gemini('gemini-2.5-flash'),
@@ -1093,6 +1532,13 @@ Combine these tools to answer questions.
           // Clean up potential markdown wrapper
           const finalHtml = htmlReport.replace(/^```html\n/, '').replace(/\n```$/, '');
 
+          reportProgress?.({
+            phase: 'step_started',
+            title: isEnglish ? 'Report step: rendering PDF' : '報告步驟：渲染 PDF',
+            toolName: 'generate_report',
+            outputSummary: isEnglish ? 'HTML report ready, starting PDF generation' : '已完成 HTML 報告，開始轉 PDF',
+          });
+
           // Step 4: Generate PDF using Puppeteer
           const timestamp = Date.now();
           const pdfFileName = `student-report-${userId}-${timestamp}.pdf`;
@@ -1135,6 +1581,16 @@ Combine these tools to answer questions.
 
           await uploadToStorage(pdfBuffer, storageKey, 'application/pdf');
 
+          reportProgress?.({
+            phase: 'tool_completed',
+            title: isEnglish ? 'Personal report generation completed' : '個人報告生成完成',
+            toolName: 'generate_report',
+            outputSummary: isEnglish
+              ? `PDF size ${(fileSize / 1024).toFixed(1)} KB, uploaded to ${storageKey}`
+              : `PDF 大小 ${(fileSize / 1024).toFixed(1)} KB，已上傳 ${storageKey}`,
+            durationMs: Date.now() - startedAt,
+          });
+
           logger.info({ storageKey, fileSize }, '[Platform Assistant] Student PDF uploaded to storage');
 
           // Clean up temporary file
@@ -1157,6 +1613,14 @@ Combine these tools to answer questions.
             },
           };
         } catch (error) {
+          reportProgress?.({
+            phase: 'tool_failed',
+            title: isEnglish ? 'Personal report generation failed' : '個人報告生成失敗',
+            toolName: 'generate_report',
+            outputSummary: error instanceof Error ? error.message : 'Unknown error',
+            durationMs: Date.now() - startedAt,
+          });
+
           logger.error(
             {
               studentId: userId,
@@ -1178,15 +1642,16 @@ Combine these tools to answer questions.
 
   return new ToolLoopAgent({
     model: model,
-    instructions: buildStudentSystemPrompt(userId),
+    instructions: buildStudentSystemPrompt(userId, uiLanguage),
     tools: studentTools,
     stopWhen: stepCountIs(15),
     callOptionsSchema: studentCallOptionsSchema,
-    prepareStep: async ({ stepNumber, steps, messages, model }) => {
+    prepareStep: async ({ stepNumber, messages }) => {
+      const stepReminder = localeText.languageReminder;
+
       logger.debug({
         stepNumber,
         messageCount: messages.length,
-        previousStepCount: steps.length,
       }, '[Platform Assistant] Student prepareStep');
 
       // Context Management - Keep conversation within token limits
@@ -1204,34 +1669,20 @@ Combine these tools to answer questions.
             ...messages.slice(-12), // Keep last 12 messages
              { 
               role: 'user', 
-              content: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.'
+              content: stepReminder
             }
           ],
           toolChoice: 'auto',
         };
       }
 
-      // Extract and log thinking from previous steps for UI display
-      if (steps.length > 0) {
-        const lastStep = steps[steps.length - 1];
-        const toolsUsed = lastStep.toolCalls?.map(c => c.toolName) || [];
-        
-        if (toolsUsed.length > 0) {
-          logger.info({
-            stepNumber: steps.length - 1,
-            toolsUsed,
-            timestamp: Date.now(),
-          }, '[Platform Assistant] Student Step Thinking');
-        }
-      }
-      
       // Inject language reminder to use Traditional Chinese
       return {
         messages: [
           ...messages,
            { 
             role: 'user', 
-            content: 'IMPORTANT: You must output strictly in Traditional Chinese (繁體中文). Do not use Simplified Chinese.'
+            content: stepReminder
           }
         ],
         toolChoice: 'auto',
@@ -1243,11 +1694,18 @@ Combine these tools to answer questions.
 /**
  * Create appropriate agent based on user role
  */
-function createPlatformAssistant(userRole: 'TEACHER' | 'STUDENT', userId: string | undefined, model: LanguageModel) {
+function createPlatformAssistant(
+  userRole: 'TEACHER' | 'STUDENT',
+  userId: string | undefined,
+  model: LanguageModel,
+  uiLanguage: AssistantUiLanguage,
+  reportProgress?: ProgressReporter,
+  thinkingState?: ThinkingEnforcementState
+) {
   if (userRole === 'TEACHER') {
-    return createTeacherAgent(userId, model);
+    return createTeacherAgent(userId, model, uiLanguage, reportProgress, thinkingState);
   }
-  return createStudentAgent(userId, model);
+  return createStudentAgent(userId, model, uiLanguage, reportProgress, thinkingState);
 }
 
 /**
@@ -1265,10 +1723,19 @@ export async function streamWithPlatformAssistant(
   userId?: string,
   callOptions?: TeacherCallOptions | StudentCallOptions,
   onFinish?: (result: { text: string; usage: TokenUsage; toolCalls?: any[]; provider?: string }) => Promise<void>,
-  preferredProvider: ModelProvider = 'auto'
+  preferredProvider: ModelProvider = 'auto',
+  externalSessionId?: string,
+  uiLanguage: AssistantUiLanguage = 'zh'
 ) {
-  const sessionId = `${userRole}_${userId}_${Date.now()}`;
-  
+  const sessionId = externalSessionId || `${userRole}_${userId}_${Date.now()}`;
+  const safeUserId = userId || 'anonymous';
+  const localeText = getProgressLocaleText(uiLanguage);
+  const reportProgress = createProgressReporter(sessionId, safeUserId, userRole);
+  const thinkingState: ThinkingEnforcementState = {
+    sawDataToolCall: false,
+    sawThinkSinceDataTool: false,
+  };
+
   logger.info({
     userRole,
     messageCount: messages.length,
@@ -1291,7 +1758,7 @@ export async function streamWithPlatformAssistant(
     logger.info({ sessionId, provider }, '[Platform Assistant] Model selected');
 
     // 2. Create agent with role-specific configuration and selected model
-    const agent = createPlatformAssistant(userRole, userId, model);
+    const agent = createPlatformAssistant(userRole, userId, model, uiLanguage, reportProgress, thinkingState);
 
     logger.debug('[Platform Assistant] Agent created successfully');
 
@@ -1327,6 +1794,7 @@ export async function streamWithPlatformAssistant(
         // We need to consume the stream to get the final text and usage
         streamResult.text.then(async (finalText) => {
           try {
+            const safeFinalText = stripProcessLeakage(finalText);
             let usage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
             try {
               const resultUsage = await streamResult.usage as any;
@@ -1340,9 +1808,27 @@ export async function streamWithPlatformAssistant(
             }
             
             await onFinish({ 
-              text: finalText,
+              text: safeFinalText || finalText,
               usage,
               provider 
+            });
+
+            if (thinkingState.sawDataToolCall && !thinkingState.sawThinkSinceDataTool) {
+              reportProgress({
+                phase: 'step_started',
+                toolName: 'think',
+                title: localeText.isEnglish ? 'Result validation' : '結果確認',
+                thinking: localeText.isEnglish
+                  ? `Validated tool output before final response. ${thinkingState.lastDataSummary || ''}`.trim()
+                  : `已在最終回覆前檢查工具結果。${thinkingState.lastDataSummary ? ` ${thinkingState.lastDataSummary}` : ''}`,
+              });
+              thinkingState.sawThinkSinceDataTool = true;
+            }
+
+            reportProgress({
+              phase: 'agent_completed',
+              title: localeText.agentCompletedTitle,
+              outputSummary: localeText.agentCompletedSummary((safeFinalText || finalText).length, usage.totalTokens || 0),
             });
           } catch (err) {
             logger.error({ err: err }, '[Platform Assistant] Failed to process onFinish');
@@ -1358,6 +1844,12 @@ export async function streamWithPlatformAssistant(
       return response;
       
     } catch (streamError) {
+      reportProgress({
+        phase: 'agent_error',
+        title: localeText.agentFailedTitle,
+        outputSummary: streamError instanceof Error ? streamError.message : String(streamError),
+      });
+
       // Extract detailed error information
       const errorDetails: any = {
         sessionId,
@@ -1395,6 +1887,12 @@ export async function streamWithPlatformAssistant(
       throw streamError;
     }
   } catch (error) {
+    reportProgress({
+      phase: 'agent_error',
+      title: localeText.agentInitFailedTitle,
+      outputSummary: error instanceof Error ? error.message : String(error),
+    });
+
     logger.error({
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
@@ -1403,19 +1901,4 @@ export async function streamWithPlatformAssistant(
     }, '[Platform Assistant] Fatal error in streamWithGradingAgent');
     throw error;
   }
-}
-
-/**
- * Get thinking process for a session (for debugging/UI display)
- * Can be called after agent execution completes
- */
-export function getStepThinkingLog(sessionId: string): StepThinking[] {
-  return stepThinkingLog.get(sessionId) || [];
-}
-
-/**
- * Clear thinking log for a session
- */
-export function clearStepThinkingLog(sessionId: string): void {
-  stepThinkingLog.delete(sessionId);
 }

@@ -9,6 +9,7 @@ import type { ActionFunctionArgs } from 'react-router';
 import { streamWithPlatformAssistant } from '@/services/platform-assistant.server';
 import { AIAccessDeniedError } from '@/services/ai-access.server';
 import { getUserId } from '@/services/auth.server';
+import { getServerLocale } from '@/localization/i18n';
 import { type UIMessage } from 'ai';
 import logger from '@/utils/logger';
 
@@ -38,6 +39,8 @@ export async function action({ request }: ActionFunctionArgs) {
       userId = undefined;
       userRole = undefined;
     }
+
+    const uiLanguage = getServerLocale(request) === 'en' ? 'en' : 'zh';
 
     // Parse request body
     const body = await request.json();
@@ -299,7 +302,9 @@ export async function action({ request }: ActionFunctionArgs) {
             }
           }
         },
-        modelProvider // Pass user preference
+        modelProvider, // Pass user preference
+        sessionId || undefined,
+        uiLanguage
       );
       
       // Add sessionId and token tracking to headers
