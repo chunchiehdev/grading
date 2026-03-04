@@ -236,6 +236,9 @@ jobs:
           echo "BUCKET_JOB=createbuckets" >> $GITHUB_OUTPUT
           echo "PDF_OVERLAY=k8s/pdf-service/overlays/prod-k8s" >> $GITHUB_OUTPUT
           echo "PDF_NS=grading-pdf-prod" >> $GITHUB_OUTPUT
+          echo "PDF_API_DEPLOY=grading-pdf-api" >> $GITHUB_OUTPUT
+          echo "PDF_WORKER_DEPLOY=grading-pdf-worker" >> $GITHUB_OUTPUT
+          echo "PDF_CONFIGMAP=grading-pdf-config-prod" >> $GITHUB_OUTPUT
         else
           echo "OVERLAY=k8s/main-service/overlays/dev-k8s" >> $GITHUB_OUTPUT
           echo "NS=gradsystem-dev" >> $GITHUB_OUTPUT
@@ -243,6 +246,9 @@ jobs:
           echo "BUCKET_JOB=createbuckets-dev" >> $GITHUB_OUTPUT
           echo "PDF_OVERLAY=k8s/pdf-service/overlays/dev-k8s" >> $GITHUB_OUTPUT
           echo "PDF_NS=grading-pdf-dev" >> $GITHUB_OUTPUT
+          echo "PDF_API_DEPLOY=grading-pdf-api-dev" >> $GITHUB_OUTPUT
+          echo "PDF_WORKER_DEPLOY=grading-pdf-worker-dev" >> $GITHUB_OUTPUT
+          echo "PDF_CONFIGMAP=grading-pdf-config-dev" >> $GITHUB_OUTPUT
         fi
 
     - name: Generate secrets
@@ -296,14 +302,46 @@ jobs:
       run: |
         PDF_OVERLAY="${{ steps.vars.outputs.PDF_OVERLAY }}"
         PDF_NS="${{ steps.vars.outputs.PDF_NS }}"
+        PDF_API_DEPLOY="${{ steps.vars.outputs.PDF_API_DEPLOY }}"
+        PDF_WORKER_DEPLOY="${{ steps.vars.outputs.PDF_WORKER_DEPLOY }}"
+        PDF_CONFIGMAP="${{ steps.vars.outputs.PDF_CONFIGMAP }}"
 
         kubectl apply -k $PDF_OVERLAY
 
+        # Ensure pods are recreated so new ConfigMap env values are loaded
+        kubectl rollout restart deployment/$PDF_API_DEPLOY -n $PDF_NS
+        kubectl rollout restart deployment/$PDF_WORKER_DEPLOY -n $PDF_NS
+
         echo "⏳ Waiting for pdf-service rollout..."
-        kubectl rollout status deployment -n $PDF_NS --timeout=300s || {
+        kubectl rollout status deployment/$PDF_API_DEPLOY -n $PDF_NS --timeout=300s || {
+          echo "⚠️  pdf-service api rollout timed out"
+          kubectl get pods -n $PDF_NS
+        }
+        kubectl rollout status deployment/$PDF_WORKER_DEPLOY -n $PDF_NS --timeout=300s || {
           echo "⚠️  pdf-service rollout timed out"
           kubectl get pods -n $PDF_NS
         }
+
+        # Guardrail: verify runtime REDIS_URL matches ConfigMap
+        EXPECTED_REDIS_URL=$(kubectl get configmap $PDF_CONFIGMAP -n $PDF_NS -o jsonpath='{.data.REDIS_URL}')
+        API_REDIS_URL=$(kubectl exec -n $PDF_NS deploy/$PDF_API_DEPLOY -- sh -c 'echo -n "$REDIS_URL"')
+        WORKER_REDIS_URL=$(kubectl exec -n $PDF_NS deploy/$PDF_WORKER_DEPLOY -- sh -c 'echo -n "$REDIS_URL"')
+
+        if [ "$API_REDIS_URL" != "$EXPECTED_REDIS_URL" ]; then
+          echo "❌ PDF API REDIS_URL mismatch"
+          echo "Expected: $EXPECTED_REDIS_URL"
+          echo "Actual:   $API_REDIS_URL"
+          exit 1
+        fi
+
+        if [ "$WORKER_REDIS_URL" != "$EXPECTED_REDIS_URL" ]; then
+          echo "❌ PDF Worker REDIS_URL mismatch"
+          echo "Expected: $EXPECTED_REDIS_URL"
+          echo "Actual:   $WORKER_REDIS_URL"
+          exit 1
+        fi
+
+        echo "✅ PDF service Redis configuration verified"
         echo "✅ pdf-service deployment complete!"
 
     - name: Cleanup

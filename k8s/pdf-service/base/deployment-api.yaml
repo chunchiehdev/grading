@@ -32,6 +32,16 @@ spec:
             configMapKeyRef:
               name: grading-pdf-config
               key: LOG_LEVEL
+        - name: CELERY_BROKER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: grading-pdf-config
+              key: CELERY_BROKER_URL
+        - name: CELERY_RESULT_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              name: grading-pdf-config
+              key: CELERY_RESULT_BACKEND
         - name: PYTHONUNBUFFERED
           value: "1"
         - name: PYTHONDONTWRITEBYTECODE

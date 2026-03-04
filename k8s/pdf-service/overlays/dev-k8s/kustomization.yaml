@@ -60,6 +60,12 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/5/valueFrom/configMapKeyRef/name
         value: grading-pdf-config-dev
+      - op: replace
+        path: /spec/template/spec/containers/0/env/6/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
+      - op: replace
+        path: /spec/template/spec/containers/0/env/7/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
   - target:
       kind: Deployment
       name: grading-pdf-worker
@@ -98,12 +104,20 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/env/5/valueFrom/configMapKeyRef/name
         value: grading-pdf-config-dev
+      - op: replace
+        path: /spec/template/spec/containers/0/env/6/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
+      - op: replace
+        path: /spec/template/spec/containers/0/env/7/valueFrom/configMapKeyRef/name
+        value: grading-pdf-config-dev
 
 configMapGenerator:
   - name: grading-pdf-config-dev
     behavior: create
     literals:
       - REDIS_URL=redis://redis-dev:6379/0
+      - CELERY_BROKER_URL=redis://redis-dev:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis-dev:6379/0
       - APP_MODE=development
       - LOG_LEVEL=debug
       - WORKER_CONCURRENCY=4

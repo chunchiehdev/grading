@@ -4,7 +4,6 @@ import {
   Clock,
   AlertTriangle,
   BookOpen,
-  Users,
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +13,6 @@ import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
 
 interface CourseDetailContentProps {
   data: StudentCourseDetailData & {
@@ -49,7 +47,7 @@ function CourseHeader({ course, stats }: CourseHeaderProps) {
           )}
         </div>
         
-        {/* Community Button */}
+        {/*
         <Button
           asChild
           variant="ghost"
@@ -61,6 +59,7 @@ function CourseHeader({ course, stats }: CourseHeaderProps) {
             <Users className="h-5 w-5" />
           </Link>
         </Button>
+        */}
       </div>
 
       <Separator className="my-5 sm:my-6" />

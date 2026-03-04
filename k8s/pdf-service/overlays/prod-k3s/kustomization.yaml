@@ -23,6 +23,8 @@ configMapGenerator:
     behavior: create
     literals:
       - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - APP_MODE=production
       - LOG_LEVEL=info
       - WORKER_CONCURRENCY=4

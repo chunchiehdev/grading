@@ -122,11 +122,13 @@ export default function CourseDetail() {
         subtitle={undefined}
         actions={
           <div className="flex items-center gap-2">
+            {/*
             <Button asChild variant="outline">
               <Link to={`/teacher/courses/${course.id}/community`}>
                 {t('course:community.title', '社群')}
               </Link>
             </Button>
+            */}
             <Button asChild variant="outline">
               <Link to={`/teacher/courses/${course.id}/edit`}>
                 <Pencil />
