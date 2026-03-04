@@ -200,6 +200,23 @@ export async function triggerPdfParsing(
     logger.info(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
     const sanitizedContent = content.replace(/\0/g, '');
 
+    if (!sanitizedContent.trim()) {
+      const emptyContentError =
+        'No extractable text found in this PDF. It may be scanned/image-only or encrypted.';
+
+      await db.uploadedFile.update({
+        where: { id: fileId },
+        data: {
+          parseStatus: FileParseStatus.FAILED,
+          parseError: emptyContentError,
+          parsedContent: null,
+          parsedContentTokens: 0,
+        },
+      });
+
+      throw new Error(emptyContentError);
+    }
+
     // Estimate token count to prevent excessive costs
     const { estimateTokens, checkTokenLimit } = await import('./token-counter.server');
     const estimatedTokens = estimateTokens(sanitizedContent);

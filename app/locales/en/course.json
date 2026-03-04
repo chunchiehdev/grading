@@ -137,7 +137,7 @@
         "removeTitle": "Remove attachment",
         "docTypeNotSupported": "Only PDF, DOCX, and TXT are supported",
         "imageTypeNotSupported": "Only JPG, PNG, GIF, and WebP are supported",
-        "fileTooLarge": "File size must be under 100MB",
+        "fileTooLarge": "File size must be under 10MB",
         "uploadFailed": "Upload failed",
         "uploaded": "Uploaded: {{fileName}}",
         "removed": "Attachment removed"

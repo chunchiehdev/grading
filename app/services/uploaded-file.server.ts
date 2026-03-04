@@ -85,11 +85,11 @@ export async function uploadFile(request: UploadFileRequest): Promise<UploadFile
       };
     }
 
-    if (file.size > 100 * 1024 * 1024) {
-      // 100MB limit
+    if (file.size > 10 * 1024 * 1024) {
+      // 10MB limit
       return {
         success: false,
-        error: '文件大小超過 100MB 限制',
+        error: '文件大小超過 10MB 限制',
         errorType: 'quota',
         retryable: false,
       };

@@ -60,14 +60,31 @@ export async function createGradingSession(
         id: { in: fileIds },
         userId,
         parseStatus: 'COMPLETED',
+        AND: [{ parsedContent: { not: null } }, { parsedContent: { not: '' } }],
+      },
+      select: {
+        id: true,
       },
     });
 
     if (files.length !== fileIds.length) {
       const foundFileIds = files.map((f) => f.id);
       const missingFileIds = fileIds.filter((id) => !foundFileIds.includes(id));
-      logger.error({ missingFileIds, foundFileIds }, `Missing files for user ${userId}:`);
-      return { success: false, error: 'Some files not found or not ready for grading' };
+
+      const invalidFiles = await db.uploadedFile.findMany({
+        where: {
+          id: { in: missingFileIds },
+          userId,
+        },
+        select: {
+          id: true,
+          parseStatus: true,
+          parseError: true,
+        },
+      });
+
+      logger.error({ missingFileIds, foundFileIds, invalidFiles }, `Missing files for user ${userId}:`);
+      return { success: false, error: 'Some files are not ready for grading. Please re-parse the file and try again.' };
     }
 
     // Validate rubrics exist and are active (can be from any user - shared access)

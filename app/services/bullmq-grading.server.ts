@@ -1,4 +1,4 @@
-import { Queue, QueueEvents, Worker } from 'bullmq';
+import { Queue, QueueEvents, Worker, UnrecoverableError } from 'bullmq';
 import { bullmqRedis } from '@/lib/redis';
 import logger from '@/utils/logger';
 import { processGradingResult } from './grading-engine.server';
@@ -144,6 +144,16 @@ async function initializeBullMQ(): Promise<void> {
             logger.error({ err: error }, `❌ [BullMQ] Failed job ${job.id} (attempt ${job.attemptsMade + 1}):`);
 
             const errorMessage = error instanceof Error ? error.message : String(error);
+
+            const isUnrecoverableParsingError =
+              errorMessage.includes('File has no parsed content') ||
+              errorMessage.includes('File parsing failed') ||
+              errorMessage.includes('No extractable text found');
+
+            if (isUnrecoverableParsingError) {
+              logger.error(`⛔ [BullMQ] Unrecoverable parsing error, no retry: ${errorMessage}`);
+              throw new UnrecoverableError(errorMessage);
+            }
 
             // Always throw to trigger exponential backoff retry
             logger.warn(`⚠️ [BullMQ] Job failed, will retry with backoff: ${errorMessage}`);

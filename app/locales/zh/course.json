@@ -137,7 +137,7 @@
         "removeTitle": "移除附件",
         "docTypeNotSupported": "只支援 PDF、DOCX、TXT 格式",
         "imageTypeNotSupported": "只支援 JPG、PNG、GIF、WebP 格式",
-        "fileTooLarge": "檔案大小不能超過 100MB",
+        "fileTooLarge": "檔案大小不能超過 10MB",
         "uploadFailed": "上傳失敗",
         "uploaded": "已上傳: {{fileName}}",
         "removed": "已移除附件"

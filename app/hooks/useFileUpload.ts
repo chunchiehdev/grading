@@ -314,7 +314,7 @@ function categorizeUploadError(error: any): UploadError {
   if (
     errorMessage.includes('文件太大') ||
     errorMessage.includes('存儲空間') ||
-    errorMessage.includes('100MB') ||
+    errorMessage.includes('10MB') ||
     statusCode === 413
   ) {
     return {

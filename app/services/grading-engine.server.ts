@@ -111,7 +111,26 @@ export async function processGradingResult(
       return { success: false, error: 'File not found' };
     }
 
-    if (!result.uploadedFile.parsedContent) {
+    if (!result.uploadedFile.parsedContent || !result.uploadedFile.parsedContent.trim()) {
+      const parseStatus = result.uploadedFile.parseStatus;
+      const parseError = result.uploadedFile.parseError;
+      const detailedError =
+        parseStatus === 'FAILED' && parseError
+          ? `File parsing failed: ${parseError}`
+          : parseStatus === 'PROCESSING'
+            ? 'File parsing is still in progress. Please retry in a moment.'
+            : 'File has no parsed content';
+
+      await db.gradingResult.update({
+        where: { id: resultId },
+        data: {
+          status: 'FAILED',
+          progress: 100,
+          errorMessage: detailedError,
+          completedAt: new Date(),
+        },
+      });
+
       return { success: false, error: 'File has no parsed content' };
     }
 

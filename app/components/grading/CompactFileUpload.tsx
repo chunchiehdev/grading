@@ -20,7 +20,7 @@ interface FileUploadProps {
 
 export const CompactFileUpload = ({
   maxFiles,
-  maxFileSize = 100 * 1024 * 1024,
+  maxFileSize = 10 * 1024 * 1024,
   acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt'],
   onUploadComplete,
 }: FileUploadProps) => {

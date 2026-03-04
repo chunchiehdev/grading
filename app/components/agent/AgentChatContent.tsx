@@ -134,6 +134,9 @@ export function AgentChatContent() {
   const hasLoadedSessionRef = useRef<string | null>(null);
   
   const currentSessionIdRef = useRef<string | null>(null);
+  const isAwaitingNewSessionRef = useRef(false);
+  const pendingProgressStartTsRef = useRef<number | null>(null);
+  const pendingProgressBySessionRef = useRef<Map<string, AssistantProgressEvent[]>>(new Map());
 
   const params = useParams();
   const sessionId = params.sessionId || null;
@@ -144,17 +147,35 @@ export function AgentChatContent() {
 
   useEffect(() => {
     setLiveProgress([]);
+    isAwaitingNewSessionRef.current = false;
+    pendingProgressStartTsRef.current = null;
+    pendingProgressBySessionRef.current.clear();
   }, [sessionId]);
 
   const { user } = useLoaderData() as { user: UserType | null };
   const { t } = useTranslation('agent');
 
   useWebSocketEvent('assistant-progress', (event) => {
-    if (!currentSessionIdRef.current || event.sessionId !== currentSessionIdRef.current) {
+    if (currentSessionIdRef.current) {
+      if (event.sessionId !== currentSessionIdRef.current) {
+        return;
+      }
+
+      setLiveProgress((prev) => [...prev.slice(-29), event]);
       return;
     }
 
-    setLiveProgress((prev) => [...prev.slice(-29), event]);
+    if (!isAwaitingNewSessionRef.current) {
+      return;
+    }
+
+    const pendingStartTs = pendingProgressStartTsRef.current;
+    if (pendingStartTs && event.ts < pendingStartTs) {
+      return;
+    }
+
+    const existing = pendingProgressBySessionRef.current.get(event.sessionId) || [];
+    pendingProgressBySessionRef.current.set(event.sessionId, [...existing.slice(-29), event]);
   });
 
   const transport = useMemo(() => new DefaultChatTransport({
@@ -193,9 +214,25 @@ export function AgentChatContent() {
         const newSessionId = response.headers.get('X-Chat-Session-Id');
         if (newSessionId) {
           currentSessionIdRef.current = newSessionId;
+
+          if (isAwaitingNewSessionRef.current) {
+            const pendingEvents = pendingProgressBySessionRef.current.get(newSessionId) || [];
+            if (pendingEvents.length > 0) {
+              const ordered = [...pendingEvents].sort((a, b) => a.ts - b.ts);
+              setLiveProgress(ordered.slice(-30));
+            }
+            pendingProgressBySessionRef.current.clear();
+            isAwaitingNewSessionRef.current = false;
+            pendingProgressStartTsRef.current = null;
+          }
+
           window.history.replaceState(window.history.state, '', `/agent-playground/${newSessionId}`);
           hasLoadedSessionRef.current = newSessionId;
         }
+      } else {
+        isAwaitingNewSessionRef.current = false;
+        pendingProgressStartTsRef.current = null;
+        pendingProgressBySessionRef.current.clear();
       }
       
       return response;
@@ -205,6 +242,9 @@ export function AgentChatContent() {
   const { messages, status, sendMessage, error, setMessages } = useChat({
     transport,
     onError: (error) => {
+      isAwaitingNewSessionRef.current = false;
+      pendingProgressStartTsRef.current = null;
+      pendingProgressBySessionRef.current.clear();
       console.error('Agent chat error:', error);
       toast.error(extractAgentErrorMessage(error.message || t('error.sendFailed'), t));
     },
@@ -280,6 +320,12 @@ export function AgentChatContent() {
     (e: React.FormEvent) => {
       e.preventDefault();
       if (!input.trim() || status === 'submitted' || status === 'streaming') return;
+
+      if (!currentSessionIdRef.current) {
+        isAwaitingNewSessionRef.current = true;
+        pendingProgressStartTsRef.current = Date.now();
+        pendingProgressBySessionRef.current.clear();
+      }
 
       sendMessage({ text: input.trim() });
       setInput('');

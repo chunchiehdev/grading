@@ -276,7 +276,7 @@ export default function ManageAssignmentArea() {
       return;
     }
     
-    if (file.size > 100 * 1024 * 1024) {
+    if (file.size > 10 * 1024 * 1024) {
       toast.error(t('course:assignment.manage.attachments.fileTooLarge'));
       return;
     }
