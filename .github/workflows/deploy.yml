@@ -322,23 +322,47 @@ jobs:
           kubectl get pods -n $PDF_NS
         }
 
-        # Guardrail: verify runtime REDIS_URL matches ConfigMap
+        # Guardrail: verify Redis/Celery env wiring after rollout
         EXPECTED_REDIS_URL=$(kubectl get configmap $PDF_CONFIGMAP -n $PDF_NS -o jsonpath='{.data.REDIS_URL}')
-        API_REDIS_URL=$(kubectl exec -n $PDF_NS deploy/$PDF_API_DEPLOY -- sh -c 'echo -n "$REDIS_URL"')
-        WORKER_REDIS_URL=$(kubectl exec -n $PDF_NS deploy/$PDF_WORKER_DEPLOY -- sh -c 'echo -n "$REDIS_URL"')
+        CAN_EXEC=$(kubectl auth can-i create pods/exec -n $PDF_NS || true)
 
-        if [ "$API_REDIS_URL" != "$EXPECTED_REDIS_URL" ]; then
-          echo "❌ PDF API REDIS_URL mismatch"
-          echo "Expected: $EXPECTED_REDIS_URL"
-          echo "Actual:   $API_REDIS_URL"
-          exit 1
-        fi
+        if [ "$CAN_EXEC" = "yes" ]; then
+          API_REDIS_URL=$(kubectl exec -n $PDF_NS deploy/$PDF_API_DEPLOY -- sh -c 'echo -n "$REDIS_URL"')
+          WORKER_REDIS_URL=$(kubectl exec -n $PDF_NS deploy/$PDF_WORKER_DEPLOY -- sh -c 'echo -n "$REDIS_URL"')
 
-        if [ "$WORKER_REDIS_URL" != "$EXPECTED_REDIS_URL" ]; then
-          echo "❌ PDF Worker REDIS_URL mismatch"
-          echo "Expected: $EXPECTED_REDIS_URL"
-          echo "Actual:   $WORKER_REDIS_URL"
-          exit 1
+          if [ "$API_REDIS_URL" != "$EXPECTED_REDIS_URL" ]; then
+            echo "❌ PDF API REDIS_URL mismatch"
+            echo "Expected: $EXPECTED_REDIS_URL"
+            echo "Actual:   $API_REDIS_URL"
+            exit 1
+          fi
+
+          if [ "$WORKER_REDIS_URL" != "$EXPECTED_REDIS_URL" ]; then
+            echo "❌ PDF Worker REDIS_URL mismatch"
+            echo "Expected: $EXPECTED_REDIS_URL"
+            echo "Actual:   $WORKER_REDIS_URL"
+            exit 1
+          fi
+        else
+          echo "⚠️  Skip runtime env check (no pods/exec permission in $PDF_NS)."
+          echo "    Falling back to deployment spec validation."
+
+          API_REDIS_CM=$(kubectl get deployment $PDF_API_DEPLOY -n $PDF_NS -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name=='REDIS_URL')].valueFrom.configMapKeyRef.name}")
+          API_REDIS_KEY=$(kubectl get deployment $PDF_API_DEPLOY -n $PDF_NS -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name=='REDIS_URL')].valueFrom.configMapKeyRef.key}")
+          WORKER_REDIS_CM=$(kubectl get deployment $PDF_WORKER_DEPLOY -n $PDF_NS -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name=='REDIS_URL')].valueFrom.configMapKeyRef.name}")
+          WORKER_REDIS_KEY=$(kubectl get deployment $PDF_WORKER_DEPLOY -n $PDF_NS -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name=='REDIS_URL')].valueFrom.configMapKeyRef.key}")
+
+          if [ "$API_REDIS_CM" != "$PDF_CONFIGMAP" ] || [ "$API_REDIS_KEY" != "REDIS_URL" ]; then
+            echo "❌ PDF API REDIS_URL is not wired to $PDF_CONFIGMAP/REDIS_URL"
+            echo "Actual: configMap=$API_REDIS_CM key=$API_REDIS_KEY"
+            exit 1
+          fi
+
+          if [ "$WORKER_REDIS_CM" != "$PDF_CONFIGMAP" ] || [ "$WORKER_REDIS_KEY" != "REDIS_URL" ]; then
+            echo "❌ PDF Worker REDIS_URL is not wired to $PDF_CONFIGMAP/REDIS_URL"
+            echo "Actual: configMap=$WORKER_REDIS_CM key=$WORKER_REDIS_KEY"
+            exit 1
+          fi
         fi
 
         echo "✅ PDF service Redis configuration verified"
