@@ -53,19 +53,19 @@ patches:
       # Patch ConfigMap references to use -dev suffix
       - op: replace
         path: /spec/template/spec/containers/0/env/3/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
       - op: replace
         path: /spec/template/spec/containers/0/env/4/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
       - op: replace
         path: /spec/template/spec/containers/0/env/5/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
       - op: replace
         path: /spec/template/spec/containers/0/env/6/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
       - op: replace
         path: /spec/template/spec/containers/0/env/7/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
   - target:
       kind: Deployment
       name: grading-pdf-worker
@@ -97,22 +97,22 @@ patches:
       # Patch ConfigMap references to use -dev suffix
       - op: replace
         path: /spec/template/spec/containers/0/env/3/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
       - op: replace
         path: /spec/template/spec/containers/0/env/4/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
       - op: replace
         path: /spec/template/spec/containers/0/env/5/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
       - op: replace
         path: /spec/template/spec/containers/0/env/6/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
       - op: replace
         path: /spec/template/spec/containers/0/env/7/valueFrom/configMapKeyRef/name
-        value: grading-pdf-config-dev
+        value: grading-pdf-config
 
 configMapGenerator:
-  - name: grading-pdf-config-dev
+  - name: grading-pdf-config
     behavior: create
     literals:
       - REDIS_URL=redis://redis-dev:6379/0
