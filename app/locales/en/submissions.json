@@ -9,8 +9,19 @@
     "assignment": "Assignment",
     "course": "Course",
     "submittedAt": "Submitted At",
+    "actions": "Actions",
     "status": "Status",
     "viewDetails": "View Details"
+  },
+  "actions": {
+    "viewHistory": "View History",
+    "resubmit": "Resubmit"
+  },
+  "timeAgo": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} minutes ago",
+    "hoursAgo": "{{count}} hours ago",
+    "daysAgo": "{{count}} days ago"
   },
   "backToSubmissions": "Back to Submissions",
   "assignmentInfo": {

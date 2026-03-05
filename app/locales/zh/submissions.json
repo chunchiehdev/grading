@@ -9,8 +9,19 @@
     "assignment": "作業",
     "course": "課程",
     "submittedAt": "提交時間",
+    "actions": "操作",
     "status": "狀態",
     "viewDetails": "查看詳情"
+  },
+  "actions": {
+    "viewHistory": "查看歷史",
+    "resubmit": "重新提交"
+  },
+  "timeAgo": {
+    "justNow": "剛剛",
+    "minutesAgo": "{{count}} 分鐘前",
+    "hoursAgo": "{{count}} 小時前",
+    "daysAgo": "{{count}} 天前"
   },
   "backToSubmissions": "返回我的繳交",
   "assignmentInfo": {

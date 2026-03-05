@@ -13,6 +13,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
+import { formatScheduleDisplay, formatScheduleShort } from '@/constants/schedule';
 
 export function CourseDiscoveryContent({
   student,
@@ -23,10 +24,11 @@ export function CourseDiscoveryContent({
   viewMode = 'grid',
   onViewModeChange,
 }: CourseDiscoveryContentProps & { viewMode?: 'grid' | 'list'; onViewModeChange?: (mode: 'grid' | 'list') => void }) {
-  const { t } = useTranslation(['course']);
+  const { t, i18n } = useTranslation(['course']);
   const [enrollingClassId, setEnrollingClassId] = useState<string | null>(null);
   const [expandedCourses, setExpandedCourses] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+  const currentLanguage = i18n.language.startsWith('zh') ? 'zh' : 'en';
 
   const effectiveEnrolledCourseIds = enrolledCourseIds;
 
@@ -59,6 +61,16 @@ export function CourseDiscoveryContent({
     }
 
     return message;
+  };
+
+  const formatClassScheduleShort = (weekday: string, periodCode: string): string => {
+    const formatted = formatScheduleShort(weekday, periodCode, currentLanguage);
+    return formatted || weekday;
+  };
+
+  const formatClassScheduleDisplay = (weekday: string, periodCode: string): string => {
+    const formatted = formatScheduleDisplay(weekday, periodCode, currentLanguage);
+    return formatted || formatClassScheduleShort(weekday, periodCode);
   };
 
   // Toggle course expansion
@@ -215,9 +227,9 @@ export function CourseDiscoveryContent({
                                 {/* Schedule and Room Info */}
                                 {cls.schedule && (
                                   <div className="space-y-1 text-xs text-muted-foreground">
-      <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2">
                                       <Clock className="h-3 w-3" />
-                                      <span>{cls.schedule.weekday}</span>
+                                      <span>{formatClassScheduleShort(cls.schedule.weekday, cls.schedule.periodCode)}</span>
                                     </div>
                                     {cls.schedule.room && (
                                       <div className="flex items-center gap-2">
@@ -248,7 +260,10 @@ export function CourseDiscoveryContent({
                             <TooltipContent side="top" align="start">
                               <div className="text-xs space-y-1">
                                 <p className="font-semibold">{cls.name}</p>
-                                <p>{cls.schedule?.weekday} • {cls.schedule?.room}</p>
+                                <p>
+                                  {formatClassScheduleDisplay(cls.schedule.weekday, cls.schedule.periodCode)}
+                                  {cls.schedule.room ? ` • ${cls.schedule.room}` : ''}
+                                </p>
                                 <p>{cls.enrollmentCount}/{cls.capacity} {t('course:discovery.students')}</p>
                               </div>
                             </TooltipContent>
@@ -385,7 +400,7 @@ export function CourseDiscoveryContent({
                                   {cls.schedule && (
                                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                       <Clock className="h-3 w-3" />
-                                      <span>{cls.schedule.weekday}</span>
+                                      <span>{formatClassScheduleShort(cls.schedule.weekday, cls.schedule.periodCode)}</span>
                                       {cls.schedule.room && (
                                         <>
                                           <span>•</span>
@@ -479,7 +494,7 @@ export function CourseDiscoveryContent({
                           {cls.schedule && (
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
-                              <span>{cls.schedule.weekday}</span>
+                              <span>{formatClassScheduleShort(cls.schedule.weekday, cls.schedule.periodCode)}</span>
                               {cls.schedule.room && (
                                 <>
                                   <span>•</span>

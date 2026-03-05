@@ -148,7 +148,7 @@ export function VersionTimeline({
                         )}
 
                         {/* Compare Button */}
-                        {onCompare && versions.length > 1 && (
+                        {/* {onCompare && versions.length > 1 && (
                           <button
                             onClick={() => onCompare(version.id)}
                             className={`inline-flex items-center border px-4 py-1.5 text-sm transition-all ${
@@ -167,7 +167,7 @@ export function VersionTimeline({
                               ? t('submissions:historyPage.timeline.selected')
                               : t('submissions:historyPage.timeline.selectCompare')}
                           </button>
-                        )}
+                        )} */}
                       </div>
                     </div>
                   </div>

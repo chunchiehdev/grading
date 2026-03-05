@@ -1107,7 +1107,7 @@ export default function SubmitAssignment() {
                   {/* Actions */}
                   <div className="space-y-3">
                     {/* Direct Grading Switch */}
-                    {(state.phase === 'analyze' || state.phase === 'submit') && !state.loading && (
+                    {/* {(state.phase === 'analyze' || state.phase === 'submit') && !state.loading && (
                       <div className="flex items-center gap-3 rounded-xl bg-muted/30 border border-border p-4">
                         <Switch
                           id="direct-grading-mode"
@@ -1118,7 +1118,7 @@ export default function SubmitAssignment() {
                           {t('assignment:submit.quickGradingMode')}
                         </Label>
                       </div>
-                    )}
+                    )} */}
 
                     {/* Primary Actions Row */}
                     <div className="flex items-center justify-center gap-4 py-2">

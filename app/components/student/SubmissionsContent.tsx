@@ -32,10 +32,10 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
 
-    if (diffInMinutes < 1) return '剛剛';
-    if (diffInMinutes < 60) return `${diffInMinutes} 分鐘前`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} 小時前`;
-    return `${Math.floor(diffInMinutes / 1440)} 天前`;
+    if (diffInMinutes < 1) return t('submissions:timeAgo.justNow');
+    if (diffInMinutes < 60) return t('submissions:timeAgo.minutesAgo', { count: diffInMinutes });
+    if (diffInMinutes < 1440) return t('submissions:timeAgo.hoursAgo', { count: Math.floor(diffInMinutes / 60) });
+    return t('submissions:timeAgo.daysAgo', { count: Math.floor(diffInMinutes / 1440) });
   };
 
   return (
@@ -59,13 +59,13 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
         <div className="bg-background rounded-lg">
           {/* Table Header Row */}
           <div className="px-4 sm:px-6 py-4 border-b">
-            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
-              <div className="col-span-3">{t('submissions:table.assignment')}</div>
-              <div className="col-span-3">{t('submissions:table.course')}</div>
-              <div className="col-span-3 text-right">{t('submissions:table.submittedAt')}</div>
-              <div className="col-span-3 text-right">操作</div>
+              <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
+                <div className="col-span-3">{t('submissions:table.assignment')}</div>
+                <div className="col-span-3">{t('submissions:table.course')}</div>
+                <div className="col-span-3 text-right">{t('submissions:table.submittedAt')}</div>
+                <div className="col-span-3 text-right">{t('submissions:table.actions')}</div>
+              </div>
             </div>
-          </div>
 
           {/* List Content */}
           <div className="divide-y divide-border/50">
@@ -104,7 +104,7 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
                       }}
                       className="text-xs px-2 py-1 border border-muted-foreground/30 rounded hover:bg-muted/50 transition-colors"
                     >
-                      查看歷史
+                      {t('submissions:actions.viewHistory')}
                     </button>
                     {/* Resubmit Button (only for non-graded submissions) */}
                     {s.assignmentAreaId &&
@@ -116,7 +116,7 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
                           }}
                           className="text-xs px-2 py-1 border border-primary/40 text-primary rounded hover:bg-primary/10 transition-colors"
                         >
-                          重新提交
+                          {t('submissions:actions.resubmit')}
                         </button>
                       )}
                   </div>

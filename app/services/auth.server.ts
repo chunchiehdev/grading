@@ -97,6 +97,19 @@ export async function handleGoogleCallback(request: Request) {
           picture: payload.picture,
         },
       });
+    } else {
+      const shouldSyncProfile = user.name !== payload.name || user.picture !== payload.picture;
+
+      if (shouldSyncProfile) {
+        logger.info({ userId: user.id }, 'Syncing user profile from Google');
+        user = await db.user.update({
+          where: { id: user.id },
+          data: {
+            name: payload.name,
+            picture: payload.picture,
+          },
+        });
+      }
     }
 
     logger.info({ userId: user.id }, 'Creating session for user');

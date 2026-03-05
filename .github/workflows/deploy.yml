@@ -308,43 +308,39 @@ jobs:
 
         kubectl apply -k $PDF_OVERLAY
 
-        # Ensure pods are recreated so new ConfigMap env values are loaded
+        # Recreate pods so ConfigMap env updates are picked up
         kubectl rollout restart deployment/$PDF_API_DEPLOY -n $PDF_NS
         kubectl rollout restart deployment/$PDF_WORKER_DEPLOY -n $PDF_NS
 
-        echo "⏳ Waiting for pdf-service rollout..."
+        echo "Waiting for pdf-service rollout..."
         kubectl rollout status deployment/$PDF_API_DEPLOY -n $PDF_NS --timeout=300s || {
-          echo "⚠️  pdf-service api rollout timed out"
+          echo "pdf-service api rollout timed out"
           kubectl get pods -n $PDF_NS
         }
         kubectl rollout status deployment/$PDF_WORKER_DEPLOY -n $PDF_NS --timeout=300s || {
-          echo "⚠️  pdf-service rollout timed out"
-          kubectl get pods -n $PDF_NS
+          echo "pdf-service worker rollout timed out"
         }
 
         # Guardrail: verify Redis env wiring from deployment spec
-        EXPECTED_REDIS_URL=$(kubectl get configmap $PDF_CONFIGMAP -n $PDF_NS -o jsonpath='{.data.REDIS_URL}')
         API_REDIS_CM=$(kubectl get deployment $PDF_API_DEPLOY -n $PDF_NS -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name=='REDIS_URL')].valueFrom.configMapKeyRef.name}")
         API_REDIS_KEY=$(kubectl get deployment $PDF_API_DEPLOY -n $PDF_NS -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name=='REDIS_URL')].valueFrom.configMapKeyRef.key}")
         WORKER_REDIS_CM=$(kubectl get deployment $PDF_WORKER_DEPLOY -n $PDF_NS -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name=='REDIS_URL')].valueFrom.configMapKeyRef.name}")
         WORKER_REDIS_KEY=$(kubectl get deployment $PDF_WORKER_DEPLOY -n $PDF_NS -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name=='REDIS_URL')].valueFrom.configMapKeyRef.key}")
 
         if [ "$API_REDIS_CM" != "$PDF_CONFIGMAP" ] || [ "$API_REDIS_KEY" != "REDIS_URL" ]; then
-          echo "❌ PDF API REDIS_URL is not wired to $PDF_CONFIGMAP/REDIS_URL"
+          echo "PDF API REDIS_URL is not wired to $PDF_CONFIGMAP/REDIS_URL"
           echo "Actual: configMap=$API_REDIS_CM key=$API_REDIS_KEY"
           exit 1
         fi
 
         if [ "$WORKER_REDIS_CM" != "$PDF_CONFIGMAP" ] || [ "$WORKER_REDIS_KEY" != "REDIS_URL" ]; then
-          echo "❌ PDF Worker REDIS_URL is not wired to $PDF_CONFIGMAP/REDIS_URL"
+          echo "PDF Worker REDIS_URL is not wired to $PDF_CONFIGMAP/REDIS_URL"
           echo "Actual: configMap=$WORKER_REDIS_CM key=$WORKER_REDIS_KEY"
           exit 1
         fi
 
-        echo "ℹ️  Expected REDIS_URL from configmap: $EXPECTED_REDIS_URL"
-
-        echo "✅ PDF service Redis configuration verified"
-        echo "✅ pdf-service deployment complete!"
+        echo "PDF service Redis configuration verified"
+        echo "pdf-service deployment complete"
 
     - name: Cleanup
       if: always()
