@@ -306,6 +306,12 @@ jobs:
         PDF_WORKER_DEPLOY="${{ steps.vars.outputs.PDF_WORKER_DEPLOY }}"
         PDF_CONFIGMAP="${{ steps.vars.outputs.PDF_CONFIGMAP }}"
 
+        # One-time cleanup for legacy dev Redis resources created by old manifest naming
+        if [ "$PDF_NS" = "grading-pdf-dev" ]; then
+          kubectl delete deployment redis-dev-dev -n $PDF_NS --ignore-not-found=true
+          kubectl delete service redis-dev-dev -n $PDF_NS --ignore-not-found=true
+        fi
+
         kubectl apply -k $PDF_OVERLAY
 
         # Recreate pods so ConfigMap env updates are picked up

@@ -1,20 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis-dev
-  namespace: grading-pdf-dev
+  name: redis
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: redis-dev
+      app: redis
   template:
     metadata:
       labels:
-        app: redis-dev
+        app: redis
     spec:
       containers:
-      - name: redis-dev
+      - name: redis
         image: redis:7-alpine
         ports:
         - containerPort: 6379
@@ -29,11 +28,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: redis-dev
-  namespace: grading-pdf-dev
+  name: redis
 spec:
   selector:
-    app: redis-dev
+    app: redis
   ports:
   - port: 6379
     targetPort: 6379
