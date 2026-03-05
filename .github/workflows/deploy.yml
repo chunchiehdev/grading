@@ -310,6 +310,13 @@ jobs:
         if [ "$PDF_NS" = "grading-pdf-dev" ]; then
           kubectl delete deployment redis-dev-dev -n $PDF_NS --ignore-not-found=true
           kubectl delete service redis-dev-dev -n $PDF_NS --ignore-not-found=true
+
+          # Legacy redis-dev deployment used selector app=redis-dev; new manifest uses app=redis.
+          # Deployment selector is immutable, so delete legacy deployment before apply.
+          LEGACY_SELECTOR=$(kubectl get deployment redis-dev -n $PDF_NS -o jsonpath='{.spec.selector.matchLabels.app}' 2>/dev/null || true)
+          if [ "$LEGACY_SELECTOR" = "redis-dev" ]; then
+            kubectl delete deployment redis-dev -n $PDF_NS --ignore-not-found=true
+          fi
         fi
 
         kubectl apply -k $PDF_OVERLAY
