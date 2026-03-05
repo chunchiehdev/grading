@@ -1,5 +1,4 @@
 import { useRouteLoaderData, useRouteError, isRouteErrorResponse } from 'react-router';
-import { useMemo } from 'react';
 import { CoursesContent } from '@/components/student/CoursesContent';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import type { LoaderData } from '../layout';
@@ -17,15 +16,7 @@ export default function StudentCoursesPage() {
 
   const { student, courses } = parentData;
 
-  // Memoize props to prevent unnecessary re-renders
-  const coursesData = useMemo(() => {
-    return {
-      student,
-      courses,
-    };
-  }, [student.id, courses.length]);
-
-  return <CoursesContent data={coursesData} />;
+  return <CoursesContent data={{ student, courses }} />;
 }
 
 export function ErrorBoundary() {

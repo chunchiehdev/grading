@@ -281,9 +281,17 @@ export async function getStudentEnrolledCourses(studentId: string) {
                     picture: true,
                   },
                 },
+                classes: {
+                  select: {
+                    _count: {
+                      select: {
+                        enrollments: true,
+                      },
+                    },
+                  },
+                },
                 _count: {
                   select: {
-                    classes: true,
                     assignmentAreas: true,
                   },
                 },
@@ -299,9 +307,18 @@ export async function getStudentEnrolledCourses(studentId: string) {
     const courseMap = new Map();
     enrollments.forEach((enrollment) => {
       const course = enrollment.class.course;
+      const totalEnrollments = course.classes.reduce(
+        (sum, classInfo) => sum + classInfo._count.enrollments,
+        0
+      );
+
       if (!courseMap.has(course.id)) {
         courseMap.set(course.id, {
           ...course,
+          _count: {
+            enrollments: totalEnrollments,
+            assignmentAreas: course._count.assignmentAreas,
+          },
           enrolledAt: enrollment.enrolledAt,
           classes: [],
         });
