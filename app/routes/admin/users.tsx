@@ -22,6 +22,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { formatDateTimeInTimeZone } from '@/lib/date';
 
 /**
  * Admin User Management Page
@@ -176,14 +177,7 @@ export default function AdminUsersPage() {
 
   // Format date
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('zh-TW', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatDateTimeInTimeZone(dateString);
   };
 
 

@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Calendar as UICalendar } from '@/components/ui/calendar';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 
 export function DatePicker({ name, defaultISOString }: { name: string; defaultISOString?: string }) {
   const { t } = useTranslation('common');
@@ -59,7 +60,7 @@ function toDateOnlyString(value?: string): string {
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return '';
-  return parsed.toISOString().split('T')[0];
+  return formatDateOnlyInTimeZone(parsed);
 }
 
 function formatDateOnlyFromLocalDate(date: Date): string {

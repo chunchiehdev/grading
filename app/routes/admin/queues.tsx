@@ -5,6 +5,7 @@ import { getUserId } from '@/services/auth.server';
 import { db } from '@/lib/db.server';
 import { Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { formatDateTimeInTimeZone, formatTimeInTimeZone } from '@/lib/date';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 
 /**
@@ -243,7 +244,7 @@ export default function QueuesPage() {
               <div className="text-right">
                 <p className="text-sm text-gray-600 dark:text-gray-400">{t('queue:lastUpdated')}</p>
                 <p className="font-serif text-lg font-light text-[#2B2B2B] dark:text-gray-100">
-                  {status?.timestamp ? new Date(status.timestamp).toLocaleTimeString() : '-'}
+                  {status?.timestamp ? formatTimeInTimeZone(status.timestamp) : '-'}
                 </p>
               </div>
               
@@ -441,7 +442,7 @@ export default function QueuesPage() {
                       {/* Timestamp Footer */}
                       <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                         <p className="text-xs text-gray-500 dark:text-gray-500">
-                          {t('queue:jobDetails.time')}: {new Date(job.addedAt).toLocaleString()}
+                          {t('queue:jobDetails.time')}: {formatDateTimeInTimeZone(job.addedAt)}
                         </p>
                       </div>
                     </div>
@@ -653,7 +654,7 @@ export default function QueuesPage() {
                             {job.addedAt && (
                               <div className="flex items-start justify-between gap-2">
                                 <span className="text-gray-600 dark:text-gray-400">{t('queue:cleanup.preview.time')}:</span>
-                                <span className="text-gray-700 dark:text-gray-300 text-xs">{new Date(job.addedAt).toLocaleString()}</span>
+                                <span className="text-gray-700 dark:text-gray-300 text-xs">{formatDateTimeInTimeZone(job.addedAt)}</span>
                               </div>
                             )}
                           </div>

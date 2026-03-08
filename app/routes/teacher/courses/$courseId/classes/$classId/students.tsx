@@ -10,6 +10,7 @@ import { ErrorPage } from '@/components/errors/ErrorPage';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
+import { APP_TIME_ZONE } from '@/lib/date';
 
 interface LoaderData {
   courseId: string;
@@ -57,11 +58,12 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
 }
 
 function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString('zh-TW', {
+  return new Intl.DateTimeFormat('zh-TW', {
+    timeZone: APP_TIME_ZONE,
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  });
+  }).format(new Date(date));
 }
 
 export default function ClassStudents() {

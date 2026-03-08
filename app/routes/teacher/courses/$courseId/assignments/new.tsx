@@ -29,7 +29,7 @@ import { ReferenceFileUpload } from '@/components/grading/ReferenceFileUpload';
 import { CustomInstructionsField } from '@/components/teacher/CustomInstructionsField';
 import { ErrorPage } from '@/components/errors/ErrorPage';
 import { useTranslation } from 'react-i18next';
-import { parseDateOnlyToUTCDate } from '@/lib/date';
+import { parseTaipeiDateTimeToUTC } from '@/lib/date';
 
 interface LoaderData {
   teacher: Promise<{ id: string; email: string; role: string; name: string }>;
@@ -99,6 +99,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
   const description = formData.get('description') as string;
   const rubricId = formData.get('rubricId') as string;
   const dueDate = formData.get('dueDate') as string;
+  const dueTime = formData.get('dueTime') as string;
   const classTarget = formData.get('classTarget') as string; // 'all' or 'specific'
   const classId = formData.get('classId') as string;
   const referenceFileIds = formData.get('referenceFileIds') as string; // JSON string
@@ -114,11 +115,16 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
   }
 
   try {
+    const parsedDueDate = parseTaipeiDateTimeToUTC(dueDate, dueTime);
+    if (parsedDueDate === undefined) {
+      return { success: false, error: 'Invalid due date or time format' };
+    }
+
     const assignmentData: CreateAssignmentAreaData = {
       name: name.trim(),
       description: description?.trim() || undefined,
       rubricId,
-      dueDate: parseDateOnlyToUTCDate(dueDate),
+      dueDate: parsedDueDate ?? undefined,
       classId: classTarget === 'specific' ? classId : null,
     };
 
@@ -400,11 +406,30 @@ function AssignmentForm({
             </Select>
           </div>
 
-          <div className="space-y-2 lg:space-y-3">
-            <Label htmlFor="dueDate" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
-              {t('course:assignment.area.dueDateLabel')}
-            </Label>
-            <DatePicker name="dueDate" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2 lg:space-y-3">
+              <Label htmlFor="dueDate" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+                {t('course:assignment.area.dueDateLabel')}
+              </Label>
+              <DatePicker name="dueDate" />
+            </div>
+            <div className="space-y-2 lg:space-y-3">
+              <Label htmlFor="dueTime" className="text-base lg:text-lg xl:text-xl font-medium text-foreground">
+                {t('course:assignment.manage.dueTime')}
+              </Label>
+              <Select name="dueTime" defaultValue="23:59">
+                <SelectTrigger className="rounded-xl h-11 sm:h-12 lg:h-14 xl:h-16 text-base lg:text-lg xl:text-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="00:00">12:00 AM</SelectItem>
+                  <SelectItem value="06:00">6:00 AM</SelectItem>
+                  <SelectItem value="12:00">12:00 PM</SelectItem>
+                  <SelectItem value="18:00">6:00 PM</SelectItem>
+                  <SelectItem value="23:59">11:59 PM</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* AI Grading Context - Reference Files */}

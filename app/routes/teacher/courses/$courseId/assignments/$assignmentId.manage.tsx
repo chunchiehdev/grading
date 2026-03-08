@@ -23,7 +23,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { parseDateOnlyToUTCDate } from '@/lib/date';
+import { formatDateOnlyInTimeZone, formatTimeInTimeZone, parseTaipeiDateTimeToUTC } from '@/lib/date';
 
 interface Attachment {
   fileId: string;
@@ -37,6 +37,7 @@ interface LoaderData {
   assignmentArea: any;
   rubrics: any[];
   formattedDueDate?: string;
+  formattedDueTime: string;
   formattedCreatedAt: string;
   formattedUpdatedAt: string;
   existingAttachments: Attachment[];
@@ -65,8 +66,13 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     throw new Response('Assignment area not found', { status: 404 });
   }
 
-  const { formatDateForForm, formatDateForDisplay } = await import('@/lib/date.server');
-  const formattedDueDate = assignmentArea.dueDate ? formatDateForForm(assignmentArea.dueDate) : undefined;
+  const { formatDateForDisplay } = await import('@/lib/date.server');
+  const formattedDueDate = assignmentArea.dueDate ? formatDateOnlyInTimeZone(assignmentArea.dueDate) : undefined;
+  const dueTimeOptions = new Set(['00:00', '06:00', '12:00', '18:00', '23:59']);
+  const dueTimeFromAssignment = assignmentArea.dueDate
+    ? formatTimeInTimeZone(assignmentArea.dueDate)
+    : '';
+  const formattedDueTime = dueTimeOptions.has(dueTimeFromAssignment) ? dueTimeFromAssignment : '18:00';
   const formattedCreatedAt = formatDateForDisplay(new Date(assignmentArea.createdAt));
   const formattedUpdatedAt = formatDateForDisplay(new Date(assignmentArea.updatedAt));
 
@@ -106,6 +112,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     assignmentArea,
     rubrics: rubricsResult.rubrics?.filter((r: any) => r.isActive) || [],
     formattedDueDate,
+    formattedDueTime,
     formattedCreatedAt,
     formattedUpdatedAt,
     existingAttachments,
@@ -137,6 +144,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       const description = formData.get('description') as string;
       const rubricId = formData.get('rubricId') as string;
       const dueDate = formData.get('dueDate') as string;
+      const dueTime = formData.get('dueTime') as string;
       const referenceFileIds = formData.get('referenceFileIds') as string;
       const customGradingPrompt = formData.get('customGradingPrompt') as string;
 
@@ -148,11 +156,16 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
         return { success: false, error: 'course:assignment.manage.errors.rubricRequired' };
       }
 
+      const parsedDueDate = parseTaipeiDateTimeToUTC(dueDate, dueTime);
+      if (parsedDueDate === undefined) {
+        return { success: false, error: 'Invalid due date or time format' };
+      }
+
       const updateData: UpdateAssignmentAreaData = {
         name: name.trim(),
         description: description?.trim() || undefined,
         rubricId,
-        dueDate: parseDateOnlyToUTCDate(dueDate),
+        dueDate: parsedDueDate,
       };
 
       const updatedArea = await updateAssignmentArea(assignmentId, teacher.id, updateData);
@@ -208,7 +221,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
 }
 
 export default function ManageAssignmentArea() {
-  const { teacher, assignmentArea, rubrics, formattedDueDate, formattedCreatedAt, formattedUpdatedAt, existingAttachments } =
+  const { teacher, assignmentArea, rubrics, formattedDueDate, formattedDueTime, formattedCreatedAt, formattedUpdatedAt, existingAttachments } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<ActionData>();
   const { t, i18n } = useTranslation(['course', 'common']);
@@ -543,14 +556,14 @@ export default function ManageAssignmentArea() {
                       </Label>
                       <DatePicker
                         name="dueDate"
-                        defaultISOString={assignmentArea.dueDate ? new Date(assignmentArea.dueDate).toISOString() : undefined}
+                        defaultISOString={formattedDueDate}
                       />
                     </div>
                     <div>
                       <Label htmlFor="dueTime" className="text-sm font-medium mb-2 block">
                         {t('course:assignment.manage.dueTime')}
                       </Label>
-                      <Select name="dueTime" defaultValue="18:00">
+                      <Select name="dueTime" defaultValue={formattedDueTime}>
                         <SelectTrigger className="h-10">
                           <SelectValue />
                         </SelectTrigger>

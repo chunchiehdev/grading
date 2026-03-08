@@ -22,6 +22,7 @@ import { useEffect } from 'react';
 import { useAssignmentStore } from '@/stores/assignmentStore';
 import { useWebSocketEvent } from '@/lib/websocket';
 import type { AssignmentNotification } from '@/lib/websocket/types';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 
 export interface LoaderData {
   user: { id: string; email: string; role: string; name: string; picture?: string };
@@ -46,17 +47,17 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<LoaderDat
 
   const assignments = assignmentsRaw.map((a) => ({
     ...a,
-    formattedDueDate: a.dueDate ? new Date(a.dueDate).toLocaleDateString('en-CA') : undefined,
+    formattedDueDate: a.dueDate ? formatDateOnlyInTimeZone(a.dueDate) : undefined,
   }));
 
   const submissions = submissionsRaw.map((s) => ({
     ...s,
-    formattedUploadedDate: new Date(s.uploadedAt).toLocaleDateString('en-CA'),
+    formattedUploadedDate: formatDateOnlyInTimeZone(s.uploadedAt),
   }));
 
   const courses = coursesRaw.map((c) => ({
     ...c,
-    formattedEnrolledDate: c.enrolledAt ? new Date(c.enrolledAt).toLocaleDateString('en-CA') : undefined,
+    formattedEnrolledDate: c.enrolledAt ? formatDateOnlyInTimeZone(c.enrolledAt) : undefined,
   }));
 
   return {

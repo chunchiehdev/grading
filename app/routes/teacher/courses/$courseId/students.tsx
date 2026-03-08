@@ -13,6 +13,7 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { PageHeader } from '@/components/ui/page-header';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 
 interface LoaderData {
   teacher: { id: string; email: string; role: string };
@@ -49,7 +50,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     picture: e.student.picture || null,
     enrolledAt: e.enrolledAt,
     className: e.class.name,
-    formattedEnrolledDate: new Date(e.enrolledAt).toLocaleDateString('en-CA'),
+    formattedEnrolledDate: formatDateOnlyInTimeZone(e.enrolledAt),
   }));
 
   return { teacher, course: { id: course.id, name: course.name }, students };

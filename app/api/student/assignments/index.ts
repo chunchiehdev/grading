@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { requireStudent } from '@/services/auth.server';
 import { getStudentAssignments } from '@/services/submission.server';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 
 /**
  * GET /api/student/assignments
@@ -16,7 +17,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Format dates consistently
     const formattedAssignments = assignments.map((assignment) => ({
       ...assignment,
-      formattedDueDate: assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString('en-CA') : undefined,
+      formattedDueDate: assignment.dueDate ? formatDateOnlyInTimeZone(assignment.dueDate) : undefined,
     }));
 
     return Response.json({

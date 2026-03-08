@@ -49,7 +49,7 @@ export interface UpdateAssignmentAreaData {
   name?: string;
   description?: string;
   rubricId?: string;
-  dueDate?: Date;
+  dueDate?: Date | null;
 }
 
 /**

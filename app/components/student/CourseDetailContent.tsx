@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 import type { StudentCourseDetailData } from '@/services/student-course-detail.server';
 import type { StudentInfo, StudentAssignmentInfo } from '@/types/student';
 import { useMemo } from 'react';
@@ -134,7 +135,7 @@ function AssignmentCard({ assignment, studentId, status }: AssignmentCardProps) 
     } else if (diffDays <= 7) {
       return { text: t('dueDate.dueInDays', { days: diffDays }), isOverdue: false };
     } else {
-      return { text: date.toLocaleDateString(), isOverdue: false };
+      return { text: formatDateOnlyInTimeZone(date), isOverdue: false };
     }
   };
 

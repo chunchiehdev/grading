@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { FileText, Award, Clock, AlertCircle } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { formatDateOnlyInTimeZone, formatTimeInTimeZone } from '@/lib/date';
 
 interface GradingSession {
   id: string;
@@ -165,7 +166,7 @@ export function GradingSessionsTab() {
                           {session.uploadedFile.fileName}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {new Date(session.createdAt).toLocaleDateString()}
+                          {formatDateOnlyInTimeZone(session.createdAt)}
                         </div>
                       </div>
                     </div>
@@ -276,7 +277,7 @@ export function GradingSessionsTab() {
                   <span className="font-medium">{session.uploadedFile.fileName}</span>
                 </div>
                 <div className="ml-6 text-xs text-gray-500">
-                  {new Date(session.createdAt).toLocaleDateString()} • {new Date(session.createdAt).toLocaleTimeString()}
+                  {formatDateOnlyInTimeZone(session.createdAt)} • {formatTimeInTimeZone(session.createdAt)}
                 </div>
               </div>
 

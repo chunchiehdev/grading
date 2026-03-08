@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useWebSocket, useWebSocketStatus, websocket } from '@/lib/websocket';
 import { useLoaderData } from 'react-router';
 import type { User } from '@/root';
+import { formatDateTimeInTimeZone, formatTimeInTimeZone } from '@/lib/date';
 
 interface LoaderData {
   user: User | null;
@@ -24,7 +25,7 @@ export function WebSocketTest() {
   const [testLogs, setTestLogs] = useState<string[]>([]);
 
   const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
+    const timestamp = formatTimeInTimeZone(new Date());
     setTestLogs((prev) => [`[${timestamp}] ${message}`, ...prev.slice(0, 9)]);
   };
 
@@ -127,8 +128,8 @@ export function WebSocketTest() {
         <h4 style={{ margin: '0 0 10px 0' }}>📊 連接指標</h4>
         <div>連接嘗試次數: {metrics.connectionAttempts}</div>
         <div>總重連次數: {metrics.totalReconnects}</div>
-        <div>最後連接時間: {metrics.lastConnectTime?.toLocaleString() || '無'}</div>
-        <div>最後斷線時間: {metrics.lastDisconnectTime?.toLocaleString() || '無'}</div>
+        <div>最後連接時間: {metrics.lastConnectTime ? formatDateTimeInTimeZone(metrics.lastConnectTime) : '無'}</div>
+        <div>最後斷線時間: {metrics.lastDisconnectTime ? formatDateTimeInTimeZone(metrics.lastDisconnectTime) : '無'}</div>
       </div>
 
       {/* 測試按鈕 */}

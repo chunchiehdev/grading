@@ -6,6 +6,7 @@
 
 import type { LoaderFunctionArgs } from 'react-router';
 import { db } from '@/lib/db.server';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 import { getUserId } from '@/services/auth.server';
 import logger from '@/utils/logger';
 
@@ -103,13 +104,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const tokensByDate: Record<string, { chatTokens: number; gradingTokens: number }> = {};
     
     chatSessions.forEach(session => {
-      const date = session.createdAt.toISOString().split('T')[0];
+      const date = formatDateOnlyInTimeZone(session.createdAt);
       if (!tokensByDate[date]) tokensByDate[date] = { chatTokens: 0, gradingTokens: 0 };
       tokensByDate[date].chatTokens += session.totalTokens || 0;
     });
 
     gradingSessions.forEach(session => {
-      const date = session.createdAt.toISOString().split('T')[0];
+      const date = formatDateOnlyInTimeZone(session.createdAt);
       if (!tokensByDate[date]) tokensByDate[date] = { chatTokens: 0, gradingTokens: 0 };
       tokensByDate[date].gradingTokens += session.gradingTokens || 0;
     });

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { StudentAssignmentInfo } from '@/types/student';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 
 // Use StudentAssignmentInfo as the base type
 export type Assignment = StudentAssignmentInfo & {
@@ -42,7 +43,7 @@ export const useAssignmentStore = create<AssignmentState>()(
       set({
         assignments: assignments.map((a) => ({
           ...a,
-          formattedDueDate: a.dueDate ? new Date(a.dueDate).toLocaleDateString('en-CA') : undefined,
+          formattedDueDate: a.dueDate ? formatDateOnlyInTimeZone(a.dueDate) : undefined,
         })),
         lastUpdated: new Date(),
         error: null,
@@ -59,7 +60,7 @@ export const useAssignmentStore = create<AssignmentState>()(
 
       const newAssignment = {
         ...assignment,
-        formattedDueDate: assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString('en-CA') : undefined,
+        formattedDueDate: assignment.dueDate ? formatDateOnlyInTimeZone(assignment.dueDate) : undefined,
       };
 
       // Add new assignment and sort the entire list to maintain proper order

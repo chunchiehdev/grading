@@ -18,6 +18,7 @@ import {
 } from './submission.server';
 import { getGradingStatistics } from './grading-result.server';
 import { listAssignmentAreas, getAssignmentAreaById } from './assignment-area.server';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 import logger from '@/utils/logger';
 
 /**
@@ -292,7 +293,7 @@ async function queryUserProfile(params: QueryParams) {
     email: user.email,
     role: user.role,
     hasSelectedRole: user.hasSelectedRole,
-    memberSince: user.createdAt.toISOString().split('T')[0],
+    memberSince: formatDateOnlyInTimeZone(user.createdAt),
   };
 }
 
@@ -378,7 +379,7 @@ async function queryStudentCourses(params: QueryParams) {
       courseCode: course.code || null,
       classNames: course.classes?.map((c: { id: string; name: string }) => c.name).join(', ') || null,
       teacherName: course.teacher?.name || 'Unknown',
-      enrolledAt: course.enrolledAt?.toISOString().split('T')[0] || null,
+      enrolledAt: course.enrolledAt ? formatDateOnlyInTimeZone(course.enrolledAt) : null,
       totalClasses: course.classes?.length || 0,
     })),
   };
@@ -404,7 +405,7 @@ async function queryTeacherCourses(params: QueryParams) {
       description: course.description || null,
       totalClasses: course.classes?.length || 0,
       totalAssignments: course.assignmentAreas?.length || 0,
-      createdAt: course.createdAt.toISOString().split('T')[0],
+      createdAt: formatDateOnlyInTimeZone(course.createdAt),
     })),
   };
 }
@@ -426,7 +427,7 @@ async function queryCourseStudents(params: QueryParams) {
       studentId: enrollment.student.id,
       studentName: enrollment.student.name || 'Unknown',
       className: enrollment.class?.name || null,
-      enrolledAt: enrollment.enrolledAt?.toISOString().split('T')[0] || null,
+      enrolledAt: enrollment.enrolledAt ? formatDateOnlyInTimeZone(enrollment.enrolledAt) : null,
       finalGrade: enrollment.finalGrade !== undefined ? enrollment.finalGrade : null,
     })),
   };
@@ -450,7 +451,7 @@ async function queryStudentAssignments(params: QueryParams) {
       assignmentName: assignment.name,
       courseName: assignment.course.name,
       className: assignment.class?.name,
-      dueDate: assignment.dueDate?.toISOString().split('T')[0],
+      dueDate: assignment.dueDate ? formatDateOnlyInTimeZone(assignment.dueDate) : null,
       hasSubmitted: assignment.submissions && assignment.submissions.length > 0,
       submissionStatus: assignment.submissions?.[0]?.status,
     })),
@@ -622,7 +623,7 @@ async function queryCourseDetail(params: QueryParams) {
     totalClasses: classCount,
     totalAssignments: assignmentCount,
     totalStudents,
-    createdAt: course.createdAt.toISOString().split('T')[0],
+    createdAt: formatDateOnlyInTimeZone(course.createdAt),
     syllabus: course.syllabus || null,
   };
 }
@@ -648,10 +649,10 @@ async function queryCourseAssignments(params: QueryParams) {
         assignmentName: assignment.name,
         description: assignment.description || null,
         className: assignment.class?.name || 'All Classes',
-        dueDate: assignment.dueDate?.toISOString().split('T')[0] || null,
+        dueDate: assignment.dueDate ? formatDateOnlyInTimeZone(assignment.dueDate) : null,
         rubricName: assignment.rubric?.name || 'Unknown',
         totalSubmissions: assignment._count?.submissions || 0,
-        createdAt: assignment.createdAt.toISOString().split('T')[0],
+        createdAt: formatDateOnlyInTimeZone(assignment.createdAt),
       })),
     };
   }
@@ -670,10 +671,10 @@ async function queryCourseAssignments(params: QueryParams) {
         courseName: course.name,
         courseId: course.id,
         className: assignment.class?.name || 'All Classes',
-        dueDate: assignment.dueDate?.toISOString().split('T')[0] || null,
+        dueDate: assignment.dueDate ? formatDateOnlyInTimeZone(assignment.dueDate) : null,
         rubricName: assignment.rubric?.name || 'Unknown',
         totalSubmissions: assignment._count?.submissions || 0,
-        createdAt: assignment.createdAt.toISOString().split('T')[0],
+        createdAt: formatDateOnlyInTimeZone(assignment.createdAt),
       }))
     );
   }
@@ -717,7 +718,7 @@ async function queryAssignmentDetail(params: QueryParams) {
     description: assignmentData.description || null,
     courseName: assignmentData.course?.name || 'Unknown',
     className: assignmentData.class?.name || 'All Classes',
-    dueDate: assignmentData.dueDate?.toISOString().split('T')[0] || null,
+    dueDate: assignmentData.dueDate ? formatDateOnlyInTimeZone(assignmentData.dueDate) : null,
     rubric: assignmentData.rubric
       ? {
           rubricId: assignmentData.rubric.id,
@@ -729,7 +730,7 @@ async function queryAssignmentDetail(params: QueryParams) {
     gradedCount,
     customGradingPrompt: assignmentData.customGradingPrompt || null,
     hasReferenceFiles: !!assignmentData.referenceFileIds,
-    createdAt: assignmentData.createdAt.toISOString().split('T')[0],
+    createdAt: formatDateOnlyInTimeZone(assignmentData.createdAt),
   };
 }
 
@@ -840,7 +841,7 @@ async function queryAssignmentDetailStudent(params: QueryParams) {
     description: assignment.description || null,
     courseName: assignment.course.name,
     className: assignment.class?.name || 'All Classes',
-    dueDate: assignment.dueDate?.toISOString().split('T')[0] || null,
+    dueDate: assignment.dueDate ? formatDateOnlyInTimeZone(assignment.dueDate) : null,
     rubric: assignment.rubric,
     hasSubmitted: !!mySubmission,
     mySubmissionStatus: mySubmission?.status || null,
@@ -973,7 +974,7 @@ async function queryPendingAssignments(params: QueryParams) {
         assignmentName: assignment.name,
         courseName: assignment.course.name,
         className: assignment.class?.name || 'All Classes',
-        dueDate: assignment.dueDate?.toISOString().split('T')[0] || null,
+        dueDate: assignment.dueDate ? formatDateOnlyInTimeZone(assignment.dueDate) : null,
         daysUntilDue,
         hasSubmitted: assignment.submissions.length > 0,
         submissionStatus: assignment.submissions[0]?.status || null,
@@ -1046,7 +1047,7 @@ async function queryEnrolledCourseDetail(params: QueryParams) {
     teacherName: course.teacher.name,
     teacherEmail: course.teacher.email,
     myClassName: enrollment.class.name,
-    enrolledAt: enrollment.enrolledAt.toISOString().split('T')[0],
+    enrolledAt: formatDateOnlyInTimeZone(enrollment.enrolledAt),
     syllabus: course.syllabus || null,
     totalAssignments,
     mySubmissionCount,

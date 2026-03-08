@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { Calendar, MessageSquare, Clock } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { formatDateOnlyInTimeZone, formatTimeInTimeZone } from '@/lib/date';
 
 interface ChatSession {
   id: string;
@@ -141,7 +142,7 @@ export function ChatSessionsTab() {
                         </div>
                         <div className="flex items-center gap-1 text-xs text-gray-500">
                           <Calendar className="h-3 w-3" />
-                          {new Date(session.createdAt).toLocaleDateString()}
+                          {formatDateOnlyInTimeZone(session.createdAt)}
                         </div>
                       </div>
                     </div>
@@ -249,7 +250,7 @@ export function ChatSessionsTab() {
                   <span className="font-medium">{session.title || 'Untitled'}</span>
                 </div>
                 <div className="ml-6 text-xs text-gray-500">
-                  {new Date(session.createdAt).toLocaleDateString()} • {new Date(session.createdAt).toLocaleTimeString()}
+                  {formatDateOnlyInTimeZone(session.createdAt)} • {formatTimeInTimeZone(session.createdAt)}
                 </div>
               </div>
 

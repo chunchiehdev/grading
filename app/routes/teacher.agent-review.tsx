@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertCircle, CheckCircle, Clock, Eye, XCircle } from 'lucide-react';
+import { formatDateTimeInTimeZone } from '@/lib/date';
 
 /**
  * Loader - fetch grading results that require review
@@ -360,7 +361,7 @@ export default function AgentReviewQueue({ loaderData }: Route.ComponentProps) {
                 {/* Review info */}
                 {result.reviewedBy && result.reviewedAt && (
                   <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                    已於 {new Date(result.reviewedAt).toLocaleString('zh-TW')} 審核
+                    已於 {formatDateTimeInTimeZone(result.reviewedAt)} 審核
                   </div>
                 )}
               </CardContent>

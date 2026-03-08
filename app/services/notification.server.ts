@@ -1,5 +1,6 @@
 import { db, type AssignmentArea } from '@/types/database';
 import { redis } from '@/lib/redis';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 import logger from '@/utils/logger';
 import type {
   AssignmentNotificationEvent,
@@ -61,7 +62,7 @@ export async function publishAssignmentCreatedNotification(
     courseId: assignment.courseId,
     assignmentId: assignment.id,
     title: `新作業：${assignment.name}`,
-    message: `課程「${assignment.course.name}」有新作業${assignment.dueDate ? `，截止日期：${assignment.dueDate.toLocaleDateString('zh-TW')}` : ''}`,
+    message: `課程「${assignment.course.name}」有新作業${assignment.dueDate ? `，截止日期：${formatDateOnlyInTimeZone(assignment.dueDate)}` : ''}`,
     data: {
       courseName: assignment.course.name,
       teacherName: assignment.course.teacher.name,

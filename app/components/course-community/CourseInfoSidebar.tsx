@@ -2,6 +2,7 @@ import { Shield, Eye, Calendar, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { APP_TIME_ZONE } from '@/lib/date';
 
 interface CourseInfoSidebarProps {
   course: {
@@ -59,11 +60,12 @@ function CourseInfoContent({ course, stats, isPrivate = true }: CourseInfoSideba
             <div>
               <p className="text-sm font-medium text-[#4A4036] dark:text-[#E4E6EB]">建立時間</p>
               <p className="text-xs text-[#9C9488] dark:text-[#B0B3B8] mt-0.5" suppressHydrationWarning>
-                {new Date(course.createdAt).toLocaleDateString('zh-TW', {
+                {new Intl.DateTimeFormat('zh-TW', {
+                  timeZone: APP_TIME_ZONE,
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',
-                })}
+                }).format(new Date(course.createdAt))}
               </p>
             </div>
           </div>
@@ -122,4 +124,3 @@ export function CourseInfoSidebar({ course, stats, isPrivate = true }: CourseInf
     </aside>
   );
 }
-

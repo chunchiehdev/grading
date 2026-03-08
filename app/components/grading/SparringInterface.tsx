@@ -7,6 +7,7 @@ import { CheckCircle2, ChevronRight, ChevronLeft, List, ThumbsUp, ThumbsDown, Lo
 import { useResearchLogger } from '@/hooks/useResearchLogger';
 import { Markdown } from '@/components/ui/markdown';
 import { cn } from '@/lib/utils';
+import { formatTimeInTimeZone } from '@/lib/date';
 
 interface SparringInterfaceProps {
   questions: SparringQuestion[];
@@ -393,7 +394,7 @@ export function SparringInterface({
                     </span>
                     {saved?.decisionAt && (
                       <span className="text-[10px] text-muted-foreground/60">
-                        {new Date(saved.decisionAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        {formatTimeInTimeZone(saved.decisionAt)}
                       </span>
                     )}
                   </div>

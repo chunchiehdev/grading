@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { formatDistanceToNow } from 'date-fns';
 import { zhTW, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
+import { APP_TIME_ZONE } from '@/lib/date';
 import { CommentPreview } from './CommentPreview';
 import { PostDetailModal } from './PostDetailModal';
 
@@ -287,11 +288,12 @@ export function CoursePostCard({
                     <Calendar className="h-3.5 w-3.5" />
                     <span>
                       截止：
-                      {new Date(post.assignmentArea.dueDate).toLocaleDateString(i18n.language, {
+                      {new Intl.DateTimeFormat(i18n.language, {
+                        timeZone: APP_TIME_ZONE,
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric',
-                      })}
+                      }).format(new Date(post.assignmentArea.dueDate))}
                     </span>
                   </div>
                 )}
@@ -413,4 +415,3 @@ export function CoursePostCard({
     </Card>
   );
 }
-

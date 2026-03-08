@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Award, Calendar, FileText, GraduationCap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TeacherSubmissionView } from '@/types/teacher';
+import { formatDateOnlyInTimeZone } from '@/lib/date';
 
 interface StudentInfoCompactProps {
   student: TeacherSubmissionView['student'];
@@ -114,7 +115,7 @@ export function GradingSummaryCompact({ grading }: GradingSummaryCompactProps) {
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground">提交時間</span>
           <span className="font-medium">
-            {grading.formattedUploadedAt || new Date(grading.uploadedAt).toLocaleDateString()}
+            {grading.formattedUploadedAt || formatDateOnlyInTimeZone(grading.uploadedAt)}
           </span>
         </div>
         {grading.filePath && (
