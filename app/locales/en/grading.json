@@ -168,7 +168,7 @@
     },
     "errors": {
       "fileSizeExceeded": "File {{fileName}} exceeds size limit {{maxSize}}",
-      "fileSizeExceeded100KB": "File exceeds the 100 KB limit",
+      "fileSizeExceeded100KB": "File exceeds the 1 MB limit",
       "unsupportedFileType": "Unsupported file type: {{fileExt}}",
       "pdfOnly": "Please upload a PDF file",
       "tooManyFiles": "Maximum {{maxFiles}} files allowed",

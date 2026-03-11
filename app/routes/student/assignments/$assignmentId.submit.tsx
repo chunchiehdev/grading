@@ -1096,7 +1096,7 @@ export default function SubmitAssignment() {
               </h2>
 
               {state.phase === 'upload' ? (
-                <CompactFileUpload maxFiles={1} maxFileSize={100 * 1024} onUploadComplete={handleFileUpload} />
+                <CompactFileUpload maxFiles={1} maxFileSize={1 * 1024 * 1024} onUploadComplete={handleFileUpload} />
               ) : (
                 <div className="space-y-4">
                   {/* Uploaded file display */}
@@ -1394,7 +1394,7 @@ export default function SubmitAssignment() {
               <div className="rounded-2xl bg-card border border-border p-4">
                 <h2 className="mb-3 text-sm font-semibold text-foreground">{t('assignment:submit.uploadWork')}</h2>
                 {state.phase === 'upload' ? (
-                  <CompactFileUpload maxFiles={1} maxFileSize={100 * 1024} onUploadComplete={handleFileUpload} />
+                  <CompactFileUpload maxFiles={1} maxFileSize={1 * 1024 * 1024} onUploadComplete={handleFileUpload} />
                 ) : (
                   <div className="space-y-4">
                     {/* Uploaded file display */}
