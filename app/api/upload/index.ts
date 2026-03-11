@@ -4,6 +4,8 @@ import { RedisProgressService } from '@/services/redis-progress.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 import logger from '@/utils/logger';
 
+const STUDENT_UPLOAD_MAX_BYTES = 100 * 1024;
+
 function isPdfFile(file: File): boolean {
   const lowerName = file.name.toLowerCase();
   return file.type === 'application/pdf' || (file.type === '' && lowerName.endsWith('.pdf'));
@@ -69,6 +71,10 @@ export async function action({ request }: { request: Request }) {
         const fileStartTime = Date.now();
 
         try {
+          if (file.size > STUDENT_UPLOAD_MAX_BYTES) {
+            throw new Error('grading:fileUpload.errors.fileSizeExceeded100KB');
+          }
+
           if (!isPdfFile(file)) {
             throw new Error('grading:fileUpload.errors.pdfOnly');
           }

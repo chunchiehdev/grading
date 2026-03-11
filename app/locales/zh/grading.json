@@ -168,6 +168,7 @@
     },
     "errors": {
       "fileSizeExceeded": "檔案 {{fileName}} 超過大小限制 {{maxSize}}",
+      "fileSizeExceeded100KB": "檔案超過 100 KB 上限",
       "unsupportedFileType": "不支援的檔案類型: {{fileExt}}",
       "pdfOnly": "請上傳 PDF 檔案",
       "tooManyFiles": "最多只能上傳 {{maxFiles}} 個檔案",
