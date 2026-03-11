@@ -21,7 +21,7 @@ interface FileUploadProps {
 export const CompactFileUpload = ({
   maxFiles,
   maxFileSize = 10 * 1024 * 1024,
-  acceptedFileTypes = ['.pdf', '.doc', '.docx', '.txt'],
+  acceptedFileTypes = ['.pdf'],
   onUploadComplete,
 }: FileUploadProps) => {
   const { t, i18n } = useTranslation('grading');
@@ -54,6 +54,9 @@ export const CompactFileUpload = ({
     }
     const fileExt = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!acceptedFileTypes.includes(fileExt)) {
+      if (acceptedFileTypes.length === 1 && acceptedFileTypes[0] === '.pdf') {
+        return t('grading:fileUpload.errors.pdfOnly');
+      }
       return t('grading:fileUpload.errors.unsupportedFileType', { fileExt });
     }
     return null;

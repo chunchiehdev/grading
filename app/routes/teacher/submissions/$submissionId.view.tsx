@@ -9,7 +9,6 @@ import { PDFViewerWithNavigation } from '@/components/pdf/PDFViewerWithNavigatio
 import {
   StudentInfoCompact,
   AssignmentInfoCompact,
-  ScoreBadge,
 } from '@/components/grading/CompactInfoComponents';
 import { useTranslation } from 'react-i18next';
 import type { TeacherInfo, TeacherSubmissionView } from '@/types/teacher';
@@ -39,6 +38,7 @@ interface LoaderData {
 interface ActionData {
   success?: boolean;
   error?: string;
+  errorKey?: 'notFoundOrUnauthorized' | 'saveFailed';
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs): Promise<LoaderData> {
@@ -113,7 +113,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
     // Verify teacher has permission to update this submission
     const submission = await getSubmissionByIdForTeacher(submissionId, teacher.id);
     if (!submission) {
-      return { success: false, error: 'Submission not found or unauthorized' };
+      return { success: false, errorKey: 'notFoundOrUnauthorized' };
     }
 
     // Update the submission with teacher feedback
@@ -124,7 +124,7 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
     return { success: true };
   } catch (error) {
     console.error('Error updating teacher feedback:', error);
-    return { success: false, error: 'Failed to save feedback' };
+    return { success: false, errorKey: 'saveFailed' };
   }
 }
 
@@ -133,7 +133,7 @@ export default function TeacherSubmissionView() {
   const params = useParams();
   const actionData = useActionData<ActionData>();
   const navigate = useNavigate();
-  const { t } = useTranslation('teacher');
+  const { t } = useTranslation(['submissions', 'common']);
 
   // Local state for teacher feedback
   const [feedback, setFeedback] = useState(submission.grading.teacherFeedback || '');
@@ -162,23 +162,29 @@ export default function TeacherSubmissionView() {
       const data = await response.json();
       
       if (data.success) {
-        toast.success(t('teacher:submissionView.deleteSuccess'));
+        toast.success(t('submissions:teacher.submissionView.delete.success'));
         // Navigate back to assignment submissions list
         navigate(submission.navigation.backUrl);
       } else {
-        toast.error(data.error || t('teacher:submissionView.deleteFailed'));
+        toast.error(data.error || t('submissions:teacher.submissionView.delete.failed'));
         setIsDeleting(false);
         setIsDeleteDialogOpen(false);
       }
     } catch (error) {
       console.error('Error deleting submission:', error);
-      toast.error(t('teacher:submissionView.deleteFailed'));
+      toast.error(t('submissions:teacher.submissionView.delete.failed'));
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
     }
   };
 
   // Full screen layout - bypasses parent container constraints
+  const feedbackErrorMessage = actionData?.error
+    ? actionData.error
+    : actionData?.errorKey
+      ? t(`submissions:teacher.submissionView.feedback.errors.${actionData.errorKey}`)
+      : null;
+
   return (
     <div className="fixed inset-0 top-[60px] bg-background flex flex-col">
       {/* Top Info Bar - Responsive */}
@@ -213,7 +219,7 @@ export default function TeacherSubmissionView() {
                 <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/>
                 <path d="M12 7v5l4 2"/>
               </svg>
-              歷史記錄
+              {t('submissions:history')}
             </Button>
             <Button
               variant="destructive"
@@ -222,7 +228,7 @@ export default function TeacherSubmissionView() {
               className="text-xs lg:text-sm"
             >
               <Trash2 className="mr-1 lg:mr-2 h-3 w-3 lg:h-4 lg:w-4" />
-              刪除
+              {t('submissions:teacher.submissionView.delete.button')}
             </Button>
           </div>
         </div>
@@ -241,7 +247,7 @@ export default function TeacherSubmissionView() {
                 <div className="flex items-center justify-center h-full">
                   <div className="flex flex-col items-center gap-2">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                    <span className="text-muted-foreground">載入 PDF 檢視器...</span>
+                    <span className="text-muted-foreground">{t('submissions:teacher.submissionView.pdf.loading')}</span>
                   </div>
                 </div>
               }
@@ -253,7 +259,7 @@ export default function TeacherSubmissionView() {
             </ClientOnly>
           ) : ( 
             <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground">沒有上傳檔案</p>
+              <p className="text-muted-foreground">{t('submissions:teacher.submissionView.pdf.noFile')}</p>
             </div>
           )}
         </div>
@@ -282,7 +288,7 @@ export default function TeacherSubmissionView() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-semibold">教師回饋</h3>
+                  <h3 className="text-lg font-semibold">{t('submissions:teacher.submissionView.feedback.title')}</h3>
                 </div>
 
                 {/* Success/Error Messages */}
@@ -290,16 +296,16 @@ export default function TeacherSubmissionView() {
                   <Alert className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
                     <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                     <AlertDescription className="text-green-800 dark:text-green-200">
-                      回饋已成功保存
+                      {t('submissions:teacher.submissionView.feedback.saveSuccess')}
                     </AlertDescription>
                   </Alert>
                 )}
 
-                {actionData?.error && (
+                {feedbackErrorMessage && (
                   <Alert className="bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
                     <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                     <AlertDescription className="text-red-800 dark:text-red-200">
-                      {actionData.error}
+                      {feedbackErrorMessage}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -308,14 +314,14 @@ export default function TeacherSubmissionView() {
                 <Form method="post" onSubmit={() => setIsSubmitting(true)}>
                   <div className="space-y-3">
                     <Label htmlFor="teacherFeedback" className="text-sm text-muted-foreground">
-                      給學生的評語與建議
+                      {t('submissions:teacher.submissionView.feedback.label')}
                     </Label>
                     <Textarea
                       id="teacherFeedback"
                       name="teacherFeedback"
                       value={feedback}
                       onChange={(e) => setFeedback(e.target.value)}
-                      placeholder="請輸入您對這份作業的評語、建議或需要改進的地方..."
+                      placeholder={t('submissions:teacher.submissionView.feedback.placeholder')}
                       className="min-h-[120px] resize-none"
                     />
                     <Button 
@@ -323,7 +329,9 @@ export default function TeacherSubmissionView() {
                       disabled={isSubmitting}
                       className="w-full"
                     >
-                      {isSubmitting ? '保存中...' : '保存回饋'}
+                      {isSubmitting
+                        ? t('submissions:teacher.submissionView.feedback.saving')
+                        : t('submissions:teacher.submissionView.feedback.save')}
                     </Button>
                   </div>
                 </Form>
@@ -341,13 +349,13 @@ export default function TeacherSubmissionView() {
               value="pdf"
               className="rounded-none border-0 text-xs sm:text-sm text-muted-foreground data-[state=active]:text-[#E07A5F] data-[state=active]:font-semibold data-[state=active]:bg-[#E07A5F]/15 data-[state=active]:shadow-none"
             >
-              PDF
+              {t('submissions:teacher.submissionView.tabs.pdf')}
             </TabsTrigger>
             <TabsTrigger
               value="grading"
               className="rounded-none border-0 text-xs sm:text-sm text-muted-foreground data-[state=active]:text-[#E07A5F] data-[state=active]:font-semibold data-[state=active]:bg-[#E07A5F]/15 data-[state=active]:shadow-none"
             >
-              評分結果
+              {t('submissions:teacher.submissionView.tabs.grading')}
             </TabsTrigger>
           </TabsList>
         </div>
@@ -359,7 +367,7 @@ export default function TeacherSubmissionView() {
                 <div className="flex items-center justify-center h-full">
                   <div className="flex flex-col items-center gap-2">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                    <span className="text-muted-foreground">載入 PDF 檢視器...</span>
+                    <span className="text-muted-foreground">{t('submissions:teacher.submissionView.pdf.loading')}</span>
                   </div>
                 </div>
               }
@@ -371,7 +379,7 @@ export default function TeacherSubmissionView() {
             </ClientOnly>
           ) : (
             <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground">沒有上傳檔案</p>
+              <p className="text-muted-foreground">{t('submissions:teacher.submissionView.pdf.noFile')}</p>
             </div>
           )}
         </TabsContent>
@@ -396,23 +404,23 @@ export default function TeacherSubmissionView() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-semibold">教師回饋</h3>
+                  <h3 className="text-lg font-semibold">{t('submissions:teacher.submissionView.feedback.title')}</h3>
                 </div>
 
                 {actionData?.success && (
                   <Alert className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
                     <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
                     <AlertDescription className="text-green-800 dark:text-green-200">
-                      回饋已成功保存
+                      {t('submissions:teacher.submissionView.feedback.saveSuccess')}
                     </AlertDescription>
                   </Alert>
                 )}
 
-                {actionData?.error && (
+                {feedbackErrorMessage && (
                   <Alert className="bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
                     <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
                     <AlertDescription className="text-red-800 dark:text-red-200">
-                      {actionData.error}
+                      {feedbackErrorMessage}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -420,18 +428,20 @@ export default function TeacherSubmissionView() {
                 <Form method="post" onSubmit={() => setIsSubmitting(true)}>
                   <div className="space-y-3">
                     <Label htmlFor="teacherFeedback-mobile" className="text-sm text-muted-foreground">
-                      給學生的評語與建議
+                      {t('submissions:teacher.submissionView.feedback.label')}
                     </Label>
                     <Textarea
                       id="teacherFeedback-mobile"
                       name="teacherFeedback"
                       value={feedback}
                       onChange={(e) => setFeedback(e.target.value)}
-                      placeholder="請輸入您對這份作業的評語、建議或需要改進的地方..."
+                      placeholder={t('submissions:teacher.submissionView.feedback.placeholder')}
                       className="min-h-[120px] resize-none"
                     />
                     <Button type="submit" disabled={isSubmitting} className="w-full">
-                      {isSubmitting ? '保存中...' : '保存回饋'}
+                      {isSubmitting
+                        ? t('submissions:teacher.submissionView.feedback.saving')
+                        : t('submissions:teacher.submissionView.feedback.save')}
                     </Button>
                   </div>
                 </Form>
@@ -445,9 +455,9 @@ export default function TeacherSubmissionView() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>確認刪除提交</DialogTitle>
+            <DialogTitle>{t('submissions:teacher.submissionView.delete.dialogTitle')}</DialogTitle>
             <DialogDescription>
-              您確定要刪除這份提交嗎？此操作將永久刪除提交記錄和相關 PDF 文件，無法復原。
+              {t('submissions:teacher.submissionView.delete.dialogDescription')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -456,14 +466,16 @@ export default function TeacherSubmissionView() {
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={isDeleting}
             >
-              取消
+              {t('common:cancel')}
             </Button>
             <Button
               variant="destructive"
               onClick={handleDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? '刪除中...' : '確認刪除'}
+              {isDeleting
+                ? t('submissions:teacher.submissionView.delete.deleting')
+                : t('submissions:teacher.submissionView.delete.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -486,7 +498,7 @@ export function ErrorBoundary() {
               404
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              找不到此提交記錄，可能已被刪除或不存在
+              {t('common:errors.404.submission')}
             </p>
           </div>
           <a
@@ -494,7 +506,7 @@ export function ErrorBoundary() {
             className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
           >
             <Home className="h-4 w-4" />
-            返回首頁
+            {t('common:returnHome')}
           </a>
         </div>
       </div>
@@ -507,10 +519,10 @@ export function ErrorBoundary() {
       <div className="space-y-6 text-center">
         <div className="space-y-3">
           <h1 className="font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
-            錯誤
+            {t('common:errors.generic.title')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            載入提交時發生錯誤，請稍後再試
+            {t('common:errors.generic.submission')}
           </p>
         </div>
         <a
@@ -518,7 +530,7 @@ export function ErrorBoundary() {
           className="inline-flex items-center gap-2 border border-[#2B2B2B] px-6 py-3 text-sm transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:hover:bg-gray-200 dark:hover:text-[#2B2B2B]"
         >
           <Home className="h-4 w-4" />
-          返回首頁
+          {t('common:returnHome')}
         </a>
       </div>
     </div>

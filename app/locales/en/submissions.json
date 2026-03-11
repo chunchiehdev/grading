@@ -103,6 +103,37 @@
       "unknownStudent": "Unknown Student",
       "noEmail": "No email",
       "viewDetails": "View details"
+    },
+    "submissionView": {
+      "tabs": {
+        "pdf": "PDF",
+        "grading": "Grading Results"
+      },
+      "pdf": {
+        "loading": "Loading PDF viewer...",
+        "noFile": "No file uploaded"
+      },
+      "feedback": {
+        "title": "Teacher Feedback",
+        "label": "Comments and suggestions for the student",
+        "placeholder": "Enter your comments, suggestions, or areas for improvement for this assignment...",
+        "save": "Save Feedback",
+        "saving": "Saving...",
+        "saveSuccess": "Feedback saved successfully",
+        "errors": {
+          "notFoundOrUnauthorized": "Submission not found or you are not authorized",
+          "saveFailed": "Failed to save feedback, please try again later"
+        }
+      },
+      "delete": {
+        "button": "Delete",
+        "dialogTitle": "Confirm submission deletion",
+        "dialogDescription": "Are you sure you want to delete this submission? This action will permanently delete the submission record and related PDF file and cannot be undone.",
+        "confirm": "Confirm Delete",
+        "deleting": "Deleting...",
+        "success": "Submission deleted successfully",
+        "failed": "Delete failed, please try again later"
+      }
     }
   },
   "historyPage": {

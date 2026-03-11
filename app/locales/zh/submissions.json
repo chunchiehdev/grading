@@ -103,6 +103,37 @@
       "unknownStudent": "未知學生",
       "noEmail": "無電子郵件",
       "viewDetails": "查看詳情"
+    },
+    "submissionView": {
+      "tabs": {
+        "pdf": "PDF",
+        "grading": "評分結果"
+      },
+      "pdf": {
+        "loading": "載入 PDF 檢視器...",
+        "noFile": "沒有上傳檔案"
+      },
+      "feedback": {
+        "title": "教師回饋",
+        "label": "給學生的評語與建議",
+        "placeholder": "請輸入您對這份作業的評語、建議或需要改進的地方...",
+        "save": "保存回饋",
+        "saving": "保存中...",
+        "saveSuccess": "回饋已成功保存",
+        "errors": {
+          "notFoundOrUnauthorized": "找不到提交記錄或您沒有權限操作",
+          "saveFailed": "保存回饋失敗，請稍後再試"
+        }
+      },
+      "delete": {
+        "button": "刪除",
+        "dialogTitle": "確認刪除提交",
+        "dialogDescription": "您確定要刪除這份提交嗎？此操作將永久刪除提交記錄和相關 PDF 文件，無法復原。",
+        "confirm": "確認刪除",
+        "deleting": "刪除中...",
+        "success": "提交已成功刪除",
+        "failed": "刪除失敗，請稍後再試"
+      }
     }
   },
   "historyPage": {

@@ -162,7 +162,10 @@ export function GradingSessionsTab() {
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-gray-400" />
                       <div>
-                        <div className="text-sm text-gray-900">
+                        <div
+                          className="max-w-[220px] truncate text-sm text-gray-900"
+                          title={session.uploadedFile.fileName}
+                        >
                           {session.uploadedFile.fileName}
                         </div>
                         <div className="text-xs text-gray-500">
@@ -274,7 +277,9 @@ export function GradingSessionsTab() {
               <div className="mb-3">
                 <div className="flex items-center gap-2 text-sm text-gray-900">
                   <FileText className="h-4 w-4 text-gray-400" />
-                  <span className="font-medium">{session.uploadedFile.fileName}</span>
+                  <span className="break-all font-medium" title={session.uploadedFile.fileName}>
+                    {session.uploadedFile.fileName}
+                  </span>
                 </div>
                 <div className="ml-6 text-xs text-gray-500">
                   {formatDateOnlyInTimeZone(session.createdAt)} • {formatTimeInTimeZone(session.createdAt)}

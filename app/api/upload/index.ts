@@ -4,6 +4,11 @@ import { RedisProgressService } from '@/services/redis-progress.server';
 import { createSuccessResponse, createErrorResponse, ApiErrorCode } from '@/types/api';
 import logger from '@/utils/logger';
 
+function isPdfFile(file: File): boolean {
+  const lowerName = file.name.toLowerCase();
+  return file.type === 'application/pdf' || (file.type === '' && lowerName.endsWith('.pdf'));
+}
+
 /**
  * API endpoint loader that rejects GET requests for file uploads
  */
@@ -64,6 +69,10 @@ export async function action({ request }: { request: Request }) {
         const fileStartTime = Date.now();
 
         try {
+          if (!isPdfFile(file)) {
+            throw new Error('grading:fileUpload.errors.pdfOnly');
+          }
+
           await RedisProgressService.updateFileProgress(uploadId!, file.name, {
             status: 'uploading',
             progress: 0,
