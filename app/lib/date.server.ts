@@ -5,10 +5,13 @@
 /**
  * Formats a date for display in the UI
  * @param date - Date to format
+ * @param locale - Locale code ('zh', 'zh-TW', 'en', etc.)
  * @returns Formatted date string
  */
-export function formatDateForDisplay(date: Date): string {
-  return new Intl.DateTimeFormat('zh-TW', {
+export function formatDateForDisplay(date: Date, locale: string = 'zh'): string {
+  const normalizedLocale = locale.toLowerCase().startsWith('en') ? 'en-US' : 'zh-TW';
+
+  return new Intl.DateTimeFormat(normalizedLocale, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

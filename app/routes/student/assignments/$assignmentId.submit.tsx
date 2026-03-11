@@ -73,11 +73,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Check for existing draft/submission to restore state
   const draftSubmission = await getDraftSubmission(assignmentId, student.id);
 
-  // Format dates on server to avoid hydration mismatch
-  const { formatDateForDisplay } = await import('@/lib/date.server');
-  const formattedDueDate = assignment.dueDate ? formatDateForDisplay(assignment.dueDate) : null;
-
-  return { student, assignment: { ...assignment, formattedDueDate }, draftSubmission };
+  return { student, assignment, draftSubmission };
 }
 
 // Simplified state machine - Linus style: one clear data structure
@@ -177,6 +173,18 @@ export default function SubmitAssignment() {
 
   // Check if submission is past due date
   const isOverdue = assignment.dueDate ? new Date() > new Date(assignment.dueDate) : false;
+  const formattedDueDate = React.useMemo(() => {
+    if (!assignment.dueDate) return null;
+    const locale = i18n.language.startsWith('zh') ? 'zh-TW' : 'en-US';
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Taipei',
+    }).format(new Date(assignment.dueDate));
+  }, [assignment.dueDate, i18n.language]);
 
   // Rubric state - hoisted out of render IIFE for proper React hooks usage
   const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(new Set());
@@ -969,7 +977,7 @@ export default function SubmitAssignment() {
                             isOverdue ? 'text-destructive' : 'text-foreground'
                           }`}
                         >
-                          {assignment.formattedDueDate}
+                          {formattedDueDate}
                         </p>
                       </div>
                     </div>
@@ -1297,7 +1305,7 @@ export default function SubmitAssignment() {
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="text-xs font-medium text-muted-foreground">
-                        {assignment.formattedDueDate}
+                        {formattedDueDate}
                       </span>
                     </div>
                     {isOverdue && (

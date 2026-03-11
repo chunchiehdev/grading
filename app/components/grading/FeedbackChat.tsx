@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } fr
 import { useChat } from '@ai-sdk/react';
 import { TextStreamChatTransport } from 'ai';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, ChevronDown, ChevronRight, BrainCircuit, Pencil, CheckCircle2, Trophy } from 'lucide-react';
+import { Loader2, Send, ChevronDown, ChevronRight, BrainCircuit, CheckCircle2, Trophy, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { type SparringQuestion } from '@/types/grading';
 import { getKemberRubricTemplate } from '@/utils/kember-rubric-template';
@@ -25,6 +25,7 @@ interface UiChatMessage {
   role?: string;
   content?: string;
   parts?: UiChatPart[];
+  studentReaction?: 'up' | 'down';
 }
 
 function getMessageText(message: UiChatMessage): string {
@@ -360,20 +361,44 @@ export function FeedbackChat({
     setShowRevisionBox(false);
   }, [revisionDraft, isLoading, activeQuestion.target_quote, sendMessage, t]);
 
+  const handleAssistantReaction = useCallback(
+    (messageId: string, reaction: 'up' | 'down') => {
+      setMessages((prevMessages: any[]) =>
+        prevMessages.map((msg, index) => {
+          const currentId = msg.id || `assistant-${activeIdx}-${index}`;
+          if (currentId !== messageId || msg.role !== 'assistant') return msg;
+          const nextReaction = msg.studentReaction === reaction ? undefined : reaction;
+          return {
+            ...msg,
+            studentReaction: nextReaction,
+          };
+        })
+      );
+    },
+    [activeIdx, setMessages]
+  );
+
   // ── Direction 4: Finish sparring → show summary ────────────────────────
   const handleFinishSparring = useCallback(() => {
     setChatPhase('summary');
   }, []);
 
   const visibleMessages = useMemo(
-    () =>
-      messages.filter((m) => {
+    () => {
+      const triggerTexts = new Set([
+        normalizeChatTypography(triggerText).trim(),
+        normalizeChatTypography('請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。').trim(),
+        normalizeChatTypography('Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.').trim(),
+      ]);
+
+      return messages.filter((m) => {
         if (m.id === TRIGGER_MSG_ID) return false;
         const content = normalizeChatTypography(getMessageText(m as UiChatMessage)).trim();
         if (!content) return false;
-        if (content === normalizeChatTypography(triggerText)) return false;
+        if (triggerTexts.has(content)) return false;
         return true;
-      }),
+      });
+    },
     [messages, triggerText]
   );
 
@@ -670,10 +695,14 @@ export function FeedbackChat({
             {visibleMessages.map((m: any) => {
               const parsedMessage = m as UiChatMessage;
               const messageText = normalizeChatTypography(getMessageText(parsedMessage));
+              const rawMessageIndex = messages.findIndex((msg) => msg === m);
+              const messageId = m.id || `assistant-${activeIdx}-${rawMessageIndex}`;
+              const isAssistant = m.role === 'assistant';
+              const reaction = parsedMessage.studentReaction;
 
               return (
                 <div
-                  key={m.id}
+                  key={messageId}
                   className={`flex w-full ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {m.role === 'user' ? (
@@ -689,6 +718,36 @@ export function FeedbackChat({
                           <Markdown>{messageText}</Markdown>
                         </div>
                       </div>
+                      {isAssistant && (
+                        <div className="flex items-center gap-1 px-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              'h-7 w-7 rounded-full text-muted-foreground hover:text-foreground',
+                              reaction === 'up' && 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            )}
+                            onClick={() => handleAssistantReaction(messageId, 'up')}
+                            aria-label={t('grading:chat.reactions.likeAria', 'Like this response')}
+                          >
+                            <ThumbsUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              'h-7 w-7 rounded-full text-muted-foreground hover:text-foreground',
+                              reaction === 'down' && 'bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400'
+                            )}
+                            onClick={() => handleAssistantReaction(messageId, 'down')}
+                            aria-label={t('grading:chat.reactions.dislikeAria', 'Dislike this response')}
+                          >
+                            <ThumbsDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

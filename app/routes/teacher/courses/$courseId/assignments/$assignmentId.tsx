@@ -29,7 +29,6 @@ interface LoaderData {
   teacher: { id: string; email: string; role: string; name: string };
   assignmentArea: AssignmentAreaInfo;
   courseId: string;
-  formattedDueDate?: string;
   attachments: Attachment[];
 }
 
@@ -46,11 +45,6 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
   if (!assignmentArea) {
     throw new Response('Assignment not found', { status: 404 });
   }
-
-  const { formatDateForDisplay } = await import('@/lib/date.server');
-  const formattedDueDate = assignmentArea.dueDate
-    ? formatDateForDisplay(new Date(assignmentArea.dueDate))
-    : undefined;
 
   // Load attachments
   let attachments: Attachment[] = [];
@@ -87,7 +81,6 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     teacher,
     assignmentArea,
     courseId,
-    formattedDueDate,
     attachments,
   };
 }
@@ -134,9 +127,9 @@ function FileTypeIcon({ mimeType, fileName }: { mimeType: string; fileName: stri
 /* ------------------------------------------------------------------ */
 
 export default function AssignmentDetail() {
-  const { assignmentArea, courseId, formattedDueDate, attachments } =
+  const { assignmentArea, courseId, attachments } =
     useLoaderData<typeof loader>();
-  const { t } = useTranslation(['course', 'common']);
+  const { t, i18n } = useTranslation(['course', 'common']);
 
   const submissionCount = assignmentArea._count?.submissions ?? 0;
   const groupLabel = assignmentArea.class
@@ -145,6 +138,16 @@ export default function AssignmentDetail() {
 
   const isDueSoon =
     assignmentArea.dueDate && new Date(assignmentArea.dueDate) > new Date();
+  const formattedDueDate = assignmentArea.dueDate
+    ? new Intl.DateTimeFormat(i18n.language.startsWith('zh') ? 'zh-TW' : 'en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Asia/Taipei',
+      }).format(new Date(assignmentArea.dueDate))
+    : null;
 
   return (
     <div className="bg-background pb-10">
