@@ -349,13 +349,28 @@ export async function processGradingResult(
         let thinkingProcess = '';
         let gradingRationale = '';
         
-        // 1. Collect Thinking Process from think/think_aloud tool ONLY
-        // The think tool contains the complete analysis, we don't want to duplicate by concatenating all steps
-        const thinkStep = agentResult.steps.find((s: any) => 
-          (s.toolName === 'think' || s.toolName === 'think_aloud') && s.reasoning
-        );
-        if (thinkStep?.reasoning) {
-          thinkingProcess = thinkStep.reasoning;
+        // 1. Collect Thinking Process from think/think_aloud tools
+        // Some runs may emit think_aloud as multiple tool calls; merge all chunks in step order.
+        const thinkSteps = agentResult.steps
+          .filter((s: any) =>
+            (s.toolName === 'think' || s.toolName === 'think_aloud') &&
+            typeof s.reasoning === 'string' &&
+            s.reasoning.length > 0
+          )
+          .sort((a: any, b: any) => (a.stepNumber || 0) - (b.stepNumber || 0));
+
+        if (thinkSteps.length > 0) {
+          const mergedChunks: string[] = [];
+          for (const step of thinkSteps) {
+            const chunk = step.reasoning as string;
+            if (!chunk) continue;
+            if (mergedChunks.length > 0 && mergedChunks[mergedChunks.length - 1] === chunk) {
+              continue;
+            }
+            mergedChunks.push(chunk);
+          }
+
+          thinkingProcess = mergedChunks.join('');
         } else {
           // Fallback: collect from all steps (for backward compatibility with old data)
           thinkingProcess = agentResult.steps

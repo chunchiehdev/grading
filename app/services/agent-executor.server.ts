@@ -890,10 +890,12 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           };
         }
         
-        // STEP 2: After thinking, allow confidence calculation
+        // STEP 2: After thinking, force confidence calculation
         if (hasThinkAloudCompleted && !hasConfidence) {
-          logger.info('[Agent] Allowing calculate_confidence after thinking');
-          return { toolChoice: 'auto' };  // Let model choose when to calculate confidence
+          logger.info('[Agent] Forcing calculate_confidence after thinking');
+          return {
+            toolChoice: { type: 'tool' as const, toolName: 'calculate_confidence' }
+          };
         }
         
         // STEP 3: After confidence, force generate_feedback
