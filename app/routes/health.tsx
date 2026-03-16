@@ -16,6 +16,11 @@ export async function loader() {
     headers: { 'Content-Type': 'application/json' },
   });
 }
+
+export default function HealthRoute() {
+  return null;
+}
+
 export function ErrorBoundary() {
   const error = useRouteError();
 

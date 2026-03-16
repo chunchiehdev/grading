@@ -802,15 +802,16 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
     const MAX_AGENT_STEPS = 5;
     const MAX_GENERATE_FEEDBACK_ATTEMPTS = 2;
+    const MAX_THINK_ALOUD_ATTEMPTS = 2;
 
-    const countGenerateFeedbackCalls = (agentSteps: any[] | undefined): number => {
+    const countToolCalls = (agentSteps: any[] | undefined, targetToolName: string): number => {
       if (!agentSteps || agentSteps.length === 0) return 0;
 
       let count = 0;
       for (const step of agentSteps) {
         if (!step.toolCalls) continue;
         for (const call of step.toolCalls) {
-          if (call.toolName === 'generate_feedback') {
+          if (call.toolName === targetToolName) {
             count++;
           }
         }
@@ -851,18 +852,21 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           }
         }
         
-        const hasThinkAloud =
-          completedToolNames.has('think_aloud') || calledToolNames.has('think_aloud');
+        const hasThinkAloudCompleted = completedToolNames.has('think_aloud');
+        const hasThinkAloudCalled = calledToolNames.has('think_aloud');
         const hasConfidence = completedToolNames.has('calculate_confidence');
         const hasFeedback = completedToolNames.has('generate_feedback');
-        const generateFeedbackCalls = countGenerateFeedbackCalls(agentSteps);
+        const generateFeedbackCalls = countToolCalls(agentSteps, 'generate_feedback');
+        const thinkAloudCalls = countToolCalls(agentSteps, 'think_aloud');
         
         logger.info({ 
           agentStepsCount: agentSteps?.length || 0,
-          hasThinkAloud, 
+          hasThinkAloudCompleted,
+          hasThinkAloudCalled,
           hasConfidence, 
           hasFeedback,
           generateFeedbackCalls,
+          thinkAloudCalls,
           calledTools: Array.from(calledToolNames),
           completedTools: Array.from(completedToolNames)
         }, `[Agent] prepareStep ${stepCounter}`);
@@ -874,7 +878,12 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         }
         
         // Force think_aloud tool on first step
-        if (!hasThinkAloud) {
+        if (!hasThinkAloudCompleted) {
+          if (thinkAloudCalls >= MAX_THINK_ALOUD_ATTEMPTS) {
+            logger.warn({ thinkAloudCalls }, '[Agent] Max think_aloud attempts reached without completion, stopping');
+            return { toolChoice: 'none' as const };
+          }
+
           logger.info('[Agent] Forcing think_aloud tool on first step');
           return {
             toolChoice: { type: 'tool' as const, toolName: 'think_aloud' }
@@ -882,7 +891,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         }
         
         // STEP 2: After thinking, allow confidence calculation
-        if (hasThinkAloud && !hasConfidence) {
+        if (hasThinkAloudCompleted && !hasConfidence) {
           logger.info('[Agent] Allowing calculate_confidence after thinking');
           return { toolChoice: 'auto' };  // Let model choose when to calculate confidence
         }
@@ -912,17 +921,27 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         
         // Check if generate_feedback has completed (has toolResults, not just toolCalls)
         if (agentSteps && agentSteps.length > 0) {
-          const generateFeedbackCalls = countGenerateFeedbackCalls(agentSteps);
+          const generateFeedbackCalls = countToolCalls(agentSteps, 'generate_feedback');
+          const thinkAloudCalls = countToolCalls(agentSteps, 'think_aloud');
+          let hasThinkAloudResult = false;
 
           for (const step of agentSteps) {
             if (step.toolResults) {
               for (const result of step.toolResults) {
+                if (result.toolName === 'think_aloud') {
+                  hasThinkAloudResult = true;
+                }
                 if (result.toolName === 'generate_feedback') {
                   logger.info('[Agent] generate_feedback has toolResult, stopping');
                   return true;
                 }
               }
             }
+          }
+
+          if (!hasThinkAloudResult && thinkAloudCalls >= MAX_THINK_ALOUD_ATTEMPTS) {
+            logger.warn({ thinkAloudCalls }, '[Agent] Stopping: think_aloud did not complete after max attempts');
+            return true;
           }
 
           if (generateFeedbackCalls >= MAX_GENERATE_FEEDBACK_ATTEMPTS) {
