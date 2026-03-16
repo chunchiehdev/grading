@@ -514,7 +514,10 @@ export async function processGradingResult(
     if (gradingResponse.success && gradingResponse.result) {
       // Calculate 100-point normalized score
       const { totalScore, maxScore } = gradingResponse.result;
-      const normalizedScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 10000) / 100 : null;
+      const normalizedScore =
+        maxScore > 0
+          ? Math.max(0, Math.min(100, Math.round((totalScore / maxScore) * 10000) / 100))
+          : null;
 
       logger.info(`📊 Normalized score: ${totalScore}/${maxScore} → ${normalizedScore}/100`);
 

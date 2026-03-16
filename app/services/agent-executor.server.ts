@@ -800,6 +800,25 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       hasTitle: !!params.assignmentTitle,
     }, '[Agent] Executing ToolLoopAgent');
 
+    const MAX_AGENT_STEPS = 5;
+    const MAX_GENERATE_FEEDBACK_ATTEMPTS = 2;
+
+    const countGenerateFeedbackCalls = (agentSteps: any[] | undefined): number => {
+      if (!agentSteps || agentSteps.length === 0) return 0;
+
+      let count = 0;
+      for (const step of agentSteps) {
+        if (!step.toolCalls) continue;
+        for (const call of step.toolCalls) {
+          if (call.toolName === 'generate_feedback') {
+            count++;
+          }
+        }
+      }
+
+      return count;
+    };
+
     let stepCounter = 0;
     let confidenceCalled = false;
     let feedbackCalled = false;
@@ -828,12 +847,14 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         const hasThinkAloud = completedToolNames.has('think_aloud');
         const hasConfidence = completedToolNames.has('calculate_confidence');
         const hasFeedback = completedToolNames.has('generate_feedback');
+        const generateFeedbackCalls = countGenerateFeedbackCalls(agentSteps);
         
         logger.info({ 
           agentStepsCount: agentSteps?.length || 0,
           hasThinkAloud, 
           hasConfidence, 
           hasFeedback,
+          generateFeedbackCalls,
           completedTools: Array.from(completedToolNames)
         }, `[Agent] prepareStep ${stepCounter}`);
         
@@ -859,6 +880,11 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         
         // STEP 3: After confidence, force generate_feedback
         if (hasConfidence && !hasFeedback) {
+          if (generateFeedbackCalls >= MAX_GENERATE_FEEDBACK_ATTEMPTS) {
+            logger.warn({ generateFeedbackCalls }, '[Agent] Max generate_feedback attempts reached, stopping');
+            return { toolChoice: 'none' as const };
+          }
+
           logger.info('[Agent] Forcing generate_feedback after calculate_confidence');
           return {
             toolChoice: { type: 'tool', toolName: 'generate_feedback' }
@@ -870,13 +896,15 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       },
       stopWhen: ({ steps: agentSteps }) => {
         // Safety: stop if max steps reached
-        if (stepCounter >= 10) {
+        if (stepCounter >= MAX_AGENT_STEPS) {
           logger.warn('[Agent] Max steps reached, stopping');
           return true;
         }
         
         // Check if generate_feedback has completed (has toolResults, not just toolCalls)
         if (agentSteps && agentSteps.length > 0) {
+          const generateFeedbackCalls = countGenerateFeedbackCalls(agentSteps);
+
           for (const step of agentSteps) {
             if (step.toolResults) {
               for (const result of step.toolResults) {
@@ -886,6 +914,11 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
                 }
               }
             }
+          }
+
+          if (generateFeedbackCalls >= MAX_GENERATE_FEEDBACK_ATTEMPTS) {
+            logger.warn({ generateFeedbackCalls }, '[Agent] Stopping after repeated generate_feedback attempts without valid result');
+            return true;
           }
         }
         

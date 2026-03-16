@@ -330,7 +330,9 @@ export async function createSubmissionAndLinkGradingResult(
         (aiAnalysisResult as any).chatHistory = chatMessages;
       }
       
-      const finalScore = aiAnalysisResult?.totalScore ? Math.round(aiAnalysisResult.totalScore) : null;
+      const totalScore = aiAnalysisResult?.totalScore;
+      const hasTotalScore = totalScore !== undefined && totalScore !== null;
+      const finalScore = hasTotalScore ? Math.round(totalScore) : null;
 
       // Get normalized score (100-point scale) from grading result
       const normalizedScore = gradingResult.normalizedScore ?? null;

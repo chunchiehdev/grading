@@ -273,11 +273,23 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
         throw new Error(errorMsg);
       }
 
-      const totalScore = criteriaScores.reduce((sum: number, c: { score: number }) => sum + c.score, 0);
-      const maxScore = criteriaScores.reduce((sum: number, c: { maxScore: number }) => sum + c.maxScore, 0);
-      const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
+      const sanitizedCriteriaScores = criteriaScores.map((c) => {
+        const safeMaxScore = Number.isFinite(c.maxScore) && c.maxScore > 0 ? c.maxScore : 0;
+        const rawScore = Number.isFinite(c.score) ? c.score : 0;
+        const safeScore = Math.max(0, Math.min(rawScore, safeMaxScore));
 
-      const breakdown = criteriaScores.map((c) => {
+        return {
+          ...c,
+          score: safeScore,
+          maxScore: safeMaxScore,
+        };
+      });
+
+      const totalScore = sanitizedCriteriaScores.reduce((sum: number, c: { score: number }) => sum + c.score, 0);
+      const maxScore = sanitizedCriteriaScores.reduce((sum: number, c: { maxScore: number }) => sum + c.maxScore, 0);
+      const percentage = maxScore > 0 ? Math.min(100, (totalScore / maxScore) * 100) : 0;
+
+      const breakdown = sanitizedCriteriaScores.map((c) => {
         let feedback = '';
 
         if (c.analysis) {
