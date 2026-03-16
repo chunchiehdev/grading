@@ -1,6 +1,6 @@
 /**
  * Grading Sessions Tab
- * 
+ *
  * Display and filter grading results
  */
 
@@ -51,7 +51,7 @@ export function GradingSessionsTab() {
     try {
       const params = new URLSearchParams();
       if (filters.requiresReview) params.set('requiresReview', filters.requiresReview);
-      
+
       const response = await fetch(`/api/admin/analytics/grading-sessions?${params}`);
       const data = await response.json();
       setSessions(data.sessions || []);
@@ -75,157 +75,156 @@ export function GradingSessionsTab() {
   return (
     <div>
       {/* Filters */}
-      <div className="mb-6 flex gap-4">
-        <select
-          value={filters.requiresReview}
-          onChange={(e) => setFilters({ ...filters, requiresReview: e.target.value })}
-          className="rounded-sm border-2 border-[#2B2B2B] bg-white px-4 py-2 text-sm focus:border-[#D2691E] focus:outline-none focus:ring-2 focus:ring-[#D2691E]/20"
-        >
-          <option value="">All</option>
-          <option value="true">Requires Review</option>
-          <option value="false">No Review Needed</option>
-        </select>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-sm border-2 border-[#2B2B2B] bg-card p-3 dark:border-gray-200">
+        <div className="flex items-center gap-3">
+          <select
+            value={filters.requiresReview}
+            onChange={(e) => setFilters({ ...filters, requiresReview: e.target.value })}
+            className="min-h-[40px] rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#D2691E] focus:outline-none focus:ring-2 focus:ring-[#D2691E]/20 dark:focus:border-[#E87D3E] dark:focus:ring-[#E87D3E]/20"
+          >
+            <option value="">All</option>
+            <option value="true">Requires Review</option>
+            <option value="false">No Review Needed</option>
+          </select>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{sessions.length.toLocaleString()}</span> sessions
+        </div>
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden overflow-hidden rounded-sm border-2 border-[#2B2B2B] bg-white sm:block">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b-2 border-[#2B2B2B] bg-gray-50">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Student
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                File
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Assignment
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Rubric
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Score
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Confidence
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Grading Tokens
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Sparring Tokens
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Review
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                  Loading grading sessions...
-                </td>
+      <div className="hidden rounded-sm border-2 border-[#2B2B2B] bg-card sm:block dark:border-gray-200">
+        <div className="max-h-[68vh] overflow-auto">
+          <table className="w-full min-w-[1200px]">
+            <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur-sm">
+              <tr className="border-b-2 border-[#2B2B2B]">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Student
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  File
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Assignment
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Rubric
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Score
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Confidence
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Grading Tokens
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Sparring Tokens
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Review
+                </th>
               </tr>
-            ) : sessions.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                  No grading sessions found
-                </td>
-              </tr>
-            ) : (
-              sessions.map((session) => (
-                <tr
-                  key={session.id}
-                  className="transition-colors hover:bg-[#D2691E]/5"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
-                        <AvatarImage src={session.uploadedFile.user.picture} alt={session.uploadedFile.user.name} />
-                        <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
-                          {getInitials(session.uploadedFile.user.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {session.uploadedFile.user.name}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {session.uploadedFile.user.email}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <div
-                          className="max-w-[220px] truncate text-sm text-gray-900"
-                          title={session.uploadedFile.fileName}
-                        >
-                          {session.uploadedFile.fileName}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {formatDateOnlyInTimeZone(session.createdAt)}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {session.assignmentArea?.name || '-'}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {session.rubric.name}
-                  </td>
-                  <td className="px-4 py-3">
-                    {session.normalizedScore !== null ? (
-                      <div className="flex items-center gap-1">
-                        <Award className="h-4 w-4 text-[#D2691E]" />
-                        <span className="font-medium text-gray-900">
-                          {session.normalizedScore.toFixed(1)}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {session.confidenceScore !== null ? (
-                      <ConfidenceBadge score={session.confidenceScore} />
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 text-sm text-gray-900">
-                      <Clock className="h-3 w-3 text-gray-400" />
-                      {session.gradingTokens?.toLocaleString() || '-'}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 text-sm text-gray-900">
-                      <Clock className="h-3 w-3 text-gray-400" />
-                      {session.sparringTokens?.toLocaleString() || '-'}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {session.requiresReview ? (
-                      <div className="flex items-center gap-1 text-xs text-amber-700">
-                        <AlertCircle className="h-4 w-4" />
-                        Review
-                      </div>
-                    ) : (
-                      <span className="text-xs text-green-600">✓ OK</span>
-                    )}
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                    Loading grading sessions...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : sessions.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                    No grading sessions found
+                  </td>
+                </tr>
+              ) : (
+                sessions.map((session, index) => (
+                  <tr
+                    key={session.id}
+                    className={`transition-colors hover:bg-[#D2691E]/5 dark:hover:bg-[#E87D3E]/10 ${
+                      index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                          <AvatarImage src={session.uploadedFile.user.picture} alt={session.uploadedFile.user.name} />
+                          <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                            {getInitials(session.uploadedFile.user.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium text-foreground">{session.uploadedFile.user.name}</div>
+                          <div className="text-xs text-muted-foreground">{session.uploadedFile.user.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-gray-400" />
+                        <div>
+                          <div
+                            className="max-w-[220px] truncate text-sm text-foreground"
+                            title={session.uploadedFile.fileName}
+                          >
+                            {session.uploadedFile.fileName}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatDateOnlyInTimeZone(session.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground">{session.assignmentArea?.name || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">{session.rubric.name}</td>
+                    <td className="px-4 py-3">
+                      {session.normalizedScore !== null ? (
+                        <div className="flex items-center gap-1">
+                          <Award className="h-4 w-4 text-[#D2691E]" />
+                          <span className="font-medium text-foreground">{session.normalizedScore.toFixed(1)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {session.confidenceScore !== null ? (
+                        <ConfidenceBadge score={session.confidenceScore} />
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 text-sm text-foreground">
+                        <Clock className="h-3 w-3 text-gray-400" />
+                        {session.gradingTokens?.toLocaleString() || '-'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 text-sm text-foreground">
+                        <Clock className="h-3 w-3 text-gray-400" />
+                        {session.sparringTokens?.toLocaleString() || '-'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {session.requiresReview ? (
+                        <div className="flex items-center gap-1 text-xs text-amber-700">
+                          <AlertCircle className="h-4 w-4" />
+                          Review
+                        </div>
+                      ) : (
+                        <span className="text-xs text-green-600">✓ OK</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Mobile Card View */}
@@ -236,10 +235,7 @@ export function GradingSessionsTab() {
           <div className="py-8 text-center text-gray-500">No grading sessions found</div>
         ) : (
           sessions.map((session) => (
-            <div
-              key={session.id}
-              className="rounded-sm border-2 border-[#2B2B2B] bg-white p-4"
-            >
+            <div key={session.id} className="rounded-sm border-2 border-[#2B2B2B] bg-card p-4 dark:border-gray-200">
               <div className="mb-3 flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
@@ -249,12 +245,8 @@ export function GradingSessionsTab() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="font-medium text-gray-900">
-                      {session.uploadedFile.user.name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {session.uploadedFile.user.email}
-                    </div>
+                    <div className="font-medium text-gray-900">{session.uploadedFile.user.name}</div>
+                    <div className="text-xs text-gray-500">{session.uploadedFile.user.email}</div>
                   </div>
                 </div>
                 <div>
@@ -290,15 +282,11 @@ export function GradingSessionsTab() {
               <div className="mb-3 grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded bg-gray-50 p-2">
                   <div className="text-gray-500">Assignment</div>
-                  <div className="font-medium text-gray-900 truncate">
-                    {session.assignmentArea?.name || '-'}
-                  </div>
+                  <div className="font-medium text-gray-900 truncate">{session.assignmentArea?.name || '-'}</div>
                 </div>
                 <div className="rounded bg-gray-50 p-2">
                   <div className="text-gray-500">Rubric</div>
-                  <div className="font-medium text-gray-900 truncate">
-                    {session.rubric.name}
-                  </div>
+                  <div className="font-medium text-gray-900 truncate">{session.rubric.name}</div>
                 </div>
               </div>
 
@@ -309,20 +297,18 @@ export function GradingSessionsTab() {
                   <div className="flex items-center gap-1">
                     <Award className="h-4 w-4 text-[#D2691E]" />
                     <span className="font-bold text-gray-900">
-                      {session.normalizedScore !== null
-                        ? session.normalizedScore.toFixed(1)
-                        : '-'}
+                      {session.normalizedScore !== null ? session.normalizedScore.toFixed(1) : '-'}
                     </span>
                   </div>
                 </div>
 
                 <div className="text-center">
-                   <div className="mb-1 text-xs text-gray-500">Confidence</div>
-                   {session.confidenceScore !== null ? (
-                      <ConfidenceBadge score={session.confidenceScore} />
-                   ) : (
-                      <span className="text-gray-400">-</span>
-                   )}
+                  <div className="mb-1 text-xs text-gray-500">Confidence</div>
+                  {session.confidenceScore !== null ? (
+                    <ConfidenceBadge score={session.confidenceScore} />
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
                 </div>
 
                 <div className="text-right">
@@ -351,10 +337,6 @@ function ConfidenceBadge({ score }: { score: number }) {
         : 'bg-red-100 text-red-800 border-red-300';
 
   return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${color}`}
-    >
-      {percentage}%
-    </span>
+    <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${color}`}>{percentage}%</span>
   );
 }

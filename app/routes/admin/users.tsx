@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react';
-import { useRouteError, isRouteErrorResponse, useFetcher } from 'react-router';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  useFetcher,
+  useLoaderData,
+  useNavigate,
+  useNavigation,
+  useRouteError,
+  isRouteErrorResponse,
+} from 'react-router';
 import type { Route } from './+types/users';
-import { requireAdmin } from '@/services/auth.server';
+import { requireAdmin, updateUserRoleAsAdmin } from '@/services/auth.server';
+import { db } from '@/lib/db.server';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ErrorPage } from '@/components/errors/ErrorPage';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -23,22 +25,17 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { formatDateTimeInTimeZone } from '@/lib/date';
+import logger from '@/utils/logger';
 
-/**
- * Admin User Management Page
- * Architectural sketch style for user management
- */
-
-export async function loader({ request }: Route.LoaderArgs) {
-  await requireAdmin(request);
-  return null;
-}
+type SortField = 'createdAt' | 'name' | 'role';
+type SortOrder = 'asc' | 'desc';
+type UserRole = 'STUDENT' | 'TEACHER' | 'ADMIN';
 
 interface User {
   id: string;
   email: string;
   name: string;
-  role: 'STUDENT' | 'TEACHER' | 'ADMIN';
+  role: UserRole;
   picture: string;
   createdAt: string;
   hasSelectedRole: boolean;
@@ -52,175 +49,417 @@ interface UserStats {
   admins: number;
 }
 
-interface UsersData {
+interface LoaderData {
   users: User[];
   stats: UserStats;
+  currentUserId: string;
+  sortBy: SortField;
+  sortOrder: SortOrder;
 }
 
-type SortField = 'createdAt' | 'name' | 'role';
-type SortOrder = 'asc' | 'desc';
+type ActionData =
+  | {
+      success: true;
+      intent: 'update-role' | 'toggle-ai' | 'delete';
+      userId: string;
+      role?: UserRole;
+      aiEnabled?: boolean;
+      message: string;
+    }
+  | {
+      success: false;
+      intent: 'update-role' | 'toggle-ai' | 'delete' | 'unknown';
+      userId?: string;
+      error: string;
+    };
+
+function parseSortField(value: string | null): SortField {
+  if (value === 'name' || value === 'role' || value === 'createdAt') {
+    return value;
+  }
+  return 'createdAt';
+}
+
+function parseSortOrder(value: string | null): SortOrder {
+  if (value === 'asc' || value === 'desc') {
+    return value;
+  }
+  return 'desc';
+}
+
+export async function loader({ request }: Route.LoaderArgs): Promise<LoaderData> {
+  const admin = await requireAdmin(request);
+
+  const url = new URL(request.url);
+  const sortBy = parseSortField(url.searchParams.get('sortBy'));
+  const sortOrder = parseSortOrder(url.searchParams.get('order'));
+
+  const orderBy =
+    sortBy === 'name' ? { name: sortOrder } : sortBy === 'role' ? { role: sortOrder } : { createdAt: sortOrder };
+
+  const users = await db.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      picture: true,
+      createdAt: true,
+      hasSelectedRole: true,
+      aiEnabled: true,
+    },
+    orderBy,
+  });
+
+  const stats = users.reduce<UserStats>(
+    (acc, user) => {
+      acc.total += 1;
+      if (user.role === 'STUDENT') acc.students += 1;
+      if (user.role === 'TEACHER') acc.teachers += 1;
+      if (user.role === 'ADMIN') acc.admins += 1;
+      return acc;
+    },
+    { total: 0, students: 0, teachers: 0, admins: 0 }
+  );
+
+  return {
+    users: users.map((user) => ({
+      ...user,
+      createdAt: user.createdAt.toISOString(),
+    })),
+    stats,
+    currentUserId: admin.id,
+    sortBy,
+    sortOrder,
+  };
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  const admin = await requireAdmin(request);
+
+  const formData = await request.formData();
+  const intent = formData.get('intent');
+  const userId = formData.get('userId');
+
+  if (typeof userId !== 'string' || userId.length === 0) {
+    return Response.json(
+      {
+        success: false,
+        intent: 'unknown',
+        error: 'User ID is required',
+      },
+      { status: 400 }
+    );
+  }
+
+  if (intent === 'toggle-ai') {
+    const aiEnabledRaw = formData.get('aiEnabled');
+
+    if (aiEnabledRaw !== 'true' && aiEnabledRaw !== 'false') {
+      return Response.json(
+        {
+          success: false,
+          intent: 'toggle-ai',
+          userId,
+          error: 'Invalid aiEnabled value',
+        },
+        { status: 400 }
+      );
+    }
+
+    try {
+      const target = await db.user.findUnique({
+        where: { id: userId },
+        select: { id: true, role: true },
+      });
+
+      if (!target) {
+        return Response.json(
+          {
+            success: false,
+            intent: 'toggle-ai',
+            userId,
+            error: 'User not found',
+          },
+          { status: 404 }
+        );
+      }
+
+      if (target.role === 'ADMIN') {
+        return Response.json(
+          {
+            success: false,
+            intent: 'toggle-ai',
+            userId,
+            error: 'AI access for admin users is always enabled',
+          },
+          { status: 400 }
+        );
+      }
+
+      const aiEnabled = aiEnabledRaw === 'true';
+
+      await db.user.update({
+        where: { id: userId },
+        data: { aiEnabled },
+      });
+
+      return Response.json({
+        success: true,
+        intent: 'toggle-ai',
+        userId,
+        aiEnabled,
+        message: aiEnabled ? 'AI 功能已啟用' : 'AI 功能已停用',
+      });
+    } catch (error) {
+      logger.error({ error, userId, adminId: admin.id }, 'Failed to toggle AI access');
+      return Response.json(
+        {
+          success: false,
+          intent: 'toggle-ai',
+          userId,
+          error: 'Failed to update AI access',
+        },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (intent === 'update-role') {
+    const role = formData.get('role');
+
+    if (role !== 'STUDENT' && role !== 'TEACHER' && role !== 'ADMIN') {
+      return Response.json(
+        {
+          success: false,
+          intent: 'update-role',
+          userId,
+          error: 'Invalid role',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (userId === admin.id) {
+      return Response.json(
+        {
+          success: false,
+          intent: 'update-role',
+          userId,
+          error: 'Cannot change your own role',
+        },
+        { status: 403 }
+      );
+    }
+
+    try {
+      await updateUserRoleAsAdmin(userId, role);
+
+      return Response.json({
+        success: true,
+        intent: 'update-role',
+        userId,
+        role,
+        message: `Role updated to ${role}`,
+      });
+    } catch (error) {
+      logger.error({ error, userId, role, adminId: admin.id }, 'Failed to update user role');
+      return Response.json(
+        {
+          success: false,
+          intent: 'update-role',
+          userId,
+          error: 'Failed to update role',
+        },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (intent === 'delete') {
+    if (userId === admin.id) {
+      return Response.json(
+        {
+          success: false,
+          intent: 'delete',
+          userId,
+          error: 'Cannot delete your own account',
+        },
+        { status: 403 }
+      );
+    }
+
+    try {
+      const target = await db.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+
+      if (!target) {
+        return Response.json(
+          {
+            success: false,
+            intent: 'delete',
+            userId,
+            error: 'User not found',
+          },
+          { status: 404 }
+        );
+      }
+
+      await db.user.delete({ where: { id: userId } });
+
+      return Response.json({
+        success: true,
+        intent: 'delete',
+        userId,
+        message: 'User deleted successfully',
+      });
+    } catch (error) {
+      logger.error({ error, userId, adminId: admin.id }, 'Failed to delete user');
+      return Response.json(
+        {
+          success: false,
+          intent: 'delete',
+          userId,
+          error: 'Failed to delete user',
+        },
+        { status: 500 }
+      );
+    }
+  }
+
+  return Response.json(
+    {
+      success: false,
+      intent: 'unknown',
+      error: 'Invalid action',
+    },
+    { status: 400 }
+  );
+}
 
 export default function AdminUsersPage() {
   const { t } = useTranslation('common');
-  const [sortBy, setSortBy] = useState<SortField>('createdAt');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [data, setData] = useState<UsersData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { users, stats, currentUserId, sortBy, sortOrder } = useLoaderData<typeof loader>();
+
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null);
   const [editingRoleUserId, setEditingRoleUserId] = useState<string | null>(null);
-  const [selectedRole, setSelectedRole] = useState<'STUDENT' | 'TEACHER' | 'ADMIN' | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [optimisticAI, setOptimisticAI] = useState<Record<string, boolean>>({});
 
-  const deleteFetcher = useFetcher();
+  const mutationFetcher = useFetcher<ActionData>();
+  const navigate = useNavigate();
+  const navigation = useNavigation();
 
-  // Fetch users with sorting
-  const fetchUsers = async (sortField: SortField, order: SortOrder) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/admin/users?sortBy=${sortField}&order=${order}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch users');
-      }
-      const result: UsersData = await response.json();
-      setData(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const pendingUserId = mutationFetcher.formData?.get('userId');
 
-  // Initial fetch and get current user
+  const isSorting =
+    navigation.state !== 'idle' &&
+    navigation.location?.pathname === '/admin/users' &&
+    navigation.location.search !== `?${new URLSearchParams({ sortBy, order: sortOrder }).toString()}`;
+
   useEffect(() => {
-    fetchUsers(sortBy, sortOrder);
-    // Get current user ID from auth check
-    fetch('/api/auth/check')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.userId) setCurrentUserId(data.userId);
-      })
-      .catch(() => {});
-  }, []);
+    if (!mutationFetcher.data || mutationFetcher.state !== 'idle') return;
 
-  // Handle sort change
+    if (mutationFetcher.data.success) {
+      toast.success(mutationFetcher.data.message);
+
+      if (mutationFetcher.data.intent === 'update-role') {
+        setEditingRoleUserId(null);
+        setSelectedRole(null);
+      }
+
+      if (mutationFetcher.data.intent === 'delete') {
+        setDeleteUserId(null);
+      }
+    } else {
+      toast.error(mutationFetcher.data.error || t('adminUsers.toasts.updateFailed'));
+    }
+
+    if (mutationFetcher.data.intent === 'toggle-ai' && mutationFetcher.data.userId) {
+      const targetUserId = mutationFetcher.data.userId;
+      setOptimisticAI((prev) => {
+        const next = { ...prev };
+        delete next[targetUserId];
+        return next;
+      });
+    }
+  }, [mutationFetcher.data, mutationFetcher.state, t]);
+
+  const updateSort = (nextSortBy: SortField, nextSortOrder: SortOrder) => {
+    const params = new URLSearchParams();
+    params.set('sortBy', nextSortBy);
+    params.set('order', nextSortOrder);
+    navigate(`/admin/users?${params.toString()}`, { replace: true, preventScrollReset: true });
+  };
+
   const handleSort = (field: SortField) => {
-    const newOrder = sortBy === field && sortOrder === 'desc' ? 'asc' : 'desc';
-    setSortBy(field);
-    setSortOrder(newOrder);
-    fetchUsers(field, newOrder);
+    const nextOrder = sortBy === field && sortOrder === 'desc' ? 'asc' : 'desc';
+    updateSort(field, nextOrder);
   };
 
-  // Handle delete user
   const handleDelete = (userId: string) => {
-    deleteFetcher.submit(
-      {},
+    mutationFetcher.submit(
       {
-        method: 'DELETE',
-        action: `/api/admin/users/${userId}`,
-      }
+        intent: 'delete',
+        userId,
+      },
+      { method: 'post' }
     );
-    setDeleteUserId(null);
-    toast.success('User deleted successfully');
-    // Refresh users after deletion
-    setTimeout(() => fetchUsers(sortBy, sortOrder), 500);
   };
 
-  // Handle role update
-  const handleRoleUpdate = async (userId: string, newRole: 'STUDENT' | 'TEACHER' | 'ADMIN') => {
-    try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: newRole }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update role');
-      }
-
-      toast.success(`Role updated to ${newRole}`);
-      setEditingRoleUserId(null);
-      setSelectedRole(null);
-      // Refresh users
-      fetchUsers(sortBy, sortOrder);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('adminUsers.toasts.updateRoleFailed'));
-    }
+  const handleRoleUpdate = (userId: string, role: UserRole) => {
+    mutationFetcher.submit(
+      {
+        intent: 'update-role',
+        userId,
+        role,
+      },
+      { method: 'post' }
+    );
   };
 
-  // Handle AI access toggle
-  const handleAIToggle = async (userId: string, newValue: boolean) => {
-    try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aiEnabled: newValue }),
-      });
+  const handleAIToggle = (userId: string, aiEnabled: boolean) => {
+    setOptimisticAI((prev) => ({ ...prev, [userId]: aiEnabled }));
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update AI access');
-      }
-
-      toast.success(newValue ? 'AI 功能已啟用' : 'AI 功能已停用');
-      // Refresh users
-      fetchUsers(sortBy, sortOrder);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('adminUsers.toasts.updateAIAccessFailed'));
-    }
+    mutationFetcher.submit(
+      {
+        intent: 'toggle-ai',
+        userId,
+        aiEnabled: String(aiEnabled),
+      },
+      { method: 'post' }
+    );
   };
 
-  // Format date
   const formatDate = (dateString: string) => {
     return formatDateTimeInTimeZone(dateString);
   };
 
-
-  // Sort indicator
   const SortIndicator = ({ field }: { field: SortField }) => {
     if (sortBy !== field) return <span className="ml-1 text-xs text-gray-400 dark:text-gray-600">↕</span>;
     return <span className="ml-1 text-xs text-[#D2691E] dark:text-[#E87D3E]">{sortOrder === 'desc' ? '↓' : '↑'}</span>;
   };
 
-  // Get user initials for avatar fallback
   const getInitials = (name: string) => {
     return name
       .split(' ')
-      .map((n) => n[0])
+      .map((part) => part[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
   };
 
-  if (error) {
-    return (
-      <div className="min-h-screen px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="border-2 border-[#D2691E] p-8 dark:border-[#E87D3E]">
-            <h2 className="font-serif text-xl font-light text-[#D2691E] dark:text-[#E87D3E]">Error</h2>
-            <p className="mt-3 text-gray-600 dark:text-gray-400">{error}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading || !data) {
-    return (
-      <div className="flex min-h-screen items-center justify-center px-4">
-        <p className="font-serif text-lg text-gray-600 dark:text-gray-400">Loading users...</p>
-      </div>
-    );
-  }
+  const usersWithOptimisticAI = useMemo(() => {
+    return users.map((user) => ({
+      ...user,
+      aiEnabled: optimisticAI[user.id] ?? user.aiEnabled,
+    }));
+  }, [optimisticAI, users]);
 
   return (
     <div className="min-h-screen">
-      {/* Header - Architectural Sketch Style */}
       <header className="border-b-2 border-[#2B2B2B] dark:border-gray-200">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           <h1 className="font-serif text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100 sm:text-4xl">
@@ -231,38 +470,29 @@ export default function AdminUsersPage() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        {/* Statistics - Sketch Cards */}
         <div className="mb-16 grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-4">
           <div className="border-2 border-[#2B2B2B] p-6 dark:border-gray-200">
             <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Total Users</p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{data.stats.total}</p>
+            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{stats.total}</p>
           </div>
           <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
             <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Students</p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
-              {data.stats.students}
-            </p>
+            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{stats.students}</p>
           </div>
           <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
             <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Teachers</p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">
-              {data.stats.teachers}
-            </p>
+            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{stats.teachers}</p>
           </div>
           <div className="border-2 border-[#2B2B2B] p-6 transition-colors hover:border-[#D2691E] dark:border-gray-200 dark:hover:border-[#E87D3E]">
             <p className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">Admins</p>
-            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{data.stats.admins}</p>
+            <p className="mt-3 font-serif text-4xl font-light text-[#2B2B2B] dark:text-gray-100">{stats.admins}</p>
           </div>
         </div>
 
-        {/* Mobile Sort Controls */}
+        {isSorting && <div className="mb-6 text-sm text-gray-500 dark:text-gray-400">Refreshing users...</div>}
+
         <div className="mb-6 grid grid-cols-2 gap-3 md:hidden">
-          <Select
-            value={sortBy}
-            onValueChange={(value) => {
-              handleSort(value as SortField);
-            }}
-          >
+          <Select value={sortBy} onValueChange={(value) => updateSort(value as SortField, sortOrder)}>
             <SelectTrigger className="border-2 border-[#2B2B2B]">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
@@ -273,13 +503,7 @@ export default function AdminUsersPage() {
             </SelectContent>
           </Select>
 
-          <Select
-            value={sortOrder}
-            onValueChange={(value) => {
-              setSortOrder(value as SortOrder);
-              fetchUsers(sortBy, value as SortOrder);
-            }}
-          >
+          <Select value={sortOrder} onValueChange={(value) => updateSort(sortBy, value as SortOrder)}>
             <SelectTrigger className="border-2 border-[#2B2B2B]">
               <SelectValue placeholder="Order" />
             </SelectTrigger>
@@ -290,115 +514,125 @@ export default function AdminUsersPage() {
           </Select>
         </div>
 
-        {/* Mobile Cards */}
         <div className="space-y-4 md:hidden">
-          {data.users.map((user) => (
-            <article key={user.id} className="border-2 border-[#2B2B2B] p-4 dark:border-gray-200">
-              <div className="flex items-start gap-3">
-                <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
-                  <AvatarImage src={user.picture} alt={user.name} />
-                  <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
-                    {getInitials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-serif text-lg font-light text-[#2B2B2B] dark:text-gray-100">{user.name}</p>
-                  <p className="mt-0.5 truncate text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">Registered: {formatDate(user.createdAt)}</p>
-                </div>
-              </div>
+          {usersWithOptimisticAI.map((user) => {
+            const isPendingForUser = mutationFetcher.state !== 'idle' && pendingUserId === user.id;
 
-              <div className="mt-4 space-y-3 border-t border-[#2B2B2B] pt-3 dark:border-gray-200">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">Role</span>
-                  {editingRoleUserId === user.id ? (
-                    <Select
-                      value={selectedRole || user.role}
-                      onValueChange={(value) => setSelectedRole(value as 'STUDENT' | 'TEACHER' | 'ADMIN')}
-                    >
-                      <SelectTrigger className="h-11 w-36 border-2 border-[#2B2B2B] dark:border-gray-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="STUDENT">Student</SelectItem>
-                        <SelectItem value="TEACHER">Teacher</SelectItem>
-                        <SelectItem value="ADMIN">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={user.id === currentUserId}
-                      className={`min-h-[44px] border-2 px-3 text-xs font-medium uppercase tracking-wider transition-all ${
-                        user.id === currentUserId
-                          ? 'cursor-not-allowed border-[#2B2B2B] text-[#2B2B2B]/40 dark:border-gray-200 dark:text-gray-200/40'
-                          : 'cursor-pointer border-[#2B2B2B] text-[#2B2B2B] hover:border-[#D2691E] hover:bg-[#D2691E]/5 hover:text-[#D2691E] dark:border-gray-200 dark:text-gray-200 dark:hover:border-[#E87D3E] dark:hover:bg-[#E87D3E]/10 dark:hover:text-[#E87D3E]'
-                      }`}
-                      onClick={() => {
-                        if (user.id !== currentUserId) {
+            return (
+              <article key={user.id} className="border-2 border-[#2B2B2B] p-4 dark:border-gray-200">
+                <div className="flex items-start gap-3">
+                  <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                    <AvatarImage src={user.picture} alt={user.name} />
+                    <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                      {getInitials(user.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-serif text-lg font-light text-[#2B2B2B] dark:text-gray-100">
+                      {user.name}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                      Registered: {formatDate(user.createdAt)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3 border-t border-[#2B2B2B] pt-3 dark:border-gray-200">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                      Role
+                    </span>
+                    {editingRoleUserId === user.id ? (
+                      <Select
+                        value={selectedRole || user.role}
+                        onValueChange={(value) => setSelectedRole(value as UserRole)}
+                      >
+                        <SelectTrigger className="h-11 w-36 border-2 border-[#2B2B2B] dark:border-gray-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="STUDENT">Student</SelectItem>
+                          <SelectItem value="TEACHER">Teacher</SelectItem>
+                          <SelectItem value="ADMIN">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={user.id === currentUserId || isPendingForUser}
+                        className={`min-h-[44px] border-2 px-3 text-xs font-medium uppercase tracking-wider transition-all ${
+                          user.id === currentUserId
+                            ? 'cursor-not-allowed border-[#2B2B2B] text-[#2B2B2B]/40 dark:border-gray-200 dark:text-gray-200/40'
+                            : 'cursor-pointer border-[#2B2B2B] text-[#2B2B2B] hover:border-[#D2691E] hover:bg-[#D2691E]/5 hover:text-[#D2691E] dark:border-gray-200 dark:text-gray-200 dark:hover:border-[#E87D3E] dark:hover:bg-[#E87D3E]/10 dark:hover:text-[#E87D3E]'
+                        }`}
+                        onClick={() => {
                           setEditingRoleUserId(user.id);
                           setSelectedRole(user.role);
-                        }
-                      }}
-                    >
-                      {user.role}
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">AI Access</span>
-                  {user.role === 'ADMIN' ? (
-                    <span className="text-sm text-gray-500 dark:text-gray-500">Always enabled</span>
-                  ) : (
-                    <Switch
-                      checked={user.aiEnabled}
-                      onCheckedChange={(checked) => handleAIToggle(user.id, checked)}
-                      className="data-[state=checked]:bg-[#D2691E] dark:data-[state=checked]:bg-[#E87D3E]"
-                    />
-                  )}
-                </div>
-
-                {editingRoleUserId === user.id ? (
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => handleRoleUpdate(user.id, selectedRole || user.role)}
-                      className="min-h-[44px] flex-1 border-2 border-[#2B2B2B] px-4 text-sm font-medium text-[#2B2B2B] hover:border-[#D2691E] hover:text-[#D2691E] dark:border-gray-200 dark:text-gray-200 dark:hover:border-[#E87D3E] dark:hover:text-[#E87D3E]"
-                    >
-                      Save Role
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingRoleUserId(null);
-                        setSelectedRole(null);
-                      }}
-                      className="min-h-[44px] flex-1 border-2 border-gray-400 px-4 text-sm font-medium text-gray-600 hover:border-[#2B2B2B] hover:text-[#2B2B2B] dark:border-gray-500 dark:text-gray-300 dark:hover:border-gray-200 dark:hover:text-gray-100"
-                    >
-                      Cancel
-                    </button>
+                        }}
+                      >
+                        {user.role}
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteUserId(user.id)}
-                    disabled={user.id === currentUserId}
-                    className={`min-h-[44px] w-full border-2 px-4 text-sm font-medium transition-colors ${
-                      user.id === currentUserId
-                        ? 'cursor-not-allowed border-gray-300 text-gray-400 dark:border-gray-700 dark:text-gray-600'
-                        : 'border-[#D2691E] text-[#D2691E] hover:bg-[#D2691E]/10 dark:border-[#E87D3E] dark:text-[#E87D3E] dark:hover:bg-[#E87D3E]/10'
-                    }`}
-                  >
-                    {user.id === currentUserId ? 'Current user' : 'Delete user'}
-                  </button>
-                )}
-              </div>
-            </article>
-          ))}
+
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                      AI Access
+                    </span>
+                    {user.role === 'ADMIN' ? (
+                      <span className="text-sm text-gray-500 dark:text-gray-500">Always enabled</span>
+                    ) : (
+                      <Switch
+                        checked={user.aiEnabled}
+                        disabled={isPendingForUser}
+                        onCheckedChange={(checked) => handleAIToggle(user.id, checked)}
+                        className="data-[state=checked]:bg-[#D2691E] dark:data-[state=checked]:bg-[#E87D3E]"
+                      />
+                    )}
+                  </div>
+
+                  {editingRoleUserId === user.id ? (
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        type="button"
+                        disabled={isPendingForUser}
+                        onClick={() => handleRoleUpdate(user.id, selectedRole || user.role)}
+                        className="min-h-[44px] flex-1 border-2 border-[#2B2B2B] px-4 text-sm font-medium text-[#2B2B2B] hover:border-[#D2691E] hover:text-[#D2691E] disabled:opacity-50 dark:border-gray-200 dark:text-gray-200 dark:hover:border-[#E87D3E] dark:hover:text-[#E87D3E]"
+                      >
+                        Save Role
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingRoleUserId(null);
+                          setSelectedRole(null);
+                        }}
+                        className="min-h-[44px] flex-1 border-2 border-gray-400 px-4 text-sm font-medium text-gray-600 hover:border-[#2B2B2B] hover:text-[#2B2B2B] dark:border-gray-500 dark:text-gray-300 dark:hover:border-gray-200 dark:hover:text-gray-100"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setDeleteUserId(user.id)}
+                      disabled={user.id === currentUserId || isPendingForUser}
+                      className={`min-h-[44px] w-full border-2 px-4 text-sm font-medium transition-colors ${
+                        user.id === currentUserId
+                          ? 'cursor-not-allowed border-gray-300 text-gray-400 dark:border-gray-700 dark:text-gray-600'
+                          : 'border-[#D2691E] text-[#D2691E] hover:bg-[#D2691E]/10 dark:border-[#E87D3E] dark:text-[#E87D3E] dark:hover:bg-[#E87D3E]/10'
+                      }`}
+                    >
+                      {user.id === currentUserId ? 'Current user' : 'Delete user'}
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
 
-        {/* Desktop Table - Hand-drawn borders */}
         <div className="hidden overflow-x-auto md:block">
           <table className="w-full border-2 border-[#2B2B2B] dark:border-gray-200">
             <thead>
@@ -436,120 +670,127 @@ export default function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {data.users.map((user, index) => (
-                <tr
-                  key={user.id}
-                  className={`transition-colors hover:bg-[#D2691E]/5 dark:hover:bg-[#E87D3E]/10 ${
-                    index === data.users.length - 1 ? '' : 'border-b border-[#2B2B2B] dark:border-gray-200'
-                  }`}
-                >
-                  <td className="px-4 py-5">
-                    <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
-                      <AvatarImage src={user.picture} alt={user.name} />
-                      <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
-                        {getInitials(user.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </td>
-                  <td className="px-4 py-5">
-                    <p className="font-serif font-light text-[#2B2B2B] dark:text-gray-100">{user.name}</p>
-                    <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400 sm:hidden">{user.email}</p>
-                  </td>
-                  <td className="hidden px-4 py-5 sm:table-cell">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
-                  </td>
-                  <td className="px-4 py-5">
-                    {editingRoleUserId === user.id ? (
-                      <Select
-                        value={selectedRole || user.role}
-                        onValueChange={(value) =>
-                          setSelectedRole(value as 'STUDENT' | 'TEACHER' | 'ADMIN')
-                        }
-                      >
-                        <SelectTrigger className="w-32 border-2 border-[#2B2B2B] dark:border-gray-200">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="STUDENT">Student</SelectItem>
-                          <SelectItem value="TEACHER">Teacher</SelectItem>
-                          <SelectItem value="ADMIN">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span
-                        className={`inline-block border-2 border-[#2B2B2B] px-3 py-1 text-xs font-medium uppercase tracking-wider text-[#2B2B2B] transition-all dark:border-gray-200 dark:text-gray-200 ${
-                          user.id === currentUserId 
-                            ? 'cursor-not-allowed opacity-40' 
-                            : 'cursor-pointer hover:border-[#D2691E] hover:bg-[#D2691E]/5 hover:text-[#D2691E] dark:hover:border-[#E87D3E] dark:hover:bg-[#E87D3E]/10 dark:hover:text-[#E87D3E]'
-                        }`}
-                        onClick={() => {
-                          if (user.id !== currentUserId) {
-                            setEditingRoleUserId(user.id);
-                            setSelectedRole(user.role);
-                          }
-                        }}
-                      >
-                        {user.role}
-                      </span>
-                    )}
-                  </td>
-                  <td className="hidden px-4 py-5 md:table-cell">
-                    <p className="font-serif text-sm text-gray-600 dark:text-gray-400">{formatDate(user.createdAt)}</p>
-                  </td>
-                  <td className="px-4 py-5 text-center">
-                    {user.role === 'ADMIN' ? (
-                      <span className="text-xs text-gray-400 dark:text-gray-500">Always</span>
-                    ) : (
-                      <Switch
-                        checked={user.aiEnabled}
-                        onCheckedChange={(checked) => handleAIToggle(user.id, checked)}
-                        className="data-[state=checked]:bg-[#D2691E] dark:data-[state=checked]:bg-[#E87D3E]"
-                      />
-                    )}
-                  </td>
-                  <td className="px-4 py-5">
-                    <div className="flex justify-end gap-4">
+              {usersWithOptimisticAI.map((user, index) => {
+                const isPendingForUser = mutationFetcher.state !== 'idle' && pendingUserId === user.id;
+                return (
+                  <tr
+                    key={user.id}
+                    className={`transition-colors hover:bg-[#D2691E]/5 dark:hover:bg-[#E87D3E]/10 ${
+                      index === usersWithOptimisticAI.length - 1 ? '' : 'border-b border-[#2B2B2B] dark:border-gray-200'
+                    }`}
+                  >
+                    <td className="px-4 py-5">
+                      <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                        <AvatarImage src={user.picture} alt={user.name} />
+                        <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </td>
+                    <td className="px-4 py-5">
+                      <p className="font-serif font-light text-[#2B2B2B] dark:text-gray-100">{user.name}</p>
+                      <p className="mt-0.5 text-sm text-gray-600 dark:text-gray-400 sm:hidden">{user.email}</p>
+                    </td>
+                    <td className="hidden px-4 py-5 sm:table-cell">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
+                    </td>
+                    <td className="px-4 py-5">
                       {editingRoleUserId === user.id ? (
-                        <>
-                          <button
-                            onClick={() => handleRoleUpdate(user.id, selectedRole || user.role)}
-                            className="text-sm font-medium text-[#2B2B2B] underline-offset-4 hover:text-[#D2691E] hover:underline dark:text-gray-200 dark:hover:text-[#E87D3E]"
-                          >
-                            Save
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingRoleUserId(null);
-                              setSelectedRole(null);
-                            }}
-                            className="text-sm font-medium text-gray-600 underline-offset-4 hover:text-[#2B2B2B] hover:underline dark:text-gray-400 dark:hover:text-gray-200"
-                          >
-                            Cancel
-                          </button>
-                        </>
+                        <Select
+                          value={selectedRole || user.role}
+                          onValueChange={(value) => setSelectedRole(value as UserRole)}
+                        >
+                          <SelectTrigger className="w-32 border-2 border-[#2B2B2B] dark:border-gray-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="STUDENT">Student</SelectItem>
+                            <SelectItem value="TEACHER">Teacher</SelectItem>
+                            <SelectItem value="ADMIN">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
                       ) : (
                         <button
-                          onClick={() => setDeleteUserId(user.id)}
-                          disabled={user.id === currentUserId}
-                          className={`text-sm font-medium underline-offset-4 ${
+                          type="button"
+                          disabled={user.id === currentUserId || isPendingForUser}
+                          className={`inline-block border-2 border-[#2B2B2B] px-3 py-1 text-xs font-medium uppercase tracking-wider text-[#2B2B2B] transition-all disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-200 dark:text-gray-200 ${
                             user.id === currentUserId
-                              ? 'cursor-not-allowed text-gray-400 dark:text-gray-600'
-                              : 'text-[#D2691E] hover:underline dark:text-[#E87D3E]'
+                              ? ''
+                              : 'cursor-pointer hover:border-[#D2691E] hover:bg-[#D2691E]/5 hover:text-[#D2691E] dark:hover:border-[#E87D3E] dark:hover:bg-[#E87D3E]/10 dark:hover:text-[#E87D3E]'
                           }`}
+                          onClick={() => {
+                            setEditingRoleUserId(user.id);
+                            setSelectedRole(user.role);
+                          }}
                         >
-                          {user.id === currentUserId ? 'You' : 'Delete'}
+                          {user.role}
                         </button>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="hidden px-4 py-5 md:table-cell">
+                      <p className="font-serif text-sm text-gray-600 dark:text-gray-400">
+                        {formatDate(user.createdAt)}
+                      </p>
+                    </td>
+                    <td className="px-4 py-5 text-center">
+                      {user.role === 'ADMIN' ? (
+                        <span className="text-xs text-gray-400 dark:text-gray-500">Always</span>
+                      ) : (
+                        <Switch
+                          checked={user.aiEnabled}
+                          disabled={isPendingForUser}
+                          onCheckedChange={(checked) => handleAIToggle(user.id, checked)}
+                          className="data-[state=checked]:bg-[#D2691E] dark:data-[state=checked]:bg-[#E87D3E]"
+                        />
+                      )}
+                    </td>
+                    <td className="px-4 py-5">
+                      <div className="flex justify-end gap-4">
+                        {editingRoleUserId === user.id ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={isPendingForUser}
+                              onClick={() => handleRoleUpdate(user.id, selectedRole || user.role)}
+                              className="text-sm font-medium text-[#2B2B2B] underline-offset-4 hover:text-[#D2691E] hover:underline disabled:opacity-50 dark:text-gray-200 dark:hover:text-[#E87D3E]"
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingRoleUserId(null);
+                                setSelectedRole(null);
+                              }}
+                              className="text-sm font-medium text-gray-600 underline-offset-4 hover:text-[#2B2B2B] hover:underline dark:text-gray-400 dark:hover:text-gray-200"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setDeleteUserId(user.id)}
+                            disabled={user.id === currentUserId || isPendingForUser}
+                            className={`text-sm font-medium underline-offset-4 ${
+                              user.id === currentUserId
+                                ? 'cursor-not-allowed text-gray-400 dark:text-gray-600'
+                                : 'text-[#D2691E] hover:underline dark:text-[#E87D3E]'
+                            }`}
+                          >
+                            {user.id === currentUserId ? 'You' : 'Delete'}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </main>
 
-      {/* Delete Confirmation Dialog - Sketch Style */}
       <Dialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
         <DialogContent className="border-2 border-[#2B2B2B] dark:border-gray-200">
           <DialogHeader>
@@ -557,20 +798,27 @@ export default function AdminUsersPage() {
               Confirm Deletion
             </DialogTitle>
             <DialogDescription className="text-gray-600 dark:text-gray-400">
-              Are you sure you want to delete this user? This action cannot be undone and will remove all
-              associated data.
+              Are you sure you want to delete this user? This action cannot be undone and will remove all associated
+              data.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-3">
             <button
+              type="button"
               onClick={() => setDeleteUserId(null)}
               className="border-2 border-[#2B2B2B] px-6 py-2 text-sm font-medium text-[#2B2B2B] transition-colors hover:bg-[#2B2B2B] hover:text-white dark:border-gray-200 dark:text-gray-200 dark:hover:bg-gray-200 dark:hover:text-gray-900"
             >
               Cancel
             </button>
             <button
-              onClick={() => deleteUserId && handleDelete(deleteUserId)}
-              className="border-2 border-[#D2691E] bg-[#D2691E] px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#D2691E]/90 dark:border-[#E87D3E] dark:bg-[#E87D3E]"
+              type="button"
+              disabled={!deleteUserId}
+              onClick={() => {
+                if (deleteUserId) {
+                  handleDelete(deleteUserId);
+                }
+              }}
+              className="border-2 border-[#D2691E] bg-[#D2691E] px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#D2691E]/90 disabled:opacity-50 dark:border-[#E87D3E] dark:bg-[#E87D3E]"
             >
               Delete User
             </button>
@@ -580,6 +828,7 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
 export function ErrorBoundary() {
   const error = useRouteError();
 

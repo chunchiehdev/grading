@@ -1,6 +1,6 @@
 /**
  * Admin Analytics Dashboard
- * 
+ *
  * Architectural sketch style dashboard for monitoring agent chats and grading sessions
  */
 
@@ -31,20 +31,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   // Fetch initial overview data
-  const [totalChatSessions, totalGradingSessions, chatTokenStats, gradingTokenStats] =
-    await Promise.all([
-      db.agentChatSession.count(),
-      db.gradingResult.count({ where: { status: 'COMPLETED' } }),
-      db.agentChatSession.aggregate({ _sum: { totalTokens: true } }),
-      db.gradingResult.aggregate({ _sum: { gradingTokens: true, sparringTokens: true } }), // Include sparring tokens
-    ]);
+  const [totalChatSessions, totalGradingSessions, chatTokenStats, gradingTokenStats] = await Promise.all([
+    db.agentChatSession.count(),
+    db.gradingResult.count({ where: { status: 'COMPLETED' } }),
+    db.agentChatSession.aggregate({ _sum: { totalTokens: true } }),
+    db.gradingResult.aggregate({ _sum: { gradingTokens: true, sparringTokens: true } }), // Include sparring tokens
+  ]);
 
   const overview = {
     totalChatSessions,
     totalGradingSessions,
     totalTokensUsed:
-      (chatTokenStats._sum.totalTokens || 0) + 
-      (gradingTokenStats._sum.gradingTokens || 0) + 
+      (chatTokenStats._sum.totalTokens || 0) +
+      (gradingTokenStats._sum.gradingTokens || 0) +
       (gradingTokenStats._sum.sparringTokens || 0), // Sum sparring tokens
   };
 
@@ -53,15 +52,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function AdminAnalytics() {
   const { user, overview } = useLoaderData<typeof loader>();
-  const [activeTab, setActiveTab] = useState<'chats' | 'gradings'>('chats');
+  const [activeTab, setActiveTab] = useState<'chats' | 'gradings'>('gradings');
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
       {/* Header */}
-      <header className="border-[#2B2B2B] backdrop-blur-sm dark:border-gray-200">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <header className="border-b-2 border-[#2B2B2B] backdrop-blur-sm dark:border-gray-200">
+        <div className="mx-auto max-w-[96rem] px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#D2691E] dark:text-[#E87D3E]">
+                Admin Insights
+              </p>
               <h1 className="font-serif text-3xl font-light tracking-tight text-[#2B2B2B] dark:text-gray-100">
                 Analytics Dashboard
               </h1>
@@ -77,46 +79,39 @@ export default function AdminAnalytics() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-[96rem] px-4 py-8 sm:px-6 lg:px-8">
         {/* Overview Cards */}
         <OverviewCards data={overview} />
 
         {/* Tab Navigation - Architectural Sketch Style */}
         <div className="mt-12">
           <div className="relative">
-            {/* Hand-drawn tab border */}
-            <div className="flex space-x-1 border-b-2 border-[#2B2B2B] dark:border-gray-200">
-              <button
-                onClick={() => setActiveTab('chats')}
-                className={`
-                  relative px-6 py-3 font-serif text-lg transition-all
-                  ${
-                    activeTab === 'chats'
-                      ? 'text-[#D2691E] dark:text-[#E87D3E]'
-                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
-                  }
-                `}
-              >
-                Chat Sessions
-                {activeTab === 'chats' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#D2691E] dark:bg-[#E87D3E]" />
-                )}
-              </button>
+            <div className="inline-flex gap-2 rounded-sm border-2 border-[#2B2B2B] bg-card p-2 dark:border-gray-200">
               <button
                 onClick={() => setActiveTab('gradings')}
                 className={`
-                  relative px-6 py-3 font-serif text-lg transition-all
+                  rounded-sm px-5 py-2.5 font-serif text-base transition-all
                   ${
                     activeTab === 'gradings'
-                      ? 'text-[#D2691E] dark:text-[#E87D3E]'
-                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+                      ? 'border border-[#D2691E]/40 bg-[#D2691E]/10 text-[#D2691E] dark:border-[#E87D3E]/40 dark:bg-[#E87D3E]/15 dark:text-[#E87D3E]'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                   }
                 `}
               >
                 Grading Sessions
-                {activeTab === 'gradings' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#D2691E] dark:bg-[#E87D3E]" />
-                )}
+              </button>
+              <button
+                onClick={() => setActiveTab('chats')}
+                className={`
+                  rounded-sm px-5 py-2.5 font-serif text-base transition-all
+                  ${
+                    activeTab === 'chats'
+                      ? 'border border-[#D2691E]/40 bg-[#D2691E]/10 text-[#D2691E] dark:border-[#E87D3E]/40 dark:bg-[#E87D3E]/15 dark:text-[#E87D3E]'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                  }
+                `}
+              >
+                Chat Sessions
               </button>
             </div>
           </div>

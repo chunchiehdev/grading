@@ -1,6 +1,6 @@
 /**
  * Chat Sessions Tab
- * 
+ *
  * Display and filter agent chat sessions
  */
 
@@ -45,7 +45,7 @@ export function ChatSessionsTab() {
       const params = new URLSearchParams();
       if (filters.role) params.set('role', filters.role);
       if (filters.status) params.set('status', filters.status);
-      
+
       const response = await fetch(`/api/admin/analytics/chat-sessions?${params}`);
       const data = await response.json();
       setSessions(data.sessions || []);
@@ -58,155 +58,163 @@ export function ChatSessionsTab() {
 
   return (
     <div>
-      {/* Filters - Sketch style */}
-      <div className="mb-6 flex gap-4">
-        <select
-          value={filters.role}
-          onChange={(e) => setFilters({ ...filters, role: e.target.value })}
-          className="rounded-sm border-2 border-[#2B2B2B] bg-white px-4 py-2 text-sm focus:border-[#D2691E] focus:outline-none focus:ring-2 focus:ring-[#D2691E]/20"
-        >
-          <option value="">All Roles</option>
-          <option value="TEACHER">Teacher</option>
-          <option value="STUDENT">Student</option>
-          <option value="ADMIN">Admin</option>
-        </select>
+      {/* Filters */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-sm border-2 border-[#2B2B2B] bg-card p-3 dark:border-gray-200">
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={filters.role}
+            onChange={(e) => setFilters({ ...filters, role: e.target.value })}
+            className="min-h-[40px] rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#D2691E] focus:outline-none focus:ring-2 focus:ring-[#D2691E]/20 dark:focus:border-[#E87D3E] dark:focus:ring-[#E87D3E]/20"
+          >
+            <option value="">All Roles</option>
+            <option value="TEACHER">Teacher</option>
+            <option value="STUDENT">Student</option>
+            <option value="ADMIN">Admin</option>
+          </select>
 
-        <select
-          value={filters.status}
-          onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-          className="rounded-sm border-2 border-[#2B2B2B] bg-white px-4 py-2 text-sm focus:border-[#D2691E] focus:outline-none focus:ring-2 focus:ring-[#D2691E]/20"
-        >
-          <option value="">All Status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="ERROR">Error</option>
-        </select>
+          <select
+            value={filters.status}
+            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            className="min-h-[40px] rounded-sm border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-[#D2691E] focus:outline-none focus:ring-2 focus:ring-[#D2691E]/20 dark:focus:border-[#E87D3E] dark:focus:ring-[#E87D3E]/20"
+          >
+            <option value="">All Status</option>
+            <option value="ACTIVE">Active</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="ERROR">Error</option>
+          </select>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Showing <span className="font-semibold text-foreground">{sessions.length.toLocaleString()}</span> sessions
+        </div>
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden overflow-hidden rounded-sm border-2 border-[#2B2B2B] bg-white sm:block">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b-2 border-[#2B2B2B] bg-[#FAF9F6]">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Session
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                User
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Role
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Messages
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Model
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Tokens
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Duration
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {loading ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                  Loading sessions...
-                </td>
+      <div className="hidden rounded-sm border-2 border-[#2B2B2B] bg-card sm:block dark:border-gray-200">
+        <div className="max-h-[68vh] overflow-auto">
+          <table className="w-full min-w-[1080px]">
+            <thead className="sticky top-0 z-10 bg-muted/90 backdrop-blur-sm">
+              <tr className="border-b-2 border-[#2B2B2B]">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Session
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  User
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Role
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Messages
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Model
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tokens
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Duration
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Status
+                </th>
               </tr>
-            ) : sessions.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-                  No sessions found
-                </td>
-              </tr>
-            ) : (
-              sessions.map((session) => (
-                <tr
-                  key={session.id}
-                  className="transition-colors hover:bg-[#D2691E]/5"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {session.title || 'Untitled'}
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                          <Calendar className="h-3 w-3" />
-                          {formatDateOnlyInTimeZone(session.createdAt)}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
-                        <AvatarImage src={session.user.picture || undefined} alt={session.user.name} />
-                        <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
-                          {session.user.name.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {session.user.name}
-                        </div>
-                        <div className="text-xs text-gray-500">{session.user.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex rounded-full border border-[#D2691E] bg-[#D2691E]/10 px-2 py-1 text-xs font-medium text-[#D2691E]">
-                      {session.userRole}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {session._count.messages}
-                  </td>
-                  <td className="px-4 py-3">
-                    {session.modelProvider ? (
-                      <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                        session.modelProvider === 'local' 
-                          ? 'bg-purple-50 text-purple-700 ring-purple-600/20' 
-                          : session.modelProvider === 'gemini'
-                          ? 'bg-blue-50 text-blue-700 ring-blue-600/20'
-                          : 'bg-gray-50 text-gray-600 ring-gray-500/10'
-                      }`}>
-                        {session.modelProvider === 'local' ? 'Local (vLLM)' : 
-                         session.modelProvider === 'gemini' ? 'Gemini 2.5' : 
-                         session.modelProvider}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">
-                    {formatTokens(session.totalTokens)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 text-sm text-gray-900">
-                      <Clock className="h-3 w-3 text-gray-400" />
-                      {formatDuration(session.totalDuration)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={session.status} />
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                    Loading sessions...
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : sessions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                    No sessions found
+                  </td>
+                </tr>
+              ) : (
+                sessions.map((session, index) => (
+                  <tr
+                    key={session.id}
+                    className={`transition-colors hover:bg-[#D2691E]/5 dark:hover:bg-[#E87D3E]/10 ${
+                      index % 2 === 0 ? 'bg-transparent' : 'bg-muted/20'
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-gray-400" />
+                        <div>
+                          <div
+                            className="max-w-[260px] truncate font-medium text-foreground"
+                            title={session.title || 'Untitled'}
+                          >
+                            {session.title || 'Untitled'}
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            {formatDateOnlyInTimeZone(session.createdAt)}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="border-2 border-[#2B2B2B] dark:border-gray-200">
+                          <AvatarImage src={session.user.picture || undefined} alt={session.user.name} />
+                          <AvatarFallback className="bg-transparent font-serif text-[#2B2B2B] dark:text-gray-200">
+                            {session.user.name.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{session.user.name}</div>
+                          <div
+                            className="max-w-[220px] truncate text-xs text-muted-foreground"
+                            title={session.user.email}
+                          >
+                            {session.user.email}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex rounded-full border border-[#D2691E] bg-[#D2691E]/10 px-2 py-1 text-xs font-medium text-[#D2691E]">
+                        {session.userRole}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground">{session._count.messages}</td>
+                    <td className="px-4 py-3">
+                      {session.modelProvider ? (
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${getModelBadgeClass(session.modelProvider)}`}
+                        >
+                          {session.modelProvider === 'local'
+                            ? 'Local (vLLM)'
+                            : session.modelProvider === 'gemini'
+                              ? 'Gemini 2.5'
+                              : session.modelProvider}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground">{formatTokens(session.totalTokens)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 text-sm text-foreground">
+                        <Clock className="h-3 w-3 text-gray-400" />
+                        {formatDuration(session.totalDuration)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={session.status} />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-
 
       {/* Mobile Card View */}
       <div className="space-y-4 sm:hidden">
@@ -216,10 +224,7 @@ export function ChatSessionsTab() {
           <div className="py-8 text-center text-gray-500">No sessions found</div>
         ) : (
           sessions.map((session) => (
-            <div
-              key={session.id}
-              className="rounded-sm border-2 border-[#2B2B2B] bg-white p-4"
-            >
+            <div key={session.id} className="rounded-sm border-2 border-[#2B2B2B] bg-card p-4 dark:border-gray-200">
               {/* Row 1: User & Status */}
               <div className="mb-3 flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -230,12 +235,8 @@ export function ChatSessionsTab() {
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="font-medium text-gray-900">
-                      {session.user.name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {session.user.email}
-                    </div>
+                    <div className="font-medium text-gray-900">{session.user.name}</div>
+                    <div className="text-xs text-gray-500">{session.user.email}</div>
                   </div>
                 </div>
                 <StatusBadge status={session.status} />
@@ -265,23 +266,17 @@ export function ChatSessionsTab() {
 
                 <div className="text-center">
                   <div className="text-xs text-gray-500">Messages</div>
-                  <span className="font-medium text-gray-900">
-                    {session._count.messages}
-                  </span>
+                  <span className="font-medium text-gray-900">{session._count.messages}</span>
                 </div>
-  
-                  <div className="text-center">
-                    <div className="text-xs text-gray-500">Model</div>
-                    <span className="text-sm font-medium text-gray-900">
-                      {session.modelProvider || '-'}
-                    </span>
-                  </div>
+
+                <div className="text-center">
+                  <div className="text-xs text-gray-500">Model</div>
+                  <span className="text-sm font-medium text-gray-900">{session.modelProvider || '-'}</span>
+                </div>
 
                 <div className="text-right">
                   <div className="text-xs text-gray-500">Tokens</div>
-                  <div className="font-medium text-gray-900">
-                    {formatTokens(session.totalTokens)}
-                  </div>
+                  <div className="font-medium text-gray-900">{formatTokens(session.totalTokens)}</div>
                 </div>
               </div>
             </div>
@@ -290,6 +285,18 @@ export function ChatSessionsTab() {
       </div>
     </div>
   );
+}
+
+function getModelBadgeClass(modelProvider: string | null): string {
+  if (modelProvider === 'local') {
+    return 'bg-[#D2691E]/10 text-[#D2691E] ring-[#D2691E]/25 dark:bg-[#E87D3E]/15 dark:text-[#E87D3E] dark:ring-[#E87D3E]/35';
+  }
+
+  if (modelProvider === 'gemini') {
+    return 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-500/15 dark:text-blue-200 dark:ring-blue-400/30';
+  }
+
+  return 'bg-muted text-muted-foreground ring-border';
 }
 
 function StatusBadge({ status }: { status: string }) {
