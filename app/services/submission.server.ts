@@ -1079,9 +1079,43 @@ export async function saveDraftSubmission(draftData: DraftSubmissionData): Promi
     let submission;
 
     if (existingSubmission) {
-      // CRITICAL FIX: Check if existing submission is already submitted (not DRAFT)
-      // If so, we need to create a new version instead of updating the existing one
+      // If latest submission is already submitted (not DRAFT),
+      // only create a new DRAFT version when student uploads a different file.
       if (existingSubmission.status !== 'DRAFT') {
+        const incomingFileId = fileMetadata?.fileId ?? null;
+        const currentFileId = existingSubmission.filePath ?? null;
+        const hasNewFileVersion = !!incomingFileId && incomingFileId !== currentFileId;
+
+        // Guardrail: autosave should NOT create a new DRAFT version for the same file.
+        // Only create a new version when student actually uploads/reselects a different file.
+        if (!hasNewFileVersion) {
+          logger.info(
+            {
+              studentId,
+              assignmentAreaId,
+              submissionId: existingSubmission.id,
+              status: existingSubmission.status,
+              incomingFileId,
+              currentFileId,
+            },
+            '🛡️ Skip draft version creation: existing latest submission reused (no new file)'
+          );
+
+          return {
+            id: existingSubmission.id,
+            assignmentAreaId,
+            studentId,
+            fileMetadata,
+            sessionId: existingSubmission.sessionId ?? sessionId ?? null,
+            aiAnalysisResult: existingSubmission.aiAnalysisResult,
+            thoughtSummary: existingSubmission.thoughtSummary,
+            lastState,
+            status: existingSubmission.status,
+            createdAt: existingSubmission.createdAt,
+            updatedAt: existingSubmission.updatedAt,
+          };
+        }
+
         logger.info(
           `📝 Existing submission is ${existingSubmission.status}, creating new version for student ${studentId}`
         );
