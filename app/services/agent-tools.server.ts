@@ -267,10 +267,56 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
         logger.info(`🎯 [Agent Tool] sparringQuestions[0]: ${JSON.stringify(sparringQuestions[0]).substring(0, 300)}`);
       }
 
+      const buildFallbackSparringQuestions = () => {
+        const weakestCriteria = [...criteriaScores]
+          .sort((a, b) => {
+            const aRatio = a.maxScore > 0 ? a.score / a.maxScore : 1;
+            const bRatio = b.maxScore > 0 ? b.score / b.maxScore : 1;
+            return aRatio - bRatio;
+          })
+          .slice(0, 3);
+
+        const baseQuestions = weakestCriteria.map((c, idx) => {
+          const quote = c.evidence?.trim() || (isZh ? '文中未提供可引用句子。' : 'No direct quote available from submission.');
+          const question = isZh
+            ? `你在「${c.name}」這一項目前得分是 ${c.score}/${c.maxScore}。如果你要把這段內容修到更高層次，你會先改哪一句，為什麼？`
+            : `Your score for "${c.name}" is ${c.score}/${c.maxScore}. If you revise this part to a higher level, which sentence would you change first, and why?`;
+
+          return {
+            related_rubric_id: c.criteriaId,
+            target_quote: quote,
+            provocation_strategy: idx === 0 ? 'logic_gap' : idx === 1 ? 'evidence_check' : 'metacognitive',
+            question,
+            ai_hidden_reasoning: isZh
+              ? `系統自動生成：此維度相對較弱（${c.score}/${c.maxScore}），用於確保對練流程不中斷。`
+              : `Auto-generated fallback: this criterion is relatively weak (${c.score}/${c.maxScore}) to keep sparring flow available.`,
+          };
+        });
+
+        while (baseQuestions.length < 3) {
+          baseQuestions.push({
+            related_rubric_id: weakestCriteria[0]?.criteriaId || 'general',
+            target_quote: isZh ? '請回到你的作業內容，選一段最想強化的段落。' : 'Please return to your submission and choose one paragraph you most want to improve.',
+            provocation_strategy: 'metacognitive',
+            question: isZh
+              ? '若要讓你的觀點更有說服力，你會補哪一個證據或反例？'
+              : 'To make your claim more convincing, which evidence or counterexample would you add?',
+            ai_hidden_reasoning: isZh
+              ? '系統補齊題目數量，避免評分流程因格式不完整中斷。'
+              : 'System-added filler item to avoid workflow interruption due to incomplete format.',
+          });
+        }
+
+        return baseQuestions;
+      };
+
+      const safeSparringQuestions =
+        sparringQuestions && sparringQuestions.length > 0
+          ? sparringQuestions
+          : buildFallbackSparringQuestions();
+
       if (!sparringQuestions || sparringQuestions.length === 0) {
-        const errorMsg = localeText.missingSparringQuestionsError;
-        logger.warn({ errorMsg }, '[Agent Tool] Validation Failed: Missing sparringQuestions');
-        throw new Error(errorMsg);
+        logger.warn('[Agent Tool] Missing sparringQuestions; using auto-generated fallback questions');
       }
 
       const sanitizedCriteriaScores = criteriaScores.map((c) => {
@@ -365,7 +411,7 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
         percentage: percentage.toFixed(1),
         hasReasoning: !!reasoning,
         reasoningLength: reasoning?.length || 0,
-        sparringQuestionsCount: sparringQuestions?.length || 0,
+        sparringQuestionsCount: safeSparringQuestions.length,
       }, '[Agent Tool] Feedback generated');
 
       return {
@@ -376,7 +422,7 @@ function createGenerateFeedbackTool(isZh: boolean, localeText: AgentLocaleText) 
         maxScore,
         percentage: Math.round(percentage),
         summary: `${localeText.totalScorePrefix}: ${totalScore}/${maxScore} (${percentage.toFixed(1)}%)`,
-        sparringQuestions: sparringQuestions || [],
+        sparringQuestions: safeSparringQuestions,
       };
     },
   });

@@ -133,6 +133,9 @@ export const ProvocationStrategySchema = z.enum([
   'counter_argument',  // 提供反方觀點
   'clarification',     // 要求釐清定義
   'extension',         // 延伸思考
+  'warrant_probe',     // 檢查論證根據
+  'metacognitive',     // 後設認知反思
+  'conceptual',        // 概念理解深化
 ]);
 
 export const SparringQuestionSchema = z.object({

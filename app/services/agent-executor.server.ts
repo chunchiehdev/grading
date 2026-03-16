@@ -834,8 +834,15 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         // Use the agent's internal steps array to check tool completion status
         // This is synchronous - the data is available immediately unlike our async stream handler
         const completedToolNames = new Set<string>();
+        const calledToolNames = new Set<string>();
         if (agentSteps && agentSteps.length > 0) {
           for (const step of agentSteps) {
+            if (step.toolCalls) {
+              for (const call of step.toolCalls) {
+                calledToolNames.add(call.toolName);
+              }
+            }
+
             if (step.toolResults) {
               for (const result of step.toolResults) {
                 completedToolNames.add(result.toolName);
@@ -844,7 +851,8 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           }
         }
         
-        const hasThinkAloud = completedToolNames.has('think_aloud');
+        const hasThinkAloud =
+          completedToolNames.has('think_aloud') || calledToolNames.has('think_aloud');
         const hasConfidence = completedToolNames.has('calculate_confidence');
         const hasFeedback = completedToolNames.has('generate_feedback');
         const generateFeedbackCalls = countGenerateFeedbackCalls(agentSteps);
@@ -855,6 +863,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           hasConfidence, 
           hasFeedback,
           generateFeedbackCalls,
+          calledTools: Array.from(calledToolNames),
           completedTools: Array.from(completedToolNames)
         }, `[Agent] prepareStep ${stepCounter}`);
         

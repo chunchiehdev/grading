@@ -197,10 +197,19 @@ export async function triggerPdfParsing(
     // Await the long-running polling so we only return when complete
     const content = await pollForResult(taskId);
 
-    logger.info(`✅ PDF parsing completed for ${fileName}: ${content.length} characters`);
     const sanitizedContent = content.replace(/\0/g, '');
+    const normalizedContent = sanitizedContent
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-    if (!sanitizedContent.trim()) {
+    logger.info(
+      `✅ PDF parsing response received for ${fileName}: raw=${content.length}, normalized=${normalizedContent.length} characters`
+    );
+
+    const hasReadableText = /[A-Za-z0-9\u3400-\u9FFF\uF900-\uFAFF]/.test(normalizedContent);
+
+    if (!normalizedContent || !hasReadableText) {
       const emptyContentError =
         'No extractable text found in this PDF. It may be scanned/image-only or encrypted.';
 
