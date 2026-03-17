@@ -255,6 +255,9 @@ export default function SubmitAssignment() {
   const step3Ref = useRef<HTMLDivElement>(null);
 
   // Single state machine - "good taste" principle
+  const isPersistedSubmitted =
+    draftSubmission?.status === 'SUBMITTED' || draftSubmission?.status === 'GRADED';
+
   const [state, dispatch] = useReducer(submissionReducer, {
     // Determine phase based on draft state
     // Distinguish sparring from submit: if sparringState exists and phase is 'chat', it's sparring
@@ -288,9 +291,10 @@ export default function SubmitAssignment() {
         : null,
     error: null,
     loading: !!draftSubmission?.sessionId && draftSubmission?.lastState !== 'completed' && draftSubmission?.lastState !== 'sparring',
-    // If status is SUBMITTED/ANALYZED/GRADED, this sessionId has been submitted
+    // Only SUBMITTED/GRADED should be treated as actually submitted.
+    // ANALYZED means grading finished but student may still need to click final submit.
     lastSubmittedSessionId:
-      draftSubmission?.status && draftSubmission.status !== 'DRAFT'
+      isPersistedSubmitted
         ? draftSubmission.sessionId || null
         : null,
   });
@@ -866,16 +870,17 @@ export default function SubmitAssignment() {
 
   // Compute current submission status for clear state identification
   const getSubmissionStatus = () => {
+    const isActuallySubmitted = !!state.lastSubmittedSessionId || isPersistedSubmitted;
+
     return {
       // 情況一：未上傳作業
       hasFile: !!state.file,
       // 情況二、三：是否已評分
       hasAnalysis: !!state.session?.result,
       // 情況三、四、五、六：是否有新的分析（尚未提交）
-      hasNewAnalysis: state.session?.id && state.session.id !== state.lastSubmittedSessionId,
-      // 情況四：已提交（包含 SUBMITTED/ANALYZED/GRADED 狀態）
-      isSubmitted: !!state.lastSubmittedSessionId ||
-                   (draftSubmission?.status && draftSubmission.status !== 'DRAFT'),
+      hasNewAnalysis: !!state.session?.id && (!state.lastSubmittedSessionId || state.session.id !== state.lastSubmittedSessionId),
+      // 情況四：已提交（僅 SUBMITTED / GRADED）
+      isSubmitted: isActuallySubmitted,
       // 逾期狀態
       isOverdue: isOverdue,
     };
