@@ -30,6 +30,13 @@ export interface AgentGradingResult {
   requiresReview: boolean;
   totalTokens: number;
   executionTimeMs: number;
+  interrupted?: boolean;
+  interruptionReasonCode?: string;
+  interruptionReason?: string;
+  toolCallStats?: {
+    total: number;
+    byTool: Record<string, number>;
+  };
   error?: string;
 }
 

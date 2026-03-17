@@ -19,7 +19,7 @@ export async function saveAgentExecution(
     const { steps, confidenceScore, requiresReview, totalTokens, executionTimeMs } = agentResult;
 
     // Prepare tool calls summary
-    const toolCalls = steps
+    const completedToolCalls = steps
       .filter((s) => s.toolName)
       .map((s) => ({
         stepNumber: s.stepNumber,
@@ -27,6 +27,27 @@ export async function saveAgentExecution(
         durationMs: s.durationMs,
         hasOutput: !!s.toolOutput,
       }));
+
+    const attemptedToolCalls = Object.entries(agentResult.toolCallStats?.byTool || {}).map(
+      ([toolName, callCount]) => ({
+        toolName,
+        callCount,
+        hasOutput: false,
+      })
+    );
+
+    const toolCalls = [
+      ...completedToolCalls,
+      {
+        toolName: '__meta__',
+        attemptedTotal: agentResult.toolCallStats?.total || 0,
+        attemptedByTool: agentResult.toolCallStats?.byTool || {},
+        interrupted: !!agentResult.interrupted,
+        interruptionReasonCode: agentResult.interruptionReasonCode || null,
+        interruptionReason: agentResult.interruptionReason || null,
+      },
+      ...attemptedToolCalls,
+    ];
 
     // Update GradingResult with Agent data
     await db.gradingResult.update({
@@ -36,7 +57,7 @@ export async function saveAgentExecution(
         toolCalls: toolCalls as any,
         confidenceScore,
         requiresReview,
-        agentModel: 'gemini-2.5-flash',
+        agentModel: 'gemini-3.1-flash-lite-preview',
         agentExecutionTime: executionTimeMs,
         gradingTokens: totalTokens,
       },

@@ -176,7 +176,7 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
   if (contextHash && contextContent) {
     try {
       // Use explicit version suffix for caching as per docs
-      const cacheModel = 'gemini-2.5-flash'; 
+      const cacheModel = 'gemini-3.1-flash-lite-preview'; 
       const cacheName = await GeminiCacheManager.ensureCache(
         apiKey,
         selectedKeyId,
@@ -217,13 +217,13 @@ export async function gradeWithGemini(params: GradingParams): Promise<GradingRes
       userId,
       resultId,
       keyId: selectedKeyId,
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.1-flash-lite-preview',
     }, 'Grading with Gemini (AI SDK)');
 
     // Enable Gemini thinking/reasoning mode
     // Docs: https://ai.google.dev/gemini-api/docs/thinking
     const result = await generateObject({
-      model: geminiProvider('gemini-2.5-flash'),
+      model: geminiProvider('gemini-3.1-flash-lite-preview'),
       schema: GradingResultSchema,
       prompt,
       temperature,

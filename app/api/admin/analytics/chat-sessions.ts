@@ -1,7 +1,7 @@
 /**
  * Admin Analytics API: Chat Sessions List
  * 
- * Returns paginated list of agent chat sessions with filtering
+ * Returns list of agent chat sessions with filtering
  */
 
 import type { LoaderFunctionArgs } from 'react-router';
@@ -29,7 +29,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Parse query parameters
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '20');
+    const limitParam = url.searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam) : null;
     const role = url.searchParams.get('role');
     const status = url.searchParams.get('status');
     const sortBy = url.searchParams.get('sortBy') || 'createdAt';
@@ -49,6 +50,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       sortOrder,
     }, '[Analytics API] Fetching chat sessions');
 
+    const shouldPaginate = Number.isFinite(limit) && (limit ?? 0) > 0;
+
     // Query sessions
     const [sessions, total] = await Promise.all([
       db.agentChatSession.findMany({
@@ -65,8 +68,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           },
         },
         orderBy: { [sortBy]: sortOrder },
-        skip: (page - 1) * limit,
-        take: limit,
+        ...(shouldPaginate ? { skip: (page - 1) * (limit as number), take: limit as number } : {}),
       }),
       db.agentChatSession.count({ where }),
     ]);
@@ -88,7 +90,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       total,
       page,
       limit,
-      hasMore: total > page * limit,
+      hasMore: shouldPaginate ? total > page * (limit as number) : false,
     };
 
     logger.info({

@@ -39,7 +39,7 @@ interface KeyClient {
 class RotatingGeminiService {
   private clients: KeyClient[];
   private healthTracker = getKeyHealthTracker();
-  private model: string = 'gemini-2.5-flash';
+  private model: string = 'gemini-3.1-flash-lite-preview';
   private maxAttempts: number = 999; // Unlimited attempts until success
   private maxWaitMs: number = 60000; // Max wait 60s between attempts
 

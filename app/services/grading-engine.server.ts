@@ -323,6 +323,13 @@ export async function processGradingResult(
       if (agentResult.success && agentResult.data) {
         // Cast to any for sparringQuestions access (type will be updated separately)
         const agentData = agentResult.data as any;
+        const processingDiagnostics = {
+          interrupted: !!agentResult.interrupted,
+          interruptionReasonCode: agentResult.interruptionReasonCode || null,
+          interruptionReason: agentResult.interruptionReason || null,
+          toolCallStats: agentResult.toolCallStats || { total: 0, byTool: {} },
+          capturedSteps: agentResult.steps.length,
+        };
         
         // 🔍 Log the agentResult.data structure for debugging (use separate logs for visibility)
         logger.info(`🔍 [Grading Engine] agentResult.data keys: ${Object.keys(agentData || {}).join(', ')}`);
@@ -431,13 +438,14 @@ export async function processGradingResult(
             overallFeedback: agentData.overallFeedback,
             // Sparring Questions for Productive Friction
             sparringQuestions: agentData.sparringQuestions || [],
+            processingDiagnostics,
           },
           thoughtSummary,
           thinkingProcess, // New Field
           gradingRationale, // New Field
           provider: 'gemini-agent',
           metadata: {
-            model: 'gemini-2.5-flash-agent',
+            model: 'gemini-3.1-flash-lite-preview-agent',
             tokens: agentResult.totalTokens,
             duration: agentResult.executionTimeMs,
             agentSteps: agentResult.steps.length,
@@ -503,7 +511,7 @@ export async function processGradingResult(
           thoughtSummary: sdkResult.thoughtSummary,
           provider: sdkResult.provider,
           metadata: {
-            model: sdkResult.provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini',
+            model: sdkResult.provider === 'gemini' ? 'gemini-3.1-flash-lite-preview' : 'gpt-4o-mini',
             tokens: sdkResult.usage.totalTokens,
             duration: sdkResult.responseTimeMs,
           },
@@ -604,6 +612,7 @@ export async function processGradingResult(
             overallFeedback: overallFeedbackStr,
             // Sparring Questions for Productive Friction
             sparringQuestions: gradingResponse.result.sparringQuestions || [],
+            processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
           },
           thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
           thinkingProcess: gradingResponse.thinkingProcess, // Feature 012: Save raw thinking process
@@ -685,6 +694,7 @@ export async function processGradingResult(
           breakdown: gradingResponse.result.breakdown || [],
           overallFeedback: overallFeedbackStr,
           sparringQuestions: gradingResponse.result.sparringQuestions || [],
+          processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
         };
       }
 

@@ -285,6 +285,7 @@
   "thinkingProcess": {
     "aiThinking": "thinking...",
     "viewProcess": "Show thinking",
+    "hideProcess": "Hide thinking",
     "thinking": "Thinking"
   },
   "chat": {
@@ -296,6 +297,7 @@
     "openingNotice": "I noticed you wrote: \"{{quote}}\"",
     "scoreBar": "AI Pre-score",
     "showDetails": "Show details",
+    "hideDetail": "Hide detail",
     "hideDetails": "Collapse",
     "roundsRemaining": "{{remaining}} rounds left",
     "sparringComplete": "Sparring complete, preparing results...",

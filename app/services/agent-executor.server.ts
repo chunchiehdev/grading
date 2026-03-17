@@ -24,8 +24,7 @@ import { redis } from '@/lib/redis';
 
 function createGeminiModel(apiKey: string) {
   const gemini = createGoogleGenerativeAI({ apiKey });
-  // Gemini 3 Flash Preview (Correct ID: gemini-3-flash-preview)
-  return gemini('gemini-2.5-flash');
+  return gemini('gemini-3.1-flash-lite-preview');
 }
 import type {
   AgentGradingParams,
@@ -53,6 +52,16 @@ interface GradingContext {
   assignmentType?: string;
   userLanguage?: string;
 }
+
+type InterruptionReasonCode =
+  | 'MAX_AGENT_STEPS_REACHED'
+  | 'THINK_ALOUD_MAX_ATTEMPTS_REACHED'
+  | 'THINK_ALOUD_NO_RESULT'
+  | 'GENERATE_FEEDBACK_MAX_ATTEMPTS_REACHED'
+  | 'GENERATE_FEEDBACK_NO_VALID_RESULT'
+  | 'GENERATE_FEEDBACK_VALIDATION_FAILED'
+  | 'NO_FINAL_RESULT_CAPTURED'
+  | 'MODEL_RETURNED_INTERRUPTED_RESULT';
 
 interface GradingLocaleText {
   noSpecificFeedback: string;
@@ -484,7 +493,15 @@ If the submission is off-topic:
 function buildFallbackResultFromSteps(
   steps: AgentStep[],
   criteria: ParsedCriterion[],
-  userLanguage?: string
+  userLanguage?: string,
+  interruption?: {
+    code?: InterruptionReasonCode;
+    reason?: string;
+    toolCallStats?: {
+      total: number;
+      byTool: Record<string, number>;
+    };
+  }
 ): any | null {
   logger.warn('[Agent Fallback] 3-Step Process interrupted. No intermediate scores available.');
   const localeText = getGradingLocaleText(userLanguage);
@@ -507,7 +524,15 @@ function buildFallbackResultFromSteps(
       analysis: localeText.analysisInterrupted,
       justification: 'Process interrupted before generate_feedback',
     })),
-    reasoning: 'The agent failed to complete the grading process.',
+    reasoning:
+      'The agent failed to complete the grading process.' +
+      (interruption?.code ? ` Reason: ${interruption.code}` : ''),
+    interruption: {
+      code: interruption?.code || 'NO_FINAL_RESULT_CAPTURED',
+      reason: interruption?.reason || 'No final result was captured before fallback.',
+      stepsCaptured: steps.length,
+      toolCallStats: interruption?.toolCallStats || { total: 0, byTool: {} },
+    },
   };
 }
 
@@ -583,6 +608,22 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
   const steps: AgentStep[] = [];
   const healthTracker = getKeyHealthTracker();
   let selectedKeyId: string | null = null;
+  let interruptionReasonCode: InterruptionReasonCode | undefined;
+  let interruptionReason: string | undefined;
+  const observedToolCallCounts: Record<string, number> = {};
+  const setInterruptionReason = (code: InterruptionReasonCode, reason: string): void => {
+    if (!interruptionReasonCode) {
+      interruptionReasonCode = code;
+      interruptionReason = reason;
+    }
+  };
+  const getToolCallStats = (): { total: number; byTool: Record<string, number> } => {
+    const total = Object.values(observedToolCallCounts).reduce((sum, count) => sum + count, 0);
+    return {
+      total,
+      byTool: { ...observedToolCallCounts },
+    };
+  };
   const isZh = (params.userLanguage || 'zh-TW').startsWith('zh');
   const localeText = getGradingLocaleText(params.userLanguage);
 
@@ -743,7 +784,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
                meta: {
                  executionTimeMs: directExecutionTimeMs,
                  totalTokens: usage?.totalTokens || 0,
-                 modelName: 'gemini-2.5-flash',
+                  modelName: 'gemini-3.1-flash-lite-preview',
                  sparringQuestionsCount: mappedData.sparringQuestions?.length || 0,
                  mode: 'direct',
                }
@@ -803,6 +844,8 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     const MAX_AGENT_STEPS = 5;
     const MAX_GENERATE_FEEDBACK_ATTEMPTS = 2;
     const MAX_THINK_ALOUD_ATTEMPTS = 2;
+    const HARD_MAX_TOTAL_TOOL_CALLS = 6;
+    const HARD_MAX_THINK_ALOUD_CALLS = 1;
 
     const countToolCalls = (agentSteps: any[] | undefined, targetToolName: string): number => {
       if (!agentSteps || agentSteps.length === 0) return 0;
@@ -880,6 +923,10 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         // Force think_aloud tool on first step
         if (!hasThinkAloudCompleted) {
           if (thinkAloudCalls >= MAX_THINK_ALOUD_ATTEMPTS) {
+            setInterruptionReason(
+              'THINK_ALOUD_MAX_ATTEMPTS_REACHED',
+              `think_aloud exceeded max attempts (${MAX_THINK_ALOUD_ATTEMPTS}) before completion`
+            );
             logger.warn({ thinkAloudCalls }, '[Agent] Max think_aloud attempts reached without completion, stopping');
             return { toolChoice: 'none' as const };
           }
@@ -901,6 +948,10 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
         // STEP 3: After confidence, force generate_feedback
         if (hasConfidence && !hasFeedback) {
           if (generateFeedbackCalls >= MAX_GENERATE_FEEDBACK_ATTEMPTS) {
+            setInterruptionReason(
+              'GENERATE_FEEDBACK_MAX_ATTEMPTS_REACHED',
+              `generate_feedback exceeded max attempts (${MAX_GENERATE_FEEDBACK_ATTEMPTS})`
+            );
             logger.warn({ generateFeedbackCalls }, '[Agent] Max generate_feedback attempts reached, stopping');
             return { toolChoice: 'none' as const };
           }
@@ -911,12 +962,39 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           };
         }
         
-        // Default: allow any tool
-        return { toolChoice: 'auto' };
+        // Default: stop instead of allowing unconstrained exploration
+        return { toolChoice: 'none' as const };
       },
       stopWhen: ({ steps: agentSteps }) => {
+        const observedTotalCalls = Object.values(observedToolCallCounts).reduce(
+          (sum, count) => sum + count,
+          0
+        );
+
+        if (observedToolCallCounts.think_aloud && observedToolCallCounts.think_aloud > HARD_MAX_THINK_ALOUD_CALLS) {
+          setInterruptionReason(
+            'THINK_ALOUD_MAX_ATTEMPTS_REACHED',
+            `Hard cap reached: think_aloud > ${HARD_MAX_THINK_ALOUD_CALLS}`
+          );
+          logger.warn({ observedThinkAloudCalls: observedToolCallCounts.think_aloud }, '[Agent] Hard cap stop: think_aloud overflow');
+          return true;
+        }
+
+        if (observedTotalCalls > HARD_MAX_TOTAL_TOOL_CALLS) {
+          setInterruptionReason(
+            'MAX_AGENT_STEPS_REACHED',
+            `Hard cap reached: total tool calls > ${HARD_MAX_TOTAL_TOOL_CALLS}`
+          );
+          logger.warn({ observedTotalCalls }, '[Agent] Hard cap stop: total tool-call overflow');
+          return true;
+        }
+
         // Safety: stop if max steps reached
         if (stepCounter >= MAX_AGENT_STEPS) {
+          setInterruptionReason(
+            'MAX_AGENT_STEPS_REACHED',
+            `Agent stopped after reaching max steps (${MAX_AGENT_STEPS})`
+          );
           logger.warn('[Agent] Max steps reached, stopping');
           return true;
         }
@@ -942,11 +1020,19 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           }
 
           if (!hasThinkAloudResult && thinkAloudCalls >= MAX_THINK_ALOUD_ATTEMPTS) {
+            setInterruptionReason(
+              'THINK_ALOUD_NO_RESULT',
+              `think_aloud was called ${thinkAloudCalls} times but produced no tool result`
+            );
             logger.warn({ thinkAloudCalls }, '[Agent] Stopping: think_aloud did not complete after max attempts');
             return true;
           }
 
           if (generateFeedbackCalls >= MAX_GENERATE_FEEDBACK_ATTEMPTS) {
+            setInterruptionReason(
+              'GENERATE_FEEDBACK_NO_VALID_RESULT',
+              `generate_feedback called ${generateFeedbackCalls} times without valid tool result`
+            );
             logger.warn({ generateFeedbackCalls }, '[Agent] Stopping after repeated generate_feedback attempts without valid result');
             return true;
           }
@@ -968,6 +1054,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
     let totalTokens = 0;
+    let hardCapInterrupted = false;
 
     for await (const part of stream.fullStream) {
       // 0. Handle Token Usage - check all event types that might carry usage
@@ -1012,6 +1099,33 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
 
       // 2. Handle Tool Calls
       if (part.type === 'tool-call') {
+        observedToolCallCounts[part.toolName] = (observedToolCallCounts[part.toolName] || 0) + 1;
+
+        const observedTotalCalls = Object.values(observedToolCallCounts).reduce(
+          (sum, count) => sum + count,
+          0
+        );
+
+        if (part.toolName === 'think_aloud' && observedToolCallCounts.think_aloud > HARD_MAX_THINK_ALOUD_CALLS) {
+          setInterruptionReason(
+            'THINK_ALOUD_MAX_ATTEMPTS_REACHED',
+            `Hard cap reached during stream: think_aloud > ${HARD_MAX_THINK_ALOUD_CALLS}`
+          );
+          logger.warn({ observedThinkAloudCalls: observedToolCallCounts.think_aloud }, '[Agent] Breaking stream due to think_aloud hard cap');
+          hardCapInterrupted = true;
+          break;
+        }
+
+        if (observedTotalCalls > HARD_MAX_TOTAL_TOOL_CALLS) {
+          setInterruptionReason(
+            'MAX_AGENT_STEPS_REACHED',
+            `Hard cap reached during stream: total tool calls > ${HARD_MAX_TOTAL_TOOL_CALLS}`
+          );
+          logger.warn({ observedTotalCalls }, '[Agent] Breaking stream due to total tool-call hard cap');
+          hardCapInterrupted = true;
+          break;
+        }
+
         // 🔍 Debug: Log generate_feedback tool call args
         if (part.toolName === 'generate_feedback') {
           const args = part.input as any;
@@ -1176,6 +1290,10 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
               source: 'tool_result',
             }, '[Agent] generate_feedback completed successfully');
           } else {
+             setInterruptionReason(
+               'GENERATE_FEEDBACK_VALIDATION_FAILED',
+               'generate_feedback tool-result missing required sparringQuestions'
+             );
              logger.warn({ 
                toolResult: typeof toolResult === 'string' ? toolResult.substring(0, 100) : 'object' 
              }, '[Agent] generate_feedback failed validation (missing sparringQuestions or error)');
@@ -1185,13 +1303,38 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       }
     }
 
+    let interrupted = false;
+    if (hardCapInterrupted) {
+      interrupted = true;
+    }
+
     if (!finalResult) {
+      interrupted = true;
+      setInterruptionReason(
+        'NO_FINAL_RESULT_CAPTURED',
+        'No final result captured from tool-result or early-capture before fallback'
+      );
       logger.warn('[Agent] ❌ No result captured (neither tool-result nor early-capture), building fallback...');
-      finalResult = buildFallbackResultFromSteps(steps, params.criteria, params.userLanguage);
+      finalResult = buildFallbackResultFromSteps(steps, params.criteria, params.userLanguage, {
+        code: interruptionReasonCode,
+        reason: interruptionReason,
+        toolCallStats: getToolCallStats(),
+      });
     } else if (finalResult._source === 'early_capture') {
       logger.info('[Agent] ⚠️ Using early capture result (tool-result was not received)');
     } else {
       logger.info('[Agent] ✅ Using tool-result (preferred source)');
+    }
+
+    if (
+      typeof finalResult?.overallFeedback === 'string' &&
+      finalResult.overallFeedback.includes('3-Step Process Interrupted')
+    ) {
+      interrupted = true;
+      setInterruptionReason(
+        'MODEL_RETURNED_INTERRUPTED_RESULT',
+        'Model returned a 3-Step Process Interrupted fallback message'
+      );
     }
 
     // 8. Build Response
@@ -1224,6 +1367,8 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       totalSteps: steps.length,
       totalScore: finalResult?.totalScore,
       maxScore: finalResult?.maxScore,
+      interrupted,
+      interruptionReasonCode,
       tokenUsage: {
         promptTokens: totalPromptTokens,
         completionTokens: totalCompletionTokens,
@@ -1243,7 +1388,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
           meta: {
             executionTimeMs,
             totalTokens,
-            modelName: 'gemini-2.5-flash',
+            modelName: 'gemini-3.1-flash-lite-preview',
             sparringQuestionsCount: finalResult?.sparringQuestions?.length || 0,
           }
         })
@@ -1259,9 +1404,13 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       data: finalResult,
       steps,
       confidenceScore: confidenceData?.confidenceScore ?? 0.8,
-      requiresReview: confidenceData?.shouldReview ?? false,
+      requiresReview: interrupted || (confidenceData?.shouldReview ?? false),
       totalTokens,  // Use tracked value instead of 0
       executionTimeMs,
+      interrupted,
+      interruptionReasonCode,
+      interruptionReason,
+      toolCallStats: getToolCallStats(),
     };
   } catch (error) {
     logger.error({ err: error }, '[Agent] Grading failed');
@@ -1299,6 +1448,10 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
       totalTokens: 0,
       executionTimeMs: Date.now() - startTime,
       error: error instanceof Error ? error.message : String(error),
+      interrupted: true,
+      interruptionReasonCode: interruptionReasonCode || 'NO_FINAL_RESULT_CAPTURED',
+      interruptionReason: interruptionReason || 'Agent execution failed before completion',
+      toolCallStats: getToolCallStats(),
     };
   }
 }

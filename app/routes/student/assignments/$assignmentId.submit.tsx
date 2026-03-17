@@ -121,11 +121,12 @@ function submissionReducer(state: SubmissionState, action: Action): SubmissionSt
         phase: hasSparring ? 'sparring' : 'submit', 
         loading: false, 
         session: { 
-          ...state.session!, 
+          id: state.session?.id || '',
           result: action.result, 
           thoughtSummary: action.thoughtSummary,
           thinkingProcess: action.thinkingProcess,
-          gradingRationale: action.gradingRationale
+          gradingRationale: action.gradingRationale,
+          chatMessagesMap: undefined,
         } 
       };
     case 'sparring_completed':
@@ -475,6 +476,7 @@ export default function SubmitAssignment() {
   const handleFileUpload = async (files: any[]) => {
     if (files[0]) {
       const uploadedFile = files[0];
+      setSparringState(undefined);
 
       dispatch({
         type: 'file_uploaded',
@@ -720,6 +722,9 @@ export default function SubmitAssignment() {
     }
 
     try {
+      // New grading run should always start sparring from a clean state
+      setSparringState(undefined);
+
       // Wait for file parsing
       if (!(await waitForParse(state.file.id))) {
         throw new Error(t('assignment:submit.errors.parsingFailed'));
@@ -838,6 +843,7 @@ export default function SubmitAssignment() {
 
   const handleResetFile = async () => {
     // 1. Clear frontend state first
+    setSparringState(undefined);
     dispatch({ type: 'reset' });
 
     // 2. Clear database draft (if exists)

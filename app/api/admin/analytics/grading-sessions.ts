@@ -1,7 +1,7 @@
 /**
  * Admin Analytics API: Grading Sessions List
  * 
- * Returns paginated list of grading results with filtering
+ * Returns list of grading results with filtering
  */
 
 import type { LoaderFunctionArgs } from 'react-router';
@@ -29,7 +29,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Parse query parameters
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '20');
+    const limitParam = url.searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam) : null;
     const requiresReview = url.searchParams.get('requiresReview');
     const minConfidence = url.searchParams.get('minConfidence');
     const maxConfidence = url.searchParams.get('maxConfidence');
@@ -59,6 +60,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       assignmentAreaId,
     }, '[Analytics API] Fetching grading sessions');
 
+    const shouldPaginate = Number.isFinite(limit) && (limit ?? 0) > 0;
+
     // Query sessions
     const [sessions, total] = await Promise.all([
       db.gradingResult.findMany({
@@ -85,8 +88,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           },
         },
         orderBy: { [sortBy]: sortOrder },
-        skip: (page - 1) * limit,
-        take: limit,
+        ...(shouldPaginate ? { skip: (page - 1) * (limit as number), take: limit as number } : {}),
       }),
       db.gradingResult.count({ where }),
     ]);
@@ -96,7 +98,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       total,
       page,
       limit,
-      hasMore: total > page * limit,
+      hasMore: shouldPaginate ? total > page * (limit as number) : false,
     };
 
     logger.info({

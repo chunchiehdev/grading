@@ -217,7 +217,7 @@ export async function gradeComment(
           thoughtSummary: sdkResult.thoughtSummary,
           provider: sdkResult.provider,
           metadata: {
-            model: sdkResult.provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini',
+            model: sdkResult.provider === 'gemini' ? 'gemini-3.1-flash-lite-preview' : 'gpt-4o-mini',
             tokens: sdkResult.usage.totalTokens,
             duration: sdkResult.responseTimeMs,
           },

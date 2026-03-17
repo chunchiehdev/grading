@@ -15,7 +15,7 @@ import { formatThoughtSummary } from './thought-formatter.server';
  */
 class SimpleGeminiService {
   private client: GoogleGenAI;
-  private model: string = 'gemini-2.5-flash';
+  private model: string = 'gemini-3.1-flash-lite-preview';
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;

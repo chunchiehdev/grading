@@ -285,6 +285,7 @@
   "thinkingProcess": {
     "aiThinking": "AI 正在思考...",
     "viewProcess": "查看思考過程",
+    "hideProcess": "隱藏思考過程",
     "thinking": "正在思考"
   },
   "chat": {
@@ -296,6 +297,7 @@
     "openingNotice": "我注意到你寫了這句話：「{{quote}}」",
     "scoreBar": "AI 預評分",
     "showDetails": "查看詳情",
+    "hideDetail": "隱藏詳情",
     "hideDetails": "收合",
     "roundsRemaining": "剩餘 {{remaining}} 輪",
     "sparringComplete": "對練結束，正在準備評分結果...",

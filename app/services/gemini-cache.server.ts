@@ -25,7 +25,7 @@ export class GeminiCacheManager {
     contentHash: string,
     content: string,
     systemInstruction?: string,
-    model: string = 'gemini-2.5-flash' // Default model for caching
+    model: string = 'gemini-3.1-flash-lite-preview' // Default model for caching
   ): Promise<string | null> {
     const redisKey = `gemini:cache:${keyId}:${contentHash}:${model}`;
     

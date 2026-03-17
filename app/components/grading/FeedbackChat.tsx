@@ -2,13 +2,12 @@ import { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } fr
 import { useChat } from '@ai-sdk/react';
 import { TextStreamChatTransport } from 'ai';
 import { Button } from '@/components/ui/button';
-import { Loader2, Send, ChevronDown, ChevronRight, BrainCircuit, CheckCircle2, Trophy, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Loader2, Send, ChevronDown, BrainCircuit, CheckCircle2, Trophy, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { type SparringQuestion } from '@/types/grading';
 import { getKemberRubricTemplate } from '@/utils/kember-rubric-template';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Markdown } from '@/components/ui/markdown';
 import { Textarea } from '@/components/ui/textarea';
@@ -132,6 +131,8 @@ export function FeedbackChat({
   // ── Direction 3: Revision box ──────────────────────────────────────────
   const [showRevisionBox, setShowRevisionBox] = useState(false);
   const [revisionDraft, setRevisionDraft] = useState('');
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isThinkingOpen, setIsThinkingOpen] = useState(false);
 
   // ── Direction 4: Growth summary ────────────────────────────────────────
   const [chatPhase, setChatPhase] = useState<'chat' | 'summary'>(
@@ -143,15 +144,6 @@ export function FeedbackChat({
   const [hasStarted, setHasStarted] = useState<boolean>(
     () => !!(initialConversationsMap && Object.keys(initialConversationsMap).length > 0) || !!initialSparringState
   );
-
-  // Sheet detail (criteria / thinking process)
-  const [selectedDetail, setSelectedDetail] = useState<{
-    type: 'criterion' | 'thinking';
-    title: string;
-    badge?: string;
-    badgeColor?: 'green' | 'amber' | 'red' | 'muted';
-    content: string;
-  } | null>(null);
 
   const activeQuestion = sparringQuestions[activeIdx] ?? sparringQuestions[0];
 
@@ -405,7 +397,11 @@ export function FeedbackChat({
   // ── Shared: score collapsible ──────────────────────────────────────────
   const scoreCollapsible = result && (
     <>
-      <Collapsible className="flex-shrink-0 border-b border-border group">
+      <Collapsible
+        open={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+        className="flex-shrink-0 border-b border-border group"
+      >
         <CollapsibleTrigger asChild>
           <button className="w-full flex items-center justify-between px-4 sm:px-6 py-3 hover:bg-muted/30 transition-colors">
             <div className="flex items-center gap-3">
@@ -424,15 +420,36 @@ export function FeedbackChat({
               
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{t('grading:chat.showDetails')}</span>
+              <span>{isDetailsOpen ? t('grading:chat.hideDetail') : t('grading:chat.showDetails')}</span>
               <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </div>
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
           <div className="px-4 sm:px-6 pb-3 max-h-[50vh] overflow-y-auto space-y-1">
+            {(thinkingProcess || gradingRationale) && (
+              <Collapsible open={isThinkingOpen} onOpenChange={setIsThinkingOpen} className="group/thinking">
+                <CollapsibleTrigger asChild>
+                  <button className="w-full flex items-center justify-between py-2 text-left hover:bg-muted/20 rounded-md transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <BrainCircuit className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <p className="text-sm font-medium text-foreground">
+                        {isThinkingOpen ? t('grading:thinkingProcess.hideProcess') : t('grading:thinkingProcess.viewProcess')}
+                      </p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 group-data-[state=open]/thinking:rotate-180" />
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="py-1 pb-3 text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
+                    <Markdown>{thinkingProcess || gradingRationale || ''}</Markdown>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
             {result.overallFeedback && (
-              <div className="py-3 border-b border-border">
+              <div className="py-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                   {t('grading:result.overallFeedback')}
                 </p>
@@ -441,74 +458,48 @@ export function FeedbackChat({
                 </div>
               </div>
             )}
-            {(thinkingProcess || gradingRationale) && (
-              <div className="pt-2">
-                <div className="rounded-xl border border-border overflow-hidden">
-                  <button
-                    onClick={() =>
-                      setSelectedDetail({
-                        type: 'thinking',
-                        title: t('grading:thinkingProcess.viewProcess'),
-                        content: thinkingProcess || gradingRationale || '',
-                      })
-                    }
-                    className="w-full flex items-center gap-3 p-3 text-left hover:bg-accent/50 transition-colors group/item"
-                  >
-                    <BrainCircuit className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">
-                        {t('grading:thinkingProcess.viewProcess')}
-                      </p>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                  </button>
-                </div>
-              </div>
-            )}
             {result.breakdown && result.breakdown.length > 0 && (
               <div className="pt-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                   {t('grading:result.criteriaDetails')}
                 </p>
-                <div className="rounded-xl border border-border overflow-hidden">
+                <div className="space-y-1">
                   {result.breakdown.map((item: any, idx: number) => {
                     const ratio = item.maxScore > 0 ? item.score / item.maxScore : 0;
                     const color: 'green' | 'amber' | 'red' =
                       ratio >= 0.8 ? 'green' : ratio >= 0.6 ? 'amber' : 'red';
+
                     return (
-                      <button
-                        key={item.criteriaId || idx}
-                        onClick={() =>
-                          setSelectedDetail({
-                            type: 'criterion',
-                            title: item.name,
-                            badge: `${item.score}${item.maxScore != null ? `/${item.maxScore}` : ''}`,
-                            badgeColor: color,
-                            content: item.feedback,
-                          })
-                        }
-                        className="w-full flex items-center gap-3 p-3 text-left hover:bg-accent/50 transition-colors border-b border-border last:border-b-0 group/item"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {idx + 1}. {item.name}
-                          </p>
-                        </div>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            'flex-shrink-0 tabular-nums',
-                            color === 'green'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                              : color === 'amber'
-                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                          )}
-                        >
-                          {item.score}{item.maxScore != null ? `/${item.maxScore}` : ''}
-                        </Badge>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                      </button>
+                      <Collapsible key={item.criteriaId || idx} className="group/item">
+                        <CollapsibleTrigger asChild>
+                          <button className="w-full flex items-center gap-3 py-2 text-left hover:bg-muted/20 rounded-md transition-colors">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {idx + 1}. {item.name}
+                              </p>
+                            </div>
+                            <Badge
+                              variant="secondary"
+                              className={cn(
+                                'flex-shrink-0 tabular-nums',
+                                color === 'green'
+                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                  : color === 'amber'
+                                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                              )}
+                            >
+                              {item.score}{item.maxScore != null ? `/${item.maxScore}` : ''}
+                            </Badge>
+                            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 group-data-[state=open]/item:rotate-180" />
+                          </button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="py-1 pb-3 text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
+                            <Markdown>{item.feedback}</Markdown>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     );
                   })}
                 </div>
@@ -517,52 +508,6 @@ export function FeedbackChat({
           </div>
         </CollapsibleContent>
       </Collapsible>
-
-      <Sheet open={!!selectedDetail} onOpenChange={(open) => !open && setSelectedDetail(null)}>
-        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
-          <SheetHeader className="text-left pb-4">
-            <SheetTitle className="text-base font-semibold flex items-center gap-2">
-              {selectedDetail?.type === 'thinking' && (
-                <BrainCircuit className="h-4 w-4 text-muted-foreground" />
-              )}
-              {selectedDetail?.title}
-            </SheetTitle>
-            {selectedDetail?.badge && (
-              <SheetDescription asChild>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge
-                    variant="secondary"
-                    className={cn(
-                      'tabular-nums',
-                      selectedDetail.badgeColor === 'green'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                        : selectedDetail.badgeColor === 'amber'
-                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                          : selectedDetail.badgeColor === 'red'
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                            : ''
-                    )}
-                  >
-                    {selectedDetail.badge}
-                  </Badge>
-                </div>
-              </SheetDescription>
-            )}
-          </SheetHeader>
-          {selectedDetail?.content && (
-            <div className="pb-6 space-y-2">
-              {selectedDetail.type === 'criterion' && (
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                   {t('grading:result.feedback')}
-                </h4>
-              )}
-              <div className="text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none">
-                <Markdown>{selectedDetail.content}</Markdown>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
     </>
   );
 
