@@ -46,7 +46,7 @@ export function CoursesContent({ data }: CoursesContentProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 md:pb-0">
       {/* 探索課程按鈕 - 在課程列表上方 */}
       <div className="flex justify-start">
         <Button asChild variant="emphasis" className="rounded-full px-6 py-5">
@@ -58,14 +58,10 @@ export function CoursesContent({ data }: CoursesContentProps) {
       </div>
 
       {/* 課程列表 */}
-      <div className="w-full">
-        <div className="mx-auto w-full max-w-[1200px] 2xl:max-w-[1800px] 3xl:max-w-[2400px]">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-6 place-content-start justify-items-stretch">
-            {courses.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
-        </div>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,380px))] gap-6 justify-start">
+        {courses.map((course) => (
+          <CourseCard key={course.id} course={course} />
+        ))}
       </div>
     </div>
   );
@@ -82,8 +78,8 @@ function CourseCard({ course }: CourseCardProps) {
   const totalAssignments = course._count?.assignmentAreas || 0;
 
   return (
-    <Link to={`/student/courses/${course.id}`} className="block group">
-      <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200">
+    <Link to={`/student/courses/${course.id}`} className="block group min-w-0">
+      <Card className="border-2 h-full grid grid-rows-[1fr_auto_auto_auto] group-hover:-translate-y-1 group-hover:bg-accent/5 transition-[transform,background-color] duration-200 min-w-0">
         {/* Header - 可變高度但有最小高度 */}
         <CardHeader className="p-4 sm:p-6 min-h-[140px] flex flex-col justify-start">
           <div className="flex items-start justify-between">

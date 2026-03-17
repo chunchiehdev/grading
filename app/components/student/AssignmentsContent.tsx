@@ -27,6 +27,8 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
   const actualSubmissions = assignment.submissions.filter((sub) => sub.status !== 'DRAFT');
   const hasSubmission = actualSubmissions.some((sub) => sub.studentId === student.id);
   const submission = actualSubmissions.find((sub) => sub.studentId === student.id);
+  const hasNormalizedScore = submission?.normalizedScore !== undefined && submission.normalizedScore !== null;
+  const displayScore = hasNormalizedScore ? submission.normalizedScore : submission?.finalScore;
 
   return (
     <Link to={`/student/assignments/${assignment.id}/submit`} className="block group min-w-0">
@@ -64,12 +66,14 @@ function AssignmentCard({ assignment, student, getStatusBadge, formatDueDate, t 
             </div>
 
             {/* Score/Status Row - 獨立一行 */}
-            {hasSubmission && submission?.finalScore !== null ? (
+            {hasSubmission && displayScore !== null && displayScore !== undefined ? (
               <div className="flex items-center gap-2">
                 <span className="text-base sm:text-lg font-semibold text-accent-foreground">
-                  {submission?.finalScore.toFixed(1)}
+                  {displayScore.toFixed(1)}
                 </span>
-                <span className="text-xs sm:text-sm text-muted-foreground">{t('assignmentCard.outOf100')}</span>
+                {hasNormalizedScore ? (
+                  <span className="text-xs sm:text-sm text-muted-foreground">{t('assignmentCard.outOf100')}</span>
+                ) : null}
               </div>
             ) : hasSubmission ? (
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2 min-w-0">
@@ -242,7 +246,7 @@ export function AssignmentsContent({ data, externalFilter }: AssignmentsContentP
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 md:pb-0">
       {/* Assignment Grid */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,380px))] gap-6 justify-start">
         {getFilteredAssignments().map((assignment) => (

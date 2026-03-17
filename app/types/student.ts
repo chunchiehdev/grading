@@ -102,6 +102,7 @@ export interface StudentAssignmentInfo {
     studentId: string;
     status: string;
     finalScore: number | null;
+    normalizedScore?: number | null;
     uploadedAt?: Date;
   }>;
   createdAt?: Date;

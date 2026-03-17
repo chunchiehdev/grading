@@ -468,6 +468,7 @@ export async function getStudentAssignments(studentId: string, courseId?: string
             assignmentAreaId: true,
             status: true,
             finalScore: true,
+            normalizedScore: true,
             uploadedAt: true,
             // Don't include assignmentArea - we already have course, class, rubric in parent
           },
