@@ -1,4 +1,4 @@
-import { db, GradingStatus } from '@/types/database';
+import { db, GradingStatus, type Prisma } from '@/types/database';
 import { getAIGrader } from './ai-grader.server';
 import { gradeWithAI, convertToLegacyFormat, isAISDKGradingEnabled } from './ai-grader-sdk.server';
 import { SimpleProgressService } from './progress-simple.server';
@@ -630,6 +630,106 @@ export async function processGradingResult(
           completedAt: new Date(),
         },
       });
+
+      // Backfill submission score fields by sessionId.
+      // This fixes race conditions where student submits before grading fully completes,
+      // causing submission.normalizedScore/finalScore to remain null.
+      try {
+        const linkedSubmission = await db.submission.findFirst({
+          where: {
+            sessionId,
+            isDeleted: false,
+            status: { in: ['SUBMITTED', 'ANALYZED'] },
+          },
+          orderBy: { updatedAt: 'desc' },
+        });
+
+        if (linkedSubmission) {
+          const submissionUpdate: {
+            normalizedScore?: number;
+            finalScore?: number;
+            status?: 'ANALYZED';
+            aiAnalysisResult?: {
+              totalScore: number;
+              maxScore: number;
+              breakdown: Prisma.InputJsonValue;
+              overallFeedback: string;
+              sparringQuestions: Prisma.InputJsonValue;
+              processingDiagnostics?: Prisma.InputJsonValue;
+            };
+            thoughtSummary?: string | null;
+            thinkingProcess?: string | null;
+            gradingRationale?: string | null;
+          } = {};
+
+          if (
+            normalizedScore !== null &&
+            (linkedSubmission.normalizedScore === null || linkedSubmission.normalizedScore !== normalizedScore)
+          ) {
+            submissionUpdate.normalizedScore = normalizedScore;
+          }
+
+          const roundedFinalScore = Number.isFinite(totalScore) ? Math.round(totalScore) : null;
+          if (
+            roundedFinalScore !== null &&
+            (linkedSubmission.finalScore === null || linkedSubmission.finalScore !== roundedFinalScore)
+          ) {
+            submissionUpdate.finalScore = roundedFinalScore;
+          }
+
+          if (linkedSubmission.status === 'SUBMITTED') {
+            submissionUpdate.status = 'ANALYZED';
+          }
+
+          const currentAiTotal =
+            linkedSubmission.aiAnalysisResult && typeof linkedSubmission.aiAnalysisResult === 'object'
+              ? Number((linkedSubmission.aiAnalysisResult as Record<string, unknown>).totalScore)
+              : null;
+          if (currentAiTotal !== totalScore) {
+            submissionUpdate.aiAnalysisResult = {
+              totalScore: gradingResponse.result.totalScore,
+              maxScore: gradingResponse.result.maxScore,
+              breakdown: gradingResponse.result.breakdown || [],
+              overallFeedback: overallFeedbackStr,
+              sparringQuestions: gradingResponse.result.sparringQuestions || [],
+              processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
+            };
+          }
+
+          if (linkedSubmission.thoughtSummary !== (gradingResponse.thoughtSummary ?? null)) {
+            submissionUpdate.thoughtSummary = gradingResponse.thoughtSummary ?? null;
+          }
+
+          if (linkedSubmission.thinkingProcess !== (gradingResponse.thinkingProcess ?? null)) {
+            submissionUpdate.thinkingProcess = gradingResponse.thinkingProcess ?? null;
+          }
+
+          if (linkedSubmission.gradingRationale !== (gradingResponse.gradingRationale ?? null)) {
+            submissionUpdate.gradingRationale = gradingResponse.gradingRationale ?? null;
+          }
+
+          if (Object.keys(submissionUpdate).length > 0) {
+            await db.submission.update({
+              where: { id: linkedSubmission.id },
+              data: submissionUpdate,
+            });
+
+            logger.info(
+              {
+                submissionId: linkedSubmission.id,
+                sessionId,
+                submissionUpdate,
+              },
+              '✅ Backfilled submission scores from grading result'
+            );
+          }
+        }
+      } catch (backfillError) {
+        logger.warn(
+          { err: backfillError, sessionId, resultId },
+          '⚠️ Failed to backfill submission scores from grading result'
+        );
+      }
 
       logger.info(`💾 Saved thoughtSummary (${gradingResponse.thoughtSummary?.length || 0} chars) to DB`);
       // 🆕 Debug: Log sparringQuestions saved to DB

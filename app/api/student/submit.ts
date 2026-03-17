@@ -51,6 +51,12 @@ export async function action({ request }: { request: Request }) {
     }
   } catch (error) {
     console.error('Failed to handle student submission:', error);
+
+    const message = error instanceof Error ? error.message : 'Failed to submit assignment';
+    if (message.startsWith('SUBMIT_GUARD:')) {
+      return Response.json(createErrorResponse(message.replace('SUBMIT_GUARD:', '')), { status: 409 });
+    }
+
     return Response.json(createErrorResponse('Failed to submit assignment'), { status: 500 });
   }
 }

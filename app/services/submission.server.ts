@@ -123,8 +123,93 @@ export async function createSubmissionAndLinkGradingResult(
   assignmentAreaId: string,
   filePathOrId: string,
   sessionId: string,
-  chatMessages: any[] = []
+  chatMessages: unknown[] = []
 ): Promise<{ submissionId: string }> {
+  const SUBMIT_GUARD_PREFIX = 'SUBMIT_GUARD:';
+  const triggerTexts = new Set([
+    '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。',
+    'Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.',
+  ]);
+
+  const extractMessageText = (message: unknown): string => {
+    if (!message || typeof message !== 'object') return '';
+    const payload = message as { content?: unknown; parts?: Array<{ type?: string; text?: string }> };
+
+    if (typeof payload.content === 'string') return payload.content;
+    if (Array.isArray(payload.parts)) {
+      return payload.parts
+        .filter((part) => part?.type === 'text' && typeof part.text === 'string')
+        .map((part) => part.text)
+        .join('');
+    }
+
+    return '';
+  };
+
+  if (!sessionId) {
+    throw new Error(`${SUBMIT_GUARD_PREFIX}請先完成評分流程再送出`);
+  }
+
+  const gradingSession = await db.gradingSession.findFirst({
+    where: {
+      id: sessionId,
+      userId: studentId,
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+
+  if (!gradingSession) {
+    throw new Error(`${SUBMIT_GUARD_PREFIX}找不到對應的評分工作階段，請重新評分後再送出`);
+  }
+
+  if (gradingSession.status !== 'COMPLETED') {
+    throw new Error(`${SUBMIT_GUARD_PREFIX}評分尚未完成，請稍候再送出`);
+  }
+
+  const completedGradingResult = await db.gradingResult.findFirst({
+    where: {
+      gradingSessionId: sessionId,
+      status: 'COMPLETED',
+    },
+    orderBy: { updatedAt: 'desc' },
+    select: {
+      id: true,
+      result: true,
+    },
+  });
+
+  if (!completedGradingResult) {
+    throw new Error(`${SUBMIT_GUARD_PREFIX}評分結果尚未準備好，請重新整理後再送出`);
+  }
+
+  const sparringQuestions =
+    completedGradingResult.result && typeof completedGradingResult.result === 'object'
+      ? (completedGradingResult.result as { sparringQuestions?: unknown }).sparringQuestions
+      : null;
+
+  const hasSparringQuestions = Array.isArray(sparringQuestions) && sparringQuestions.length > 0;
+
+  if (hasSparringQuestions) {
+    const hasMeaningfulReply = chatMessages.some((message) => {
+      if (!message || typeof message !== 'object') return false;
+
+      const role = (message as { role?: string }).role;
+      if (role !== 'user') return false;
+
+      const text = extractMessageText(message).trim();
+      if (!text) return false;
+
+      return !triggerTexts.has(text);
+    });
+
+    if (!hasMeaningfulReply) {
+      throw new Error(`${SUBMIT_GUARD_PREFIX}請至少完成一次對練回覆後再送出`);
+    }
+  }
+
   // Import version management functions dynamically to avoid circular dependencies
   const { getLatestSubmissionVersion, createNewSubmissionVersion } = await import('./version-management.server');
 
@@ -301,11 +386,6 @@ export async function createSubmissionAndLinkGradingResult(
 
   if (!submission) {
     throw new Error('Failed to create or update submission');
-  }
-
-  if (!sessionId) {
-    logger.warn(`Submission ${submission.id} created without a sessionId. AI result will not be linked.`);
-    return { submissionId: submission.id };
   }
 
   try {
