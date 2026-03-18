@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown, Loader2, MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
+import { extractChatMessageText, normalizeChatTypography } from '@/utils/chatText';
 
 // Updated to work with new grading result format from database - types now imported from @/types/grading
 
@@ -183,12 +184,11 @@ export function GradingResultDisplay({
           {/* Chat History — collapsible, default closed */}
           {safeResult.chatHistory && safeResult.chatHistory.length > 0 && (() => {
             const triggerTexts = new Set([
-              systemTriggerText,
-              '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。',
+              normalizeChatTypography(systemTriggerText).trim(),
+              normalizeChatTypography('請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。').trim(),
             ]);
             const filteredChat = safeResult.chatHistory.filter((msg: ChatMessage) => {
-              const text = msg.content
-                || msg.parts?.filter((p: ChatMessagePart) => p.type === 'text').map((p: ChatMessagePart) => p.text).join('') || '';
+              const text = normalizeChatTypography(extractChatMessageText(msg)).trim();
               return text && !triggerTexts.has(text);
             });
             if (filteredChat.length === 0) return null;
@@ -208,8 +208,7 @@ export function GradingResultDisplay({
                 <CollapsibleContent>
                   <div className="space-y-3 pt-2 pb-1 px-1">
                     {filteredChat.map((msg: ChatMessage, i: number) => {
-                      const text = msg.content
-                        || msg.parts?.filter((p: ChatMessagePart) => p.type === 'text').map((p: ChatMessagePart) => p.text).join('') || '';
+                      const text = normalizeChatTypography(extractChatMessageText(msg));
                       const isUser = msg.role === 'user';
                       return (
                         <div key={i} className={cn('flex gap-2.5', isUser ? 'flex-row-reverse' : 'flex-row')}>

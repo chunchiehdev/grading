@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { Markdown } from '@/components/ui/markdown';
 import { Textarea } from '@/components/ui/textarea';
+import { extractChatMessageText, normalizeChatTypography } from '@/utils/chatText';
 
 const TRIGGER_MSG_ID = '__sparring_trigger__';
 
@@ -25,26 +26,6 @@ interface UiChatMessage {
   content?: string;
   parts?: UiChatPart[];
   studentReaction?: 'up' | 'down';
-}
-
-function getMessageText(message: UiChatMessage): string {
-  if (message.content) return message.content;
-  if (!message.parts || message.parts.length === 0) return '';
-
-  return message.parts
-    .filter((part) => part.type === 'text' && typeof part.text === 'string')
-    .map((part) => part.text)
-    .join('');
-}
-
-function normalizeChatTypography(text: string): string {
-  return text
-    .replace(/[\u2018\u2019\u2032]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/[\u2010\u2011\u2012\u2013\u2014\u2212]/g, '-')
-    .replace(/\u2026/g, '...')
-    .replace(/\u00A0/g, ' ')
-    .replace(/\u200B/g, '');
 }
 
 // ── Direction 2: Kember Level from score ratio ────────────────────────────
@@ -385,7 +366,7 @@ export function FeedbackChat({
 
       return messages.filter((m) => {
         if (m.id === TRIGGER_MSG_ID) return false;
-        const content = normalizeChatTypography(getMessageText(m as UiChatMessage)).trim();
+        const content = normalizeChatTypography(extractChatMessageText(m as UiChatMessage)).trim();
         if (!content) return false;
         if (triggerTexts.has(content)) return false;
         return true;
@@ -639,7 +620,7 @@ export function FeedbackChat({
           <div className="space-y-6 py-6 flex-1">
             {visibleMessages.map((m: any) => {
               const parsedMessage = m as UiChatMessage;
-              const messageText = normalizeChatTypography(getMessageText(parsedMessage));
+              const messageText = normalizeChatTypography(extractChatMessageText(parsedMessage));
               const rawMessageIndex = messages.findIndex((msg) => msg === m);
               const messageId = m.id || `assistant-${activeIdx}-${rawMessageIndex}`;
               const isAssistant = m.role === 'assistant';
