@@ -871,14 +871,22 @@ export default function SubmitAssignment() {
   // Compute current submission status for clear state identification
   const getSubmissionStatus = () => {
     const isActuallySubmitted = !!state.lastSubmittedSessionId || isPersistedSubmitted;
+    const hasAnalysis = !!state.session?.result;
+    const hasSessionBasedNewAnalysis =
+      !!state.session?.id &&
+      (!state.lastSubmittedSessionId || state.session.id !== state.lastSubmittedSessionId);
+    const hasAnalysisWithoutSession =
+      hasAnalysis &&
+      !state.session?.id &&
+      !isActuallySubmitted;
 
     return {
       // 情況一：未上傳作業
       hasFile: !!state.file,
       // 情況二、三：是否已評分
-      hasAnalysis: !!state.session?.result,
+      hasAnalysis,
       // 情況三、四、五、六：是否有新的分析（尚未提交）
-      hasNewAnalysis: !!state.session?.id && (!state.lastSubmittedSessionId || state.session.id !== state.lastSubmittedSessionId),
+      hasNewAnalysis: hasSessionBasedNewAnalysis || hasAnalysisWithoutSession,
       // 情況四：已提交（僅 SUBMITTED / GRADED）
       isSubmitted: isActuallySubmitted,
       // 逾期狀態
@@ -887,41 +895,25 @@ export default function SubmitAssignment() {
   };
 
   // Require at least one real student reply before allowing submit
-  const hasStudentSparringReply = React.useMemo(() => {
-    const sparringQuestions = state.session?.result?.sparringQuestions;
+  const activeSparringQuestions = React.useMemo(() => {
+    const questions = state.session?.result?.sparringQuestions;
+    if (!Array.isArray(questions) || questions.length === 0) return [];
+    return [questions[0]];
+  }, [state.session?.result?.sparringQuestions]);
+
+  const hasCompletedSparringDecision = React.useMemo(() => {
+    const sparringQuestions = activeSparringQuestions;
     const chatMessagesMap = state.session?.chatMessagesMap;
 
-    // If沒有 sparring 題目，本來就不需要互動，直接允許送出
+    // 沒有 sparring 題目時，直接允許送出
     if (!sparringQuestions || sparringQuestions.length === 0) return true;
     if (!chatMessagesMap || Object.keys(chatMessagesMap).length === 0) return false;
 
-    const triggerTexts = new Set([
-      '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。',
-      'Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.',
-    ]);
-
-    const extractText = (message: any) => {
-      if (typeof message.content === 'string') return message.content;
-      if (Array.isArray(message.parts)) {
-        return message.parts
-          .filter((p: any) => p.type === 'text')
-          .map((p: any) => p.text)
-          .join('');
-      }
-      return '';
-    };
-
-    // Check ALL conversations across all questions for at least one real student reply
+    // 僅接受 UI 決策（有幫助 / 沒幫助）作為完成條件
     return Object.values(chatMessagesMap).some((messages: any[]) =>
-      messages.some((m: any) => {
-        if (m.role !== 'user') return false;
-        const text = extractText(m).trim();
-        if (!text) return false;
-        // 排除系統自動丟給後端啟動對話的 trigger 文案
-        return !triggerTexts.has(text);
-      })
+      messages.some((m: any) => m.role === 'user' && (m.studentDecision === 'adopt' || m.studentDecision === 'keep'))
     );
-  }, [state.session?.result?.sparringQuestions, state.session?.chatMessagesMap]);
+  }, [activeSparringQuestions, state.session?.chatMessagesMap]);
 
   return (
     <div ref={containerRef} className="w-full flex flex-col lg:h-full">
@@ -1206,7 +1198,7 @@ export default function SubmitAssignment() {
                                   disabled={
                                     state.loading ||
                                     getSubmissionStatus().isOverdue ||
-                                    !hasStudentSparringReply
+                                    !hasCompletedSparringDecision
                                   }
                                   size="icon"
                                   className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all hover:shadow-xl hover:scale-105 disabled:opacity-50"
@@ -1243,9 +1235,9 @@ export default function SubmitAssignment() {
         <aside ref={rightPanelRef} className="w-full lg:w-7/12 overflow-y-auto bg-background hide-scrollbar">
           <div className="p-4 sm:px-6 lg:px-8 py-8 h-full flex flex-col">
             {state.session?.result ? (
-              state.session.result.sparringQuestions && state.session.result.sparringQuestions.length > 0 ? (
+              activeSparringQuestions.length > 0 ? (
                 <FeedbackChat
-                  sparringQuestions={state.session.result.sparringQuestions}
+                  sparringQuestions={activeSparringQuestions}
                   assignmentId={assignment.id}
                   sessionId={state.session.id}
                   result={state.session.result}
@@ -1513,7 +1505,7 @@ export default function SubmitAssignment() {
                             disabled={
                               state.loading ||
                               getSubmissionStatus().isOverdue ||
-                              !hasStudentSparringReply
+                              !hasCompletedSparringDecision
                             }
                             size="icon"
                             className="h-12 w-12 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all active:scale-95 disabled:opacity-50"
@@ -1539,9 +1531,9 @@ export default function SubmitAssignment() {
         <TabsContent value="results" className="overflow-y-auto m-0 p-4">
           <div className="flex flex-col h-full">
             {state.session?.result ? (
-              state.session.result.sparringQuestions && state.session.result.sparringQuestions.length > 0 ? (
+              activeSparringQuestions.length > 0 ? (
                 <FeedbackChat
-                  sparringQuestions={state.session.result.sparringQuestions}
+                  sparringQuestions={activeSparringQuestions}
                   assignmentId={assignment.id}
                   sessionId={state.session.id}
                   result={state.session.result}

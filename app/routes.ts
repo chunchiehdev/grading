@@ -126,6 +126,7 @@ export default [
   route('/api/grading/results', './api/grading/results.ts'),
   route('/api/grading/bridge', './routes/api.grading.bridge.ts'),
   route('/api/grading/chat', './routes/api/grading/chat.ts'),
+  route('/api/grading/converge', './routes/api/grading/converge.ts'),
 
   // Admin API routes
   route('/api/admin/queue-status', './api/admin/queue-status.ts'),

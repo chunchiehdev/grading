@@ -306,7 +306,7 @@
     "finishSparring": "Finish sparring",
     "startSparring": {
       "title": "Start Reflection Sparring",
-      "description": "Next, AI will ask 1-3 questions based on your submission and the teacher's rubric to help deepen your reflection. Start whenever you're ready.",
+      "description": "Next, AI will ask 1 question based on your submission and the teacher's rubric to help deepen your reflection. Start whenever you're ready.",
       "button": "Start Sparring"
     },
     "summary": {

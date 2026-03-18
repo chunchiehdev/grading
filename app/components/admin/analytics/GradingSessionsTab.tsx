@@ -17,6 +17,8 @@ interface GradingSession {
   requiresReview: boolean;
   gradingTokens: number | null;
   sparringTokens: number | null;
+  convergenceCalls?: number;
+  convergenceTokens?: number;
   gradingDuration: number | null;
   createdAt: string;
   uploadedFile: {
@@ -123,6 +125,9 @@ export function GradingSessionsTab() {
                   Sparring Tokens
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Gemini Converge
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Review
                 </th>
               </tr>
@@ -130,13 +135,13 @@ export function GradingSessionsTab() {
             <tbody className="divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
                     Loading grading sessions...
                   </td>
                 </tr>
               ) : sessions.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
                     No grading sessions found
                   </td>
                 </tr>
@@ -207,6 +212,12 @@ export function GradingSessionsTab() {
                       <div className="flex items-center gap-1 text-sm text-foreground">
                         <Clock className="h-3 w-3 text-gray-400" />
                         {session.sparringTokens?.toLocaleString() || '-'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-foreground">
+                        <div>{session.convergenceCalls ?? 0} calls</div>
+                        <div className="text-xs text-muted-foreground">{(session.convergenceTokens ?? 0).toLocaleString()} tokens</div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -313,9 +324,12 @@ export function GradingSessionsTab() {
 
                 <div className="text-right">
                   <div className="text-xs text-gray-500">Tokens</div>
-                  <div className="flex items-center justify-end gap-1 text-sm text-gray-900">
-                    <Clock className="h-3 w-3 text-gray-400" />
-                    {session.gradingTokens?.toLocaleString() || '-'}
+                  <div className="text-sm text-gray-900">
+                    <div className="flex items-center justify-end gap-1">
+                      <Clock className="h-3 w-3 text-gray-400" />
+                      G: {session.gradingTokens?.toLocaleString() || '-'}
+                    </div>
+                    <div className="text-xs text-gray-500">S: {session.sparringTokens?.toLocaleString() || '-'} / C: {session.convergenceCalls ?? 0}</div>
                   </div>
                 </div>
               </div>

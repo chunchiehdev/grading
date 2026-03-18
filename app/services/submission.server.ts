@@ -131,6 +131,16 @@ export async function createSubmissionAndLinkGradingResult(
     'Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.',
   ]);
 
+  const normalizeChatTypography = (text: string): string => {
+    return text
+      .replace(/[\u2018\u2019\u2032]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2010\u2011\u2012\u2013\u2014\u2212]/g, '-')
+      .replace(/\u2026/g, '...')
+      .replace(/\u00A0/g, ' ')
+      .replace(/\u200B/g, '');
+  };
+
   const extractMessageText = (message: unknown): string => {
     if (!message || typeof message !== 'object') return '';
     const payload = message as { content?: unknown; parts?: Array<{ type?: string; text?: string }> };
@@ -193,20 +203,36 @@ export async function createSubmissionAndLinkGradingResult(
   const hasSparringQuestions = Array.isArray(sparringQuestions) && sparringQuestions.length > 0;
 
   if (hasSparringQuestions) {
-    const hasMeaningfulReply = chatMessages.some((message) => {
+    const normalizedTriggerTexts = new Set(
+      Array.from(triggerTexts).map((text) => normalizeChatTypography(text).trim())
+    );
+
+    const meaningfulUserMessages = chatMessages.filter((message) => {
       if (!message || typeof message !== 'object') return false;
 
       const role = (message as { role?: string }).role;
       if (role !== 'user') return false;
 
-      const text = extractMessageText(message).trim();
+      const text = normalizeChatTypography(extractMessageText(message)).trim();
       if (!text) return false;
 
-      return !triggerTexts.has(text);
+      return !normalizedTriggerTexts.has(text);
     });
 
-    if (!hasMeaningfulReply) {
+    if (meaningfulUserMessages.length === 0) {
       throw new Error(`${SUBMIT_GUARD_PREFIX}請至少完成一次對練回覆後再送出`);
+    }
+
+    const hasUIDecision = chatMessages.some((message) => {
+      if (!message || typeof message !== 'object') return false;
+      const decision = (message as { studentDecision?: string }).studentDecision;
+      return decision === 'adopt' || decision === 'keep';
+    });
+
+    if (!hasUIDecision) {
+      throw new Error(
+        `${SUBMIT_GUARD_PREFIX}請先在對練建議區塊用按鈕選擇「採納建議」或「先保留原寫法」後再送出`
+      );
     }
   }
 
@@ -1063,6 +1089,39 @@ export async function getDraftSubmission(
     });
 
     if (existingSubmission) {
+      let resolvedSessionId = existingSubmission.sessionId ?? null;
+      if (!resolvedSessionId) {
+        const fallbackSubmission = await db.submission.findFirst({
+          where: {
+            assignmentAreaId,
+            studentId,
+            isDeleted: false,
+            sessionId: {
+              not: null,
+            },
+          },
+          orderBy: [{ version: 'desc' }, { updatedAt: 'desc' }],
+          select: {
+            id: true,
+            sessionId: true,
+          },
+        });
+
+        if (fallbackSubmission?.sessionId) {
+          resolvedSessionId = fallbackSubmission.sessionId;
+          logger.info(
+            {
+              assignmentAreaId,
+              studentId,
+              submissionId: existingSubmission.id,
+              fallbackSubmissionId: fallbackSubmission.id,
+              resolvedSessionId,
+            },
+            '🔧 Restored missing sessionId from previous submission version'
+          );
+        }
+      }
+
       // Convert submission to draft format
       let fileMetadata = null;
 
@@ -1109,7 +1168,7 @@ export async function getDraftSubmission(
         assignmentAreaId,
         studentId,
         fileMetadata,
-        sessionId: existingSubmission.sessionId ?? null,
+        sessionId: resolvedSessionId,
         aiAnalysisResult: existingSubmission.aiAnalysisResult,
         thoughtSummary: existingSubmission.thoughtSummary,
         thinkingProcess: existingSubmission.thinkingProcess,

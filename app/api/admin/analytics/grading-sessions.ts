@@ -93,8 +93,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
       db.gradingResult.count({ where }),
     ]);
 
+    const sessionsWithConvergenceStats = sessions.map((session) => {
+      const rawResult = session.result;
+      const resultObject = rawResult && typeof rawResult === 'object'
+        ? (rawResult as Record<string, unknown>)
+        : null;
+      const rawMeta = resultObject?._convergenceMeta;
+      const convergenceMeta = rawMeta && typeof rawMeta === 'object'
+        ? (rawMeta as Record<string, unknown>)
+        : null;
+
+      return {
+        ...session,
+        convergenceCalls:
+          convergenceMeta && typeof convergenceMeta.geminiCalls === 'number'
+            ? convergenceMeta.geminiCalls
+            : 0,
+        convergenceTokens:
+          convergenceMeta && typeof convergenceMeta.geminiTokens === 'number'
+            ? convergenceMeta.geminiTokens
+            : 0,
+      };
+    });
+
     const result = {
-      sessions,
+      sessions: sessionsWithConvergenceStats,
       total,
       page,
       limit,

@@ -26,6 +26,58 @@ interface UiChatMessage {
   content?: string;
   parts?: UiChatPart[];
   studentReaction?: 'up' | 'down';
+  studentDecision?: 'adopt' | 'keep';
+}
+
+interface ConvergenceSections {
+  priority: string;
+  why: string;
+  suggestion: string;
+  decision: string;
+}
+
+function extractSectionContent(
+  text: string,
+  headingPattern: RegExp,
+  nextHeadingPatterns: RegExp[]
+): string {
+  const match = text.match(headingPattern);
+  if (!match || match.index === undefined) return '';
+
+  const start = match.index + match[0].length;
+  const rest = text.slice(start);
+  let end = rest.length;
+
+  for (const pattern of nextHeadingPatterns) {
+    const nextMatch = rest.match(pattern);
+    if (nextMatch && nextMatch.index !== undefined) {
+      end = Math.min(end, nextMatch.index);
+    }
+  }
+
+  return rest.slice(0, end).trim();
+}
+
+function parseConvergenceSections(text: string): ConvergenceSections | null {
+  const priorityHeading = /(?:^|\n)\s*(\[Priority sentence to revise\]|【最優先修改句子】)\s*/i;
+  const whyHeading = /(?:^|\n)\s*(\[Why revise\]|【為什麼要改】)\s*/i;
+  const suggestionHeading = /(?:^|\n)\s*(\[Suggested revision direction\]|【建議改寫方向】)\s*/i;
+  const decisionHeading = /(?:^|\n)\s*(\[Do you want to revise\?\]|【你要不要改】)\s*/i;
+
+  if (!priorityHeading.test(text) || !whyHeading.test(text) || !suggestionHeading.test(text) || !decisionHeading.test(text)) {
+    return null;
+  }
+
+  const priority = extractSectionContent(text, priorityHeading, [whyHeading, suggestionHeading, decisionHeading]);
+  const why = extractSectionContent(text, whyHeading, [suggestionHeading, decisionHeading]);
+  const suggestion = extractSectionContent(text, suggestionHeading, [decisionHeading]);
+  const decision = extractSectionContent(text, decisionHeading, []);
+
+  if (!priority || !why || !suggestion || !decision) {
+    return null;
+  }
+
+  return { priority, why, suggestion, decision };
 }
 
 // ── Direction 2: Kember Level from score ratio ────────────────────────────
@@ -114,6 +166,10 @@ export function FeedbackChat({
   const [revisionDraft, setRevisionDraft] = useState('');
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isThinkingOpen, setIsThinkingOpen] = useState(false);
+  const [isConverging, setIsConverging] = useState(false);
+  const [convergenceError, setConvergenceError] = useState<string | null>(null);
+  const [hasConvergenceSuggestion, setHasConvergenceSuggestion] = useState(false);
+  const [selectedConvergenceDecision, setSelectedConvergenceDecision] = useState<'adopt' | 'keep' | null>(null);
 
   // ── Direction 4: Growth summary ────────────────────────────────────────
   const [chatPhase, setChatPhase] = useState<'chat' | 'summary'>(
@@ -253,9 +309,23 @@ export function FeedbackChat({
       setActiveIdx(idx);
       setShowRevisionBox(false);
       setRevisionDraft('');
+      setHasConvergenceSuggestion(false);
+      setSelectedConvergenceDecision(null);
+      setConvergenceError(null);
     },
     [activeIdx, messages, conversationsMap, initialConversationsMap, setMessages]
   );
+
+  useEffect(() => {
+    const savedDecision = messages.find((m: any) =>
+      m?.role === 'user' && (m?.studentDecision === 'adopt' || m?.studentDecision === 'keep')
+    ) as { studentDecision?: 'adopt' | 'keep' } | undefined;
+
+    if (savedDecision?.studentDecision) {
+      setSelectedConvergenceDecision(savedDecision.studentDecision);
+      setHasConvergenceSuggestion(true);
+    }
+  }, [messages]);
 
   // Initialize opening - 僅在 hasStarted 為 true 時才會送出第一個 trigger
   useEffect(() => {
@@ -313,11 +383,100 @@ export function FeedbackChat({
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (!input.trim() || isLoading || isCurrentQuestionComplete) return;
+      if (isLoading || !input.trim()) return;
+      if (isCurrentQuestionComplete) return;
       sendMessage({ text: input.trim() });
       setInput('');
     },
-    [input, isLoading, isCurrentQuestionComplete, sendMessage]
+    [input, isCurrentQuestionComplete, isLoading, sendMessage]
+  );
+
+  const handleRequestConvergence = useCallback(async () => {
+    if (isConverging || hasConvergenceSuggestion) return;
+
+    setIsConverging(true);
+    setConvergenceError(null);
+
+    try {
+      const triggerTexts = new Set([
+        normalizeChatTypography(triggerText).trim(),
+        normalizeChatTypography('請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。').trim(),
+        normalizeChatTypography('Please start the conversation based on the student assignment and sparring question in your system prompt. Open in a warm, conversational way.').trim(),
+      ]);
+      const conversationMessages = messages.filter((m: any) => {
+        if (m.id === TRIGGER_MSG_ID) return false;
+        const content = normalizeChatTypography(extractChatMessageText(m as UiChatMessage)).trim();
+        if (!content) return false;
+        return !triggerTexts.has(content);
+      });
+
+      const response = await fetch('/api/grading/converge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: conversationMessages,
+          context: chatContext,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload?.success || typeof payload?.suggestion !== 'string') {
+        throw new Error(payload?.error || 'Failed to generate convergence suggestion');
+      }
+
+      setMessages((prev: any[]) => [
+        ...prev,
+        {
+          id: `convergence-assistant-${Date.now()}`,
+          role: 'assistant',
+          content: payload.suggestion,
+        },
+      ]);
+      setHasConvergenceSuggestion(true);
+      setSelectedConvergenceDecision(null);
+    } catch (error) {
+      setConvergenceError(
+        error instanceof Error
+          ? error.message
+          : uiLanguage === 'zh'
+            ? '無法產生收斂建議，請稍後再試。'
+            : 'Unable to generate convergence suggestion. Please try again.'
+      );
+    } finally {
+      setIsConverging(false);
+    }
+  }, [chatContext, hasConvergenceSuggestion, isConverging, messages, setMessages, triggerText, uiLanguage]);
+
+  const handleSelectConvergenceDecision = useCallback(
+    (decision: 'adopt' | 'keep') => {
+      setSelectedConvergenceDecision(decision);
+      setConvergenceError(null);
+
+      const content = uiLanguage === 'zh'
+        ? decision === 'adopt'
+          ? '決策：採納（已透過按鈕選擇）'
+          : '決策：保留（已透過按鈕選擇）'
+        : decision === 'adopt'
+          ? 'Decision: Adopt (selected via UI)'
+          : 'Decision: Keep (selected via UI)';
+
+      setMessages((prev: any[]) => {
+        const filtered = prev.filter(
+          (m: any) => !(m?.role === 'user' && (m?.studentDecision === 'adopt' || m?.studentDecision === 'keep'))
+        );
+
+        return [
+          ...filtered,
+          {
+            id: `convergence-decision-${Date.now()}`,
+            role: 'user',
+            content,
+            studentDecision: decision,
+          },
+        ];
+      });
+    },
+    [setMessages, uiLanguage]
   );
 
   // ── Direction 3: Submit revision as a chat message ─────────────────────
@@ -366,6 +525,7 @@ export function FeedbackChat({
 
       return messages.filter((m) => {
         if (m.id === TRIGGER_MSG_ID) return false;
+        if ((m as UiChatMessage).studentDecision) return false;
         const content = normalizeChatTypography(extractChatMessageText(m as UiChatMessage)).trim();
         if (!content) return false;
         if (triggerTexts.has(content)) return false;
@@ -621,6 +781,7 @@ export function FeedbackChat({
             {visibleMessages.map((m: any) => {
               const parsedMessage = m as UiChatMessage;
               const messageText = normalizeChatTypography(extractChatMessageText(parsedMessage));
+              const convergenceSections = parseConvergenceSections(messageText);
               const rawMessageIndex = messages.findIndex((msg) => msg === m);
               const messageId = m.id || `assistant-${activeIdx}-${rawMessageIndex}`;
               const isAssistant = m.role === 'assistant';
@@ -639,11 +800,51 @@ export function FeedbackChat({
                     </div>
                   ) : (
                     <div className="w-full max-w-[96%] sm:max-w-[92%] space-y-2">
-                      <div className="px-1 py-1 text-sm text-foreground leading-relaxed">
-                        <div className="prose prose-sm dark:prose-invert max-w-none [&_*]:font-sans [&_p]:leading-relaxed">
-                          <Markdown>{messageText}</Markdown>
+                      {convergenceSections ? (
+                        <div className="rounded-2xl border border-primary/25 bg-primary/5 p-4 space-y-3">
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                              {uiLanguage === 'zh' ? '最優先修改句子' : 'Priority sentence to revise'}
+                            </p>
+                            <div className="rounded-lg bg-background/80 border border-border px-3 py-2 text-sm text-foreground leading-relaxed">
+                              <Markdown>{convergenceSections.priority}</Markdown>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                              {uiLanguage === 'zh' ? '為什麼要改' : 'Why revise'}
+                            </p>
+                            <div className="text-sm text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                              <Markdown>{convergenceSections.why}</Markdown>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                              {uiLanguage === 'zh' ? '建議改寫方向' : 'Suggested revision direction'}
+                            </p>
+                            <div className="rounded-lg bg-background/80 border border-border px-3 py-2 text-sm text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                              <Markdown>{convergenceSections.suggestion}</Markdown>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                              {uiLanguage === 'zh' ? '你要不要改' : 'Do you want to revise?'}
+                            </p>
+                            <div className="text-sm text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                              <Markdown>{convergenceSections.decision}</Markdown>
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="px-1 py-1 text-sm text-foreground leading-relaxed">
+                          <div className="prose prose-sm dark:prose-invert max-w-none [&_*]:font-sans [&_p]:leading-relaxed">
+                            <Markdown>{messageText}</Markdown>
+                          </div>
+                        </div>
+                      )}
                       {isAssistant && (
                         <div className="flex items-center gap-1 px-1">
                           <Button
@@ -694,28 +895,78 @@ export function FeedbackChat({
             {/* After rounds complete: action bar */}
             {isCurrentQuestionComplete && !isLoading && (
               <div className="flex w-full justify-center py-2">
-                <div className="flex flex-col items-center gap-3 w-full max-w-xs">
+                <div className="w-full max-w-md rounded-2xl border border-[#D9E1E8] bg-[#F8FAFC] p-4 space-y-4 dark:border-[#334155] dark:bg-[#0F172A]/40">
                   <p className="text-xs text-muted-foreground text-center">{t('grading:chat.currentQuestionCompleted')}</p>
-                  <div className="flex gap-2 w-full">
-                    {activeIdx < sparringQuestions.length - 1 && (
+
+                  {!hasConvergenceSuggestion ? (
+                    <div className="flex justify-center">
                       <Button
-                        variant="outline"
                         size="sm"
-                        className="flex-1 rounded-full text-xs"
-                        onClick={() => handleSwitchQuestion(activeIdx + 1)}
+                        className="rounded-full text-xs bg-[#E07A5F] px-5 text-white hover:bg-[#D2691E]"
+                        onClick={handleRequestConvergence}
+                        disabled={isConverging}
                       >
-                        {t('grading:chat.nextQuestion')}
+                        {isConverging ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Trophy className="h-3 w-3 mr-1" />
+                        )}
+                        {uiLanguage === 'zh' ? '看看 LLM 給你的建議' : 'See LLM revision advice'}
                       </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      className="flex-1 rounded-full text-xs bg-primary"
-                      onClick={handleFinishSparring}
-                    >
-                      <Trophy className="h-3 w-3 mr-1" />
-                      {t('grading:chat.finishSparring')}
-                    </Button>
-                  </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectConvergenceDecision('adopt')}
+                          className={cn(
+                            'rounded-xl border p-3 text-center transition-all hover:shadow-sm',
+                            selectedConvergenceDecision === 'adopt'
+                              ? 'border-[#1F8F6A] bg-[#E8F7F1] dark:border-[#34D399] dark:bg-[#064E3B]/35'
+                              : 'border-[#D5EADF] bg-white hover:border-[#72C5A4] hover:bg-[#F6FBF9] dark:border-[#2D4E45] dark:bg-[#111827] dark:hover:border-[#34D399]/70 dark:hover:bg-[#052E25]'
+                          )}
+                        >
+                          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#D6F1E6] text-[#155E45] dark:bg-[#065F46]/50 dark:text-[#6EE7B7]">
+                            <ThumbsUp className="h-5 w-5" />
+                          </div>
+                          <p className="text-xs font-medium text-foreground">{uiLanguage === 'zh' ? '有幫助' : 'Helpful'}</p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSelectConvergenceDecision('keep')}
+                          className={cn(
+                            'rounded-xl border p-3 text-center transition-all hover:shadow-sm',
+                            selectedConvergenceDecision === 'keep'
+                              ? 'border-[#C75B39] bg-[#FFF1EC] dark:border-[#FB7185] dark:bg-[#7F1D1D]/30'
+                              : 'border-[#F2DCD3] bg-white hover:border-[#E9A28A] hover:bg-[#FFF8F5] dark:border-[#5F3A33] dark:bg-[#111827] dark:hover:border-[#FB7185]/70 dark:hover:bg-[#3F1D1D]'
+                          )}
+                        >
+                          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#FFE1D6] text-[#8C3218] dark:bg-[#7F1D1D]/45 dark:text-[#FDA4AF]">
+                            <ThumbsDown className="h-5 w-5" />
+                          </div>
+                          <p className="text-xs font-medium text-foreground">{uiLanguage === 'zh' ? '沒幫助' : 'Not helpful'}</p>
+                        </button>
+                      </div>
+
+                      <div className="flex justify-center">
+                        <Button
+                          size="sm"
+                          className="rounded-full text-xs bg-[#2F3A46] px-5 text-white hover:bg-[#25313C]"
+                          onClick={handleFinishSparring}
+                          disabled={!selectedConvergenceDecision}
+                        >
+                          <Trophy className="h-3 w-3 mr-1" />
+                          {t('grading:chat.finishSparring')}
+                        </Button>
+                      </div>
+                    </>
+                  )}
+
+                  {convergenceError && (
+                    <p className="text-xs text-red-600 dark:text-red-400 text-center">{convergenceError}</p>
+                  )}
                 </div>
               </div>
             )}
@@ -784,11 +1035,12 @@ export function FeedbackChat({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        if (!input.trim() || isLoading || isCurrentQuestionComplete) return;
-                        sendMessage({ text: input.trim() });
-                        setInput('');
-                      }
-                    }}
+                         if (!input.trim() || isLoading) return;
+                         if (isCurrentQuestionComplete) return;
+                         sendMessage({ text: input.trim() });
+                         setInput('');
+                       }
+                     }}
                     placeholder={t('grading:chat.placeholder')}
                     className={cn(
                       'w-full bg-transparent border-0 shadow-none resize-none',

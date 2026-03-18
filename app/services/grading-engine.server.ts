@@ -596,9 +596,13 @@ export async function processGradingResult(
         }
       }
 
+      const normalizedSparringQuestions = Array.isArray(gradingResponse.result.sparringQuestions)
+        ? gradingResponse.result.sparringQuestions.slice(0, 1)
+        : [];
+
       // 🔍 CRITICAL DEBUG: Check sparringQuestions BEFORE saving to DB
-      logger.info(`🔍 [DB Save] gradingResponse.result.sparringQuestions: ${JSON.stringify(gradingResponse.result.sparringQuestions || 'UNDEFINED').substring(0, 300)}`);
-      logger.info(`🔍 [DB Save] sparringQuestions count: ${gradingResponse.result.sparringQuestions?.length || 0}`);
+      logger.info(`🔍 [DB Save] gradingResponse.result.sparringQuestions: ${JSON.stringify(normalizedSparringQuestions || 'UNDEFINED').substring(0, 300)}`);
+      logger.info(`🔍 [DB Save] sparringQuestions count: ${normalizedSparringQuestions.length || 0}`);
 
       await db.gradingResult.update({
         where: { id: resultId },
@@ -611,7 +615,7 @@ export async function processGradingResult(
             breakdown: gradingResponse.result.breakdown || [],
             overallFeedback: overallFeedbackStr,
             // Sparring Questions for Productive Friction
-            sparringQuestions: gradingResponse.result.sparringQuestions || [],
+            sparringQuestions: normalizedSparringQuestions,
             processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
           },
           thoughtSummary: gradingResponse.thoughtSummary, // Feature 005: Save AI thinking process
@@ -691,7 +695,7 @@ export async function processGradingResult(
               maxScore: gradingResponse.result.maxScore,
               breakdown: gradingResponse.result.breakdown || [],
               overallFeedback: overallFeedbackStr,
-              sparringQuestions: gradingResponse.result.sparringQuestions || [],
+               sparringQuestions: normalizedSparringQuestions,
               processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
             };
           }
@@ -735,9 +739,9 @@ export async function processGradingResult(
       // 🆕 Debug: Log sparringQuestions saved to DB
       logger.info({
         resultId,
-        sparringQuestionsCount: gradingResponse.result.sparringQuestions?.length || 0,
-        sparringQuestionsPreview: gradingResponse.result.sparringQuestions 
-          ? JSON.stringify(gradingResponse.result.sparringQuestions).substring(0, 200)
+        sparringQuestionsCount: normalizedSparringQuestions.length || 0,
+        sparringQuestionsPreview: normalizedSparringQuestions.length > 0
+          ? JSON.stringify(normalizedSparringQuestions).substring(0, 200)
           : 'empty',
       }, `🎯 [Grading Engine] sparringQuestions saved to DB:`);
 
@@ -793,7 +797,9 @@ export async function processGradingResult(
           maxScore: gradingResponse.result.maxScore,
           breakdown: gradingResponse.result.breakdown || [],
           overallFeedback: overallFeedbackStr,
-          sparringQuestions: gradingResponse.result.sparringQuestions || [],
+          sparringQuestions: Array.isArray(gradingResponse.result.sparringQuestions)
+            ? gradingResponse.result.sparringQuestions.slice(0, 1)
+            : [],
           processingDiagnostics: (gradingResponse.result as any).processingDiagnostics || undefined,
         };
       }
