@@ -845,7 +845,7 @@ export async function executeGradingAgent(params: AgentGradingParams): Promise<A
     const MAX_GENERATE_FEEDBACK_ATTEMPTS = 2;
     const MAX_THINK_ALOUD_ATTEMPTS = 2;
     const HARD_MAX_TOTAL_TOOL_CALLS = 6;
-    const HARD_MAX_THINK_ALOUD_CALLS = 1;
+    const HARD_MAX_THINK_ALOUD_CALLS = MAX_THINK_ALOUD_ATTEMPTS;
 
     const countToolCalls = (agentSteps: any[] | undefined, targetToolName: string): number => {
       if (!agentSteps || agentSteps.length === 0) return 0;
