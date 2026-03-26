@@ -105,8 +105,29 @@ export interface TeacherSubmissionView {
     filePath: string | null;
     /** Teacher feedback text, null if not provided */
     teacherFeedback: string | null;
+    /** Human-reviewed score for IRR pairing, null if not reviewed */
+    humanScore: number | null;
+    /** Criterion-level teacher scores for rubric review */
+    humanCriteriaScores: Array<{
+      criteriaId: string;
+      score: number;
+      maxScore: number;
+    }>;
+    /** Teacher userId who reviewed/scored this submission */
+    humanRaterId: string | null;
+    /** Timestamp when human review score was submitted */
+    humanRatedAt: string | null;
+    /** Pre-formatted human review timestamp for display */
+    formattedHumanRatedAt?: string | null;
     /** AI analysis result JSON, null if analysis incomplete */
     aiAnalysisResult: any | null;
+    /** Flattened rubric criteria used to collect teacher scores */
+    rubricCriteria: Array<{
+      criteriaId: string;
+      name: string;
+      description: string;
+      maxScore: number;
+    }>;
     /** Context transparency metadata (Feature 004), null if no context was used */
     usedContext: any | null;
     /** AI confidence summary (Feature 005 & 012), null if not available */

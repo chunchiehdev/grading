@@ -34,7 +34,12 @@
     "submittedAt": "提交時間：",
     "assignmentDescription": "作業說明",
     "overdueTooltip": "作業已逾期，無法重新提交",
+    "teacherReview": "教師評分與回饋",
+    "teacherScore": "教師分數",
+    "teacherScoreSummary": "{{score}} / {{maxScore}}（{{percent}}%）",
+    "teacherReviewedAt": "評分時間：",
     "teacherFeedback": "教師評語",
+    "teacherFeedbackPending": "老師尚未提供文字評語。",
     "aiAnalysisInProgress": "AI分析進行中..."
   },
   "aiAnalysis": {
@@ -69,7 +74,8 @@
       "totalSubmissions": "總提交數",
       "graded": "已批改",
       "analyzed": "已分析",
-      "pendingReview": "待審核"
+      "pendingReview": "待審核",
+      "humanReviewed": "已人工覆核"
     },
     "studentSubmissions": "學生提交",
     "emptyState": {
@@ -84,7 +90,9 @@
     },
     "feedback": {
       "teacherFeedback": "教師回饋",
-      "aiAnalysisAvailable": "已完成 AI 分析"
+      "aiAnalysisAvailable": "已完成 AI 分析",
+      "humanReviewed": "已人工覆核",
+      "humanScoreLabel": "教師分數"
     },
     "assignmentDetails": {
       "title": "作業詳情",
@@ -116,13 +124,23 @@
       "feedback": {
         "title": "教師回饋",
         "label": "給學生的評語與建議",
+        "humanScoreLabel": "教師覆核分數",
+        "humanScorePlaceholder": "請輸入教師分數",
+        "criteriaScoringTitle": "依評分標準逐項評分",
+        "maxScoreHint": "滿分 {{maxScore}}",
+        "levelPlaceholder": "等級",
+        "levelOption": "等級 {{level}}",
+        "computedScore": "自動加總：{{score}} / {{maxScore}}",
+        "reviewedMeta": "已於 {{reviewedAt}} 覆核，分數 {{score}}",
         "placeholder": "請輸入您對這份作業的評語、建議或需要改進的地方...",
         "save": "保存回饋",
         "saving": "保存中...",
         "saveSuccess": "回饋已成功保存",
         "errors": {
           "notFoundOrUnauthorized": "找不到提交記錄或您沒有權限操作",
-          "saveFailed": "保存回饋失敗，請稍後再試"
+          "saveFailed": "保存回饋失敗，請稍後再試",
+          "invalidScore": "分數格式不正確，請選擇各評分項目的整數等級。",
+          "incompleteCriteriaScores": "請先完成每一個評分標準的分數後再保存。"
         }
       },
       "delete": {

@@ -34,6 +34,10 @@ export interface SubmissionInfo {
   finalScore: number | null;
   normalizedScore: number | null;
   teacherFeedback: string | null;
+  humanScore?: number | null;
+  humanCriteriaScores?: any | null;
+  humanRaterId?: string | null;
+  humanRatedAt?: Date | null;
   usedContext: any | null;
   thoughtSummary: string | null; // Feature 005 & 012: AI confidence summary
   thinkingProcess: string | null; // Feature 012: AI detailed thinking process

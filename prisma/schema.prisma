@@ -182,6 +182,10 @@ model Submission {
   usedContext Json? // { assignmentAreaId, referenceFilesUsed: [{fileId, fileName, contentLength, wasTruncated}], customInstructionsUsed: boolean }
 
   teacherFeedback String?          @db.Text
+  humanScore      Float? // Teacher-entered score for IRR pairing
+  humanCriteriaScores Json? // Criterion-level teacher scores [{ criteriaId, score, maxScore }]
+  humanRaterId    String? // Teacher userId who reviewed/scored this submission
+  humanRatedAt    DateTime? // Timestamp when teacher review score was saved
   status          SubmissionStatus @default(SUBMITTED)
 
   // Soft delete fields (for teacher deletion)
@@ -201,6 +205,7 @@ model Submission {
   @@index([studentId, assignmentAreaId, version])
   @@index([isLatest])
   @@index([isDeleted]) // Index for filtering deleted submissions
+  @@index([humanRatedAt]) // Index for IRR sampling and review recency queries
   @@map("submissions")
 }
 

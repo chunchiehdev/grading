@@ -30,12 +30,14 @@ export type SubmissionAvgAggregateOutputType = {
   version: number | null
   finalScore: number | null
   normalizedScore: number | null
+  humanScore: number | null
 }
 
 export type SubmissionSumAggregateOutputType = {
   version: number | null
   finalScore: number | null
   normalizedScore: number | null
+  humanScore: number | null
 }
 
 export type SubmissionMinAggregateOutputType = {
@@ -54,6 +56,9 @@ export type SubmissionMinAggregateOutputType = {
   finalScore: number | null
   normalizedScore: number | null
   teacherFeedback: string | null
+  humanScore: number | null
+  humanRaterId: string | null
+  humanRatedAt: Date | null
   status: $Enums.SubmissionStatus | null
   isDeleted: boolean | null
   deletedAt: Date | null
@@ -78,6 +83,9 @@ export type SubmissionMaxAggregateOutputType = {
   finalScore: number | null
   normalizedScore: number | null
   teacherFeedback: string | null
+  humanScore: number | null
+  humanRaterId: string | null
+  humanRatedAt: Date | null
   status: $Enums.SubmissionStatus | null
   isDeleted: boolean | null
   deletedAt: Date | null
@@ -104,6 +112,10 @@ export type SubmissionCountAggregateOutputType = {
   normalizedScore: number
   usedContext: number
   teacherFeedback: number
+  humanScore: number
+  humanCriteriaScores: number
+  humanRaterId: number
+  humanRatedAt: number
   status: number
   isDeleted: number
   deletedAt: number
@@ -118,12 +130,14 @@ export type SubmissionAvgAggregateInputType = {
   version?: true
   finalScore?: true
   normalizedScore?: true
+  humanScore?: true
 }
 
 export type SubmissionSumAggregateInputType = {
   version?: true
   finalScore?: true
   normalizedScore?: true
+  humanScore?: true
 }
 
 export type SubmissionMinAggregateInputType = {
@@ -142,6 +156,9 @@ export type SubmissionMinAggregateInputType = {
   finalScore?: true
   normalizedScore?: true
   teacherFeedback?: true
+  humanScore?: true
+  humanRaterId?: true
+  humanRatedAt?: true
   status?: true
   isDeleted?: true
   deletedAt?: true
@@ -166,6 +183,9 @@ export type SubmissionMaxAggregateInputType = {
   finalScore?: true
   normalizedScore?: true
   teacherFeedback?: true
+  humanScore?: true
+  humanRaterId?: true
+  humanRatedAt?: true
   status?: true
   isDeleted?: true
   deletedAt?: true
@@ -192,6 +212,10 @@ export type SubmissionCountAggregateInputType = {
   normalizedScore?: true
   usedContext?: true
   teacherFeedback?: true
+  humanScore?: true
+  humanCriteriaScores?: true
+  humanRaterId?: true
+  humanRatedAt?: true
   status?: true
   isDeleted?: true
   deletedAt?: true
@@ -305,6 +329,10 @@ export type SubmissionGroupByOutputType = {
   normalizedScore: number | null
   usedContext: runtime.JsonValue | null
   teacherFeedback: string | null
+  humanScore: number | null
+  humanCriteriaScores: runtime.JsonValue | null
+  humanRaterId: string | null
+  humanRatedAt: Date | null
   status: $Enums.SubmissionStatus
   isDeleted: boolean
   deletedAt: Date | null
@@ -354,6 +382,10 @@ export type SubmissionWhereInput = {
   normalizedScore?: Prisma.FloatNullableFilter<"Submission"> | number | null
   usedContext?: Prisma.JsonNullableFilter<"Submission">
   teacherFeedback?: Prisma.StringNullableFilter<"Submission"> | string | null
+  humanScore?: Prisma.FloatNullableFilter<"Submission"> | number | null
+  humanCriteriaScores?: Prisma.JsonNullableFilter<"Submission">
+  humanRaterId?: Prisma.StringNullableFilter<"Submission"> | string | null
+  humanRatedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   status?: Prisma.EnumSubmissionStatusFilter<"Submission"> | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFilter<"Submission"> | boolean
   deletedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
@@ -385,6 +417,10 @@ export type SubmissionOrderByWithRelationInput = {
   normalizedScore?: Prisma.SortOrderInput | Prisma.SortOrder
   usedContext?: Prisma.SortOrderInput | Prisma.SortOrder
   teacherFeedback?: Prisma.SortOrderInput | Prisma.SortOrder
+  humanScore?: Prisma.SortOrderInput | Prisma.SortOrder
+  humanCriteriaScores?: Prisma.SortOrderInput | Prisma.SortOrder
+  humanRaterId?: Prisma.SortOrderInput | Prisma.SortOrder
+  humanRatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -419,6 +455,10 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   normalizedScore?: Prisma.FloatNullableFilter<"Submission"> | number | null
   usedContext?: Prisma.JsonNullableFilter<"Submission">
   teacherFeedback?: Prisma.StringNullableFilter<"Submission"> | string | null
+  humanScore?: Prisma.FloatNullableFilter<"Submission"> | number | null
+  humanCriteriaScores?: Prisma.JsonNullableFilter<"Submission">
+  humanRaterId?: Prisma.StringNullableFilter<"Submission"> | string | null
+  humanRatedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   status?: Prisma.EnumSubmissionStatusFilter<"Submission"> | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFilter<"Submission"> | boolean
   deletedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
@@ -450,6 +490,10 @@ export type SubmissionOrderByWithAggregationInput = {
   normalizedScore?: Prisma.SortOrderInput | Prisma.SortOrder
   usedContext?: Prisma.SortOrderInput | Prisma.SortOrder
   teacherFeedback?: Prisma.SortOrderInput | Prisma.SortOrder
+  humanScore?: Prisma.SortOrderInput | Prisma.SortOrder
+  humanCriteriaScores?: Prisma.SortOrderInput | Prisma.SortOrder
+  humanRaterId?: Prisma.SortOrderInput | Prisma.SortOrder
+  humanRatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -484,6 +528,10 @@ export type SubmissionScalarWhereWithAggregatesInput = {
   normalizedScore?: Prisma.FloatNullableWithAggregatesFilter<"Submission"> | number | null
   usedContext?: Prisma.JsonNullableWithAggregatesFilter<"Submission">
   teacherFeedback?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
+  humanScore?: Prisma.FloatNullableWithAggregatesFilter<"Submission"> | number | null
+  humanCriteriaScores?: Prisma.JsonNullableWithAggregatesFilter<"Submission">
+  humanRaterId?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
+  humanRatedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Submission"> | Date | string | null
   status?: Prisma.EnumSubmissionStatusWithAggregatesFilter<"Submission"> | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolWithAggregatesFilter<"Submission"> | boolean
   deletedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Submission"> | Date | string | null
@@ -507,6 +555,10 @@ export type SubmissionCreateInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -538,6 +590,10 @@ export type SubmissionUncheckedCreateInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -563,6 +619,10 @@ export type SubmissionUpdateInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -594,6 +654,10 @@ export type SubmissionUncheckedUpdateInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -622,6 +686,10 @@ export type SubmissionCreateManyInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -645,6 +713,10 @@ export type SubmissionUpdateManyMutationInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -671,6 +743,10 @@ export type SubmissionUncheckedUpdateManyInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -712,6 +788,10 @@ export type SubmissionCountOrderByAggregateInput = {
   normalizedScore?: Prisma.SortOrder
   usedContext?: Prisma.SortOrder
   teacherFeedback?: Prisma.SortOrder
+  humanScore?: Prisma.SortOrder
+  humanCriteriaScores?: Prisma.SortOrder
+  humanRaterId?: Prisma.SortOrder
+  humanRatedAt?: Prisma.SortOrder
   status?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
@@ -724,6 +804,7 @@ export type SubmissionAvgOrderByAggregateInput = {
   version?: Prisma.SortOrder
   finalScore?: Prisma.SortOrder
   normalizedScore?: Prisma.SortOrder
+  humanScore?: Prisma.SortOrder
 }
 
 export type SubmissionMaxOrderByAggregateInput = {
@@ -742,6 +823,9 @@ export type SubmissionMaxOrderByAggregateInput = {
   finalScore?: Prisma.SortOrder
   normalizedScore?: Prisma.SortOrder
   teacherFeedback?: Prisma.SortOrder
+  humanScore?: Prisma.SortOrder
+  humanRaterId?: Prisma.SortOrder
+  humanRatedAt?: Prisma.SortOrder
   status?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
@@ -766,6 +850,9 @@ export type SubmissionMinOrderByAggregateInput = {
   finalScore?: Prisma.SortOrder
   normalizedScore?: Prisma.SortOrder
   teacherFeedback?: Prisma.SortOrder
+  humanScore?: Prisma.SortOrder
+  humanRaterId?: Prisma.SortOrder
+  humanRatedAt?: Prisma.SortOrder
   status?: Prisma.SortOrder
   isDeleted?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
@@ -778,6 +865,7 @@ export type SubmissionSumOrderByAggregateInput = {
   version?: Prisma.SortOrder
   finalScore?: Prisma.SortOrder
   normalizedScore?: Prisma.SortOrder
+  humanScore?: Prisma.SortOrder
 }
 
 export type SubmissionCreateNestedManyWithoutStudentInput = {
@@ -973,6 +1061,10 @@ export type SubmissionCreateWithoutStudentInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1002,6 +1094,10 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1059,6 +1155,10 @@ export type SubmissionScalarWhereInput = {
   normalizedScore?: Prisma.FloatNullableFilter<"Submission"> | number | null
   usedContext?: Prisma.JsonNullableFilter<"Submission">
   teacherFeedback?: Prisma.StringNullableFilter<"Submission"> | string | null
+  humanScore?: Prisma.FloatNullableFilter<"Submission"> | number | null
+  humanCriteriaScores?: Prisma.JsonNullableFilter<"Submission">
+  humanRaterId?: Prisma.StringNullableFilter<"Submission"> | string | null
+  humanRatedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
   status?: Prisma.EnumSubmissionStatusFilter<"Submission"> | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFilter<"Submission"> | boolean
   deletedAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
@@ -1082,6 +1182,10 @@ export type SubmissionCreateWithoutAssignmentAreaInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1111,6 +1215,10 @@ export type SubmissionUncheckedCreateWithoutAssignmentAreaInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1162,6 +1270,10 @@ export type SubmissionCreateWithoutNextVersionsInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1192,6 +1304,10 @@ export type SubmissionUncheckedCreateWithoutNextVersionsInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1221,6 +1337,10 @@ export type SubmissionCreateWithoutPreviousVersionInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1250,6 +1370,10 @@ export type SubmissionUncheckedCreateWithoutPreviousVersionInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1296,6 +1420,10 @@ export type SubmissionUpdateWithoutNextVersionsInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1326,6 +1454,10 @@ export type SubmissionUncheckedUpdateWithoutNextVersionsInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1366,6 +1498,10 @@ export type SubmissionCreateWithoutCommentInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1396,6 +1532,10 @@ export type SubmissionUncheckedCreateWithoutCommentInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1436,6 +1576,10 @@ export type SubmissionUpdateWithoutCommentInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1466,6 +1610,10 @@ export type SubmissionUncheckedUpdateWithoutCommentInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1492,6 +1640,10 @@ export type SubmissionCreateManyStudentInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1515,6 +1667,10 @@ export type SubmissionUpdateWithoutStudentInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1544,6 +1700,10 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1571,6 +1731,10 @@ export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1596,6 +1760,10 @@ export type SubmissionCreateManyAssignmentAreaInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1619,6 +1787,10 @@ export type SubmissionUpdateWithoutAssignmentAreaInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1648,6 +1820,10 @@ export type SubmissionUncheckedUpdateWithoutAssignmentAreaInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1675,6 +1851,10 @@ export type SubmissionUncheckedUpdateManyWithoutAssignmentAreaInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1700,6 +1880,10 @@ export type SubmissionCreateManyPreviousVersionInput = {
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: string | null
+  humanScore?: number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: string | null
+  humanRatedAt?: Date | string | null
   status?: $Enums.SubmissionStatus
   isDeleted?: boolean
   deletedAt?: Date | string | null
@@ -1723,6 +1907,10 @@ export type SubmissionUpdateWithoutPreviousVersionInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1752,6 +1940,10 @@ export type SubmissionUncheckedUpdateWithoutPreviousVersionInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1779,6 +1971,10 @@ export type SubmissionUncheckedUpdateManyWithoutPreviousVersionInput = {
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   teacherFeedback?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  humanCriteriaScores?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  humanRaterId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  humanRatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   status?: Prisma.EnumSubmissionStatusFieldUpdateOperationsInput | $Enums.SubmissionStatus
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1836,6 +2032,10 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   normalizedScore?: boolean
   usedContext?: boolean
   teacherFeedback?: boolean
+  humanScore?: boolean
+  humanCriteriaScores?: boolean
+  humanRaterId?: boolean
+  humanRatedAt?: boolean
   status?: boolean
   isDeleted?: boolean
   deletedAt?: boolean
@@ -1868,6 +2068,10 @@ export type SubmissionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   normalizedScore?: boolean
   usedContext?: boolean
   teacherFeedback?: boolean
+  humanScore?: boolean
+  humanCriteriaScores?: boolean
+  humanRaterId?: boolean
+  humanRatedAt?: boolean
   status?: boolean
   isDeleted?: boolean
   deletedAt?: boolean
@@ -1897,6 +2101,10 @@ export type SubmissionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   normalizedScore?: boolean
   usedContext?: boolean
   teacherFeedback?: boolean
+  humanScore?: boolean
+  humanCriteriaScores?: boolean
+  humanRaterId?: boolean
+  humanRatedAt?: boolean
   status?: boolean
   isDeleted?: boolean
   deletedAt?: boolean
@@ -1926,6 +2134,10 @@ export type SubmissionSelectScalar = {
   normalizedScore?: boolean
   usedContext?: boolean
   teacherFeedback?: boolean
+  humanScore?: boolean
+  humanCriteriaScores?: boolean
+  humanRaterId?: boolean
+  humanRatedAt?: boolean
   status?: boolean
   isDeleted?: boolean
   deletedAt?: boolean
@@ -1934,7 +2146,7 @@ export type SubmissionSelectScalar = {
   updatedAt?: boolean
 }
 
-export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "assignmentAreaId" | "version" | "isLatest" | "previousVersionId" | "filePath" | "uploadedAt" | "sessionId" | "aiAnalysisResult" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "finalScore" | "normalizedScore" | "usedContext" | "teacherFeedback" | "status" | "isDeleted" | "deletedAt" | "deletedBy" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
+export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "assignmentAreaId" | "version" | "isLatest" | "previousVersionId" | "filePath" | "uploadedAt" | "sessionId" | "aiAnalysisResult" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "finalScore" | "normalizedScore" | "usedContext" | "teacherFeedback" | "humanScore" | "humanCriteriaScores" | "humanRaterId" | "humanRatedAt" | "status" | "isDeleted" | "deletedAt" | "deletedBy" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
 export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   assignmentArea?: boolean | Prisma.AssignmentAreaDefaultArgs<ExtArgs>
@@ -1981,6 +2193,10 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     normalizedScore: number | null
     usedContext: runtime.JsonValue | null
     teacherFeedback: string | null
+    humanScore: number | null
+    humanCriteriaScores: runtime.JsonValue | null
+    humanRaterId: string | null
+    humanRatedAt: Date | null
     status: $Enums.SubmissionStatus
     isDeleted: boolean
     deletedAt: Date | null
@@ -2432,6 +2648,10 @@ export interface SubmissionFieldRefs {
   readonly normalizedScore: Prisma.FieldRef<"Submission", 'Float'>
   readonly usedContext: Prisma.FieldRef<"Submission", 'Json'>
   readonly teacherFeedback: Prisma.FieldRef<"Submission", 'String'>
+  readonly humanScore: Prisma.FieldRef<"Submission", 'Float'>
+  readonly humanCriteriaScores: Prisma.FieldRef<"Submission", 'Json'>
+  readonly humanRaterId: Prisma.FieldRef<"Submission", 'String'>
+  readonly humanRatedAt: Prisma.FieldRef<"Submission", 'DateTime'>
   readonly status: Prisma.FieldRef<"Submission", 'SubmissionStatus'>
   readonly isDeleted: Prisma.FieldRef<"Submission", 'Boolean'>
   readonly deletedAt: Prisma.FieldRef<"Submission", 'DateTime'>

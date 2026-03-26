@@ -34,7 +34,12 @@
     "submittedAt": "Submitted At:",
     "assignmentDescription": "Assignment Description",
     "overdueTooltip": "Assignment is overdue, cannot resubmit",
+    "teacherReview": "Teacher Review",
+    "teacherScore": "Teacher Score",
+    "teacherScoreSummary": "{{score}} / {{maxScore}} ({{percent}}%)",
+    "teacherReviewedAt": "Reviewed At:",
     "teacherFeedback": "Teacher Feedback",
+    "teacherFeedbackPending": "No written feedback yet.",
     "aiAnalysisInProgress": "AI analysis in progress..."
   },
   "aiAnalysis": {
@@ -69,7 +74,8 @@
       "totalSubmissions": "Total Submissions",
       "graded": "Graded",
       "analyzed": "Analyzed",
-      "pendingReview": "Pending Review"
+      "pendingReview": "Pending Review",
+      "humanReviewed": "Human Reviewed"
     },
     "studentSubmissions": "Student Submissions",
     "emptyState": {
@@ -84,7 +90,9 @@
     },
     "feedback": {
       "teacherFeedback": "Teacher Feedback",
-      "aiAnalysisAvailable": "AI analysis completed"
+      "aiAnalysisAvailable": "AI analysis completed",
+      "humanReviewed": "Human reviewed",
+      "humanScoreLabel": "Teacher score"
     },
     "assignmentDetails": {
       "title": "Assignment Details",
@@ -116,13 +124,23 @@
       "feedback": {
         "title": "Teacher Feedback",
         "label": "Comments and suggestions for the student",
+        "humanScoreLabel": "Teacher review score",
+        "humanScorePlaceholder": "Enter teacher score",
+        "criteriaScoringTitle": "Rubric-based teacher scoring",
+        "maxScoreHint": "Max {{maxScore}}",
+        "levelPlaceholder": "Level",
+        "levelOption": "Level {{level}}",
+        "computedScore": "Computed total: {{score}} / {{maxScore}}",
+        "reviewedMeta": "Reviewed score {{score}} on {{reviewedAt}}",
         "placeholder": "Enter your comments, suggestions, or areas for improvement for this assignment...",
         "save": "Save Feedback",
         "saving": "Saving...",
         "saveSuccess": "Feedback saved successfully",
         "errors": {
           "notFoundOrUnauthorized": "Submission not found or you are not authorized",
-          "saveFailed": "Failed to save feedback, please try again later"
+          "saveFailed": "Failed to save feedback, please try again later",
+          "invalidScore": "Invalid score. Please choose an integer level within each criterion range.",
+          "incompleteCriteriaScores": "Please complete every rubric criterion score before saving."
         }
       },
       "delete": {

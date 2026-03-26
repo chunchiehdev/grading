@@ -37,6 +37,7 @@ interface LoaderData {
     graded: number;
     pending: number;
     analyzed: number;
+    humanReviewed: number;
   };
 }
 
@@ -85,6 +86,7 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
     graded: formattedSubmissions.filter((s) => s.status === 'GRADED').length,
     analyzed: formattedSubmissions.filter((s) => s.status === 'ANALYZED').length,
     pending: formattedSubmissions.filter((s) => s.status === 'SUBMITTED').length,
+    humanReviewed: formattedSubmissions.filter((s) => s.humanRatedAt).length,
   };
 
   return {
@@ -144,7 +146,7 @@ export default function AssignmentSubmissions() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               <div className="rounded-2xl border border-border bg-card p-4">
                 <p className="text-xs text-muted-foreground">{t('teacher.stats.totalSubmissions')}</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground tabular-nums">{stats.total}</p>
@@ -160,6 +162,10 @@ export default function AssignmentSubmissions() {
               <div className="rounded-2xl border border-border bg-card p-4">
                 <p className="text-xs text-muted-foreground">{t('teacher.stats.pendingReview')}</p>
                 <p className="mt-1 text-2xl font-semibold text-foreground tabular-nums">{stats.pending}</p>
+              </div>
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <p className="text-xs text-muted-foreground">{t('teacher.stats.humanReviewed')}</p>
+                <p className="mt-1 text-2xl font-semibold text-foreground tabular-nums">{stats.humanReviewed}</p>
               </div>
             </div>
           </div>
@@ -220,6 +226,11 @@ export default function AssignmentSubmissions() {
                     {submission.status === 'SUBMITTED' && <Hourglass className="mr-1 h-3.5 w-3.5" />}
                     {t(`status.${submission.status.toLowerCase()}`, { defaultValue: submission.status })}
                   </span>
+                  {submission.humanRatedAt && (
+                    <span className="ml-2 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                      {t('teacher.feedback.humanReviewed')}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
@@ -238,6 +249,12 @@ export default function AssignmentSubmissions() {
                     <p className="text-sm text-foreground line-clamp-2 leading-relaxed">
                       {submission.teacherFeedback}
                     </p>
+                  </div>
+                )}
+
+                {typeof submission.humanScore === 'number' && (
+                  <div className="mt-3 text-sm font-medium text-foreground">
+                    {t('teacher.feedback.humanScoreLabel')}: {submission.humanScore}
                   </div>
                 )}
 

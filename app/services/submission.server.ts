@@ -967,6 +967,14 @@ export interface UpdateSubmissionOptions {
   normalizedScore?: number | null;
   usedContext?: UsedContext | null; // Feature 004: Context transparency
   teacherFeedback?: string | null;
+  humanScore?: number | null;
+  humanCriteriaScores?: Array<{
+    criteriaId: string;
+    score: number;
+    maxScore: number;
+  }> | null;
+  humanRaterId?: string | null;
+  humanRatedAt?: Date | null;
   status?: 'SUBMITTED' | 'ANALYZED' | 'GRADED';
   thoughtSummary?: string | null; // Feature 005: AI Thinking Process
   thinkingProcess?: string | null; // Feature 012: Raw thinking process
@@ -990,6 +998,10 @@ export async function updateSubmission(
     if ('normalizedScore' in updateData) prismaData.normalizedScore = updateData.normalizedScore;
     if ('usedContext' in updateData) prismaData.usedContext = updateData.usedContext;
     if ('teacherFeedback' in updateData) prismaData.teacherFeedback = updateData.teacherFeedback;
+    if ('humanScore' in updateData) prismaData.humanScore = updateData.humanScore;
+    if ('humanCriteriaScores' in updateData) prismaData.humanCriteriaScores = updateData.humanCriteriaScores;
+    if ('humanRaterId' in updateData) prismaData.humanRaterId = updateData.humanRaterId;
+    if ('humanRatedAt' in updateData) prismaData.humanRatedAt = updateData.humanRatedAt;
     if ('status' in updateData) prismaData.status = updateData.status;
     if ('thoughtSummary' in updateData) prismaData.thoughtSummary = updateData.thoughtSummary;
     if ('thinkingProcess' in updateData) prismaData.thinkingProcess = updateData.thinkingProcess;

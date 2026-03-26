@@ -1,7 +1,7 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
 import { useLoaderData, useActionData, useParams, Form, useNavigate, useRouteError, isRouteErrorResponse } from 'react-router';
 import { ClientOnly } from '@/components/ui/client-only';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { requireTeacher } from '@/services/auth.server';
 import { getSubmissionByIdForTeacher } from '@/services/submission.server';
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
@@ -15,9 +15,9 @@ import type { TeacherInfo, TeacherSubmissionView } from '@/types/teacher';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { CheckCircle2, XCircle, MessageSquare, Trash2, Home } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MessageSquare, Trash2, Home } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { z } from 'zod';
 
 
 interface LoaderData {
@@ -38,7 +39,67 @@ interface LoaderData {
 interface ActionData {
   success?: boolean;
   error?: string;
-  errorKey?: 'notFoundOrUnauthorized' | 'saveFailed';
+  errorKey?: 'notFoundOrUnauthorized' | 'saveFailed' | 'invalidScore' | 'incompleteCriteriaScores';
+}
+
+const RubricCriterionSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional().default(''),
+  maxScore: z.number(),
+});
+
+const RubricCategorySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  criteria: z.array(RubricCriterionSchema),
+});
+
+const RubricCriteriaArraySchema = z.union([z.array(RubricCategorySchema), z.array(RubricCriterionSchema)]);
+
+const HumanCriteriaScoreSchema = z.array(
+  z.object({
+    criteriaId: z.string(),
+    score: z.number(),
+    maxScore: z.number(),
+  })
+);
+
+const TeacherReviewSchema = z.object({
+  teacherFeedback: z.string().trim().max(5000).optional(),
+});
+
+function extractRubricCriteria(rawCriteria: unknown): Array<{
+  criteriaId: string;
+  name: string;
+  description: string;
+  maxScore: number;
+}> {
+  const parsed = RubricCriteriaArraySchema.safeParse(rawCriteria);
+  if (!parsed.success || parsed.data.length === 0) {
+    return [];
+  }
+
+  const firstItem = parsed.data[0];
+  if (firstItem && typeof firstItem === 'object' && 'criteria' in firstItem) {
+    const categories = parsed.data as z.infer<typeof RubricCategorySchema>[];
+    return categories.flatMap((category) =>
+      category.criteria.map((criterion) => ({
+        criteriaId: criterion.id,
+        name: criterion.name,
+        description: criterion.description || '',
+        maxScore: criterion.maxScore,
+      }))
+    );
+  }
+
+  const criteria = parsed.data as z.infer<typeof RubricCriterionSchema>[];
+  return criteria.map((criterion) => ({
+    criteriaId: criterion.id,
+    name: criterion.name,
+    description: criterion.description || '',
+    maxScore: criterion.maxScore,
+  }));
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs): Promise<LoaderData> {
@@ -57,6 +118,8 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
 
   // Import date formatting utilities
   const { formatDateForDisplay } = await import('@/lib/date.server');
+  const rubricCriteria = extractRubricCriteria(rawSubmission.assignmentArea.rubric.criteria);
+  const parsedHumanCriteriaScores = HumanCriteriaScoreSchema.safeParse(rawSubmission.humanCriteriaScores);
 
   // Transform database structure into display-optimized structure
   const submission: TeacherSubmissionView = {
@@ -86,6 +149,14 @@ export async function loader({ request, params }: LoaderFunctionArgs): Promise<L
       formattedUploadedAt: formatDateForDisplay(rawSubmission.uploadedAt),
       filePath: rawSubmission.filePath,
       teacherFeedback: rawSubmission.teacherFeedback,
+      humanScore: rawSubmission.humanScore ?? null,
+      humanCriteriaScores: parsedHumanCriteriaScores.success ? parsedHumanCriteriaScores.data : [],
+      humanRaterId: rawSubmission.humanRaterId ?? null,
+      humanRatedAt: rawSubmission.humanRatedAt?.toISOString() ?? null,
+      formattedHumanRatedAt: rawSubmission.humanRatedAt
+        ? formatDateForDisplay(rawSubmission.humanRatedAt)
+        : null,
+      rubricCriteria,
       aiAnalysisResult: rawSubmission.aiAnalysisResult,
       usedContext: rawSubmission.usedContext ?? null, // Feature 004
       thinkingProcess: rawSubmission.thinkingProcess ?? null, // Feature 012: AI thinking process
@@ -104,7 +175,13 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
   const teacher = await requireTeacher(request);
   const submissionId = params.submissionId as string;
   const formData = await request.formData();
-  const teacherFeedback = formData.get('teacherFeedback') as string;
+  const parsedForm = TeacherReviewSchema.safeParse({
+    teacherFeedback: formData.get('teacherFeedback')?.toString(),
+  });
+
+  if (!parsedForm.success) {
+    return { success: false, errorKey: 'invalidScore' };
+  }
 
   try {
     // Import the update function
@@ -116,14 +193,68 @@ export async function action({ request, params }: ActionFunctionArgs): Promise<A
       return { success: false, errorKey: 'notFoundOrUnauthorized' };
     }
 
+    const rubricCriteria = extractRubricCriteria(submission.assignmentArea.rubric.criteria);
+    if (rubricCriteria.length === 0) {
+      return { success: false, errorKey: 'saveFailed' };
+    }
+
+    const feedbackValue = parsedForm.data.teacherFeedback?.trim() ?? '';
+    const criterionScoresById = new Map<string, number>();
+    for (const [key, value] of formData.entries()) {
+      if (!key.startsWith('criterionScore:')) continue;
+      const criteriaId = key.replace('criterionScore:', '');
+      const rawValue = typeof value === 'string' ? value.trim() : '';
+      if (!rawValue) continue;
+
+      const numericValue = Number(rawValue);
+      if (!Number.isFinite(numericValue)) {
+        return { success: false, errorKey: 'invalidScore' };
+      }
+      criterionScoresById.set(criteriaId, numericValue);
+    }
+
+    const hasIncompleteCriteria = rubricCriteria.some((criterion) => !criterionScoresById.has(criterion.criteriaId));
+    if (hasIncompleteCriteria) {
+      return { success: false, errorKey: 'incompleteCriteriaScores' };
+    }
+
+    const humanCriteriaScores = rubricCriteria.map((criterion) => {
+      const score = criterionScoresById.get(criterion.criteriaId) ?? NaN;
+      if (!Number.isFinite(score) || !Number.isInteger(score) || score < 1 || score > criterion.maxScore) {
+        throw new Error(`INVALID_CRITERION_SCORE:${criterion.criteriaId}`);
+      }
+
+      return {
+        criteriaId: criterion.criteriaId,
+        score,
+        maxScore: criterion.maxScore,
+      };
+    });
+
+    const humanScore = humanCriteriaScores.reduce((sum, item) => sum + item.score, 0);
+    const maxScore = humanCriteriaScores.reduce((sum, item) => sum + item.maxScore, 0);
+    const normalizedScore =
+      maxScore > 0 ? Math.max(0, Math.min(100, Math.round((humanScore / maxScore) * 10000) / 100)) : null;
+    const finalScore = Number.isFinite(humanScore) ? Math.round(humanScore) : null;
+
     // Update the submission with teacher feedback
     await updateSubmission(submissionId, {
-      teacherFeedback: teacherFeedback || undefined,
+      teacherFeedback: feedbackValue || null,
+      humanScore,
+      humanCriteriaScores,
+      humanRaterId: teacher.id,
+      humanRatedAt: new Date(),
+      finalScore,
+      normalizedScore,
+      status: 'GRADED',
     });
 
     return { success: true };
   } catch (error) {
     console.error('Error updating teacher feedback:', error);
+    if (error instanceof Error && error.message.startsWith('INVALID_CRITERION_SCORE:')) {
+      return { success: false, errorKey: 'invalidScore' };
+    }
     return { success: false, errorKey: 'saveFailed' };
   }
 }
@@ -137,19 +268,53 @@ export default function TeacherSubmissionView() {
 
   // Local state for teacher feedback
   const [feedback, setFeedback] = useState(submission.grading.teacherFeedback || '');
+  const [criterionScores, setCriterionScores] = useState<Record<string, string>>(() => {
+    const scores: Record<string, string> = {};
+    for (const criterion of submission.grading.rubricCriteria) {
+      const existing = submission.grading.humanCriteriaScores.find(
+        (item) => item.criteriaId === criterion.criteriaId
+      );
+      scores[criterion.criteriaId] = existing ? String(existing.score) : '';
+    }
+    return scores;
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('pdf'); // Mobile tab navigation
   
   // Delete confirmation dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const lastFeedbackToastRef = useRef<string | null>(null);
 
   // Reset submitting state when action completes
   useEffect(() => {
-    if (actionData) {
-      setIsSubmitting(false);
+    if (!actionData) return;
+
+    setIsSubmitting(false);
+
+    const toastKey = actionData.success
+      ? 'feedback:success'
+      : `feedback:error:${actionData.errorKey || actionData.error || 'unknown'}`;
+
+    if (lastFeedbackToastRef.current === toastKey) {
+      return;
     }
-  }, [actionData]);
+
+    lastFeedbackToastRef.current = toastKey;
+
+    if (actionData.success) {
+      toast.success(t('submissions:teacher.submissionView.feedback.saveSuccess'));
+      return;
+    }
+
+    const message = actionData.error
+      ? actionData.error
+      : actionData.errorKey
+        ? t(`submissions:teacher.submissionView.feedback.errors.${actionData.errorKey}`)
+        : t('submissions:teacher.submissionView.feedback.errors.saveFailed');
+
+    toast.error(message);
+  }, [actionData, t]);
 
   // Handle deletion
   const handleDelete = async () => {
@@ -179,11 +344,21 @@ export default function TeacherSubmissionView() {
   };
 
   // Full screen layout - bypasses parent container constraints
-  const feedbackErrorMessage = actionData?.error
-    ? actionData.error
-    : actionData?.errorKey
-      ? t(`submissions:teacher.submissionView.feedback.errors.${actionData.errorKey}`)
-      : null;
+  const rubricMaxScore = submission.grading.rubricCriteria.reduce(
+    (sum, criterion) => sum + criterion.maxScore,
+    0
+  );
+
+  const computedHumanScore = submission.grading.rubricCriteria.reduce((sum, criterion) => {
+    const raw = criterionScores[criterion.criteriaId];
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? sum + parsed : sum;
+  }, 0);
+
+  const hasAllCriterionScores = submission.grading.rubricCriteria.every((criterion) => {
+    const raw = criterionScores[criterion.criteriaId];
+    return raw !== undefined && raw !== '';
+  });
 
   return (
     <div className="fixed inset-0 top-[60px] bg-background flex flex-col">
@@ -291,28 +466,67 @@ export default function TeacherSubmissionView() {
                   <h3 className="text-lg font-semibold">{t('submissions:teacher.submissionView.feedback.title')}</h3>
                 </div>
 
-                {/* Success/Error Messages */}
-                {actionData?.success && (
-                  <Alert className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    <AlertDescription className="text-green-800 dark:text-green-200">
-                      {t('submissions:teacher.submissionView.feedback.saveSuccess')}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {feedbackErrorMessage && (
-                  <Alert className="bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
-                    <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                    <AlertDescription className="text-red-800 dark:text-red-200">
-                      {feedbackErrorMessage}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
                 {/* Feedback Form */}
                 <Form method="post" onSubmit={() => setIsSubmitting(true)}>
                   <div className="space-y-3">
+                    <div className="space-y-3 rounded-lg border border-border p-4">
+                      <Label className="text-sm text-muted-foreground">
+                        {t('submissions:teacher.submissionView.feedback.criteriaScoringTitle')}
+                      </Label>
+                      <div className="space-y-3">
+                        {submission.grading.rubricCriteria.map((criterion) => (
+                          <div key={criterion.criteriaId} className="rounded-md border border-border/70 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{criterion.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('submissions:teacher.submissionView.feedback.maxScoreHint', {
+                                    maxScore: criterion.maxScore,
+                                  })}
+                                </p>
+                              </div>
+                              <Select
+                                name={`criterionScore:${criterion.criteriaId}`}
+                                value={criterionScores[criterion.criteriaId] ?? ''}
+                                onValueChange={(value) => {
+                                  setCriterionScores((prev) => ({
+                                    ...prev,
+                                    [criterion.criteriaId]: value,
+                                  }));
+                                }}
+                              >
+                                <SelectTrigger className="w-28">
+                                  <SelectValue
+                                    placeholder={t('submissions:teacher.submissionView.feedback.levelPlaceholder')}
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: Math.floor(criterion.maxScore) }, (_, idx) => idx + 1).map((level) => (
+                                    <SelectItem key={`${criterion.criteriaId}-${level}`} value={String(level)}>
+                                      {t('submissions:teacher.submissionView.feedback.levelOption', { level })}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium text-foreground">
+                        {t('submissions:teacher.submissionView.feedback.computedScore', {
+                          score: Math.round(computedHumanScore),
+                          maxScore: rubricMaxScore,
+                        })}
+                      </div>
+                      {submission.grading.formattedHumanRatedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          {t('submissions:teacher.submissionView.feedback.reviewedMeta', {
+                            score: submission.grading.humanScore,
+                            reviewedAt: submission.grading.formattedHumanRatedAt,
+                          })}
+                        </p>
+                      )}
+                    </div>
                     <Label htmlFor="teacherFeedback" className="text-sm text-muted-foreground">
                       {t('submissions:teacher.submissionView.feedback.label')}
                     </Label>
@@ -326,7 +540,7 @@ export default function TeacherSubmissionView() {
                     />
                     <Button 
                       type="submit" 
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !hasAllCriterionScores}
                       className="w-full"
                     >
                       {isSubmitting
@@ -407,26 +621,66 @@ export default function TeacherSubmissionView() {
                   <h3 className="text-lg font-semibold">{t('submissions:teacher.submissionView.feedback.title')}</h3>
                 </div>
 
-                {actionData?.success && (
-                  <Alert className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    <AlertDescription className="text-green-800 dark:text-green-200">
-                      {t('submissions:teacher.submissionView.feedback.saveSuccess')}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {feedbackErrorMessage && (
-                  <Alert className="bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
-                    <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                    <AlertDescription className="text-red-800 dark:text-red-200">
-                      {feedbackErrorMessage}
-                    </AlertDescription>
-                  </Alert>
-                )}
-
                 <Form method="post" onSubmit={() => setIsSubmitting(true)}>
                   <div className="space-y-3">
+                    <div className="space-y-3 rounded-lg border border-border p-4">
+                      <Label className="text-sm text-muted-foreground">
+                        {t('submissions:teacher.submissionView.feedback.criteriaScoringTitle')}
+                      </Label>
+                      <div className="space-y-3">
+                        {submission.grading.rubricCriteria.map((criterion) => (
+                          <div key={criterion.criteriaId} className="rounded-md border border-border/70 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{criterion.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {t('submissions:teacher.submissionView.feedback.maxScoreHint', {
+                                    maxScore: criterion.maxScore,
+                                  })}
+                                </p>
+                              </div>
+                              <Select
+                                name={`criterionScore:${criterion.criteriaId}`}
+                                value={criterionScores[criterion.criteriaId] ?? ''}
+                                onValueChange={(value) => {
+                                  setCriterionScores((prev) => ({
+                                    ...prev,
+                                    [criterion.criteriaId]: value,
+                                  }));
+                                }}
+                              >
+                                <SelectTrigger className="w-24">
+                                  <SelectValue
+                                    placeholder={t('submissions:teacher.submissionView.feedback.levelPlaceholder')}
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: Math.floor(criterion.maxScore) }, (_, idx) => idx + 1).map((level) => (
+                                    <SelectItem key={`${criterion.criteriaId}-mobile-${level}`} value={String(level)}>
+                                      {t('submissions:teacher.submissionView.feedback.levelOption', { level })}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="rounded-md bg-muted/50 px-3 py-2 text-sm font-medium text-foreground">
+                        {t('submissions:teacher.submissionView.feedback.computedScore', {
+                          score: Math.round(computedHumanScore),
+                          maxScore: rubricMaxScore,
+                        })}
+                      </div>
+                      {submission.grading.formattedHumanRatedAt && (
+                        <p className="text-xs text-muted-foreground">
+                          {t('submissions:teacher.submissionView.feedback.reviewedMeta', {
+                            score: submission.grading.humanScore,
+                            reviewedAt: submission.grading.formattedHumanRatedAt,
+                          })}
+                        </p>
+                      )}
+                    </div>
                     <Label htmlFor="teacherFeedback-mobile" className="text-sm text-muted-foreground">
                       {t('submissions:teacher.submissionView.feedback.label')}
                     </Label>
@@ -438,7 +692,7 @@ export default function TeacherSubmissionView() {
                       placeholder={t('submissions:teacher.submissionView.feedback.placeholder')}
                       className="min-h-[120px] resize-none"
                     />
-                    <Button type="submit" disabled={isSubmitting} className="w-full">
+                    <Button type="submit" disabled={isSubmitting || !hasAllCriterionScores} className="w-full">
                       {isSubmitting
                         ? t('submissions:teacher.submissionView.feedback.saving')
                         : t('submissions:teacher.submissionView.feedback.save')}

@@ -70,6 +70,7 @@ export type StudentQueryType =
   | 'student_courses' // List all enrolled courses
   | 'student_assignments' // List all assignments across courses
   | 'student_submissions' // List all submissions with submission IDs
+  | 'submission_detail' // View one submission detail
   | 'my_submission_detail' // View my submission with grading results
   | 'assignment_detail_student' // Student: View assignment requirements
   | 'pending_assignments' // List unsubmitted assignments
@@ -901,6 +902,7 @@ async function queryPendingAssignments(params: QueryParams) {
   // Includes: no submission record OR submission is DRAFT (saved but not submitted)
   const assignments = await db.assignmentArea.findMany({
     where: {
+      dueDate: { lte: futureDate },
       // Assignment must be in a course/class the student is enrolled in
       OR: [
         // Assignments for all classes in enrolled courses

@@ -10,6 +10,35 @@ import { useTranslation } from 'react-i18next';
 import { RotateCcw, Home } from 'lucide-react';
 import type { GradingResultData } from '@/types/grading';
 
+function getRubricMaxScore(rawCriteria: unknown): number | null {
+  if (!Array.isArray(rawCriteria) || rawCriteria.length === 0) {
+    return null;
+  }
+
+  const first = rawCriteria[0];
+  if (first && typeof first === 'object' && 'criteria' in first) {
+    const categories = rawCriteria as Array<{ criteria?: Array<{ maxScore?: number }> }>;
+    const total = categories.reduce((sum, category) => {
+      if (!Array.isArray(category.criteria)) return sum;
+      return (
+        sum +
+        category.criteria.reduce((innerSum, criterion) => {
+          const maxScore = typeof criterion?.maxScore === 'number' ? criterion.maxScore : 0;
+          return innerSum + maxScore;
+        }, 0)
+      );
+    }, 0);
+    return total > 0 ? total : null;
+  }
+
+  const criteria = rawCriteria as Array<{ maxScore?: number }>;
+  const total = criteria.reduce((sum, criterion) => {
+    const maxScore = typeof criterion?.maxScore === 'number' ? criterion.maxScore : 0;
+    return sum + maxScore;
+  }, 0);
+  return total > 0 ? total : null;
+}
+
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const student = await requireStudent(request);
   const submissionId = params.submissionId as string;
@@ -21,10 +50,33 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   // Format date on server to avoid hydration mismatch
   const { formatDateForDisplay } = await import('@/lib/date.server');
   const formattedUploadedAt = formatDateForDisplay(submission.uploadedAt);
+  const formattedHumanRatedAt = submission.humanRatedAt ? formatDateForDisplay(submission.humanRatedAt) : null;
+  const teacherScore = submission.humanScore ?? submission.finalScore;
+  const maxScoreFromCriteria = Array.isArray(submission.humanCriteriaScores)
+    ? submission.humanCriteriaScores.reduce((sum, item) => {
+        const maxScore =
+          typeof item === 'object' && item !== null && 'maxScore' in item && typeof item.maxScore === 'number'
+            ? item.maxScore
+            : 0;
+        return sum + maxScore;
+      }, 0)
+    : 0;
+  const rubricMaxScore = getRubricMaxScore(submission.assignmentArea.rubric.criteria);
+  const totalMaxScore = maxScoreFromCriteria > 0 ? maxScoreFromCriteria : rubricMaxScore;
+  const teacherScorePercent =
+    teacherScore !== null && totalMaxScore && totalMaxScore > 0
+      ? Math.round((teacherScore / totalMaxScore) * 1000) / 10
+      : null;
 
   return {
     student: { name: student.name, picture: student.picture },
-    submission: { ...submission, formattedUploadedAt },
+    submission: {
+      ...submission,
+      formattedUploadedAt,
+      formattedHumanRatedAt,
+      teacherScore,
+      teacherScorePercent,
+    },
   };
 }
 
@@ -32,6 +84,8 @@ export default function StudentSubmissionDetail() {
   const { student, submission } = useLoaderData<typeof loader>();
   const { t } = useTranslation(['submissions']);
   const a = submission.assignmentArea;
+  const teacherScore = submission.teacherScore;
+  const hasTeacherFeedback = Boolean(submission.teacherFeedback?.trim());
 
   // Check if submission is past due date
   const isOverdue = a.dueDate ? new Date() > new Date(a.dueDate) : false;
@@ -118,16 +172,46 @@ export default function StudentSubmissionDetail() {
             </div>
           </section>
 
-          {/* 教師評語 */}
-          {submission.teacherFeedback && (
+          {/* 教師評分與回饋 */}
+          {(teacherScore !== null || hasTeacherFeedback) && (
             <section>
               <h2 className="mb-4 font-serif text-lg lg:text-xl font-light text-[#2B2B2B] dark:text-gray-100">
-                {t('submissions:submissionDetail.teacherFeedback')}
+                {t('submissions:submissionDetail.teacherReview')}
               </h2>
-              <div className="border-2 border-[#2B2B2B] p-4 lg:p-6 dark:border-gray-200">
-                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                  {submission.teacherFeedback}
+
+              <div className="border-2 border-[#2B2B2B] p-4 lg:p-6 dark:border-gray-200 space-y-4">
+                {teacherScore !== null && (
+                  <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                    {t('submissions:submissionDetail.teacherScore')}
+                  </p>
+                  <p className="font-serif text-3xl font-light text-[#2B2B2B] dark:text-gray-100">
+                    {submission.teacherScorePercent ?? teacherScore}
+                  </p>
+                  {submission.formattedHumanRatedAt && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      {t('submissions:submissionDetail.teacherReviewedAt')} {submission.formattedHumanRatedAt}
+                    </p>
+                  )}
+                  </div>
+                )}
+
+                {teacherScore !== null && <div className="border-t border-gray-200 dark:border-gray-700" />}
+
+                <div>
+                <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                  {t('submissions:submissionDetail.teacherFeedback')}
                 </p>
+                {hasTeacherFeedback ? (
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    {submission.teacherFeedback}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {t('submissions:submissionDetail.teacherFeedbackPending')}
+                  </p>
+                )}
+                </div>
               </div>
             </section>
           )}
@@ -161,4 +245,3 @@ export function ErrorBoundary() {
     />
   );
 }
-

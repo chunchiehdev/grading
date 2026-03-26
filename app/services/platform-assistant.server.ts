@@ -158,6 +158,7 @@ function getQueryDisplayName(queryType: string, isEnglish: boolean): string {
     student_assignments: { en: 'assignment list', zh: '作業清單' },
     student_courses: { en: 'enrolled courses', zh: '已修課程' },
     student_submissions: { en: 'submission history', zh: '繳交紀錄' },
+    submission_detail: { en: 'submission detail', zh: '提交詳情' },
     my_submission_detail: { en: 'submission details', zh: '提交詳情' },
     assignment_detail_student: { en: 'assignment details', zh: '作業詳情' },
     teacher_courses: { en: 'teaching courses', zh: '授課課程' },
@@ -398,6 +399,7 @@ const studentQueryTypeEnum = z.enum([
   'student_assignments',
   'assignment_detail_student', // Added for detailed assignment info
   'student_submissions',
+  'submission_detail',
   'my_submission_detail',
   'pending_assignments',
   'enrolled_course_detail',
