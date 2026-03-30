@@ -179,7 +179,16 @@ export function FeedbackChat({
 
   // 控制是否已經正式開始對練（避免一載入頁面就打第一發給 Gemini）
   const [hasStarted, setHasStarted] = useState<boolean>(
-    () => !!(initialConversationsMap && Object.keys(initialConversationsMap).length > 0) || !!initialSparringState
+    () => {
+      const hasSavedMessages = !!initialConversationsMap &&
+        Object.values(initialConversationsMap).some(
+          (msgs) => Array.isArray(msgs) && msgs.length > 0
+        );
+
+      // Important: sparring state object may exist even before user clicks "start sparring"
+      // (because parent can receive a default chat phase). Only real messages should auto-start.
+      return hasSavedMessages;
+    }
   );
 
   const activeQuestion = sparringQuestions[activeIdx] ?? sparringQuestions[0];
@@ -287,6 +296,7 @@ export function FeedbackChat({
 
   // Persist sparring progress (for draft restore)
   useEffect(() => {
+    if (!hasStarted) return;
     if (!onSparringStateChange) return;
     const completed = Array.from(completedQuestions.values()).sort((a, b) => a - b);
     onSparringStateChange({
@@ -294,7 +304,7 @@ export function FeedbackChat({
       completedQuestionIndices: completed,
       phase: chatPhase,
     });
-  }, [activeIdx, completedQuestions, chatPhase, onSparringStateChange]);
+  }, [activeIdx, completedQuestions, chatPhase, onSparringStateChange, hasStarted]);
 
   // ── Direction 1: Switch question ───────────────────────────────────────
   const handleSwitchQuestion = useCallback(

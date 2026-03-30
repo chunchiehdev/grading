@@ -1489,36 +1489,6 @@ export default function SubmitAssignment() {
                   </TooltipProvider>
                 )}
 
-                {/* Submit Assignment (Check) */}
-                {state.phase === 'submit' &&
-                  getSubmissionStatus().hasAnalysis &&
-                  getSubmissionStatus().hasNewAnalysis && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            onClick={submitFinal}
-                            disabled={
-                              state.loading ||
-                              getSubmissionStatus().isOverdue ||
-                              !hasCompletedSparringDecision
-                            }
-                            size="icon"
-                            className="h-12 w-12 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            <Check className="h-5 w-5 text-white" strokeWidth={3} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>
-                            {getSubmissionStatus().isOverdue
-                              ? t('assignment:submit.overdueCannotSubmit')
-                              : t('assignment:submit.submitAssignment')}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
               </div>
             )}
           </div>
