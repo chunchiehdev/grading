@@ -9,8 +9,6 @@ import { FeedbackChat, type SparringState } from '@/components/grading/FeedbackC
 import { GradingResultDisplay } from '@/components/grading/GradingResultDisplay';
 import { ClientOnly } from '@/components/ui/client-only';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -916,7 +914,7 @@ export default function SubmitAssignment() {
   }, [activeSparringQuestions, state.session?.chatMessagesMap]);
 
   return (
-    <div ref={containerRef} className="w-full flex flex-col lg:h-full">
+    <div ref={containerRef} className="w-full flex h-full min-h-0 flex-col">
       {/* Desktop: Split Panel Layout (lg and above) */}
       <div className="hidden lg:flex flex-row flex-1 overflow-hidden min-h-0">
         {/* Left Column: Assignment Cards - Scrollable */}
@@ -1270,7 +1268,7 @@ export default function SubmitAssignment() {
       </div>
 
       {/* Mobile: Tab Navigation (below lg) */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="lg:hidden flex flex-1 min-h-0 flex-col">
         <div className="border-b border-border shrink-0 bg-background">
           <TabsList className="w-full h-12 bg-transparent border-0 rounded-none p-0 grid grid-cols-2">
             <TabsTrigger value="info" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none text-xs sm:text-sm">
@@ -1282,9 +1280,9 @@ export default function SubmitAssignment() {
           </TabsList>
         </div>
         
-        <TabsContent value="info" className="m-0">
-          <div className="flex flex-col min-h-[calc(100dvh-10rem)] px-4 py-2">
-            <div className="space-y-2 flex-1">
+        <TabsContent value="info" className="m-0 flex-1 min-h-0">
+          <div className="flex h-full min-h-0 flex-col px-4 py-2">
+            <div className="flex-1 space-y-2 overflow-y-auto">
               {/* Assignment Info Card */}
               <div className="rounded-2xl bg-card border border-border p-4 space-y-3">
                 <div>
@@ -1411,20 +1409,6 @@ export default function SubmitAssignment() {
                       </div>
                     </div>
 
-                    {/* Direct Grading Switch */}
-                    {(state.phase === 'analyze' || state.phase === 'submit') && !state.loading && (
-                      <div className="flex items-center gap-3 rounded-xl bg-muted/30 border border-border p-3">
-                        <Switch
-                          id="mobile-direct-grading"
-                          checked={useDirectGrading}
-                          onCheckedChange={setUseDirectGrading}
-                        />
-                        <Label htmlFor="mobile-direct-grading" className="cursor-pointer text-sm text-foreground">
-                          {t('assignment:submit.quickGradingMode')}
-                        </Label>
-                      </div>
-                    )}
-
                     {/* Error Display */}
                     {state.error && (
                       <div className="rounded-xl border border-destructive/20 bg-destructive/10 p-3">
@@ -1528,8 +1512,8 @@ export default function SubmitAssignment() {
           </div>
         </TabsContent>
 
-        <TabsContent value="results" className="overflow-y-auto m-0 p-4">
-          <div className="flex flex-col h-full">
+        <TabsContent value="results" className="m-0 flex flex-1 min-h-0 flex-col">
+          <div className="flex-1 min-h-0">
             {state.session?.result ? (
               activeSparringQuestions.length > 0 ? (
                 <FeedbackChat
@@ -1562,6 +1546,36 @@ export default function SubmitAssignment() {
               />
             )}
           </div>
+
+          {/* Mobile submit action in Results tab (avoid forcing user back to Info tab) */}
+          {state.phase === 'submit' &&
+            getSubmissionStatus().hasAnalysis &&
+            getSubmissionStatus().hasNewAnalysis && (
+              <div className="shrink-0 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+                <div className="mx-auto w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80">
+                  <Button
+                    onClick={submitFinal}
+                    disabled={
+                      state.loading ||
+                      getSubmissionStatus().isOverdue ||
+                      !hasCompletedSparringDecision
+                    }
+                    className="h-11 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50"
+                  >
+                    <Check className="mr-2 h-4 w-4" strokeWidth={3} />
+                    {getSubmissionStatus().isOverdue
+                      ? t('assignment:submit.overdueCannotSubmit')
+                      : t('assignment:submit.submitAssignment')}
+                  </Button>
+
+                  {!hasCompletedSparringDecision && (
+                    <p className="mt-2 text-center text-xs text-muted-foreground">
+                      {t('grading:chat.finishSparring')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
         </TabsContent>
       </Tabs>
 
