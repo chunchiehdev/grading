@@ -56,53 +56,54 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
           </div>
         </div>
       ) : (
-        <div className="bg-background rounded-lg">
-          {/* Table Header Row */}
-          <div className="px-4 sm:px-6 py-4 border-b">
-              <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
-                <div className="col-span-3">{t('submissions:table.assignment')}</div>
-                <div className="col-span-3">{t('submissions:table.course')}</div>
-                <div className="col-span-3 text-right">{t('submissions:table.submittedAt')}</div>
-                <div className="col-span-3 text-right">{t('submissions:table.actions')}</div>
-              </div>
+        <div className="rounded-xl border border-border/70 bg-background">
+          {/* Desktop Header */}
+          <div className="hidden border-b px-4 py-4 sm:px-6 md:block">
+            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
+              <div className="col-span-3">{t('submissions:table.assignment')}</div>
+              <div className="col-span-3">{t('submissions:table.course')}</div>
+              <div className="col-span-3 text-right">{t('submissions:table.submittedAt')}</div>
+              <div className="col-span-3 text-right">{t('submissions:table.actions')}</div>
             </div>
+          </div>
 
           {/* List Content */}
           <div className="divide-y divide-border/50">
             {submissions.map((s) => (
               <div
                 key={s.id}
-                className="px-4 sm:px-6 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
+                className="cursor-pointer px-4 py-4 transition-colors hover:bg-muted/30 sm:px-6"
                 onClick={() => navigate(`/student/submissions/${s.id}`)}
               >
-                <div className="grid grid-cols-12 gap-4 items-center">
-                  {/* Assignment Column */}
-                  <div className="col-span-3">
-                    <p className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors">
+                <div className="flex flex-col gap-3 md:grid md:grid-cols-12 md:items-center md:gap-4">
+                  {/* Assignment */}
+                  <div className="md:col-span-3">
+                    <p className="truncate text-sm font-medium text-foreground transition-colors hover:text-primary">
                       {s.assignmentArea?.name}
                     </p>
                   </div>
 
-                  {/* Course Column */}
-                  <div className="col-span-3">
-                    <p className="text-sm text-muted-foreground truncate">{s.assignmentArea?.course?.name}</p>
+                  {/* Course */}
+                  <div className="md:col-span-3">
+                    <p className="truncate text-sm text-muted-foreground">{s.assignmentArea?.course?.name}</p>
                   </div>
 
-                  {/* Time Column */}
-                  <div className="col-span-3 text-right">
-                    <p className="text-sm text-muted-foreground">
+                  {/* Submitted time */}
+                  <div className="md:col-span-3 md:text-right">
+                    <p className="text-xs text-muted-foreground md:text-sm">
+                      <span className="mr-1 inline md:hidden">{t('submissions:table.submittedAt')}:</span>
                       {s.uploadedAt ? formatTimeAgo(new Date(s.uploadedAt)) : '-'}
                     </p>
                   </div>
 
                   {/* Actions Column */}
-                  <div className="col-span-3 flex justify-end gap-2">
+                  <div className="flex flex-wrap items-center gap-2 pt-1 md:col-span-3 md:justify-end md:pt-0">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(`/student/submissions/${s.id}/history`);
                       }}
-                      className="text-xs px-2 py-1 border border-muted-foreground/30 rounded hover:bg-muted/50 transition-colors"
+                      className="rounded-full border border-muted-foreground/30 px-3 py-1.5 text-xs transition-colors hover:bg-muted/50"
                     >
                       {t('submissions:actions.viewHistory')}
                     </button>
@@ -114,7 +115,7 @@ export function SubmissionsContent({ data }: SubmissionsContentProps) {
                             e.stopPropagation();
                             navigate(`/student/assignments/${s.assignmentAreaId}/submit?resubmit=1`);
                           }}
-                          className="text-xs px-2 py-1 border border-primary/40 text-primary rounded hover:bg-primary/10 transition-colors"
+                          className="rounded-full border border-primary/40 px-3 py-1.5 text-xs text-primary transition-colors hover:bg-primary/10"
                         >
                           {t('submissions:actions.resubmit')}
                         </button>
