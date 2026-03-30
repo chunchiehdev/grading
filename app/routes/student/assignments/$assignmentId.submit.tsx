@@ -169,6 +169,26 @@ export default function SubmitAssignment() {
   const navigate = useNavigate();
   const [useDirectGrading, setUseDirectGrading] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState('info'); // Mobile tab navigation
+  const [isDesktop, setIsDesktop] = React.useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const updateLayout = () => setIsDesktop(mediaQuery.matches);
+
+    updateLayout();
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', updateLayout);
+      return () => mediaQuery.removeEventListener('change', updateLayout);
+    }
+
+    mediaQuery.addListener(updateLayout);
+    return () => mediaQuery.removeListener(updateLayout);
+  }, []);
 
   // Check if submission is past due date
   const isOverdue = assignment.dueDate ? new Date() > new Date(assignment.dueDate) : false;
@@ -1184,36 +1204,6 @@ export default function SubmitAssignment() {
                         </TooltipProvider>
                       )}
 
-                      {/* Submit Assignment */}
-                      {state.phase === 'submit' &&
-                        getSubmissionStatus().hasAnalysis &&
-                        getSubmissionStatus().hasNewAnalysis && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  onClick={submitFinal}
-                                  disabled={
-                                    state.loading ||
-                                    getSubmissionStatus().isOverdue ||
-                                    !hasCompletedSparringDecision
-                                  }
-                                  size="icon"
-                                  className="h-14 w-14 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg transition-all hover:shadow-xl hover:scale-105 disabled:opacity-50"
-                                >
-                                  <Check className="h-6 w-6 text-white" strokeWidth={3} />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>
-                                  {getSubmissionStatus().isOverdue
-                                    ? t('assignment:submit.overdueCannotSubmit')
-                                    : t('assignment:submit.submitAssignment')}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
                     </div>
                   </div>
 
@@ -1232,37 +1222,59 @@ export default function SubmitAssignment() {
         {/* Right Column: AI Grading Results - Independent Scrolling */}
         <aside ref={rightPanelRef} className="w-full lg:w-7/12 overflow-y-auto bg-background hide-scrollbar">
           <div className="p-4 sm:px-6 lg:px-8 py-8 h-full flex flex-col">
-            {state.session?.result ? (
-              activeSparringQuestions.length > 0 ? (
-                <FeedbackChat
-                  sparringQuestions={activeSparringQuestions}
-                  assignmentId={assignment.id}
-                  sessionId={state.session.id}
-                  result={state.session.result}
-                  studentName={student.name}
-                  studentPicture={student.picture}
-                  fileId={state.file?.id}
-                  initialConversationsMap={state.session?.chatMessagesMap}
-                  thinkingProcess={state.session?.thinkingProcess}
-                  gradingRationale={state.session?.gradingRationale}
-                  normalizedScore={state.session.result?.normalizedScore}
-                  onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
-                  onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
-                  initialSparringState={sparringState}
-                  onSparringStateChange={setSparringState}
-                />
+            <div className="flex-1 min-h-0">
+              {isDesktop && (state.session?.result ? (
+                activeSparringQuestions.length > 0 ? (
+                  <FeedbackChat
+                    sparringQuestions={activeSparringQuestions}
+                    assignmentId={assignment.id}
+                    sessionId={state.session.id}
+                    result={state.session.result}
+                    studentName={student.name}
+                    studentPicture={student.picture}
+                    fileId={state.file?.id}
+                    initialConversationsMap={state.session?.chatMessagesMap}
+                    thinkingProcess={state.session?.thinkingProcess}
+                    gradingRationale={state.session?.gradingRationale}
+                    normalizedScore={state.session.result?.normalizedScore}
+                    onChatChange={(conversationsMap) => dispatch({ type: 'chat_updated', conversationsMap })}
+                    onSparringComplete={() => dispatch({ type: 'sparring_completed' })}
+                    initialSparringState={sparringState}
+                    onSparringStateChange={setSparringState}
+                  />
+                ) : (
+                  <GradingResultDisplay
+                    isLoading={state.loading}
+                    thinkingProcess={state.session?.thinkingProcess}
+                  />
+                )
               ) : (
                 <GradingResultDisplay
                   isLoading={state.loading}
                   thinkingProcess={state.session?.thinkingProcess}
                 />
-              )
-            ) : (
-              <GradingResultDisplay
-                isLoading={state.loading}
-                thinkingProcess={state.session?.thinkingProcess}
-              />
-            )}
+              ))}
+            </div>
+
+            {state.phase === 'submit' &&
+              getSubmissionStatus().hasAnalysis &&
+              getSubmissionStatus().hasNewAnalysis &&
+              hasCompletedSparringDecision && (
+                <div className="shrink-0 pt-4">
+                  <div className="mx-auto w-full max-w-xl rounded-2xl border border-border/80 bg-card/95 p-4 shadow-md">
+                    <Button
+                      onClick={submitFinal}
+                      disabled={state.loading || getSubmissionStatus().isOverdue}
+                      className="h-11 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50"
+                    >
+                      <Check className="mr-2 h-4 w-4" strokeWidth={3} />
+                      {getSubmissionStatus().isOverdue
+                        ? t('assignment:submit.overdueCannotSubmit')
+                        : t('assignment:submit.submitAssignment')}
+                    </Button>
+                  </div>
+                </div>
+              )}
           </div>
         </aside>
       </div>
@@ -1280,7 +1292,7 @@ export default function SubmitAssignment() {
           </TabsList>
         </div>
         
-        <TabsContent value="info" className="m-0 flex-1 min-h-0">
+        <TabsContent value="info" className="m-0 flex-1 min-h-0 data-[state=inactive]:hidden">
           <div className="flex h-full min-h-0 flex-col px-4 py-2">
             <div className="flex-1 space-y-2 overflow-y-auto">
               {/* Assignment Info Card */}
@@ -1291,7 +1303,7 @@ export default function SubmitAssignment() {
                 </div>
                 {assignment.description && (
                   <div className="border-t border-border pt-3">
-                    <p className="text-sm whitespace-pre-wrap text-muted-foreground leading-relaxed line-clamp-4">{assignment.description}</p>
+                    <p className="text-sm whitespace-pre-wrap text-muted-foreground leading-relaxed">{assignment.description}</p>
                   </div>
                 )}
               </div>
@@ -1422,7 +1434,7 @@ export default function SubmitAssignment() {
 
             {/* Primary Actions (mobile) */}
             {state.phase !== 'upload' && (
-              <div className="pt-3 pb-2 flex items-center justify-center gap-4">
+              <div className="flex items-center justify-center gap-2 pt-3 pb-2">
                 {/* Reselect File */}
                 <TooltipProvider>
                   <Tooltip>
@@ -1512,9 +1524,10 @@ export default function SubmitAssignment() {
           </div>
         </TabsContent>
 
-        <TabsContent value="results" className="m-0 flex flex-1 min-h-0 flex-col">
-          <div className="flex-1 min-h-0">
-            {state.session?.result ? (
+        <TabsContent value="results" className="m-0 flex-1 min-h-0 data-[state=inactive]:hidden">
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="flex-1 min-h-0">
+            {!isDesktop && (state.session?.result ? (
               activeSparringQuestions.length > 0 ? (
                 <FeedbackChat
                   sparringQuestions={activeSparringQuestions}
@@ -1544,38 +1557,35 @@ export default function SubmitAssignment() {
                 isLoading={state.loading}
                 thinkingProcess={state.session?.thinkingProcess}
               />
-            )}
-          </div>
+            ))}
+            </div>
 
-          {/* Mobile submit action in Results tab (avoid forcing user back to Info tab) */}
-          {state.phase === 'submit' &&
-            getSubmissionStatus().hasAnalysis &&
-            getSubmissionStatus().hasNewAnalysis && (
-              <div className="shrink-0 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
-                <div className="mx-auto w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80">
-                  <Button
-                    onClick={submitFinal}
-                    disabled={
-                      state.loading ||
-                      getSubmissionStatus().isOverdue ||
-                      !hasCompletedSparringDecision
-                    }
-                    className="h-11 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50"
-                  >
-                    <Check className="mr-2 h-4 w-4" strokeWidth={3} />
-                    {getSubmissionStatus().isOverdue
-                      ? t('assignment:submit.overdueCannotSubmit')
-                      : t('assignment:submit.submitAssignment')}
-                  </Button>
-
-                  {!hasCompletedSparringDecision && (
-                    <p className="mt-2 text-center text-xs text-muted-foreground">
-                      {t('grading:chat.finishSparring')}
-                    </p>
-                  )}
+            {/* Mobile submit action in Results tab (avoid forcing user back to Info tab) */}
+            {state.phase === 'submit' &&
+              getSubmissionStatus().hasAnalysis &&
+              getSubmissionStatus().hasNewAnalysis &&
+              hasCompletedSparringDecision &&
+              !isDesktop && (
+                <div className="shrink-0 px-4 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
+                  <div className="mx-auto w-full max-w-md rounded-2xl border border-border/80 bg-card/95 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80">
+                    <Button
+                      onClick={submitFinal}
+                      disabled={
+                        state.loading ||
+                        getSubmissionStatus().isOverdue ||
+                        !hasCompletedSparringDecision
+                      }
+                      className="h-11 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50"
+                    >
+                      <Check className="mr-2 h-4 w-4" strokeWidth={3} />
+                      {getSubmissionStatus().isOverdue
+                        ? t('assignment:submit.overdueCannotSubmit')
+                        : t('assignment:submit.submitAssignment')}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+          </div>
         </TabsContent>
       </Tabs>
 
