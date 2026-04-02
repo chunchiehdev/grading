@@ -6,10 +6,11 @@ import { GradingResultData } from '@/types/grading';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Loader2, MessageSquare } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { extractChatMessageText, normalizeChatTypography } from '@/utils/chatText';
+import { useRef, useState } from 'react';
 
 // Updated to work with new grading result format from database - types now imported from @/types/grading
 
@@ -81,6 +82,8 @@ export function GradingResultDisplay({
   studentPicture,
 }: GradingResultDisplayProps) {
   const { t } = useTranslation('grading');
+  const chatHeaderRef = useRef<HTMLDivElement | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(true);
   const systemTriggerText = t(
     'result.chatSystemTriggerText',
     '請根據你在 system prompt 中看到的學生作業跟 sparring question 來開始對話，用口語化、溫暖的方式開場。'
@@ -181,7 +184,18 @@ export function GradingResultDisplay({
             </div>
           </section>
 
-          {/* Chat History — collapsible, default closed */}
+          {/* Detailed criteria: direct stack */}
+          <section>
+            <h3 className="p-2 text-sm font-medium mb-2">{t('result.criteriaDetails')}</h3>
+            <div className="space-y-3 overflow-auto pr-1">
+              <CriteriaDetails breakdown={safeResult.breakdown} />
+              {safeResult.breakdown.length === 0 && (
+                <div className="text-sm text-muted-foreground">{t('result.noCriteria')}</div>
+              )}
+            </div>
+          </section>
+
+          {/* Chat History — collapsible, default open */}
           {safeResult.chatHistory && safeResult.chatHistory.length > 0 && (() => {
             const triggerTexts = new Set([
               normalizeChatTypography(systemTriggerText).trim(),
@@ -194,17 +208,26 @@ export function GradingResultDisplay({
             if (filteredChat.length === 0) return null;
             const studentInitial = studentName?.[0]?.toUpperCase() || t('result.defaultStudentInitial', 'S');
             return (
-              <Collapsible defaultOpen={false} className="group/chat">
-                <CollapsibleTrigger asChild>
-                  <button className="w-full flex items-center justify-between px-2 py-2.5 rounded-lg hover:bg-muted/40 transition-colors">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <Collapsible
+                open={isChatOpen}
+                onOpenChange={(nextOpen) => {
+                  setIsChatOpen(nextOpen);
+                  if (!nextOpen) {
+                    requestAnimationFrame(() => {
+                      chatHeaderRef.current?.scrollIntoView({ block: 'nearest' });
+                    });
+                  }
+                }}
+                className="group/chat"
+              >
+                <div ref={chatHeaderRef} className="flex items-center py-2">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2 p-0 h-auto hover:bg-transparent text-sm font-medium text-[#E07A5F]">
+                      <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]/chat:rotate-180" />
                       <span>{t('result.chatHistory', '對談紀錄')}</span>
-
-                    </div>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]/chat:rotate-180" />
-                  </button>
-                </CollapsibleTrigger>
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
                 <CollapsibleContent>
                   <div className="space-y-3 pt-2 pb-1 px-1">
                     {filteredChat.map((msg: ChatMessage, i: number) => {
@@ -256,17 +279,6 @@ export function GradingResultDisplay({
               </Collapsible>
             );
           })()}
-
-          {/* Detailed criteria: direct stack */}
-          <section>
-            <h3 className="p-2 text-sm font-medium mb-2">{t('result.criteriaDetails')}</h3>
-            <div className="space-y-3 overflow-auto pr-1">
-              <CriteriaDetails breakdown={safeResult.breakdown} />
-              {safeResult.breakdown.length === 0 && (
-                <div className="text-sm text-muted-foreground">{t('result.noCriteria')}</div>
-              )}
-            </div>
-          </section>
         </>
       ) : (
         /* Empty State if not loading and no result */

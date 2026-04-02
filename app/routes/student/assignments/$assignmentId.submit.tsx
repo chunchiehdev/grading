@@ -927,9 +927,13 @@ export default function SubmitAssignment() {
     if (!sparringQuestions || sparringQuestions.length === 0) return true;
     if (!chatMessagesMap || Object.keys(chatMessagesMap).length === 0) return false;
 
-    // 僅接受 UI 決策（有幫助 / 沒幫助）作為完成條件
+    // 僅接受 UI 決策（有幫助 / 沒幫助）+ 理由（至少 10 字）作為完成條件
     return Object.values(chatMessagesMap).some((messages: any[]) =>
-      messages.some((m: any) => m.role === 'user' && (m.studentDecision === 'adopt' || m.studentDecision === 'keep'))
+      messages.some((m: any) => {
+        const hasDecision = m.role === 'user' && (m.studentDecision === 'adopt' || m.studentDecision === 'keep');
+        if (!hasDecision) return false;
+        return typeof m.studentDecisionReason === 'string' && m.studentDecisionReason.trim().length >= 10;
+      })
     );
   }, [activeSparringQuestions, state.session?.chatMessagesMap]);
 

@@ -127,6 +127,10 @@ export interface TeacherSubmissionView {
       name: string;
       description: string;
       maxScore: number;
+      levels: Array<{
+        score: number;
+        description: string;
+      }>;
     }>;
     /** Context transparency metadata (Feature 004), null if no context was used */
     usedContext: any | null;
@@ -136,6 +140,18 @@ export interface TeacherSubmissionView {
     thinkingProcess: string | null;
     /** AI grading rationale (Feature 012), null if not available */
     gradingRationale: string | null;
+    /** Student sparring decision proxy: adopt or keep */
+    sparringDecision: 'adopt' | 'keep' | null;
+    /** Student rationale text for sparring decision */
+    sparringDecisionReason: string | null;
+    /** When decision was made */
+    sparringDecisionAt: string | null;
+    /** When convergence suggestion appeared */
+    sparringConvergenceShownAt: string | null;
+    /** Decision latency in milliseconds */
+    sparringDecisionLatencyMs: number | null;
+    /** Meaningful user rounds before decision */
+    sparringRoundsBeforeDecision: number | null;
   };
   /** Navigation URLs pre-computed for UI */
   navigation: {

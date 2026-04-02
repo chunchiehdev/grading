@@ -27,6 +27,11 @@ interface UiChatMessage {
   parts?: UiChatPart[];
   studentReaction?: 'up' | 'down';
   studentDecision?: 'adopt' | 'keep';
+  studentDecisionReason?: string;
+  decisionAt?: string;
+  convergenceSuggestionAt?: string;
+  decisionLatencyMs?: number;
+  roundsBeforeDecision?: number;
 }
 
 interface ConvergenceSections {
@@ -170,6 +175,7 @@ export function FeedbackChat({
   const [convergenceError, setConvergenceError] = useState<string | null>(null);
   const [hasConvergenceSuggestion, setHasConvergenceSuggestion] = useState(false);
   const [selectedConvergenceDecision, setSelectedConvergenceDecision] = useState<'adopt' | 'keep' | null>(null);
+  const [decisionReasonDraft, setDecisionReasonDraft] = useState('');
 
   // ── Direction 4: Growth summary ────────────────────────────────────────
   const [chatPhase, setChatPhase] = useState<'chat' | 'summary'>(
@@ -321,6 +327,7 @@ export function FeedbackChat({
       setRevisionDraft('');
       setHasConvergenceSuggestion(false);
       setSelectedConvergenceDecision(null);
+      setDecisionReasonDraft('');
       setConvergenceError(null);
     },
     [activeIdx, messages, conversationsMap, initialConversationsMap, setMessages]
@@ -334,6 +341,14 @@ export function FeedbackChat({
     if (savedDecision?.studentDecision) {
       setSelectedConvergenceDecision(savedDecision.studentDecision);
       setHasConvergenceSuggestion(true);
+    }
+
+    const savedReason = messages.find((m: any) =>
+      m?.role === 'user' && typeof m?.studentDecisionReason === 'string' && m.studentDecisionReason.trim().length > 0
+    ) as { studentDecisionReason?: string } | undefined;
+
+    if (savedReason?.studentDecisionReason) {
+      setDecisionReasonDraft(savedReason.studentDecisionReason);
     }
   }, [messages]);
 
@@ -440,6 +455,7 @@ export function FeedbackChat({
           id: `convergence-assistant-${Date.now()}`,
           role: 'assistant',
           content: payload.suggestion,
+          convergenceSuggestionAt: new Date().toISOString(),
         },
       ]);
       setHasConvergenceSuggestion(true);
@@ -462,6 +478,20 @@ export function FeedbackChat({
       setSelectedConvergenceDecision(decision);
       setConvergenceError(null);
 
+      const nowIso = new Date().toISOString();
+      const latestConvergenceMessage = ([...messages] as any[])
+        .reverse()
+        .find((m: any) => m?.role === 'assistant' && typeof m?.convergenceSuggestionAt === 'string');
+
+      const convergenceAtIso =
+        latestConvergenceMessage && typeof latestConvergenceMessage?.convergenceSuggestionAt === 'string'
+          ? latestConvergenceMessage.convergenceSuggestionAt
+          : null;
+
+      const decisionLatencyMs = convergenceAtIso
+        ? Math.max(0, new Date(nowIso).getTime() - new Date(convergenceAtIso).getTime())
+        : null;
+
       const content = uiLanguage === 'zh'
         ? decision === 'adopt'
           ? '決策：採納（已透過按鈕選擇）'
@@ -482,12 +512,36 @@ export function FeedbackChat({
             role: 'user',
             content,
             studentDecision: decision,
+            decisionAt: nowIso,
+            convergenceSuggestionAt: convergenceAtIso || undefined,
+            decisionLatencyMs: decisionLatencyMs ?? undefined,
+            roundsBeforeDecision: userRoundCount,
           },
         ];
       });
     },
-    [setMessages, uiLanguage]
+    [messages, setMessages, uiLanguage, userRoundCount]
   );
+
+  const handleSaveDecisionReason = useCallback(() => {
+    const reason = decisionReasonDraft.trim();
+    if (!selectedConvergenceDecision || reason.length < 10) return;
+
+    setMessages((prev: any[]) =>
+      prev.map((m: any) => {
+        if (!(m?.role === 'user' && (m?.studentDecision === 'adopt' || m?.studentDecision === 'keep'))) {
+          return m;
+        }
+
+        return {
+          ...m,
+          studentDecisionReason: reason,
+        };
+      })
+    );
+  }, [decisionReasonDraft, selectedConvergenceDecision, setMessages]);
+
+  const hasValidDecisionReason = decisionReasonDraft.trim().length >= 10;
 
   // ── Direction 3: Submit revision as a chat message ─────────────────────
   const handleSubmitRevision = useCallback(() => {
@@ -522,8 +576,11 @@ export function FeedbackChat({
 
   // ── Direction 4: Finish sparring → show summary ────────────────────────
   const handleFinishSparring = useCallback(() => {
+    if (selectedConvergenceDecision && decisionReasonDraft.trim().length >= 10) {
+      handleSaveDecisionReason();
+    }
     setChatPhase('summary');
-  }, []);
+  }, [decisionReasonDraft, handleSaveDecisionReason, selectedConvergenceDecision]);
 
   const visibleMessages = useMemo(
     () => {
@@ -960,17 +1017,33 @@ export function FeedbackChat({
                         </button>
                       </div>
 
-                      <div className="flex justify-center">
-                        <Button
-                          size="sm"
-                          className="rounded-full text-xs bg-[#2F3A46] px-5 text-white hover:bg-[#25313C]"
-                          onClick={handleFinishSparring}
-                          disabled={!selectedConvergenceDecision}
-                        >
-                          <Trophy className="h-3 w-3 mr-1" />
-                          {t('grading:chat.finishSparring')}
-                        </Button>
-                      </div>
+                      {selectedConvergenceDecision && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground text-center">
+                            {uiLanguage === 'zh'
+                              ? '請簡短寫下你採納或保留的原因（至少 10 字）'
+                              : 'Please briefly explain your decision (at least 10 characters).'}
+                          </p>
+                          <Textarea
+                            value={decisionReasonDraft}
+                            onChange={(e) => setDecisionReasonDraft(e.target.value)}
+                            placeholder={uiLanguage === 'zh' ? '例如：我先保留，因為還想再確認證據。' : 'For example: I keep my draft for now because I need to verify evidence.'}
+                            className="text-xs min-h-[72px] resize-none rounded-xl border-border bg-background"
+                          />
+                          <div className="flex justify-center">
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="rounded-full text-xs bg-[#2F3A46] px-5 text-white hover:bg-[#25313C]"
+                              disabled={!hasValidDecisionReason}
+                              onClick={handleFinishSparring}
+                            >
+                              <Trophy className="h-3 w-3 mr-1" />
+                              {t('grading:chat.finishSparring')}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
 
@@ -1043,14 +1116,12 @@ export function FeedbackChat({
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
+                      if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                         if (!input.trim() || isLoading) return;
-                         if (isCurrentQuestionComplete) return;
-                         sendMessage({ text: input.trim() });
-                         setInput('');
-                       }
-                     }}
+                        e.currentTarget.form?.requestSubmit();
+                      }
+                    }}
                     placeholder={t('grading:chat.placeholder')}
                     className={cn(
                       'w-full bg-transparent border-0 shadow-none resize-none',

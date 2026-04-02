@@ -1,6 +1,7 @@
 {
   "title": "Lumos",
   "dashboard": "Dashboard",
+  "myNavLabel": "My {{label}}",
   "courses": "Courses",
   "assignments": "Assignments",
   "rubrics": "Rubrics",

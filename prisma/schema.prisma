@@ -175,6 +175,12 @@ model Submission {
   thoughtSummary   String? @db.Text // AI 思考摘要，用於恢復草稿 (Deprecated)
   thinkingProcess  String? @db.Text // AI 的原始思考過程
   gradingRationale String? @db.Text // AI 的正式評分推理
+  sparringDecision String? @db.VarChar(10) // Student decision proxy: adopt|keep
+  sparringDecisionReason String? @db.Text // Student rationale for adopt/keep decision
+  sparringDecisionAt DateTime? // Timestamp when student made adopt/keep decision
+  sparringConvergenceShownAt DateTime? // Timestamp when convergence suggestion was shown
+  sparringDecisionLatencyMs Int? // decisionAt - convergenceShownAt in milliseconds
+  sparringRoundsBeforeDecision Int? // Number of meaningful user turns before decision
   finalScore       Int? // Final score
   normalizedScore  Float? // 100-point normalized score from AI grading
 
@@ -206,6 +212,7 @@ model Submission {
   @@index([isLatest])
   @@index([isDeleted]) // Index for filtering deleted submissions
   @@index([humanRatedAt]) // Index for IRR sampling and review recency queries
+  @@index([sparringDecision, sparringDecisionAt])
   @@map("submissions")
 }
 

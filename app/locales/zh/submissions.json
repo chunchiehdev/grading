@@ -128,6 +128,8 @@
         "humanScorePlaceholder": "請輸入教師分數",
         "criteriaScoringTitle": "依評分標準逐項評分",
         "maxScoreHint": "滿分 {{maxScore}}",
+        "selectedStandardLabel": "本次評分標準：",
+        "fullStandardsLabel": "完整評分標準",
         "levelPlaceholder": "等級",
         "levelOption": "等級 {{level}}",
         "computedScore": "自動加總：{{score}} / {{maxScore}}",
@@ -142,6 +144,20 @@
           "invalidScore": "分數格式不正確，請選擇各評分項目的整數等級。",
           "incompleteCriteriaScores": "請先完成每一個評分標準的分數後再保存。"
         }
+      },
+      "sparring": {
+        "title": "學生是否接受 AI 建議（行為紀錄）",
+        "decisionAdopt": "採納建議",
+        "decisionKeep": "保留原寫法",
+        "latencyLabel": "看完建議到做決定花費時間",
+        "latencyHint": "這是參考指標，時間長短不直接代表好或壞。",
+        "reasonLabel": "學生決策理由",
+        "convergenceAtLabel": "建議顯示時間：",
+        "decisionAtLabel": "做出決策時間：",
+        "notAvailable": "無資料",
+        "latencyMilliseconds": "{{value}} 毫秒",
+        "latencySeconds": "{{value}} 秒",
+        "latencyMinutesSeconds": "{{minutes}} 分 {{seconds}} 秒"
       },
       "delete": {
         "button": "刪除",

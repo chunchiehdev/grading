@@ -128,6 +128,8 @@
         "humanScorePlaceholder": "Enter teacher score",
         "criteriaScoringTitle": "Rubric-based teacher scoring",
         "maxScoreHint": "Max {{maxScore}}",
+        "selectedStandardLabel": "Selected standard:",
+        "fullStandardsLabel": "Full scoring standards",
         "levelPlaceholder": "Level",
         "levelOption": "Level {{level}}",
         "computedScore": "Computed total: {{score}} / {{maxScore}}",
@@ -142,6 +144,20 @@
           "invalidScore": "Invalid score. Please choose an integer level within each criterion range.",
           "incompleteCriteriaScores": "Please complete every rubric criterion score before saving."
         }
+      },
+      "sparring": {
+        "title": "Did the student accept AI advice? (Behavior Log)",
+        "decisionAdopt": "Adopted suggestion",
+        "decisionKeep": "Kept original draft",
+        "latencyLabel": "Time from seeing advice to making decision",
+        "latencyHint": "Reference only; longer or shorter is not inherently better.",
+        "reasonLabel": "Student rationale",
+        "convergenceAtLabel": "Suggestion shown at:",
+        "decisionAtLabel": "Decision made at:",
+        "notAvailable": "N/A",
+        "latencyMilliseconds": "{{value}} ms",
+        "latencySeconds": "{{value}} s",
+        "latencyMinutesSeconds": "{{minutes}}m {{seconds}}s"
       },
       "delete": {
         "button": "Delete",

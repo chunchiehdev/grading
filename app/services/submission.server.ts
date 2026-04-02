@@ -156,6 +156,64 @@ export async function createSubmissionAndLinkGradingResult(
     return '';
   };
 
+  const parseISODate = (value: unknown): Date | null => {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  };
+
+  const extractDecisionMetrics = (rawMessages: unknown[]) => {
+    const decisionMessages = rawMessages.filter((message) => {
+      if (!message || typeof message !== 'object') return false;
+      const payload = message as { role?: string; studentDecision?: string };
+      return payload.role === 'user' && (payload.studentDecision === 'adopt' || payload.studentDecision === 'keep');
+    });
+
+    const latestDecision = decisionMessages.length > 0
+      ? (decisionMessages[decisionMessages.length - 1] as {
+          studentDecision?: 'adopt' | 'keep';
+          studentDecisionReason?: string;
+          decisionAt?: string;
+          convergenceSuggestionAt?: string;
+          decisionLatencyMs?: number;
+        })
+      : null;
+
+    if (!latestDecision?.studentDecision) {
+      return {
+        decision: null,
+        decisionReason: null,
+        decisionAt: null,
+        convergenceShownAt: null,
+        decisionLatencyMs: null,
+      };
+    }
+
+    const decisionReason = typeof latestDecision.studentDecisionReason === 'string'
+      ? latestDecision.studentDecisionReason.trim()
+      : '';
+
+    const decisionAt = parseISODate(latestDecision.decisionAt);
+    const convergenceShownAt = parseISODate(latestDecision.convergenceSuggestionAt);
+
+    let decisionLatencyMs = typeof latestDecision.decisionLatencyMs === 'number'
+      ? Math.max(0, Math.round(latestDecision.decisionLatencyMs))
+      : null;
+
+    if (decisionLatencyMs === null && decisionAt && convergenceShownAt) {
+      decisionLatencyMs = Math.max(0, decisionAt.getTime() - convergenceShownAt.getTime());
+    }
+
+    return {
+      decision: latestDecision.studentDecision,
+      decisionReason: decisionReason || null,
+      decisionAt,
+      convergenceShownAt,
+      decisionLatencyMs,
+    };
+  };
+
   if (!sessionId) {
     throw new Error(`${SUBMIT_GUARD_PREFIX}請先完成評分流程再送出`);
   }
@@ -201,6 +259,7 @@ export async function createSubmissionAndLinkGradingResult(
       : null;
 
   const hasSparringQuestions = Array.isArray(sparringQuestions) && sparringQuestions.length > 0;
+  let roundsBeforeDecisionMetric: number | null = null;
 
   if (hasSparringQuestions) {
     const normalizedTriggerTexts = new Set(
@@ -210,8 +269,10 @@ export async function createSubmissionAndLinkGradingResult(
     const meaningfulUserMessages = chatMessages.filter((message) => {
       if (!message || typeof message !== 'object') return false;
 
-      const role = (message as { role?: string }).role;
+      const payload = message as { role?: string; studentDecision?: string };
+      const role = payload.role;
       if (role !== 'user') return false;
+      if (payload.studentDecision === 'adopt' || payload.studentDecision === 'keep') return false;
 
       const text = normalizeChatTypography(extractMessageText(message)).trim();
       if (!text) return false;
@@ -223,6 +284,8 @@ export async function createSubmissionAndLinkGradingResult(
       throw new Error(`${SUBMIT_GUARD_PREFIX}請至少完成一次對練回覆後再送出`);
     }
 
+    roundsBeforeDecisionMetric = meaningfulUserMessages.length;
+
     const hasUIDecision = chatMessages.some((message) => {
       if (!message || typeof message !== 'object') return false;
       const decision = (message as { studentDecision?: string }).studentDecision;
@@ -233,6 +296,11 @@ export async function createSubmissionAndLinkGradingResult(
       throw new Error(
         `${SUBMIT_GUARD_PREFIX}請先在對練建議區塊用按鈕選擇「採納建議」或「先保留原寫法」後再送出`
       );
+    }
+
+    const metrics = extractDecisionMetrics(chatMessages);
+    if (!metrics.decisionReason || metrics.decisionReason.length < 10) {
+      throw new Error(`${SUBMIT_GUARD_PREFIX}請先填寫採納或保留的理由（至少 10 字）後再送出`);
     }
   }
 
@@ -415,7 +483,7 @@ export async function createSubmissionAndLinkGradingResult(
   }
 
   try {
-    const gradingResult = await db.gradingResult.findFirst({
+      const gradingResult = await db.gradingResult.findFirst({
       where: {
         gradingSessionId: sessionId,
         status: 'COMPLETED',
@@ -442,6 +510,8 @@ export async function createSubmissionAndLinkGradingResult(
 
       // Get normalized score (100-point scale) from grading result
       const normalizedScore = gradingResult.normalizedScore ?? null;
+      const decisionMetrics = extractDecisionMetrics(chatMessages);
+      const roundsBeforeDecision = hasSparringQuestions ? roundsBeforeDecisionMetric : null;
 
       // Feature 004: Copy context transparency from GradingResult to Submission
       // Validate and parse usedContext from JsonValue to UsedContext type
@@ -466,6 +536,12 @@ export async function createSubmissionAndLinkGradingResult(
         ...(finalScore !== null && { finalScore }),
         normalizedScore, // Always include, even if null
         ...(usedContext !== null && { usedContext }), // Feature 004: Now properly typed
+        sparringDecision: decisionMetrics.decision,
+        sparringDecisionReason: decisionMetrics.decisionReason,
+        sparringDecisionAt: decisionMetrics.decisionAt,
+        sparringConvergenceShownAt: decisionMetrics.convergenceShownAt,
+        sparringDecisionLatencyMs: decisionMetrics.decisionLatencyMs,
+        sparringRoundsBeforeDecision: roundsBeforeDecision,
         status: 'ANALYZED',
         ...(gradingResult.thoughtSummary !== null && { thoughtSummary: gradingResult.thoughtSummary }), // Feature 005: Copy thought summary
         ...(gradingResult.thinkingProcess !== null && { thinkingProcess: gradingResult.thinkingProcess }), // Feature 012: Copy thinking process
@@ -979,34 +1055,46 @@ export interface UpdateSubmissionOptions {
   thoughtSummary?: string | null; // Feature 005: AI Thinking Process
   thinkingProcess?: string | null; // Feature 012: Raw thinking process
   gradingRationale?: string | null; // Feature 012: Grading rationale
+  sparringDecision?: 'adopt' | 'keep' | null;
+  sparringDecisionReason?: string | null;
+  sparringDecisionAt?: Date | null;
+  sparringConvergenceShownAt?: Date | null;
+  sparringDecisionLatencyMs?: number | null;
+  sparringRoundsBeforeDecision?: number | null;
 }
 
 export async function updateSubmission(
   submissionId: string,
   updateData: UpdateSubmissionOptions
-): Promise<SubmissionInfo | null> {
-  try {
-    // Convert UpdateSubmissionOptions to Prisma input
-    // CRITICAL: We must differentiate between:
-    // 1. Field not present (undefined) → Don't update
-    // 2. Field explicitly null → Update to null
-    // 3. Field with value → Update to value
-    const prismaData: any = {};
-    
-    if ('aiAnalysisResult' in updateData) prismaData.aiAnalysisResult = updateData.aiAnalysisResult;
-    if ('finalScore' in updateData) prismaData.finalScore = updateData.finalScore;
-    if ('normalizedScore' in updateData) prismaData.normalizedScore = updateData.normalizedScore;
-    if ('usedContext' in updateData) prismaData.usedContext = updateData.usedContext;
-    if ('teacherFeedback' in updateData) prismaData.teacherFeedback = updateData.teacherFeedback;
-    if ('humanScore' in updateData) prismaData.humanScore = updateData.humanScore;
-    if ('humanCriteriaScores' in updateData) prismaData.humanCriteriaScores = updateData.humanCriteriaScores;
-    if ('humanRaterId' in updateData) prismaData.humanRaterId = updateData.humanRaterId;
-    if ('humanRatedAt' in updateData) prismaData.humanRatedAt = updateData.humanRatedAt;
-    if ('status' in updateData) prismaData.status = updateData.status;
-    if ('thoughtSummary' in updateData) prismaData.thoughtSummary = updateData.thoughtSummary;
-    if ('thinkingProcess' in updateData) prismaData.thinkingProcess = updateData.thinkingProcess;
-    if ('gradingRationale' in updateData) prismaData.gradingRationale = updateData.gradingRationale;
+): Promise<SubmissionInfo> {
+  // Convert UpdateSubmissionOptions to Prisma input
+  // CRITICAL: We must differentiate between:
+  // 1. Field not present (undefined) → Don't update
+  // 2. Field explicitly null → Update to null
+  // 3. Field with value → Update to value
+  const prismaData: any = {};
 
+  if ('aiAnalysisResult' in updateData) prismaData.aiAnalysisResult = updateData.aiAnalysisResult;
+  if ('finalScore' in updateData) prismaData.finalScore = updateData.finalScore;
+  if ('normalizedScore' in updateData) prismaData.normalizedScore = updateData.normalizedScore;
+  if ('usedContext' in updateData) prismaData.usedContext = updateData.usedContext;
+  if ('teacherFeedback' in updateData) prismaData.teacherFeedback = updateData.teacherFeedback;
+  if ('humanScore' in updateData) prismaData.humanScore = updateData.humanScore;
+  if ('humanCriteriaScores' in updateData) prismaData.humanCriteriaScores = updateData.humanCriteriaScores;
+  if ('humanRaterId' in updateData) prismaData.humanRaterId = updateData.humanRaterId;
+  if ('humanRatedAt' in updateData) prismaData.humanRatedAt = updateData.humanRatedAt;
+  if ('status' in updateData) prismaData.status = updateData.status;
+  if ('thoughtSummary' in updateData) prismaData.thoughtSummary = updateData.thoughtSummary;
+  if ('thinkingProcess' in updateData) prismaData.thinkingProcess = updateData.thinkingProcess;
+  if ('gradingRationale' in updateData) prismaData.gradingRationale = updateData.gradingRationale;
+  if ('sparringDecision' in updateData) prismaData.sparringDecision = updateData.sparringDecision;
+  if ('sparringDecisionReason' in updateData) prismaData.sparringDecisionReason = updateData.sparringDecisionReason;
+  if ('sparringDecisionAt' in updateData) prismaData.sparringDecisionAt = updateData.sparringDecisionAt;
+  if ('sparringConvergenceShownAt' in updateData) prismaData.sparringConvergenceShownAt = updateData.sparringConvergenceShownAt;
+  if ('sparringDecisionLatencyMs' in updateData) prismaData.sparringDecisionLatencyMs = updateData.sparringDecisionLatencyMs;
+  if ('sparringRoundsBeforeDecision' in updateData) prismaData.sparringRoundsBeforeDecision = updateData.sparringRoundsBeforeDecision;
+
+  try {
     const submission = await db.submission.update({
       where: { id: submissionId },
       data: prismaData,
@@ -1031,8 +1119,15 @@ export async function updateSubmission(
 
     return submission as SubmissionInfo;
   } catch (error) {
-    console.error('❌ Error updating submission:', error);
-    return null;
+    console.error(
+      {
+        err: error,
+        submissionId,
+        updateKeys: Object.keys(prismaData),
+      },
+      '❌ Error updating submission'
+    );
+    throw error;
   }
 }
 

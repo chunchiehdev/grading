@@ -42,6 +42,12 @@ export interface SubmissionInfo {
   thoughtSummary: string | null; // Feature 005 & 012: AI confidence summary
   thinkingProcess: string | null; // Feature 012: AI detailed thinking process
   gradingRationale: string | null; // Feature 012: AI grading rationale
+  sparringDecision?: string | null;
+  sparringDecisionReason?: string | null;
+  sparringDecisionAt?: Date | null;
+  sparringConvergenceShownAt?: Date | null;
+  sparringDecisionLatencyMs?: number | null;
+  sparringRoundsBeforeDecision?: number | null;
   status: string;
   createdAt: Date;
   updatedAt: Date;

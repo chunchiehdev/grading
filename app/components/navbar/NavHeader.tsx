@@ -64,12 +64,12 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
   }
 
   // Fallback function for when i18n isn't ready
-  const safeT = (key: string, fallback: string = key) => {
+  const safeT = (key: string, fallback: string = key, options?: Record<string, unknown>) => {
     if (!ready || !t) {
       return fallback;
     }
     try {
-      return t(key, fallback);
+      return t(key, { defaultValue: fallback, ...options });
     } catch (error) {
       console.warn(`Translation error for key "${key}":`, error);
       return fallback;
@@ -137,13 +137,21 @@ export function NavHeader({ title, onShare, className, tabs }: NavHeaderProps) {
                       variant="ghost"
                       size="icon-lg"
                       className={cn(
-                        'transition-colors',
+                        'group transition-all duration-300 lg:w-auto lg:px-3',
                         isActive
                           ? 'text-primary bg-primary/10 hover:bg-primary/15'
                           : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                       )}
                     >
-                      {tab.icon}
+                      <span className="shrink-0">{tab.icon}</span>
+                      <span
+                        className={cn(
+                          'hidden lg:inline-block overflow-hidden whitespace-nowrap text-sm font-medium transition-all duration-300',
+                          isActive ? 'max-w-[9rem] ml-2 opacity-100' : 'max-w-0 ml-0 opacity-0'
+                        )}
+                      >
+                        {safeT('myNavLabel', `My ${tab.label}`, { label: tab.label })}
+                      </span>
                     </Button>
                   )}
                 </NavLink>

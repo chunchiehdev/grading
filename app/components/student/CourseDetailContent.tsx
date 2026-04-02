@@ -286,7 +286,7 @@ export function CourseDetailContent({ data }: CourseDetailContentProps) {
   const hasAssignments = assignments.length > 0;
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+    <div className="min-h-screen w-full py-4 sm:py-6">
       {/* Header - No bar, just content */}
       <CourseHeader course={course} stats={hasAssignments ? stats : undefined} />
 

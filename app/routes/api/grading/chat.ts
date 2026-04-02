@@ -117,8 +117,8 @@ export async function action({ request }: ActionFunctionArgs) {
       const google = createGoogleGenerativeAI({ apiKey });
       provider = 'gemini';
       selectedKeyId = keyId;
-      selectedModelName = 'gemini-2.5-flash';
-      model = google('gemini-2.5-flash');
+      selectedModelName = 'gemini-3.1-flash-lite-preview';
+      model = google('gemini-3.1-flash-lite-preview');
     };
 
     if (VLLM_CONFIG.baseURL && VLLM_CONFIG.modelName) {

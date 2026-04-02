@@ -1,6 +1,7 @@
 {
   "title": "Lumos",
   "dashboard": "儀表板",
+  "myNavLabel": "我的{{label}}",
   "courses": "課程",
   "assignments": "作業",
   "rubrics": "評分標準",

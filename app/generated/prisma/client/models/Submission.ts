@@ -28,6 +28,8 @@ export type AggregateSubmission = {
 
 export type SubmissionAvgAggregateOutputType = {
   version: number | null
+  sparringDecisionLatencyMs: number | null
+  sparringRoundsBeforeDecision: number | null
   finalScore: number | null
   normalizedScore: number | null
   humanScore: number | null
@@ -35,6 +37,8 @@ export type SubmissionAvgAggregateOutputType = {
 
 export type SubmissionSumAggregateOutputType = {
   version: number | null
+  sparringDecisionLatencyMs: number | null
+  sparringRoundsBeforeDecision: number | null
   finalScore: number | null
   normalizedScore: number | null
   humanScore: number | null
@@ -53,6 +57,12 @@ export type SubmissionMinAggregateOutputType = {
   thoughtSummary: string | null
   thinkingProcess: string | null
   gradingRationale: string | null
+  sparringDecision: string | null
+  sparringDecisionReason: string | null
+  sparringDecisionAt: Date | null
+  sparringConvergenceShownAt: Date | null
+  sparringDecisionLatencyMs: number | null
+  sparringRoundsBeforeDecision: number | null
   finalScore: number | null
   normalizedScore: number | null
   teacherFeedback: string | null
@@ -80,6 +90,12 @@ export type SubmissionMaxAggregateOutputType = {
   thoughtSummary: string | null
   thinkingProcess: string | null
   gradingRationale: string | null
+  sparringDecision: string | null
+  sparringDecisionReason: string | null
+  sparringDecisionAt: Date | null
+  sparringConvergenceShownAt: Date | null
+  sparringDecisionLatencyMs: number | null
+  sparringRoundsBeforeDecision: number | null
   finalScore: number | null
   normalizedScore: number | null
   teacherFeedback: string | null
@@ -108,6 +124,12 @@ export type SubmissionCountAggregateOutputType = {
   thoughtSummary: number
   thinkingProcess: number
   gradingRationale: number
+  sparringDecision: number
+  sparringDecisionReason: number
+  sparringDecisionAt: number
+  sparringConvergenceShownAt: number
+  sparringDecisionLatencyMs: number
+  sparringRoundsBeforeDecision: number
   finalScore: number
   normalizedScore: number
   usedContext: number
@@ -128,6 +150,8 @@ export type SubmissionCountAggregateOutputType = {
 
 export type SubmissionAvgAggregateInputType = {
   version?: true
+  sparringDecisionLatencyMs?: true
+  sparringRoundsBeforeDecision?: true
   finalScore?: true
   normalizedScore?: true
   humanScore?: true
@@ -135,6 +159,8 @@ export type SubmissionAvgAggregateInputType = {
 
 export type SubmissionSumAggregateInputType = {
   version?: true
+  sparringDecisionLatencyMs?: true
+  sparringRoundsBeforeDecision?: true
   finalScore?: true
   normalizedScore?: true
   humanScore?: true
@@ -153,6 +179,12 @@ export type SubmissionMinAggregateInputType = {
   thoughtSummary?: true
   thinkingProcess?: true
   gradingRationale?: true
+  sparringDecision?: true
+  sparringDecisionReason?: true
+  sparringDecisionAt?: true
+  sparringConvergenceShownAt?: true
+  sparringDecisionLatencyMs?: true
+  sparringRoundsBeforeDecision?: true
   finalScore?: true
   normalizedScore?: true
   teacherFeedback?: true
@@ -180,6 +212,12 @@ export type SubmissionMaxAggregateInputType = {
   thoughtSummary?: true
   thinkingProcess?: true
   gradingRationale?: true
+  sparringDecision?: true
+  sparringDecisionReason?: true
+  sparringDecisionAt?: true
+  sparringConvergenceShownAt?: true
+  sparringDecisionLatencyMs?: true
+  sparringRoundsBeforeDecision?: true
   finalScore?: true
   normalizedScore?: true
   teacherFeedback?: true
@@ -208,6 +246,12 @@ export type SubmissionCountAggregateInputType = {
   thoughtSummary?: true
   thinkingProcess?: true
   gradingRationale?: true
+  sparringDecision?: true
+  sparringDecisionReason?: true
+  sparringDecisionAt?: true
+  sparringConvergenceShownAt?: true
+  sparringDecisionLatencyMs?: true
+  sparringRoundsBeforeDecision?: true
   finalScore?: true
   normalizedScore?: true
   usedContext?: true
@@ -325,6 +369,12 @@ export type SubmissionGroupByOutputType = {
   thoughtSummary: string | null
   thinkingProcess: string | null
   gradingRationale: string | null
+  sparringDecision: string | null
+  sparringDecisionReason: string | null
+  sparringDecisionAt: Date | null
+  sparringConvergenceShownAt: Date | null
+  sparringDecisionLatencyMs: number | null
+  sparringRoundsBeforeDecision: number | null
   finalScore: number | null
   normalizedScore: number | null
   usedContext: runtime.JsonValue | null
@@ -378,6 +428,12 @@ export type SubmissionWhereInput = {
   thoughtSummary?: Prisma.StringNullableFilter<"Submission"> | string | null
   thinkingProcess?: Prisma.StringNullableFilter<"Submission"> | string | null
   gradingRationale?: Prisma.StringNullableFilter<"Submission"> | string | null
+  sparringDecision?: Prisma.StringNullableFilter<"Submission"> | string | null
+  sparringDecisionReason?: Prisma.StringNullableFilter<"Submission"> | string | null
+  sparringDecisionAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
+  sparringConvergenceShownAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.IntNullableFilter<"Submission"> | number | null
+  sparringRoundsBeforeDecision?: Prisma.IntNullableFilter<"Submission"> | number | null
   finalScore?: Prisma.IntNullableFilter<"Submission"> | number | null
   normalizedScore?: Prisma.FloatNullableFilter<"Submission"> | number | null
   usedContext?: Prisma.JsonNullableFilter<"Submission">
@@ -413,6 +469,12 @@ export type SubmissionOrderByWithRelationInput = {
   thoughtSummary?: Prisma.SortOrderInput | Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrderInput | Prisma.SortOrder
   gradingRationale?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringDecision?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringDecisionReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringDecisionAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringConvergenceShownAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringDecisionLatencyMs?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringRoundsBeforeDecision?: Prisma.SortOrderInput | Prisma.SortOrder
   finalScore?: Prisma.SortOrderInput | Prisma.SortOrder
   normalizedScore?: Prisma.SortOrderInput | Prisma.SortOrder
   usedContext?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -451,6 +513,12 @@ export type SubmissionWhereUniqueInput = Prisma.AtLeast<{
   thoughtSummary?: Prisma.StringNullableFilter<"Submission"> | string | null
   thinkingProcess?: Prisma.StringNullableFilter<"Submission"> | string | null
   gradingRationale?: Prisma.StringNullableFilter<"Submission"> | string | null
+  sparringDecision?: Prisma.StringNullableFilter<"Submission"> | string | null
+  sparringDecisionReason?: Prisma.StringNullableFilter<"Submission"> | string | null
+  sparringDecisionAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
+  sparringConvergenceShownAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.IntNullableFilter<"Submission"> | number | null
+  sparringRoundsBeforeDecision?: Prisma.IntNullableFilter<"Submission"> | number | null
   finalScore?: Prisma.IntNullableFilter<"Submission"> | number | null
   normalizedScore?: Prisma.FloatNullableFilter<"Submission"> | number | null
   usedContext?: Prisma.JsonNullableFilter<"Submission">
@@ -486,6 +554,12 @@ export type SubmissionOrderByWithAggregationInput = {
   thoughtSummary?: Prisma.SortOrderInput | Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrderInput | Prisma.SortOrder
   gradingRationale?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringDecision?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringDecisionReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringDecisionAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringConvergenceShownAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringDecisionLatencyMs?: Prisma.SortOrderInput | Prisma.SortOrder
+  sparringRoundsBeforeDecision?: Prisma.SortOrderInput | Prisma.SortOrder
   finalScore?: Prisma.SortOrderInput | Prisma.SortOrder
   normalizedScore?: Prisma.SortOrderInput | Prisma.SortOrder
   usedContext?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -524,6 +598,12 @@ export type SubmissionScalarWhereWithAggregatesInput = {
   thoughtSummary?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
   thinkingProcess?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
   gradingRationale?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
+  sparringDecision?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
+  sparringDecisionReason?: Prisma.StringNullableWithAggregatesFilter<"Submission"> | string | null
+  sparringDecisionAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Submission"> | Date | string | null
+  sparringConvergenceShownAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Submission"> | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.IntNullableWithAggregatesFilter<"Submission"> | number | null
+  sparringRoundsBeforeDecision?: Prisma.IntNullableWithAggregatesFilter<"Submission"> | number | null
   finalScore?: Prisma.IntNullableWithAggregatesFilter<"Submission"> | number | null
   normalizedScore?: Prisma.FloatNullableWithAggregatesFilter<"Submission"> | number | null
   usedContext?: Prisma.JsonNullableWithAggregatesFilter<"Submission">
@@ -551,6 +631,12 @@ export type SubmissionCreateInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -586,6 +672,12 @@ export type SubmissionUncheckedCreateInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -615,6 +707,12 @@ export type SubmissionUpdateInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -650,6 +748,12 @@ export type SubmissionUncheckedUpdateInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -682,6 +786,12 @@ export type SubmissionCreateManyInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -709,6 +819,12 @@ export type SubmissionUpdateManyMutationInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -739,6 +855,12 @@ export type SubmissionUncheckedUpdateManyInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -784,6 +906,12 @@ export type SubmissionCountOrderByAggregateInput = {
   thoughtSummary?: Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrder
   gradingRationale?: Prisma.SortOrder
+  sparringDecision?: Prisma.SortOrder
+  sparringDecisionReason?: Prisma.SortOrder
+  sparringDecisionAt?: Prisma.SortOrder
+  sparringConvergenceShownAt?: Prisma.SortOrder
+  sparringDecisionLatencyMs?: Prisma.SortOrder
+  sparringRoundsBeforeDecision?: Prisma.SortOrder
   finalScore?: Prisma.SortOrder
   normalizedScore?: Prisma.SortOrder
   usedContext?: Prisma.SortOrder
@@ -802,6 +930,8 @@ export type SubmissionCountOrderByAggregateInput = {
 
 export type SubmissionAvgOrderByAggregateInput = {
   version?: Prisma.SortOrder
+  sparringDecisionLatencyMs?: Prisma.SortOrder
+  sparringRoundsBeforeDecision?: Prisma.SortOrder
   finalScore?: Prisma.SortOrder
   normalizedScore?: Prisma.SortOrder
   humanScore?: Prisma.SortOrder
@@ -820,6 +950,12 @@ export type SubmissionMaxOrderByAggregateInput = {
   thoughtSummary?: Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrder
   gradingRationale?: Prisma.SortOrder
+  sparringDecision?: Prisma.SortOrder
+  sparringDecisionReason?: Prisma.SortOrder
+  sparringDecisionAt?: Prisma.SortOrder
+  sparringConvergenceShownAt?: Prisma.SortOrder
+  sparringDecisionLatencyMs?: Prisma.SortOrder
+  sparringRoundsBeforeDecision?: Prisma.SortOrder
   finalScore?: Prisma.SortOrder
   normalizedScore?: Prisma.SortOrder
   teacherFeedback?: Prisma.SortOrder
@@ -847,6 +983,12 @@ export type SubmissionMinOrderByAggregateInput = {
   thoughtSummary?: Prisma.SortOrder
   thinkingProcess?: Prisma.SortOrder
   gradingRationale?: Prisma.SortOrder
+  sparringDecision?: Prisma.SortOrder
+  sparringDecisionReason?: Prisma.SortOrder
+  sparringDecisionAt?: Prisma.SortOrder
+  sparringConvergenceShownAt?: Prisma.SortOrder
+  sparringDecisionLatencyMs?: Prisma.SortOrder
+  sparringRoundsBeforeDecision?: Prisma.SortOrder
   finalScore?: Prisma.SortOrder
   normalizedScore?: Prisma.SortOrder
   teacherFeedback?: Prisma.SortOrder
@@ -863,6 +1005,8 @@ export type SubmissionMinOrderByAggregateInput = {
 
 export type SubmissionSumOrderByAggregateInput = {
   version?: Prisma.SortOrder
+  sparringDecisionLatencyMs?: Prisma.SortOrder
+  sparringRoundsBeforeDecision?: Prisma.SortOrder
   finalScore?: Prisma.SortOrder
   normalizedScore?: Prisma.SortOrder
   humanScore?: Prisma.SortOrder
@@ -1057,6 +1201,12 @@ export type SubmissionCreateWithoutStudentInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1090,6 +1240,12 @@ export type SubmissionUncheckedCreateWithoutStudentInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1151,6 +1307,12 @@ export type SubmissionScalarWhereInput = {
   thoughtSummary?: Prisma.StringNullableFilter<"Submission"> | string | null
   thinkingProcess?: Prisma.StringNullableFilter<"Submission"> | string | null
   gradingRationale?: Prisma.StringNullableFilter<"Submission"> | string | null
+  sparringDecision?: Prisma.StringNullableFilter<"Submission"> | string | null
+  sparringDecisionReason?: Prisma.StringNullableFilter<"Submission"> | string | null
+  sparringDecisionAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
+  sparringConvergenceShownAt?: Prisma.DateTimeNullableFilter<"Submission"> | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.IntNullableFilter<"Submission"> | number | null
+  sparringRoundsBeforeDecision?: Prisma.IntNullableFilter<"Submission"> | number | null
   finalScore?: Prisma.IntNullableFilter<"Submission"> | number | null
   normalizedScore?: Prisma.FloatNullableFilter<"Submission"> | number | null
   usedContext?: Prisma.JsonNullableFilter<"Submission">
@@ -1178,6 +1340,12 @@ export type SubmissionCreateWithoutAssignmentAreaInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1211,6 +1379,12 @@ export type SubmissionUncheckedCreateWithoutAssignmentAreaInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1266,6 +1440,12 @@ export type SubmissionCreateWithoutNextVersionsInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1300,6 +1480,12 @@ export type SubmissionUncheckedCreateWithoutNextVersionsInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1333,6 +1519,12 @@ export type SubmissionCreateWithoutPreviousVersionInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1366,6 +1558,12 @@ export type SubmissionUncheckedCreateWithoutPreviousVersionInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1416,6 +1614,12 @@ export type SubmissionUpdateWithoutNextVersionsInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1450,6 +1654,12 @@ export type SubmissionUncheckedUpdateWithoutNextVersionsInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1494,6 +1704,12 @@ export type SubmissionCreateWithoutCommentInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1528,6 +1744,12 @@ export type SubmissionUncheckedCreateWithoutCommentInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1572,6 +1794,12 @@ export type SubmissionUpdateWithoutCommentInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1606,6 +1834,12 @@ export type SubmissionUncheckedUpdateWithoutCommentInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1636,6 +1870,12 @@ export type SubmissionCreateManyStudentInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1663,6 +1903,12 @@ export type SubmissionUpdateWithoutStudentInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1696,6 +1942,12 @@ export type SubmissionUncheckedUpdateWithoutStudentInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1727,6 +1979,12 @@ export type SubmissionUncheckedUpdateManyWithoutStudentInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1756,6 +2014,12 @@ export type SubmissionCreateManyAssignmentAreaInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1783,6 +2047,12 @@ export type SubmissionUpdateWithoutAssignmentAreaInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1816,6 +2086,12 @@ export type SubmissionUncheckedUpdateWithoutAssignmentAreaInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1847,6 +2123,12 @@ export type SubmissionUncheckedUpdateManyWithoutAssignmentAreaInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1876,6 +2158,12 @@ export type SubmissionCreateManyPreviousVersionInput = {
   thoughtSummary?: string | null
   thinkingProcess?: string | null
   gradingRationale?: string | null
+  sparringDecision?: string | null
+  sparringDecisionReason?: string | null
+  sparringDecisionAt?: Date | string | null
+  sparringConvergenceShownAt?: Date | string | null
+  sparringDecisionLatencyMs?: number | null
+  sparringRoundsBeforeDecision?: number | null
   finalScore?: number | null
   normalizedScore?: number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1903,6 +2191,12 @@ export type SubmissionUpdateWithoutPreviousVersionInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1936,6 +2230,12 @@ export type SubmissionUncheckedUpdateWithoutPreviousVersionInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -1967,6 +2267,12 @@ export type SubmissionUncheckedUpdateManyWithoutPreviousVersionInput = {
   thoughtSummary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   thinkingProcess?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   gradingRationale?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecision?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sparringDecisionAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringConvergenceShownAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  sparringDecisionLatencyMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  sparringRoundsBeforeDecision?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   finalScore?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   normalizedScore?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   usedContext?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -2028,6 +2334,12 @@ export type SubmissionSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
+  sparringDecision?: boolean
+  sparringDecisionReason?: boolean
+  sparringDecisionAt?: boolean
+  sparringConvergenceShownAt?: boolean
+  sparringDecisionLatencyMs?: boolean
+  sparringRoundsBeforeDecision?: boolean
   finalScore?: boolean
   normalizedScore?: boolean
   usedContext?: boolean
@@ -2064,6 +2376,12 @@ export type SubmissionSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
+  sparringDecision?: boolean
+  sparringDecisionReason?: boolean
+  sparringDecisionAt?: boolean
+  sparringConvergenceShownAt?: boolean
+  sparringDecisionLatencyMs?: boolean
+  sparringRoundsBeforeDecision?: boolean
   finalScore?: boolean
   normalizedScore?: boolean
   usedContext?: boolean
@@ -2097,6 +2415,12 @@ export type SubmissionSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
+  sparringDecision?: boolean
+  sparringDecisionReason?: boolean
+  sparringDecisionAt?: boolean
+  sparringConvergenceShownAt?: boolean
+  sparringDecisionLatencyMs?: boolean
+  sparringRoundsBeforeDecision?: boolean
   finalScore?: boolean
   normalizedScore?: boolean
   usedContext?: boolean
@@ -2130,6 +2454,12 @@ export type SubmissionSelectScalar = {
   thoughtSummary?: boolean
   thinkingProcess?: boolean
   gradingRationale?: boolean
+  sparringDecision?: boolean
+  sparringDecisionReason?: boolean
+  sparringDecisionAt?: boolean
+  sparringConvergenceShownAt?: boolean
+  sparringDecisionLatencyMs?: boolean
+  sparringRoundsBeforeDecision?: boolean
   finalScore?: boolean
   normalizedScore?: boolean
   usedContext?: boolean
@@ -2146,7 +2476,7 @@ export type SubmissionSelectScalar = {
   updatedAt?: boolean
 }
 
-export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "assignmentAreaId" | "version" | "isLatest" | "previousVersionId" | "filePath" | "uploadedAt" | "sessionId" | "aiAnalysisResult" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "finalScore" | "normalizedScore" | "usedContext" | "teacherFeedback" | "humanScore" | "humanCriteriaScores" | "humanRaterId" | "humanRatedAt" | "status" | "isDeleted" | "deletedAt" | "deletedBy" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
+export type SubmissionOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "studentId" | "assignmentAreaId" | "version" | "isLatest" | "previousVersionId" | "filePath" | "uploadedAt" | "sessionId" | "aiAnalysisResult" | "thoughtSummary" | "thinkingProcess" | "gradingRationale" | "sparringDecision" | "sparringDecisionReason" | "sparringDecisionAt" | "sparringConvergenceShownAt" | "sparringDecisionLatencyMs" | "sparringRoundsBeforeDecision" | "finalScore" | "normalizedScore" | "usedContext" | "teacherFeedback" | "humanScore" | "humanCriteriaScores" | "humanRaterId" | "humanRatedAt" | "status" | "isDeleted" | "deletedAt" | "deletedBy" | "createdAt" | "updatedAt", ExtArgs["result"]["submission"]>
 export type SubmissionInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   student?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   assignmentArea?: boolean | Prisma.AssignmentAreaDefaultArgs<ExtArgs>
@@ -2189,6 +2519,12 @@ export type $SubmissionPayload<ExtArgs extends runtime.Types.Extensions.Internal
     thoughtSummary: string | null
     thinkingProcess: string | null
     gradingRationale: string | null
+    sparringDecision: string | null
+    sparringDecisionReason: string | null
+    sparringDecisionAt: Date | null
+    sparringConvergenceShownAt: Date | null
+    sparringDecisionLatencyMs: number | null
+    sparringRoundsBeforeDecision: number | null
     finalScore: number | null
     normalizedScore: number | null
     usedContext: runtime.JsonValue | null
@@ -2644,6 +2980,12 @@ export interface SubmissionFieldRefs {
   readonly thoughtSummary: Prisma.FieldRef<"Submission", 'String'>
   readonly thinkingProcess: Prisma.FieldRef<"Submission", 'String'>
   readonly gradingRationale: Prisma.FieldRef<"Submission", 'String'>
+  readonly sparringDecision: Prisma.FieldRef<"Submission", 'String'>
+  readonly sparringDecisionReason: Prisma.FieldRef<"Submission", 'String'>
+  readonly sparringDecisionAt: Prisma.FieldRef<"Submission", 'DateTime'>
+  readonly sparringConvergenceShownAt: Prisma.FieldRef<"Submission", 'DateTime'>
+  readonly sparringDecisionLatencyMs: Prisma.FieldRef<"Submission", 'Int'>
+  readonly sparringRoundsBeforeDecision: Prisma.FieldRef<"Submission", 'Int'>
   readonly finalScore: Prisma.FieldRef<"Submission", 'Int'>
   readonly normalizedScore: Prisma.FieldRef<"Submission", 'Float'>
   readonly usedContext: Prisma.FieldRef<"Submission", 'Json'>
