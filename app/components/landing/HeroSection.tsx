@@ -1,4 +1,4 @@
-import { Link, useLoaderData } from 'react-router';
+import { Link, useRouteLoaderData } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { getRoleBasedDashboard, type User } from '@/root';
 import { AnimatedTitle } from '@/components/ui/animated-title';
@@ -13,9 +13,10 @@ interface LoaderData {
  */
 const HeroSection = () => {
   const { t } = useTranslation(['common', 'auth', 'landing']);
-  const loaderData = useLoaderData() as LoaderData | undefined;
+  const loaderData = useRouteLoaderData('root') as LoaderData | undefined;
   const user = loaderData?.user || null;
   const isLoggedIn = Boolean(user);
+  const containerClassName = 'mx-auto w-full max-w-[1200px] px-6 md:px-8 xl:px-12';
 
   // Calculate target route for primary CTA button
   const primaryButtonTarget = useMemo(() => {
@@ -30,7 +31,7 @@ const HeroSection = () => {
 
   return (
     <section className="min-h-screen w-full flex flex-col justify-center overflow-x-hidden">
-      <div className="w-full min-h-full flex flex-col justify-center px-6 lg:px-12 xl:px-20 py-4 sm:py-12 lg:py-20">
+      <div className={`${containerClassName} min-h-full flex flex-col justify-center py-4 sm:py-12 lg:py-20`}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 lg:gap-16 items-center">
           {/* Text Content */}
           <div className="lg:col-span-7 space-y-8 sm:space-y-10 order-2 lg:order-1">

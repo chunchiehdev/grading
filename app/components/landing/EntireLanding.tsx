@@ -1,4 +1,4 @@
-import { Link, useLoaderData } from 'react-router';
+import { Link, useRouteLoaderData } from 'react-router';
 import { useTranslation, Trans } from 'react-i18next';
 import { getRoleBasedDashboard, type User } from '@/root';
 import { motion, useScroll, useTransform } from 'framer-motion';
@@ -9,6 +9,8 @@ interface LoaderData {
   user: User | null;
   isPublicPath: boolean;
 }
+
+const landingContainerClassName = 'mx-auto w-full max-w-[1200px] px-6 md:px-8 xl:px-12';
 
 // Animation variants
 const fadeInUp = {
@@ -55,7 +57,7 @@ const PhilosophySection = () => {
 
   return (
     <section id="philosophy" ref={ref} className="min-h-screen py-20 lg:py-32 relative bg-background dark:bg-background">
-      <div className="w-full px-6 lg:px-12 xl:px-20">
+      <div className={landingContainerClassName}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           
           {/* Image - The Hand & Knot (a.png) */}
@@ -160,7 +162,7 @@ const MethodologySection = () => {
 
   return (
     <section id="methodology" className="bg-[#2C2C2C] dark:bg-card py-20 lg:py-32 text-[#FDFBF7] dark:text-card-foreground">
-      <div className="w-full px-6 lg:px-12 xl:px-20">
+      <div className={landingContainerClassName}>
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -216,7 +218,7 @@ const GrowthSection = () => {
 
   return (
     <section id="growth" ref={ref} className="min-h-screen bg-[#FDFBF7] dark:bg-background py-20 lg:py-32 relative">
-      <div className="w-full px-6 lg:px-12 xl:px-20">
+      <div className={landingContainerClassName}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           {/* Text Content */}
           <motion.div
@@ -295,7 +297,7 @@ const CTASection = ({ primaryButtonTarget, isLoggedIn }: { primaryButtonTarget: 
   const { t } = useTranslation('landing');
   return (
     <section className="bg-[#FDFBF7] dark:bg-background py-20 lg:py-32 border-t border-[#2C2C2C]/10 dark:border-border">
-      <div className="w-full px-6 lg:px-12 xl:px-20 text-center">
+      <div className={`${landingContainerClassName} text-center`}>
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -335,7 +337,7 @@ const Footer = () => {
   const { t } = useTranslation('landing');
   return (
     <footer className="bg-[#FDFBF7] dark:bg-background border-t border-[#2C2C2C]/10 dark:border-border py-12 lg:py-16">
-      <div className="w-full px-6 lg:px-12 xl:px-20">
+      <div className={landingContainerClassName}>
         <div className="mt-12 pt-8 border-[#2C2C2C]/10 dark:border-border text-center">
           <p className="font-serif text-lg italic text-[#2C2C2C]/60 dark:text-muted-foreground">{t('footer.quote')}</p>
           <p className="text-xs text-[#2C2C2C]/40 dark:text-muted-foreground/60 mt-2 font-light">{t('footer.author')}</p>
@@ -349,7 +351,7 @@ const Footer = () => {
 // MAIN LANDING PAGE COMPONENT
 // ============================================
 const PrismaLanding = () => {
-  const loaderData = useLoaderData() as LoaderData | undefined;
+  const loaderData = useRouteLoaderData('root') as LoaderData | undefined;
   const user = loaderData?.user || null;
   const isLoggedIn = Boolean(user);
 
