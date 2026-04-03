@@ -16,7 +16,7 @@ const HeroSection = () => {
   const loaderData = useRouteLoaderData('root') as LoaderData | undefined;
   const user = loaderData?.user || null;
   const isLoggedIn = Boolean(user);
-  const containerClassName = 'mx-auto w-full max-w-[1200px] px-6 md:px-8 xl:px-12';
+  const containerClassName = 'mx-auto w-full max-w-9xl px-6 md:px-8 xl:px-12 2xl:px-16';
 
   // Calculate target route for primary CTA button
   const primaryButtonTarget = useMemo(() => {

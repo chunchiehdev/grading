@@ -10,7 +10,7 @@ interface LoaderData {
   isPublicPath: boolean;
 }
 
-const landingContainerClassName = 'mx-auto w-full max-w-[1200px] px-6 md:px-8 xl:px-12';
+const landingContainerClassName = 'mx-auto w-full max-w-9xl px-6 md:px-8 xl:px-12 2xl:px-16';
 
 // Animation variants
 const fadeInUp = {
