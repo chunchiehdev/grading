@@ -115,7 +115,7 @@ const store = create<UiState>()(
           applyTheme(newTheme);
         }),
 
-      language: 'zh',
+      language: 'en',
       setLanguage: (language) =>
         set((state) => {
           state.language = language;
@@ -187,7 +187,7 @@ export const useUiStore = () => {
     return {
       sidebarCollapsed: true,
       theme: 'light' as Theme,
-      language: 'zh' as Language,
+      language: 'en' as Language,
       currentStep: 'upload' as GradingStep,
       canProceed: false,
       lastVisitedPage: null,

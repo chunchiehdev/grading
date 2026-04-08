@@ -10,7 +10,7 @@ export default async function initI18nServer(request: Request, routerContext: an
   await instance.use(initReactI18next).init({
     resources,
     lng,
-    fallbackLng: 'zh',
+    fallbackLng: 'en',
     interpolation: {
       escapeValue: false,
     },

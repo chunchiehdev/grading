@@ -22,20 +22,14 @@ export function getServerLocale(request: Request): string {
     }
   }
 
-  const acceptLanguage = request.headers.get('accept-language');
-  if (acceptLanguage) {
-    if (acceptLanguage.includes('zh')) return 'zh';
-    if (acceptLanguage.includes('en')) return 'en';
-  }
-
-  return 'zh';
+  return 'en';
 }
 
 // Initialize i18n instance
 i18n.use(initReactI18next).init({
   resources,
-  lng: 'zh',
-  fallbackLng: 'zh',
+  lng: 'en',
+  fallbackLng: 'en',
 
   interpolation: {
     escapeValue: false,
