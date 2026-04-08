@@ -3,25 +3,35 @@ import { createUIMessageStream, createUIMessageStreamResponse } from 'ai';
 import { redis } from '@/lib/redis';
 import { type BridgeEvent } from '@/types/bridge';
 import { randomUUID } from 'node:crypto';
+import { getUserId } from '@/services/auth.server';
+import { getGradingSession } from '@/services/grading-session.server';
 
 export async function action({ request }: ActionFunctionArgs) {
+  const userId = await getUserId(request);
+  if (!userId) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   const json = await request.json();
-  const { messages } = json;
   // Vercel AI SDK v5/v6 puts the extra body data in the root of the JSON object
   // when using { body: { data: ... } } in sendMessage
   const data = json.data;
   
-  // Validate required data
-  // We only strictly need userId for auth/logging context
-  // sessionId is used for Redis subscription
-  if (!data?.userId) {
-    console.error('Bridge Error: Missing userId', { json });
-    return new Response('Missing userId', { status: 400 });
+  // sessionId is required because the grading job is created elsewhere.
+  if (!data?.sessionId || typeof data.sessionId !== 'string') {
+    console.error('Bridge Error: Missing sessionId', { json });
+    return new Response('Missing sessionId', { status: 400 });
   }
 
-  const sessionId = data.sessionId || randomUUID();
+  const sessionId = data.sessionId;
+
+  const sessionResult = await getGradingSession(sessionId, userId);
+  if (!sessionResult.session) {
+    console.warn(`[Bridge] Forbidden subscription attempt for session: ${sessionId}, user: ${userId}`);
+    return new Response('Forbidden', { status: 403 });
+  }
   
-  console.log(`[Bridge] Request received for session: ${sessionId}, user: ${data?.userId}`);
+  console.log(`[Bridge] Request received for session: ${sessionId}, user: ${userId}`);
 
   // Note: We do NOT add the job to the queue here anymore.
   // The job is added by the startGradingSession call in the session API.

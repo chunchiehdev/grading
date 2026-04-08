@@ -25,3 +25,5 @@ sec/
 
 # grading-pdf-cicd/
 version.json
+
+.opencode/
