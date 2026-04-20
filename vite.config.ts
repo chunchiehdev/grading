@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     reactRouter(),
     visualizer({
-      open: true,
+      open: false,
       gzipSize: true,
       brotliSize: true,
       filename: 'bundle-report.html',
