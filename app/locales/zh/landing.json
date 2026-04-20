@@ -7,6 +7,12 @@
     "tryAIAgent": "AI 學伴",
     "heroImageAlt": "學生撰寫作業，搭配 AI 智慧評分輔助"
   },
+  "demo": {
+    "label": "產品展示",
+    "title": "在畫面裡直接看見 Lumos Grade",
+    "subtitle": "用一段置中的產品影片，先讓使用者快速理解評分流程、追問互動與實際操作介面。",
+    "caption": "這一段放在 Hero 下方，讓產品先被看見，再往下銜接理念與方法論。"
+  },
   "philosophy": {
     "label": "理念",
     "title": "思辨的張力",

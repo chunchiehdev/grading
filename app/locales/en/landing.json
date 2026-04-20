@@ -7,6 +7,12 @@
     "tryAIAgent": "AI Companion",
     "heroImageAlt": "Student writing assignment with AI smart grading assistance"
   },
+  "demo": {
+    "label": "Product Demo",
+    "title": "See Lumos Grade in action",
+    "subtitle": "A centered preview of the grading flow, follow-up dialogue, and the interface students interact with.",
+    "caption": "This section is meant to let the product speak for itself before the page moves into the deeper philosophy and methodology."
+  },
   "philosophy": {
     "label": "Philosophy",
     "title": "The Tension of Dialectic",
@@ -72,4 +78,3 @@
     "author": "— Inspired by Microsoft Research"
   }
 }
-

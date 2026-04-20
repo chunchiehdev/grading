@@ -204,6 +204,55 @@ const MethodologySection = () => {
 };
 
 // ============================================
+// PRODUCT DEMO SECTION
+// ============================================
+const ProductDemoSection = () => {
+  const { t } = useTranslation('landing');
+
+  return (
+    <section className="bg-background py-12 lg:py-20">
+      <div className={`${landingContainerClassName} text-center`}>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+          variants={staggerContainer}
+          className="mx-auto max-w-6xl space-y-6 lg:space-y-8"
+        >
+          <motion.span
+            variants={fadeInUp}
+            className="inline-block text-xs tracking-[0.25em] text-[#E07A5F] uppercase font-medium border-b border-[#E07A5F]/30 pb-2"
+          >
+            {t('demo.label')}
+          </motion.span>
+
+          
+
+          <motion.div variants={fadeInUp} className="pt-2 lg:pt-4">
+            <div className="overflow-hidden rounded-[28px] border border-[#2C2C2C]/10 bg-[#111111] shadow-[0_24px_80px_rgba(0,0,0,0.12)] dark:border-white/10">
+              <div className="aspect-video w-full">
+                <video
+                  src="/LumosGradev4.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  controls
+                  preload="metadata"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+          </motion.div>
+
+          
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+// ============================================
 // GROWTH SECTION - Metacognition (c.png)
 // ============================================
 const GrowthSection = () => {
@@ -368,6 +417,7 @@ const PrismaLanding = () => {
   return (
     <div className="bg-background min-h-screen font-sans antialiased">
       <HeroSection />
+      <ProductDemoSection />
       <PhilosophySection />
       <MethodologySection />
       <GrowthSection />
