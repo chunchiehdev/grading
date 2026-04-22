@@ -5,6 +5,17 @@ import { useTranslation } from 'react-i18next';
 import type { Route } from './+types/login';
 import { getUser } from '@/services/auth.server';
 
+export function meta() {
+  return [
+    { title: 'Sign In | Lumos Grade' },
+    {
+      name: 'description',
+      content: 'Sign in to Lumos Grade to continue with AI-guided grading and interactive feedback.',
+    },
+    { name: 'robots', content: 'noindex, nofollow' },
+  ];
+}
+
 /**
  * Redirect already logged-in users to their dashboard
  */

@@ -55,7 +55,7 @@ const HeroSection = () => {
                 className="group bg-primary text-primary-foreground px-8 py-4 text-sm font-light tracking-wide transition-all duration-300 hover:bg-primary/90 min-w-[180px] text-center"
               >
                 <span className="group-hover:translate-x-1 transition-transform duration-300 inline-block">
-                  {isLoggedIn ? t('landing:hero.enterSystem') : t('landing:hero.getStarted')}
+                  {t('landing:hero.getStarted')}
                 </span>
               </Link>
 

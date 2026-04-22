@@ -79,8 +79,11 @@ export const links = () => [
 ];
 
 export const meta = () => [
-  { title: 'Grading System' },
-  { name: 'description', content: 'A grading system application' },
+  { title: 'Lumos Grade' },
+  {
+    name: 'description',
+    content: 'Lumos Grade helps students refine their reasoning through AI-guided grading, follow-up questions, and interactive feedback.',
+  },
 ];
 
 async function getVersionInfoSafe(): Promise<VersionInfo> {
